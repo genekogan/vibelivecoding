@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <title>p5.js Remote v1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
+            color: #c8c8c8;
+        }
+
+        canvas { display: block; }
+
+        #overlay {
+            position: fixed; inset: 0;
+            background: #0d0d0d;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 100;
+        }
+
+        #overlay button {
+            background: #7b5ea7;
+            color: #fff;
+            border: none;
+            padding: 18px 40px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: background 0.15s;
+        }
+
+        #overlay button:hover { background: #9b7ec8; }
+
+        #init-status { font-size: 12px; color: #555; }
+
+        /* Code overlay — toggled with C key */
+        #code-overlay {
+            position: fixed;
+            top: 0; right: 0;
+            width: 420px;
+            max-height: 100%;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 16px;
+            font-size: 12px;
+            line-height: 1.5;
+            z-index: 50;
+            pointer-events: none;
+            display: none;
+        }
+
+        #code-overlay .layer-block {
+            margin-bottom: 12px;
+            border-left: 2px solid #7b5ea7;
+            padding-left: 10px;
+        }
+
+        #code-overlay .layer-name {
+            color: #9b7ec8;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        #code-overlay pre {
+            color: #a6e3a1;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Console footer */
+        #footer {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            border-top: 1px solid #222;
+            padding: 6px 16px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #555;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 50;
+        }
+
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #e94560; flex-shrink: 0; }
+        .dot.connected { background: #a6e3a1; }
+
+        #exec-log {
+            position: fixed;
+            bottom: 30px; left: 0;
+            width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px 12px;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            z-index: 50;
+            display: none;
+        }
+
+        #exec-log .log-entry { margin-bottom: 4px; color: #666; }
+        #exec-log .log-entry.ok { color: #a6e3a1; }
+        #exec-log .log-entry.err { color: #e94560; }
+
+        #code-overlay::-webkit-scrollbar,
+        #exec-log::-webkit-scrollbar { width: 4px; }
+        #code-overlay::-webkit-scrollbar-track,
+        #exec-log::-webkit-scrollbar-track { background: transparent; }
+        #code-overlay::-webkit-scrollbar-thumb,
+        #exec-log::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div id="overlay">
+    <button id="start-btn">Start & Connect (v1)</button>
+    <div id="init-status">Loading p5.js...</div>
+</div>
+
+<div id="code-overlay"></div>
+<div id="exec-log"></div>
+
+<div id="footer" style="display:none">
+    <div class="dot" id="dot"></div>
+    <span id="conn-status">Disconnected</span>
+    <span style="margin-left:auto">
+        <span id="layer-count">0 layers</span> |
+        <span id="fps-display">--</span> fps |
+        v1 | [C] code [L] log
+    </span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+
+<script>
+const VERSION = 1;
+
+// ── State ───────────────────────────────────────────────────
+let ws = null;
+let reconnectTimer = null;
+let p5Ready = false;
+let showCode = false;
+let showLog = false;
+
+// Layer system: name → { fn: Function, code: string }
+const layers = new Map();
+const layerOrder = [];  // insertion-order names
+
+// Persistent state object — survives all soft compiles
+window.state = {};
+
+const dot = document.getElementById("dot");
+const connLabel = document.getElementById("conn-status");
+const initStatus = document.getElementById("init-status");
+const codeOverlay = document.getElementById("code-overlay");
+const execLog = document.getElementById("exec-log");
+const layerCountEl = document.getElementById("layer-count");
+const fpsDisplayEl = document.getElementById("fps-display");
+
+// Error throttle: 1 per second per layer
+const errorTimestamps = new Map();
+
+// ── p5.js sketch (global mode) ─────────────────────────────
+window.setup = function() {
+    createCanvas(windowWidth, windowHeight);
+    colorMode(HSB, 360, 100, 100, 100);
+    background(0);
+};
+
+window.draw = function() {
+    // Iterate layers in insertion order
+    for (const name of layerOrder) {
+        const layer = layers.get(name);
+        if (!layer) continue;
+        try {
+            push();
+            layer.fn();
+            pop();
+        } catch (e) {
+            pop();
+            // Throttled error logging
+            const now = Date.now();
+            const last = errorTimestamps.get(name) || 0;
+            if (now - last > 1000) {
+                errorTimestamps.set(name, now);
+                addLogEntry(`[${name}] runtime: ${e.message}`, false);
+            }
+        }
+    }
+
+    // Update FPS display every 30 frames
+    if (frameCount % 30 === 0) {
+        fpsDisplayEl.textContent = Math.round(frameRate());
+    }
+};
+
+window.windowResized = function() {
+    resizeCanvas(windowWidth, windowHeight);
+};
+
+// ── Layer management ────────────────────────────────────────
+function setLayer(name, code) {
+    try {
+        const fn = new Function(code);
+        // Test for syntax errors by calling once in a try
+        layers.set(name, { fn, code });
+        if (!layerOrder.includes(name)) {
+            layerOrder.push(name);
+        }
+        updateLayerCount();
+        updateCodeOverlay();
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function removeLayer(name) {
+    layers.delete(name);
+    const idx = layerOrder.indexOf(name);
+    if (idx !== -1) layerOrder.splice(idx, 1);
+    errorTimestamps.delete(name);
+    updateLayerCount();
+    updateCodeOverlay();
+}
+
+function clearAllLayers() {
+    layers.clear();
+    layerOrder.length = 0;
+    errorTimestamps.clear();
+    background(0);
+    updateLayerCount();
+    updateCodeOverlay();
+}
+
+function updateLayerCount() {
+    layerCountEl.textContent = layerOrder.length + " layer" + (layerOrder.length !== 1 ? "s" : "");
+}
+
+// ── Code overlay ────────────────────────────────────────────
+function updateCodeOverlay() {
+    if (!showCode) return;
+    let html = "";
+    for (const name of layerOrder) {
+        const layer = layers.get(name);
+        if (!layer) continue;
+        html += `<div class="layer-block">` +
+            `<div class="layer-name">${escapeHTML(name)}</div>` +
+            `<pre>${escapeHTML(layer.code)}</pre>` +
+            `</div>`;
+    }
+    codeOverlay.innerHTML = html || '<div style="color:#555">No layers</div>';
+}
+
+// ── Execution log ───────────────────────────────────────────
+function addLogEntry(text, ok) {
+    const el = document.createElement("div");
+    el.className = "log-entry " + (ok ? "ok" : "err");
+    const ts = new Date().toLocaleTimeString();
+    el.textContent = `[${ts}] ${text}`;
+    execLog.appendChild(el);
+    while (execLog.children.length > 100) execLog.removeChild(execLog.firstChild);
+    execLog.scrollTop = execLog.scrollHeight;
+}
+
+function escapeHTML(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── Keyboard shortcuts ──────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+    if (e.key === "c" || e.key === "C") {
+        showCode = !showCode;
+        codeOverlay.style.display = showCode ? "block" : "none";
+        if (showCode) updateCodeOverlay();
+    }
+    if (e.key === "l" || e.key === "L") {
+        showLog = !showLog;
+        execLog.style.display = showLog ? "block" : "none";
+    }
+});
+
+// ── WebSocket ───────────────────────────────────────────────
+function connect() {
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+    ws = new WebSocket("ws://localhost:8775");
+
+    ws.addEventListener("open", () => {
+        dot.classList.add("connected");
+        connLabel.textContent = "Connected";
+        const diag = { p5Version: typeof p5 !== "undefined" ? p5.VERSION : "?" };
+        ws.send(JSON.stringify({ type: "ready", version: VERSION, diag }));
+    });
+
+    ws.addEventListener("message", (evt) => {
+        let msg;
+        try { msg = JSON.parse(evt.data); } catch { return; }
+        if (msg.type === "execute") {
+            executeMessage(msg);
+        }
+    });
+
+    ws.addEventListener("close", () => {
+        dot.classList.remove("connected");
+        connLabel.textContent = "Disconnected — reconnecting...";
+        if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, 2000);
+        }
+    });
+
+    ws.addEventListener("error", () => {});
+}
+
+function sendResponse(id, success, errorMessage) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(success
+        ? { type: "status", id, success: true }
+        : { type: "error", id, message: errorMessage }
+    ));
+}
+
+// ── Execute messages ────────────────────────────────────────
+function executeMessage(msg) {
+    const { code, id, mode, layer } = msg;
+
+    try {
+        switch (mode) {
+            case "layer": {
+                const result = setLayer(layer, code);
+                if (result.success) {
+                    addLogEntry(`layer "${layer}" set (${code.length} chars)`, true);
+                    sendResponse(id, true);
+                } else {
+                    addLogEntry(`layer "${layer}" error: ${result.error}`, false);
+                    sendResponse(id, false, result.error);
+                }
+                break;
+            }
+            case "remove": {
+                removeLayer(layer);
+                addLogEntry(`layer "${layer}" removed`, true);
+                sendResponse(id, true);
+                break;
+            }
+            case "clear": {
+                clearAllLayers();
+                addLogEntry("all layers cleared", true);
+                sendResponse(id, true);
+                break;
+            }
+            case "setup": {
+                // Hard recompile — save state, remove p5, recreate
+                hardRecompile(code);
+                addLogEntry("hard recompile (setup changed)", true);
+                sendResponse(id, true);
+                break;
+            }
+            case "eval":
+            default: {
+                const result = eval(code);
+                if (result && typeof result.then === "function") {
+                    result.then(() => {
+                        addLogEntry(code.substring(0, 80), true);
+                        sendResponse(id, true);
+                    }).catch((err) => {
+                        addLogEntry(`eval error: ${err.message}`, false);
+                        sendResponse(id, false, err.message);
+                    });
+                } else {
+                    addLogEntry(code.substring(0, 80), true);
+                    sendResponse(id, true);
+                }
+                break;
+            }
+        }
+    } catch (err) {
+        const errMsg = err.message || String(err);
+        addLogEntry(`error: ${errMsg}`, false);
+        sendResponse(id, false, errMsg);
+    }
+}
+
+// ── Hard recompile ──────────────────────────────────────────
+function hardRecompile(setupCode) {
+    // Save current state and layers
+    const savedState = window.state;
+    const savedLayers = [];
+    for (const name of layerOrder) {
+        const layer = layers.get(name);
+        if (layer) savedLayers.push({ name, code: layer.code });
+    }
+
+    // Remove current p5 instance
+    if (window._renderer) {
+        remove();
+    }
+
+    // Override setup with new code + restore
+    window.setup = function() {
+        // Run user's custom setup
+        new Function(setupCode)();
+        // Restore state
+        window.state = savedState;
+    };
+
+    // Recreate p5 — global mode auto-binds
+    new p5();
+
+    // Restore layers
+    clearAllLayers();
+    for (const { name, code } of savedLayers) {
+        setLayer(name, code);
+    }
+}
+
+// ── Start ───────────────────────────────────────────────────
+initStatus.textContent = "Ready — click above to start";
+p5Ready = true;
+
+document.getElementById("start-btn").addEventListener("click", () => {
+    document.getElementById("overlay").style.display = "none";
+    document.getElementById("footer").style.display = "flex";
+    connect();
+});
+</script>
+</body>
+</html>
