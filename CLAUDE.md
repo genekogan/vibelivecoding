@@ -49,6 +49,50 @@ curl localhost:8766/status
 | POST | `/p5/state` | `{key, value}` |
 | POST | `/p5/fps` | `{fps}` |
 
+### Step-Through System
+| Method | Route | Body |
+|--------|-------|------|
+| GET | `/status` | step + totalSteps in response |
+| GET | `/show/steps` | list current timeline (truncated codes) |
+| GET | `/show/save` | return current timeline as JSON doc |
+| POST | `/show/load` | `{steps: [...]}` |
+| POST | `/show/load_file` | `{path}` — load .show.json from disk |
+| POST | `/show/save_file` | `{path}` — write timeline to disk |
+| POST | `/show/next` | advance to next section (or single step) |
+| POST | `/show/prev` | back to previous section |
+| POST | `/show/goto` | `{step}` |
+| POST | `/show/mark` | `{label}` — insert section boundary |
+| POST | `/show/recording` | `{enabled}` |
+
+Every accepted strudel/p5 command auto-records into the timeline.
+`shows/unsorted/jam_<timestamp>.show.json` autosaves every 60s and on
+shutdown. Arrow keys ← → in the browser advance/back sections.
+
+## Composing & Replaying Shows
+
+```bash
+# Replay a saved show
+python autoplay.py --show shows/full_show.show.json --dwell 16beats
+
+# Author a new show (uses scenes lib + Composition context manager)
+python compositions/disco_set.py --step --save shows/unsorted/my_show.show.json
+
+# Live: any session is auto-recorded — promote a capture by moving it:
+mv shows/unsorted/jam_<ts>.show.json shows/my_set.show.json
+```
+
+| Path | Purpose |
+|------|---------|
+| `scenes/{disco,jazz,hiphop,dnb}.py` | Pure code-returning scene primitives |
+| `scenes/_common.py` | `Composition` context manager (collect/save/perform) |
+| `compositions/*.py` | Recipes that combine scenes; --step --save creates a show |
+| `compositions/scripts/*.py` | Sub-script visuals/sections inlined by full_show.py |
+| `shows/*.show.json` | Curated, immutable, replayable performances |
+| `shows/unsorted/*.show.json` | Auto-captures (gitignored, sequestered) |
+| `autoplay.py` | Driver — advances show on a clock (Ns/Nbeats/Nbars/Ncycles) |
+| `.claude/skills/livecode-compose.md` | Composition skill (scene catalog + cookbook) |
+| `test_steps.py` | Playwright regression test (101 checks, 14 phases) |
+
 ## Standalone Systems (legacy, still work independently)
 
 ### Strudel (Music)
