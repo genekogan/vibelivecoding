@@ -49,6 +49,23 @@ class LivecodeController:
         self._layers: OrderedDict[str, str] = OrderedDict()
         self._setup_code: str | None = None
 
+        # Step timeline (for step-through navigation)
+        self._steps: list[dict] = []  # [{route, payload, label?}, ...]
+        self._step_index: int = -1  # current position (-1 = before any steps)
+        self._recording: bool = True  # auto-record all commands as steps
+
+        # Auto-save session captures to shows/unsorted/
+        import datetime
+        self._session_id = "jam_" + datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._autosave_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "shows", "unsorted"
+        )
+        self._autosave_path = os.path.join(self._autosave_dir, f"{self._session_id}.show.json")
+        self._autosave_interval = 60  # seconds
+        self._autosave_last_count = 0
+        self._autosave_thread: threading.Thread | None = None
+        self._autosave_stop = threading.Event()
+
     # ── Lifecycle ────────────────────────────────────────────────
 
     def start(self):
@@ -59,8 +76,15 @@ class LivecodeController:
         started.wait()
         self._start_http_server()
         self._cache_bust = int(time.time())
+        # Start background autosave daemon (sequesters captures to shows/unsorted/)
+        os.makedirs(self._autosave_dir, exist_ok=True)
+        self._autosave_thread = threading.Thread(
+            target=self._autosave_loop, daemon=True, name="autosave"
+        )
+        self._autosave_thread.start()
         print(f"Livecode controller listening on ws://{self.host}:{self.ws_port}")
         print(f"Open http://{self.host}:{self.http_port}/livecode.html?v={self._cache_bust}")
+        print(f"Autosaving session to {self._autosave_path}")
 
     def _run_loop(self, started: threading.Event):
         self._loop = asyncio.new_event_loop()
@@ -80,12 +104,15 @@ class LivecodeController:
         class LivecodeHTTPHandler(http.server.SimpleHTTPRequestHandler):
             # REST API routes
             API_ROUTES = {
-                "GET": {"/status"},
+                "GET": {"/status", "/show/steps", "/show/save"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
                     "/strudel/cps", "/strudel/send",
                     "/p5/layer", "/p5/remove", "/p5/clear",
                     "/p5/setup", "/p5/send", "/p5/state", "/p5/fps",
+                    "/show/next", "/show/prev", "/show/goto",
+                    "/show/mark", "/show/recording", "/show/load",
+                    "/show/load_file", "/show/save_file",
                 },
             }
 
@@ -117,9 +144,29 @@ class LivecodeController:
                         "tracks": list(controller.tracks.keys()),
                         "layers": list(controller.layers.keys()),
                         "cps": controller._cps,
+                        "step": controller._step_index,
+                        "totalSteps": len(controller._steps),
+                        "recording": controller._recording,
+                    })
+                elif self.path == "/show/steps":
+                    self._reply({
+                        "steps": [
+                            {"i": i, "route": s["route"], "label": s.get("label", ""),
+                             "payload": {k: v for k, v in s["payload"].items() if k != "code"}}
+                            for i, s in enumerate(controller._steps)
+                        ],
+                        "current": controller._step_index,
+                        "total": len(controller._steps),
+                    })
+                elif self.path == "/show/save":
+                    import datetime
+                    self._reply({
+                        "format": "livecode-show-v1",
+                        "name": controller._current_label() or "untitled",
+                        "created": datetime.datetime.now().isoformat(),
+                        "steps": controller._steps,
                     })
                 else:
-                    # File serving
                     super().do_GET()
 
             def do_POST(self):
@@ -130,12 +177,16 @@ class LivecodeController:
                     # Strudel routes
                     if path == "/strudel/track":
                         controller.set_track(d["name"], d["code"])
+                        controller._record_step(path, d)
                     elif path == "/strudel/stop":
                         controller.stop_track(d["name"])
+                        controller._record_step(path, d)
                     elif path == "/strudel/hush":
                         controller.hush()
+                        controller._record_step(path, d)
                     elif path == "/strudel/cps":
                         controller.set_cps(d["cps"])
+                        controller._record_step(path, d)
                     elif path == "/strudel/send":
                         r = controller.send_strudel(d["code"], d.get("evaluate", False))
                         return self._reply({"ok": True, "response": r})
@@ -143,19 +194,50 @@ class LivecodeController:
                     # p5 routes
                     elif path == "/p5/layer":
                         controller.set_layer(d["name"], d["code"])
+                        controller._record_step(path, d)
                     elif path == "/p5/remove":
                         controller.remove_layer(d["name"])
+                        controller._record_step(path, d)
                     elif path == "/p5/clear":
                         controller.clear()
+                        controller._record_step(path, d)
                     elif path == "/p5/setup":
                         controller.set_setup(d["code"])
+                        controller._record_step(path, d)
                     elif path == "/p5/send":
                         r = controller.send_p5(d["code"])
                         return self._reply({"ok": True, "response": r})
                     elif path == "/p5/state":
                         controller.set_state(d["key"], d["value"])
+                        controller._record_step(path, d)
                     elif path == "/p5/fps":
                         controller.set_fps(d["fps"])
+                        controller._record_step(path, d)
+
+                    # Show navigation routes
+                    elif path == "/show/next":
+                        result = controller.step_next()
+                        return self._reply(result)
+                    elif path == "/show/prev":
+                        result = controller.step_prev()
+                        return self._reply(result)
+                    elif path == "/show/goto":
+                        result = controller.step_goto(d["step"])
+                        return self._reply(result)
+                    elif path == "/show/mark":
+                        controller.step_mark(d.get("label", ""))
+                        return self._reply({"ok": True, "step": controller._step_index})
+                    elif path == "/show/recording":
+                        controller._recording = d.get("enabled", True)
+                    elif path == "/show/load":
+                        controller.load_steps(d["steps"])
+                        return self._reply({"ok": True, "total": len(controller._steps)})
+                    elif path == "/show/load_file":
+                        result = controller.load_show_from_file(d["path"])
+                        return self._reply(result)
+                    elif path == "/show/save_file":
+                        result = controller.save_show_to_file(d["path"])
+                        return self._reply(result)
                     else:
                         return self._reply({"error": "not found"}, 404)
 
@@ -180,6 +262,7 @@ class LivecodeController:
 
     def close(self):
         """Shut down the server and background thread."""
+        self._final_autosave()
         if self._server and self._loop:
             asyncio.run_coroutine_threadsafe(self._close_ws_server(), self._loop).result(timeout=3)
         if self._loop and self._loop.is_running():
@@ -395,6 +478,309 @@ class LivecodeController:
     def set_fps(self, fps: int):
         """Set the target frame rate."""
         self.send_p5(f"frameRate({fps});", mode="eval")
+
+    # ── Step timeline / navigation ─────────────────────────────
+
+    def _record_step(self, route: str, payload: dict, label: str = ""):
+        """Record a command as a step in the timeline."""
+        if not self._recording:
+            return
+        # If we navigated backward and are now making new commands,
+        # truncate future steps
+        if self._step_index < len(self._steps) - 1:
+            self._steps = self._steps[:self._step_index + 1]
+        self._steps.append({"route": route, "payload": dict(payload), "label": label})
+        self._step_index = len(self._steps) - 1
+        self._notify_step()
+
+    def load_steps(self, steps: list):
+        """Load a list of steps without executing them. For step-through mode."""
+        self._reset_state()
+        self._steps = steps
+        self._step_index = -1
+        self._notify_step()
+
+    # ── Show file I/O ───────────────────────────────────────────
+
+    def show_snapshot(self) -> dict:
+        """Return the current timeline as a livecode-show-v1 document."""
+        import datetime
+        return {
+            "format": "livecode-show-v1",
+            "name": self._current_label() or self._session_id,
+            "created": datetime.datetime.now().isoformat(timespec="seconds"),
+            "cps_at_start": self._cps,
+            "steps": list(self._steps),
+        }
+
+    def save_show_to_file(self, path: str) -> dict:
+        """Write current timeline to disk as JSON."""
+        path = self._resolve_path(path)
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        doc = self.show_snapshot()
+        # Use the filename (sans extension) as the saved show name
+        base = os.path.splitext(os.path.basename(path))[0]
+        if base:
+            doc["name"] = base
+        with open(path, "w") as f:
+            json.dump(doc, f, indent=2)
+        return {"ok": True, "path": path, "steps": len(doc["steps"])}
+
+    def load_show_from_file(self, path: str) -> dict:
+        """Read a .show.json file and load its steps."""
+        path = self._resolve_path(path)
+        with open(path) as f:
+            doc = json.load(f)
+        if doc.get("format") != "livecode-show-v1":
+            return {"ok": False, "error": f"unsupported format: {doc.get('format')}"}
+        steps = doc.get("steps", [])
+        self.load_steps(steps)
+        return {"ok": True, "path": path, "name": doc.get("name"),
+                "total": len(steps), "default_dwell": doc.get("default_dwell")}
+
+    def _resolve_path(self, path: str) -> str:
+        """Resolve path relative to repo root if not absolute."""
+        if os.path.isabs(path):
+            return path
+        root = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(root, path)
+
+    def _autosave_loop(self):
+        """Daemon thread that periodically writes the timeline to shows/unsorted/."""
+        while not self._autosave_stop.wait(self._autosave_interval):
+            try:
+                if len(self._steps) > self._autosave_last_count:
+                    self.save_show_to_file(self._autosave_path)
+                    self._autosave_last_count = len(self._steps)
+            except Exception as e:
+                print(f"autosave failed: {e}")
+
+    def _final_autosave(self):
+        """Write a final autosave snapshot. Called from close()."""
+        try:
+            if self._steps:
+                self.save_show_to_file(self._autosave_path)
+        except Exception as e:
+            print(f"final autosave failed: {e}")
+        self._autosave_stop.set()
+
+    def step_mark(self, label: str):
+        """Add a label/marker to the current step position."""
+        if self._steps and self._step_index >= 0:
+            self._steps[self._step_index]["label"] = label
+
+    def _section_boundaries(self) -> list[int]:
+        """Return sorted list of step indices that have labels (section starts)."""
+        return [i for i, s in enumerate(self._steps) if s.get("label")]
+
+    def step_next(self) -> dict:
+        """Advance to next section (or single step if no labels)."""
+        if self._step_index >= len(self._steps) - 1:
+            return {"ok": False, "error": "at end", "step": self._step_index, "total": len(self._steps)}
+        boundaries = self._section_boundaries()
+        if not boundaries:
+            # No labels at all — single-step mode
+            target = self._step_index + 1
+        else:
+            # Find next boundary after current position
+            next_boundary = None
+            for b in boundaries:
+                if b > self._step_index:
+                    next_boundary = b
+                    break
+            if next_boundary is None:
+                target = len(self._steps) - 1
+            else:
+                # Find the boundary AFTER next_boundary to know where section ends
+                target = len(self._steps) - 1
+                for b in boundaries:
+                    if b > next_boundary:
+                        target = b - 1
+                        break
+        try:
+            was_recording = self._recording
+            self._recording = False
+            try:
+                for i in range(self._step_index + 1, target + 1):
+                    self._execute_step(self._steps[i])
+            finally:
+                self._recording = was_recording
+            self._step_index = target
+        except Exception as e:
+            print(f"step_next error: {e}")
+            self._step_index = target
+        self._notify_step()
+        return {"ok": True, "step": self._step_index, "total": len(self._steps),
+                "label": self._current_label()}
+
+    def step_prev(self) -> dict:
+        """Go back to previous section (or single step if no labels)."""
+        if self._step_index < 0:
+            return {"ok": True, "step": -1, "total": len(self._steps)}
+        boundaries = self._section_boundaries()
+        if not boundaries:
+            # No labels — single-step backward
+            target = self._step_index - 1
+            if target < 0:
+                self._step_index = -1
+                try:
+                    self._reset_state()
+                except Exception as e:
+                    print(f"step_prev reset error: {e}")
+                self._notify_step()
+                return {"ok": True, "step": -1, "total": len(self._steps)}
+            try:
+                self._replay_to(target)
+            except Exception as e:
+                print(f"step_prev error: {e}")
+            self._step_index = target
+            self._notify_step()
+            return {"ok": True, "step": self._step_index, "total": len(self._steps)}
+        # Find which section we're currently in
+        current_section_start = 0
+        for b in boundaries:
+            if b <= self._step_index:
+                current_section_start = b
+            else:
+                break
+        # Find the section before that
+        prev_section_start = None
+        for b in boundaries:
+            if b < current_section_start:
+                prev_section_start = b
+        if prev_section_start is None:
+            self._step_index = -1
+            try:
+                self._reset_state()
+            except Exception as e:
+                print(f"step_prev reset error: {e}")
+            self._notify_step()
+            return {"ok": True, "step": -1, "total": len(self._steps)}
+        # Replay up to end of previous section
+        target = current_section_start - 1
+        try:
+            self._replay_to(target)
+        except Exception as e:
+            print(f"step_prev error: {e}")
+        self._step_index = target
+        self._notify_step()
+        return {"ok": True, "step": self._step_index, "total": len(self._steps),
+                "label": self._current_label()}
+
+    def step_goto(self, target: int) -> dict:
+        """Jump to a specific step index."""
+        if target < -1 or target >= len(self._steps):
+            return {"ok": False, "error": "out of range", "step": self._step_index, "total": len(self._steps)}
+        if target == -1:
+            self._step_index = -1
+            self._reset_state()
+            self._notify_step()
+            return {"ok": True, "step": -1, "total": len(self._steps)}
+        self._step_index = target
+        self._replay_to(target)
+        self._notify_step()
+        return {"ok": True, "step": self._step_index, "total": len(self._steps)}
+
+    def _reset_state(self):
+        """Reset to clean state (no tracks, no layers)."""
+        was_recording = self._recording
+        self._recording = False
+        try:
+            self._tracks.clear()
+            self._cps = None
+            self.send_strudel("hush()")
+            self._layers.clear()
+            self.send_p5("", mode="clear")
+        finally:
+            self._recording = was_recording
+
+    def _replay_step(self, idx: int):
+        """Replay a single step."""
+        was_recording = self._recording
+        self._recording = False
+        try:
+            step = self._steps[idx]
+            self._execute_step(step)
+        finally:
+            self._recording = was_recording
+
+    def _replay_to(self, target: int):
+        """Reset then replay all steps from 0 to target."""
+        was_recording = self._recording
+        self._recording = False
+        try:
+            self._tracks.clear()
+            self._cps = None
+            self.send_strudel("hush()")
+            self._layers.clear()
+            self.send_p5("", mode="clear")
+            for i in range(target + 1):
+                self._execute_step(self._steps[i])
+        finally:
+            self._recording = was_recording
+
+    def _execute_step(self, step: dict):
+        """Execute one recorded step."""
+        route = step["route"]
+        d = step["payload"]
+        if route == "/strudel/track":
+            self.set_track(d["name"], d["code"])
+        elif route == "/strudel/stop":
+            self.stop_track(d["name"])
+        elif route == "/strudel/hush":
+            self.hush()
+        elif route == "/strudel/cps":
+            self.set_cps(d["cps"])
+        elif route == "/p5/layer":
+            self.set_layer(d["name"], d["code"])
+        elif route == "/p5/remove":
+            self.remove_layer(d["name"])
+        elif route == "/p5/clear":
+            self.clear()
+        elif route == "/p5/setup":
+            self.set_setup(d["code"])
+        elif route == "/strudel/send":
+            evaluate = d.get("evaluate", False)
+            self.send_strudel(d["code"], evaluate=evaluate)
+        elif route == "/p5/state":
+            self.set_state(d["key"], d["value"])
+        elif route == "/p5/fps":
+            self.set_fps(d["fps"])
+        elif route == "/p5/send":
+            self.send_p5(d["code"], mode="eval")
+        elif route == "/show/mark":
+            pass  # no-op — marker steps are just for section boundaries
+
+    def _current_label(self) -> str:
+        """Find the label of the current section (most recent labeled step at or before index)."""
+        for i in range(self._step_index, -1, -1):
+            label = self._steps[i].get("label", "")
+            if label:
+                return label
+        return ""
+
+    def _notify_step(self):
+        """Send step position update to all connected browsers."""
+        if not self._connections:
+            return
+        # Count sections for display
+        boundaries = self._section_boundaries()
+        section_num = 0
+        for b in boundaries:
+            if b <= self._step_index:
+                section_num += 1
+        msg = json.dumps({
+            "type": "step_update",
+            "step": self._step_index,
+            "total": len(self._steps),
+            "section": section_num,
+            "totalSections": len(boundaries),
+            "label": self._current_label(),
+        })
+        asyncio.run_coroutine_threadsafe(self._broadcast(msg), self._loop)
+
+    async def _broadcast(self, msg: str):
+        await asyncio.gather(*(ws.send(msg) for ws in self._connections))
 
     def set_background(self, *args):
         """Set a persistent background layer."""

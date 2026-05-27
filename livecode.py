@@ -1,9 +1,15 @@
 """Livecode — start the unified Strudel + p5.js server."""
 
-from livecode_server import LivecodeController
+import argparse
 import time
 
-ctrl = LivecodeController()
+from livecode_server import LivecodeController
+
+parser = argparse.ArgumentParser(description="Livecode unified server")
+parser.add_argument("--port", type=int, default=8766, help="HTTP/REST port (WebSocket binds to port - 1)")
+args = parser.parse_args()
+
+ctrl = LivecodeController(ws_port=args.port - 1, http_port=args.port)
 ctrl.start()
 
 print("Waiting for browser connection...")
