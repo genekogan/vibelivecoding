@@ -8,7 +8,7 @@ import re
 import threading
 import time
 import uuid
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 import websockets
 
@@ -48,6 +48,9 @@ class LivecodeController:
         # p5 state
         self._layers: OrderedDict[str, str] = OrderedDict()
         self._setup_code: str | None = None
+
+        # Autopilot: recent browser-side runtime errors (for the improv loop to self-correct)
+        self._errors: deque = deque(maxlen=50)
 
         # Step timeline (for step-through navigation)
         self._steps: list[dict] = []  # [{route, payload, label?}, ...]
@@ -104,7 +107,7 @@ class LivecodeController:
         class LivecodeHTTPHandler(http.server.SimpleHTTPRequestHandler):
             # REST API routes
             API_ROUTES = {
-                "GET": {"/status", "/show/steps", "/show/save"},
+                "GET": {"/status", "/state", "/errors", "/show/steps", "/show/save"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
                     "/strudel/cps", "/strudel/send",
@@ -148,6 +151,28 @@ class LivecodeController:
                         "totalSteps": len(controller._steps),
                         "recording": controller._recording,
                     })
+                elif self.path == "/state":
+                    # Autopilot: full code dump for self-correction
+                    self._reply({
+                        "ready": controller._ready.is_set(),
+                        "cps": controller._cps,
+                        "setup": controller._setup_code,
+                        "tracks": controller.tracks,
+                        "layers": controller.layers,
+                    })
+                elif self.path == "/errors":
+                    # Autopilot: recent browser-side runtime errors
+                    self._reply({"errors": list(controller._errors)})
+                elif self.path.startswith("/p5/read"):
+                    # Read a window.state key from the browser (validation/review tooling)
+                    from urllib.parse import urlparse, parse_qs
+                    try:
+                        q = parse_qs(urlparse(self.path).query)
+                        key = q.get("key", [""])[0]
+                        value = controller.read_state(key)
+                        self._reply({"ok": True, "key": key, "value": value})
+                    except Exception as e:
+                        self._reply({"ok": False, "error": str(e)}, 500)
                 elif self.path == "/show/steps":
                     self._reply({
                         "steps": [
@@ -281,7 +306,7 @@ class LivecodeController:
 
     # ── WebSocket handler ────────────────────────────────────────
 
-    EXPECTED_VERSION = 1
+    EXPECTED_VERSION = 2
 
     async def _handler(self, ws):
         self._connections.add(ws)
@@ -311,6 +336,13 @@ class LivecodeController:
                         fut = self._pending[mid]
                         if not fut.done():
                             fut.set_result(msg)
+                elif msg.get("type") == "log_error":
+                    # Autopilot: browser-side runtime error forwarded for self-correction
+                    self._errors.append({
+                        "ts": msg.get("ts"),
+                        "system": msg.get("system", "?"),
+                        "message": msg.get("message", ""),
+                    })
         except websockets.ConnectionClosed:
             pass
         finally:
@@ -410,10 +442,16 @@ class LivecodeController:
         self.send_strudel("hush()")
 
     def set_cps(self, cps: float):
-        """Set cycles per second (tempo)."""
+        """Set cycles per second (tempo). Also pushes tempo into p5 state so the
+        browser clock authority (window.state.clk) stays in sync — visuals derive
+        beat from wall-clock + state.cps, never from frameCount."""
         self._cps = cps
         if self._tracks:
             self._replay_all()
+        try:
+            self.send_p5(f"window.state.cps = {float(cps)};", mode="eval")
+        except Exception:
+            pass  # no browser yet — clk falls back to its default cps
 
     def _replay_all(self):
         """Replay all active tracks via window.evaluate()."""
@@ -465,6 +503,18 @@ class LivecodeController:
         """Set a key in the persistent window.state object."""
         val_json = json.dumps(value)
         self.send_p5(f"window.state.{key} = {val_json};", mode="eval")
+
+    def read_state(self, key: str):
+        """Read a (dotted-path) key from window.state in the browser.
+        Used by validation/review tooling: /p5/read?key=clk, key=audio, ..."""
+        if not re.fullmatch(r"[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*", key or ""):
+            raise ValueError(f"invalid state key: {key!r}")
+        code = (
+            f"(function() {{ try {{ return window.state.{key}; }} "
+            f"catch (e) {{ return null; }} }})()"
+        )
+        r = self.send_p5(code, mode="eval")
+        return r.get("result")
 
     def init_state(self, **kwargs):
         """Initialize multiple keys in window.state (only sets if not already defined)."""

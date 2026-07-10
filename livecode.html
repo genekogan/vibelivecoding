@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <title>Livecode v1</title>
+    <title>vibe live coding v1</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -193,6 +193,10 @@
     <div id="init-status">Loading...</div>
 </div>
 
+<video id="video-player" preload="auto" playsinline
+       style="position:fixed; inset:0; width:100%; height:100%; object-fit:fill;
+              background:#000; z-index:90; display:none;"></video>
+
 <div id="step-toast"></div>
 <div id="code-overlay"></div>
 <div id="exec-log"></div>
@@ -214,7 +218,7 @@
 <script src="https://unpkg.com/@strudel/web@1.0.3"></script>
 
 <script>
-const VERSION = 1;
+const VERSION = 2;
 
 // ── Sample caching (from strudel.html) ──────────────────────
 const _originalFetch = window.fetch;
@@ -248,7 +252,80 @@ let diag = {};
 const p5Layers = new Map();
 const layerOrder = [];
 window.state = {};
+window.state.audio = { bass: 0, lowmid: 0, mid: 0, treble: 0, rms: 0, fft: [] };
 const errorTimestamps = new Map();
+
+// ── Audio-reactive bridge ───────────────────────────────────
+// Intercepts any WebAudio node connecting to the context destination and
+// reroutes it through a tap (gain → analyser → destination), so Strudel's
+// output is analysable regardless of superdough internals. Publishes
+// window.state.audio = {bass, lowmid, mid, treble, rms, fft[32]} every rAF.
+// Caveat: node.disconnect(ctx.destination) won't match the rerouted edge —
+// superdough uses bare disconnect() so this doesn't bite in practice.
+(function () {
+    const origConnect = AudioNode.prototype.connect;
+    let tap = null;
+    function getTap(ctx) {
+        if (tap && tap.ctx === ctx) return tap;
+        const input = ctx.createGain();
+        const an = ctx.createAnalyser();
+        an.fftSize = 2048;               // ~21.5Hz/bin @44.1kHz — resolves kick fundamentals
+        an.smoothingTimeConstant = 0.6;
+        origConnect.call(input, an);
+        origConnect.call(input, ctx.destination);
+        tap = { ctx, input, an,
+                freq: new Uint8Array(an.frequencyBinCount),
+                wave: new Uint8Array(an.fftSize) };
+        startMeter();
+        return tap;
+    }
+    AudioNode.prototype.connect = function (target, ...rest) {
+        if (target instanceof AudioDestinationNode) {
+            return origConnect.call(this, getTap(target.context).input, ...rest);
+        }
+        return origConnect.call(this, target, ...rest);
+    };
+    let meterOn = false;
+    function startMeter() {
+        if (meterOn) return;
+        meterOn = true;
+        const band = (f, a, b) => {
+            let s = 0;
+            for (let i = a; i < b; i++) s += f[i];
+            return s / ((b - a) * 255);
+        };
+        function tick() {
+            if (tap) {
+                tap.an.getByteFrequencyData(tap.freq);
+                tap.an.getByteTimeDomainData(tap.wave);
+                let s = 0;
+                for (let i = 0; i < tap.wave.length; i++) {
+                    const v = (tap.wave[i] - 128) / 128;
+                    s += v * v;
+                }
+                const f = tap.freq;
+                const nb = f.length; // 1024 bins
+                const fft = new Array(32);
+                for (let i = 0; i < 32; i++) {
+                    // log-ish packing: first 16 bins raw (0–344Hz), then widening groups
+                    const a = i < 16 ? i : Math.floor(16 * Math.pow(nb / 16, (i - 16) / 16));
+                    const b = i < 16 ? i + 1 : Math.floor(16 * Math.pow(nb / 16, (i - 15) / 16));
+                    fft[i] = band(f, a, Math.max(b, a + 1));
+                }
+                window.state.audio = {
+                    bass:   band(f, 1, 8),      // ~21–172 Hz (kick, sub)
+                    lowmid: band(f, 8, 24),     // ~172–516 Hz
+                    mid:    band(f, 24, 120),   // ~516 Hz–2.6 kHz
+                    treble: band(f, 120, 512),  // ~2.6–11 kHz (hats, air)
+                    rms: Math.sqrt(s / tap.wave.length),
+                    fft,
+                };
+            }
+            requestAnimationFrame(tick);
+        }
+        tick();
+    }
+})();
 
 // Strudel track names (for code overlay display; actual code managed server-side)
 const strudelTracks = new Map();
@@ -324,11 +401,38 @@ initStrudel();
 // ── p5.js sketch (global mode) ──────────────────────────────
 window.setup = function() {
     createCanvas(windowWidth, windowHeight);
+    pixelDensity(1);   // retina fill-rate: ~3-4x cheaper, protects the 20fps floor
     colorMode(HSB, 360, 100, 100, 100);
     background(0);
 };
 
+// Clock authority: sole beat/tempo truth for every layer. Layers read
+// window.state.clk — never frameCount-based beat math (breaks below 60fps
+// and on tempo change). state.cps is pushed by the server on /strudel/cps;
+// scene transitions null state.t0 to restart the section arc.
+function updateClock() {
+    const cps = window.state.cps || 0.5;
+    if (window.state.t0 == null) window.state.t0 = millis() / 1000;
+    const t = millis() / 1000 - window.state.t0;
+    const beat = t * cps * 4;                      // 4 beats per cycle
+    const secBeats = window.state.secBeats || 32;  // 8 bars per section default
+    const section = Math.floor(beat / secBeats) % 8;
+    const arc = window.state.arc || [.2, .4, .7, .9, .3, .6, 1, .4];
+    window.state.clk = {
+        t, cps, beat,
+        bar: beat / 4,
+        cyc: (beat / 4) % 1,
+        phase: beat % 1,                                   // 0 at each beat onset
+        pulse: Math.pow(1 - (beat % 1), 3),                // spikes on the beat, decays
+        swell: Math.pow(Math.max(0, Math.sin((beat % 1) * Math.PI)), 2),
+        section,
+        intensity: arc[section % arc.length],
+        fps: frameRate(),
+    };
+}
+
 window.draw = function() {
+    updateClock();
     for (const name of layerOrder) {
         const layer = p5Layers.get(name);
         if (!layer) continue;
@@ -476,6 +580,13 @@ function addLogEntry(system, text, ok) {
     execLog.appendChild(el);
     while (execLog.children.length > 200) execLog.removeChild(execLog.firstChild);
     execLog.scrollTop = execLog.scrollHeight;
+
+    // Autopilot: forward failures to the server so the improv loop can self-correct.
+    if (!ok && ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({ type: "log_error", system, message: text, ts: Date.now() }));
+        } catch (e) { /* logging must never break rendering */ }
+    }
 }
 
 function escapeHTML(s) {
@@ -593,6 +704,8 @@ function connect() {
 
         if (msg.target === "strudel") {
             executeStrudelCode(msg.code, msg.id, !!msg.evaluate);
+        } else if (msg.target === "video") {
+            executeVideoMessage(msg);
         } else {
             // Default target is p5
             executeP5Message(msg);
@@ -610,12 +723,30 @@ function connect() {
     ws.addEventListener("error", () => {});
 }
 
-function sendResponse(id, success, errorMessage) {
+function sendResponse(id, success, errorMessage, result) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(success
-        ? { type: "status", id, success: true }
-        : { type: "error", id, message: errorMessage }
-    ));
+    let payload;
+    if (success) {
+        payload = { type: "status", id, success: true };
+        if (result !== undefined) {
+            try { payload.result = JSON.parse(JSON.stringify(result)); }
+            catch (e) { payload.result = String(result); }
+        }
+    } else {
+        payload = { type: "error", id, message: errorMessage };
+    }
+    ws.send(JSON.stringify(payload));
+}
+
+// ── Audio context keep-alive ────────────────────────────────
+// A fullscreen video segment hushes Strudel; the AudioContext then sits idle and
+// some browsers auto-suspend it. Re-evaluating tracks on resume would set the
+// pattern but produce no sound. So resume the context before every evaluation.
+async function ensureAudioRunning() {
+    try {
+        const ac = typeof getAudioContext === "function" ? getAudioContext() : null;
+        if (ac && ac.state === "suspended") await ac.resume();
+    } catch (e) {}
 }
 
 // ── Execute Strudel code ────────────────────────────────────
@@ -625,6 +756,7 @@ async function executeStrudelCode(code, id, useEvaluate) {
             // Track the code for overlay display
             // Parse track names from stack() or single pattern
             trackStrudelCode(code);
+            await ensureAudioRunning();
             await window.evaluate(code, true);
         } else {
             // Plain eval — hush(), samples(), etc.
@@ -695,16 +827,16 @@ function executeP5Message(msg) {
             default: {
                 const result = eval(code);
                 if (result && typeof result.then === "function") {
-                    result.then(() => {
+                    result.then((resolved) => {
                         addLogEntry("p5", code.substring(0, 80), true);
-                        sendResponse(id, true);
+                        sendResponse(id, true, null, resolved);
                     }).catch((err) => {
                         addLogEntry("p5", `eval error: ${err.message}`, false);
                         sendResponse(id, false, err.message);
                     });
                 } else {
                     addLogEntry("p5", code.substring(0, 80), true);
-                    sendResponse(id, true);
+                    sendResponse(id, true, null, result);
                 }
                 break;
             }
@@ -713,6 +845,91 @@ function executeP5Message(msg) {
         const errMsg = err.message || String(err);
         addLogEntry("p5", `error: ${errMsg}`, false);
         sendResponse(id, false, errMsg);
+    }
+}
+
+// ── Execute video message ───────────────────────────────────
+// Fullscreen mp4 player. The browser owns sequential playback (auto-advances on
+// 'ended') and reports progress back as {type:"video_update", ...} so the server
+// can mark dropbox files seen and the autopilot knows when the batch is done.
+const videoEl = document.getElementById("video-player");
+let videoPlaylist = [];
+let videoIdx = -1;
+let videoActive = false;
+
+function videoReport(extra) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const cur = (videoIdx >= 0 && videoIdx < videoPlaylist.length) ? videoPlaylist[videoIdx] : null;
+    try {
+        ws.send(JSON.stringify(Object.assign({
+            type: "video_update",
+            index: videoIdx,
+            total: videoPlaylist.length,
+            current: cur ? cur.key : null,
+        }, extra || {})));
+    } catch (e) { /* never break playback on a report failure */ }
+}
+
+function videoTeardown() {
+    videoEl.pause();
+    videoEl.removeAttribute("src");
+    try { videoEl.load(); } catch (e) {}  // releases the decoder (may fire a benign 'error')
+    videoEl.style.display = "none";
+}
+
+function videoAdvance() {
+    const next = videoIdx + 1;
+    if (next >= videoPlaylist.length) {  // playlist exhausted → hard end
+        videoActive = false;
+        videoReport({ ended: true, playlistDone: true });
+        videoIdx = -1;
+        videoPlaylist = [];
+        videoTeardown();
+        return;
+    }
+    videoIdx = next;
+    const item = videoPlaylist[videoIdx];
+    videoEl.style.display = "block";
+    videoEl.src = item.url;
+    const p = videoEl.play();
+    videoReport({ playing: true });
+    if (p && p.catch) {
+        p.catch((err) => addLogEntry("video", `play() rejected: ${err.message || err}`, false));
+    }
+}
+
+videoEl.addEventListener("ended", () => {
+    if (!videoActive) return;
+    const item = videoPlaylist[videoIdx];
+    videoReport({ key: item && item.key, ended: true });  // server marks dropbox seen
+    videoAdvance();
+});
+
+videoEl.addEventListener("error", () => {
+    if (!videoActive) return;  // ignore teardown-triggered errors
+    const item = videoPlaylist[videoIdx];
+    addLogEntry("video", `error loading ${item ? item.name : "?"}`, false);
+    videoReport({ key: item && item.key, ended: false, error: "load failed" });  // NOT marked seen
+    videoAdvance();
+});
+
+function executeVideoMessage(msg) {
+    const mode = msg.mode;
+    if (mode === "play") {
+        videoPlaylist = (msg.playlist || []).slice();
+        videoIdx = -1;
+        videoActive = true;
+        strudelTracks.clear(); updateCounts(); updateCodeOverlay();  // music hushed server-side
+        videoAdvance();
+    } else if (mode === "append") {
+        videoPlaylist = videoPlaylist.concat(msg.playlist || []);
+        if (!videoActive) { videoActive = true; videoAdvance(); }  // resume if it had ended
+    } else if (mode === "stop") {
+        videoActive = false;
+        videoIdx = -1;
+        videoPlaylist = [];
+        videoTeardown();
+        ensureAudioRunning();  // wake the context so the resumed music is audible
     }
 }
 
