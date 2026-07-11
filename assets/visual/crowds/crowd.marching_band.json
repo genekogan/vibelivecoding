@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.marching_band",
+  "kind": "crowd",
+  "name": "Marching Band",
+  "desc": "A vintage-poster marching band high-steps across the field in ranked rows, brass bells and drum skins flashing gold on every downbeat as a bunting ribbon drifts overhead.",
+  "tags": [
+    "marching band",
+    "band",
+    "marchers",
+    "parade",
+    "brass",
+    "horns",
+    "trumpet",
+    "drums",
+    "drumline",
+    "drummers",
+    "military",
+    "procession",
+    "formation",
+    "high-step",
+    "poster",
+    "vintage",
+    "screenprint",
+    "halftone",
+    "riso",
+    "blueprint",
+    "fanfare",
+    "festival",
+    "crowd",
+    "ensemble",
+    "gold",
+    "ceremonial",
+    "americana",
+    "homecoming",
+    "celebration"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "n": {
+      "default": 12,
+      "min": 4,
+      "max": 24,
+      "doc": "number of marchers"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "marcher size vs design"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "high-step lift + flash amplitude"
+    },
+    "march": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "forward march speed / drift"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "accent hue shift over palette"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "cadence rate multiplier"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ground wash / texture weight"
+    },
+    "rows": {
+      "default": 2,
+      "min": 1,
+      "max": 4,
+      "doc": "ranks of the formation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "formation center x"
+    },
+    "y": {
+      "default": 0.66,
+      "min": 0.35,
+      "max": 0.9,
+      "doc": "ground line y"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "riso",
+        "brass",
+        "noir",
+        "blueprint"
+      ],
+      "doc": "vintage screenprint / 2-ink riso / brass chiaroscuro / noir silhouette / blueprint schematic (abstract)"
+    },
+    "pal": {
+      "default": "classic",
+      "options": [
+        "classic",
+        "gold",
+        "crimson",
+        "teal",
+        "mono"
+      ],
+      "doc": "uniform + instrument color scheme"
+    },
+    "act": {
+      "default": "parade",
+      "options": [
+        "parade",
+        "fanfare",
+        "slowmarch"
+      ],
+      "doc": "multi-minute cadence program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "instrument assignment + texture seed"
+    }
+  },
+  "acts": [
+    "parade",
+    "fanfare",
+    "slowmarch"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:02:21+00:00",
+    "fps": 59.9,
+    "motion": 0.0142,
+    "lum": 0.1
+  },
+  "code": "const D = { hue: 45, energy: .62, speed: 1, density: .6, scale: 1, x: .5, y: .66, n: 12, rows: 2, march: .6, style: 'poster', pal: 'classic', act: 'parade', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst ease = t => t < .5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;\nconst N = Math.max(4, Math.min(24, Math.round(P.n)));\nconst ho = P.hue - 45;\n\n// palettes: [uniform, trim, plume, brass, skin]  each [h,s,b]\nconst PAL = {\n  classic: { uni:[42,10,92], trim:[220,60,34], plume:[0,78,86], brass:[44,82,90], skin:[28,34,74], ink:[220,40,14] },\n  gold:    { uni:[36,14,16], trim:[44,70,58], plume:[44,88,94], brass:[46,88,96], skin:[30,30,66], ink:[40,30,8]  },\n  crimson: { uni:[352,64,54], trim:[42,10,94], plume:[46,86,92], brass:[44,84,92], skin:[26,32,72], ink:[352,50,14]},\n  teal:    { uni:[184,44,60], trim:[40,8,94],  plume:[8,74,88],  brass:[44,80,90], skin:[28,32,72], ink:[196,50,12]},\n  mono:    { uni:[220,6,84],  trim:[220,8,24], plume:[220,10,96],brass:[220,6,64], skin:[220,6,60], ink:[220,10,10]} };\nconst pc = PAL[P.pal] || PAL.classic;\nconst tint = c => [hw(c[0] + ho * .5), c[1], c[2]];\nconst sty = P.style;\nconst wire = sty === 'blueprint';\nconst noir = sty === 'noir';\nconst riso = sty === 'riso';\nconst brass = sty === 'brass';\n\n// ---- cached poster wash (ground band + halftone speckle), translucent so a bed shows ----\nconst wk = width + 'x' + height + sty + P.pal + P.seed + Math.round(P.hue);\nif (!S.wash || S.wk !== wk) {\n  if (!S.wash) S.wash = createGraphics(width, height);\n  else S.wash.resizeCanvas(width, height);\n  const g = S.wash; g.clear();\n  g.colorMode(g.HSB, 360, 100, 100, 100); g.noStroke();\n  const gy = height * (P.y + .07);\n  if (!wire) {\n    // warm ground stripe\n    const gc = tint(pc.ink);\n    for (let yy = gy; yy < height; yy++) {\n      const t = (yy - gy) / Math.max(1, height - gy);\n      g.fill(gc[0], gc[1] * .8, gc[2] + t * 10, 26 + t * 22);\n      g.rect(0, yy, width, 1);\n    }\n    // halftone dot texture over ground (poster tell)\n    const dot = riso ? 2.4 : 1.8, step = u * .022;\n    for (let yy = gy; yy < height; yy += step)\n      for (let xx = 0; xx < width; xx += step) {\n        const t = (yy - gy) / Math.max(1, height - gy);\n        const r = dot * (1.1 - t * .5) * (.6 + fr(xx * .3 + yy) * .8);\n        g.fill(gc[0], 20, gc[2] + 30, 22 * (1 - t * .5));\n        g.ellipse(xx, yy, r, r);\n        if (riso) { const rc = tint(pc.trim); g.fill(rc[0], rc[1], rc[2], 12); g.ellipse(xx + step*.4, yy, r*.8, r*.8); }\n      }\n  } else {\n    // blueprint grid\n    const bc = [200, 70, 60];\n    g.stroke(bc[0], bc[1], bc[2], 16); g.strokeWeight(1);\n    for (let xx = 0; xx <= width; xx += u * .06) g.line(xx, 0, xx, height);\n    for (let yy = 0; yy <= height; yy += u * .06) g.line(0, yy, width, yy);\n    g.noStroke();\n  }\n  S.wk = wk;\n}\nimage(S.wash, 0, 0);\n\n// ---- drifting bunting / banner ribbon high across the field (K.t continuous motion floor) ----\npush();\nconst by = height * (P.y - .42);\nconst drift = K.t * (18 + 30 * P.march) * P.speed;\nif (!wire) {\n  strokeWeight(u * .006); noStroke();\n  const seg = Math.max(6, Math.floor(width / (u * .16)));\n  for (let i = 0; i <= seg; i++) {\n    const fx = ((i * (width / seg) - (drift % width)) % width + width) % width;\n    const swg = Math.sin(K.t * .8 + i * .7) * u * .012;\n    const fy = by + swg + Math.sin(i * 1.3) * u * .01;\n    const fc = i % 2 ? tint(pc.trim) : tint(pc.plume);\n    fill(fc[0], fc[1], noir ? 30 : fc[2], noir ? 40 : 70);\n    triangle(fx, fy, fx + u * .05, fy, fx + u * .025, fy + u * .06);\n  }\n} else {\n  stroke(200, 60, 80, 50); strokeWeight(1);\n  const yy = by; line(0, yy, width, yy);\n  for (let xx = 0; xx < width; xx += u * .05) line(xx, yy, xx + u * .012, yy + u * .05);\n  noStroke();\n}\npop();\n\n// ---- formation ----\nconst rows = Math.max(1, Math.min(4, Math.round(P.rows)));\nconst perRow = Math.ceil(N / rows);\nconst inten = .55 + .6 * K.intensity;\nconst cx = P.x * width, baseY = P.y * height;\nconst fieldW = u * (1.7 + perRow * .12) * P.scale;\nconst colGap = fieldW / perRow;\nconst step = u * .12 * P.scale;\nconst mSpeed = (14 + 26 * P.march) * P.speed;\nconst roll = K.t * mSpeed;\n\n// act tables: [stepH, sway, cadence]\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = {\n  parade:  [[1,1,1],[1.1,1,1],[1,1.2,1],[1.2,1,1],[.9,1.1,1.15],[1.1,1,1],[1,1.1,1],[1.15,1,1.1]],\n  fanfare: [[1.3,1.2,1],[1.5,1,1],[1.2,1.4,1],[1.5,1,1.2],[1.1,1.3,1],[1.5,1,1],[1.3,1.2,1],[1.5,1,1.2]],\n  slowmarch:[[.7,.8,.6],[.8,.7,.6],[.7,.9,.55],[.8,.7,.6],[.6,.8,.6],[.8,.7,.55],[.7,.9,.6],[.8,.7,.6]] };\nconst aw = (ACT[P.act] || ACT.parade)[sec];\nconst stepH = P.energy * aw[0], swayA = aw[1], cadence = aw[2];\n\n// draw back rows first (perspective: back = smaller, higher)\nconst members = [];\nfor (let i = 0; i < N; i++) {\n  const row = i % rows, col = Math.floor(i / rows);\n  const depth = rows > 1 ? row / (rows - 1) : 0;      // 0 front .. 1 back\n  members.push({ i, row, col, depth });\n}\nmembers.sort((a, b) => b.depth - a.depth);\n\nfor (const m of members) {\n  const { i, col, depth } = m;\n  const dScale = 1 - depth * .3;\n  const rx = (col + .5) * colGap - fieldW / 2 + cx - (roll % colGap);\n  // wrap into field\n  let mx = rx;\n  const leftEdge = cx - fieldW / 2 - colGap;\n  if (mx < leftEdge) mx += Math.ceil((leftEdge - mx) / fieldW) * fieldW;\n  const my = baseY - depth * u * .16 * P.scale + Math.sin(K.t * 1.2 + i) * u * .004;\n  if (mx < -colGap || mx > width + colGap) continue;\n\n  const sz = step * dScale;                // body height unit\n  const beatPh = (K.beat * cadence * P.speed + col * .5 + m.row * .25);\n  const lift = ((beatPh % 1) + 1) % 1;\n  const legA = Math.sin(beatPh * TAU) * .8 * stepH;   // alternate thigh swing\n  const bob = Math.abs(Math.sin(beatPh * Math.PI)) * sz * .09 * (.5 + stepH);\n  const sway = Math.sin(K.t * 1.4 + i * .6) * sz * .04 * swayA;\n  const alpha = 78 - depth * 22;\n\n  push();\n  translate(mx + sway, my - bob);\n\n  const uni = tint(pc.uni), trim = tint(pc.trim), plume = tint(pc.plume), br = tint(pc.brass), sk = tint(pc.skin);\n  const shade = brass || noir;\n  const setFill = (c, aa, dark) => {\n    if (wire) { noFill(); stroke(200, 60, 84, alpha); strokeWeight(1.1 * dScale); return; }\n    noStroke();\n    if (noir) { fill(c[0], c[1] * .5, dark ? 8 : 16, alpha + 12); return; }\n    fill(c[0], c[1], dark ? c[2] * .62 : c[2], aa);\n  };\n\n  // ground shadow\n  if (!wire) { noStroke(); fill(pc.ink[0], 30, 6, 22); ellipse(0, sz * .96 + bob, sz * .7 * dScale, sz * .16 * dScale); }\n\n  // legs (high-step) \u2014 two, alternating\n  const lw = sz * .12;\n  for (const s of [-1, 1]) {\n    const swing = legA * s;\n    const knee = Math.max(0, swing) ;          // front leg lifts\n    push();\n    translate(s * sz * .13, sz * .34);\n    rotate(swing * .5);\n    setFill(trim, alpha, true);\n    if (wire) { line(0, 0, 0, sz * .5); line(0, sz * .5, -swing * sz * .3, sz * .62); }\n    else { rectMode(CENTER); rect(0, sz * .26, lw, sz * .52, lw * .4);\n           push(); translate(-swing * sz * .18, sz * .52); rotate(-swing * .3);\n           setFill(pc.ink, alpha); rect(0, sz * .04, lw * 1.5, sz * .1, lw * .3); pop(); }\n    pop();\n  }\n\n  // torso jacket\n  setFill(uni, alpha);\n  if (wire) { rect(-sz*.2, -sz*.18, sz*.4, sz*.5); }\n  else {\n    beginShape();\n    vertex(-sz * .22, -sz * .18); vertex(sz * .22, -sz * .18);\n    vertex(sz * .2, sz * .34); vertex(-sz * .2, sz * .34); endShape(CLOSE);\n    // chevron sash / trim\n    setFill(trim, alpha, true);\n    quad(-sz*.22,-sz*.16, -sz*.02,-sz*.02, -sz*.02, sz*.06, -sz*.22,-sz*.06);\n    quad(sz*.22,-sz*.16, sz*.02,-sz*.02, sz*.02, sz*.06, sz*.22,-sz*.06);\n    // buttons\n    if (!noir) { setFill(br, alpha); for (let b=0;b<3;b++) ellipse(0, -sz*.08 + b*sz*.12, sz*.05, sz*.05); }\n  }\n\n  // arms holding instrument\n  const carry = fr(i * 3 + 2);\n  const isDrum = carry > .62;\n  setFill(uni, alpha, true);\n  if (!wire) { rectMode(CENTER); rect(-sz*.27, -sz*.02, lw*.9, sz*.3, lw*.4); rect(sz*.27, -sz*.02, lw*.9, sz*.3, lw*.4); }\n\n  // head + shako\n  const hy = -sz * .38;\n  setFill(sk, alpha);\n  if (wire) ellipse(0, hy, sz*.24, sz*.28); else ellipse(0, hy, sz * .24, sz * .27);\n  // shako (tall hat)\n  setFill(noir || brass ? pc.ink : trim, alpha, true);\n  if (wire) rect(-sz*.12, hy - sz*.5, sz*.24, sz*.4);\n  else { rectMode(CENTER); rect(0, hy - sz * .28, sz * .26, sz * .36, sz*.03);\n         setFill(br, alpha); rect(0, hy - sz*.12, sz*.28, sz*.05); }\n  // plume (sways)\n  const pl = Math.sin(K.t * 2 + i) * sz * .05;\n  if (wire) { stroke(0,74,86,alpha); strokeWeight(1.2*dScale); line(0, hy-sz*.46, pl, hy-sz*.72); noStroke(); }\n  else { setFill(plume, alpha); ellipse(pl*.5, hy - sz*.58, sz*.1, sz*.28); }\n\n  // instrument + beat flash\n  const beatFlash = K.pulse * .8 + A.bass * .7 + K.swell * .1;\n  const glow = Math.min(1, beatFlash * (.6 + P.energy));\n  if (isDrum) {\n    // snare/bass drum in front, mallet strikes on beat\n    const dr = sz * .3;\n    setFill(pc.uni, alpha); if (wire){noFill();stroke(200,60,84,alpha);} ellipse(0, sz*.16, dr*1.05, dr*1.05);\n    if (!wire) { noStroke(); fill(46, 10, 92, alpha * (.6 + glow*.4)); ellipse(0, sz*.16, dr*.8, dr*.8);\n      stroke(br[0], br[1], br[2], alpha); strokeWeight(sz*.02);\n      for (let z=0;z<3;z++){ const aa=z/3*TAU; line(0,sz*.16,Math.cos(aa)*dr*.5, sz*.16+Math.sin(aa)*dr*.5);} noStroke(); }\n    // mallet\n    const strike = Math.max(0, 1 - lift*2);\n    if (!wire){ stroke(sk[0],sk[1],sk[2],alpha); strokeWeight(sz*.03);\n      const mx2 = sz*.34, myTop = sz*.16 - sz*.24*strike; line(sz*.2,-sz*.02,mx2,myTop); noStroke();\n      fill(br[0],br[1],br[2],alpha); ellipse(mx2,myTop,sz*.07,sz*.07); }\n    if (glow > .12){ push(); blendMode(ADD); noStroke(); fill(44,60,96, 30*glow); ellipse(0,sz*.16,dr*1.5,dr*1.5); blendMode(BLEND); pop(); }\n  } else {\n    // horn \u2014 bell flares up-right, flashes when played\n    push(); translate(sz*.22, -sz*.06); rotate(-.5 + Math.sin(K.t*.9+i)*.05);\n    if (wire) { noFill(); stroke(200,60,84,alpha); strokeWeight(1.2*dScale);\n      line(0,0,sz*.34,-sz*.12); ellipse(sz*.4,-sz*.16, sz*.24, sz*.2); }\n    else {\n      stroke(br[0], br[1], Math.min(100, br[2] + glow*10), alpha); strokeWeight(sz*.05);\n      line(0, 0, sz*.32, -sz*.12); noStroke();\n      // bell\n      fill(br[0], br[1]*.8, Math.min(100, br[2] + glow*14), alpha);\n      beginShape(); vertex(sz*.3,-sz*.02); vertex(sz*.34,-sz*.24);\n      vertex(sz*.5,-sz*.3); vertex(sz*.5,-sz*.02); endShape(CLOSE);\n      // inner\n      fill(46, 20, Math.min(100, 80 + glow*20), alpha*.8); ellipse(sz*.44,-sz*.16, sz*.12, sz*.16);\n    }\n    // flash burst on beat\n    if (glow > .12) { push(); blendMode(ADD); noStroke();\n      fill(48, 40, 98, 34 * glow); ellipse(sz*.46, -sz*.18, sz*.55*(1+glow), sz*.5*(1+glow));\n      blendMode(BLEND); pop(); }\n    pop();\n  }\n\n  pop();\n}\nblendMode(BLEND);\n"
+}
