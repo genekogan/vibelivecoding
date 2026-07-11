@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.leaves",
+  "kind": "fx",
+  "name": "Autumn Leaves",
+  "desc": "Tumbling autumn leaves with edge-on flip physics drifting on the wind, pulled into a swirling vortex once per section and skittering along a ground line \u2014 rendered as rust-ochre painted leaves, riso misprint, flat silhouettes, or bare botanical vein wireframes.",
+  "tags": [
+    "leaves",
+    "leaf",
+    "autumn",
+    "fall",
+    "foliage",
+    "tumble",
+    "flip",
+    "spin",
+    "wind",
+    "gust",
+    "swirl",
+    "vortex",
+    "drift",
+    "falling",
+    "rust",
+    "ochre",
+    "amber",
+    "maple",
+    "oak",
+    "seasonal",
+    "october",
+    "cozy",
+    "melancholy",
+    "riso",
+    "silhouette",
+    "botanical",
+    "wireframe",
+    "fx",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of leaves (0..120)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 3,
+      "doc": "leaf size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "skitter + swirl amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "fall + spin + flip rate multiplier"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "leaf base hue (28=orange; 8 red, 45 gold)"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal wind (0 left, .5 calm, 1 right)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal field bias"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ground-pile line height"
+    },
+    "style": {
+      "default": "rust",
+      "options": [
+        "rust",
+        "riso",
+        "silhouette",
+        "botanical"
+      ],
+      "doc": "render philosophy: modeled rust-ochre painted leaf with veins / two-ink riso misregistration + halftone / flat cutout silhouette / non-representational botanical vein-skeleton wireframe"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "leaf positions, spins, hues, shapes"
+    },
+    "act": {
+      "default": "calm",
+      "options": [
+        "calm",
+        "windy",
+        "storm"
+      ],
+      "doc": "multi-minute program: calm gentle fall / windy steady gusts / storm fast fall + frequent strong vortices"
+    }
+  },
+  "acts": [
+    "calm",
+    "windy",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:23:59+00:00",
+    "fps": 59.9,
+    "motion": 0.0492,
+    "lum": 0.111
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, speed:1, hue:28, wind:.5, x:.5, y:.5, style:'rust', seed:0, act:'calm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst rust=st==='rust',riso=st==='riso',silh=st==='silhouette',bot=st==='botanical';\nconst NMAX=120;\nconst n=Math.max(6,Math.round(NMAX*clp(P.density,0,1)));\nconst en=P.energy*(0.5+0.6*K.intensity);\nconst act=P.act;\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.lv=[]; for(let i=0;i<NMAX;i++){ S.lv.push({ x0:fr(i*5+1), y0:fr(i*5+2), fs:0.5+fr(i*5+3), ph:fr(i*5+4)*6.2832, spin:(fr(i*5+5)-0.5), flip:0.6+fr(i*5+6)*1.1, hj:(fr(i*5+7)-0.5), sz:0.6+fr(i*5+8)*0.8, sat:fr(i*5+9), shp:fr(i*5+10) }); } S.secSeen=null; S.vT=-999; }\n\n// vortex event: new one when the section index advances\nif(S.secSeen==null) S.secSeen=K.section;\nif(K.section!==S.secSeen){ S.secSeen=K.section; S.vT=K.t; S.vx=fr(K.section*3+1); S.vy=0.35+fr(K.section*3+2)*0.4; }\nconst vAge=K.t-S.vT;\nconst vortDur= act==='storm'?4.5: act==='windy'?3.2:2.4;\nconst vortStr= (act==='storm'?1.5:act==='windy'?1.1:0.8) * clp(1-vAge/vortDur,0,1);\n\n// act -> global wind + fall\nconst gust = act==='storm'? 1.4: act==='windy'? 1.0:0.4;\nconst windBase=(P.wind-0.5)*2;\nconst windNow = windBase*gust + Math.sin(K.t*0.6)*0.25*gust + Math.sin(K.t*1.9+1)*0.12*gust;\nconst fallMul = (act==='storm'?1.7:act==='windy'?1.15:0.85)*P.speed;\n\nconst baseSz=u*0.05*P.scale;\n\nfunction leafShape(w,h){\n  beginShape();\n  vertex(0,-h);\n  bezierVertex(w*0.9,-h*0.5, w*0.7,h*0.55, 0,h);\n  bezierVertex(-w*0.7,h*0.55, -w*0.9,-h*0.5, 0,-h);\n  endShape(CLOSE);\n}\n\nfor(let i=0;i<n;i++){\n  const L=S.lv[i];\n  const fallT=K.t*0.05*L.fs*fallMul;\n  let ly=frc(L.y0+fallT);\n  let lx=frc(L.x0 + (P.x-0.5)*0.22 + windNow*fallT*0.6 + Math.sin(K.t*(0.7+L.fs)+L.ph)*0.03);\n  // ground skitter near the pile line (P.y sets its height)\n  const gline=lrp(0.78,0.96,P.y);\n  const grounded=ly>gline;\n  if(grounded){ lx=frc(lx + Math.sin(K.t*(3+L.fs*2)+L.ph)*0.01*(0.4+en)); ly=gline+ (ly-gline)*0.3; }\n  // vortex pull\n  if(vortStr>0.01){ const dx=(L.vx!=null?0:0); const cx=S.vx,cy=S.vy; const ddx=lx-cx, ddy=ly-cy; const dist=Math.sqrt(ddx*ddx+ddy*ddy)+1e-4; const pull=vortStr*clp(0.28-dist,0,0.28)/0.28; const ang=Math.atan2(ddy,ddx)+K.t*2.2*vortStr; lx=cx+Math.cos(ang)*dist*(1-pull*0.05); ly=cy+Math.sin(ang)*dist*(1-pull*0.05)+ -pull*0.02; }\n  const px=frc(lx)*W, py=clp(ly,0,1)*Hh;\n  // flip physics\n  const spin=K.t*L.spin*2.4*P.speed + L.ph;\n  const flip=Math.cos(K.t*L.flip*1.3*P.speed + L.ph*1.7);\n  const w=baseSz*L.sz*(0.28+0.5*Math.abs(flip));\n  const h=baseSz*L.sz*0.62;\n  const edge=Math.abs(flip)<0.18;\n  // autumn color ramp\n  const hh=md(H + L.hj*34 + (L.sat-0.5)*10, 360);\n  const sat=lrp(55,92,L.sat);\n  const bri=lrp(60,96,0.5+0.5*flip);\n  push(); translate(px,py); rotate(spin + windNow*0.4);\n  if(bot){\n    // botanical wireframe: vein skeleton only\n    stroke(md(hh+8,360),lrp(30,60,L.sat),96, 78); strokeWeight(Math.max(0.7,u*0.0013)); noFill();\n    if(!edge){ leafShape(w,h); line(0,-h,0,h);\n      for(let v=1;v<=3;v++){ const ty=-h+ (2*h)*v/4; line(0,ty, w*0.6*(1-v/5), ty+h*0.12); line(0,ty, -w*0.6*(1-v/5), ty+h*0.12); } }\n    else { line(0,-h,0,h); }\n  } else if(silh){\n    noStroke(); fill(md(hh,360), clp(sat-14,0,100), lrp(40,66,L.sat)); leafShape(w,h);\n  } else if(riso){\n    // two-ink misregistration + halftone dots\n    noStroke();\n    fill(md(hh-14,360), 80, 92, 62); push(); translate(u*0.004,-u*0.003); leafShape(w,h); pop();\n    fill(md(hh+16,360), 62, 90, 58); leafShape(w,h);\n    if(!edge){ fill(0,0,20,26); for(let d=0;d<5;d++){ const dy=-h+ (2*h)*(d+0.5)/5; ellipse(w*0.12*Math.sin(d),dy, u*0.004, u*0.004); } }\n  } else {\n    // rust: modeled fill + vein, dry edge\n    noStroke();\n    fill(md(hh,360), sat, bri*0.7, 96); leafShape(w*1.03,h*1.03);\n    fill(md(hh+6,360), clp(sat-12,0,100), bri, 96); leafShape(w,h);\n    stroke(md(hh-10,360), clp(sat+6,0,100), bri*0.5, 80); strokeWeight(Math.max(0.7,u*0.0012)); noFill();\n    if(!edge){ line(0,-h*0.94,0,h*0.9); for(let v=1;v<=2;v++){ const ty=-h*0.3+ h*0.5*v; line(0,ty, w*0.55,ty+h*0.14); line(0,ty,-w*0.55,ty+h*0.14); } }\n    noStroke();\n  }\n  pop();\n}\n\n// subtle vortex swirl mark while active (schematic wind, additive, partial)\nif(vortStr>0.02 && !silh){ blendMode(ADD); noStroke(); const vpx=S.vx*W,vpy=S.vy*Hh;\n  for(let r=3;r>0;r--){ const t=r/3; fill(md(H+8,360),30,90, 8*vortStr*(1-t)); ellipse(vpx,vpy, u*0.5*t, u*0.5*t*0.7); } blendMode(BLEND); }\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.spotlights",
+  "kind": "fx",
+  "name": "Spotlights",
+  "desc": "Stage follow-spots throwing volumetric light cones that sweep across the frame on the beat, from soft hazy club beams to hard brutalist shafts, dappled gobos, RGB-split prisms and abstract scan-rays.",
+  "tags": [
+    "spotlight",
+    "spotlights",
+    "stage",
+    "concert",
+    "lights",
+    "beams",
+    "cones",
+    "theater",
+    "follow-spot",
+    "club",
+    "sweep",
+    "gobo",
+    "prism",
+    "volumetric",
+    "haze",
+    "show",
+    "illumination",
+    "brutalist",
+    "scan",
+    "overlay",
+    "fx",
+    "performance",
+    "strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "n": {
+      "default": 4,
+      "min": 1,
+      "max": 8,
+      "doc": "number of spotlights"
+    },
+    "spread": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "cone width + rig spread"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "beam hue (spread per spot)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "sweep rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "volumetric haze layers"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "cone reach/width scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rig horizontal offset"
+    },
+    "y": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved emitter anchor"
+    },
+    "sway": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "sweep amplitude"
+    },
+    "style": {
+      "default": "beam",
+      "options": [
+        "beam",
+        "gobo",
+        "hardedge",
+        "scan",
+        "prism"
+      ],
+      "doc": "beam=soft volumetric cone / gobo=dappled slat texture / hardedge=brutalist flat shaft + floor pool / scan=abstract fanning scan-rays (no mass) / prism=RGB-split iridescent"
+    },
+    "act": {
+      "default": "sweep",
+      "options": [
+        "sweep",
+        "chase",
+        "strobe"
+      ],
+      "doc": "sweep=smooth swing / chase=sequenced left-right / strobe=beat-gated flashes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "per-spot sweep seed"
+    }
+  },
+  "acts": [
+    "sweep",
+    "chase",
+    "strobe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:25:34+00:00",
+    "fps": 60.2,
+    "motion": 0.0378,
+    "lum": 0.109
+  },
+  "code": "const D = { n:4, spread:.55, energy:.65, hue:210, speed:1, density:.5, scale:1, x:.5, y:.7, sway:.6, style:'beam', act:'sweep', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst beam=st==='beam',gobo=st==='gobo',hard=st==='hardedge',scan=st==='scan',prism=st==='prism';\nconst en=P.energy*(0.5+0.7*K.intensity);\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.sp=[]; for(let i=0;i<8;i++){ S.sp.push({ho:(fr(i*4+1)-0.5)*90, ph:fr(i*4+2)*6.28, sw:0.5+fr(i*4+3)*0.7, off:(fr(i*4+4)-0.5), amp:0.55+fr(i*4+5)*0.5}); } }\n\nconst nS=Math.max(1,Math.round(clp(P.n,1,8)));\nconst ey=-u*0.03;\nconst reach=Hh-ey;\nconst halfW=u*0.20*(0.35+P.spread)*P.scale;\nconst actStrobe=P.act==='strobe', actChase=P.act==='chase';\nconst brBeat = actStrobe? (0.25+0.9*K.pulse) : (0.45+0.55*Math.max(K.swell,0));\nconst haze=Math.round(lrp(2,5,clp(P.density,0,1)));\n\nblendMode(ADD); noStroke();\nfor(let i=0;i<nS;i++){\n  const sp=S.sp[i];\n  const cx=(lrp(0.5-0.42*P.spread,0.5+0.42*P.spread, (nS<2?0.5:i/(nS-1)))*W) + (P.x-0.5)*W;\n  const chase = actChase? Math.sin(K.beat*0.5*P.speed - i*0.7) : 1;\n  const ang = Math.sin(K.t*sp.sw*P.speed + sp.ph)*0.55*sp.amp + Math.sin(K.t*0.37+sp.ph)*0.12;  // continuous sweep\n  const tipX = cx + Math.tan(ang)*reach;\n  const br = clp(brBeat*(0.6+en)*(0.7+0.6*A.treble)*(actChase?(0.4+0.6*clp(chase,0,1)):1), 0, 1.6);\n  const hh = md(H + sp.ho, 360);\n  const apex = P.y; // reserved emitter tint anchor\n\n  if(scan){\n    // abstract: thin fanning scan-rays + moving dot on beam, no fill mass\n    const rays=6;\n    for(let r=0;r<rays;r++){\n      const a2=ang + (r/(rays-1)-0.5)*(halfW/reach)*1.8;\n      const bx=cx+Math.tan(a2)*reach;\n      stroke(hh, 70, 100, 26*br); strokeWeight(Math.max(1,u*0.0016)); line(cx,ey,bx,Hh);\n    }\n    const dl=frc(K.t*0.4*P.speed+sp.ph); const dx=lrp(cx,tipX,dl), dy=lrp(ey,Hh,dl);\n    noStroke(); fill(md(hh+30,360),40,100,60*br); ellipse(dx,dy,u*0.02,u*0.02);\n  } else if(hard){\n    // brutalist hard-edge shaft, monochrome, raking floor pool\n    const sat=lrp(0,30,0.4);\n    fill(hh, sat, 92, 22*br); triangle(cx-halfW*0.14,ey, tipX-halfW,Hh, tipX+halfW,Hh);\n    fill(hh, sat, 100, 30*br); triangle(cx,ey, tipX-halfW*0.4,Hh, tipX+halfW*0.4,Hh);\n    // floor pool ellipse where beam lands\n    fill(hh, sat, 100, 26*br); ellipse(tipX, Hh, halfW*2.2, halfW*0.5);\n  } else if(prism){\n    // RGB split cones \u2014 iridescent fringe\n    const cols=[[md(hh-16,360)],[md(hh,360)],[md(hh+18,360)]];\n    for(let c=0;c<3;c++){ const dx=(c-1)*halfW*0.28; fill(cols[c][0],85,100,16*br); triangle(cx+dx*0.2,ey, tipX+dx-halfW,Hh, tipX+dx+halfW,Hh); }\n  } else if(gobo){\n    // dappled cone \u2014 soft body + hard slat texture (breaks flat fill)\n    for(let l=haze;l>0;l--){ const t=l/haze; fill(hh, lrp(80,40,t), 100, 12*br*t); triangle(cx,ey, tipX-halfW*t,Hh, tipX+halfW*t,Hh); }\n    const slats=7;\n    for(let sN=1;sN<slats;sN++){ const f=sN/slats; const y=lrp(ey,Hh,f); const hw=lrp(halfW*0.08,halfW,f); const xC=lrp(cx,tipX,f); const on=(Math.sin(f*20+K.t*2*P.speed+sp.ph)>0)?1:0.25; fill(hh,60,100,18*br*on); ellipse(xC,y,hw*1.8,u*0.012); }\n  } else {\n    // beam \u2014 layered volumetric additive cone, soft\n    for(let l=haze;l>0;l--){ const t=l/haze; const a=Math.min(30, 10*br*t); fill(md(hh+8*t,360), lrp(85,30,t), 100, a); triangle(cx,ey, tipX-halfW*t,Hh, tipX+halfW*t,Hh); }\n  }\n  // source glow (all styles)\n  fill(hh, 30, 100, 40*br); ellipse(cx, ey+u*0.02, u*0.05*(0.6+A.rms*2), u*0.05);\n}\nblendMode(BLEND);\n"
+}

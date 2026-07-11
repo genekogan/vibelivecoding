@@ -1,0 +1,123 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.jukebox",
+  "kind": "set",
+  "name": "Jukebox",
+  "desc": "A chrome-and-neon jukebox with liquid bubble tubes rising to the beat, glossy glints sweeping the dome, and tube colors cycling through the set.",
+  "tags": [
+    "jukebox",
+    "wurlitzer",
+    "diner",
+    "retro",
+    "50s",
+    "bubbles",
+    "chrome",
+    "neon",
+    "music",
+    "club",
+    "nostalgia",
+    "americana",
+    "rockabilly",
+    "dance"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "cabinet scale"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble size / motion amplitude"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "neon + title glow brightness"
+    },
+    "chrome": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "chrome glint intensity"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "cabinet + tube hue base"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "motion rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (center)"
+    },
+    "y": {
+      "default": 0.94,
+      "min": 0.6,
+      "max": 1.0,
+      "doc": "floor anchor y"
+    },
+    "style": {
+      "default": "chrome",
+      "options": [
+        "chrome",
+        "neon",
+        "riso",
+        "blueprint",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "diner",
+      "options": [
+        "diner",
+        "rave",
+        "lonely"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variant seed"
+    }
+  },
+  "acts": [
+    "diner",
+    "rave",
+    "lonely"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:27:02+00:00",
+    "fps": 60.2,
+    "motion": 0.0069,
+    "lum": 0.131
+  },
+  "code": "const D = { scale:1, density:.6, energy:.6, glow:.7, hue:210, chrome:.8, speed:1, x:.5, y:.94, style:'chrome', act:'diner', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI*2;\nconst u = Math.min(width,height);\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h%360)+360)%360;\nconst clamp = (v,a,b) => v<a?a:(v>b?b:v);\n\n// ---- geometry ----\nconst scl = P.scale;\nconst jw = u*0.46*scl, jh = u*0.80*scl;\nconst cx = P.x*width, by = P.y*height;\nconst top = by - jh, left = cx - jw/2, right = cx + jw/2;\nconst inset = jw*0.11;\nconst lx = left+inset, rx = right-inset;\nconst tubeBotY = by - jh*0.09;\nconst ay = top + jh*0.30;            // where verticals meet the arch\nconst rArc = (rx-lx)/2;\nconst LvA = Math.max(1, tubeBotY-ay);\nconst totalA = LvA + (Math.PI/2)*rArc;\n// rising path, left stream: s 0(bottom)->1(top center)\nconst pathA = s => {\n  const d = s*totalA;\n  if (d < LvA) return [lx, tubeBotY-d];\n  const a = Math.PI - (d-LvA)/rArc;   // PI -> PI/2\n  return [cx + rArc*Math.cos(a), ay - rArc*Math.sin(a)];\n};\n\n// ---- style ----\nconst STY = {\n  chrome:    { mode:'solid', metal:[208,10,88], metalD:[210,16,44], panel:[hw(P.hue),46,20], grille:[34,26,32], win:[46,70,96], wire:false, halftone:false, neon:false, gloss:true },\n  neon:      { mode:'neon',  metal:[hw(P.hue),55,66], metalD:[hw(P.hue),75,26], panel:[hw(P.hue),85,10], grille:[hw(P.hue),50,22], win:[48,90,96], wire:false, halftone:false, neon:true, gloss:false },\n  riso:      { mode:'riso',  metal:[6,68,92], metalD:[6,68,92], panel:[202,66,84], grille:[6,58,86], win:[46,74,92], wire:false, halftone:true, neon:false, gloss:false },\n  blueprint: { mode:'wire',  metal:[194,64,74], metalD:[210,72,18], panel:[212,72,14], grille:[196,46,52], win:[192,60,60], wire:true, halftone:false, neon:false, gloss:false },\n  noir:      { mode:'solid', metal:[220,6,74], metalD:[220,10,16], panel:[222,10,10], grille:[220,7,26], win:[42,16,86], wire:false, halftone:false, neon:false, gloss:true }\n};\nconst sty = STY[P.style] || STY.chrome;\n\n// ---- cached cabinet buffer ----\nconst key = width+'x'+height+':'+scl.toFixed(3)+':'+Math.round(P.hue)+':'+P.style+':'+P.seed;\nif (!S.gfx || S.key !== key) {\n  const g = S.gfx || (S.gfx = createGraphics(width, height));\n  g.colorMode(HSB,360,100,100,100);\n  g.clear();\n  g.push();\n  // cabinet silhouette: rounded-shoulder arch\n  const shoulderY = top + jh*0.34;\n  const shape = (ctx) => {\n    ctx.beginShape();\n    ctx.vertex(left, by);\n    ctx.vertex(left, shoulderY);\n    ctx.bezierVertex(left, top+jh*0.04, cx-jw*0.30, top, cx, top);\n    ctx.bezierVertex(cx+jw*0.30, top, right, top+jh*0.04, right, shoulderY);\n    ctx.vertex(right, by);\n    ctx.endShape(CLOSE);\n  };\n  if (sty.wire) {\n    g.noFill(); g.stroke(sty.panel[0],sty.panel[1],40); g.strokeWeight(Math.max(1,u*0.004)); g.rectMode(CORNER);\n    // dark schematic panel behind\n    g.fill(sty.panel[0],sty.panel[1],sty.panel[2]); g.noStroke();\n    g.rect(left-inset*0.4, top-jh*0.02, jw+inset*0.8, jh+jh*0.02, u*0.02);\n    g.noFill(); g.stroke(sty.metal[0],sty.metal[1],sty.metal[2]); g.strokeWeight(Math.max(1.2,u*0.0045));\n    shape(g);\n    // schematic grille + crosshatch\n    for (let i=0;i<9;i++){ const yy = top+jh*0.50 + i*(jh*0.045); g.line(left+inset*0.5, yy, right-inset*0.5, yy); }\n    for (let i=0;i<6;i++){ const xx = left+inset*0.6 + i*((jw-inset*1.2)/5); g.line(xx, top+jh*0.48, xx, top+jh*0.86); }\n    g.stroke(sty.win[0],sty.win[1],sty.win[2]); g.rect(cx-jw*0.28, top+jh*0.18, jw*0.56, jh*0.20, u*0.01);\n    // dimension ticks\n    g.strokeWeight(1); g.stroke(sty.metal[0],40,60);\n    for (let i=0;i<12;i++){ const s=i/11; const p=pathA(s); g.point(p[0],p[1]); g.point(2*cx-p[0],p[1]); }\n  } else {\n    // solid body panel + metal frame overlay\n    g.noStroke(); g.fill(sty.panel[0],sty.panel[1],sty.panel[2]);\n    shape(g);\n    // vertical wood/metal grain\n    if (sty.halftone) {\n      g.fill(sty.grille[0],sty.grille[1],sty.grille[2]);\n      for (let yy=top; yy<by; yy+=Math.max(3,u*0.012)){\n        for (let xx=left; xx<right; xx+=Math.max(3,u*0.012)){\n          const dd = (xx-cx); if (Math.abs(dd) > jw*0.5) continue;\n          const rr = Math.max(0.6, u*0.004*(0.4+fr(xx*3.1+yy)*0.9));\n          if (yy>top+jh*0.34 || Math.abs(dd)<jw*0.30) g.circle(xx,yy,rr);\n        }\n      }\n    }\n    // chrome shoulder frame\n    const fw = Math.max(2,u*0.02);\n    g.noFill(); g.strokeWeight(fw);\n    g.stroke(sty.metalD[0],sty.metalD[1],sty.metalD[2]); shape(g);\n    g.strokeWeight(fw*0.5); g.stroke(sty.metal[0],sty.metal[1],sty.metal[2]); shape(g);\n    // central lit title window\n    g.noStroke(); g.fill(sty.win[0],sty.win[1],sty.win[2]*0.9);\n    g.rect(cx-jw*0.30, top+jh*0.16, jw*0.60, jh*0.19, u*0.012);\n    g.fill(0,0,10,40); g.rect(cx-jw*0.28, top+jh*0.185, jw*0.56, jh*0.14, u*0.008);\n    // title text ribs\n    g.stroke(sty.metalD[0],sty.metalD[1],sty.metalD[2],60); g.strokeWeight(Math.max(1,u*0.003));\n    for (let i=0;i<4;i++){ const yy=top+jh*0.205+i*(jh*0.032); g.line(cx-jw*0.24,yy,cx+jw*0.24,yy); }\n    // speaker grille (chevron / horizontal)\n    g.noStroke();\n    for (let i=0;i<11;i++){\n      const yy = top+jh*0.52 + i*(jh*0.032);\n      const b = sty.grille[2]*(0.55+0.4*(i%2));\n      g.fill(sty.grille[0],sty.grille[1],b);\n      g.rect(cx-jw*0.34, yy, jw*0.68, jh*0.018, u*0.006);\n    }\n    // base plinth\n    g.fill(sty.metalD[0],sty.metalD[1],sty.metalD[2]);\n    g.rect(left-inset*0.3, by-jh*0.06, jw+inset*0.6, jh*0.06, u*0.006);\n    g.fill(sty.metal[0],sty.metal[1],sty.metal[2]*0.9);\n    g.rect(left-inset*0.3, by-jh*0.06, jw+inset*0.6, jh*0.012);\n    // glass tube channels (dark grooves the bubbles ride in)\n    g.noFill(); g.strokeWeight(Math.max(3,u*0.02));\n    g.stroke(sty.panel[0],sty.panel[1],Math.max(4,sty.panel[2]*0.4));\n    g.beginShape();\n    for (let i=0;i<=24;i++){ const p=pathA(i/24); g.vertex(p[0],p[1]); }\n    g.endShape();\n    g.beginShape();\n    for (let i=0;i<=24;i++){ const p=pathA(i/24); g.vertex(2*cx-p[0],p[1]); }\n    g.endShape();\n    if (sty.gloss){\n      g.strokeWeight(Math.max(1,u*0.006)); g.stroke(0,0,100,26);\n      g.beginShape(); for (let i=0;i<=24;i++){ const p=pathA(i/24); g.vertex(p[0]-u*0.006,p[1]); } g.endShape();\n      g.beginShape(); for (let i=0;i<=24;i++){ const p=pathA(i/24); g.vertex(2*cx-p[0]-u*0.006,p[1]); } g.endShape();\n    }\n  }\n  g.pop();\n  S.key = key;\n}\n\n// ---- draw cached cabinet ----\nimage(S.gfx, 0, 0);\n\n// ---- act dramaturgy ----\nlet cycleRate = 6, bubbleMul = 1, glowMul = 1;\nif (P.act === 'rave') { cycleRate = 1.6; bubbleMul = 1.5; glowMul = 1.3; }\nelse if (P.act === 'lonely') { cycleRate = 22; bubbleMul = 0.5; glowMul = 0.65; }\n\n// tube hue cycles per section + slow real-time drift (never re-phases)\nconst secShift = K.section*44;\nconst tubeH = hw(P.hue + 120 + secShift + K.t*(360/Math.max(2,cycleRate*10)) );\nconst glow = P.glow*glowMul*(0.55 + 0.45*K.swell) + A.bass*0.5;\nconst kick = K.pulse*0.7 + A.bass*0.7;\n\n// ---- rising bubbles (continuous K.t motion floor) ----\nconst NB = Math.round(6 + P.density*bubbleMul*40);\npush();\nblendMode(ADD);\nfor (let i=0;i<NB;i++){\n  const stream = fr(i*1.7) < 0.5 ? 0 : 1;\n  const off = fr(i*2.3);\n  const sp = 0.10 + fr(i*3.7)*0.16;\n  let s = (off + K.t*sp*P.speed*0.9) % 1;\n  const p = pathA(s);\n  const x = stream ? 2*cx - p[0] : p[0];\n  const yv = p[1];\n  const wob = Math.sin(K.t*2.2 + i*1.3)*u*0.004;\n  const bh = hw(tubeH + (fr(i*5.1)-0.5)*30);\n  const grow = 1 + kick*0.5*Math.exp(-Math.abs(s-K.cyc)*4);\n  const r = (u*0.006 + fr(i*4.4)*u*0.010) * (0.7+s*0.6) * grow * (0.9+P.energy*0.4);\n  const al = clamp((14 + glow*22) * (0.5+0.6*Math.sin(s*Math.PI)), 0, 60);\n  fill(bh, 62, 96, al);\n  circle(x+wob, yv, r*2);\n  fill(bh, 20, 100, al*0.7);\n  circle(x+wob - r*0.3, yv - r*0.3, r*0.7);\n}\nblendMode(BLEND);\npop();\n\n// ---- title window glow flicker + neon arch ----\npush();\nblendMode(ADD);\nconst winGlow = clamp((10 + glow*30)*(0.7+0.3*Math.sin(K.t*3.1)), 0, 60);\nnoStroke(); fill(hw(P.hue+40), 30, 100, winGlow*0.5);\nrect(cx-jw*0.30, top+jh*0.16, jw*0.60, jh*0.19, u*0.012);\n// neon arch outline pulse (all styles get a subtle rim; neon style stronger)\nconst neonAmp = sty.neon ? 1 : 0.4;\ndrawingContext.shadowBlur = (10 + glow*26)*neonAmp;\ndrawingContext.shadowColor = 'hsla('+Math.round(tubeH)+',90%,60%,0.9)';\nnoFill(); strokeWeight(Math.max(1.5,u*0.006)*neonAmp);\nstroke(tubeH, 70, 100, 40+kick*40);\nbeginShape();\nfor (let i=0;i<=24;i++){ const p=pathA(i/24); vertex(p[0],p[1]); }\nendShape();\nbeginShape();\nfor (let i=0;i<=24;i++){ const p=pathA(i/24); vertex(2*cx-p[0],p[1]); }\nendShape();\ndrawingContext.shadowBlur = 0;\nblendMode(BLEND);\npop();\n\n// ---- chrome glint sweeping across the dome (real-time) ----\nif (!sty.wire) {\n  push();\n  const gx = left + (0.5+0.5*Math.sin(K.t*0.6))*jw;\n  const chr = P.chrome;\n  blendMode(SCREEN);\n  noStroke();\n  for (let i=0;i<4;i++){\n    const a = (10+chr*16) * (1 - i/4);\n    fill(0,0,100,a);\n    ellipse(gx, top+jh*0.30, u*0.012*(1+i*1.2), jh*0.5);\n  }\n  // beat spark on the title\n  fill(0,0,100, kick*30*chr);\n  ellipse(cx - jw*0.18 + Math.sin(K.t*4)*jw*0.1, top+jh*0.255, u*0.05, u*0.02);\n  blendMode(BLEND);\n  pop();\n}\n"
+}
