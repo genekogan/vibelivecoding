@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.monk",
+  "kind": "subject",
+  "name": "Sweeping Monk",
+  "desc": "Robed temple monk sweeping a courtyard in slow sumi brush-strokes, bent-back half-note sweeps sending autumn leaves scattering, pausing to bow.",
+  "tags": [
+    "monk",
+    "buddhist",
+    "zen",
+    "temple",
+    "sumi-e",
+    "ink",
+    "brush",
+    "sweeping",
+    "broom",
+    "courtyard",
+    "leaves",
+    "autumn",
+    "robe",
+    "saffron",
+    "meditation",
+    "serene",
+    "calm",
+    "sacred",
+    "asian",
+    "japan",
+    "character",
+    "human",
+    "figure"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sweep / travel amplitude"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "kasaya sash + robe-tint hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "sweep rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many scattered leaves"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.83,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "sweep",
+      "options": [
+        "sweep",
+        "rake",
+        "bow",
+        "idle"
+      ],
+      "doc": "pose \u2014 sweep/rake auto-cycle a 32-beat routine with a bow"
+    },
+    "style": {
+      "default": "sumi",
+      "options": [
+        "sumi",
+        "silhouette",
+        "scroll",
+        "charcoal"
+      ],
+      "doc": "aesthetic: brushed ink wash / pure ink silhouette / colored scroll painting / smudged charcoal hatch"
+    },
+    "act": {
+      "default": "courtyard",
+      "options": [
+        "courtyard",
+        "meditation"
+      ],
+      "doc": "multi-minute program: courtyard = steady sweeping, meditation = mostly still with bows"
+    },
+    "stoop": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "back-curvature / age morph"
+    },
+    "robe": {
+      "default": 0.55,
+      "min": 0.2,
+      "max": 1,
+      "doc": "robe width & drape morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "leaf layout + ink speckle + seal placement"
+    }
+  },
+  "acts": [
+    "courtyard",
+    "meditation"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:02:18+00:00",
+    "fps": 59.9,
+    "motion": 0.0064,
+    "lum": 0.088
+  },
+  "code": "const D = { scale:1, energy:.6, hue:38, speed:1, density:.5, x:.5, y:.83, pose:'sweep', style:'sumi', act:'courtyard', stoop:.5, robe:.55, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\nconst sn=(tt,off)=>{const f=Math.floor(tt),xq=tt-f; return (fr(f+off)*(1-xq)+fr(f+1+off)*xq-.5)*2;};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u=Math.min(width,height);\nconst sc=u*P.scale/440;            // figure ~200 local tall -> ~0.45u\nconst bt=K.beat*P.speed;\nconst en=P.energy*(.55+.55*K.intensity);\nconst H=md(P.hue,360);\nconst sil=P.style==='silhouette', char=P.style==='charcoal', scroll=P.style==='scroll';\nconst sumi=!sil&&!char&&!scroll;\n\n// ---- seed caches ----\nif (S.seedUsed!==P.seed){\n  S.seedUsed=P.seed;\n  S.leaf=[];\n  for(let i=0;i<44;i++) S.leaf.push({x:(fr(i*3+1)-.5)*360, y:-fr(i*3+2)*4, vx:0, vy:0, rot:fr(i*5+3)*6.2832, spin:(fr(i*7+4)-.5)*.25, sz:5+fr(i*9+5)*6, hu:18+fr(i*11+6)*34, settled:1});\n  S.speck=[];\n  for(let i=0;i<22;i++) S.speck.push({x:(fr(i*13+7)-.5)*54, y:-30-fr(i*17+8)*110, r:.8+fr(i*19+9)*2.4});\n  S.seal={dx:96+fr(101)*16, dy:-24-fr(103)*18, rot:(fr(107)-.5)*.18};\n}\n\n// ---- pose program ----\nlet pose=P.pose;\nconst base=P.pose;\nif(base==='sweep' || base==='rake'){\n  const ph=md(bt,32);\n  if(P.act==='meditation'){\n    pose = ph<5 ? base : ph<11 ? 'idle' : ph<15 ? 'bow' : ph<21 ? 'idle' : ph<27 ? base : 'idle';\n  } else {\n    pose = ph<25 ? base : ph<30 ? 'bow' : 'idle';\n  }\n}\nconst isSweep = pose==='sweep'||pose==='rake';\nconst per = pose==='rake'?2:1;\n\n// ---- motion ----\nconst breath=Math.sin(K.t*.5)*.5 + K.swell*.4;\nconst wob=sn(K.t*.6,40);\nlet strokeE=0, lean=0, sway=0, armReach=0, bowD=0;\nif(isSweep){\n  const c=md(bt,per)/per;\n  strokeE=Math.pow(Math.sin(c*Math.PI),1.2);\n  lean = strokeE*(.4+.2*en) + P.stoop*.3;\n  sway = Math.sin(bt*Math.PI/(per*2))*(14+9*en) + wob*2;\n  armReach = strokeE*(.4+.3*en);\n} else if(pose==='bow'){\n  bowD = clp(.5+K.swell*.35,0,1);\n  lean = .95 + P.stoop*.2 + bowD*.15;\n  sway = wob*3;\n} else { // idle\n  lean = P.stoop*.22 + breath*.05;\n  sway = Math.sin(bt*Math.PI*.5)*3*en + wob*2;\n  armReach = breath*.06;\n}\nlean += A.bass*.06;\nconst scatter = K.pulse*.3*en + A.treble*.5;\n\n// broom geometry (upper-frame coords, hip at figure y=-70)\nconst cL=Math.cos(lean), sL=Math.sin(lean);\nlet btx=24+strokeE*16, bty=74;\nif(isSweep) btx += Math.sin(bt*Math.PI/per)*15;\nconst tipX = sway + btx*cL - bty*sL;   // figure-local ground x of broom tip\nif(S.prevTip==null) S.prevTip=tipX;\nconst tipV=tipX-S.prevTip; S.prevTip=tipX;\n\n// ---- leaf physics ----\nconst nLeaf=Math.round(4+P.density*30);\nfor(let i=0;i<nLeaf;i++){\n  const L=S.leaf[i];\n  L.vy+=.5;\n  if(isSweep){\n    const dx=L.x-tipX;\n    if(Math.abs(dx)<44 && L.y>-22){\n      L.vx += (Math.sign(tipV||dx)*Math.abs(tipV)*.55) + dx*.02;\n      L.vy -= 2.0;\n    }\n  }\n  L.vx += sn(K.t*.8+i,i)*.05;\n  if(scatter>.5 && fr(i*31+Math.floor(K.beat))<scatter*.28){ L.vy -= scatter*3; L.vx += (fr(i*13+9)-.5)*4; }\n  L.vx=clp(L.vx,-13,13); L.vy=clp(L.vy,-13,13);\n  L.x+=L.vx; L.y+=L.vy; L.rot+=L.spin+L.vx*.012;\n  L.vx*=.9; L.vy*=.86;\n  if(L.y>0){ L.y=0; L.vy*=-.2; L.vx*=.7; }\n  if(L.x<-200) L.x+=400; if(L.x>200) L.x-=400;\n}\n\n// ---- ink helpers ----\nfunction inkFill(dark,a){\n  if(sil){ fill(28,12,7,a); return; }\n  if(scroll){ fill(H,32,clp(80-dark*48,8,92),a); return; }\n  if(char){ fill(0,0,clp(42-dark*34,4,60),a); return; }\n  fill(0,0,clp(32-dark*27,3,62),a);\n}\nfunction inkStroke(a,w){\n  if(sil){ noStroke(); return; }\n  if(scroll) stroke(24,52,34,a);\n  else if(char) stroke(0,0,14,a);\n  else stroke(0,0,9,a);\n  strokeWeight(w);\n}\nfunction skin(a){\n  if(sil){ fill(28,12,8,a); return; }\n  if(char){ fill(0,0,54,a); return; }\n  fill(28,23,85,a);\n}\n\n// ================= DRAW =================\npush();\ntranslate(P.x*width, P.y*height);\nscale(sc);\n\n// ground shadow wash\nnoStroke();\ninkFill(1, sil?24:14);\nellipse(sway*.5, 3, 168+Math.abs(sway)*.8, 22);\ninkFill(1, sil?16:9);\nellipse(tipX, 2, 40, 12);\n\n// leaves behind\nnoStroke();\nfor(let i=0;i<nLeaf;i++){ if(i%2) continue; const L=S.leaf[i];\n  push(); translate(L.x,L.y-2); rotate(L.rot);\n  if(sil) fill(28,12,10,90); else if(char) fill(0,0,30,80); else fill(L.hu,scroll?70:64,scroll?70:60,80);\n  beginShape(); vertex(0,-L.sz*.5); bezierVertex(L.sz*.4,-L.sz*.2,L.sz*.4,L.sz*.3,0,L.sz*.5); bezierVertex(-L.sz*.4,L.sz*.3,-L.sz*.4,-L.sz*.2,0,-L.sz*.5); endShape(CLOSE);\n  pop();\n}\n\n// ---- monk body ----\npush();\ntranslate(sway,0);\n\n// lower robe (skirt)\n(function(){\n  const hemW=60*(.7+P.robe*.7), hipW=28;\n  push(); rotate(lean*.22);\n  for(let k=3;k>=1;k--){ inkFill(.5+.12*k, (sumi?15:sil?92:24)-k*3);\n    noStroke();\n    beginShape();\n    vertex(-hipW*.6,-66);\n    bezierVertex(-hipW-6,-40,-hemW*.72,-14,-hemW-k*3,-2);\n    vertex(hemW+k*3,-2);\n    bezierVertex(hemW*.72,-14,hipW+6,-40,hipW*.6,-66);\n    endShape(CLOSE);\n  }\n  inkFill(.72, sil?100:80); noStroke();\n  beginShape();\n  vertex(-hipW*.6,-66);\n  bezierVertex(-hipW-4,-40,-hemW*.72,-14,-hemW,-2);\n  vertex(hemW,-2);\n  bezierVertex(hemW*.72,-14,hipW+4,-40,hipW*.6,-66);\n  endShape(CLOSE);\n  if(!sil){\n    inkStroke(char?46:28,1.2); noFill();\n    for(let i=-2;i<=2;i++){ const fxx=i*hemW*.3; line(fxx*.35,-58,fxx,-4); }\n    if(char){ inkStroke(20,.8); for(let i=-3;i<=3;i++){ line(i*14,-56,i*14+18,-6); } }\n  }\n  pop();\n})();\n\n// upper body (torso/head/arms) leaning from hip at y=-70\npush();\ntranslate(0,-70);\nrotate(lean);\n\n// torso robe\ninkFill(.66, sil?100:76); noStroke();\nbeginShape();\nvertex(-20,6);\nbezierVertex(-26,-24,-22,-48,-16,-64);\nvertex(16,-64);\nbezierVertex(22,-48,26,-24,20,6);\nendShape(CLOSE);\n\n// kasaya sash \u2014 the single color note (saffron)\nif(!char){\n  fill(sil?28:H, sil?12:(scroll?58:66), sil?8:(sumi?72:80), sil?100:90); noStroke();\n  beginShape();\n  vertex(-18,-58); vertex(5,-64);\n  vertex(13,-24); vertex(21,4);\n  vertex(6,6); vertex(-2,-22);\n  endShape(CLOSE);\n  if(!sil){ inkStroke(28,1); noFill(); for(let i=0;i<3;i++) line(-13+i*9,-52+i*2, 3+i*9,-22+i*2); }\n}\n\n// arms to broom grip (grip near 10,-4 in this frame)\nconst gx=10+armReach*10, gy=-4+armReach*4;\n(function(){\n  inkStroke(sil?100:44, 6); if(sil) stroke(28,12,8);\n  noFill();\n  const sxL=-14,syL=-58, sxR=14,syR=-58;\n  const mxL=(sxL+gx)*.5-2,myL=(syL+gy)*.5+8;\n  const mxR=(sxR+gx)*.5+2,myR=(syR+gy)*.5+6;\n  beginShape(); vertex(sxL,syL); quadraticVertex(mxL,myL,gx-3,gy); endShape();\n  beginShape(); vertex(sxR,syR); quadraticVertex(mxR,myR,gx+3,gy); endShape();\n  noStroke(); skin(100); ellipse(gx,gy,8,8);\n})();\n\n// broom (handle + straw), tip at (btx,bty)\n(function(){\n  inkStroke(sil?100:44,3.6); if(sil) stroke(28,12,9);\n  line(gx,gy, btx,bty-16);\n  const ang=Math.atan2(bty-16-(bty), btx-btx); // vertical-ish; draw straw as fan\n  push(); translate(btx,bty-16);\n  const spread=strokeE*Math.sign(tipV||1)*10;\n  for(let i=-5;i<=5;i++){\n    inkStroke(sil?100:(char?46:52),1.5); if(sil) stroke(28,12,9);\n    line(i*1.6,0, i*3.4+spread, 16+(5-Math.abs(i))*1.6);\n  }\n  noStroke(); inkFill(.4, sil?100:70);\n  beginShape(); vertex(-9,0); vertex(9,0); vertex(13+spread,15); vertex(-13+spread,15); endShape(CLOSE);\n  pop();\n})();\n\n// neck + head\ninkStroke(sil?100:40,3); if(sil) stroke(28,12,9);\nline(-4,-62,-3,-72); line(4,-62,3,-72);\npush();\ntranslate(0,-80);\nrotate(Math.sin(K.t*.7)*.03 + strokeE*.05 + wob*.02);\nnoStroke(); skin(100);\nbeginShape();\nvertex(-11,0);\nbezierVertex(-13,-16,-8,-27,0,-27);\nbezierVertex(8,-27,13,-16,11,0);\nbezierVertex(9,9,-9,9,-11,0);\nendShape(CLOSE);\nskin(100); ellipse(-11,-5,5,8); ellipse(11,-5,5,8);\nif(!sil){\n  // shaved-head faint dots\n  if(sumi||char){ inkStroke(char?30:16,1); for(let r=0;r<2;r++) for(let c=-2;c<=2;c++){ point(c*4, -18-r*5); } }\n  inkStroke(70,1.7); noFill();\n  line(-7,-6,-3,-5); line(3,-5,7,-6);   // downcast closed eyes\n  inkStroke(50,1.2); line(0,-4,-1.5,0); // nose\n  inkStroke(45,1.2); line(-2,4,2,4);    // calm mouth\n  inkStroke(30,1); line(-8,-9,-4,-10); line(4,-10,8,-9); // brows\n}\npop(); // head\npop(); // upper body\npop(); // monk (sway)\n\n// leaves in front\nnoStroke();\nfor(let i=0;i<nLeaf;i++){ if(i%2===0) continue; const L=S.leaf[i];\n  push(); translate(L.x,L.y-2); rotate(L.rot);\n  if(sil) fill(28,12,10,95); else if(char) fill(0,0,34,88); else fill(L.hu,scroll?72:66,scroll?74:64,90);\n  beginShape(); vertex(0,-L.sz*.5); bezierVertex(L.sz*.4,-L.sz*.2,L.sz*.4,L.sz*.3,0,L.sz*.5); bezierVertex(-L.sz*.4,L.sz*.3,-L.sz*.4,-L.sz*.2,0,-L.sz*.5); endShape(CLOSE);\n  pop();\n}\n\n// vermillion seal (sumi/scroll signature)\nif(sumi||scroll){\n  push(); translate(S.seal.dx,S.seal.dy); rotate(S.seal.rot);\n  const br=6+Math.sin(K.t*.4)*.4;\n  noFill(); stroke(2,80,78,92); strokeWeight(1.6); rect(-br,-br,br*2,br*2,1);\n  stroke(2,78,80,80); strokeWeight(1.2);\n  line(-br*.5,-br*.4,br*.5,-br*.4); line(0,-br*.5,0,br*.5); line(-br*.4,br*.3,br*.4,br*.3);\n  pop();\n}\n\npop(); // root\n"
+}

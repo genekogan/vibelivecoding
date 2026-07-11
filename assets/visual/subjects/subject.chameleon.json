@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.chameleon",
+  "kind": "subject",
+  "name": "Chameleon",
+  "desc": "A color-field chameleon whose skin literally is the hue param \u2014 it rocks like a leaf on its branch, swivels a turret eye, curls its spiral tail, pumps its throat, and snaps a ballistic tongue at a hovering fly on the bass.",
+  "tags": [
+    "chameleon",
+    "lizard",
+    "reptile",
+    "animal",
+    "herp",
+    "color-change",
+    "colorfield",
+    "color-field",
+    "rothko",
+    "iridescent",
+    "gradient",
+    "tongue",
+    "turret-eye",
+    "branch",
+    "perch",
+    "tail",
+    "curl",
+    "fly",
+    "exotic",
+    "tropical",
+    "meditative",
+    "clinical",
+    "character",
+    "subject"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude: rock sway, throat pump, tail curl"
+    },
+    "hue": {
+      "default": 120,
+      "min": 0,
+      "max": 360,
+      "doc": "LITERAL skin hue (drifts slowly around this)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "rock + swivel + zap rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stipple-scale / detail density"
+    },
+    "x": {
+      "default": 0.46,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "branch anchor y (canvas fraction)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body bulk / lateral depth morph"
+    },
+    "tail": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tail length + curl-tightness morph"
+    },
+    "throat": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gular throat-pump amplitude morph"
+    },
+    "pose": {
+      "default": "perch",
+      "options": [
+        "perch",
+        "stalk",
+        "display"
+      ],
+      "doc": "perch=idle rock+grip, stalk=creeping rock-walk, display=puffed throat + flushed warning colors"
+    },
+    "style": {
+      "default": "field",
+      "options": [
+        "field",
+        "iridescent",
+        "stipple",
+        "xray",
+        "blueprint"
+      ],
+      "doc": "aesthetic: soft luminous color-field mass w/ no outline (Rothko-ish) / oil-slick iridescent hue-shift scales / pointillist stippled scales (engraving) / anatomical X-ray glowing skeleton (abstract) / schematic blueprint contour lines (abstract)"
+    },
+    "act": {
+      "default": "bask",
+      "options": [
+        "bask",
+        "hunt",
+        "threat"
+      ],
+      "doc": "multi-minute skin dramaturgy: bask lazy hue-wander, hunt steady stalking creep, threat flush toward hot warning colors"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "stipple/leaf/detail layout variation"
+    }
+  },
+  "acts": [
+    "bask",
+    "hunt",
+    "threat"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:01:16+00:00",
+    "fps": 59.9,
+    "motion": 0.0095,
+    "lum": 0.15
+  },
+  "code": "const D = { scale:1, energy:.65, hue:120, speed:1, density:.5, x:.46, y:.6, pose:'perch', style:'field', act:'bask', seed:0, chub:.5, tail:.5, throat:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);}, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst u=Math.min(width,height), sc=u*P.scale/320;\nconst H=md(P.hue,360);\nconst style=P.style, field=style==='field', xray=style==='xray', stipple=style==='stipple', iri=style==='iridescent', blueprint=style==='blueprint';\nconst bt=K.beat*P.speed;\nconst en=P.energy*(.4+.6*K.intensity);\nconst CH=.8+P.chub*.7, TL=.6+P.tail*.9, TH=.5+P.throat*1.0;\n\n// pose posture\nconst perch=P.pose==='perch'?1:0, stalk=P.pose==='stalk'?1:0, display=P.pose==='display'?1:0;\n// act \u2014 multi-minute skin-mood dramaturgy\nlet moodDrift, moodSat, creep;\nif(P.act==='hunt'){ moodDrift=8*Math.sin(K.t*0.05); moodSat=1.08; creep=1; }\nelse if(P.act==='threat'){ moodDrift=90*ez(Math.sin(K.t*0.09)*.5+.5); moodSat=1.25; creep=.2; } // flush toward warning colors\nelse { moodDrift=26*Math.sin(K.t*0.045) + 12*Math.sin(K.t*0.11); moodSat=1.0; creep=.35; } // bask: lazy hue wander\n\n// literal skin hue (P.hue) + slow living shimmer + act mood + display flush\nconst skinHue = md(H + moodDrift + display*70, 360);\nconst satBase = clp((48 + display*26)*moodSat, 20, 96);\n\n// characteristic chameleon rock \u2014 whole body sways like a leaf\nconst rock = Math.sin(K.t*2.1*P.speed + K.swell*.6)*(.5+.5*en);\nconst rrot = rock*0.12 + Math.sin(K.t*0.9*P.speed)*0.03*en;\nconst rx = rock*22*sc + (stalk?Math.sin(bt*Math.PI)*8*sc:0);\nconst creepY = -Math.abs(Math.sin(bt*Math.PI*0.5))*creep*6*sc*stalk;\nconst throb = (0.5+0.5*Math.sin(K.t*3.2 + K.pulse*2)); // gular pump\nconst kick=K.pulse*.5 + A.bass*.9;\n\n// tongue zap \u2014 clk sawtooth every 8 beats (baseline) + bass boost\nconst zp=frc((bt)/8), win=0.13; let ext=0;\nif(zp<win){ ext=Math.sin((zp/win)*Math.PI); }\next=clp(ext + clp(A.bass*1.8-0.6,0,1), 0, 1.15);\n\nconst cx=P.x*width, ay=P.y*height;\nconst s=sc;\n\n// fly target drifts\nconst flyX=cx + (140+30*Math.sin(K.t*0.7))*s, flyY=ay-(150+40*Math.cos(K.t*0.5))*s;\n\nfunction skinFill(depth, hoff){\n  const hh=md(skinHue+(hoff||0)+(iri?depth*70:0),360);\n  if(blueprint){ noFill(); stroke(md(H+180,360),16,96,82); strokeWeight(1.3*s); strokeJoin(ROUND); return; }\n  if(xray){ noStroke(); fill(md(H,360),38,64,12); return; }\n  if(stipple){ noStroke(); fill(md(hh,360), satBase*.7, 26+depth*44); return; }\n  if(iri){ noStroke(); fill(md(hh,360), clp(satBase*.9,20,90), 38+depth*46); return; }\n  noStroke(); fill(md(hh,360), clp(satBase+(1-depth)*18,20,96), 26+depth*52);\n}\nfunction stip(cx0,cy0,rw,rh,depth,base){ if(!stipple)return; const n=Math.floor(base*(0.5+P.density)); noStroke();\n  for(let i=0;i<n;i++){ const a=fr(i*3.1+cx0)*TAU, rr=Math.sqrt(fr(i*5.7+cy0)); const px=cx0+Math.cos(a)*rw*rr, py=cy0+Math.sin(a)*rh*rr;\n    fill(md(skinHue+(fr(i*7.3)-.5)*40,360), satBase, 30+fr(i*2.9)*60, 70); circle(px,py,(0.8+fr(i*9.1)*1.6)*s); } }\n\n// ===== BRANCH (behind, fixed) =====\npush(); noStroke();\nconst bA=0.32; // branch angle\nfill(md(H+ (blueprint?180:20),360), blueprint?10:24, blueprint?80:34);\npush(); translate(cx, ay+8*s); rotate(bA);\nif(blueprint){ noFill(); stroke(md(H+180,360),12,80,60); strokeWeight(1.2*s); }\nrectMode(CENTER); rect(0,0,320*s,26*s*CH, 12*s); rectMode(CORNER);\n// a couple of leaves\nif(!blueprint && !xray){ for(let i=0;i<3;i++){ push(); translate((-90+i*90)*s, -18*s); rotate(-0.6+i*0.3); fill(md(H+ (i%2?-14:10),360),40,40+ i*6); ellipse(0,0,44*s,20*s); pop(); } }\npop(); pop();\n\n// ===== BODY GROUP (rocks) =====\npush();\ntranslate(cx+rx, ay-90*s+creepY);\nrotate(rrot);\n\n// ---- TAIL (curling spiral, behind) ----\nconst curl=(0.45+0.45*Math.sin(K.t*0.35*P.speed))*(0.7+P.tail*.6) + display*0.2;\nconst segs=16; const tp=[{x:-60*CH*s,y:-6*s}]; let ang=Math.PI*0.35;\nfor(let i=1;i<segs;i++){ const step=(9- i*0.18)*s*(0.7+P.tail*0.4); ang += (0.18 + i*0.05*curl); tp.push({x:tp[i-1].x-Math.cos(ang)*step, y:tp[i-1].y+Math.sin(ang)*step}); }\nfunction ribbon(pts,w0,w1){ beginShape();\n  for(let i=0;i<pts.length;i++){ const t=i/(pts.length-1), w=(w0*(1-t)+w1*t); const p=pts[i],q=pts[Math.min(i+1,pts.length-1)]; const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1; vertex(p.x-dy/L*w, p.y+dx/L*w);}\n  for(let i=pts.length-1;i>=0;i--){ const t=i/(pts.length-1), w=(w0*(1-t)+w1*t); const p=pts[i],q=pts[Math.min(i+1,pts.length-1)]; const dx=q.x-p.x,dy=q.y-p.y,L=Math.hypot(dx,dy)||1; vertex(p.x+dy/L*w, p.y-dx/L*w);}\n  endShape(CLOSE); }\nskinFill(.3); ribbon(tp, 13*s*TL, 1.6*s);\nif(stipple) for(let i=0;i<tp.length;i+=2) stip(tp[i].x,tp[i].y, 8*s,8*s,.3,4);\n\n// ---- FAR legs (darker) ----\nfunction limb(hx,hy,fx,fy,depth,grip){ push();\n  skinFill(depth); const mx=(hx+fx)/2 - 8*s, my=(hy+fy)/2 + 10*s;\n  ribbon([{x:hx,y:hy},{x:mx,y:my},{x:fx,y:fy}], 9*s*CH, 4*s);\n  // grip foot (zygodactyl mitten)\n  if(!blueprint){ skinFill(depth+.1); ellipse(fx,fy,14*s,10*s); }\n  pop(); }\nlimb(-24*s, 34*s, -40*s, 84*s, .16, 1);\nlimb(38*s, 30*s, 58*s, 82*s, .18, 1);\n\n// ---- BODY MASS (color field, laterally compressed, tall belly) ----\nif(field){ drawingContext.shadowColor='hsba('+skinHue+',70%,70%,0.55)'; drawingContext.shadowBlur=22*s; }\nskinFill(.55);\nbeginShape();\nvertex(-64*CH*s,-4*s);\nbezierVertex(-70*CH*s,-64*s, -30*s,-92*s, 12*s,-92*s);\nbezierVertex(58*s,-92*s, 74*CH*s,-70*s, 82*CH*s,-30*s);\nbezierVertex(88*CH*s, 8*s, 70*s, 44*s*(1+.25*throb*TH), 18*s, 50*s*(1+.3*throb*TH));\nbezierVertex(-16*s, 54*s, -58*CH*s, 40*s, -64*CH*s,-4*s);\nendShape(CLOSE);\nif(field){ drawingContext.shadowBlur=0; }\n// belly warm color-field wash (field/iri) \u2014 luminous underside\nif(field||iri){ push(); blendMode(ADD); noStroke(); fill(md(skinHue+40,360),60,70,10); ellipse(6*s,34*s,120*CH*s,48*s); blendMode(BLEND); pop(); }\nstip(6*s,-20*s, 78*CH*s,66*s,.5,60);\n\n// ---- DORSAL CREST (sawtooth ridge) ----\npush(); skinFill(.7, display?18:6);\nif(blueprint){ noFill(); stroke(md(H+180,360),14,96,84); strokeWeight(1.2*s); }\nbeginShape();\nconst crestN=11;\nfor(let i=0;i<=crestN;i++){ const t=i/crestN; const bx=-56*CH*s + t*(120*CH*s); const by=-70*s - 22*s*Math.sin(t*Math.PI) - ((i%2)? (7+display*9)*s : 0); vertex(bx,by); }\nfor(let i=crestN;i>=0;i--){ const t=i/crestN; const bx=-56*CH*s + t*(120*CH*s); const by=-64*s - 20*s*Math.sin(t*Math.PI); vertex(bx,by); }\nendShape(CLOSE); pop();\n\n// ---- NEAR legs ----\nlimb(-18*s, 30*s, -30*s, 82*s, .42, 1);\nlimb(44*s, 26*s, 62*s, 80*s, .46, 1);\n\n// ---- HEAD + CASQUE ----\npush();\ntranslate(70*CH*s, -66*s);\nrotate(-0.05 + kick*0.04 + Math.sin(K.t*0.6)*0.03*en);\n// casque helmet\nskinFill(.72, 10);\nbeginShape(); vertex(-6*s,-6*s); bezierVertex(-4*s,-44*s*(1+display*.3), 26*s,-44*s, 30*s,-8*s); vertex(18*s,-2*s); endShape(CLOSE);\n// skull + snout\nif(field){ drawingContext.shadowColor='hsba('+skinHue+',70%,70%,0.5)'; drawingContext.shadowBlur=16*s; }\nskinFill(.62);\nbeginShape();\nvertex(-14*s,-8*s); bezierVertex(-14*s,-30*s, 22*s,-30*s, 34*s,-16*s);\nvertex(50*s,-6*s); vertex(50*s,8*s); vertex(34*s,14*s);\nbezierVertex(20*s,26*s, -12*s,22*s, -14*s,-8*s); endShape(CLOSE);\nif(field){ drawingContext.shadowBlur=0; }\nstip(12*s,-4*s,28*s,20*s,.6,26);\n// mouth line\nif(!xray){ stroke(md(skinHue,360),60,14,60); strokeWeight(1.4*s); noFill(); line(48*s,4*s, 30*s,10*s); noStroke(); }\n// ---- TURRET EYE (swivels independently) ----\npush(); translate(6*s,-6*s);\nconst eyeAng=Math.sin(K.t*0.75*P.speed + 1.3)*1.0 + Math.cos(K.t*0.5)*0.4; // independent swivel\nskinFill(.5, 20);\nif(field){ drawingContext.shadowColor='hsba('+md(skinHue+30,360)+',60%,70%,0.5)'; drawingContext.shadowBlur=14*s; }\ncircle(0,0, 30*s); // conical turret lid\nif(field){ drawingContext.shadowBlur=0; }\n// concentric lid rings\nif(!xray){ for(let r=1;r<=3;r++){ noFill(); stroke(md(skinHue,360), satBase, 30+r*8, 50); strokeWeight(1.2*s); circle(0,0, 30*s - r*6*s); } noStroke(); }\n// pupil aperture \u2014 the tiny hole that aims\nconst px=Math.cos(eyeAng)*8*s, py=Math.sin(eyeAng)*8*s;\nfill(0,0, xray?100:8, xray?70:100); circle(px,py, 7*s);\nif(!xray){ fill(md(skinHue+180,360),70,100,90); circle(px-1.5*s,py-1.5*s,2.4*s); }\npop(); // eye\npop(); // head\n\n// ---- XRAY skeleton overlay ----\nif(xray){ push(); blendMode(ADD); stroke(md(H+150,360),50,100,80); strokeWeight(1.6*s); noFill();\n  drawingContext.shadowColor='hsba('+md(H+150,360)+',60%,100%,0.9)'; drawingContext.shadowBlur=8*s;\n  beginShape(); vertex(-58*CH*s,-8*s); bezierVertex(-20*s,-48*s,40*s,-46*s,68*CH*s,-58*s); endShape(); // spine\n  for(let i=0;i<7;i++){ const t=i/6; const bx=-52*CH*s+t*110*CH*s, by=-8*s + Math.sin(t*Math.PI)*-30*s; line(bx,by,bx-4*s,by+34*s); } // ribs\n  // tail vertebrae\n  for(let i=0;i<tp.length-1;i++){ line(tp[i].x,tp[i].y,tp[i+1].x,tp[i+1].y); }\n  drawingContext.shadowBlur=0; blendMode(BLEND); pop(); }\n\npop(); // body group\n\n// ===== TONGUE + FLY (front) =====\npush();\n// mouth world position (approx, tracks the rocking body group)\nconst mx0=cx+rx + (118*CH)*s*Math.cos(rrot) + 66*s*Math.sin(rrot), my0=ay-156*s+creepY;\nif(ext>0.02){ const tx=mx0 + (flyX-mx0)*ext, ty=my0 + (flyY-my0)*ext;\n  stroke(md(skinHue+20,360),50,96,90); strokeWeight((3.5- ext*1.5)*s); line(mx0,my0, tx,ty);\n  noStroke(); fill(md(skinHue+30,360),55,98); circle(tx,ty, (10+4*Math.sin(K.t*20))*s); }\n// fly\nif(!blueprint){ push(); const fj=Math.sin(K.t*30)*1.5*s; noStroke(); fill(0,0,10); ellipse(flyX+fj,flyY,7*s,5*s);\n  stroke(0,0,90,50); strokeWeight(1*s); line(flyX,flyY,flyX-6*s,flyY-4*s); line(flyX,flyY,flyX+6*s,flyY-4*s); noStroke(); pop(); }\npop();\n\nblendMode(BLEND);\n"
+}
