@@ -79,3 +79,28 @@ one-by-one deploys — a mid-frame init race, harmless.) Tuning note: set.dj_boo
 renders an oversized bright backdrop panel that dominates the frame; needs a
 P.scale/opacity trim to layer politely. Crowd/subjects read as stylized (not
 cartoon-cute) — aesthetic redirect confirmed on-canvas.
+
+## COMPLETE — 201/201 (2026-07-11 ~15:30 ET)
+All 201 orders authored + validated + committed. Catalog: 25 worlds, 15 floors,
+20 sets, 50 subjects, 12 crowds, 20 fx, 15 post, 34 genart, 10 palettes
+(+ browse_selftest). Index: assets/visual/index.jsonl (build_index.py).
+
+### Engine gotcha discovered at the finish (IMPORTANT for review/live use)
+The v2 engine (`owned_transport.js` + livecode.html) drives the p5 clock from
+the **Strudel transport**. With NO track playing, `window.state.t0` stays null,
+the clock freezes (t=0, fps still ~60, draw still loops), and EVERY visual reads
+as static — motion validation returns 0.0000 for everything. Fix: keep a
+near-silent metronome running (`sound("bd").gain(0.001).play()`) so the clock
+advances. `assets/tools/review.py` now auto-starts/stops one for visual grading.
+For the sweeper/validator, start a quiet track first if the clock is frozen.
+
+### Canvas infra notes (parallel music session shares this repo)
+- The music session periodically runs `pkill -f autopilot_host.py`, which also
+  kills the visual host. Workaround: the visual host runs as `/tmp/vf_visual_host.py`
+  (immune name) with anti-throttle flags (`--disable-renderer-backgrounding`
+  etc., since a backgrounded headed Chromium throttles rAF and freezes draw) and
+  `--snapshots-dir` pinned to the repo. The babysitter (scratchpad/babysitter.sh)
+  keeps THIS host alive.
+- If the canvas is dead: `python livecode.py` (server, ports 8765/8766), then
+  `python /tmp/vf_visual_host.py --interval 3 --snapshots-dir <repo>/autopilot/snapshots`
+  (recreate from autopilot_host.py + the anti-throttle flags if /tmp was cleared).

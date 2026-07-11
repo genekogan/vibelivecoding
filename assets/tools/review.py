@@ -298,6 +298,19 @@ def main():
     except Exception:
         pass
 
+    # v2 engine: the p5 clock is driven by the Strudel transport
+    # (owned_transport.js) — with no track playing, the clock freezes and every
+    # visual reads as static. Start a near-silent metronome so motion runs while
+    # grading visuals. (Music review plays its own audio, so skip it there.)
+    xport = args.domain == "visual"
+    if xport:
+        try:
+            srv.post("/strudel/track", name="__reviewclock",
+                     code='sound("bd").gain(0.001).play()')
+            time.sleep(0.6)
+        except Exception:
+            pass
+
     cls = VisualReviewer if args.domain == "visual" else MusicReviewer
     rev = cls(srv, {e["id"]: e for e in index})
 
@@ -351,6 +364,11 @@ def main():
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         rev.shutdown()
+        if xport:
+            try:
+                srv.post("/strudel/stop", name="__reviewclock")
+            except Exception:
+                pass
         try:
             srv.post("/show/recording", enabled=was_recording)
         except Exception:
