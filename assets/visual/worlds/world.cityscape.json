@@ -1,0 +1,114 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.cityscape",
+  "kind": "world",
+  "name": "Cityscape",
+  "desc": "Synthwave night skyline: neon-lit towers with flickering windows, a hazy moon, sweeping searchlights and drifting ground fog.",
+  "tags": [
+    "city",
+    "cityscape",
+    "skyline",
+    "urban",
+    "night",
+    "neon",
+    "synthwave",
+    "buildings",
+    "skyscraper",
+    "windows",
+    "searchlight",
+    "moon",
+    "metropolis",
+    "noir",
+    "fog",
+    "downtown",
+    "world",
+    "backdrop",
+    "purple",
+    "retrowave"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 1,
+      "doc": "building count + lit-window density"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "window flicker + searchlight brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.5,
+      "doc": "flicker + searchlight sweep + haze drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "building height scale"
+    },
+    "hue": {
+      "default": 290,
+      "min": 0,
+      "max": 360,
+      "doc": "neon anchor hue (290 magenta, 200 cyan, 30 amber)"
+    },
+    "y": {
+      "default": 0.54,
+      "min": 0.35,
+      "max": 0.74,
+      "doc": "skyline horizon height as canvas fraction"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "searchlight origin offset"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "thermal",
+        "noir",
+        "blueprint",
+        "ascii"
+      ],
+      "doc": "render treatment: synthwave glow / heat false-color / film-noir chiaroscuro / schematic wireframe / dot-matrix"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout seed for skyline + windows"
+    },
+    "act": {
+      "default": "nightfall",
+      "options": [
+        "nightfall",
+        "pulse"
+      ],
+      "doc": "multi-minute dramaturgy: section-swelling glow vs beat-pulsing city"
+    }
+  },
+  "acts": [
+    "nightfall",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:09:55+00:00",
+    "fps": 58.8,
+    "motion": 0.0141,
+    "lum": 0.081
+  },
+  "code": "const D = { density:.5, energy:.6, speed:1, scale:1, hue:290, y:.54, x:.5, style:'neon', seed:0, act:'nightfall' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, u = Math.min(width, height);\nconst wire = (P.style==='blueprint'), dot = (P.style==='ascii');\nconst key = width+'x'+height+':'+P.style+':'+P.seed+':'+Math.round(P.hue)+':'+Math.round(P.y*100)+':'+Math.round(P.scale*100)+':'+Math.round(P.density*100);\nif (!S.buf || S.key !== key) {\n  const hz = height*P.y, H=P.hue;\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  // building geometry (shared by all styles)\n  const nB = Math.round(14 + P.density*26);\n  const bld = [];\n  let bx=0, i=0;\n  while (bx < width && i < 80){ const bw=(width/nB)*(0.6+fr(i)*0.9); const bh=hz*(0.25+fr(i+50)*0.65)*(0.7+P.scale*0.3); bld.push({x:bx,w:bw,h:bh}); bx+=bw*(0.9+fr(i+90)*0.35); i++; }\n  S.bld=bld;\n  if (wire) {\n    g.background(220,70,8);\n    const ink=[196,74,92];\n    g.stroke(ink[0],ink[1],ink[2],22); g.strokeWeight(1);\n    for (let gy=hz;gy<height;gy+=Math.max(10,u*0.03)) g.line(0,gy,width,gy);\n    g.stroke(ink[0],ink[1],ink[2],80); g.strokeWeight(Math.max(1,u*0.0025)); g.noFill();\n    for (const b of bld){ g.rect(b.x,hz-b.h,b.w,b.h); const wc=Math.max(2,Math.floor(b.w/(u*0.02))); for(let c=1;c<wc;c++) g.line(b.x+b.w*c/wc,hz-b.h,b.x+b.w*c/wc,hz); }\n    g.strokeWeight(Math.max(1,u*0.004)); g.line(0,hz,width,hz);\n  } else {\n    let top, bot;\n    if (P.style==='thermal'){ top=[248,86,5]; bot=[6,90,22]; }\n    else if (P.style==='noir'){ top=[220,14,4]; bot=[210,8,16]; }\n    else { top=[(H+20)%360,80,7]; bot=[H,70,22]; }\n    for (let y=0;y<hz;y++){ const t=y/hz; g.fill(top[0]+(bot[0]-top[0])*t, top[1]+(bot[1]-top[1])*t, top[2]+(bot[2]-top[2])*t); g.rect(0,y,width,1); }\n    // moon + halo\n    const mx=width*(0.2+fr(9)*0.6), my=hz*0.28, mr=u*0.09;\n    g.noStroke();\n    for (let h2=6;h2>0;h2--){ g.fill(P.style==='thermal'?30:(H+30)%360, P.style==='noir'?6:40, 30, 8); g.ellipse(mx,my,mr*h2*0.9,mr*h2*0.9); }\n    g.fill(P.style==='thermal'?46:52, P.style==='noir'?4:16, P.style==='noir'?80:100); g.ellipse(mx,my,mr,mr);\n    // stars\n    for (let s=0;s<Math.round(80+P.density*160);s++){ const x=fr(s)*width, yy=fr(s+31)*hz*0.85; g.fill(0,0,P.style==='noir'?72:96,45+fr(s+3)*45); g.ellipse(x,yy,fr(s+5)*1.4+0.4,fr(s+5)*1.4+0.4); }\n    // building silhouettes + baked dim windows\n    for (const b of bld){ const by=hz-b.h;\n      const sil = P.style==='thermal'?[16+b.h/hz*30,80,14+b.h/hz*22] : P.style==='noir'?[212,10,7+ (1-b.h/hz)*8] : [(H+10)%360,55,5+(1-b.h/hz)*6];\n      g.fill(sil[0],sil[1],sil[2]); g.rect(b.x,by,b.w,b.h);\n      const wc=Math.max(1,Math.floor(b.w/(u*0.02))), wr=Math.max(1,Math.floor(b.h/(u*0.028)));\n      for (let cx=0;cx<wc;cx++) for (let cy=0;cy<wr;cy++){ if(fr(b.x+cx*7+cy*13)<0.4) continue; const wx=b.x+b.w*(cx+0.5)/wc, wy=by+b.h*(cy+0.5)/wr, ws=Math.min(b.w/wc,b.h/wr)*0.42;\n        g.fill(P.style==='thermal'?40:(H+40)%360, P.style==='thermal'?60:35, P.style==='noir'?38:45, 70); g.rect(wx-ws/2,wy-ws/2,ws,ws); } }\n    // ground reflection band\n    for (let y=Math.floor(hz);y<height;y++){ const t=(y-hz)/(height-hz+1); g.fill((H)%360, P.style==='noir'?8:40, (P.style==='thermal'?12:8)*(1-t)+2); g.rect(0,y,width,1); }\n  }\n  S.buf=g; S.hz=hz; S.key=key; S.seedUsed=P.seed;\n}\nimage(S.buf,0,0);\nconst hz=S.hz, H=P.hue, bld=S.bld, intn=(K.intensity!=null?K.intensity:0.6);\nlet bright = P.energy*(0.5+0.5*K.swell) + A.bass*0.7;\nif (P.act==='pulse'){ bright = P.energy*(0.3+K.pulse*1.1) + A.bass; } else if (P.act==='nightfall'){ bright *= (0.5+0.9*intn); }\n// dot-matrix (ascii) overlay path\nif (dot) {\n  noStroke(); const cell=Math.max(8,u*0.02);\n  for (let gx=0;gx<width;gx+=cell) for (let gy=0;gy<hz;gy+=cell){\n    let inside=false, edge=0; for (const b of bld){ if(gx>=b.x&&gx<b.x+b.w){ const by=hz-b.h; if(gy>=by){ inside=true; edge=(gy<by+cell*1.3)?1:0; break; } } }\n    if(!inside){ if(fr(gx*3+gy*7)<0.02){ fill(0,0,90,60); rect(gx,gy,cell*0.3,cell*0.3);} continue; }\n    const lit = fr(gx*5+gy*11) < 0.45, fl = 0.4+0.6*Math.sin(K.t*(1+fr(gx+gy)*3)*P.speed + gx*0.3);\n    const b2 = edge?70: (lit? 30+bright*60*fl : 14);\n    fill((H+edge*30)%360, 55, b2, edge?90:70); rect(gx+cell*0.12,gy+cell*0.12,cell*0.72,cell*0.72);\n  }\n  blendMode(BLEND); drawingContext.shadowBlur=0;\n} else {\n// flickering hot windows\nblendMode(ADD); noStroke();\nconst nW=Math.round(30+P.density*70);\nfor (let i=0;i<nW;i++){ const b=bld[Math.floor(fr(i+200)*bld.length)]; if(!b)continue; const by=hz-b.h, wc=Math.max(1,Math.floor(b.w/(u*0.02))), wr=Math.max(1,Math.floor(b.h/(u*0.028))); const cx=Math.floor(fr(i+201)*wc), cy=Math.floor(fr(i+202)*wr); const wx=b.x+b.w*(cx+0.5)/wc, wy=by+b.h*(cy+0.5)/wr, ws=Math.min(b.w/wc,b.h/wr)*0.5;\n  const fl=0.5+0.5*Math.sin(K.t*(1.5+fr(i)*4)*P.speed + i*2.3); const a=(10+bright*35)*fl; if(a<1)continue;\n  const wh=P.style==='thermal'?42:(P.style==='noir'?H:(H+45+fr(i+3)*40)%360), wsat=P.style==='noir'?10:(P.style==='thermal'?70:40);\n  fill(wh,wsat,100,Math.min(45,a)); rect(wx-ws/2,wy-ws/2,ws,ws); }\n// sweeping searchlight beams\nconst nBeam = 1 + Math.round(P.density*1.5);\nfor (let s=0;s<nBeam;s++){ const ox=width*(0.2+s*0.35+P.x*0.2), oy=hz*(0.62), ang=-1.57+Math.sin(K.t*(0.18+s*0.05)*P.speed + s*2)*0.9, len=hz*1.15, spread=0.08+0.05*s;\n  const bh=P.style==='thermal'?50:(P.style==='noir'?H:(H+60)%360), bs=P.style==='noir'?12:55, ba=6+bright*10;\n  fill(bh,bs,100,ba); triangle(ox,oy, ox+Math.cos(ang-spread)*len, oy+Math.sin(ang-spread)*len, ox+Math.cos(ang+spread)*len, oy+Math.sin(ang+spread)*len); }\nblendMode(BLEND);\n// drifting haze puffs near base \u2014 continuous real-time motion floor\nnoStroke();\nconst span=width*1.3, fa=P.style==='noir'?15:10;\nfor (let i=0;i<6;i++){ const bandY=hz + (height-hz)*(0.12+fr(i+300)*0.5) + Math.sin(K.t*0.4+i)*u*0.01; const hx=((fr(i+301)*span + K.t*(7+i*5)*P.speed) % span) - width*0.15;\n  fill((H)%360, P.style==='noir'?6:30, P.style==='thermal'?52:(P.style==='noir'?42:62), fa); ellipse(hx, bandY, width*0.42, (height-hz)*0.55); }\ndrawingContext.shadowBlur=0;\n}\n"
+}

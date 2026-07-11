@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.noir_alley",
+  "kind": "world",
+  "name": "Noir Alley",
+  "desc": "A rain-slick film-noir back alley: a single sodium streetlamp throws a flickering cone onto wet cobbles while venetian-blind shadows rake a dark wall and fog drifts through the beam.",
+  "tags": [
+    "noir",
+    "film-noir",
+    "alley",
+    "street",
+    "streetlamp",
+    "lamp",
+    "rain",
+    "fog",
+    "mist",
+    "venetian",
+    "blinds",
+    "shadow",
+    "chiaroscuro",
+    "monochrome",
+    "detective",
+    "crime",
+    "night",
+    "urban",
+    "city",
+    "moody",
+    "eerie",
+    "melancholy",
+    "dark",
+    "blueprint",
+    "thermal",
+    "neon",
+    "cinematic",
+    "world",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fog thickness (drifting haze layers)"
+    },
+    "rain": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "rainfall intensity (streak count/opacity)"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "sodium-lamp / tint hue (34 amber)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "cone width + rain speed/slant"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative drift/fall rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "cone + fog element scale vs design"
+    },
+    "x": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp column x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.34,
+      "min": 0.08,
+      "max": 0.6,
+      "doc": "lamp head y (canvas fraction)"
+    },
+    "blinds": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "venetian-blind shadow band density"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic fog/rain/texture seed"
+    },
+    "style": {
+      "default": "film-noir",
+      "options": [
+        "film-noir",
+        "blueprint",
+        "rain-neon",
+        "thermal",
+        "ink"
+      ],
+      "doc": "render philosophy: chiaroscuro noir / cyan schematic wireframe / wet neon reflections / thermal false-color / sumi ink wash"
+    },
+    "act": {
+      "default": "stakeout",
+      "options": [
+        "stakeout",
+        "downpour",
+        "blackout"
+      ],
+      "doc": "multi-minute program: calm haze / building rain / flickering blackout"
+    }
+  },
+  "acts": [
+    "stakeout",
+    "downpour",
+    "blackout"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:10:58+00:00",
+    "fps": 59.9,
+    "motion": 0.0368,
+    "lum": 0.227
+  },
+  "code": "const D = { density:.5, rain:.35, hue:34, energy:.6, speed:1, scale:1, x:.62, y:.34, blinds:.5, seed:0, style:'film-noir', act:'stakeout' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst hue = ((P.hue%360)+360)%360;\nconst bt = K.beat * P.speed;\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\nS.tre  = (S.tre||0)*.8  + (A.treble||0)*.2;\n\n// ---- palette per style ----\nfunction pal(){\n  if (st==='blueprint') return { bg:[hue<180?210:hue,55,10], wall:[210,45,14], line:[195,60,80], lamp:[190,70,90], fogS:35, drop:[195,50,70] };\n  if (st==='rain-neon') return { bg:[hue,40,6], wall:[(hue+300)%360,55,9], line:[(hue+180)%360,80,60], lamp:[hue,90,100], fogS:45, drop:[(hue+180)%360,70,80] };\n  if (st==='thermal')   return { bg:[230,80,8], wall:[250,60,12], line:[20,80,60], lamp:[55,95,100], fogS:50, drop:[210,70,55] };\n  if (st==='ink')       return { bg:[hue,6,10], wall:[hue,5,16], line:[hue,4,55], lamp:[hue,14,86], fogS:8, drop:[hue,6,50] };\n  return { bg:[hue,14,7], wall:[hue,10,15], line:[hue,20,70], lamp:[hue,45,100], fogS:12, drop:[hue,16,72] }; // film-noir\n}\nconst C = pal();\n\n// ---- build cached static base (wall, ground, venetian shadows, lamp post) ----\nconst bkey = width+'x'+height+':'+st+':'+P.seed+':'+P.blinds.toFixed(2);\nif (!S.bg || S.bgKey !== bkey){\n  S.bgKey = bkey;\n  const g = S.bg && S.bg.width===width && S.bg.height===height ? S.bg : (S.bg = createGraphics(width,height));\n  g.colorMode(HSB,360,100,100,100);\n  g.clear(); g.push();\n  // sky/void gradient (few bands, cheap)\n  g.noStroke();\n  for (let i=0;i<24;i++){ const t=i/23; const b=C.bg[2]*(1-0.5*t)+2; g.fill(C.bg[0], C.bg[1]*(1-0.3*t), b, 100); g.rect(0, t*height*0.72, width, height*0.72/24+1); }\n  const gy = height*0.72;                          // ground line\n  // ground plane\n  for (let i=0;i<16;i++){ const t=i/15; g.fill(C.bg[0], C.bg[1]*0.6, C.bg[2]*(0.5+0.5*t)+1.5, 100); g.rect(0, gy+t*(height-gy)/1, width, (height-gy)/16+2); }\n  // back wall on the left/far \u2014 raking chiaroscuro\n  const wx = width*0.0, ww = width*0.46;\n  const grad = st==='ink';\n  for (let i=0;i<18;i++){ const t=i/17; g.fill(C.wall[0], C.wall[1], C.wall[2]*(0.35+0.9*t), 100); g.rect(wx, t*gy, ww, gy/18+1); }\n  // venetian-blind shadow bands raking the wall (baked)\n  const nb = Math.round(6 + 22*P.blinds);\n  const skew = width*0.10;\n  if (st==='blueprint'){\n    g.stroke(C.line[0],C.line[1],C.line[2],40); g.strokeWeight(Math.max(1,u*0.0025)); g.noFill();\n    for (let i=0;i<nb;i++){ const yy=(i+0.5)/nb*gy; g.line(wx, yy, wx+ww, yy-skew*0.4); }\n    // schematic perspective lines\n    g.stroke(C.line[0],C.line[1],C.line[2],26);\n    for (let i=0;i<8;i++){ const fx=i/7; g.line(width*fx, gy, width*0.5, gy*0.55); }\n    g.line(0,gy,width,gy); g.line(wx+ww,0,wx+ww,gy);\n  } else {\n    g.noStroke();\n    for (let i=0;i<nb;i++){ const yy=(i+0.5)/nb*gy; const h=gy/nb;\n      g.fill(0,0,0,52*(0.6+0.4*fr(i)));\n      g.quad(wx,yy-h*0.28, wx+ww,yy-h*0.28-skew, wx+ww,yy+h*0.22-skew, wx,yy+h*0.22); }\n    // dry-brush grain on wall for ink\n    if (st==='ink'){ g.stroke(C.wall[0],C.wall[1],40,10); g.strokeWeight(1);\n      for (let i=0;i<220;i++){ const rx=wx+fr(i*3)*ww, ry=fr(i*3+1)*gy; g.line(rx,ry,rx+fr(i*3+2)*u*0.05,ry); } }\n  }\n  // baked vignette\n  g.noFill();\n  for (let i=0;i<26;i++){ const t=i/25; g.stroke(0,0,0, 3.2*t*t); g.strokeWeight((1-t)*u*0.09); g.ellipse(width/2,height/2, width*(1.5-1.0*t), height*(1.5-1.0*t)); }\n  g.pop();\n  S.gy = gy;\n}\nimage(S.bg, 0, 0);\n\n// ---- live lamppost + cone (additive) + electric flicker ----\nconst lx = width*P.x;                                          // lamp column x (pool lands here)\nconst hx = lx, hy = height*P.y;                                // glowing lamp head\nconst buzz = 0.82 + 0.1*Math.sin(K.t*31.4) + 0.06*Math.sin(K.t*7.1) + 0.10*K.pulse;\nlet lampGain = buzz;\nif (P.act==='blackout'){ const dip = (K.section%3===2)? (0.35+0.4*Math.abs(Math.sin(K.t*2.0))) : 1; lampGain *= dip; }\nlampGain = Math.max(0.15, Math.min(1.25, lampGain*(0.7+0.6*K.intensity) + S.bass*0.35));\nconst coneW = u*0.34*P.scale*(0.7+0.6*P.energy);\nconst gyv = S.gy||height*0.72;\n// lamppost silhouette (live, so P.x/P.y move it) \u2014 a wall bracket lamp\npush();\nif (st==='blueprint'){ stroke(C.line[0],C.line[1],C.line[2],60); noFill(); }\nelse { stroke(C.wall[0],C.wall[1],Math.max(3,C.wall[2]*0.35),100); }\nstrokeWeight(Math.max(2,u*0.011));\nconst armX = hx + (P.x>0.5? -u*0.09 : u*0.09);\nline(hx, hy, hx, Math.max(hy-u*0.06, height*0.02));          // short mast up\nline(hx, hy, armX, hy);                                       // arm out to head\nif (st!=='blueprint'){ noStroke(); fill(C.wall[0],C.wall[1],C.wall[2]*0.6,100); ellipse(armX, hy+u*0.006, u*0.032, u*0.042); }\npop();\nconst headX = armX;                                          // cone descends from the shade\npush();\nblendMode(ADD);\nnoStroke();\n// soft light pool on the ground\ndrawingContext.shadowBlur = u*0.05; drawingContext.shadowColor = color(C.lamp[0],C.lamp[1]*0.7,C.lamp[2],60);\nfor (let i=0;i<3;i++){ fill(C.lamp[0], C.lamp[1]*0.6, C.lamp[2], (7+9*lampGain)*(1-i*0.25)); ellipse(headX, gyv, coneW*(2.0-i*0.4), coneW*(0.5-i*0.08)); }\ndrawingContext.shadowBlur = 0;\n// the cone beam from lamp head down to pool\nconst spread = coneW*(0.55);\nfor (let i=0;i<4;i++){ const a=(6+7*lampGain)*(1-i*0.2); fill(C.lamp[0], C.lamp[1]*0.5, C.lamp[2], a);\n  const s=spread*(1-i*0.15);\n  quad(headX-u*0.012, hy, headX+u*0.012, hy, headX+s, gyv, headX-s, gyv); }\n// hot lamp head\nfill(C.lamp[0], C.lamp[1]*0.4, C.lamp[2], 22+30*lampGain); ellipse(headX, hy+u*0.006, u*0.05, u*0.05);\nblendMode(BLEND);\npop();\n\n// ---- drifting fog (continuous K.t drift \u2014 never re-phases) ----\nconst fogN = Math.round(5 + 9*P.density);\nconst fogA = (5 + 10*P.density) * (P.act==='stakeout'?1.35:1);\npush();\nblendMode(st==='thermal'?BLEND:SCREEN);\nnoStroke();\nfor (let i=0;i<fogN;i++){\n  const spd = 0.006 + 0.02*fr(i*5+1);\n  const dir = fr(i*5+2)<0.5? 1:-1;\n  const bx = ((fr(i*5) + dir*K.t*spd*P.speed) % 1.2 + 1.2)%1.2 - 0.1;\n  const by = 0.45 + 0.5*fr(i*5+3) + Math.sin(K.t*0.2+i)*0.03;\n  const fw = u*P.scale*(0.4+0.9*fr(i*5+4));\n  const near = lx>0? 1-Math.min(1,Math.abs(bx*width-lx)/(width*0.6)) : 0.3;\n  fill(C.lamp[0], C.fogS, st==='ink'?70:80, fogA*(0.4+0.7*near));\n  ellipse(bx*width, by*height, fw, fw*0.5);\n}\nblendMode(BLEND);\npop();\n\n// ---- rain (continuous fall via K.t) ----\nlet rainMul = 1;\nif (P.act==='downpour') rainMul = 0.5 + 1.1*K.intensity;\nconst rn = Math.round(P.rain*rainMul * 300);\nif (rn>0){\n  const fall = (0.6 + 0.9*P.energy)*P.speed;\n  const slant = u*0.04*(0.5+P.energy);\n  stroke(C.drop[0], C.drop[1], C.drop[2], 34+30*P.rain);\n  strokeWeight(Math.max(1, u*0.0016));\n  for (let i=0;i<rn;i++){\n    const rx0 = fr(i*2)*1.1-0.05;\n    const ph = (fr(i*2+1) + K.t*fall*(0.7+0.6*fr(i*2)) ) % 1;\n    const yy = ph*(height+u*0.1)-u*0.05;\n    const xx = rx0*width + ph*slant + Math.sin(K.t*0.5)*u*0.01;\n    const len = u*(0.02+0.03*fr(i*2)) * (0.7+0.6*P.energy);\n    line(xx, yy, xx+slant*0.12, yy+len);\n  }\n  // splash shimmer on the ground under the lamp on the beat\n  if (K.pulse>0.2){ push(); blendMode(ADD); noStroke(); fill(C.drop[0],C.drop[1]*0.6,C.drop[2], 8*K.pulse*P.rain);\n    ellipse(headX, gyv, coneW*1.6, coneW*0.3); blendMode(BLEND); pop(); }\n}\n\nblendMode(BLEND);\n"
+}
