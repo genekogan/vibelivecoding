@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.skeleton",
+  "kind": "subject",
+  "name": "Skeleton",
+  "desc": "A full-body anatomical skeleton rendered as an ivory danse-macabre engraving, bobbing and swinging its limbs as it jigs, does the Thriller shuffle, or rattles its chattering jaw by candle-glow.",
+  "tags": [
+    "skeleton",
+    "skull",
+    "bones",
+    "undead",
+    "spooky",
+    "halloween",
+    "death",
+    "danse macabre",
+    "memento mori",
+    "dance",
+    "character",
+    "engraving",
+    "gothic",
+    "macabre",
+    "x-ray",
+    "radiograph",
+    "ossuary",
+    "rattle",
+    "dark",
+    "anatomy",
+    "bony",
+    "reaper",
+    "night",
+    "woodcut"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "size vs design (hero ~0.47u tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/dance amplitude"
+    },
+    "hue": {
+      "default": 42,
+      "min": 0,
+      "max": 360,
+      "doc": "bone tint / glow hue (42 = warm ivory; drives neon+xray color)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3.5,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hatch-shading density + floating bone-dust motes"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "limb-length proportion morph (gangly<->stocky)"
+    },
+    "skull": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "skull-size proportion morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y as canvas fraction (feet on ground)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look/timing seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "idle",
+        "jig",
+        "thriller",
+        "rattle"
+      ],
+      "doc": "pose preset; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "engrave",
+      "options": [
+        "engrave",
+        "woodcut",
+        "neon",
+        "xray"
+      ],
+      "doc": "aesthetic: ivory ink-engraving / stark black-white print / glowing club outline / radiographic x-ray glow"
+    },
+    "act": {
+      "default": "macabre",
+      "options": [
+        "macabre",
+        "boogie",
+        "haunt"
+      ],
+      "doc": "multi-minute pose dramaturgy used when pose=auto"
+    }
+  },
+  "acts": [
+    "macabre",
+    "boogie",
+    "haunt"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:52:37+00:00",
+    "fps": 59.9,
+    "motion": 0.0146,
+    "lum": 0.092
+  },
+  "code": "const D = { hue: 42, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .82, limb: .5, skull: .5, seed: 0, pose: 'auto', style: 'engrave', act: 'macabre' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0015 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nconst am = .82 + .28 * Math.sin(K.t * .27 + fr(6) * 6);\nconst eAmp = P.energy * (.55 + .6 * K.intensity) * am;\nconst kick = Math.min(1, K.pulse * (.5 + .5 * K.intensity) + A.bass * .75);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\nif (S.seedUsed !== P.seed) S.seedUsed = P.seed;\n\nconst ACTS = {\n  macabre: ['idle','jig','jig','thriller','jig','rattle','jig','idle'],\n  boogie:  ['jig','jig','thriller','jig','rattle','jig','jig','thriller'],\n  haunt:   ['idle','rattle','idle','thriller','idle','rattle','thriller','idle'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.macabre)[((K.section % 8) + 8) % 8];\n\n// proportion morphs\nconst limbF = .7 + P.limb * .6;\nconst skF = .75 + P.skull * .6;\nconst UA = 52 * limbF, FA = 46 * limbF, FE = 64 * limbF, TI = 58 * limbF;\n\n// kinematics\nlet bob = 0, sway = 0, tilt = 0, hLean = 0, jaw = .08;\nlet aLU = -.15, aLF = .25, aRU = .15, aRF = -.25;   // arms (0 = straight down, + swings toward +x)\nlet gLU = -.09, gLK = .1, gRU = .09, gRK = -.1;      // legs\nlet glow = 0;\n\nif (pose === 'idle') {\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 4 * eAmp + K.swell * 3 * eAmp;\n  sway = Math.sin(bt * Math.PI / 2) * 6 * eAmp;\n  tilt = Math.sin(K.t * .5) * .04;\n  hLean = Math.sin(K.t * .7 + 1) * .12;\n  jaw = .08 + K.swell * .12 * eAmp;\n  aLU = -.15 + Math.sin(bt * Math.PI) * .2 * eAmp; aRU = .15 + Math.sin(bt * Math.PI + .5) * .2 * eAmp;\n  aLF = .3; aRF = -.3;\n} else if (pose === 'jig') {\n  const alt = Math.sin(bt * Math.PI);\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 18 * eAmp - kick * 6 * eAmp;\n  sway = Math.sin(bt * Math.PI) * 10 * eAmp;\n  tilt = alt * .12 * eAmp;\n  hLean = -alt * .15;\n  jaw = .2 + kick * .6;\n  aLU = -1.05 + Math.sin(bt * Math.PI) * .5 * eAmp; aRU = 1.05 - Math.sin(bt * Math.PI) * .5 * eAmp;\n  aLF = .85; aRF = -.85;\n  const kL = Math.max(0, alt), kR = Math.max(0, -alt);\n  gLU = -.1 - kL * .75 * eAmp; gLK = .2 + kL * .95 * eAmp;\n  gRU = .1 + kR * .75 * eAmp; gRK = -.2 - kR * .95 * eAmp;\n  glow = kick;\n} else if (pose === 'thriller') {\n  const wv = Math.sin(bt * Math.PI);\n  sway = Math.sin(bt * Math.PI / 2) * 16 * eAmp;\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 6 * eAmp;\n  tilt = Math.sin(bt * Math.PI / 2) * .06;\n  hLean = Math.sin(bt * Math.PI / 2 - .8) * .26;\n  jaw = .15 + kick * .3;\n  aLU = -1.5 + wv * .25 * eAmp; aRU = 1.5 - wv * .25 * eAmp;\n  aLF = 1.35; aRF = -1.35;\n  gLU = -.1 + Math.sin(bt * Math.PI) * .16 * eAmp; gRU = .1 + Math.sin(bt * Math.PI) * .16 * eAmp;\n} else {                                              // rattle\n  const e2 = .4 + eAmp;\n  bob = Math.sin(K.t * 34) * 2 * e2;\n  sway = Math.sin(K.t * 41 + 1) * 3 * e2;\n  tilt = Math.sin(K.t * 38) * .045;\n  hLean = Math.sin(K.t * 45) * .08;\n  jaw = .3 + Math.abs(Math.sin(K.t * 30)) * .5;\n  aLU = -.3 + Math.sin(K.t * 33) * .35 * e2; aRU = .3 + Math.sin(K.t * 37) * .35 * e2;\n  aLF = .4 + Math.sin(K.t * 40) * .3; aRF = -.4 - Math.sin(K.t * 42) * .3;\n  gLU = -.09 + Math.sin(K.t * 36) * .08; gRU = .09 + Math.sin(K.t * 39) * .08;\n  glow = kick * .5;\n}\n\n// universal slow drift (never-static insurance)\nsway += Math.sin(K.t * .5 + fr(4) * 6) * 5;\nbob += Math.sin(K.t * .9 + fr(2) * 6) * 3;\ntilt += Math.sin(K.t * .31 + fr(8) * 6) * .025;\n\nconst st = ['engrave','woodcut','neon','xray'].indexOf(P.style) >= 0 ? P.style : 'engrave';\nconst H = ((P.hue % 360) + 360) % 360;\nconst glowC = (st === 'neon' || st === 'xray') ? H : 32;\n\n// bone renderer (design units; assumes outer scale(s) already applied)\nfunction bone(x1, y1, x2, y2, w) {\n  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);\n  push(); translate(x1, y1); rotate(ang);\n  if (st === 'xray') {\n    blendMode(ADD); noStroke();\n    fill(H, 60, 100, 16); rect(0, -w * .95, L, w * 1.9, w);\n    fill(H, 30, 100, 34); rect(0, -w * .4, L, w * .8, w * .5);\n    fill(H, 55, 100, 26); ellipse(0, 0, w * 2.5, w * 2.5); ellipse(L, 0, w * 2.5, w * 2.5);\n    blendMode(BLEND);\n  } else if (st === 'neon') {\n    noFill(); stroke(H, 85, 100, 95); strokeWeight(2.2);\n    drawingContext.shadowBlur = 14; drawingContext.shadowColor = 'hsla(' + H + ',90%,60%,.9)';\n    line(0, 0, L, 0); ellipse(0, 0, w * 1.7, w * 1.7); ellipse(L, 0, w * 1.7, w * 1.7);\n    drawingContext.shadowBlur = 0;\n  } else {\n    const bh = st === 'woodcut' ? [0, 0, 100] : [H, 13, 93];\n    const ek = st === 'woodcut' ? [0, 0, 6] : [26, 34, 20];\n    stroke(ek[0], ek[1], ek[2]); strokeWeight(st === 'woodcut' ? 4.5 : 2.2);\n    fill(bh[0], bh[1], bh[2]);\n    rect(-w * .2, -w, L + w * .4, w * 2, w);\n    ellipse(0, 0, w * 2.1, w * 2.1); ellipse(L, 0, w * 2.1, w * 2.1);\n    // raking-light hatching on the lower flank\n    stroke(ek[0], ek[1], ek[2], st === 'woodcut' ? 100 : 40);\n    strokeWeight(st === 'woodcut' ? 1.6 : 1);\n    const nh = 2 + Math.round(P.density * 4);\n    for (let i = 1; i <= nh; i++) { const xx = L * i / (nh + 1); line(xx, w * .2, xx, w * .85); }\n    noStroke();\n  }\n  pop();\n}\n\n// skull renderer\nfunction skull() {\n  push();\n  if (st === 'xray') {\n    blendMode(ADD); noStroke();\n    fill(H, 55, 100, 22); ellipse(0, -4, 66 * skF, 74 * skF); ellipse(0, 30 * skF, 40 * skF, 34 * skF);\n    fill(H, 20, 100, 40); ellipse(0, -4, 40 * skF, 46 * skF);\n    blendMode(BLEND);\n    // hollow sockets glow negative \u2192 draw dark cores as low glow\n    fill(H, 70, 40, 30); ellipse(-14 * skF, 0, 17 * skF, 19 * skF); ellipse(14 * skF, 0, 17 * skF, 19 * skF);\n    blendMode(BLEND);\n    pop(); return;\n  }\n  const bh = st === 'woodcut' ? [0, 0, 100] : [H, 13, 93];\n  const ek = st === 'woodcut' ? [0, 0, 6] : [26, 34, 20];\n  const socket = st === 'woodcut' ? [0, 0, 4] : [26, 55, 9];\n  if (st === 'neon') {\n    noFill(); stroke(H, 85, 100, 95); strokeWeight(2.2);\n    drawingContext.shadowBlur = 16; drawingContext.shadowColor = 'hsla(' + H + ',90%,60%,.9)';\n    ellipse(0, -4, 66 * skF, 74 * skF);\n    drawingContext.shadowBlur = 0;\n    fill(H, 90, 30, 90); noStroke();\n    ellipse(-15 * skF, 0, 20 * skF, 23 * skF); ellipse(15 * skF, 0, 20 * skF, 23 * skF);\n    stroke(H, 85, 100, 95); strokeWeight(2); line(0, 6 * skF, 0, 18 * skF);\n    noStroke();\n  } else {\n    // cranium\n    stroke(ek[0], ek[1], ek[2]); strokeWeight(st === 'woodcut' ? 4 : 2.2); fill(bh[0], bh[1], bh[2]);\n    beginShape();\n    vertex(-30 * skF, 6 * skF);\n    bezierVertex(-40 * skF, -46 * skF, 40 * skF, -46 * skF, 30 * skF, 6 * skF);\n    bezierVertex(28 * skF, 22 * skF, -28 * skF, 22 * skF, -30 * skF, 6 * skF);\n    endShape(CLOSE);\n    // cheek shading hatch (raking light, right side)\n    if (st !== 'woodcut') {\n      stroke(ek[0], ek[1], ek[2], 34); strokeWeight(1);\n      for (let i = 0; i < 5; i++) { const yy = -16 + i * 8; line(16 * skF, yy * skF, 30 * skF, (yy - 4) * skF); }\n    }\n    // eye sockets\n    noStroke(); fill(socket[0], socket[1], socket[2]);\n    ellipse(-15 * skF, -6 * skF, 20 * skF, 23 * skF); ellipse(15 * skF, -6 * skF, 20 * skF, 23 * skF);\n    // nasal aperture\n    fill(socket[0], socket[1], socket[2]);\n    triangle(0, 2 * skF, -6 * skF, 14 * skF, 6 * skF, 14 * skF);\n    // socket inner glints (life in the eyes)\n    if (st !== 'woodcut') { fill(H, 40, 100, 55 + kick * 40); ellipse(-15 * skF, -4 * skF, 5 * skF, 5 * skF); ellipse(15 * skF, -4 * skF, 5 * skF, 5 * skF); }\n  }\n  pop();\n}\n\nconst px = P.x * width + sway * s;\nconst py = P.y * height + bob * s;\n\n// cast shadow (raking light \u2014 grounds engrave/woodcut, adds sway motion)\nif (st === 'engrave' || st === 'woodcut') {\n  noStroke(); fill(0, 0, st === 'woodcut' ? 4 : 12, 30);\n  ellipse(P.x * width + sway * .5 * s, (P.y + .1) * height, (150 + Math.abs(sway) * 2) * s, 26 * s);\n}\n\n// ambient bone-dust motes (density) \u2014 floating spores, additive\nconst nD = Math.floor(P.density * 12);\nif (st !== 'woodcut') {\n  blendMode(ADD); noStroke();\n  for (let i = 0; i < nD; i++) {\n    const yy = P.y * height - (((K.t * (8 + fr(i) * 12) + fr(i + 5) * 220) % 220) - 40) * s;\n    const xx = P.x * width + (fr(i + 9) - .5) * 210 * s + Math.sin(K.t * .6 + i * 2.1) * 12 * s;\n    fill(glowC, 30, 100, Math.min(50, 8 + 8 * K.swell + S.tre * 40));\n    circle(xx, yy, (2 + fr(i + 15) * 3) * s * (1 + S.tre));\n  }\n  blendMode(BLEND);\n}\n\npush();\ntranslate(px, py);\nscale(s);\nrotate(tilt);\n\n// candlelight / kick glow behind ribs\nif (glow > .04 || st === 'xray' || st === 'neon') {\n  blendMode(ADD); noStroke();\n  const gA = st === 'xray' ? 10 : (st === 'neon' ? 9 : 14) + glow * 14;\n  for (let r = 1; r <= 3; r++) { fill(glowC, st === 'engrave' ? 55 : 80, 100, gA / r); ellipse(0, -70, 150 / r + 90, 170 / r + 90); }\n  blendMode(BLEND);\n}\n\n// legs (behind)\nbone(-16, 6, -16 + Math.sin(gLU) * FE, 6 + Math.cos(gLU) * FE, 8);\n{ const kx = -16 + Math.sin(gLU) * FE, ky = 6 + Math.cos(gLU) * FE, a = gLU + gLK;\n  bone(kx, ky, kx + Math.sin(a) * TI, ky + Math.cos(a) * TI, 7);\n  const fx = kx + Math.sin(a) * TI, fy = ky + Math.cos(a) * TI;\n  if (st !== 'xray' && st !== 'neon') { stroke(st === 'woodcut' ? 0 : 26, st === 'woodcut' ? 0 : 34, st === 'woodcut' ? 6 : 20); strokeWeight(st === 'woodcut' ? 4 : 2.2); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93); ellipse(fx + 8, fy, 30, 12); noStroke(); }\n}\nbone(16, 6, 16 + Math.sin(gRU) * FE, 6 + Math.cos(gRU) * FE, 8);\n{ const kx = 16 + Math.sin(gRU) * FE, ky = 6 + Math.cos(gRU) * FE, a = gRU + gRK;\n  bone(kx, ky, kx + Math.sin(a) * TI, ky + Math.cos(a) * TI, 7);\n  const fx = kx + Math.sin(a) * TI, fy = ky + Math.cos(a) * TI;\n  if (st !== 'xray' && st !== 'neon') { stroke(st === 'woodcut' ? 0 : 26, st === 'woodcut' ? 0 : 34, st === 'woodcut' ? 6 : 20); strokeWeight(st === 'woodcut' ? 4 : 2.2); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93); ellipse(fx + 8, fy, 30, 12); noStroke(); }\n}\n\n// pelvis\nif (st === 'xray') { blendMode(ADD); noStroke(); fill(H, 55, 100, 24); ellipse(0, 2, 60, 34); blendMode(BLEND); }\nelse if (st === 'neon') { noFill(); stroke(H, 85, 100, 95); strokeWeight(2.2); drawingContext.shadowBlur = 12; drawingContext.shadowColor = 'hsla(' + H + ',90%,60%,.9)'; arc(0, -4, 60, 46, .15, Math.PI - .15); drawingContext.shadowBlur = 0; noStroke(); }\nelse { stroke(st === 'woodcut' ? 0 : 26, st === 'woodcut' ? 0 : 34, st === 'woodcut' ? 6 : 20); strokeWeight(st === 'woodcut' ? 4 : 2.4); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93);\n  beginShape(); vertex(-28, -8); bezierVertex(-34, 20, -10, 22, -6, 6); bezierVertex(0, 16, 0, 16, 6, 6); bezierVertex(10, 22, 34, 20, 28, -8); endShape(CLOSE); noStroke(); }\n\n// spine\nbone(0, -8, 0, -92, 6);\n\n// ribcage \u2014 curved ribs + sternum breathe\nconst breathe = 1 + (K.swell * .05 + S.rms * .12) * (pose === 'idle' ? 1 : .5);\npush(); scale(breathe, 1);\nif (st === 'xray') {\n  blendMode(ADD); noStroke();\n  for (let i = 0; i < 5; i++) { const ry = -86 + i * 11, rw = 62 - i * 4; fill(H, 55, 100, 20); rect(-rw / 2, ry - 3, rw, 6, 3); }\n  blendMode(BLEND);\n} else if (st === 'neon') {\n  noFill(); stroke(H, 85, 100, 90); strokeWeight(2); drawingContext.shadowBlur = 10; drawingContext.shadowColor = 'hsla(' + H + ',90%,60%,.8)';\n  for (let i = 0; i < 5; i++) { const ry = -86 + i * 11, rw = 60 - i * 4; arc(0, ry + 8, rw, 30, Math.PI + .3, Math.PI * 2 - .3); }\n  drawingContext.shadowBlur = 0; noStroke();\n} else {\n  const ek = st === 'woodcut' ? [0, 0, 6] : [26, 34, 20];\n  noFill(); stroke(ek[0], ek[1], ek[2]); strokeWeight(st === 'woodcut' ? 5 : 3);\n  for (let i = 0; i < 5; i++) { const ry = -86 + i * 11, rw = 60 - i * 4; arc(-1, ry + 9, rw, 32, Math.PI + .35, Math.PI * 2 - .35); }\n  strokeWeight(st === 'woodcut' ? 5 : 4); line(0, -90, 0, -42);   // sternum\n  noStroke();\n}\npop();\n\n// arms (front) \u2014 shoulders at \u00b140,-92\n{ const sx = -40, sy = -92, ex = sx + Math.sin(aLU) * UA, ey = sy + Math.cos(aLU) * UA;\n  bone(sx, sy, ex, ey, 7); const a = aLU + aLF;\n  bone(ex, ey, ex + Math.sin(a) * FA, ey + Math.cos(a) * FA, 6);\n  const hx = ex + Math.sin(a) * FA, hy = ey + Math.cos(a) * FA;\n  if (st !== 'xray' && st !== 'neon') { stroke(st === 'woodcut' ? 0 : 26, st === 'woodcut' ? 0 : 34, st === 'woodcut' ? 6 : 20); strokeWeight(st === 'woodcut' ? 3.5 : 2); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93); for (let f = -1; f <= 1; f++) line(hx, hy, hx + f * 5 + Math.sin(a) * 12, hy + Math.cos(a) * 12); noStroke(); }\n}\n{ const sx = 40, sy = -92, ex = sx + Math.sin(aRU) * UA, ey = sy + Math.cos(aRU) * UA;\n  bone(sx, sy, ex, ey, 7); const a = aRU + aRF;\n  bone(ex, ey, ex + Math.sin(a) * FA, ey + Math.cos(a) * FA, 6);\n  const hx = ex + Math.sin(a) * FA, hy = ey + Math.cos(a) * FA;\n  if (st !== 'xray' && st !== 'neon') { stroke(st === 'woodcut' ? 0 : 26, st === 'woodcut' ? 0 : 34, st === 'woodcut' ? 6 : 20); strokeWeight(st === 'woodcut' ? 3.5 : 2); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93); for (let f = -1; f <= 1; f++) line(hx, hy, hx + f * 5 + Math.sin(a) * 12, hy + Math.cos(a) * 12); noStroke(); }\n}\n\n// clavicle\nif (st !== 'xray') bone(-40, -92, 40, -92, 4);\n\n// head + jaw\npush();\ntranslate(0, -96);\nrotate(hLean);\ntranslate(0, -34);\nskull();\n// jaw\npush();\ntranslate(0, 14 * skF);\nrotate(jaw * .5);\nif (st === 'neon') { noFill(); stroke(H, 85, 100, 90); strokeWeight(2.2); drawingContext.shadowBlur = 10; drawingContext.shadowColor = 'hsla(' + H + ',90%,60%,.8)'; arc(0, 0, 44 * skF, 26 * skF, .2, Math.PI - .2); drawingContext.shadowBlur = 0; noStroke(); }\nelse if (st === 'xray') { blendMode(ADD); noStroke(); fill(H, 55, 100, 22); rect(-18 * skF, 0, 36 * skF, 12 * skF, 4); blendMode(BLEND); }\nelse {\n  const ek = st === 'woodcut' ? [0, 0, 6] : [26, 34, 20];\n  stroke(ek[0], ek[1], ek[2]); strokeWeight(st === 'woodcut' ? 4 : 2.2); fill(st === 'woodcut' ? 0 : H, st === 'woodcut' ? 0 : 13, st === 'woodcut' ? 100 : 93);\n  arc(0, 0, 44 * skF, 26 * skF, .1, Math.PI - .1, CHORD);\n  // teeth\n  stroke(ek[0], ek[1], ek[2], st === 'woodcut' ? 100 : 55); strokeWeight(1.2);\n  for (let i = -2; i <= 2; i++) line(i * 8 * skF, -1, i * 8 * skF, 8 * skF);\n  noStroke();\n}\npop();\npop();\n\npop();\nblendMode(BLEND);\n"
+}

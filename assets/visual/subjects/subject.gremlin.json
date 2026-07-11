@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.gremlin",
+  "kind": "subject",
+  "name": "Gremlin",
+  "desc": "A wiry snaggle-fanged gremlin rendered as a dark engraving, huge splaying ears and acid-yellow eyes, twitching, skittering, and pouncing with menace on the beat.",
+  "tags": [
+    "gremlin",
+    "goblin",
+    "imp",
+    "monster",
+    "creature",
+    "fiend",
+    "mischief",
+    "menace",
+    "fangs",
+    "ears",
+    "green",
+    "toxic",
+    "spooky",
+    "halloween",
+    "character",
+    "beast",
+    "critter",
+    "snarl",
+    "feral",
+    "cryptid"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "hero size vs design (~0.5*min(w,h) tall at 1)"
+    },
+    "energy": {
+      "default": 0.75,
+      "min": 0,
+      "max": 1.8,
+      "doc": "motion amplitude / manic-ness"
+    },
+    "hue": {
+      "default": 110,
+      "min": 0,
+      "max": 360,
+      "doc": "skin hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "beats-relative rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.0,
+      "doc": "ambient spore/spark count"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.0,
+      "doc": "body width morph"
+    },
+    "ears": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.0,
+      "doc": "ear length morph"
+    },
+    "fangs": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.0,
+      "doc": "fang length morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.0,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1.0,
+      "doc": "anchor y fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "idle",
+        "skitter",
+        "snarl",
+        "lurk"
+      ],
+      "doc": "auto follows act; idle=twitch, skitter=manic beat dance, snarl=pounce scare, lurk=low creep"
+    },
+    "style": {
+      "default": "etching",
+      "options": [
+        "etching",
+        "toxic",
+        "wireframe",
+        "thermal",
+        "classic"
+      ],
+      "doc": "aesthetic: etching=dark cross-hatched engraving, toxic=near-black w/ acid neon rim+eye glow, wireframe=schematic construction lines (abstracted), thermal=false-color heatmap no-outline, classic=flat cartoon"
+    },
+    "act": {
+      "default": "prowl",
+      "options": [
+        "prowl",
+        "mayhem",
+        "creep"
+      ],
+      "doc": "multi-minute pose program indexed by section"
+    }
+  },
+  "acts": [
+    "prowl",
+    "mayhem",
+    "creep"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:50:58+00:00",
+    "fps": 63.3,
+    "motion": 0.0133,
+    "lum": 0.099
+  },
+  "code": "const D = { scale:1, energy:.75, hue:110, speed:1, density:.5, chub:.5, ears:.6, fangs:.6, x:.5, y:.62, seed:0, pose:'auto', style:'etching', act:'prowl' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0030 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt%1)+1)%1;\nconst am = .85 + .2*Math.sin(K.t*.31 + fr(6)*6);\nconst eAmp = P.energy * (.5 + .6*K.intensity) * am;\nconst kick = Math.min(1.4, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nif (S.seedUsed !== P.seed) S.seedUsed = P.seed;\n\nconst ACTS = {\n  prowl:  ['idle','skitter','snarl','lurk','skitter','idle','snarl','skitter'],\n  mayhem: ['skitter','skitter','snarl','skitter','snarl','skitter','snarl','skitter'],\n  creep:  ['lurk','idle','lurk','snarl','lurk','idle','lurk','snarl'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.prowl)[((K.section%8)+8)%8];\n\nconst blink = ((K.t*.23 + fr(9))%1) < .06;\nconst snap = sb < .25 ? sb/.25 : 1;\n\nlet dx=0, dy=0, tilt=0, aL=-.4, aR=.4, lsc=1, crouch=1, earA=0, mouth=.15, brow=.3, flash=0;\n\nif (pose === 'idle') {\n  dy = Math.sin(K.t*1.6)*4 + K.swell*3*eAmp;\n  dx = Math.sin(K.t*.5)*8;\n  aL = -.4 + Math.sin(K.t*2.1)*.3; aR = .4 - Math.sin(K.t*2.1)*.3;\n  earA = Math.sin(K.t*3)*.14;\n  tilt = Math.sin(K.t*.4)*.06;\n  mouth = .12 + K.swell*.14; brow = .25;\n} else if (pose === 'skitter') {\n  const m = ((Math.floor(bt/8)%3)+3)%3;\n  const hop = Math.abs(Math.sin(sb*Math.PI));\n  dy = -hop*20*eAmp - K.pulse*8*eAmp;\n  const jit = Math.sin(K.t*17)*.9;\n  if (m === 0) {\n    aL = Math.sin(bt*Math.PI*2)*1.5*eAmp + jit*.15; aR = Math.sin(bt*Math.PI*2+Math.PI)*1.5*eAmp - jit*.15;\n    dx = Math.sin(bt*Math.PI)*15*eAmp;\n    tilt = Math.sin(bt*Math.PI)*.16*eAmp;\n    earA = Math.sin(bt*Math.PI*2)*.32;\n    mouth = .4 + kick*.4;\n  } else if (m === 1) {\n    dx = Math.sin(bt*Math.PI*.5)*32*eAmp;\n    aL = 1.2 + Math.sin(bt*Math.PI*2)*.5; aR = 1.2 + Math.sin(bt*Math.PI*2+1)*.5;\n    tilt = Math.sin(bt*Math.PI)*.2*eAmp;\n    earA = Math.abs(Math.sin(bt*Math.PI))*.42;\n    mouth = .55 + kick*.3;\n  } else {\n    dy += -kick*10*eAmp;\n    tilt = Math.sin(bt*Math.PI)*.32*eAmp;\n    aL = -.9 - jit*.2; aR = .9 + jit*.2;\n    mouth = .3 + kick*.5;\n    earA = Math.sin(bt*Math.PI*4)*.26;\n  }\n  brow = .5;\n} else if (pose === 'snarl') {\n  const c4 = ((Math.floor(bt)%4)+4)%4;\n  if (c4 < 3) {\n    const gg = (c4+sb)/3;\n    crouch = 1 - .12*gg; dy = 8*gg; aL = -.95; aR = .95; mouth = .1;\n    brow = .4 + .5*gg; tilt = Math.sin(K.t*18)*.03*gg;\n  } else {\n    const air = Math.sin(sb*Math.PI);\n    lsc = 1 + .42*air*Math.max(.4, eAmp);\n    dy = -22*air; aL = -1.7*air - .3; aR = 1.7*air + .3;\n    mouth = .4 + .6*air; brow = 1; earA = -.32*air; flash = air;\n  }\n} else {\n  const th = K.t*.5*(.4 + P.speed*.6) + fr(3)*6;\n  dx = Math.sin(th)*44*(.4 + eAmp*.6);\n  dy = 8 + Math.sin(th*2)*5;\n  crouch = .9;\n  aL = -.3 + Math.sin(th*2)*.22; aR = .3 - Math.sin(th*2)*.22;\n  earA = -.2; brow = .6; mouth = .1;\n  tilt = Math.sin(th)*.12;\n}\n\n// universal slow drift\ndx += Math.sin(K.t*.37 + fr(2)*6)*4;\ndy += Math.sin(K.t*.49 + fr(4)*6)*3;\ntilt += Math.sin(K.t*.21 + fr(8)*6)*.02;\n\nconst styles = ['etching','toxic','wireframe','thermal','classic'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'etching';\nconst H = ((P.hue%360)+360)%360;\nconst WIRE = st === 'wireframe';\nconst w = .8 + P.chub*.5;\nconst earScale = .7 + P.ears*1.0;\nconst fang = .5 + P.fangs*1.2;\n\nconst THERM = { body:[38,90,88], belly:[52,95,100], head:[32,85,90], ear:[224,80,66], arm:[212,82,72], leg:[236,72,58] };\nfunction skin(region, a){ if(a===undefined)a=100;\n  if (WIRE){ noFill(); stroke(H,70,100,90); strokeWeight(1.4*s); return; }\n  noStroke();\n  if (st==='toxic'){ fill(H,70,15,a); return; }\n  if (st==='thermal'){ const m=THERM[region]||[38,90,88]; fill(m[0],m[1],m[2],a); return; }\n  if (st==='etching'){ const b=region==='belly'?50:region==='head'?36:region==='ear'?26:32; fill(H,52,b,a); return; }\n  const map={ body:[H,68,58], belly:[H,32,82], head:[H,68,60], ear:[H,62,52], arm:[H,68,52], leg:[H,62,44] };\n  const c=map[region]||[H,68,58]; fill(c[0],c[1],c[2],a);\n}\nfunction edge(){ if(WIRE) return;\n  if(st==='etching'){ stroke(H,60,12,88); strokeWeight(1.5*s); }\n  else if(st==='classic'){ stroke(H,70,22,88); strokeWeight(2*s); }\n  else noStroke();\n}\n\nconst pump = 1 + S.rms*.5*P.energy;\n\n// ambient spores / sparks\nconst nM = Math.max(0, Math.floor(P.density*9));\nblendMode(ADD); noStroke();\nfor (let i=0;i<nM;i++){\n  const yy = P.y*height + 40*s - ((((K.t*(14+fr(i)*16) + fr(i+5)*150)%150)+150)%150)*s;\n  const xx = P.x*width + (fr(i+9)-.5)*160*s + Math.sin(K.t*.7 + i*2.1)*10*s;\n  fill(st==='thermal'?50:H, st==='toxic'?90:60, 100, Math.min(50, 8 + 9*K.swell + S.tre*40));\n  circle(xx, yy, (2+fr(i+15)*3)*s*(1+S.tre));\n}\nblendMode(BLEND);\n\npush();\ntranslate(P.x*width + dx*s, P.y*height + dy*s);\nrotate(tilt);\nscale(lsc*pump, lsc*pump);\nscale(w, crouch);\n\n// contact shadow\nif (st!=='wireframe'){ noStroke(); fill(0,0,0, st==='thermal'?0:26); ellipse(0, 66*s, 96*s, 18*s); }\n\n// ===== LEGS / FEET =====\nskin('leg'); edge();\nellipse(-22*s, 58*s, 26*s, 22*s);\nellipse(22*s, 58*s, 26*s, 22*s);\nif (!WIRE){ skin('leg'); noStroke();\n  for (let f=-1;f<=1;f+=1){ triangle((-22+f*7)*s,66*s,(-22+f*7-2)*s,74*s,(-22+f*7+3)*s,66*s); triangle((22+f*7)*s,66*s,(22+f*7-2)*s,74*s,(22+f*7+3)*s,66*s); }\n}\n\n// ===== ARMS (behind torso) =====\nfunction arm(sx, ang){\n  push(); translate(sx*42*s, -6*s); rotate(ang);\n  skin('arm'); edge();\n  ellipse(0, 24*s, 17*s, 50*s);\n  if (!WIRE){ skin('arm'); noStroke();\n    for (let c=-1;c<=1;c++) triangle((c*5)*s,46*s,(c*5-3)*s,58*s,(c*5+3)*s,52*s);\n  } else { line(0,46*s, -6*s,58*s); line(0,46*s, 6*s,56*s); }\n  pop();\n}\narm(-1, aL); arm(1, aR);\n\n// ===== TORSO =====\nskin('body'); edge();\nbeginShape();\nvertex(-40*s,-18*s);\nbezierVertex(-52*s,30*s,-30*s,58*s,0,58*s);\nbezierVertex(30*s,58*s,52*s,30*s,40*s,-18*s);\nbezierVertex(30*s,-42*s,-30*s,-42*s,-40*s,-18*s);\nendShape(CLOSE);\nif (!WIRE && st!=='thermal'){ skin('belly'); noStroke(); ellipse(0, 24*s, 48*s, 60*s); }\n\n// ===== HEAD =====\nskin('head'); edge();\nellipse(0, -52*s, 78*s, 66*s);\n\n// ears\nfunction ear(side){\n  push(); translate(side*30*s, -70*s); rotate(side*(.5+earA));\n  skin('ear'); edge();\n  triangle(0,0, side*10*earScale*s, -48*earScale*s, side*-18*s, -8*s);\n  if (WIRE) line(0,0, side*10*earScale*s, -48*earScale*s);\n  else { skin('ear', 70); noStroke(); triangle(0,-4*s, side*6*earScale*s, -34*earScale*s, side*-8*s, -6*s); }\n  pop();\n}\near(-1); ear(1);\n\n// ===== ETCHING HATCH =====\nif (st==='etching'){\n  stroke(H,55,10,40); strokeWeight(1*s);\n  for (let i=0;i<9;i++){ const o=(fr(i+40)-.5)*8; line((-34+i*8+o)*s,(-2)*s,(-40+i*8+o)*s,(38)*s); }\n  for (let i=0;i<6;i++){ const o=(fr(i+70)-.5)*6; line((-30+i*11+o)*s,(-70)*s,(-34+i*11+o)*s,(-44)*s); }\n  noStroke();\n}\n\n// ===== WIREFRAME FACET LINES =====\nif (WIRE){\n  stroke(H,70,100,70); strokeWeight(1*s);\n  line(-40*s,-18*s, 40*s,-18*s); line(0,-42*s,0,58*s);\n  line(-40*s,-18*s, 0,58*s); line(40*s,-18*s, 0,58*s);\n  line(-39*s,-52*s, 39*s,-52*s); line(0,-85*s,0,-19*s);\n  noStroke();\n}\n\n// ===== FACE =====\n// brow ridge\nconst bl = brow;\nif (!WIRE){ stroke(H, st==='toxic'?80:55, st==='etching'?14:24, 90); strokeWeight(3*s);\n  line(-28*s,(-64+bl*8)*s, -6*s,(-58+bl*2)*s);\n  line(28*s,(-64+bl*8)*s, 6*s,(-58+bl*2)*s);\n  noStroke();\n}\n\n// eyes (acid yellow, glow on toxic)\nconst gx = (fr(Math.floor(K.t*.5)+11)-.5)*4*s;\nconst gy = (fr(Math.floor(K.t*.5)+23)-.5)*3*s;\nconst eh = blink ? 3 : 20;\nif (st==='toxic'){ blendMode(ADD); drawingContext.shadowBlur = 14; drawingContext.shadowColor = 'hsla(55,100%,55%,0.95)'; }\nnoStroke();\nfill(52, WIRE?100:95, WIRE?100:96, 100);\nif (WIRE){ circle(-15*s,-54*s,7*s); circle(15*s,-54*s,7*s); }\nelse { ellipse(-15*s,-54*s,20*s,eh*s); ellipse(15*s,-54*s,20*s,eh*s); }\nif (st==='toxic'){ drawingContext.shadowBlur = 0; blendMode(BLEND); }\nif (!blink && !WIRE){ fill(0,0,8,100);\n  ellipse(-15*s+gx,-54*s+gy, 6*s, Math.max(6,eh*.5)*s);\n  ellipse(15*s+gx,-54*s+gy, 6*s, Math.max(6,eh*.5)*s);\n}\n\n// snarling maw with fangs\nif (!WIRE){\n  const mo = Math.max(2, mouth*22);\n  noStroke(); fill(st==='thermal'?12:H, st==='thermal'?90:70, st==='toxic'?6:18, 100);\n  ellipse(0, -32*s, 44*s, (6+mo)*s);\n  // upper fangs\n  fill(0,0,100,100);\n  const nF = 4;\n  for (let i=0;i<nF;i++){ const fx=(-16+i*11)*s; triangle(fx,(-38+3)*s, fx+7*s,(-38+3)*s, fx+3.5*s,(-38+3+ (5+fang*7))*s); }\n  // lower fangs on wide open\n  if (mouth>.4){ for (let i=0;i<2;i++){ const fx=(-8+i*14)*s; triangle(fx,(-26)*s, fx+6*s,(-26)*s, fx+3*s,(-26-(4+fang*5))*s); } }\n} else {\n  stroke(H,70,100,80); strokeWeight(1.2*s); noFill();\n  const mo=Math.max(3,mouth*20);\n  ellipse(0,-32*s,40*s,(6+mo)*s); noStroke();\n}\n\n// thermal hot core\nif (st==='thermal'){ blendMode(ADD); noStroke();\n  fill(0,0,100, 14+kick*10); ellipse(0,10*s,40*s,54*s); ellipse(0,-50*s,44*s,40*s);\n  blendMode(BLEND);\n}\n\n// toxic rim pulse\nif (st==='toxic'){ blendMode(ADD); noStroke();\n  fill(H,90,100, 6+kick*10); ellipse(0,-6*s,150*s,190*s);\n  blendMode(BLEND);\n}\n\n// snarl flash\nif (flash>.05){ blendMode(ADD); noStroke(); fill(H,80,100,22*flash); ellipse(0,-20*s,240*s,270*s); blendMode(BLEND); }\n\npop();\nblendMode(BLEND);\n"
+}

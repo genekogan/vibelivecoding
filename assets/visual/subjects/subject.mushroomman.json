@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.mushroomman",
+  "kind": "subject",
+  "name": "Mushroomman",
+  "desc": "Risograph mushroom-person with a spotted cap, walking with a springy step and bobbing head, spores drifting up on the beat.",
+  "tags": [
+    "mushroom",
+    "mushroomman",
+    "fungus",
+    "toadstool",
+    "fairy",
+    "forest",
+    "woodland",
+    "riso",
+    "risograph",
+    "halftone",
+    "spore",
+    "cap",
+    "character",
+    "subject",
+    "creature",
+    "psychedelic",
+    "cottagecore",
+    "spotted",
+    "amanita",
+    "walker"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.4,
+      "doc": "stride/bounce amplitude"
+    },
+    "hue": {
+      "default": 330,
+      "min": 0,
+      "max": 360,
+      "doc": "cap ink hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "beats-relative rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spore particle count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y fraction"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stem/limb girth"
+    },
+    "capW": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cap width morph"
+    },
+    "stemLen": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stem/body length morph"
+    },
+    "style": {
+      "default": "riso",
+      "options": [
+        "riso",
+        "xray",
+        "woodcut",
+        "thermal"
+      ],
+      "doc": "aesthetic: 2-ink halftone riso / anatomical x-ray linework / bold woodcut relief / thermal false-color"
+    },
+    "pose": {
+      "default": "idle",
+      "options": [
+        "idle",
+        "walk",
+        "dance",
+        "spore"
+      ],
+      "doc": "beat-synced pose"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic spot & screen seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:52:04+00:00",
+    "fps": 60.2,
+    "motion": 0.0086,
+    "lum": 0.216
+  },
+  "code": "const D = { scale:1, energy:.6, hue:330, speed:1, density:.5, x:.5, y:.7, chub:.5, capW:.5, stemLen:.5, style:'riso', pose:'idle', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height);\nconst s = u*0.0028*P.scale;\nconst cx = P.x*width, cy = P.y*height;\nconst E = P.energy, spd = P.speed, sty = P.style;\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst H = P.hue;\n\n// ---- seed-built cap spots ----\nif (S.seedUsed !== P.seed){\n  S.seedUsed = P.seed;\n  S.spots = [];\n  const n = 5 + Math.floor(fr(99)*4);\n  for (let i=0;i<n;i++){ S.spots.push({ x:(fr(i*2)-0.5)*1.5, y:-fr(i*2+1)*0.5-0.05, r:0.10+fr(i*3)*0.16 }); }\n}\n\n// ---- halftone buffer for riso (seed keyed) ----\nif (S.dotKey !== P.seed && sty==='riso'){\n  S.dotKey = P.seed;\n  const R = 300; const g = createGraphics(R,R); g.colorMode(HSB,360,100,100,100); g.clear();\n  g.noStroke(); g.fill(0,0,0,40);\n  const step = 11;\n  for (let y=0;y<R;y+=step){ for (let x=0;x<R;x+=step){ const rr = 2.2 + fr(x*7+y)*2.6; g.ellipse(x+(y/step%2?step/2:0), y, rr, rr); } }\n  S.dot = g;\n}\nconst hasDot = sty==='riso' && S.dot;\n\n// ---- rhythm ----\nconst bt = K.beat*spd;\nconst step = Math.sin(bt*Math.PI);\nconst bounce = (0.5 - 0.5*Math.cos(bt*Math.PI*2));\nconst kick = Math.min(1.2, K.pulse*0.6 + A.bass*0.7);\nconst sway = Math.sin(bt*Math.PI*0.5);\nconst air = A.treble||0;\n\n// ---- pose config ----\nlet legAmp, armBase, armSwing, capAmp, hip;\nif (P.pose==='walk'){ legAmp=0.75; armBase=0.35; armSwing=-step*0.6; capAmp=0.14; hip=step*0.06; }\nelse if (P.pose==='dance'){ legAmp=0.30; armBase=1.7; armSwing=Math.sin(bt*Math.PI)*0.7; capAmp=0.26; hip=sway*0.14; }\nelse if (P.pose==='spore'){ legAmp=0.14; armBase=1.15; armSwing=Math.sin(bt*Math.PI*0.5)*0.2; capAmp=0.12; hip=sway*0.05; }\nelse { legAmp=0.13; armBase=0.5; armSwing=step*0.15; capAmp=0.10; hip=sway*0.04; }\nlegAmp *= (0.6+E*0.7);\n\n// ---- colors by style ----\nconst capW = 0.75 + P.capW*0.7;\nconst sl = 0.8 + P.stemLen*0.7;\nconst chub = 0.7 + P.chub*0.6;\nconst printSty = (sty==='riso'||sty==='woodcut');\n\npush();\nconst bobY = -bounce*11*s*E - kick*6*s*E - (0.5+0.5*Math.sin(K.t*0.7))*3*s;\nconst swayX = sway*13*s*E + hip*width*0.03;\ntranslate(cx + swayX, cy + bobY);\nrotate(hip*0.7 + sway*0.04*E);\nnoStroke();\n\n// ---------- print backing card ----------\nif (printSty){\n  push(); rotate(0);\n  if (sty==='woodcut'){ fill(40,10,90); } else { fill(40,6,95); }\n  rectMode(CENTER); rect(0,-14*s, 150*s*capW, 230*s, 8*s); rectMode(CORNER);\n  pop();\n}\n\n// ---------- helper: heat color for thermal ----------\nconst heat = (v) => { const cc = constrain(v,0,1); return (cc>0.66)?[55*(1-(cc-0.66)/0.34)+0,90,100]:(cc>0.33)?[20+20*((cc-0.33)/0.33),95,95]:[280-70*(cc/0.33),80,70]; };\n\n// ---------- LEGS ----------\nconst drawLeg = (sx, ph) => {\n  push();\n  translate(sx, 34*s);\n  rotate(ph*legAmp);\n  if (sty==='xray'){ noFill(); stroke(190,60,95,80); strokeWeight(2*s); line(0,0,0,44*s); ellipse(0,50*s,14*s,8*s); noStroke(); }\n  else if (sty==='thermal'){ const h=heat(0.35); fill(h[0],h[1],h[2]); ellipse(0,24*s,15*s,46*s); ellipse(0,50*s,18*s,9*s); }\n  else if (sty==='woodcut'){ fill(0,0,12); ellipse(0,24*s,16*s,46*s); ellipse(2*s,50*s,20*s,9*s); }\n  else { fill(45,10,92); ellipse(0,24*s,16*s,46*s); fill(H,55,88); ellipse(2*s,50*s,20*s,9*s); }\n  pop();\n};\ndrawLeg(-12*s*chub, step);\ndrawLeg(12*s*chub, -step);\n\n// ---------- ARMS ----------\nconst drawArm = (sx, sign, ang) => {\n  push();\n  translate(sx, -6*s);\n  rotate(sign*ang);\n  if (sty==='xray'){ noFill(); stroke(190,60,95,80); strokeWeight(2*s); line(0,0,0,40*s); noStroke(); }\n  else if (sty==='thermal'){ const h=heat(0.4); fill(h[0],h[1],h[2]); ellipse(0,18*s,12*s,40*s); }\n  else if (sty==='woodcut'){ fill(0,0,12); ellipse(0,18*s,13*s,40*s); }\n  else { fill(45,10,90); ellipse(0,18*s,13*s,40*s); if(sty==='riso'){ fill(H,50,90,50); ellipse(2*s,20*s,7*s,30*s);} }\n  pop();\n};\ndrawArm(-20*s*chub, -1, armBase - armSwing);\ndrawArm(20*s*chub, 1, armBase + armSwing);\n\n// ---------- STEM (body) ----------\npush();\nconst bw = 34*s*chub, bh = 44*s*sl;\nif (sty==='xray'){\n  noFill(); stroke(190,55,95,70); strokeWeight(1.6*s);\n  beginShape(); vertex(-bw*0.7,-bh); bezierVertex(-bw,0,-bw*0.8,bh, -bw*0.5,bh); vertex(bw*0.5,bh); bezierVertex(bw*0.8,bh,bw,0,bw*0.7,-bh); endShape(CLOSE);\n  strokeWeight(1*s); stroke(190,55,95,45);\n  for(let i=-2;i<=2;i++){ line(i*bw*0.28, -bh, i*bw*0.34, bh); }\n  noStroke();\n} else if (sty==='thermal'){\n  const h=heat(0.5); fill(h[0],h[1],h[2]); ellipse(0,0,bw*2,bh*2);\n  blendMode(ADD); const hc=heat(0.85); fill(hc[0],hc[1],hc[2],40); ellipse(-3*s,4*s,bw*1.1,bh*1.4); blendMode(BLEND);\n} else if (sty==='woodcut'){\n  fill(0,0,12); ellipse(0,0,bw*2,bh*2);\n  stroke(40,10,90); strokeWeight(1.6*s); noFill();\n  for(let i=0;i<4;i++){ arc(-bw*0.3, -bh*0.6+i*bh*0.5, bw*0.9, bh*0.4, PI*0.15, PI*0.85); } noStroke();\n} else {\n  fill(45,10,92); ellipse(0,0,bw*2,bh*2);\n  fill(H,20,60,45); ellipse(7*s,6*s,bw*1.2,bh*1.5);\n  fill(45,6,99,55); ellipse(-8*s,-8*s,bw*0.8,bh*0.9);\n}\npop();\n\n// ---------- CAP ----------\npush();\ntranslate(0,-40*s*sl);\nconst capWob = Math.sin(bt*Math.PI + 0.5)*capAmp*E + sway*0.05;\nrotate(capWob);\nconst squash = 1 + kick*0.08*E;\nconst CW = 78*s*capW, CH = 62*s;\nconst drawCap = () => { beginShape(); vertex(-CW/2,6*s); bezierVertex(-CW/2,-CH*squash,CW/2,-CH*squash,CW/2,6*s); endShape(CLOSE); rect(-CW/2,2*s,CW,10*s,4*s); };\nif (sty==='xray'){\n  noFill(); stroke(190,60,95,80); strokeWeight(2*s); drawCap();\n  strokeWeight(1*s); stroke(190,55,95,45);\n  for(let i=0;i<11;i++){ const a=PI+ (i/10)*PI; line(0,4*s, Math.cos(a)*CW*0.46, 4*s+Math.sin(a)*CH*0.7); }\n  noStroke();\n} else if (sty==='thermal'){\n  const h=heat(0.7); fill(h[0],h[1],h[2]); drawCap();\n  blendMode(ADD); const hc=heat(0.95); fill(hc[0],hc[1],hc[2],55); ellipse(0,-CH*0.4,CW*0.5,CH*0.5); blendMode(BLEND);\n} else if (sty==='woodcut'){\n  fill(0,0,12); drawCap();\n  fill(40,10,90); for (const sp of S.spots){ ellipse(sp.x*CW*0.5, 4*s+sp.y*CH, sp.r*CW*0.8, sp.r*CH*0.7); }\n} else {\n  fill(H,68,92); drawCap();\n  fill(H,80,70,60); arc(0,6*s,CW,CH*0.7,0.15,PI-0.15,CHORD);\n  fill(H,45,99,55); ellipse(-CW*0.18,-CH*0.4,CW*0.42,CH*0.45);\n  const spotH = sty==='riso'?185:45;\n  fill(spotH,sty==='riso'?45:12,sty==='riso'?85:99);\n  for (const sp of S.spots){ ellipse(sp.x*CW*0.5, 4*s+sp.y*CH, sp.r*CW*0.8, sp.r*CH*0.7); }\n}\npop();\n\n// ---------- FACE (on stem) ----------\nif (sty!=='xray'){\n  push();\n  translate(0,-6*s*sl);\n  const blink = (Math.sin(K.t*1.3)>0.96)?0.2:1;\n  if (sty==='thermal'){ const h=heat(0.9); fill(h[0],h[1],h[2]); ellipse(-11*s,-2*s,7*s,9*s*blink); ellipse(11*s,-2*s,7*s,9*s*blink); }\n  else if (sty==='woodcut'){ fill(40,10,90); ellipse(-11*s,-2*s,7*s,9*s*blink); ellipse(11*s,-2*s,7*s,9*s*blink); }\n  else { fill(0,0,12); ellipse(-11*s,-2*s,7*s,9*s*blink); ellipse(11*s,-2*s,7*s,9*s*blink);\n    fill(0,0,100,80); ellipse(-12*s,-3*s,2*s,2*s); ellipse(10*s,-3*s,2*s,2*s);\n    fill(H,60,88,60); ellipse(-19*s,8*s,10*s,6*s); ellipse(19*s,8*s,10*s,6*s); }\n  if (sty!=='thermal'){ noFill(); stroke(sty==='woodcut'?color(40,10,90):color(0,0,20)); strokeWeight(2.5*s); const sm=0.15+kick*0.2; arc(0,8*s,18*s,12*s*(0.5+sm),0.15,PI-0.15); noStroke(); }\n  pop();\n}\n\n// ---------- SPORES (pose spore + treble) ----------\nif (P.pose==='spore' || sty==='thermal'){\n  const nsp = Math.floor(4 + P.density*12);\n  blendMode(sty==='thermal'?ADD:BLEND);\n  for (let i=0;i<nsp;i++){\n    const ph = (K.t*0.35 + fr(i*5)) % 1;\n    const sx = (fr(i*5+1)-0.5)*90*s*capW;\n    const syb = -60*s*sl - ph*70*s + Math.sin(K.t+i)*4*s;\n    const sr = (1.5+fr(i*5+2)*3)*s*(1+air*0.7);\n    if (sty==='thermal'){ const h=heat(0.6); fill(h[0],h[1],h[2],40*(1-ph)); } else { fill((H+40)%360,40,95,45*(1-ph)); }\n    ellipse(sx,syb,sr,sr);\n  }\n  blendMode(BLEND);\n}\n\n// ---------- RISO HALFTONE + MISREGISTRATION ----------\nif (hasDot){\n  blendMode(MULTIPLY);\n  const c = drawingContext; c.save();\n  c.beginPath(); c.ellipse(0,-46*s*sl,68*s*capW,54*s,0,0,Math.PI*2); c.clip();\n  image(S.dot, -75*s*capW, -104*s*sl, 150*s*capW, 130*s);\n  c.restore();\n  blendMode(BLEND);\n  // teal misregistration ghost edge on cap\n  push(); translate(-3*s,-46*s*sl-2*s); noFill(); stroke(185,55,80,45); strokeWeight(2.4*s);\n  const CW2=78*s*capW, CH2=62*s; beginShape(); vertex(-CW2/2,6*s); bezierVertex(-CW2/2,-CH2,CW2/2,-CH2,CW2/2,6*s); endShape(); noStroke(); pop();\n}\n\npop();\nblendMode(BLEND);\n"
+}
