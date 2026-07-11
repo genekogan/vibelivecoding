@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cellular",
+  "kind": "genart",
+  "name": "Cellular Automata",
+  "desc": "A coarse life-grid ticks forward on every beat while its ruleset mutates each section \u2014 Conway to HighLife to Day&Night \u2014 rendered as glowing green CRT phosphor with scanline roll and blinking cursor.",
+  "tags": [
+    "cellular automata",
+    "game of life",
+    "conway",
+    "highlife",
+    "generative",
+    "grid",
+    "emergence",
+    "procedural",
+    "terminal",
+    "phosphor",
+    "crt",
+    "green",
+    "retro",
+    "hacker",
+    "matrix",
+    "lichen",
+    "ice",
+    "ascii",
+    "dot matrix",
+    "glider",
+    "rule",
+    "complexity",
+    "abstract",
+    "evolving",
+    "organism"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.5,
+      "doc": "cell size -> grid coarseness (bigger = chunkier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "initial fill + reseed cluster size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "phosphor flicker + beam + audio amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "CA generations per beat"
+    },
+    "hue": {
+      "default": 130,
+      "min": 0,
+      "max": 360,
+      "doc": "cell hue (terminal green default; try 30 amber, 300 magenta)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "primary reseed focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "primary reseed focus y"
+    },
+    "fade": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "afterglow / trail persistence of dying cells"
+    },
+    "scan": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "CRT scanline darkness (terminal/ascii)"
+    },
+    "style": {
+      "default": "terminal",
+      "options": [
+        "terminal",
+        "lichen",
+        "ice",
+        "ascii"
+      ],
+      "doc": "aesthetic: glowing green CRT phosphor blocks + scanlines / soft organic mossy blotches on stone / cold faceted ice crystals / dot-matrix ASCII glyphs by age (abstract)"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "bloom"
+      ],
+      "doc": "drift = steady rule morphs w/ small reseeds / bloom = large section-locked reseed blooms that pulse with intensity"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "initial pattern + rule-offset seed"
+    }
+  },
+  "acts": [
+    "drift",
+    "bloom"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:29:24+00:00",
+    "fps": 59.9,
+    "motion": 0.0568,
+    "lum": 0.08
+  },
+  "code": "const D = { scale:1, density:.5, energy:.6, speed:1, hue:130, x:.5, y:.5, fade:.5, scan:.5, style:'terminal', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst style=P.style;\nconst term=style==='terminal', lich=style==='lichen', ice=style==='ice', asc=style==='ascii';\nconst en=clp(P.energy,0,1);\n\n// t0 / beat reset guard\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\n\n// ---- grid geometry (cap total cells ~2600) ----\nlet cellPx=Math.max(u*0.020*clp(P.scale,0.5,2.5), Math.sqrt(W*Hh/2600));\nconst cols=Math.max(6,Math.floor(W/cellPx));\nconst rows=Math.max(6,Math.floor(Hh/cellPx));\nconst cw=W/cols, ch=Hh/rows;\n\n// ---- rule table (era changes per section) ----\nconst RULES=[\n  {b:[3],s:[2,3]},        // Conway Life\n  {b:[3,6],s:[2,3]},      // HighLife\n  {b:[2],s:[]},           // Seeds (explosive)\n  {b:[3,4],s:[3,4]},      // 34 Life\n  {b:[3,6,7,8],s:[3,4,6,7,8]}, // Day & Night\n  {b:[3,5,7],s:[1,3,5,8]},// Amoeba-ish\n  {b:[3,6],s:[1,2,5]},    // 2x2-ish\n  {b:[1],s:[1]}           // Gnarl (filigree)\n];\nconst ruleIdx=md(K.section+Math.floor(P.seed/7),RULES.length);\nconst RULE=RULES[ruleIdx];\nconst bMask=new Uint8Array(9), sMask=new Uint8Array(9);\nfor(const k of RULE.b)bMask[k]=1; for(const k of RULE.s)sMask[k]=1;\n\n// ---- seeded init / rebuild on size|seed change ----\nfunction seedGrid(fill){\n  const g=new Uint8Array(cols*rows);\n  const age=new Float32Array(cols*rows);\n  for(let i=0;i<cols*rows;i++){ if(fr(i*2.3+7.1)<fill){g[i]=1;age[i]=1;} }\n  return {g,age};\n}\nconst gkey=cols+'x'+rows+':'+P.seed;\nif(!S.grid || S.gkey!==gkey){\n  S.gkey=gkey;\n  const o=seedGrid(clp(P.density,0.05,1)*0.42);\n  S.grid=o.g; S.age=o.age; S.prev=o.g.slice();\n  S.stepBeat=Math.floor(K.beat*P.speed);\n}\n\n// ---- CA step (beat-locked, with phase fade between) ----\nfunction neighbors(g,x,y){\n  let c=0;\n  for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){\n    if(ox===0&&oy===0)continue;\n    const nx=md(x+ox,cols), ny=md(y+oy,rows);\n    c+=g[ny*cols+nx];\n  }\n  return c;\n}\nfunction stepCA(){\n  const g=S.grid; const ng=new Uint8Array(cols*rows); const age=S.age;\n  let live=0;\n  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){\n    const idx=y*cols+x; const c=neighbors(g,x,y);\n    let v=0;\n    if(g[idx]){ v=sMask[c]?1:0; } else { v=bMask[c]?1:0; }\n    ng[idx]=v;\n    if(v){ age[idx]=g[idx]?Math.min(age[idx]+1,120):1; live++; } else { age[idx]=Math.max(age[idx]-2,0); }\n  }\n  S.prev=S.grid; S.grid=ng;\n  // reseed to prevent death / blackout\n  const total=cols*rows;\n  const bloom = P.act==='bloom' ? (0.10+0.5*K.intensity) : 0.055;\n  if(live<total*bloom){\n    const cx=Math.floor(clp(P.x,0,1)*(cols-1)), cy=Math.floor(clp(P.y,0,1)*(rows-1));\n    const rad=Math.round(lrp(2,7,clp(P.density,0,1)));\n    const jx=Math.floor(fr(K.section*3.7+11)*cols), jy=Math.floor(fr(K.section*3.7+12)*rows);\n    for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++){\n      const rr=fr(dx*7.3+dy*3.1+K.section*5.0);\n      if(rr<0.5){\n        let px=md(cx+dx,cols), py=md(cy+dy,rows); S.grid[py*cols+px]=1; S.age[py*cols+px]=1;\n        px=md(jx+dx,cols); py=md(jy+dy,rows); S.grid[py*cols+px]=1; S.age[py*cols+px]=1;\n      }\n    }\n  }\n}\nconst wantBeat=Math.floor(K.beat*clp(P.speed,0.25,4));\nif(S.stepBeat==null||wantBeat<S.stepBeat)S.stepBeat=wantBeat; // reset guard\nlet steps=0;\nwhile(S.stepBeat<wantBeat && steps<3){ stepCA(); S.stepBeat++; steps++; }\nS.lastBeat=K.beat;\n\n// ---- render ----\nconst g=S.grid, prev=S.prev, age=S.age;\nconst emerge=clp(K.phase*clp(P.speed,0.25,4),0,1); // 0->1 progress to next step\nconst fadeK=clp(P.fade,0,1);\n\n// background floor\nnoStroke();\nif(term||asc){ background(H,20,5); }\nelse if(ice){ background(212,40,9); }\nelse { background(96,18,14); } // lichen stone\n\n// subtle base glow so never blackout\nblendMode(BLEND);\n\nconst glow = term ? 0.9 : ice ? 0.85 : 0.7;\nconst flick = 1 + (term? (Math.sin(K.t*7.0)*0.03 + Math.sin(K.t*31.0)*0.015) : 0);\nconst pulse = K.pulse*0.4 + A.bass*0.5;\n\nif(asc){\n  textAlign(CENTER,CENTER);\n  textSize(ch*0.92);\n  const gl=['.',':','+','*','#','@'];\n  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){\n    const idx=y*cols+x; const a=age[idx];\n    if(a<=0 && !g[idx])continue;\n    const on=g[idx];\n    const born=on&&!prev[idx];\n    const dyingA=(!on&&prev[idx])?(1-emerge):1;\n    const bornA=born?emerge:1;\n    const lvl=clp(a/60,0,1);\n    const ch2=gl[Math.min(gl.length-1,Math.floor(lvl*gl.length))];\n    const b=clp((on?70:38)*bornA*dyingA*glow*flick+pulse*30,0,100);\n    fill(md(H+(a>40?-14:0),360), on?70:40, b, on?100:70);\n    text(on?ch2:'.', x*cw+cw*0.5, y*ch+ch*0.52);\n  }\n} else {\n  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){\n    const idx=y*cols+x; const a=age[idx];\n    if(a<=0 && !g[idx])continue;\n    const on=g[idx];\n    const born=on&&!prev[idx];\n    const dying=!on&&prev[idx];\n    const app=born?emerge:1;\n    const disA=dying?(1-emerge)*fadeK:1;\n    const lvl=clp(a/70,0,1);\n    const px=x*cw, py=y*ch;\n    if(term){\n      const b=clp((on?lrp(55,95,lvl):30)*app*disA*flick+pulse*40,0,100);\n      fill(md(H-lvl*16,360), lrp(85,55,lvl), b, on?100:60*fadeK);\n      const m=cw*0.10; rect(px+m,py+m,cw-2*m,ch-2*m);\n    } else if(ice){\n      const b=clp((on?lrp(60,100,lvl):40)*app*disA+pulse*20,0,100);\n      fill(lrp(210,190,lvl), lrp(55,18,lvl), b, on?100:55*fadeK);\n      const cxp=px+cw*0.5, cyp=py+ch*0.5, s=cw*0.5*(on?lrp(0.55,0.95,lvl)*app:0.5*disA);\n      beginShape(); vertex(cxp,cyp-s); vertex(cxp+s*0.8,cyp); vertex(cxp,cyp+s); vertex(cxp-s*0.8,cyp); endShape(CLOSE);\n    } else { // lichen organic\n      const b=clp((on?lrp(38,72,lvl):30)*app*disA+pulse*14,0,100);\n      const hh=md(H + lrp(18,-26,lvl) + fr(idx*1.7)*10,360);\n      fill(hh, lrp(45,68,lvl), b, on?100:50*fadeK);\n      const cxp=px+cw*0.5+ (fr(idx*2.1)-0.5)*cw*0.2, cyp=py+ch*0.5+(fr(idx*3.3)-0.5)*ch*0.2;\n      const s=cw*(on?lrp(0.30,0.52,lvl)*app:0.34*disA);\n      ellipse(cxp,cyp,s*2,s*2*0.92);\n    }\n  }\n}\n\n// ---- phosphor / CRT overlay (real-time motion floor, never re-phases) ----\nif(term||asc){\n  blendMode(MULTIPLY); noStroke();\n  const scanA=clp(P.scan,0,1)*38;\n  const roll=md(K.t*u*0.10, ch*2); // continuous vertical roll\n  for(let y=-1;y*ch*2 - roll < Hh; y++){\n    const yy=y*ch*2 - roll;\n    fill(0,0,0,scanA); rect(0,yy,W,ch);\n  }\n  blendMode(BLEND);\n  // moving scan-beam highlight\n  blendMode(ADD);\n  const beamY=md(K.t*0.09,1)*Hh;\n  fill(H,50,100,10+en*10); rect(0,beamY-ch,W,ch*2);\n  // blinking cursor\n  if(Math.sin(K.t*3.2)>0){ fill(H,60,100,60); rect(md(K.beat*0.7,cols)*cw, (rows-2)*ch, cw*0.8, ch*0.8); }\n  blendMode(BLEND);\n} else {\n  // soft light drift for ice/lichen so motion floor holds even if CA stalls\n  blendMode(ADD); noStroke();\n  const dx=(0.5+0.5*Math.sin(K.t*0.15))*W, dy=(0.5+0.5*Math.cos(K.t*0.11))*Hh;\n  fill(ice?200:70, 30, 100, 6+A.rms*20); ellipse(dx,dy,u*0.5,u*0.5);\n  blendMode(BLEND);\n}\nblendMode(BLEND);\n"
+}

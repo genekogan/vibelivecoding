@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lsystem",
+  "kind": "genart",
+  "name": "L-System Garden",
+  "desc": "A seed-grown L-system plant unfurling stroke by stroke and swaying in a continuous wind, brushed as tapered sumi ink with vermilion blossoms, or as a cyanotype schematic, neon filament, or charcoal smudge.",
+  "tags": [
+    "lsystem",
+    "l-system",
+    "fractal",
+    "plant",
+    "tree",
+    "fern",
+    "bush",
+    "branch",
+    "branching",
+    "botanical",
+    "organic",
+    "growth",
+    "generative",
+    "procedural",
+    "recursive",
+    "garden",
+    "foliage",
+    "ink",
+    "sumi",
+    "blueprint",
+    "cyanotype",
+    "neon",
+    "charcoal",
+    "nature",
+    "vine",
+    "flora",
+    "blossom",
+    "wind",
+    "calm",
+    "meditative",
+    "genart",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "L-system iterations / branch complexity (rebuilds the plant)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "overall plant size"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "sway + flutter amplitude, bloom vigor"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "wind + growth rate"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "whole-plant sway + per-branch flutter"
+    },
+    "bloom": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fraction of branch tips that flower"
+    },
+    "hue": {
+      "default": 110,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage hue (blossoms sit at a complementary hue)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "root anchor x"
+    },
+    "y": {
+      "default": 0.94,
+      "min": 0.3,
+      "max": 1,
+      "doc": "root anchor y"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "blueprint",
+        "neon",
+        "charcoal"
+      ],
+      "doc": "aesthetic: tapered sumi brush on paper / white schematic contour on cyanotype (abstract) / additive glowing filament on near-black / soft charcoal smudge"
+    },
+    "act": {
+      "default": "grow",
+      "options": [
+        "grow",
+        "wither",
+        "pulse"
+      ],
+      "doc": "multi-minute program: grow unfurls and holds, wither cyclically advances then recedes, pulse breathes the canopy in and out"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "plant species (axiom/rules), branch angle, blossom placement"
+    }
+  },
+  "acts": [
+    "grow",
+    "wither",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:31:16+00:00",
+    "fps": 57.1,
+    "motion": 0.0267,
+    "lum": 0.782
+  },
+  "code": "const D = { density:.5, scale:1, energy:.55, speed:1, wind:.5, bloom:.5, hue:110, x:.5, y:.94, style:'ink', act:'grow', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, RAD=Math.PI/180;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style, dens=clp(P.density,0,1), en=clp(P.energy,0,1)*(.5+.6*K.intensity);\nconst spI=P.seed%4;                                     // species by seed\nconst maxIt=[5,3,5,5][spI];                             // bushy species blows up past 3\nconst iters=Math.min(maxIt, 3+Math.round(dens*2));      // 3..5 complexity, clamped\n\n// ---- seed-deterministic L-system string (cached) ----\nconst lkey=P.seed+'|'+iters;\nif(S.lkey!==lkey){\n  S.lkey=lkey;\n  const SP=[\n    {ax:'X', rX:'F+[[X]-X]-F[-FX]+X', rF:'FF', ang:22},   // classic fern\n    {ax:'F', rX:'', rF:'FF+[+F-F-F]-[-F+F+F]', ang:24},   // bushy\n    {ax:'X', rX:'F[+X]F[-X]+X',        rF:'FF', ang:20},   // sparse reach\n    {ax:'X', rX:'F[+X][-X]FX',         rF:'FF', ang:26}    // symmetric tree\n  ][spI];\n  let s=SP.ax;\n  for(let g=0;g<iters;g++){ let n=''; for(let i=0;i<s.length;i++){ const c=s[i]; n+= c==='X'? SP.rX : c==='F'? SP.rF : c; } s=n; }\n  S.str=s; S.angBase=SP.ang+(fr(9)*8-4);                 // seed jitter on branch angle\n  // count F segments to normalise length\n  let f=0; for(let i=0;i<s.length;i++) if(s[i]==='F') f++;\n  S.fCount=f;\n  // pick blossom node indices deterministically (which ']' get a flower)\n  S.blm=[]; let bi=0; for(let i=0;i<s.length;i++){ if(s[i]===']'){ S.blm.push(fr(bi*7.3+1)); bi++; } }\n}\nconst str=S.str, fCount=Math.max(1,S.fCount);\n\n// ---- background (cached, size+seed+style keyed) \u2014 genart owns bg ----\nconst bkey=W+'x'+Hh+'|'+P.seed+'|'+style;\nif(S.bkey!==bkey){\n  S.bkey=bkey;\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  if(style==='blueprint'){ g.fill(210,72,26); g.rect(0,0,W,Hh);\n    g.stroke(200,30,60,16); g.strokeWeight(1); const gs=u*0.05;\n    for(let x=0;x<=W;x+=gs) g.line(x,0,x,Hh); for(let y=0;y<=Hh;y+=gs) g.line(0,y,W,y);\n  } else if(style==='neon'){ g.fill(260,55,7); g.rect(0,0,W,Hh);\n    for(let i=0;i<50;i++){ g.fill(260,40,10+fr(i*3)*6,20); g.circle(fr(i*1.7)*W,fr(i*2.9)*Hh,u*0.02*(1+fr(i))); }\n  } else if(style==='charcoal'){ g.fill(30,6,20); g.rect(0,0,W,Hh);\n    for(let i=0;i<70;i++){ g.fill(30,4,14+fr(i)*12,10); g.circle(fr(i*1.3)*W,fr(i*2.1)*Hh,u*(0.05+0.14*fr(i*3))); }\n  } else { // ink: warm paper + mottle + faint vignette\n    g.fill(40,12,86); g.rect(0,0,W,Hh);\n    for(let i=0;i<70;i++){ g.fill(40,14,82+fr(i)*6,8); g.circle(fr(i*1.9)*W,fr(i*3.3)*Hh,u*(0.05+0.16*fr(i*5))); }\n    g.fill(40,16,64,14); g.rect(0,0,W,Hh*0.16); g.rect(0,Hh*0.88,W,Hh*0.12);\n  }\n  S.bg=g;\n}\nimage(S.bg,0,0);\n\n// ---- live turtle draw ----\nconst ink = style==='ink', blue=style==='blueprint', neon=style==='neon', char=style==='charcoal';\nconst hue=md(P.hue,360);\n// wind: whole-plant sway (continuous, real-time, never re-phases) + audio gust\nconst windAmp=(0.05+0.20*clp(P.wind,0,1))*(0.5+0.9*en);\nconst sway=windAmp*(Math.sin(K.t*(0.6+0.5*clp(P.speed,0.2,4)))*0.7 + Math.sin(K.t*1.7+1.3)*0.3) + A.lowmid*0.10*en;\n// growth reveal (act dramaturgy)\nlet grow;\nconst gp=K.t*0.03*clp(P.speed,0.2,4);\nif(P.act==='wither'){ grow=0.35+0.65*(0.5+0.5*Math.sin(gp*TAU)); }          // grows & recedes\nelse if(P.act==='pulse'){ grow=0.55+0.45*Math.sin(gp*TAU*1.5); grow=clp(grow,0,1); } // breathing tips\nelse { const ph=(gp%1); grow=clp(ph<0.5? ph*2 : 1, 0.12,1); }               // grow-and-hold\nconst revealN=Math.min(1300, Math.max(8, Math.floor(fCount*grow)));  // cap drawn segs for fps\n\n// turtle length so plant roughly fits, scaled\nconst lenTab={3:0.075,4:0.045,5:0.026};\nlet len=u*(lenTab[iters]||0.03)*clp(P.scale,0.3,2.4)*1.15;\nconst turn=(S.angBase)*RAD;\nconst bx=P.x*W, by=P.y*Hh;\n\nlet x=bx, y=by, ang=-Math.PI/2 + sway*0.6;   // base sway tilts whole plant\nconst st=[]; let depth=0, drawn=0;\n\n// stroke base colour by style\nlet sw0=Math.max(1.1, u*0.006*clp(P.scale,0.3,2.4));\nnoFill();\nif(neon){ blendMode(ADD); }\nfor(let i=0;i<str.length && drawn<revealN;i++){\n  const c=str[i];\n  if(c==='F'){\n    // per-segment micro wind grows with height & depth (secondary flutter)\n    const fl=(0.015+0.03*clp(P.wind,0,1))*Math.sin(K.t*2.2 + depth*0.7 + drawn*0.02)*(0.4+en);\n    ang+=fl;\n    const x2=x+Math.cos(ang)*len, y2=y+Math.sin(ang)*len;\n    const taper=clp(1-depth*0.14,0.18,1);\n    if(blue){ stroke(200,18,96,72); strokeWeight(Math.max(0.8,sw0*0.5*taper)); }\n    else if(neon){ stroke(hue,80,100, 26+40*taper); strokeWeight(sw0*(0.6+1.4*taper)); }\n    else if(char){ stroke(30,6,96-60*taper,22); strokeWeight(sw0*(1+2.2*taper)); }\n    else { // ink: dark tapered brush, drier (lighter) toward tips\n      stroke(md(hue+8,360), 40+18*taper, 14+34*(1-taper), 82); strokeWeight(sw0*(0.5+2.6*taper)); }\n    line(x,y,x2,y2);\n    x=x2; y=y2; drawn++;\n  } else if(c==='+'){ ang+=turn+sway*0.15; }\n  else if(c==='-'){ ang-=turn-sway*0.15; }\n  else if(c==='['){ st.push([x,y,ang,depth]); depth++; }\n  else if(c===']'){ const p=st.pop(); if(p){ x=p[0]; y=p[1]; ang=p[2]; depth=p[3]; } }\n}\nif(neon) blendMode(BLEND);\n\n// ---- blossoms at revealed branch tips (bloom waxes over sections) ----\nconst bloomAmt=clp(P.bloom,0,1)*(0.35+0.9*K.intensity);\nconst bhue=md(hue+ (ink?250:40),360);                    // vermilion-ish against green ink\n// second cheap pass: walk again, place blossoms at ']' whose token passed reveal\n{\n  let bx2=bx, by2=by, a2=-Math.PI/2+sway*0.6, dr=0, dp=0, bIdx=0; const s2=[];\n  noStroke();\n  for(let i=0;i<str.length && dr<revealN;i++){\n    const c=str[i];\n    if(c==='F'){ const fl=(0.015+0.03*clp(P.wind,0,1))*Math.sin(K.t*2.2 + dp*0.7 + dr*0.02)*(0.4+en);\n      a2+=fl; bx2+=Math.cos(a2)*len; by2+=Math.sin(a2)*len; dr++; }\n    else if(c==='+'){ a2+=turn+sway*0.15; }\n    else if(c==='-'){ a2-=turn-sway*0.15; }\n    else if(c==='['){ s2.push([bx2,by2,a2,dp]); dp++; }\n    else if(c===']'){\n      const th=S.blm[bIdx]!=null?S.blm[bIdx]:0.5; bIdx++;\n      if(th < bloomAmt){\n        const puls=1+0.5*K.pulse+1.2*A.bass;\n        const r=u*(0.006+0.012*clp(P.scale,0.3,2.4))*puls*(0.6+0.8*th);\n        if(neon){ blendMode(ADD); fill(bhue,70,100,55); circle(bx2,by2,r*1.8); blendMode(BLEND); }\n        else if(blue){ noFill(); stroke(200,20,98,80); strokeWeight(1); circle(bx2,by2,r*1.6); noStroke(); }\n        else if(ink){ fill(bhue,78,84,72); circle(bx2,by2,r*1.5); fill(bhue,60,96,40); circle(bx2,by2,r*0.7); }\n        else { fill(bhue,30,92,60); circle(bx2,by2,r*1.4); }\n      }\n      const p=s2.pop(); if(p){ bx2=p[0]; by2=p[1]; a2=p[2]; dp=p[3]; }\n    }\n  }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

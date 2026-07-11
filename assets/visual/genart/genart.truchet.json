@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.truchet",
+  "kind": "genart",
+  "name": "Truchet Tiles",
+  "desc": "A dense field of Smith-truchet quarter-arc tiles weaving continuous maze paths, individual tiles spinning ninety degrees on the beat while travelling glow-fronts trace the connected flow.",
+  "tags": [
+    "truchet",
+    "tiles",
+    "tiling",
+    "maze",
+    "labyrinth",
+    "generative",
+    "geometric",
+    "arcs",
+    "monoline",
+    "line-art",
+    "grid",
+    "pattern",
+    "weave",
+    "flow",
+    "op-art",
+    "blueprint",
+    "neon",
+    "ribbon",
+    "abstract",
+    "procedural",
+    "hypnotic",
+    "kinetic",
+    "bg",
+    "background",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tile count \u2014 higher packs finer tiles (rebuilds field)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fraction of tiles spinning + flow-glow brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "tile-flip + flow-front rate (beats-relative)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "line weight vs design size"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "primary ink hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor (field is full-bleed)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor (field is full-bleed)"
+    },
+    "flow": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "strength + count of connected-path glow fronts"
+    },
+    "style": {
+      "default": "mono",
+      "options": [
+        "mono",
+        "ribbon",
+        "neon",
+        "blueprint"
+      ],
+      "doc": "aesthetic \u2014 monoline maze / two-ink ribbon / additive neon tubes / white schematic on blue"
+    },
+    "act": {
+      "default": "weave",
+      "options": [
+        "weave",
+        "pulse",
+        "drift"
+      ],
+      "doc": "dramaturgy \u2014 steady weave / beat-massed flips / slow rotating flow"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "tiling + flow seed (hash-deterministic)"
+    }
+  },
+  "acts": [
+    "weave",
+    "pulse",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:32:23+00:00",
+    "fps": 59.9,
+    "motion": 0.0228,
+    "lum": 0.153
+  },
+  "code": "const D = { density:.5, energy:.6, speed:1, scale:1, hue:200, x:.5, y:.5, style:'mono', flow:.6, act:'weave', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, HP=Math.PI/2, PIc=Math.PI;\nconst md=(a,n)=>((a%n)+n)%n;\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst mono=style==='mono', ribbon=style==='ribbon', neon=style==='neon', blue=style==='blueprint';\nconst en=clp(P.energy,0,1)*(.55+.6*K.intensity);\nconst dens=clp(P.density,0,1);\nconst hue=md(P.hue,360);\n\n// tile size from density (density is the FIRST poke param \u2014 structural)\nconst ts=Math.max(u*0.045, u*(0.17-dens*0.125));\nconst cols=Math.ceil(W/ts)+1, rows=Math.ceil(Hh/ts)+1;\n\n// palette per style discipline\nlet bgH,bgS,bgB, lnH,lnS,lnB, ln2H;\nif(mono){ bgH=hue; bgS=22; bgB=9; lnH=hue; lnS=8; lnB=92; ln2H=hue; }\nelse if(ribbon){ bgH=md(hue+30,360); bgS=16; bgB=90; lnH=hue; lnS=68; lnB=82; ln2H=md(hue+168,360); }\nelse if(neon){ bgH=hue; bgS=62; bgB=6; lnH=hue; lnS=92; lnB=100; ln2H=md(hue+140,360); }\nelse { bgH=md(hue+5,360); bgS=68; bgB=26; lnH=45; lnS=5; lnB=98; ln2H=45; }\n\nfunction arcs0(px,py,tsz,par){\n  // draw the two Smith-truchet quarter arcs for a tile using GLOBAL funcs\n  if(par===0){ arc(px,py,tsz,tsz,0,HP); arc(px+tsz,py+tsz,tsz,tsz,PIc,PIc+HP); }\n  else { arc(px+tsz,py,tsz,tsz,HP,PIc); arc(px,py+tsz,tsz,tsz,-HP,0); }\n}\n\n// ---- cached base field (keyed on size/seed/style/density bucket) ----\nconst dB=Math.round(dens*5);\nconst key=W+'x'+Hh+'|'+P.seed+'|'+style+'|'+dB;\nif(S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.clear();\n  g.noFill(); g.strokeCap(g.ROUND);\n  const sw=ts*(mono?0.06:ribbon?0.30:neon?0.13:0.05)*clp(P.scale,.5,2);\n  for(let cy=0;cy<rows;cy++){\n    for(let cx=0;cx<cols;cx++){\n      const px=cx*ts, py=cy*ts;\n      const par = fr(cx*13.7+cy*91.3+3.1)>0.5?1:0;\n      const sh = 0.82+0.32*fr(cx*3.1+cy*7.9);\n      g.strokeWeight(sw);\n      if(ribbon){ g.stroke((par?ln2H:lnH), lnS, clp(lnB*sh,0,100), 100); }\n      else if(blue){ g.stroke(lnH,lnS,lnB,88); }\n      else { g.stroke(lnH, mono?10:lnS, clp(lnB*(mono?sh:1),0,100), neon?55:100); }\n      if(par===0){ g.arc(px,py,ts,ts,0,HP); g.arc(px+ts,py+ts,ts,ts,PIc,PIc+HP); }\n      else { g.arc(px+ts,py,ts,ts,HP,PIc); g.arc(px,py+ts,ts,ts,-HP,0); }\n    }\n  }\n  if(blue){ g.stroke(45,5,98,18); g.strokeWeight(0.6);\n    for(let x=0;x<=W;x+=ts){g.line(x,0,x,Hh);} for(let y=0;y<=Hh;y+=ts){g.line(0,y,W,y);} }\n  S.base=g; S.ts=ts; S.sw=sw;\n  const nAnim=Math.min(64, Math.round(10+dens*44));\n  const list=[];\n  for(let i=0;i<nAnim;i++){\n    const cx=Math.floor(fr(i*4.7+1)*cols), cy=Math.floor(fr(i*8.3+2)*rows);\n    list.push({cx,cy, par: fr(cx*13.7+cy*91.3+3.1)>0.5?1:0, sp:fr(i*5.1+7), rate:0.13+0.24*fr(i*2.3+4)});\n  }\n  S.anim=list; S.flowAng=TAU*fr(99.3);\n}\nconst ts2=S.ts, sw=S.sw;\n\n// ---- LIVE COMPOSITE ----\nnoStroke();\nbackground(bgH,bgS,bgB);\nimage(S.base,0,0);\n\n// spinning tiles \u2014 cover cell, redraw orientation-0 arcs rotated (90deg = orientation flip)\nstrokeCap(ROUND); noFill();\nconst flipRate=P.speed;\nconst popMass = P.act==='pulse'? (0.4+0.9*K.pulse) : 1;\nconst activeFrac = clp((0.35+0.65*en)*popMass,0,1);\nconst list=S.anim;\nfor(let i=0;i<list.length;i++){\n  if(i/list.length > activeFrac) continue;\n  const a=list[i];\n  const px=a.cx*ts2, py=a.cy*ts2, cxp=px+ts2/2, cyp=py+ts2/2;\n  noStroke(); fill(bgH,bgS,bgB); rect(px-1,py-1,ts2+2,ts2+2);\n  const gg=K.beat*a.rate*flipRate + a.sp + K.t*0.02;\n  const steps=Math.floor(gg), frc=gg-steps, ang=(a.par+steps+ez(frc))*HP;\n  push(); translate(cxp,cyp); rotate(ang); noFill();\n  const cH = neon?hue : (ribbon?(a.par?ln2H:lnH):lnH);\n  const cB = 100;\n  if(neon){\n    stroke(cH,90,100,26); strokeWeight(sw*2.4); arc(-ts2/2,-ts2/2,ts2,ts2,0,HP); arc(ts2/2,ts2/2,ts2,ts2,PIc,PIc+HP);\n    stroke(cH,70,100,100); strokeWeight(sw); arc(-ts2/2,-ts2/2,ts2,ts2,0,HP); arc(ts2/2,ts2/2,ts2,ts2,PIc,PIc+HP);\n  } else {\n    stroke(cH, mono?12:lnS, cB, blue?92:100); strokeWeight(sw); arc(-ts2/2,-ts2/2,ts2,ts2,0,HP); arc(ts2/2,ts2/2,ts2,ts2,PIc,PIc+HP);\n  }\n  pop();\n}\n\n// ---- connected-path flow: traveling glow blobs (ADD, K.t continuous \u2014 real-time motion floor) ----\nblendMode(ADD);\nconst flow=clp(P.flow,0,1);\nconst nblob=2+Math.round(flow*2);\nconst drift = P.act==='drift'? K.t*0.05 : 0;\nfor(let i=0;i<nblob;i++){\n  const s1=0.028+0.017*i;\n  const bx=W*(0.5+0.42*Math.sin(K.t*s1*P.speed*TAU*0.5 + i*2.1 + drift));\n  const by=Hh*(0.5+0.42*Math.cos(K.t*s1*P.speed*TAU*0.4 + i*1.7 + drift*0.7));\n  const rr=u*(0.16+0.06*Math.sin(K.t*0.5+i))*(0.7+0.7*en)*(1+0.4*K.pulse+0.5*A.bass);\n  const hb=md(hue + (neon?150:44) + i*26 + K.t*4.5, 360);\n  for(let k=3;k>=1;k--){ noStroke(); fill(hb, mono?55:60, 100, (mono?9:13)*(0.5+0.8*en)*k/3); circle(bx,by, rr*k*0.62); }\n}\n// treble sparkle along the field\nif(A.treble>0.04){ const ns=Math.floor(18*A.treble); for(let i=0;i<ns;i++){ const gx=fr(i*1.7+Math.floor(K.beat*4))*W, gy=fr(i*2.3+7+Math.floor(K.beat*4))*Hh; fill(md(hue+80,360),40,100,40*A.treble); circle(gx,gy,u*0.006); } }\n\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

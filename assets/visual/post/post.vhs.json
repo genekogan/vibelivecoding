@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.vhs",
+  "kind": "post",
+  "name": "VHS Wobble",
+  "desc": "Worn analog-tape pass: horizontal line jitter, a bright tracking band rolling through frame, chroma fringe at the edges, drifting grain and a live monospace timecode OSD in the corner, with thermal false-color and CCTV variants.",
+  "tags": [
+    "vhs",
+    "tape",
+    "analog",
+    "retro",
+    "wobble",
+    "tracking",
+    "jitter",
+    "chroma",
+    "fringe",
+    "grain",
+    "dropout",
+    "scanline",
+    "timecode",
+    "osd",
+    "timestamp",
+    "camcorder",
+    "cctv",
+    "security",
+    "thermal",
+    "falsecolor",
+    "80s",
+    "90s",
+    "lofi",
+    "degraded",
+    "worn",
+    "post",
+    "overlay",
+    "fx",
+    "nostalgia"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "amount": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "overall tape distortion (fringe, band, wear)"
+    },
+    "jitter": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal line-jitter intensity"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "reactivity amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "jitter + tracking-roll rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grain / dropout count"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "tint hue (thermal/worn casts)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "OSD text size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "style": {
+      "default": "tape",
+      "options": [
+        "tape",
+        "worn",
+        "thermal",
+        "security",
+        "crt"
+      ],
+      "doc": "tape=classic VHS color fringe + tracking / worn=yellowed heavily-degraded tape / thermal=false-color heat-ramp remap of the frame (abstract) / security=green-cast monochrome CCTV, REC dot / crt=clean color fringe, lighter wear"
+    },
+    "act": {
+      "default": "play",
+      "options": [
+        "play",
+        "rewind",
+        "degrade"
+      ],
+      "doc": "play=steady with occasional tracking rolls, timecode counts up / rewind=fast upward roll, heavy jitter, timecode races / degrade=noise + dropouts creep up over ~100s then reset"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "jitter + grain seed"
+    },
+    "label": {
+      "default": "PLAY",
+      "doc": "OSD tag text (uppercased, <=10 chars; overridden by security/thermal styles)"
+    }
+  },
+  "acts": [
+    "play",
+    "rewind",
+    "degrade"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:36:07+00:00",
+    "fps": 57.1,
+    "motion": 0.0047,
+    "lum": 0.068
+  },
+  "code": "const D = { amount:.6, jitter:.5, energy:.6, speed:1, density:.5, hue:210, scale:1, x:.5, y:.5, style:'tape', act:'play', seed:0, label:'PLAY' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), lrp=(a,b,t)=>a+(b-a)*t, md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst nz=a=>{const s=Math.sin(a*74.3+P.seed*22.1+3.7)*19943.13;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst st=P.style, act=P.act, HUE=md(P.hue,360);\nconst cnv=drawingContext.canvas;\nconst oldOp=drawingContext.globalCompositeOperation;\nconst amt=clp(P.amount,0,1), jit=clp(P.jitter,0,1);\n\n// ---- act dramaturgy ----\nlet degrade=1, dir=1, rollSpd=0.14, extraRoll=0;\nif(act==='rewind'){ dir=-1; rollSpd=-0.6; degrade=1.25; extraRoll=0.4; }\nelse if(act==='degrade'){ degrade=clp(0.6+md(K.t*0.01,1)*1.3,0,2); } // noise creeps up then resets on t0\nconst wear=clp((0.4+0.9*amt)*degrade + A.rms*0.4, 0, 2);\n\n// =============== horizontal line jitter: self-copy scan bands shifted ===============\ndrawingContext.imageSmoothingEnabled=false;\n{\n  const nB=Math.round(lrp(6,40,jit)*(0.5+0.5*wear));\n  for(let i=0;i<nB;i++){\n    const tw=Math.floor(K.t*22*(0.5+P.speed*0.5));\n    const y=nz(tw*1.7+i*3.1)*Hh;\n    const h=Math.max(2,u*(0.004+0.02*nz(i*5+tw)));\n    const off=(nz(tw*3.3+i)-0.5)*u*0.06*jit*(0.4+wear) + Math.sin(K.t*3+i)*u*0.002;\n    try{ drawingContext.drawImage(cnv, 0,y,W,h, off,y,W,h); }catch(e){}\n  }\n}\ndrawingContext.imageSmoothingEnabled=true;\n\n// =============== thermal false-color remap (genuine: downsample luma -> heat ramp) ===============\nif(st==='thermal'){\n  const BW=120,BH=76; if(!S.tbuf){ S.tbuf=createGraphics(BW,BH); S.tbuf.pixelDensity(1); }\n  const bx=64,by=40;\n  S.tbuf.drawingContext.imageSmoothingEnabled=true;\n  let px=null; try{ S.tbuf.drawingContext.clearRect(0,0,BW,BH); S.tbuf.drawingContext.drawImage(cnv,0,0,W,Hh,0,0,bx,by); px=S.tbuf.drawingContext.getImageData(0,0,bx,by).data; }catch(e){}\n  const cw=W/bx, ch=Hh/by; noStroke();\n  const heat=(g)=>{ const h=lrp(255,0,clp(g,0,1)); return [md(h,360), clp(60+g*40,0,100), clp(30+g*70,0,100)]; };\n  for(let j=0;j<by;j++)for(let i=0;i<bx;i++){\n    let g=0.4; if(px){ const k=(j*bx+i)*4; g=(px[k]*0.3+px[k+1]*0.59+px[k+2]*0.11)/255; }\n    g=clp(g + Math.sin((i*0.7+j*1.1)+K.t*1.3)*0.06 + K.pulse*0.05,0,1);\n    const c=heat(g); fill(c[0],c[1],c[2],96); rect(i*cw,j*ch,cw+1,ch+1);\n  }\n}\n\n// =============== rolling tracking band (bright, noisy) \u2014 moves continuously ===============\n{\n  const by=md(K.t*u*rollSpd*(1+P.speed*0.2) + extraRoll*Math.sin(K.t*2),Hh*1.3)-Hh*0.15;\n  const bh=u*(0.05+0.05*amt);\n  blendMode(SCREEN); noStroke();\n  fill(0,0,100, 10+18*wear); rect(0,by,W,bh*0.4);\n  fill(0,0,100, 6+10*wear); rect(0,by-bh*0.5,W,bh*1.4);\n  // torn-signal noise streaks inside the band\n  const tw=Math.floor(K.t*30);\n  for(let i=0;i<24;i++){ if(nz(tw+i)<0.5) continue; const yy=by+nz(tw*2+i)*bh; fill(0,0,100, 20*wear); rect(nz(tw*3+i)*W, yy, u*0.04*nz(i+tw), 1.5); }\n  // chroma fringe at band edges\n  drawingContext.globalCompositeOperation='screen';\n  let c=color(0,85,100,40*wear); drawingContext.fillStyle=c.toString(); drawingContext.fillRect(0,by,u*0.02,bh);\n  c=color(175,85,100,40*wear); drawingContext.fillStyle=c.toString(); drawingContext.fillRect(W-u*0.02,by,u*0.02,bh);\n  drawingContext.globalCompositeOperation='source-over';\n  blendMode(BLEND);\n}\n\n// =============== edge chroma fringe (whole frame sides) ===============\nif(st!=='security'){\n  const off=u*(0.003+0.008*amt)*(0.7+0.3*Math.sin(K.t*0.9));\n  blendMode(SCREEN); noStroke();\n  fill(0,80,100, 8+10*amt); rect(0,0,off*2,Hh);\n  fill(175,80,100, 8+10*amt); rect(W-off*2,0,off*2,Hh);\n  blendMode(BLEND);\n}\n\n// =============== grain / dropouts (self-generated, always moving) ===============\n{\n  const tw=Math.floor(K.t*24);\n  const n=Math.round(lrp(30,150,clp(P.density,0,1))*(0.5+wear*0.5));\n  blendMode(st==='security'?BLEND:SCREEN); noStroke();\n  for(let i=0;i<n;i++){\n    const x=nz(tw*1.3+i*2.1)*W, y=nz(tw*2.7+i)*Hh;\n    const b=nz(tw*3+i*5); if(b<0.45) continue;\n    const gh=(st==='thermal')?md(HUE+b*120,360):((st==='worn')?HUE:0);\n    const gs=(st==='thermal')?60:(st==='worn'?25:0);\n    fill(gh,gs,100, 12+20*wear*b); rect(x,y,u*(0.002+0.01*b), Math.max(1,u*0.0025));\n  }\n  blendMode(BLEND);\n}\n\n// =============== scanlines ===============\n{\n  const scy=md(K.t*u*0.05,3);\n  blendMode(MULTIPLY); stroke(0,0,0, st==='security'?55:(st==='worn'?40:28)); strokeWeight(1);\n  for(let y=-scy;y<Hh;y+=3) line(0,y,W,y);\n  blendMode(BLEND);\n}\n\n// =============== color-cast / mono wash by style ===============\n{\n  blendMode(MULTIPLY); noStroke();\n  if(st==='security'){ fill(140,25,80,55); rect(0,0,W,Hh); }         // green CCTV cast, desaturating\n  else if(st==='worn'){ fill(35,20,72,30); rect(0,0,W,Hh); }          // yellowed tape\n  blendMode(BLEND);\n  if(st==='security'){ blendMode(SCREEN); fill(140,50,100,8); rect(0,0,W,Hh); blendMode(BLEND); }\n  // vignette\n  blendMode(MULTIPLY);\n  const vig=drawingContext.createRadialGradient(W/2,Hh/2,u*0.2, W/2,Hh/2,u*0.8);\n  vig.addColorStop(0,'rgba(255,255,255,0)'); vig.addColorStop(1,'rgba(0,0,0,'+(st==='security'?0.6:0.4)+')');\n  drawingContext.fillStyle=vig; drawingContext.fillRect(0,0,W,Hh);\n  blendMode(BLEND);\n}\n\n// =============== OSD timestamp / label (counts -> motion + authenticity) ===============\n{\n  const rate=dir*(1+ (act==='rewind'?4:0));\n  const base=(act==='rewind')?5400:0;\n  let tot=Math.floor(base + K.t*rate); tot=((tot%86400)+86400)%86400;\n  const hh=Math.floor(tot/3600), mm=Math.floor(tot/60)%60, ss=tot%60;\n  const pad=v=>(v<10?'0':'')+v;\n  const tc=pad(hh)+':'+pad(mm)+':'+pad(ss);\n  const blink=(Math.floor(K.t*1.5)%2===0);\n  textFont('monospace'); textStyle(BOLD); textAlign(LEFT,TOP);\n  const fs=u*0.032*P.scale; textSize(fs);\n  const mx=W*0.055, myT=Hh*0.07;\n  let tag=(''+P.label).toUpperCase().slice(0,10)||'PLAY';\n  let sym= (act==='rewind')?'\u25c0\u25c0':'\u25b6';\n  if(st==='security'){ tag='REC'; sym=blink?'\u25cf':' '; }\n  else if(st==='thermal'){ tag='THERMAL'; sym='\u2591'; }\n  const osdC=(st==='security')?[0,85,100]:(st==='thermal'?[30,90,100]:[0,0,100]);\n  drawingContext.shadowColor='rgba(0,0,0,0.8)'; drawingContext.shadowBlur=u*0.006;\n  noStroke(); fill(osdC[0],osdC[1],osdC[2], 88);\n  text(sym+' '+tag, mx, myT);\n  textAlign(RIGHT,BOTTOM);\n  const dstr='SP  '+pad((hh%12)||12)+':'+pad(mm)+' '+(hh<12?'AM':'PM');\n  text(dstr, W-mx, Hh-myT);\n  textAlign(LEFT,BOTTOM);\n  text(tc, mx, Hh-myT);\n  drawingContext.shadowBlur=0;\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.imageSmoothingEnabled=true; drawingContext.shadowBlur=0; textStyle(NORMAL); noStroke(); noFill();\n"
+}

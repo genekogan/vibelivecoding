@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.posterize_pal",
+  "kind": "post",
+  "name": "Palette Quantize",
+  "desc": "Snaps a downsampled frame to a small hard palette with nearest-colour matching, ordered dither and a slow migrating plasma that keeps the posterized blocks alive.",
+  "tags": [
+    "posterize",
+    "quantize",
+    "palette",
+    "indexed",
+    "gameboy",
+    "lcd",
+    "retro",
+    "8bit",
+    "dither",
+    "bayer",
+    "ega",
+    "cmyk",
+    "print",
+    "halftone",
+    "sepia",
+    "duotone",
+    "thermal",
+    "false-color",
+    "ink",
+    "monochrome",
+    "pixelate",
+    "reduce",
+    "post",
+    "overlay",
+    "lo-fi"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "pixel": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "downsample coarseness (chunkier at max)"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plasma drift amplitude driving band motion"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue rotation"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "plasma drift rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plasma spatial frequency"
+    },
+    "dither": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "ordered Bayer dither amount"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved uniform scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "gameboy",
+      "options": [
+        "gameboy",
+        "ink",
+        "sepia",
+        "ega",
+        "cmyk",
+        "thermal"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "quantize",
+      "options": [
+        "quantize",
+        "drift"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "quantize",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:35:17+00:00",
+    "fps": 59.9,
+    "motion": 0.0543,
+    "lum": 0.154
+  },
+  "code": "const D = { pixel:.45, energy:.5, hue:150, speed:1, density:.5, dither:.4, scale:1, x:.5, y:.5, style:'gameboy', act:'quantize', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=md(h,360)/360; s/=100; b/=100; const i=Math.floor(h*6), f=h*6-i; const p=b*(1-s), q=b*(1-f*s), tt=b*(1-(1-f)*s); let r,g,bl; switch(((i%6)+6)%6){case 0:r=b;g=tt;bl=p;break;case 1:r=q;g=b;bl=p;break;case 2:r=p;g=b;bl=tt;break;case 3:r=p;g=q;bl=b;break;case 4:r=tt;g=p;bl=b;break;default:r=b;g=p;bl=q;} return [r*255,g*255,bl*255]; };\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst act=P.act;\n\n// ---- palettes as HSB triples ----\nconst PALS={\n  gameboy:[[120,60,18],[110,58,38],[80,55,62],[74,52,86]],\n  ink:[[220,6,6],[220,6,26],[220,5,50],[220,4,74],[220,3,94]],\n  sepia:[[28,55,10],[30,58,32],[33,52,56],[36,40,78],[40,22,95]],\n  ega:[[0,0,4],[240,80,70],[120,80,60],[180,75,72],[0,80,72],[300,70,72],[36,90,74],[0,0,96]],\n  cmyk:[[0,0,6],[190,85,88],[320,80,86],[55,90,92],[0,0,98]],\n  thermal:[[260,80,10],[270,85,40],[330,90,70],[10,95,92],[45,95,98],[52,30,100]]\n};\nconst base=PALS[style]||PALS.gameboy;\n\n// hue-rotated, seed-jittered, RGB-cached palette (keyed on style+hue+seed)\nconst pkey=style+':'+Math.round(P.hue)+':'+P.seed;\nif(!S.pal || S.pkey!==pkey){\n  S.pkey=pkey; const dh=(P.hue-150)*0.55; S.pal=[];\n  for(let i=0;i<base.length;i++){\n    const e=base[i]; const jb=clp(e[2]+(fr(i*3+1)-0.5)*8,2,100);\n    S.pal.push(hsb2rgb(e[0]+dh, e[1], jb));\n  }\n}\nconst pal=S.pal, np=pal.length;\n\n// ---- downsample buffer (coarser as pixel->1) ----\nconst qw=Math.max(8,Math.round(lrp(168,26,clp(P.pixel,0,1))));\nconst qh=Math.max(6,Math.round(qw*Hh/W));\nif(!S.q || S.qkey!==qw+'x'+qh){ if(S.q){try{S.q.remove();}catch(e){}} S.qkey=qw+'x'+qh; S.q=createGraphics(qw,qh); S.q.colorMode(HSB,360,100,100,100); }\nconst q=S.q;\nq.clear();\ntry{ q.drawingContext.drawImage(drawingContext.canvas,0,0,W,Hh,0,0,qw,qh); }catch(e){}\n\n// ---- quantize with moving plasma + ordered dither ----\nconst bayer=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];\nconst amp=lrp(18,120,clp(P.energy,0,1))*(0.6+0.4*K.intensity);\nconst spd=Math.max(0.05,P.speed);\nconst t=K.t*spd;\nconst freq=lrp(1.5,5,clp(P.density,0,1));\nconst dith=clp(P.dither,0,1)*40;\nconst secTint=(act==='drift')?K.section*22:0;\nq.loadPixels();\nconst px=q.pixels;\nfor(let yy=0;yy<qh;yy++){\n  const fy=yy/qh;\n  for(let xx=0;xx<qw;xx++){\n    const fx=xx/qw;\n    const o=4*(yy*qw+xx);\n    let r=px[o], g=px[o+1], b=px[o+2];\n    // moving plasma (self-motion on flat input)\n    const pl=(Math.sin((fx*freq*3.1)+t*1.7)+Math.sin((fy*freq*2.7)-t*1.2)+Math.sin(((fx+fy)*freq*2.3)+t*2.1+secTint*0.02))/3;\n    let add=pl*amp + A.bass*30*Math.sin(fy*6+t);\n    // ordered dither\n    add += ((bayer[(yy&3)*4+(xx&3)]/16)-0.5)*dith;\n    r=clp(r+add,0,255); g=clp(g+add,0,255); b=clp(b+add,0,255);\n    // nearest palette entry\n    let bi=0,bd=1e9;\n    for(let k=0;k<np;k++){ const c=pal[k]; const dr=r-c[0],dg=g-c[1],db=b-c[2]; const dd=dr*dr+dg*dg+db*db; if(dd<bd){bd=dd;bi=k;} }\n    const c=pal[bi]; px[o]=c[0]; px[o+1]=c[1]; px[o+2]=c[2]; px[o+3]=255;\n  }\n}\nq.updatePixels();\n\n// ---- draw back, nearest-neighbour chunky ----\ndrawingContext.imageSmoothingEnabled=false;\nimage(q,0,0,W,Hh);\ndrawingContext.imageSmoothingEnabled=true;\n\n// scanline texture for 'ega'/'cmyk' print feel (subtle, static grid is fine; motion carried by plasma)\nif(style==='cmyk'){ blendMode(MULTIPLY); stroke(0,0,0,10); strokeWeight(1); for(let yy=0;yy<Hh;yy+=Math.max(3,Math.round(u*0.006))) line(0,yy,W,yy); noStroke(); blendMode(BLEND); }\nblendMode(BLEND); noTint(); drawingContext.imageSmoothingEnabled=true;\n"
+}

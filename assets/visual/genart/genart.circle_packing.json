@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.circle_packing",
+  "kind": "genart",
+  "name": "Circle Packing",
+  "desc": "A poster field of seeded circles grown until they kiss their neighbours, each dot cycling through bloom-and-pop on staggered phases while the limited palette rotates a hue every musical section.",
+  "tags": [
+    "circle-packing",
+    "circles",
+    "packing",
+    "dots",
+    "poster",
+    "bauhaus",
+    "generative",
+    "procedural",
+    "apollonian",
+    "halftone",
+    "riso",
+    "print",
+    "chiaroscuro",
+    "noir",
+    "bloom",
+    "pop",
+    "palette",
+    "limited-palette",
+    "abstract",
+    "geometric",
+    "kinetic",
+    "bg",
+    "background",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "circle count \u2014 higher packs more, smaller dots (rebuilds packing)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 1.8,
+      "doc": "radius multiplier \u2014 max overlaps into a solid field"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom amplitude + shimmer + bass-bloom brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "grow/pop cycle rate (beats-relative)"
+    },
+    "hue": {
+      "default": 15,
+      "min": 0,
+      "max": 360,
+      "doc": "palette anchor hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "light direction (noir) / bloom center x"
+    },
+    "y": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "light direction (noir) / bloom center y"
+    },
+    "pop": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard strong bass pops the circles"
+    },
+    "style": {
+      "default": "dot",
+      "options": [
+        "dot",
+        "ring",
+        "halftone",
+        "noir"
+      ],
+      "doc": "aesthetic \u2014 flat poster dot / concentric schematic rings / misregistered CMYK halftone / chiaroscuro spheres"
+    },
+    "act": {
+      "default": "bloom",
+      "options": [
+        "bloom",
+        "pop",
+        "breathe"
+      ],
+      "doc": "dramaturgy \u2014 staggered bloom / snap-and-fall pop / sine breathe"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "point-scatter seed (hash-deterministic)"
+    }
+  },
+  "acts": [
+    "bloom",
+    "pop",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:29:41+00:00",
+    "fps": 59.9,
+    "motion": 0.0382,
+    "lum": 0.696
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, speed:1, hue:15, x:.5, y:.4, style:'dot', pop:.6, act:'bloom', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, PIc=Math.PI;\nconst md=(a,n)=>((a%n)+n)%n;\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst dot=style==='dot', ring=style==='ring', halftone=style==='halftone', noir=style==='noir';\nconst en=clp(P.energy,0,1)*(.5+.7*K.intensity);\nconst dens=clp(P.density,0,1);\nconst hue=md(P.hue,360);\n\n// background per style discipline\nlet bgH,bgS,bgB;\nif(dot){ bgH=md(hue+205,360); bgS=24; bgB=88; }        // warm poster paper vs bold dots\nelse if(ring){ bgH=md(hue+180,360); bgS=30; bgB=14; }  // dark, schematic rings glow\nelse if(halftone){ bgH=45; bgS=8; bgB=90; }            // newsprint cream\nelse { bgH=hue; bgS=35; bgB=7; }                        // noir near-black\n\n// ---- cached packing geometry (keyed on size/seed/density bucket) ----\nconst dB=Math.round(dens*6);\nconst key=W+'x'+Hh+'|'+P.seed+'|'+dB;\nif(S.key!==key){\n  S.key=key;\n  const N=Math.min(150, Math.round(14+dens*150));\n  const pts=[];\n  for(let i=0;i<N;i++){ pts.push({x:fr(i*7.3+1)*W, y:fr(i*11.9+2)*Hh, ph:fr(i*3.7+5), tone:fr(i*5.9+9)}); }\n  for(let i=0;i<N;i++){\n    const a=pts[i]; let r=Math.min(a.x,W-a.x,a.y,Hh-a.y);\n    for(let j=0;j<N;j++){ if(j===i)continue; const b=pts[j]; const d=Math.hypot(a.x-b.x,a.y-b.y)*0.5; if(d<r)r=d; }\n    a.r=Math.max(u*0.006, r);\n  }\n  S.pts=pts;\n}\nconst pts=S.pts;\n\n// ---- LIVE COMPOSITE ----\nnoStroke();\nbackground(bgH,bgS,bgB);\n\n// per-section palette shift (dot-poster rotates through a limited set)\nconst sec=Math.floor(md(K.section,8));\nconst offs=[0,34,-30,66,150,200];\nconst growRate=0.11*P.speed, sc=clp(P.scale,.3,1.8);\nconst lx=P.x*W, ly=P.y*Hh;\nconst popAmt=clp(P.pop,0,1);\nconst bassPop = popAmt*(A.bass*0.8 + K.pulse*0.35);\n\nfor(let i=0;i<pts.length;i++){\n  const c=pts[i];\n  // grow/pop life cycle: L wraps 0..1 (grow then pop). K.t term => never re-phases.\n  let L = md(K.beat*growRate + K.t*0.02*P.speed + c.ph, 1);\n  if(P.act==='breathe') L = 0.5+0.5*Math.sin((K.beat*growRate+K.t*0.02+c.ph)*TAU);\n  let gf = ez(clp(L*1.3,0,1));\n  if(P.act==='pop'){ gf *= clp(1.15-L*0.6,0,1.15); } // sharper snap-and-fall\n  gf *= (0.9+0.16*K.swell) + bassPop*(0.4+0.6*c.tone);\n  const r = c.r*sc*gf;\n  if(r<u*0.004) continue;\n  const hcol = md(hue + offs[(i+sec)%offs.length] + K.t*1.6, 360);\n  const bright = clp((noir?70:88) + 12*Math.sin(K.t*0.4+c.ph*TAU), 0, 100);\n\n  if(ring){\n    noFill(); const nr=3;\n    for(let k=1;k<=nr;k++){ const rr=r*(k/nr); stroke(hcol, 70, bright, 70); strokeWeight(clp(r*0.05,0.6,3)); circle(c.x,c.y,rr*2); }\n    stroke(hcol,40,100,40); strokeWeight(clp(r*0.05,0.6,3)); noFill(); // subtle inner glow ring already drawn\n  } else if(halftone){\n    // CMYK-ish misregistered stack (print halftone tell)\n    const off=r*0.10*(1+0.5*Math.sin(K.t*0.6+i));\n    noStroke();\n    fill(md(hcol+180,360), 65, 95, 45); circle(c.x-off,c.y+off, r*2);\n    fill(md(hcol+40,360), 70, 98, 45); circle(c.x+off,c.y, r*2);\n    fill(hcol, 78, 96, 55); circle(c.x,c.y-off*0.7, r*2*0.9);\n  } else if(noir){\n    // chiaroscuro sphere \u2014 form from light only, no outline\n    const dx=(lx-c.x), dy=(ly-c.y), dl=Math.hypot(dx,dy)+1;\n    const ox=dx/dl*r*0.32, oy=dy/dl*r*0.32;\n    noStroke();\n    fill(hue, 40, 10, 100); circle(c.x,c.y, r*2);\n    fill(hcol, 45, 42, 90); circle(c.x+ox*0.4, c.y+oy*0.4, r*1.5);\n    fill(hcol, 30, 92, 90); circle(c.x+ox, c.y+oy, r*0.8);\n    fill(hcol, 12, 100, 70); circle(c.x+ox*1.35, c.y+oy*1.35, r*0.34);\n  } else {\n    // dot poster \u2014 bold flat fill + concentric contrast ring\n    noStroke(); fill(hcol, 72, bright, 100); circle(c.x,c.y, r*2);\n    noFill(); stroke(md(hcol+ (c.tone>0.5?18:-18),360), 78, bright*0.65, 100); strokeWeight(clp(r*0.10,0.8,4)); circle(c.x,c.y, r*1.28);\n  }\n}\n\n// bass bloom flash \u2014 partial additive wash centered on anchor (never full-frame)\nif(en>0.02){\n  blendMode(ADD);\n  const fl=(K.pulse*0.5 + A.bass*0.9)*en;\n  noStroke(); fill(md(hue+ (sec*20),360), 55, 100, 10*fl);\n  circle(lx, ly, u*(0.4+0.6*fl));\n  blendMode(BLEND);\n}\ndrawingContext.shadowBlur=0;\n"
+}
