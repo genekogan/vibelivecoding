@@ -111,6 +111,21 @@ let PACKS = null, LOADEDDEPS = new Set(['tidal-drum-machines','uzu-drumkit','pia
 let SHOWUNV = false;
 let KNOWN = new Set(), NEWIDS = new Set();
 let SERVERCPS = null;
+let ARCS = new Map();     // id -> arc json
+let ARCPICK = new Map();  // kit id -> arc id (or null)
+
+async function refreshArcs() {
+  try {
+    const html = await fetch(API+'/assets/music/arcs/', {cache:'no-store'}).then(r=>r.ok?r.text():'');
+    const names = [...html.matchAll(/href="([^"]+\.json)"/g)].map(m=>decodeURIComponent(m[1]));
+    for (const n of names) {
+      const id = n.replace(/\.arc\.json$|\.json$/,'');
+      if (ARCS.has(id)) continue;
+      const j = await fetch(API+'/assets/music/arcs/'+n, {cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+      if (j && j.sections) { ARCS.set(j.id||id, j); toast('arc landed: '+(j.id||id)); }
+    }
+  } catch(e){}
+}
 
 const post = (p, b) => fetch(API+p, {method:'POST', body: JSON.stringify(b||{})}).then(r=>r.json()).catch(()=>null);
 const toast = m => { const t=$('#toast'); t.textContent=m; t.style.opacity=1; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity=0, 2200); };
@@ -203,6 +218,15 @@ function renderDetail(a) {
   h += `<div class="meta"><span>slot <b>${a.slot||'kit'}</b></span><span>key <b>${key}</b></span><span>cps <b>${cps}</b></span><span>energy <b>${a.energy??'—'}</b></span><span>meter <b>${a.meter||'4/4'}</b></span><span>${a.deterministic===false?'<b style="color:var(--acc2)">nondeterministic</b>':''}</span></div>`;
   if (isKit) {
     h += `<div id="kitlist">stems: ${Object.entries(a.stems||{}).map(([s,i])=>`<div>· <b>${s}</b> ← ${i}</div>`).join('')}</div>`;
+    const pick = ARCPICK.get(a.id) || null;
+    h += `<div style="margin-bottom:12px"><div style="color:var(--dim);font-size:11px;letter-spacing:.1em;margin-bottom:5px">ARC — long-form section script (form repeats endlessly)</div><div class="variants" id="arcrow">`;
+    h += `<button class="vbtn ${!pick?'sel':''}" data-arc="">loop ${VARIANT}</button>`;
+    for (const [aid, arc] of ARCS) {
+      const cyc = arc.sections.reduce((s,x)=>s+x.cycles,0);
+      const dur = Math.round(cyc / (a.cps||0.5));
+      h += `<button class="vbtn ${pick===aid?'sel':''}" data-arc="${aid}" title="${arc.desc||''}">${aid.replace(/^arc\./,'')} · ${dur}s</button>`;
+    }
+    h += `</div></div>`;
   }
   h += `<div class="variants">${['sparse','full','peak'].map(v=>`<button class="vbtn ${v===VARIANT?'sel':''} ${PLAYINGSOLO===a.id&&v===VARIANT?'playing':''}" data-v="${v}">${v}</button>`).join('')}${isKit?'<span style="color:var(--dim);align-self:center;font-size:12px">kit intensity</span>':''}</div>`;
   h += `<div id="params">`;
@@ -223,7 +247,10 @@ function renderDetail(a) {
   h += `<div class="btnrow"><button class="abtn primary" id="bplay">▶ solo (space)</button><button class="abtn" id="blayer">+ layer (a)</button><button class="abtn warn" id="bhush">■ hush (h)</button></div>`;
   h += `<pre id="code">${isKit?'(kit — fires the stems listed above)':escapeHtml(compile(a, VARIANT))}</pre>`;
   $('#detail').innerHTML = h;
-  document.querySelectorAll('.vbtn').forEach(b=> b.onclick = ()=> setVariant(b.dataset.v));
+  document.querySelectorAll('.vbtn').forEach(b=> {
+    if (b.dataset.arc !== undefined) b.onclick = async ()=> { ARCPICK.set(a.id, b.dataset.arc||null); renderDetail(a); if (PLAYINGSOLO===a.id) fireKit(a); };
+    else b.onclick = ()=> setVariant(b.dataset.v);
+  });
   document.querySelectorAll('#params [data-p]').forEach(inp => {
     inp.oninput = () => {
       const k = inp.dataset.p;
@@ -275,19 +302,43 @@ async function layer() {
   toast('layered on '+a.slot);
 }
 async function hush() { await post('/strudel/hush'); PLAYINGSOLO=null; LAYERED.clear(); $('#playing').textContent=''; }
+function subst(s, sid, variant) {
+  const vals = PVALS.get(sid)||{};
+  return ((s.code||{})[variant]||s.code.full).replace(/\$\{(\w+)\}/g,(m,k)=> (vals[k]!==undefined)?vals[k]:m);
+}
 async function fireKit(kit, setTempo) {
   await post('/strudel/hush'); LAYERED.clear();
   if (setTempo !== false && kit.cps) { await post('/strudel/cps',{cps:kit.cps}); SERVERCPS=kit.cps; }
+  const arcId = ARCPICK.get(kit.id);
+  const arc = arcId ? ARCS.get(arcId) : null;
+  if (arc) {  // visual handshake per CONTRACT: section clock tracks the musical form
+    await post('/p5/state', {key:'secBeats', value: arc.sections[0].cycles*4});
+    await post('/p5/state', {key:'arc', value: arc.sections.map(s=>s.intensity??0.6)});
+    await post('/p5/state', {key:'t0', value: null});
+  }
   for (const [slot, sid] of Object.entries(kit.stems||{})) {
     const s = await fullAsset(sid);
     if (!s) { toast('missing stem '+sid); continue; }
     await ensureDeps(s);
     if (!PVALS.has(sid)) { const p={}; for (const [k,v] of Object.entries(s.params||{})) p[k]=v.default; PVALS.set(sid,p); }
-    const code = ((s.code||{})[VARIANT]||s.code.full).replace(/\$\{(\w+)\}/g,(m,k)=> (PVALS.get(sid)[k]!==undefined)?PVALS.get(sid)[k]:m);
+    let code;
+    if (arc) {  // weave variants into one self-evolving arrange() form
+      const segs = [];
+      for (const sec of arc.sections) {
+        const v = (sec.slots||{})[slot] ?? (sec.slots||{})['*'] ?? 'full';
+        if (segs.length && segs[segs.length-1][1]===v) segs[segs.length-1][0] += sec.cycles;
+        else segs.push([sec.cycles, v]);
+      }
+      if (segs.every(x=>x[1]==='off')) continue;
+      code = 'arrange(' + segs.map(([c,v]) =>
+        `[${c}, ${v==='off' ? 'silence' : subst(s, sid, v).replace(/\.play\(\)\s*$/,'')}]`).join(', ') + ').play()';
+    } else {
+      code = subst(s, sid, VARIANT);
+    }
     await post('/strudel/track', {name: slot, code});
   }
   PLAYINGSOLO = kit.id;
-  $('#playing').textContent = '▶ KIT ' + kit.id + ' · ' + VARIANT;
+  $('#playing').textContent = '▶ KIT ' + kit.id + (arc ? ' ⟿ ' + arcId : ' · ' + VARIANT);
 }
 
 // ── transpose / tempo keys ──────────────────────────────────
@@ -368,7 +419,8 @@ async function statusTick() {
 setInterval(meterTick, 200);
 setInterval(statusTick, 3000);
 setInterval(refreshIndex, 4000);
-refreshIndex(); statusTick();
+setInterval(refreshArcs, 20000);
+refreshIndex(); refreshArcs(); statusTick();
 </script>
 </body>
 </html>
