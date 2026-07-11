@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.blackhole",
+  "kind": "genart",
+  "name": "Accretion Disk",
+  "desc": "A tilted accretion disk swirls around a black event-horizon shadow while bright doppler-beamed hotspots orbit the ring and glowing blobs spiral inward and vanish into the singularity, a lensed photon-ring halo arcing over the top, in spacetime false-color, thermal, wireframe, sumi-ink or iridescent modes.",
+  "tags": [
+    "black hole",
+    "blackhole",
+    "accretion disk",
+    "accretion",
+    "gargantua",
+    "interstellar",
+    "event horizon",
+    "singularity",
+    "spacetime",
+    "gravity",
+    "gravitational lensing",
+    "lensing",
+    "doppler",
+    "photon ring",
+    "cosmic",
+    "space",
+    "astrophysics",
+    "physics",
+    "star",
+    "stars",
+    "nebula",
+    "thermal",
+    "false-color",
+    "wireframe",
+    "xray",
+    "iridescent",
+    "dark",
+    "sci-fi",
+    "vortex",
+    "swirl",
+    "generative",
+    "genart",
+    "bg",
+    "backdrop"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "disk particle count (20..200)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "event-horizon + disk size vs design"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "glow / brightness amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "orbital + infall rate multiplier"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "primary disk base hue"
+    },
+    "tilt": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "disk tilt (edge-on when high)"
+    },
+    "doppler": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "doppler brightness/hue asymmetry (approaching rim)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "center anchor x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "center anchor y fraction"
+    },
+    "style": {
+      "default": "spacetime",
+      "options": [
+        "spacetime",
+        "thermal",
+        "wire",
+        "ink",
+        "iridescent"
+      ],
+      "doc": "render philosophy: physical false-color / heat ramp / x-ray wireframe / etched ink / oil-slick iridescent"
+    },
+    "act": {
+      "default": "orbit",
+      "options": [
+        "orbit",
+        "flare",
+        "calm"
+      ],
+      "doc": "multi-minute dramaturgy: steady orbit / section-driven flares / slow calm"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "particle radii/phase family + starfield seed"
+    }
+  },
+  "acts": [
+    "orbit",
+    "flare",
+    "calm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T19:01:58+00:00",
+    "fps": 59.9,
+    "motion": 0.0145,
+    "lum": 0.053
+  },
+  "code": "const D = { density:.55, scale:1, energy:.65, speed:1, hue:32, tilt:.6, doppler:.7, x:.5, y:.5, style:'spacetime', act:'orbit', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H), TAU = Math.PI * 2;\nconst clp = (v,a,b) => Math.max(a, Math.min(b, v));\nconst st = P.style;\nconst wire=(st==='wire'), ink=(st==='ink'), irid=(st==='iridescent'), thermal=(st==='thermal');\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst intn = (K.intensity!=null?K.intensity:0.6);\n\n// ---- seed-dependent particle ring family ----\nconst MAXN = 200;\nif (S.seedUsed !== P.seed){\n  S.seedUsed = P.seed;\n  S.p = [];\n  for (let i=0;i<MAXN;i++) S.p.push({ rf: Math.pow(fr(i*2+1),0.75), ph: fr(i*2+2)*TAU, jz: fr(i*3+5) });\n}\n\n// ---- cached deep-space + starfield (size+seed+style keyed) ----\nconst bgKey = W+'x'+H+'_'+P.seed+'_'+st;\nif (!S.bg || S.bgKey!==bgKey){\n  if (S.bg && S.bg.remove) S.bg.remove();\n  S.bg = createGraphics(W,H);\n  const g=S.bg; g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  const cx=W/2, cy=H/2, mx=Math.max(W,H)*0.8, steps=64;\n  for(let s=steps;s>=0;s--){\n    const rr=mx*s/steps, f=s/steps;\n    if(ink) g.fill(38,7-f*3,88-f*7,100);\n    else if(wire) g.fill(206,45+f*25,10-f*5,100);\n    else if(irid) g.fill(250,42+f*25,11-f*6,100);\n    else if(thermal) g.fill(250,40+f*20,9-f*5,100);\n    else g.fill(230,52+f*22,11-f*6,100);\n    g.ellipse(cx,cy,rr*2,rr*2);\n  }\n  const nst=Math.floor((W*H)/3600);\n  for(let i=0;i<nst;i++){\n    const sx=fr(i*2+700)*W, sy=fr(i*2+701)*H, b=fr(i+1100);\n    if(ink){ g.fill(35,15,44,24+b*34); g.ellipse(sx,sy,0.9+b*0.9,0.9+b*0.9); }\n    else { const d=0.6+b*1.9; g.fill(b>0.9?42:208, b>0.9?24:13, 92, 22+b*72); g.ellipse(sx,sy,d,d); }\n  }\n  S.bgKey=bgKey;\n}\nimage(S.bg,0,0);\n\n// ---- geometry ----\nconst cx=P.x*W, cy=P.y*H;\nconst shadowR = u*0.115*clp(P.scale,0.4,2);\nconst innerR = shadowR*1.32;\nconst outerR = u*0.42*clp(P.scale,0.4,2);\n// real-time tilt breathing: displaces the whole disk band vertically each frame,\n// 0.34 rad/s -> ~2.7 rad over 8s, never re-phases at the gate.\nconst sqBase = 0.16 + (1-clp(P.tilt,0,1))*0.42;\nconst squash = sqBase*(0.72 + 0.34*Math.sin(K.t*0.34 + 0.6));\nconst glow = 0.4 + clp(P.energy,0,1)*0.6 + A.rms*0.8 + 0.1*Math.sin(K.t*0.6);\nconst dop = clp(P.doppler,0,1);\nconst nP = Math.max(24, Math.round(MAXN*(0.22+clp(P.density,0,1)*0.78)));\nconst spd = P.act==='flare' ? P.speed*(0.55+intn*1.0) : (P.act==='calm'? P.speed*0.55 : P.speed);\nconst kick = K.pulse*0.5 + A.bass*0.8;\n\npush();\ntranslate(cx,cy);\nrotate(0.10*Math.sin(K.t*0.08));   // slow real-time precession\n\n// ---- disk particles ----\nif(!ink) blendMode(ADD); else blendMode(BLEND);\nnoStroke();\nfor(let i=0;i<nP;i++){\n  const p=S.p[i];\n  const rf=p.rf;\n  const r=innerR + rf*(outerR-innerR);\n  const w=0.9*Math.pow(innerR/r,1.5);\n  const ang=p.ph + K.t*spd*w;\n  const c=Math.cos(ang), s=Math.sin(ang);\n  const px=c*r, py=s*r*squash;\n  const beam = 1 + dop*0.9*(-c);\n  const tHot = 1-rf;\n  let hue=(P.hue+24-tHot*28-(c>0?dop*20:-dop*8)+360)%360;\n  if(thermal) hue=(26-tHot*26+(c<0?18:0)+360)%360;\n  if(irid) hue=(P.hue+rf*160+K.t*10+(c<0?40:0))%360;\n  if(wire) hue=(196+(c<0?-18:20))%360;\n  const bright=Math.min(100,(wire?46:(46+tHot*40))+glow*28+kick*10*(1-rf))*beam*(0.75+p.jz*0.4);\n  const alpha=(wire?24:(ink?32:20+tHot*24))*beam;\n  const sz=(1.6+tHot*2.6+p.jz*1.4)*clp(P.scale,0.4,2);\n  const eh=Math.max(0.6,squash*2.6);\n  if(wire){ stroke(hue,55,82,alpha*1.4); strokeWeight(1.5);\n    const a2=ang+0.2; line(px,py,Math.cos(a2)*r,Math.sin(a2)*r*squash); noStroke(); }\n  else if(ink){ fill(hue,24,20+tHot*10,alpha); ellipse(px,py,sz,sz); }\n  else { fill(hue,thermal?92:(72-tHot*30),bright,alpha); ellipse(px,py,sz*1.6,sz*eh); }\n}\n\n// ---- BRIGHT ORBITING HOTSPOTS (dominant motion floor) ----\n// Large soft blobs travel around the disk at K.t rate -> big grayscale mass\n// moves frame-to-frame and materially over the 8s gate. Symmetry broken.\nif(!ink) blendMode(ADD); else blendMode(BLEND);\nconst nHot = 4;\nfor(let i=0;i<nHot;i++){\n  const rf = 0.18 + fr(i*7+31)*0.5;\n  const r = innerR + rf*(outerR-innerR);\n  const w = 0.9*Math.pow(innerR/r,1.5);\n  // incommensurate real-time travel rates so at least one is always displaced\n  const rate = 0.30 + i*0.13;\n  const ang = fr(i*7+32)*TAU + K.t*spd*rate + K.t*0.14;\n  const c=Math.cos(ang), s=Math.sin(ang);\n  const px=c*r, py=s*r*squash;\n  const beam = 1 + dop*0.85*(-c);\n  const tHot = 1-rf;\n  let hue=(P.hue+20-tHot*24-(c>0?dop*18:-dop*6)+360)%360;\n  if(thermal) hue=(30-tHot*24+(c<0?16:0)+360)%360;\n  if(irid) hue=(P.hue+rf*150+K.t*14+(c<0?40:0))%360;\n  if(wire) hue=(198+(c<0?-16:22))%360;\n  const bright=Math.min(100,(wire?66:60+tHot*30)+glow*24+kick*10);\n  const rad=(outerR*(ink?0.40:0.34)+fr(i*7+34)*outerR*0.12);\n  // layered translucent stack = soft glow (no full-canvas blur)\n  const eh=Math.max(0.6,squash*2.6);\n  for(let L=0;L<3;L++){\n    const f=1-L*0.34;\n    const al=(wire?18:(ink?24:15))*beam*(1-L*0.2);\n    if(wire){ fill(hue,44,88,al); ellipse(px,py,rad*f*1.4,rad*f*eh);           // glowing node mass\n      stroke(hue,50,92,al*1.1); strokeWeight(2.2); noFill(); ellipse(px,py,rad*f*1.5,rad*f*eh); noStroke(); }\n    else if(ink){ fill(hue,28,16,al); ellipse(px,py,rad*f*1.6,rad*f*eh); }   // dark sumi wash\n    else { fill(hue,thermal?90:(60-tHot*20),bright,al); ellipse(px,py,rad*f*1.6,rad*f*eh); }\n  }\n}\n\n// ---- INFALLING BLOBS (seeded, K.t-driven spawn/despawn spiral) ----\n// Each blob has a fixed birth-time bucket; it lives ~lifeSec then respawns.\n// Continuous appear/disappear + inward spiral = ongoing change, all from K.t.\nif(!ink) blendMode(ADD); else blendMode(BLEND);\nconst nBlob = 10;\nconst lifeSec = 4.2;\nfor(let i=0;i<nBlob;i++){\n  const t0 = fr(i*11+3)*lifeSec;               // birth offset within cycle\n  const cyc = (K.t*spd + t0)/lifeSec;\n  const life = cyc - Math.floor(cyc);           // 0..1 progress this fall\n  const gen = Math.floor(cyc);                  // which incarnation (reseeds params)\n  const gh = fr(i*11 + gen*97 + 5);\n  const a0 = gh*TAU;\n  const rr = outerR*(0.98) - life*(outerR-innerR*1.02);   // spiral inward\n  const spin = a0 + life*(3.2 + gh*2.4);        // wind as it falls\n  const c=Math.cos(spin), s=Math.sin(spin);\n  const px=c*rr, py=s*rr*squash;\n  const fade = Math.sin(life*Math.PI);          // fade in/out\n  if(fade<=0.02) continue;\n  const tHot=1-rr/outerR;\n  let hue=(P.hue+34+gh*30)%360;\n  if(thermal) hue=(44-tHot*30+360)%360;\n  if(irid) hue=(P.hue+rr*0.5+gen*40)%360;\n  if(wire) hue=(200+gh*30)%360;\n  const bright=Math.min(100,(wire?70:64+tHot*26)+glow*20);\n  const rad=(outerR*(ink?0.13:0.09)+gh*outerR*0.05)*(0.6+fade*0.8);\n  const eh=Math.max(0.6,squash*2.6);\n  if(wire){ stroke(hue,50,86,42*fade); strokeWeight(2.2); noFill(); ellipse(px,py,rad*2,rad*2*eh*0.9); noStroke(); }\n  else if(ink){ fill(hue,28,15,46*fade); ellipse(px,py,rad*2,rad*2*Math.max(0.5,eh*0.9)); }   // dark falling ink\n  else { fill(hue,thermal?90:(58-tHot*18),bright,22*fade); ellipse(px,py,rad*2,rad*2*Math.max(0.5,eh*0.9)); }\n}\nblendMode(BLEND);\n\n// ---- event-horizon shadow (occludes the mid band) ----\nnoStroke();\nif(ink){ fill(38,6,84,100); ellipse(0,0,shadowR*2.04,shadowR*2.04); fill(38,14,12,100); ellipse(0,0,shadowR*2,shadowR*2); }\nelse { fill(0,0,0,100); ellipse(0,0,shadowR*2,shadowR*2); }\n\n// ---- lensed photon ring / Einstein halo (arcs over top & bottom) ----\nblendMode(ink?BLEND:ADD);\nconst ringR=shadowR*1.06, seg=96;\nconst flick = 0.8 + 0.2*Math.sin(K.t*3.1);     // subtle real-time ring flicker\nfor(let i=0;i<seg;i++){\n  const a=i/seg*TAU, c=Math.cos(a), s=Math.sin(a);\n  const beam=1 + dop*0.85*(-c);\n  const hue= wire?196 : thermal?(30+(c<0?16:0)) : irid?((P.hue+K.t*12+(c<0?40:0))%360) : ((P.hue+18-(c>0?dop*18:-dop*6)+360)%360);\n  const br=Math.min(100,(wire?70:66)*beam*flick + glow*22 + kick*10);\n  const al=(ink?52:30)*beam;\n  noStroke(); fill(hue, wire?45:(ink?20:58), br, al);\n  const ps=(wire?1.6:2.6)+kick*1.6;\n  ellipse(c*ringR, s*ringR, ps, ps);\n}\nblendMode(BLEND);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
