@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dog",
+  "kind": "subject",
+  "name": "Dog",
+  "desc": "A loose-line sketchbook dog in profile that trots, headbangs, sits panting and rips into full-tilt zoomies, with floppy spring-physics ears and a tail whose wag rate rides the treble.",
+  "tags": [
+    "dog",
+    "puppy",
+    "canine",
+    "animal",
+    "pet",
+    "hound",
+    "mutt",
+    "sketch",
+    "ink",
+    "drawing",
+    "line-art",
+    "zoomies",
+    "headbang",
+    "trot",
+    "wag",
+    "tail",
+    "ears",
+    "floppy",
+    "cute",
+    "character",
+    "creature",
+    "mammal",
+    "woof",
+    "good-boy",
+    "monochrome"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design (hero ~0.44u tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude \u2014 bounce, stride reach, ear fling"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "fur/ink hue (28 = warm tan)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative gait/wag rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient dust-mote count"
+    },
+    "floppiness": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ear droop + floppy-spring response"
+    },
+    "snout": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "muzzle length morph (pug to collie)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body width morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.78,
+      "min": 0,
+      "max": 1,
+      "doc": "ground-line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic wobble/mote seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "trot",
+        "zoomies",
+        "headbang",
+        "sit",
+        "idle"
+      ],
+      "doc": "pose; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "gesture",
+        "silhouette",
+        "blueprint",
+        "charcoal"
+      ],
+      "doc": "render philosophy: sketchbook ink / raw gesture strokes / pure filled silhouette / cyan schematic blueprint / soft tonal charcoal (no outline)"
+    },
+    "act": {
+      "default": "walk",
+      "options": [
+        "walk",
+        "chill",
+        "hyper"
+      ],
+      "doc": "multi-minute pose dramaturgy when pose=auto"
+    }
+  },
+  "acts": [
+    "walk",
+    "chill",
+    "hyper"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:56:25+00:00",
+    "fps": 56.8,
+    "motion": 0.0093,
+    "lum": 0.129
+  },
+  "code": "const D = { scale:1, energy:.6, hue:28, speed:1, density:.5, floppiness:.6, snout:.5, chub:.5, x:.5, y:.78, seed:0, pose:'auto', style:'ink', act:'walk' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0023 * P.scale;\nconst bt = K.beat * P.speed;\nconst am = .82 + .22*Math.sin(K.t*.31 + fr(6)*6);\nconst eAmp = P.energy*(.5 + .6*K.intensity)*am;\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nif (S.tp==null || K.t < S.tp) S.tp = K.t;\nconst dt = Math.min(.08, Math.max(0, K.t - S.tp)); S.tp = K.t;\n\nconst ACTS = {\n  walk:  ['trot','sit','trot','headbang','trot','idle','zoomies','headbang'],\n  chill: ['sit','idle','sit','trot','sit','idle','sit','trot'],\n  hyper: ['zoomies','headbang','zoomies','trot','zoomies','headbang','trot','zoomies'] };\nlet pose = P.pose;\nif (pose==='auto') pose = (ACTS[P.act]||ACTS.walk)[((K.section%8)+8)%8];\n\nconst st = ['ink','gesture','silhouette','blueprint','charcoal'].includes(P.style) ? P.style : 'ink';\nconst H = ((P.hue%360)+360)%360;\nconst chw = .82 + P.chub*.5;\n\n// \u2500\u2500 pose \u2192 motion parameters \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nlet strideRate=0, reach=0, liftH=0, bob=0, bx=0, sway=0, pitch=0, headKick=0,\n    pant=0, tailRate=5, tailAmp=.5, rumpDrop=0, frontDrop=0, look=0, earTgt=0, tuckBack=false, face=1;\nconst phi = bt;\n\nif (pose==='trot') {\n  strideRate=1; reach=30; liftH=22; bob=12;\n  sway = Math.sin(bt*Math.PI/4)*4; pitch = Math.sin(phi*Math.PI*2)*.03;\n  tailRate=6; tailAmp=.55; earTgt = -Math.cos(phi*Math.PI*2)*.5;\n  look = Math.sin(K.t*.6)*.05;\n} else if (pose==='zoomies') {\n  strideRate=2; reach=42; liftH=34; bob=16;\n  bx = Math.sin(bt*Math.PI/2)*58*eAmp;\n  face = Math.cos(bt*Math.PI/2) >= 0 ? 1 : -1;\n  pitch = -face*Math.sin(bt*Math.PI/2)*.10; sway = 0;\n  tailRate=13; tailAmp=.75; earTgt = -1.1*Math.abs(Math.sin(phi*Math.PI*2)) - .4;\n  look = 0;\n} else if (pose==='headbang') {\n  strideRate=0; reach=0; liftH=0; bob=0;\n  headKick = kick; frontDrop = kick*11; pitch = kick*.22;\n  sway = Math.sin(bt*Math.PI)*3; bob = kick*5;\n  tailRate=7; tailAmp=.5; earTgt = -kick*1.7; look=0;\n} else if (pose==='sit') {\n  strideRate=0; rumpDrop=44; tuckBack=true; pitch=-.09;\n  pant = .5+.5*Math.sin(K.t*5); look = Math.sin(K.t*.5)*.16;\n  bob = Math.sin(K.t*3)*3; sway = Math.sin(K.t*.8)*3;\n  tailRate=5; tailAmp=.62; earTgt = Math.sin(K.t*1.3)*.22;\n} else { // idle\n  strideRate=0; sway = Math.sin(K.t*.9)*6; look = Math.sin(K.t*.4)*.18;\n  bob = Math.sin(K.t*1.5)*3.5; pant = Math.max(0, Math.sin(K.t*.7))*.5;\n  tailRate=4; tailAmp=.42; earTgt = Math.sin(K.t*1.1)*.16; pitch = Math.sin(K.t*.5)*.02;\n}\n\n// universal slow drift \u2014 guarantees evolution even when beat-locked motion aliases\nbob += Math.sin(K.t*.53 + fr(2)*6)*3;\nsway += Math.sin(K.t*.37 + fr(4)*6)*4;\npitch += Math.sin(K.t*.21 + fr(8)*6)*.02;\n\n// stride-driven body bob (2 footfalls per stride)\nconst sp = phi*strideRate;\nconst gaitBob = strideRate>0 ? -Math.abs(Math.sin(sp*Math.PI*2))*bob*eAmp : bob*eAmp*.4;\nconst dy = gaitBob - headKick*0 - frontDrop*0;   // dy is body vertical\n\n// ear floppy spring\nif (S.ea==null){S.ea=0;S.ev=0;}\nS.ev += (earTgt*(.4+P.floppiness) - S.ea)*.30; S.ev *= .74; S.ea += S.ev;\nconst earA = (.55 + P.floppiness*.95) + S.ea;\n\n// tail wag accumulator (rate rises with treble)\nS.wag = (S.wag||0) + dt*(tailRate*(1+.3*eAmp) + S.tre*30);\nconst tailSw = Math.sin(S.wag)*tailAmp*(.7+.6*eAmp);\n\nconst ax = P.x*width + (sway+bx)*s;\nconst ay = P.y*height;\nconst pump = 1 + S.rms*.28*P.energy + K.swell*.02*eAmp;\n\n// \u2500\u2500 style primitives \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nfunction furStroke(h,sa,br,a){ a=a||100;\n  if (st==='ink'){ fill(h, Math.min(34,sa*.42), 93, 46); stroke(28,36,24,92); strokeWeight(2.0); }\n  else if (st==='gesture'){ noFill(); stroke(28,32,22,80); strokeWeight(2.8); }\n  else if (st==='silhouette'){ noStroke(); fill(H,24,13,100); }\n  else if (st==='blueprint'){ noFill(); stroke(205,58,100,72); strokeWeight(1.3); }\n  else { noStroke(); drawingContext.shadowBlur=9; drawingContext.shadowColor='rgba(0,0,0,.55)'; fill(H,15,15,32); }\n}\nfunction blob(cx,cy,rx,ry,sb){\n  const wob = (st==='ink'||st==='gesture')?.13:(st==='silhouette'?.04:.05);\n  const n=16; beginShape();\n  for(let k=-1;k<=n+1;k++){ const a=k/n*Math.PI*2; const rr=1+(fr(sb+((k%n)+n)%n)-.5)*wob*2;\n    curveVertex(cx+Math.cos(a)*rx*rr, cy+Math.sin(a)*ry*rr); }\n  endShape();\n}\nfunction limb(x1,y1,x2,y2,x3,y3,dark){\n  if (st==='silhouette'){ stroke(H,24,dark?9:13,100); strokeWeight(13*chw); noFill(); strokeCap(ROUND); }\n  else if (st==='charcoal'){ stroke(H,15,dark?9:15,dark?26:34); strokeWeight(11); noFill(); strokeCap(ROUND); drawingContext.shadowBlur=8; drawingContext.shadowColor='rgba(0,0,0,.4)'; }\n  else if (st==='blueprint'){ stroke(205,58,100,dark?45:72); strokeWeight(1.3); noFill(); }\n  else { stroke(28,36,dark?18:24,dark?70:92); strokeWeight(st==='gesture'?2.6:2.0); noFill(); strokeCap(ROUND); }\n  beginShape(); curveVertex(x1,y1); curveVertex(x1,y1); curveVertex(x2,y2); curveVertex(x3,y3); curveVertex(x3,y3); endShape();\n  drawingContext.shadowBlur=0;\n}\n\nfunction drawLeg(hx, hy, phase, dark, tuck){\n  let fxo, foy;\n  if (tuck){ fxo = hx*0.15; foy = hy + 10; }\n  else { fxo = reach*Math.cos(phase*Math.PI*2); foy = -Math.max(0,Math.sin(phase*Math.PI*2))*liftH; }\n  const footx = hx*chw*0.9 + fxo;\n  const kx = (hx*chw + footx)/2 + 9*(dark?.6:1);\n  const ky = (hy + foy)/2 + 2;\n  limb(hx*chw, hy, kx, ky, footx, foy, dark);\n  if (!dark && st!=='blueprint'){ // paw\n    if (st==='silhouette'){ noStroke(); fill(H,24,13,100); }\n    else if (st==='charcoal'){ noStroke(); fill(H,15,15,34); }\n    else { noStroke(); fill(28,30,20,90); }\n    ellipse(footx, foy-1, 12, 7);\n  }\n}\n\n// \u2500\u2500 assemble \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n// ground shadow\nnoStroke(); fill(0,0,0,26);\nellipse(P.x*width, ay+4*s, (150 + Math.abs(bx)*1.4)*s*chw, 18*s);\n\npush();\ntranslate(ax, ay + dy*s);\nscale(s*face*pump, s*pump);\nrotate(pitch);\n\nconst backHipY = -70 + rumpDrop*(tuckBack?1:.3) - frontDrop*.2;\nconst frontHipY = -78 + frontDrop*.7;\n\n// TAIL (behind) \u2014 wagging plume\npush(); translate(-92*chw, -104 + rumpDrop*.5); rotate(-0.5 + tailSw);\nif (st==='silhouette'){ noStroke(); fill(H,24,12,100); }\nelse if (st==='charcoal'){ noStroke(); fill(H,15,15,30); }\nelse if (st==='blueprint'){ noFill(); stroke(205,58,100,60); strokeWeight(1.2); }\nelse { fill(28,20,90,st==='ink'?40:0); if(st==='gesture')noFill(); stroke(28,36,24,88); strokeWeight(st==='gesture'?2.6:2.0); strokeCap(ROUND); }\nbeginShape(); curveVertex(0,0); curveVertex(0,0); curveVertex(-26,-8); curveVertex(-54,-30); curveVertex(-70,-58); curveVertex(-70,-58); endShape();\npop();\n\n// far legs (darker, behind body)\ndrawLeg(-52, backHipY, phi+.5, true, tuckBack);\ndrawLeg(44, frontHipY, phi, true, false);\n\n// BODY\nfurStroke(H, 70, 90); blob(-6, -108 - frontDrop*.15, 96*chw, 62*chw, 20);   // torso\nfurStroke(H, 66, 88); blob(-64, -104 + rumpDrop*.5, 54*chw, 54*chw, 40);    // rump\nfurStroke(H, 70, 92); blob(54, -114 + frontDrop*.4, 52*chw, 56*chw, 60);    // chest\nif (st==='ink' || st==='charcoal'){ // belly tone\n  noStroke(); fill(H,20,st==='ink'?99:16, st==='ink'?36:24); ellipse(-6,-84,120*chw,42);\n}\n\n// near legs (front)\ndrawLeg(-58, backHipY, phi, false, tuckBack);\ndrawLeg(52, frontHipY, phi+.5, false, false);\n\n// NECK + HEAD\nconst hx0 = 88, hy0 = -172 - frontDrop*.2 + headKick*10;\npush(); translate(hx0, hy0); rotate(look + headKick*.18 + Math.sin(K.t*2.4)*.02*eAmp);\n// neck\nif (st!=='silhouette' && st!=='charcoal'){ furStroke(H,70,90); }\nelse furStroke(H,70,90);\npush(); rotate(-0.6); furStroke(H,68,88); blob(-30,44,34,26,110); pop();\n// head\nfurStroke(H, 72, 93); blob(0, 0, 46*chw, 42, 130);\n// snout / muzzle\nconst sn = 24 + P.snout*30;\nfurStroke(H, 68, 92); blob(38 + sn*.4, 14, sn*.6, 20, 150);\n// nose\nif (st==='silhouette'){ noStroke(); fill(H,24,12,100); }\nelse if (st==='blueprint'){ noFill(); stroke(205,58,100,80); strokeWeight(1.2); }\nelse if (st==='charcoal'){ noStroke(); fill(0,0,8,60); drawingContext.shadowBlur=6; drawingContext.shadowColor='rgba(0,0,0,.5)'; }\nelse { noStroke(); fill(0,0,12,95); }\nellipse(40 + sn*.72, 12, 13, 10); drawingContext.shadowBlur=0;\n// mouth / pant tongue\nif (st!=='silhouette'){\n  stroke(st==='blueprint'?color(205,58,100,70):color(28,36,20,80)); strokeWeight(1.4); noFill();\n  const mo = pant*6;\n  line(30, 22, 46+sn*.4, 22+mo);\n  if (pant>.2 && st!=='blueprint' && st!=='charcoal'){ noStroke(); fill(350,55,95,85); ellipse(44+sn*.35, 26+mo, 9, 11); }\n}\n// eye\nif (st!=='silhouette'){\n  if (st==='blueprint'){ stroke(205,58,100,85); strokeWeight(1.2); noFill(); line(10,-8,22,-8); line(16,-14,16,-2); }\n  else { noStroke(); fill(st==='charcoal'?color(0,0,90,50):color(0,0,12,95)); const gz=Math.sin(K.t*.5)*2;\n    ellipse(15+gz, -6, 11, 12); if(st!=='charcoal'){ fill(0,0,100,90); circle(17+gz,-8,3.5); } }\n}\n// EARS (floppy, hinged back-top of head)\nfor (let side=0; side<2; side++){\n  const sgn = side===0 ? 1 : 1; // both drop same side in profile; second is far ear\n  const far = side===1;\n  push(); translate(-14, -22); rotate(earA + (far?.12:0));\n  if (st==='silhouette'){ noStroke(); fill(H,24, far?9:13,100); }\n  else if (st==='charcoal'){ noStroke(); fill(H,16, far?10:16, far?24:32); drawingContext.shadowBlur=7; drawingContext.shadowColor='rgba(0,0,0,.4)'; }\n  else if (st==='blueprint'){ noFill(); stroke(205,58,100, far?45:72); strokeWeight(1.3); }\n  else { fill(H,55, far?70:82, st==='ink'?55:0); if(st==='gesture'||st==='blueprint')noFill(); stroke(28,36, far?18:24,90); strokeWeight(2.0); }\n  beginShape(); curveVertex(0,0); curveVertex(0,0); curveVertex(-10,26); curveVertex(-6,56*(.7+P.floppiness*.5)); curveVertex(10,44); curveVertex(8,10); curveVertex(8,10); endShape(CLOSE);\n  drawingContext.shadowBlur=0;\n  pop();\n}\npop(); // head\n\n// ink hatching under belly for tone\nif (st==='ink'){\n  stroke(28,36,24,34); strokeWeight(1.1);\n  for(let i=0;i<7;i++){ const o=(fr(i+200)-.5)*70; line(-50+o,-70, -34+o,-52); }\n  noStroke();\n}\n// blueprint construction marks\nif (st==='blueprint'){\n  stroke(205,50,100,30); strokeWeight(.8); noFill();\n  ellipse(-6,-108,200*chw,140*chw); line(-140,-40,150,-40);\n  for(let i=-6;i<=6;i++){ line(i*22,-38,i*22,-44); }\n  noStroke();\n}\npop(); // body\n\ndrawingContext.shadowBlur=0;\n// ambient \u2014 dust motes drifting (density), sparkle on treble\nconst nD = Math.floor(P.density*10);\nblendMode(ADD); noStroke();\nfor(let i=0;i<nD;i++){\n  const q=fr(i+300), q2=fr(i+340);\n  const dx=(q-.5)*260*s, dyy=Math.sin(K.t*.5+q*6)*40*s - 40*s;\n  fill(H,20,100, 8 + S.tre*40*q2 + 8*Math.abs(Math.sin(K.t*1.2+q*6)));\n  circle(ax+dx, ay-90*s+dyy, (1.4+q2*1.6)*s);\n}\nblendMode(BLEND);\n"
+}

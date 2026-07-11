@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dinosaur",
+  "kind": "subject",
+  "name": "Dinosaur",
+  "desc": "Chunky spike-backed theropod rendered as two-ink riso overprint \u2014 alternating stomp-steps, tail-swing and beat head-bob, a rearing jaw-open roar and a low stalk, with fossil-engraving, thermal false-color and low-poly skins.",
+  "tags": [
+    "dinosaur",
+    "dino",
+    "trex",
+    "t-rex",
+    "theropod",
+    "reptile",
+    "raptor",
+    "lizard",
+    "monster",
+    "creature",
+    "jurassic",
+    "prehistoric",
+    "roar",
+    "stomp",
+    "spikes",
+    "riso",
+    "fossil",
+    "thermal",
+    "lowpoly",
+    "character",
+    "animal",
+    "green",
+    "stalk",
+    "dance"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "stomp force, head snap, roar violence, glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "size vs design (600px min-dim, hero ~0.45u tall)"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hide/ink hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "halftone / stipple texture amount"
+    },
+    "x": {
+      "default": 0.34,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.84,
+      "min": 0.3,
+      "max": 0.95,
+      "doc": "ground line under the feet"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "belly / body bulk"
+    },
+    "neck": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "neck length"
+    },
+    "tail": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "tail length"
+    },
+    "spike": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "back-plate / spike height"
+    },
+    "pose": {
+      "default": "stomp",
+      "options": [
+        "stomp",
+        "idle",
+        "roar",
+        "stalk"
+      ],
+      "doc": "two-step beat stomp / calm idle sway / rearing jaw-open roar / low creeping stalk"
+    },
+    "act": {
+      "default": "perform",
+      "options": [
+        "perform",
+        "wander"
+      ],
+      "doc": "perform: hold chosen pose; wander: cycle poses across musical sections over minutes"
+    },
+    "style": {
+      "default": "riso",
+      "options": [
+        "riso",
+        "fossil",
+        "thermal",
+        "lowpoly"
+      ],
+      "doc": "aesthetic: 2-ink misregistered overprint+halftone / sepia bone-plate engraving / thermal false-color heatmap / faceted low-poly"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (halftone/stipple/facet jitter)"
+    }
+  },
+  "acts": [
+    "perform",
+    "wander"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:56:09+00:00",
+    "fps": 59.9,
+    "motion": 0.0059,
+    "lum": 0.156
+  },
+  "code": "const D = { energy:.6, scale:1, hue:135, speed:1, density:.5, x:.34, y:.84, chub:.5, neck:.5, tail:.6, spike:.6, pose:'stomp', act:'perform', style:'riso', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------- helpers ----------\nconst u = Math.min(width, height);\nconst sc = (u/600) * P.scale;\nconst ax = P.x*width, ay = P.y*height;\nconst H = ((P.hue % 360) + 360) % 360;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\n// ---------- rhythm ----------\nconst e = P.energy, sp = P.speed;\nconst bt = K.beat * sp, ph = K.phase;\nconst pulse = Math.min(1, K.pulse*(0.55 + 0.5*K.intensity) + A.bass*0.6);\nconst liftArc = Math.sin(ph * PI);\nconst breathe = Math.sin(K.t*0.95)*0.5 + 0.5;\nconst sway = Math.sin(bt*TAU/8);\nconst glow = A.bass*0.5 + A.rms*0.6;\n\n// ---------- act ----------\nlet pose = P.pose;\nif (P.act === 'wander') pose = ['idle','stalk','stomp','roar'][K.section % 4];\n\n// ---------- style ----------\nconst style = P.style;\n\n// ---------- rig math (facing RIGHT) ----------\nconst chub = P.chub, tl = P.tail, spk = P.spike;\nlet bodyY=0, bodyX=0, tilt=0, headDX=0, headDY=0, jaw=0, armP=0, legA=0, legB=0, tailA=0;\n\nif (pose === 'stomp') {\n  bodyY = -liftArc*(5 + 12*e) - pulse*2;\n  bodyX = sway*3;\n  headDY = -pulse*4 - liftArc*2;\n  legA = Math.max(0, Math.sin(bt*TAU))*(9 + 8*e);\n  legB = Math.max(0, -Math.sin(bt*TAU))*(9 + 8*e);\n  tailA = Math.sin(bt*TAU/2)*0.5*(0.5 + e*0.6);\n  armP = pulse; tilt = sway*0.04;\n} else if (pose === 'idle') {\n  bodyY = -breathe*3 - K.swell*1.5;\n  headDY = Math.sin(bt*TAU/4)*2.2 + pulse*1.5;\n  headDX = Math.sin(K.t*0.3)*4;\n  tailA = Math.sin(K.t*1.1)*0.4;\n  tilt = Math.sin(K.t*0.22)*0.02;\n} else if (pose === 'roar') {\n  const rear = 0.6 + pulse*0.4;\n  tilt = -(0.10 + 0.05*e)*rear;\n  bodyY = -pulse*7 - 5;\n  headDY = -30 - pulse*16;\n  headDX = 8;\n  jaw = 0.45 + pulse*0.55 + A.mid*0.2;\n  tailA = 0.5 + pulse*0.3;\n  armP = 0.6 + pulse*0.4;\n} else { // stalk\n  bodyY = -Math.abs(Math.sin(bt*TAU))*3 - 3;\n  bodyX = sway*4;\n  headDX = 12 + Math.sin(K.t*0.4)*5;\n  headDY = 12 + Math.sin(bt*TAU/4)*2;\n  legA = Math.max(0, Math.sin(bt*TAU))*9;\n  legB = Math.max(0, Math.sin(bt*TAU + PI))*9;\n  tailA = 0.1 + Math.sin(bt*TAU/4)*0.25;\n  tilt = 0.05 + sway*0.03;\n}\njaw = Math.min(1, jaw);\n\nconst bx = bodyX, byo = bodyY;\nconst nl = 18 + P.neck*44;\nconst bellyC = [10 + bx, -96 + byo];\nconst hipC = [-8 + bx, -80 + byo];\nconst shC = [34 + bx, -118 + byo];\nconst neckB = [46 + bx, -130 + byo];\nconst HDx = neckB[0] + 22 + P.neck*10 + headDX;\nconst HDy = neckB[1] - nl*0.55 + headDY;\nconst hr = 40 * (0.85 + chub*0.22);\n\n// ---------- style palette ----------\nlet riA, riB, boneL, boneD, lpBase;\nif (style === 'riso')       { riA=[H,80,84]; riB=[(H+152)%360,72,80]; }\nelse if (style === 'fossil'){ boneL=[38,16,92]; boneD=[32,34,32]; }\nelse if (style === 'thermal'){ /* handled inline */ }\nelse /* lowpoly */          { lpBase=[H,52,58]; }\n\n// build the mass list (drawn back-to-front)\nconst masses = [];\n// tail as tapered polygon\n(function(){\n  const rootX = hipC[0]-30, rootY = hipC[1]+4;\n  const seg = 5, pts=[];\n  const bot=[], top=[];\n  for (let i=0;i<=seg;i++){\n    const t=i/seg;\n    const ang = tailA*(0.4 + t*0.9) + Math.sin(K.t*0.7 + t*2)*0.06;\n    const dist = (28 + tl*24)*(seg - i*0.0);\n    // walk backward/down-left\n    const px = rootX - t*(150 + tl*90);\n    const py = rootY + t*t*(20) - Math.sin(ang)*t*(40 + tl*40) + 6;\n    const w = (30 + chub*14)*(1 - t*0.82);\n    top.push([px, py - w*0.5]); bot.push([px, py + w*0.5]);\n  }\n  for (let i=0;i<top.length;i++) pts.push(top[i]);\n  for (let i=bot.length-1;i>=0;i--) pts.push(bot[i]);\n  masses.push({k:'poly', pts, d:0.2});\n})();\n// hind leg (far)\nmasses.push({k:'ell', x:hipC[0]+2, y:-40+byo-legB, w:30+chub*8, h:60, r:0.05, d:0.25});\nmasses.push({k:'ell', x:hipC[0]-2, y:2-legB, w:38, h:20, r:0, d:0.2}); // far foot\n// belly / body\nmasses.push({k:'ell', x:bellyC[0], y:bellyC[1], w:150+chub*54, h:150+chub*30, r:0.05, d:0.45});\n// hip mass\nmasses.push({k:'ell', x:hipC[0]+6, y:hipC[1]-6, w:96+chub*20, h:104+chub*18, r:0.1, d:0.35});\n// chest/shoulder\nmasses.push({k:'ell', x:shC[0], y:shC[1]+8, w:74+chub*16, h:88, r:-0.15, d:0.5});\n// near leg\nmasses.push({k:'ell', x:hipC[0]+30, y:-38+byo-legA, w:34+chub*8, h:64, r:-0.05, d:0.4});\nmasses.push({k:'ell', x:hipC[0]+30, y:4-legA, w:44, h:22, r:0, d:0.35}); // near foot\n// neck\nmasses.push({k:'ell', x:(neckB[0]+HDx)/2, y:(neckB[1]+HDy)/2, w:34+P.neck*6, h:nl+20, r:Math.atan2(HDy-neckB[1], HDx-neckB[0])+PI/2, d:0.5});\n// arm (small)\nmasses.push({k:'ell', x:shC[0]+12, y:shC[1]+26 - armP*4, w:16, h:36 - armP*6, r:0.5 - armP*0.5, d:0.55});\n\n// =============== render ===============\npush();\ntranslate(ax, ay);\nscale(sc);\ntranslate(bellyC[0]*0 , 0);\nrotate(tilt);\n\n// thermal / neon dark aura\nif (style === 'thermal') { push(); blendMode(ADD); noStroke(); fill(18, 90, 60, 8 + glow*20 + pulse*4); ellipse(bx, -90, 380, 340); blendMode(BLEND); pop(); }\n\n// contact shadow\nnoStroke(); fill(0, 0, 0, 22); ellipse(bx, 8, 190 + chub*40, 20);\n\nfunction geom(m){\n  if (m.k === 'ell') { push(); translate(m.x, m.y); rotate(m.r); ellipse(0, 0, m.w, m.h); pop(); }\n  else { beginShape(); for (const p of m.pts) vertex(p[0], p[1]); endShape(CLOSE); }\n}\n\n// ---------- BACK SPIKES (behind or on top depending) ----------\nfunction drawSpikes(colFn){\n  const rootX = hipC[0]-20, rootY = hipC[1]-6;\n  const n = 7;\n  for (let i=0;i<n;i++){\n    const t=i/(n-1);\n    const px = rootX + t*(HDx - rootX)*0.9;\n    const py = rootY + Math.sin(t*PI)*(-30) - t*30 + Math.sin(K.t*0.8 + i)*1.5;\n    const hgt = (10 + spk*26)*(0.5 + Math.sin(t*PI)*0.7);\n    colFn(0.7, i);\n    triangle(px-8, py+6, px + spk*3, py - hgt, px+8, py+6);\n  }\n}\n\n// ---------- STYLE RENDERERS ----------\nif (style === 'riso') {\n  // light paper ground so the ink overprint reads (bed is dark)\n  noStroke(); fill((H+30)%360, 8, 95);\n  push(); translate(bx-6, -86); ellipse(0, 0, 300, 300); ellipse(-90, 20, 180, 150); ellipse(90, -10, 170, 170); pop();\n  // two-ink overprint with misregistration\n  const passes = [[riA, -3.2, 2.4, 70], [riB, 3.0, -2.2, 70]];\n  for (const [ink, ox, oy, al] of passes) {\n    push(); translate(ox, oy);\n    blendMode(MULTIPLY);\n    noStroke(); fill(ink[0], ink[1], ink[2], al);\n    drawSpikes(()=>fill(ink[0], ink[1], ink[2], al));\n    for (const m of masses) geom(m);\n    blendMode(BLEND);\n    pop();\n  }\n  // halftone dots over the body\n  const dn = Math.round(5 + P.density*9);\n  noStroke();\n  for (let iy=-dn; iy<=dn; iy++) for (let ix=-dn; ix<=dn; ix++){\n    const dxx=ix/dn, dyy=iy/dn; if (dxx*dxx+dyy*dyy>1) continue;\n    const px=bellyC[0]+dxx*95, py=bellyC[1]+dyy*95;\n    fill(riB[0], riB[1], 30, 22);\n    circle(px, py, (1 - Math.sqrt(dxx*dxx+dyy*dyy))*3.4 + fr(ix*7+iy)*1.2);\n  }\n} else if (style === 'fossil') {\n  // bone plate + engraving hatch + stipple\n  noStroke();\n  for (const m of masses){ fill(boneL[0], boneL[1], boneL[2]); geom(m); }\n  drawSpikes(()=>fill(boneL[0], boneL[1], boneL[2]-6));\n  // contour hatch\n  stroke(boneD[0], boneD[1], boneD[2], 55); strokeWeight(1); noFill();\n  for (const m of masses){ if (m.k!=='ell') continue; push(); translate(m.x,m.y); rotate(m.r);\n    for (let i=-2;i<=2;i++){ const yy=i*m.h*0.16; line(-m.w*0.45, yy, m.w*0.2, yy+ m.h*0.12); } pop(); }\n  // stipple\n  noStroke();\n  const sn = Math.round(30 + P.density*50);\n  for (let i=0;i<sn;i++){ fill(boneD[0], boneD[1], boneD[2], 40); const a=fr(i*3)*TAU, rr=fr(i*5); circle(bellyC[0]+Math.cos(a)*rr*80, bellyC[1]+Math.sin(a)*rr*80, 1+fr(i)*1.4); }\n  stroke(boneD[0], boneD[1], boneD[2], 80); strokeWeight(1.4); noFill();\n  for (const m of masses){ if (m.k==='ell'){ push(); translate(m.x,m.y); rotate(m.r); ellipse(0,0,m.w,m.h); pop(); } else geom(m); }\n} else if (style === 'thermal') {\n  // false-color heat: hot core -> cool rim, additive\n  push(); blendMode(ADD); noStroke();\n  const ramp = [[300,80,45,40],[260,85,40,45],[20,95,80,55],[45,95,95,70],[55,60,100,80]];\n  for (const m of masses){\n    for (let l=0;l<ramp.length;l++){\n      const s=1 - l*0.17; const c=ramp[l];\n      fill(c[0], c[1], c[2], c[3]*0.5);\n      if (m.k==='ell'){ push(); translate(m.x,m.y); rotate(m.r); ellipse(0,0,m.w*s,m.h*s); pop(); }\n      else if (l<2) geom(m);\n    }\n  }\n  drawSpikes((d,i)=>fill(30,95,90,60));\n  blendMode(BLEND); pop();\n} else { // lowpoly\n  drawSpikes((d,i)=>{ fill(lpBase[0], lpBase[1]*(0.8), lpBase[2]*(0.7+fr(i)*0.4)); stroke(lpBase[0],40,20,50); strokeWeight(1); });\n  for (const m of masses){\n    if (m.k==='ell'){\n      const seg=7; push(); translate(m.x,m.y); rotate(m.r);\n      for (let i=0;i<seg;i++){\n        const a0=i/seg*TAU, a1=(i+1)/seg*TAU;\n        const light = 0.5 + 0.5*Math.cos(a0 - 2.3); // light upper-left\n        fill(lpBase[0], lpBase[1] - light*10, (lpBase[2]*(0.55 + light*0.6)) * (0.85 + fr(i+m.x)*0.2));\n        stroke(lpBase[0], 45, 22, 60); strokeWeight(1);\n        triangle(0,0, Math.cos(a0)*m.w*0.5, Math.sin(a0)*m.h*0.5, Math.cos(a1)*m.w*0.5, Math.sin(a1)*m.h*0.5);\n      }\n      pop();\n    } else {\n      // faceted tail: fan of triangles\n      noStroke();\n      for (let i=1;i<m.pts.length-1;i++){\n        const light=0.5+0.4*Math.sin(i);\n        fill(lpBase[0], lpBase[1]-6, lpBase[2]*(0.5+light*0.5));\n        triangle(m.pts[0][0],m.pts[0][1], m.pts[i][0],m.pts[i][1], m.pts[i+1][0],m.pts[i+1][1]);\n      }\n      noFill(); stroke(lpBase[0],45,22,55); strokeWeight(1); geom(m);\n    }\n  }\n}\n\n// ---------- HEAD (all styles, drawn on top) ----------\npush();\ntranslate(HDx, HDy);\nrotate(headDX*0.004 + tilt*0.5);\n// head base color per style\nlet hf;\nif (style==='riso') hf=riA;\nelse if (style==='fossil') hf=boneL;\nelse if (style==='thermal') hf=[45,90,95];\nelse hf=lpBase;\n\nif (style==='thermal'){ push(); blendMode(ADD); }\n// jaw (lower) opens down\nnoStroke();\nif (style==='fossil'){ fill(boneL[0],boneL[1],boneL[2]-4); } else fill(hf[0], hf[1], hf[2]*(style==='thermal'?0.9:1), style==='thermal'?70:100);\npush(); rotate(jaw*0.5);\nellipse(hr*0.55, hr*0.34, hr*1.5, hr*0.5); // lower jaw / snout bottom\n// teeth\nif (style!=='thermal'){ fill(0,0,98); for (let i=0;i<4;i++){ triangle(hr*0.2+i*hr*0.3, hr*0.2, hr*0.28+i*hr*0.3, hr*0.42, hr*0.36+i*hr*0.3, hr*0.2); } }\npop();\n// skull + snout (upper)\nif (style==='fossil'){ fill(boneL[0],boneL[1],boneL[2]); } else fill(hf[0], hf[1], hf[2], style==='thermal'?70:100);\nellipse(0, 0, hr*1.7, hr*1.5);\nellipse(hr*0.7, -hr*0.12, hr*1.5, hr*0.72); // snout\n// brow ridge\nfill(hf[0], Math.min(100,hf[1]+10), hf[2]*0.8, style==='thermal'?60:100);\nellipse(-hr*0.1, -hr*0.45, hr*0.9, hr*0.5);\nif (style==='thermal'){ blendMode(BLEND); pop(); }\n// nostril\nnoStroke(); fill(0,0,style==='thermal'?100:10, style==='thermal'?70:60); circle(hr*1.25, -hr*0.2, 6);\n// eye\nfill(0,0,100); ellipse(-hr*0.05, -hr*0.28, 18, 18);\nfill(0,0,8); const look = headDX*0.02; ellipse(-hr*0.05+look, -hr*0.28, 8, 10);\nfill(0,0,100,70); circle(-hr*0.05+look-2, -hr*0.28-3, 3);\n// upper detail per style\nif (style==='riso'){ push(); translate(-2.6,2); blendMode(MULTIPLY); noStroke(); fill(riB[0],riB[1],riB[2],55); ellipse(0,0,hr*1.7,hr*1.5); ellipse(hr*0.7,-hr*0.12,hr*1.5,hr*0.72); blendMode(BLEND); pop(); }\nif (style==='fossil'){ stroke(boneD[0],boneD[1],boneD[2],80); strokeWeight(1.3); noFill(); ellipse(0,0,hr*1.7,hr*1.5); ellipse(hr*0.7,-hr*0.12,hr*1.5,hr*0.72); for(let i=-1;i<=1;i++) line(-hr*0.3, i*7, hr*1.1, i*5); }\nif (style==='lowpoly'){ noFill(); stroke(lpBase[0],45,22,55); strokeWeight(1); ellipse(0,0,hr*1.7,hr*1.5); line(-hr*0.6,-hr*0.2,hr*0.9,-hr*0.1); line(-hr*0.4,hr*0.2,hr*1.2,-hr*0.1); }\npop(); // head\n\npop(); // world\nblendMode(BLEND);\n"
+}

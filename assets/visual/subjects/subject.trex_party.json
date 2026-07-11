@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.trex_party",
+  "kind": "subject",
+  "name": "Party T-Rex",
+  "desc": "A synthwave T-rex in neon sunglasses that stomps with a screen-shake bob, pumps its tiny arms and cracks its jaw open in periodic roaring builds over a glowing neon horizon.",
+  "tags": [
+    "trex",
+    "t-rex",
+    "dinosaur",
+    "dino",
+    "rex",
+    "reptile",
+    "monster",
+    "kaiju",
+    "party",
+    "dance",
+    "stomp",
+    "roar",
+    "fist-pump",
+    "sunglasses",
+    "neon",
+    "synthwave",
+    "retrowave",
+    "vaporwave",
+    "80s",
+    "1980s",
+    "chrome",
+    "glow",
+    "vhs",
+    "night",
+    "club",
+    "character",
+    "cool"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design (hero fills frame at max)"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "stomp/pump amplitude + glow"
+    },
+    "hue": {
+      "default": 315,
+      "min": 0,
+      "max": 360,
+      "doc": "primary neon hue (rim auto-complements)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dorsal neon scute count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "anchor y (hip center, canvas fraction)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "belly girth morph"
+    },
+    "tail": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tail length morph"
+    },
+    "jaw": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "jaw opening range morph"
+    },
+    "pose": {
+      "default": "stomp",
+      "options": [
+        "stomp",
+        "fistpump",
+        "strut",
+        "idle"
+      ],
+      "doc": "choreography: stomp=big footfalls+bob / fistpump=arms drive / strut=walk-in-place / idle=gentle sway"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "chrome",
+        "wireframe",
+        "vhs"
+      ],
+      "doc": "aesthetic: neon=glowing tube outlines+scanlines / chrome=airbrushed metallic no glow / wireframe=fill-less polygon mesh / vhs=RGB-split glitch tear"
+    },
+    "act": {
+      "default": "party",
+      "options": [
+        "party",
+        "roar"
+      ],
+      "doc": "dramaturgy: party=obey pose / roar=periodic build to a wide-jaw roar with expanding neon rings"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic scute + VHS-tear layout"
+    }
+  },
+  "acts": [
+    "party",
+    "roar"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:58:50+00:00",
+    "fps": 59.9,
+    "motion": 0.0226,
+    "lum": 0.098
+  },
+  "code": "const D = { scale:1, energy:.65, hue:315, speed:1, density:.5, x:.5, y:.62, chub:.5, tail:.5, jaw:.5, pose:'stomp', style:'neon', act:'party', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst m = u * P.scale;\nconst L = (a,b,t)=>a+(b-a)*t;\nconst clamp=(v,a,b)=>v<a?a:v>b?b:v;\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst TAU = Math.PI*2;\nconst sty = P.style;\nconst hi = P.hue, rim = (P.hue+165)%360;\nconst sw = u*0.006*P.scale;\n\nif (S.seedUsed !== P.seed){ S.seedUsed=P.seed; S.tear=[]; for(let i=0;i<5;i++) S.tear.push({y:fr(i+2), h:.02+fr(i+6)*.03, o:fr(i+9)}); }\n\n// ---- clock ----\nif (S.lastBeat==null || K.beat < S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\nconst bt = K.beat*P.speed;\nconst en = P.energy;\nconst pulse = K.pulse;\nconst kick = clamp(pulse*.9 + A.bass*.7, 0, 1.4);\nconst pose=P.pose, chub=P.chub;\n\n// roar act \u2014 periodic build + big roar every 8 beats\nlet roar=0;\nif (P.act==='roar'){ const rc=(bt%8)/8; roar=Math.pow(Math.max(0,Math.sin(rc*Math.PI)),3); }\nlet jawOpen = .12 + kick*.22*en + roar*.75 + (pose==='idle'?0:0);\njawOpen = clamp(jawOpen*L(.7,1.3,P.jaw), 0, 1);\n\n// choreography weights per pose\nconst stompW = pose==='stomp'?1 : pose==='strut'?.35 : pose==='idle'?.25 : .6;\nconst pumpW  = pose==='fistpump'?1 : pose==='idle'?.15 : .5;\nconst bob = (kick*.03 + roar*.04) * en * stompW;           // body drop on beat\nconst shake = Math.sin(K.t*95)*pulse*0.012*en*stompW;      // screen-shake feel\nconst squashY = 1 - kick*.06*en*stompW;\nconst squashX = 1 + kick*.045*en*stompW;\n\nconst px=P.x*width, py=P.y*height;\n\n// ---- style-aware tube renderer ----\nfunction tube(fn, filled){\n  if (sty==='wireframe'){ noFill(); stroke(hi,80,100,95); strokeWeight(sw*.7); fn(); return; }\n  if (sty==='chrome'){\n    if (filled!==false){ noStroke(); fill(hi,26,66); fn(); }\n    noStroke(); return;\n  }\n  // neon + vhs : dark glassy fill, then layered glow strokes (cheap, no shadowBlur)\n  if (filled!==false){ noStroke(); fill(hi,72,11,96); fn(); }\n  noFill();\n  if (sty==='vhs'){ push(); translate(-sw*.9,0); stroke(0,85,100,45); strokeWeight(sw*1.1); fn(); pop();\n                    push(); translate(sw*.9,0); stroke(180,80,100,45); strokeWeight(sw*1.1); fn(); pop(); }\n  stroke(hi,85,100,20); strokeWeight(sw*3.4); fn();   // outer glow\n  stroke(rim,65,100,85); strokeWeight(sw*1.4); fn();  // cyan rim\n  stroke(hi,88,100,100); strokeWeight(sw*.7); fn();   // bright core\n}\nfunction chromeHi(fn){ if(sty==='chrome'){ noStroke(); fill(hi,10,96,55); fn(); } }\n\npush();\ntranslate(px + shake*m, py + bob*m);\nscale(squashX, squashY);\n\n// ============ TAIL (behind, sways counter to legs) ============\nconst tailSway = Math.sin(bt*Math.PI)*.22*en + roar*.1;\nconst tl = m*L(.42,.72,P.tail);\npush(); translate(-m*.14, m*.02); rotate(tailSway);\ntube(()=>{ beginShape();\n  vertex(0,-m*.11); vertex(-tl*.5,-m*.05);\n  vertex(-tl,-m*.005); vertex(-tl,m*.02);\n  vertex(-tl*.5,m*.06); vertex(0,m*.12);\n  endShape(CLOSE); });\npop();\n\n// ============ LEGS (alternate stomp) ============\nfor (const s of [1,-1]){\n  const lift = Math.sin(bt*Math.PI + (s>0?0:Math.PI));\n  const up = Math.max(0,lift)*m*.06*en*stompW;\n  const hipX=s*m*.05, hipY=m*.10;\n  const kneeX=hipX+s*m*.02, kneeY=m*.20-up*.4;\n  const ftY=m*.30-up;\n  push();\n  tube(()=>{ beginShape();\n    vertex(hipX-m*.07,hipY); vertex(hipX+m*.08,hipY);\n    vertex(kneeX+m*.055,kneeY); vertex(kneeX-m*.05,kneeY);\n    endShape(CLOSE); });\n  // shin + clawed foot\n  tube(()=>{ ellipse(kneeX,(kneeY+ftY)/2, m*.09, ftY-kneeY+m*.03); });\n  tube(()=>{ beginShape();\n    vertex(kneeX-m*.05,ftY-m*.02); vertex(kneeX+m*.14,ftY-m*.02);\n    vertex(kneeX+m*.15,ftY+m*.03); vertex(kneeX-m*.05,ftY+m*.03);\n    endShape(CLOSE); });\n  pop();\n}\n\n// ============ TORSO ============\ntube(()=>{ beginShape();\n  const w=m*L(.16,.22,chub);\n  vertex(-m*.16,-m*.02);\n  bezierVertex(-m*.02,-m*.20, m*.14,-m*.18, m*.18,-m*.02);\n  bezierVertex(m*.20,w, m*.02,m*.20, -m*.10,m*.15);\n  bezierVertex(-m*.20,m*.10, -m*.22,m*.02, -m*.16,-m*.02);\n  endShape(CLOSE); });\nchromeHi(()=>{ ellipse(-m*.02,-m*.08,m*.24,m*.16); });\n\n// ---- dorsal neon scutes along the back (count by density) ----\nconst nsc = 3 + Math.round(P.density*6);\nfor (let i=0;i<nsc;i++){ const tt=i/(nsc-1);\n  const bx = L(-m*.14, m*.10, tt), by = L(-m*.02,-m*.16, tt) - Math.sin(tt*Math.PI)*m*.05;\n  const h = m*(.03+ .02*Math.sin(tt*Math.PI)) * (1+kick*.25*en);\n  push(); translate(bx,by);\n  tube(()=>{ triangle(-m*.02,0, m*.02,0, 0,-h); }, false);\n  pop(); }\n\n// ============ TINY ARMS (fist pump) ============\nconst pump = (Math.max(0,Math.sin(bt*Math.PI))* .9 + kick*.3) * pumpW;\nfor (const s of [0,1]){\n  const ax=m*.10 - s*m*.02, ay=-m*.02 + s*m*.02;\n  const fistY = ay - m*.02 - pump*m*.11;\n  const fistX = ax + m*.09;\n  push();\n  tube(()=>{ ellipse((ax+fistX)/2,(ay+fistY)/2, m*.11, m*.05); });\n  tube(()=>{ ellipse(fistX,fistY, m*.06,m*.06); });\n  pop();\n}\n\n// ============ NECK + HEAD (bob + nod) ============\nconst nod = Math.sin(bt*Math.PI*.5)*.05 + kick*.06*en - roar*.12;\npush();\ntranslate(m*.12,-m*.10); rotate(nod);\n// neck\ntube(()=>{ beginShape();\n  vertex(-m*.06,m*.12); vertex(-m*.02,m*.12);\n  vertex(m*.10,-m*.04); vertex(m*.02,-m*.06);\n  endShape(CLOSE); });\n// head (skull + snout)\ntube(()=>{ beginShape();\n  vertex(-m*.04,-m*.08); vertex(m*.14,-m*.09);\n  vertex(m*.26,-m*.04); vertex(m*.27,m*.0);\n  vertex(m*.14,m*.02); vertex(-m*.02,m*.02);\n  endShape(CLOSE); });\nchromeHi(()=>{ ellipse(m*.08,-m*.05,m*.16,m*.06); });\n\n// lower jaw \u2014 opens by jawOpen\npush(); translate(m*.05,m*.015); rotate(jawOpen*.6);\ntube(()=>{ beginShape();\n  vertex(-m*.02,0); vertex(m*.22,-m*.005);\n  vertex(m*.2,m*.055); vertex(-m*.01,m*.05);\n  endShape(CLOSE); });\n// lower teeth\nif (sty!=='wireframe'){ noStroke(); fill(0,0,98,90);\n  for(let i=0;i<4;i++){ const tx=m*.02+i*m*.045; triangle(tx,-m*.002, tx+m*.018,-m*.002, tx+m*.009,-m*.03);} }\npop();\n// upper teeth\nif (sty!=='wireframe'){ noStroke(); fill(0,0,98,90);\n  for(let i=0;i<4;i++){ const tx=m*.03+i*m*.05; triangle(tx,m*.01, tx+m*.02,m*.01, tx+m*.01,m*.04);} }\n\n// nostril\nif (sty!=='wireframe'){ noStroke(); fill(hi,80,40); ellipse(m*.24,-m*.03,m*.02,m*.03); }\n\n// ---- sunglasses (neon shades) ----\npush(); translate(m*.06,-m*.055);\nif (sty==='wireframe'){ noFill(); stroke(hi,80,100,95); strokeWeight(sw*.7); }\nelse { noStroke(); fill(P.hue,90,14); }\nfor (const s of [0,1]){ push(); translate(s*m*.09,0);\n  if(sty!=='wireframe'){ fill(P.hue,90,12); } rect(0,0,m*.085,m*.05,m*.01); pop(); }\n// bridge\nif(sty!=='wireframe'){ noStroke(); fill(P.hue,90,14);} rect(m*.085,-m*.005,m*.02,m*.012);\n// neon frame + glint\nnoFill(); stroke(rim,70,100,95); strokeWeight(sw*.7);\nfor (const s of [0,1]){ push(); translate(s*m*.09,0); rect(0,0,m*.085,m*.05,m*.01); pop(); }\n// specular slash\nstroke(0,0,100,90); strokeWeight(sw*.6);\nconst gl = (K.t*.6)%1; line(-m*.03+gl*m*.02,-m*.02, -m*.05+gl*m*.02,m*.02);\npop();\npop(); // head\n\n// ============ ROAR RINGS ============\nif (roar>0.15 && sty!=='wireframe'){\n  push(); translate(m*.42,-m*.20); noFill();\n  for(let i=0;i<3;i++){ const rr=(roar - i*.2); if(rr>0){ stroke(hi,80,100, rr*70);\n    strokeWeight(sw*(2-i*.5)); const rad=m*(.08+ (1-rr+i*.15)*.5); arc(0,0,rad,rad,-1.0,1.0);} }\n  pop();\n}\n\npop(); // subject transform\n\n// ============ NEON GROUND LINE + reflection ============\nif (sty!=='wireframe'){\n  const gy = py + m*.30;\n  push();\n  stroke(hi,85,100,22); strokeWeight(sw*3); line(px-m*.45,gy, px+m*.5,gy);\n  stroke(rim,70,100,80); strokeWeight(sw*.8); line(px-m*.45,gy, px+m*.5,gy);\n  // soft reflected glow puddle under feet, pulses with beat\n  noStroke(); fill(hi,80,60, 10+kick*14*en); ellipse(px+m*.02,gy+m*.03, m*.7, m*.09*(1+kick*.4));\n  pop();\n}\n\n// ============ SCANLINES / VHS TEAR (over body region) ============\nif (sty==='neon' || sty==='vhs'){\n  push(); noStroke();\n  const y0=py-m*.34, y1=py+m*.30, step=Math.max(3, u*0.012);\n  fill(0,0,0,14);\n  for(let y=y0;y<y1;y+=step) rect(px-m*.55, y, m*1.1, step*.5);\n  if (sty==='vhs'){ for(const t of S.tear){ const ty=y0+(t.y*(y1-y0)); const off=Math.sin(bt*Math.PI + t.o*TAU)*m*.03*en;\n    fill(180,70,100,30); rect(px-m*.55+off, ty, m*1.1, t.h*m*.4);\n    fill(0,85,100,25); rect(px-m*.55-off, ty, m*1.1, t.h*m*.4); } }\n  pop();\n}\n"
+}

@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.flamingo",
+  "kind": "subject",
+  "name": "Flamingo",
+  "desc": "A tall wading flamingo balanced on one reedy leg, its long S-curved neck coiling and dipping while it sways, struts and plunges its hooked black-tipped beak to feed on the beat.",
+  "tags": [
+    "flamingo",
+    "bird",
+    "wader",
+    "waterfowl",
+    "animal",
+    "creature",
+    "pink",
+    "tropical",
+    "zoo",
+    "lagoon",
+    "wildlife",
+    "elegant",
+    "long-neck",
+    "one-leg",
+    "strut",
+    "preen",
+    "pastel",
+    "riso",
+    "xray",
+    "dance",
+    "character",
+    "coral",
+    "salmon"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design (design hero ~0.5x min dim)"
+    },
+    "hue": {
+      "default": 342,
+      "min": 0,
+      "max": 360,
+      "doc": "plumage hue (342 = classic flamingo pink)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body stipple + ambient mote count"
+    },
+    "neck": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "neck S-curve depth (0 straight, 1 deep coil)"
+    },
+    "chub": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "body plumpness morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.92,
+      "min": 0.4,
+      "max": 1,
+      "doc": "anchor y (feet) as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look/timing seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "idle",
+        "strut",
+        "dip",
+        "preen"
+      ],
+      "doc": "pose preset; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "pastel",
+      "options": [
+        "pastel",
+        "riso",
+        "ink",
+        "xray"
+      ],
+      "doc": "aesthetic: soft chalk-pastel modeling / two-ink riso misregistration / brushed sumi contour / cyan skeletal x-ray"
+    },
+    "act": {
+      "default": "show",
+      "options": [
+        "show",
+        "calm",
+        "parade"
+      ],
+      "doc": "multi-minute pose dramaturgy used when pose=auto"
+    }
+  },
+  "acts": [
+    "show",
+    "calm",
+    "parade"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:57:15+00:00",
+    "fps": 62.9,
+    "motion": 0.0071,
+    "lum": 0.104
+  },
+  "code": "const D = { energy: .6, scale: 1, hue: 342, speed: 1, density: .5, neck: .6, chub: .45, x: .5, y: .92, seed: 0, pose: 'auto', style: 'pastel', act: 'show' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0016 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nconst am = .82 + .22*Math.sin(K.t*.27 + fr(6)*6);\nconst eAmp = P.energy * (.55 + .6*K.intensity) * am;\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nif (S.lastBeat==null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed; S.stip=[]; for(let i=0;i<44;i++) S.stip.push({x:fr(i)*2-1,y:fr(i+50)*2-1,r:.4+fr(i+100)*.8,a:fr(i+150)}); }\n\nconst ACTS = { show:['idle','strut','dip','idle','strut','preen','dip','strut'], calm:['idle','preen','idle','idle','preen','idle','dip','idle'], parade:['strut','strut','dip','strut','dip','strut','strut','dip'] };\nlet pose = P.pose;\nif (pose==='auto') pose = (ACTS[P.act]||ACTS.show)[((K.section%8)+8)%8];\n\nconst drift = Math.sin(K.t*.4 + fr(2)*6);\nlet sway=0, dip=0, lean=0, tuck=1, headX=0, headY=0, neckC=0, stepA=0, stepB=0, beak=0, wing=0, plunge=0;\n\nif (pose==='idle') {\n  sway = Math.sin(bt*Math.PI/4)*22*s*eAmp + drift*6*s;\n  dip = kick*10*s + K.swell*4*s*eAmp;\n  lean = Math.sin(bt*Math.PI/4)*.05*eAmp;\n  tuck = 1;\n  headX = -sway*.6; headY = Math.sin(K.t*.5)*6*s;\n  const tk = ((K.t*.13 + fr(9))%1); if (tk<.16){ neckC += .5; headX += -18*s; headY += -26*s; }\n  wing = kick*.12 + K.swell*.08*eAmp;\n} else if (pose==='strut') {\n  tuck = 0;\n  const step = bt;\n  stepA = Math.sin(step*Math.PI*2)*.6; stepB = Math.sin(step*Math.PI*2+Math.PI)*.6;\n  dip = Math.abs(Math.sin(step*Math.PI))*8*s + kick*3*s;\n  sway = Math.sin(step*Math.PI)*9*s*eAmp + drift*4*s;\n  headX = Math.sin(step*Math.PI*2)*18*s*eAmp;\n  headY = -Math.abs(Math.cos(step*Math.PI*2))*7*s;\n  lean = .045*Math.sin(step*Math.PI*2)*eAmp;\n  wing = Math.abs(stepA)*.16 + kick*.06;\n} else if (pose==='dip') {\n  tuck = .3;\n  const c2 = ((Math.floor(bt)%2)+2)%2;\n  plunge = c2===0 ? Math.max(0, Math.sin(sb*Math.PI)) : 0;\n  neckC = .3 + plunge*.85;\n  headY = plunge*180*s; headX = 18*s + plunge*16*s;\n  dip = plunge*22*s;\n  beak = plunge>.35 ? .5 : 0;\n  sway = drift*5*s; lean = plunge*.13;\n  wing = plunge*.18;\n} else { // preen\n  tuck = 1;\n  neckC = .82 + .14*Math.sin(K.t*1.5);\n  headX = -34*s; headY = -118*s;\n  beak = .22*Math.abs(Math.sin(bt*Math.PI*2));\n  sway = drift*6*s; dip = K.swell*3*s*eAmp;\n  wing = .22 + .1*Math.sin(K.t*2);\n}\n\n// universal drift \u2014 guarantees silhouette displacement even at low energy / static section\nsway += Math.sin(K.t*.7 + fr(4)*6)*7*s;\ndip  += Math.sin(K.t*.52 + fr(7)*6)*3*s;\nlean += Math.sin(K.t*.21 + fr(8)*6)*.02;\nheadX += Math.sin(K.t*.9 + fr(3)*6)*11*s;   // head rides the long neck tip \u2014 small angle, big travel\nheadY += Math.sin(K.t*.63 + fr(1)*6)*7*s;\nneckC += .06*Math.sin(K.t*.4);\n\nconst styles=['pastel','riso','ink','xray'];\nconst st = styles.indexOf(P.style)>=0 ? P.style : 'pastel';\nconst H = ((P.hue%360)+360)%360;\n\n// ---- per-style paint helpers ----\nfunction paintOval(x,y,rx,ry,tone){ tone = tone===undefined?1:tone;\n  if (st==='pastel'){ noStroke();\n    fill(H,34,52+tone*8,58); ellipse(x+2.5*s,y+3.5*s,rx*2,ry*2);\n    fill(H,40,74+tone*14,100); ellipse(x,y,rx*2,ry*2);\n    fill(H,14,98,24); ellipse(x-rx*.35,y-ry*.4,rx*1.0,ry*.85);\n  } else if (st==='riso'){ noStroke();\n    fill((H+152)%360,52,80,58); ellipse(x+3.2*s,y+2.4*s,rx*2,ry*2);\n    fill(H,66,90,80); ellipse(x,y,rx*2,ry*2);\n  } else if (st==='ink'){ noStroke();\n    fill(H,10,97,40); ellipse(x,y,rx*2,ry*2);\n    stroke(210,16,17,86); noFill();\n    for(let i=0;i<16;i++){ const a0=i/16*6.283, a1=(i+1)/16*6.283; const dry=.4+.6*Math.abs(Math.sin(i*1.9+fr(i)*6)); strokeWeight((1.6+1.4*dry)*s); if(fr(i+20)>.12){ line(x+Math.cos(a0)*rx,y+Math.sin(a0)*ry,x+Math.cos(a1)*rx,y+Math.sin(a1)*ry); } }\n    noStroke();\n  } else { // xray\n    noStroke(); fill(190,60,96,9); ellipse(x,y,rx*2.5,ry*2.5);\n    stroke(188,72,100,66); strokeWeight(1.4*s); noFill(); ellipse(x,y,rx*2,ry*2);\n    stroke(188,50,100,40); strokeWeight(1*s);\n    for(let i=0;i<5;i++){ const yy=y-ry+ (i+1)/6*ry*2; const hw=Math.sqrt(Math.max(0,1-Math.pow((yy-y)/ry,2)))*rx; line(x-hw,yy,x+hw,yy); }\n    noStroke();\n  }\n}\nfunction paintChain(pts){\n  if (st==='ink'){\n    for(let i=0;i<pts.length-1;i++){ const a=pts[i],b=pts[i+1]; const dry=.5+.5*Math.abs(Math.sin(i*1.7+fr(i+3)*6)); stroke(210,16,18,90*dry); strokeWeight((a.r+b.r)); line(a.x,a.y,b.x,b.y); }\n    noStroke(); for(const p of pts){ fill(H,9,97,30); ellipse(p.x,p.y,p.r*1.3,p.r*1.3); }\n  } else if (st==='xray'){\n    noStroke(); for(const p of pts){ fill(190,60,96,10); ellipse(p.x,p.y,p.r*2.6,p.r*2.6); }\n    stroke(188,72,100,72); strokeWeight(1.5*s); noFill(); beginShape(); for(const p of pts) vertex(p.x,p.y); endShape();\n    noStroke(); for(let i=0;i<pts.length;i+=2){ fill(188,42,100,88); ellipse(pts[i].x,pts[i].y,pts[i].r*.85,pts[i].r*.85); }\n  } else if (st==='riso'){\n    noStroke(); for(const p of pts){ fill((H+152)%360,52,80,58); ellipse(p.x+3*s,p.y+2*s,p.r*2,p.r*2); }\n    for(const p of pts){ fill(H,66,90,80); ellipse(p.x,p.y,p.r*2,p.r*2); }\n  } else { // pastel\n    noStroke(); for(const p of pts){ fill(H,34,52,58); ellipse(p.x+2*s,p.y+2.6*s,p.r*2,p.r*2); }\n    for(const p of pts){ fill(H,40,78,100); ellipse(p.x,p.y,p.r*2,p.r*2); }\n    for(const p of pts){ fill(H,14,98,20); ellipse(p.x-p.r*.4,p.y-p.r*.4,p.r*1.1,p.r*1.1); }\n  }\n}\nfunction paintLeg(pts,w){\n  if (st==='xray'){ stroke(188,72,100,72); strokeWeight(1.5*s); noFill(); beginShape(); for(const p of pts) vertex(p.x,p.y); endShape(); noStroke(); for(const p of pts){ fill(188,42,100,86); ellipse(p.x,p.y,3.4*s,3.4*s); } return; }\n  const legH = st==='ink'?210:H; const legS = st==='ink'?16:(st==='riso'?60:56); const legB = st==='ink'?20:82;\n  noFill(); strokeCap(ROUND); strokeJoin(ROUND);\n  stroke(legH,legS,legB, st==='ink'?90:100); strokeWeight(w);\n  beginShape(); for(const p of pts) vertex(p.x,p.y); endShape();\n  if (st==='riso'){ stroke((H+152)%360,50,80,50); strokeWeight(w); beginShape(); for(const p of pts) vertex(p.x+2.6*s,p.y+2*s); endShape(); stroke(legH,legS,legB,100); strokeWeight(w); beginShape(); for(const p of pts) vertex(p.x,p.y); endShape(); }\n}\n\nconst ax = P.x*width, ay = P.y*height;\n\n// ground shadow\nnoStroke(); fill(0,0,0,26); ellipse(ax, ay+6*s, (52+Math.abs(sway/s)*1.5)*s, 13*s);\n\npush(); translate(ax, ay); rotate(lean);\n\nconst chub = .82 + P.chub*.6;\nconst bodyCX = 0, bodyCY = -170*s + dip;\nconst bodyRX = 66*s*chub, bodyRY = 84*s;\n\n// ---- legs ----\nconst hipX = -6*s, hipY = bodyCY + 58*s;\n// standing leg A (plants at ground, backward ankle)\n{ const ank = {x: hipX - 16*s, y: -80*s + dip*.35}; const foot = {x: -6*s, y: 0};\n  paintLeg([{x:hipX,y:hipY},ank,foot], 6.5*s);\n  // foot\n  if (st!=='xray'){ noStroke(); fill(st==='ink'?210:H, st==='ink'?16:52, st==='ink'?20:80, st==='ink'?90:100); ellipse(foot.x+4*s,0,16*s,6*s); }\n}\n// leg B\nif (tuck>0.6){ // folded up (idle/preen)\n  const knee={x:14*s,y:hipY+18*s}; const foot={x:30*s,y:hipY+4*s};\n  paintLeg([{x:hipX+16*s,y:hipY},knee,foot], 6*s);\n} else { // stepping\n  const swingB = stepB;\n  const ank={x: 22*s + swingB*10*s, y: -74*s + dip*.3};\n  const foot={x: 30*s + swingB*34*s, y: -Math.max(0,swingB)*26*s};\n  paintLeg([{x:hipX+18*s,y:hipY},ank,foot], 6.5*s);\n  if (st!=='xray'){ noStroke(); fill(st==='ink'?210:H, st==='ink'?16:52, st==='ink'?20:80, st==='ink'?90:100); ellipse(foot.x+4*s,foot.y,16*s,6*s); }\n}\n\n// ---- body ----\npaintOval(bodyCX,bodyCY,bodyRX,bodyRY,1);\n// body stipple / texture for pastel\nif (st==='pastel'){ noStroke(); for(let i=0;i<44;i++){ const q=S.stip[i]; if(i/44>P.density+.25) continue; const px=bodyCX+q.x*bodyRX*.72, py=bodyCY+q.y*bodyRY*.72; fill(H,52,66,22*q.a); ellipse(px,py,q.r*2.4*s,q.r*2.4*s); } }\n\n// ---- tail tuft (rear) ----\n{ const tx=bodyCX-bodyRX*.86, ty=bodyCY-6*s;\n  if (st==='ink'){ stroke(210,16,18,80); strokeWeight(2.4*s); noFill(); line(tx,ty,tx-26*s,ty-14*s); line(tx,ty+6*s,tx-24*s,ty+2*s); noStroke(); }\n  else if (st==='xray'){ stroke(188,60,100,50); strokeWeight(1.3*s); line(tx,ty,tx-24*s,ty-12*s); noStroke(); }\n  else { noStroke(); fill(st==='riso'?(H+152)%360:H, st==='riso'?52:36, st==='riso'?80:88, 88); triangle(tx,ty-14*s,tx,ty+14*s,tx-30*s,ty-4*s); fill(H,44,86,100); triangle(tx,ty-8*s,tx,ty+10*s,tx-22*s,ty-2*s); } }\n\n// ---- wing ----\n{ push(); translate(bodyCX+6*s, bodyCY-4*s); rotate(-wing*.5);\n  paintOval(0,0,bodyRX*.62,bodyRY*.5,.8);\n  if (st!=='ink'&&st!=='xray'){ noStroke(); fill(0,0,10,st==='riso'?0:16); // wing-tip shade\n    for(let i=0;i<3;i++){ const a=-.5+i*.28; fill(0,0,12,st==='riso'?0:18); if(st!=='riso') arc(0,bodyRY*.08,bodyRX*(1.1-i*.16),bodyRY*(.9-i*.14),.2+a,.9+a,OPEN); } }\n  if (st==='riso'){ noStroke(); fill(H,74,74,60); for(let i=0;i<3;i++) ellipse(-bodyRX*.2+i*8*s, bodyRY*.14, 6*s,6*s); }\n  pop(); }\n\n// ---- neck (cubic bezier chain) ----\nconst nb = {x: bodyCX + 22*s, y: bodyCY - 60*s};\nconst necklen = 150*s;\nconst cA = P.neck;\nconst P0=nb;\nconst P1={x: nb.x - (8+cA*22)*s, y: nb.y - necklen*.62};\nconst apexX = nb.x - (10+cA*30)*s + headX*.3;\nconst apexY = nb.y - necklen;\nconst hb={x: nb.x + (16+cA*12+neckC*8)*s + headX, y: apexY + (42+cA*46+neckC*30)*s + headY};\nconst P2={x: apexX + (24+cA*28)*s, y: apexY + 6*s};\nconst P3=hb;\nconst npts=[]; const N=17;\nfor(let i=0;i<N;i++){ const t=i/(N-1), it=1-t;\n  const x= it*it*it*P0.x + 3*it*it*t*P1.x + 3*it*t*t*P2.x + t*t*t*P3.x;\n  const y= it*it*it*P0.y + 3*it*it*t*P1.y + 3*it*t*t*P2.y + t*t*t*P3.y;\n  npts.push({x,y,r:(15-8.5*t)*s}); }\npaintChain(npts);\n\n// ---- head + beak + eye ----\n{ const hx=hb.x, hy=hb.y;\n  // head angle toward downward beak\n  paintOval(hx,hy,15*s,13*s,1);\n  // beak (hooked, black tip), points down-forward\n  const bo = beak*4*s;\n  if (st==='xray'){ stroke(188,72,100,70); strokeWeight(1.4*s); noFill(); line(hx+6*s,hy+6*s,hx+20*s,hy+22*s+bo); line(hx+8*s,hy+10*s+bo,hx+19*s,hy+22*s+bo); noStroke(); }\n  else { noStroke();\n    fill(st==='ink'?45:H, st==='ink'?18:40, st==='ink'?86:92, 100); // upper mandible base\n    beginShape(); vertex(hx+2*s,hy+2*s); vertex(hx+18*s,hy+14*s); vertex(hx+22*s,hy+24*s+bo); vertex(hx+14*s,hy+20*s); vertex(hx+4*s,hy+10*s); endShape(CLOSE);\n    if(bo>0){ fill(st==='ink'?45:H,30,90,100); triangle(hx+12*s,hy+18*s,hx+22*s,hy+24*s+bo,hx+15*s,hy+24*s+bo*.6); }\n    fill(0,0,10,100); // black tip\n    triangle(hx+18*s,hy+20*s+bo*.6, hx+23*s,hy+25*s+bo, hx+16*s,hy+25*s+bo*.7); }\n  // eye\n  if (st==='xray'){ noStroke(); fill(188,50,100,80); ellipse(hx+2*s,hy-2*s,5*s,5*s); }\n  else { noStroke(); if(st==='ink'){fill(210,14,15,100);} else {fill(0,0,12,100);} ellipse(hx+3*s,hy-2*s,5.4*s,5.4*s); fill(0,0,100,90); ellipse(hx+4*s,hy-3.2*s,1.8*s,1.8*s); }\n}\n\npop(); // figure\n\n// ---- ambient: drifting feather motes / xray field ----\nblendMode(ADD); noStroke();\nconst nM = Math.max(0, Math.floor(2 + P.density*14));\nfor(let i=0;i<nM;i++){ const q=S.stip[(i*3)%44]; const ang=q.x*6.283 + K.t*.2*(.5+q.a) + (i%2?-1:1)*K.t*.04; const rr=(80+70*Math.abs(q.y))*s*(1+.15*Math.sin(K.t*.5+i)); const tw=.35+.65*Math.abs(Math.sin(K.t*1.2+q.r*6)); const mh = st==='xray'?188:H; fill(mh, st==='xray'?55:26, 100, Math.min(64, tw*(8+14*K.swell)+S.tre*50)); circle(ax+Math.cos(ang)*rr, ay-120*s+Math.sin(ang)*rr*.5, (1.6+q.r*1.6)*s*(1+S.tre*1.4)); }\nblendMode(BLEND);\n"
+}

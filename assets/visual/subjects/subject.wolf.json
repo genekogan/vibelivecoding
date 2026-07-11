@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.wolf",
+  "kind": "subject",
+  "name": "Wolf",
+  "desc": "Night silhouette wolf built from layered cut-paper \u2014 prowls with a stepping gait, sits, or rears its muzzle to a rising moon halo and howls cold breath-fog into the dark.",
+  "tags": [
+    "wolf",
+    "canine",
+    "canis",
+    "animal",
+    "predator",
+    "beast",
+    "howl",
+    "moon",
+    "night",
+    "lupine",
+    "silhouette",
+    "papercut",
+    "paper-cut",
+    "kirigami",
+    "folk",
+    "nocturne",
+    "prowl",
+    "gothic",
+    "eerie",
+    "character",
+    "subject",
+    "forest",
+    "wild"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude: gait swing, bob, tail, breath"
+    },
+    "hue": {
+      "default": 222,
+      "min": 0,
+      "max": 360,
+      "doc": "paper/ink primary hue (night blue default)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "gait + choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "deckle/lino-hatch/breath-fog density"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "ground anchor y (canvas fraction)"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "leg length / lankiness morph"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body/tail bulk morph"
+    },
+    "neck": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "neck length morph (howl reach)"
+    },
+    "pose": {
+      "default": "prowl",
+      "options": [
+        "prowl",
+        "sit",
+        "howl",
+        "trot"
+      ],
+      "doc": "prowl=stalking gait, sit=haunches, howl=muzzle up, trot=quick step"
+    },
+    "style": {
+      "default": "papercut",
+      "options": [
+        "papercut",
+        "silhouette",
+        "lino",
+        "riso",
+        "nightfall"
+      ],
+      "doc": "aesthetic: layered cut-paper w/ mat edge + drop-shadow / pure black silhouette (abstract, no interior) / high-contrast linocut relief w/ carved white / 2-ink riso misregistration / dusk duotone gradient"
+    },
+    "act": {
+      "default": "roam",
+      "options": [
+        "roam",
+        "hunt",
+        "howl"
+      ],
+      "doc": "multi-minute dramaturgy: roam steady prowl, hunt slow crouch-cycles, howl rears to a rising swelling moon"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deckle/crater/hatch layout variation"
+    }
+  },
+  "acts": [
+    "roam",
+    "hunt",
+    "howl"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:59:07+00:00",
+    "fps": 58.8,
+    "motion": 0.0189,
+    "lum": 0.224
+  },
+  "code": "const D = { scale:1, energy:.7, hue:222, speed:1, density:.5, x:.5, y:.82, pose:'prowl', style:'papercut', act:'roam', seed:0, limb:.5, chub:.5, neck:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);}, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst u=Math.min(width,height), sc=u*P.scale/320;\nconst H=md(P.hue,360);\nconst style=P.style, papercut=style==='papercut', sil=style==='silhouette', lino=style==='lino', riso=style==='riso', nightfall=style==='nightfall';\nconst bt=K.beat*P.speed, sub=frc(bt);\nconst en=P.energy*(.45+.55*K.intensity);\nconst kick=K.pulse*.6 + A.bass*.85;\nconst air=A.treble*.7;\nconst chub=.72+P.chub*.7, LL=.7+P.limb*.7, NK=.6+P.neck*.9;\n\n// posture blends from pose\nconst pProwl=P.pose==='prowl'?1:0, pSit=P.pose==='sit'?1:0, pHowl=P.pose==='howl'?1:0, pTrot=P.pose==='trot'?1:0;\n// act arc \u2014 slow multi-minute dramaturgy\nconst secPh=frc(K.section/8 + K.t*0.006); // drifts across the 8-section arc\nlet moonWant, crouchAct=0, howlWave=0, stepRate;\nif(P.act==='hunt'){ crouchAct=.5+.5*Math.sin(K.t*0.5*P.speed); moonWant=.2; stepRate=.35; }\nelse if(P.act==='howl'){ howlWave=ez(Math.sin(K.t*0.16*P.speed)*.5+.5); moonWant=.35+.6*howlWave; stepRate=.28; }\nelse { moonWant=.24+.12*Math.sin(K.t*0.12); stepRate=.5; crouchAct=.12*K.intensity; } // roam\nconst howlAmt=clp(pHowl + howlWave, 0, 1);\nconst crouch=clp(pProwl*.5 + pSit*.1 + crouchAct + .1, 0, 1);\n\n// gait \u2014 legs step in diagonal pairs; whole-body bob + prowl lurch\nconst gaitOn = 1 - .8*howlAmt - .7*pSit;   // legs still when howling / sitting\nconst legT=(off)=>{ const ph=frc(bt*stepRate*P.speed + off); return { lift:Math.max(0,Math.sin(ph*TAU))*gaitOn, swing:Math.cos(ph*TAU)*gaitOn }; };\nconst Lf=legT(0), Rf=legT(.5), Lb=legT(.5), Rb=legT(0);\nconst bodyBob=(K.swell*.55 + kick*.35)*en*gaitOn;\nconst lurch=Math.sin(bt*Math.PI*stepRate*2)*.5*en*gaitOn;\nconst breathe=Math.sin(K.t*1.5 + K.swell*.5); // breath cycle for fog\nconst sway=Math.sin(K.t*1.1*P.speed)*.4*en;\n\nconst cx=P.x*width, gy=P.y*height;\nconst shX=4*sc, shY=5*sc;\n\nfunction paint(depth){\n  if(lino){ noStroke(); fill(0,0, depth>.55?5:2); return; }\n  if(sil){ noStroke(); fill(md(H,360),24,4+depth*5); return; }\n  if(riso){ noStroke(); fill(md(H,360),74,40+depth*24); return; }\n  if(nightfall){ noStroke(); fill(md(H+(depth-.5)*46,360),50,13+depth*46); return; }\n  stroke(md(H-12,360),15,84,72); strokeWeight(3.0*sc); strokeJoin(ROUND);\n  fill(md(H+(depth-.5)*22,360),34+(1-depth)*16,20+depth*46);\n}\nfunction shape(depth, drawFn){\n  if(!sil && !lino){ push(); translate(shX,shY); noStroke(); fill(0,0,0,24); drawFn(); pop(); }\n  paint(depth); drawFn();\n  if(lino){ // carved white relief hatching\n    const n=Math.floor(6+P.density*10); stroke(0,0,96,70); noFill();\n    for(let i=0;i<n;i++){ const a=fr(i*3.3+depth*11)*TAU, r=fr(i*5.1)*40*sc; strokeWeight((.5+fr(i*2.2)*.8)*sc);\n      line(Math.cos(a)*r*.3,Math.sin(a)*r*.3, Math.cos(a)*r,Math.sin(a)*r); }\n    noStroke();\n  }\n  if(riso){ push(); translate(-2.4*sc,-1.6*sc); noFill(); stroke(md(H+165,360),70,86,55); strokeWeight(2.2*sc); drawFn(); pop(); noStroke(); }\n}\n\n// ---- MOON HALO (behind wolf) ----\nconst moonR=(58+P.density*22)*sc*(0.8+0.9*moonWant), moonX=cx+70*sc*P.scale, moonY=gy-(150+130*moonWant)*sc;\nif(!sil){ push(); blendMode(ADD);\n  const glowN=5; for(let i=glowN;i>0;i--){ const rr=moonR*(1+i*.55); noStroke(); fill(md(H+34,360), 30, 60, 6+8*moonWant); circle(moonX,moonY,rr*2); }\n  blendMode(BLEND); pop(); }\npush(); noStroke();\nfill(md(H+30,360), sil?0:22, sil?70:78, sil?100:96); circle(moonX,moonY,moonR*2);\nfill(md(H+30,360), 24, 60, 22); // craters\nfor(let i=0;i<5;i++){ const a=fr(i*7.7)*TAU, rr=fr(i*3.1)*moonR*.6; circle(moonX+Math.cos(a)*rr, moonY+Math.sin(a)*rr, moonR*(.14+fr(i*9.3)*.16)); }\npop();\n\n// ---- WOLF BODY ----\npush();\ntranslate(cx + sway*40*sc + lurch*24*sc, gy - bodyBob*26*sc);\nconst s=sc;\nconst crouchDrop=crouch*40*s;\n\n// TAIL (behind)\npush(); translate(-96*s*chub, -70*s + crouchDrop*.4);\nconst tsw=Math.sin(K.t*2.0*P.speed + bt*1.4)*(.5+.4*en) + kick*.2;\nrotate(0.5 + tsw*0.5 + crouch*0.3);\nshape(.24, ()=>{ beginShape(); vertex(0,0); bezierVertex(-26*s,-14*s,-70*s,-6*s,-96*s,34*s); bezierVertex(-104*s,52*s,-88*s,64*s,-64*s,54*s); bezierVertex(-40*s,44*s,-14*s,22*s,0,0); endShape(CLOSE); });\npop();\n\n// FAR HIND + FAR FORE legs\nfunction leg(x, yTop, len, lift, swing, depth){\n  push(); translate(x, yTop + crouchDrop*.5); rotate(swing*0.3*en - crouch*0.2);\n  const kneeY=len*.5, footY=len - lift*len*.5;\n  shape(depth, ()=>{ beginShape(); vertex(-9*s,0); vertex(9*s,0); vertex(6*s+swing*4*s,kneeY); vertex(5*s,footY); vertex(-6*s,footY); vertex(-6*s+swing*4*s,kneeY); endShape(CLOSE);\n    ellipse(0, footY, 18*s, 9*s); });\n  pop();\n}\nleg(-58*s*chub, -30*s, (72*LL)*s, Lb.lift, Lb.swing, .18);\nleg(52*s*chub, -34*s, (74*LL)*s, Lf.lift, Lf.swing, .2);\n\n// BODY MASS\nshape(.44, ()=>{ beginShape();\n  vertex(-70*s*chub,-70*s); bezierVertex(-78*s*chub,-108*s,-30*s,-118*s,10*s,-110*s);\n  bezierVertex(56*s,-104*s,80*s*chub,-92*s,86*s*chub,-64*s);\n  bezierVertex(90*s*chub,-30*s,60*s,-18*s,10*s,-16*s);\n  bezierVertex(-30*s,-14*s,-64*s*chub,-30*s,-70*s*chub,-70*s); endShape(CLOSE); });\n\n// NEAR HIND + NEAR FORE legs\nleg(-52*s*chub, -26*s, (76*LL)*s, Rb.lift, Rb.swing, .3);\nleg(60*s*chub, -30*s, (78*LL)*s, Rf.lift, Rf.swing, .32);\n\n// NECK + HEAD\npush();\nconst headUp = howlAmt;   // 0 = level, 1 = muzzle to sky\ntranslate(70*s*chub, -96*s - crouch*6*s);\nrotate(-0.15 - headUp*1.15 + Math.sin(bt*Math.PI)*0.05*en*gaitOn - crouch*0.15);\n// neck\nshape(.4, ()=>{ beginShape(); vertex(-18*s,10*s); bezierVertex(-22*s,-30*s*NK,-6*s,-52*s*NK,14*s,-58*s*NK);\n  bezierVertex(30*s,-52*s*NK,30*s,-20*s,24*s,10*s); endShape(CLOSE); });\n// head\npush(); translate(16*s, -58*s*NK);\nrotate(headUp*0.3);\n// ears\nfor(const sgn of [-1,1]){ push(); translate(sgn*10*s, -18*s); rotate(sgn*(0.35+air*0.5));\n  shape(.34, ()=>{ triangle(0,6*s, sgn*-4*s,-26*s, sgn*16*s,-8*s); }); pop(); }\n// skull + muzzle\nshape(.48, ()=>{ beginShape();\n  vertex(-16*s,-6*s); bezierVertex(-18*s,-24*s,10*s,-26*s,18*s,-14*s);\n  vertex(52*s,-4*s); vertex(52*s,6*s); vertex(20*s,10*s);\n  bezierVertex(10*s,22*s,-14*s,18*s,-16*s,-6*s); endShape(CLOSE); });\n// nose\nif(!lino && !sil){ noStroke(); fill(md(H,360),18,10); circle(51*s,1*s,7*s); }\n// eye\nconst blink=(frc(K.t*.29+.2)>.93)?.15:1;\nif(sil||lino){ noStroke(); fill(0,0, sil?0:100, sil?100:80); ellipse(6*s,-6*s,7*s,7*s*blink); }\nelse { noStroke(); fill(md(H+40,360),85,96); ellipse(6*s,-6*s,7*s,8*s*blink); fill(0,0,12); ellipse(7*s,-6*s,3.4*s,4*s*blink); }\n// open mouth when howling\nif(howlAmt>0.25){ push(); const op=howlAmt*(0.7+0.3*Math.sin(K.t*3)); noStroke(); fill(md(H,360),30,8);\n  arc(40*s,4*s, 20*s, 16*s*op, -0.3, 1.2, PIE); pop(); }\npop(); // head\npop(); // neck\n\npop(); // body\n\n// ---- BREATH FOG (in front, from muzzle region) \u2014 cold night exhale ----\nif(!lino){ push(); blendMode(ADD);\n  const fogN=Math.floor(3+P.density*5);\n  // muzzle approx world position\n  const mBase=Math.sin(bt*2)*0; // placeholder\n  const mx=cx + sway*40*sc + lurch*24*sc + (70*chub+40)*sc, my=gy - bodyBob*26*sc - (150+ howlAmt*60)*sc;\n  const push2=(howlAmt>0.25?1.6:1)*(0.5+0.5*Math.max(0,breathe));\n  for(let i=0;i<fogN;i++){ const ph=frc(K.t*0.35*P.speed + i/fogN + fr(i*4.2)*.3);\n    const rise=ph*(60+howlAmt*90)*sc, spread=(6+ph*26)*sc*(1+howlAmt*.6);\n    const a=(1-ph)*(10+14*push2)*(0.5+en*.5);\n    noStroke(); fill(md(H+20,360), 12, 92, a);\n    circle(mx + (fr(i*2.1)-.5)*spread + howlAmt*ph*10*sc, my - rise, spread); }\n  blendMode(BLEND); pop(); }\n\nblendMode(BLEND);\n"
+}

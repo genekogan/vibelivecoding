@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.snowman",
+  "kind": "subject",
+  "name": "Snowman",
+  "desc": "Three stacked snowballs modeled by light with a coal smile, carrot nose and top hat, wobbling top-heavy through a shimmy, an overhead twig-wave, or a slow melt-and-reform under drifting snow.",
+  "tags": [
+    "snowman",
+    "snow",
+    "winter",
+    "frosty",
+    "christmas",
+    "holiday",
+    "xmas",
+    "cold",
+    "ice",
+    "coal",
+    "carrot",
+    "top hat",
+    "character",
+    "cute",
+    "seasonal",
+    "festive",
+    "blizzard",
+    "melt",
+    "snowfall",
+    "frozen",
+    "december",
+    "charcoal",
+    "woodcut",
+    "x-ray"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.0,
+      "doc": "size vs design (hero ~0.36u tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wobble/dance amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "ambient snow tint / glow hue (210 = cold moonlight)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3.5,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting snowfall amount"
+    },
+    "girth": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stack-girth proportion morph (svelte<->rotund)"
+    },
+    "twig": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "twig-arm length morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.74,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y as canvas fraction (base on ground)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look/timing seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "idle",
+        "shimmy",
+        "wave",
+        "melt"
+      ],
+      "doc": "pose preset; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "carved",
+      "options": [
+        "carved",
+        "ink",
+        "woodcut",
+        "xray"
+      ],
+      "doc": "aesthetic: light-modeled charcoal snow / cool sumi wash / stark engraved print / wireframe x-ray"
+    },
+    "act": {
+      "default": "blizzard",
+      "options": [
+        "blizzard",
+        "thaw",
+        "frolic"
+      ],
+      "doc": "multi-minute pose dramaturgy used when pose=auto"
+    }
+  },
+  "acts": [
+    "blizzard",
+    "thaw",
+    "frolic"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:58:34+00:00",
+    "fps": 59.2,
+    "motion": 0.0041,
+    "lum": 0.104
+  },
+  "code": "const D = { hue: 210, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .74, girth: .5, twig: .5, seed: 0, pose: 'auto', style: 'carved', act: 'blizzard' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0016 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nconst am = .82 + .28 * Math.sin(K.t * .23 + fr(6) * 6);\nconst eAmp = P.energy * (.55 + .6 * K.intensity) * am;\nconst kick = Math.min(1, K.pulse * (.5 + .5 * K.intensity) + A.bass * .75);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\nif (S.seedUsed !== P.seed) S.seedUsed = P.seed;\n\nconst ACTS = {\n  blizzard: ['idle','shimmy','shimmy','wave','shimmy','melt','shimmy','idle'],\n  thaw:     ['idle','idle','melt','melt','idle','melt','idle','shimmy'],\n  frolic:   ['shimmy','shimmy','wave','shimmy','shimmy','wave','shimmy','melt'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.blizzard)[((K.section % 8) + 8) % 8];\n\n// proportion morphs\nconst gF = .78 + P.girth * .5;           // stack girth\nconst tF = .7 + P.twig * .7;             // twig-arm length\n// stack radii (design units), bottom\u2192top\nconst R0 = 58 * gF, R1 = 44 * gF, R2 = 33 * gF;\nconst Y0 = 40, Y1 = -30, Y2 = -96;       // sphere centres before wobble\n\n// top-heavy inverted-pendulum wobble: each ball lags the one below\nlet lean = 0, bob = 0, sway = 0, sink = 0, aL = 0, aR = 0, headTilt = 0, squash = 1;\n\nif (pose === 'idle') {\n  lean = Math.sin(K.t * .8) * .05 + Math.sin(bt * Math.PI / 2) * .04 * eAmp;\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 3 * eAmp + K.swell * 2 * eAmp;\n  aL = Math.sin(K.t * .9) * .18 * eAmp - .2; aR = -Math.sin(K.t * .9 + 1) * .18 * eAmp + .2;\n  headTilt = Math.sin(K.t * .6) * .12;\n} else if (pose === 'shimmy') {\n  lean = Math.sin(bt * Math.PI) * .16 * eAmp;\n  sway = Math.sin(bt * Math.PI) * 12 * eAmp;\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 10 * eAmp - kick * 4 * eAmp;\n  squash = 1 + kick * .08 * eAmp;\n  aL = -.8 - Math.sin(bt * Math.PI) * .8 * eAmp; aR = .8 + Math.sin(bt * Math.PI) * .8 * eAmp;\n  headTilt = Math.sin(bt * Math.PI) * .2 * eAmp;\n} else if (pose === 'wave') {\n  lean = Math.sin(K.t * 1.2) * .05;\n  bob = -Math.abs(Math.sin(sb * Math.PI)) * 4 * eAmp;\n  const wv = Math.sin(bt * Math.PI * 1.5);\n  aL = -.3; aR = 2.1 + wv * .5 * eAmp;           // right twig waves overhead\n  headTilt = -.1 + Math.sin(bt * Math.PI) * .08;\n} else {                                          // melt \u2014 slow slump then reform (dramaturgy)\n  const ph = ((K.beat * .0625) % 1 + 1) % 1;      // ~16-beat cycle\n  const m = ph < .6 ? ph / .6 : (1 - (ph - .6) / .4);\n  sink = m * 44;\n  squash = 1 - m * .32;\n  lean = Math.sin(K.t * 1.1) * .04 * (1 - m);\n  aL = -.2 - m * .9; aR = .2 + m * .9;            // twigs droop\n  headTilt = m * .4;\n  bob = Math.sin(K.t * .9) * 2 * (1 - m);\n}\n\n// universal slow drift\nsway += Math.sin(K.t * .43 + fr(4) * 6) * 4;\nlean += Math.sin(K.t * .29 + fr(8) * 6) * .02;\nbob += Math.sin(K.t * .85 + fr(2) * 6) * 2;\n\nconst st = ['carved','ink','woodcut','xray'].indexOf(P.style) >= 0 ? P.style : 'carved';\nconst H = ((P.hue % 360) + 360) % 360;    // ambient tint (210 = cold moonlight)\n\n// per-ball lean offset (pendulum): higher balls swing more\nfunction ballPos(base, kf) {\n  return { x: sway + Math.sin(lean) * (Y0 - base) * -1 * kf, y: base + bob + sink * (base < 0 ? (Y0 - base) / 120 : 0) };\n}\n\nconst px = P.x * width;\nconst py = P.y * height;\n\n// cast shadow on snow \u2014 widens as it melts, sways with body\nif (st === 'carved' || st === 'ink' || st === 'woodcut') {\n  noStroke(); fill(st === 'woodcut' ? 0 : (st === 'ink' ? 220 : 220), st === 'woodcut' ? 0 : 25, st === 'woodcut' ? 6 : 30, 34);\n  ellipse(px + sway * s, py + (Y0 + R0 * .7) * s, (R0 * 2.6 + sink * 1.5) * s, R0 * .5 * s);\n}\n\n// drifting snowfall (density) \u2014 always moving, sits behind + in front\nconst nS = Math.floor(4 + P.density * 26);\nnoStroke();\nfor (let i = 0; i < nS; i++) {\n  const spd = 22 + fr(i) * 40;\n  const yy = py - 200 * s + (((K.t * spd + fr(i + 3) * 500) % 500)) * s;\n  const xx = px + (fr(i + 9) - .5) * 320 * s + Math.sin(K.t * .8 + i) * 16 * s;\n  const sz = (1.4 + fr(i + 15) * 3.2) * s;\n  if (st === 'xray') { blendMode(ADD); fill(H, 40, 100, 45); circle(xx, yy, sz); blendMode(BLEND); }\n  else if (st === 'woodcut') { fill(0, 0, 100, 85); circle(xx, yy, sz); }\n  else { fill(0, 0, 100, 55 + fr(i + 21) * 30); circle(xx, yy, sz); }\n}\n\n// ---- body ----\npush();\ntranslate(px, py);\nscale(s);\n\n// modeled snow-ball: radial gradient from a highlight (form from light, no outline)\nfunction snowBall(cx, cy, r) {\n  push(); translate(cx, cy);\n  if (st === 'xray') {\n    blendMode(ADD); noStroke();\n    fill(H, 55, 100, 14); circle(0, 0, r * 2);\n    fill(H, 25, 100, 22); circle(0, 0, r * 1.15);\n    noFill(); stroke(H, 45, 100, 40); strokeWeight(1.4); circle(0, 0, r * 2);\n    // longitude/latitude wire\n    stroke(H, 40, 100, 26); strokeWeight(1);\n    for (let k = 1; k < 3; k++) ellipse(0, 0, r * 2, r * 2 * (1 - k * .32));\n    line(0, -r, 0, r);\n    blendMode(BLEND); noStroke(); pop(); return;\n  }\n  if (st === 'woodcut') {\n    noStroke(); fill(0, 0, 100); circle(0, 0, r * 2);\n    // engraved contour hatching \u2014 dense on shadow (lower-right)\n    stroke(0, 0, 8); noFill();\n    for (let k = 1; k <= 7; k++) { strokeWeight(.6 + k * .28); arc(0, 0, r * 2 * (k / 7.5), r * 2 * (k / 7.5), .1, Math.PI * .95); }\n    stroke(0, 0, 8); strokeWeight(2.4); noFill(); circle(0, 0, r * 2);\n    noStroke(); pop(); return;\n  }\n  // carved + ink: layered translucent shells \u2192 soft modeled sphere\n  const base = st === 'ink' ? [212, 10, 96] : [H, 6, 99];\n  const shade = st === 'ink' ? [214, 30, 55] : [H, 22, 66];\n  noStroke();\n  // ambient occlusion / core shadow offset toward lower-right\n  fill(shade[0], shade[1], shade[2]); circle(0, 0, r * 2);\n  for (let k = 6; k >= 0; k--) {\n    const t = k / 6;\n    const rr = r * 2 * (.35 + .65 * t);\n    const off = -r * .38 * (1 - t);       // highlight toward upper-left\n    fill(base[0], base[1] * (1 - t * .1), 70 + t * 30, st === 'ink' ? 40 : 60);\n    circle(off, off, rr);\n  }\n  // specular highlight\n  fill(0, 0, 100, st === 'ink' ? 30 : 55); circle(-r * .42, -r * .42, r * .5);\n  // crisp rim on shadow side (sculpted edge, not cartoon outline)\n  noFill(); stroke(shade[0], shade[1] + 10, shade[2] - 14, 45); strokeWeight(1.6);\n  arc(0, 0, r * 2 - 1, r * 2 - 1, -.4, Math.PI * .9);\n  noStroke();\n  pop();\n}\n\n// draw stacks bottom\u2192top with pendulum lean\nconst p0 = ballPos(Y0, 1), p1 = ballPos(Y1, 1), p2 = ballPos(Y2, 1);\npush(); scale(1, squash);\nsnowBall(p0.x, p0.y, R0);\nsnowBall(p1.x, p1.y, R1);\n\n// buttons (coal) down the middle two balls\nif (st !== 'xray') {\n  for (let i = 0; i < 3; i++) {\n    const by = p0.y - 4 - i * 22, bx = p0.x + Math.sin(lean) * (i * 3);\n    if (st === 'woodcut') { fill(0, 0, 100); stroke(0, 0, 8); strokeWeight(2); circle(bx, by, 9); noStroke(); }\n    else { fill(st === 'ink' ? 214 : 0, st === 'ink' ? 40 : 0, st === 'ink' ? 22 : 14); noStroke(); circle(bx, by, 9); }\n  }\n}\n\n// ---- head ball ----\nsnowBall(p2.x, p2.y, R2);\npush();\ntranslate(p2.x, p2.y);\nrotate(headTilt);\n// eyes (coal)\nconst eScale = R2 / 33;\nif (st === 'xray') {\n  blendMode(ADD); noStroke(); fill(H, 60, 40, 40);\n  circle(-11 * eScale, -6 * eScale, 8 * eScale); circle(11 * eScale, -6 * eScale, 8 * eScale);\n  blendMode(BLEND);\n} else {\n  const coal = st === 'woodcut' ? [0, 0, 100] : (st === 'ink' ? [214, 45, 20] : [0, 0, 12]);\n  if (st === 'woodcut') { stroke(0, 0, 8); strokeWeight(2); fill(coal[0], coal[1], coal[2]); } else { noStroke(); fill(coal[0], coal[1], coal[2]); }\n  circle(-11 * eScale, -6 * eScale, 8 * eScale); circle(11 * eScale, -6 * eScale, 8 * eScale);\n  noStroke();\n  // living glint\n  if (st !== 'woodcut') { fill(0, 0, 100, 60 + kick * 35); circle(-11 * eScale - 1.5, -7.5 * eScale, 3 * eScale); circle(11 * eScale - 1.5, -7.5 * eScale, 3 * eScale); }\n}\n// carrot nose\nif (st === 'xray') { blendMode(ADD); noStroke(); fill(H, 45, 100, 30); triangle(0, -1 * eScale, 0, 7 * eScale, 30 * eScale, 3 * eScale); blendMode(BLEND); }\nelse {\n  const car = st === 'woodcut' ? [0, 0, 100] : [24, 88, 92];\n  if (st === 'woodcut') { stroke(0, 0, 8); strokeWeight(2); } else noStroke();\n  fill(car[0], car[1], car[2]); triangle(0, -2 * eScale, 0, 7 * eScale, (26 + kick * 3) * eScale, 3 * eScale);\n  if (st !== 'woodcut' && st !== 'ink') { noStroke(); fill(24, 60, 100, 40); triangle(0, -1 * eScale, 0, 3 * eScale, 24 * eScale, 3 * eScale); }\n  noStroke();\n}\n// coal-mouth smile (arc of dots)\nif (st !== 'xray') {\n  const mc = st === 'woodcut' ? [0, 0, 100] : (st === 'ink' ? [214, 45, 20] : [0, 0, 12]);\n  for (let i = -2; i <= 2; i++) { const mx = i * 7 * eScale, my = (14 + i * i * 1.1) * eScale; if (st === 'woodcut') { stroke(0, 0, 8); strokeWeight(1.5); } fill(mc[0], mc[1], mc[2]); circle(mx, my, 4 * eScale); noStroke(); }\n}\npop();\npop();  // end squash group\n\n// ---- twig arms (from middle ball) ----\nfunction twig(sx, sy, dir, ang) {\n  push(); translate(sx, sy); rotate(dir * (0.5) + ang);\n  const L = 52 * tF;\n  const col = st === 'woodcut' ? [0, 0, 100] : (st === 'xray' ? [H, 50, 100] : (st === 'ink' ? [28, 55, 30] : [28, 62, 38]));\n  if (st === 'xray') { blendMode(ADD); stroke(col[0], col[1], col[2], 60); } else { stroke(col[0], col[1], col[2]); }\n  strokeWeight(st === 'woodcut' ? 4.5 : 3.4);\n  line(0, 0, L, 0);\n  strokeWeight(st === 'woodcut' ? 3.5 : 2.6);\n  line(L * .55, 0, L * .55 + 14, -13); line(L * .8, 0, L * .8 + 12, 11); line(L, 0, L + 14, -6);\n  if (st === 'xray') blendMode(BLEND);\n  noStroke(); pop();\n}\n// arms anchor on the middle ball, swing with aL/aR\n{ const a1 = ballPos(Y1, 1); twig(a1.x - R1 * .8, a1.y, -1, aL); twig(a1.x + R1 * .8, a1.y, 1, aR); }\n\n// ---- hat (top hat) ----\npush();\ntranslate(p2.x, p2.y);\nrotate(headTilt);\nconst hy = -R2 - 6;\nif (st === 'xray') {\n  blendMode(ADD); noStroke(); fill(H, 55, 100, 24);\n  rect(-24, hy - 40, 48, 44, 3); rect(-40, hy, 80, 9, 3);\n  blendMode(BLEND);\n} else if (st === 'woodcut') {\n  fill(0, 0, 100); stroke(0, 0, 8); strokeWeight(2.4);\n  rect(-40, hy, 80, 10, 2); rect(-24, hy - 42, 48, 44, 2);\n  stroke(0, 0, 8); strokeWeight(1); for (let i = 0; i < 6; i++) line(-22, hy - 40 + i * 7, 22, hy - 40 + i * 7);\n  noStroke();\n} else {\n  // modeled black felt with sheen band\n  noStroke(); fill(st === 'ink' ? 214 : H, st === 'ink' ? 30 : 18, st === 'ink' ? 26 : 16);\n  rect(-42, hy, 84, 11, 3); rect(-25, hy - 44, 50, 46, 3);\n  fill(0, 0, 100, 16); rect(-25, hy - 30, 50, 6);       // sheen\n  fill((H + 20) % 360, 70, 70, st === 'ink' ? 0 : 60); rect(-25, hy - 12, 50, 8);   // colored band\n}\npop();\n\npop();\nblendMode(BLEND);\n"
+}
