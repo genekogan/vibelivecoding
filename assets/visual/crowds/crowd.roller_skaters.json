@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.roller_skaters",
+  "kind": "crowd",
+  "name": "Roller Skaters",
+  "desc": "A pack of 70s roller-rink skaters orbiting an elliptical floor in crossover stride under rotating spotlights, breaking into occasional in-place spins \u2014 rendered as satin-bright retro, oil-slick chrome, neon wireframe, or backlit silhouette.",
+  "tags": [
+    "roller skates",
+    "skating",
+    "rink",
+    "roller disco",
+    "70s",
+    "seventies",
+    "retro",
+    "disco",
+    "crowd",
+    "people",
+    "orbit",
+    "crossover",
+    "spin",
+    "skaters",
+    "quad skates",
+    "funk",
+    "groove",
+    "party",
+    "nightclub",
+    "wheels",
+    "tube socks",
+    "headband",
+    "character",
+    "wireframe",
+    "silhouette",
+    "chrome"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "skater size (bigger figures)"
+    },
+    "n": {
+      "default": 6,
+      "min": 3,
+      "max": 12,
+      "doc": "number of skaters on the rink"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "stride / arm-swing / cross amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "orbit + stride rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "floor spotlight count + glow"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "primary outfit hue / palette base"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rink center x"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0.2,
+      "max": 0.9,
+      "doc": "rink center y"
+    },
+    "spread": {
+      "default": 0.8,
+      "min": 0.2,
+      "max": 1.4,
+      "doc": "rink radius"
+    },
+    "lean": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lean-into-the-curve amount"
+    },
+    "style": {
+      "default": "retro",
+      "options": [
+        "retro",
+        "chrome",
+        "wireframe",
+        "silhouette"
+      ],
+      "doc": "render discipline: satin retro / oil-slick chrome / neon wireframe / backlit silhouette"
+    },
+    "pal": {
+      "default": "candy",
+      "options": [
+        "candy",
+        "sunset",
+        "cool",
+        "mono",
+        "rainbow"
+      ],
+      "doc": "outfit palette"
+    },
+    "act": {
+      "default": "rink",
+      "options": [
+        "rink",
+        "jam",
+        "couples"
+      ],
+      "doc": "dramaturgy: steady rink / fast jam+spins / paired couples-skate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout + jitter seed"
+    }
+  },
+  "acts": [
+    "rink",
+    "jam",
+    "couples"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:03:20+00:00",
+    "fps": 59.9,
+    "motion": 0.0093,
+    "lum": 0.129
+  },
+  "code": "const D = { scale:1, n:6, energy:.6, speed:1, density:.5, hue:320, x:.5, y:.6, spread:.8, lean:.5, style:'retro', pal:'candy', act:'rink', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst PI=Math.PI, TAU=Math.PI*2;\nconst fr=i=>{const q=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return q-Math.floor(q);};\nconst hw=h=>((h%360)+360)%360;\nconst lp=(a,b,t)=>a+(b-a)*t;\nconst clamp=(v,a,b)=>v<a?a:v>b?b:v;\nconst u=Math.min(width,height);\nconst mode=P.style;\nconst WF = mode==='wireframe';\nconst SIL = mode==='silhouette';\nconst CH = mode==='chrome';\nconst N=Math.max(3, Math.min(12, Math.round(P.n)));\nconst inten=0.5+0.6*K.intensity;\nconst eA=0.45+0.85*P.energy;\n\n// ---- palettes ----\nconst PALSET={ candy:[330,285,50,190], sunset:[15,340,275,45], cool:[195,215,160,255], mono:[hw(P.hue)] };\nfunction skHue(i){\n  if(P.pal==='rainbow') return hw(i/N*360 + K.t*6);\n  const arr=PALSET[P.pal]||PALSET.candy;\n  return hw(arr[i%arr.length] + (fr(i*2+1)-0.5)*16);\n}\n\n// ---- shared per-skater draw state (assigned in loop) ----\nlet sc=1, hue=320, kick=0;\nfunction paint(c,a){\n  if(WF){ noFill(); stroke(c[0],c[1],c[2], a==null?100:a); strokeWeight(1.5*sc); }\n  else if(SIL){ noStroke(); fill(0,0,9, a==null?100:a); }\n  else { noStroke(); fill(c[0], c[1], CH?Math.min(c[2]+8,100):c[2], a==null?100:a); }\n}\nfunction limb(x1,y1,x2,y2,w,c){\n  if(SIL) stroke(0,0,9); else stroke(c[0],c[1],CH?Math.min(c[2]+8,100):c[2],100);\n  strokeWeight(w*(WF?0.85:1)*sc); strokeCap(ROUND); line(x1,y1,x2,y2);\n}\nfunction skate(fx,wheel){\n  paint(SIL?[0,0,9]:[0,0,96]); rect(fx-6*sc, -2.5*sc, 13*sc, 5*sc, 1.5);\n  paint(wheel); ellipse(fx-3*sc,4*sc,4.2*sc,4.2*sc); ellipse(fx+6*sc,4*sc,4.2*sc,4.2*sc);\n}\n\n// ---- orbit accumulator (integrates variable rate; tolerates t0 reset) ----\nconst dirMul = P.act==='couples'?0.55 : P.act==='jam'?1.55 : 1;\nconst angSpeed=(0.30 + 0.80*K.intensity)*P.speed*dirMul;\nif(S.acc==null) S.acc=0;\nif(S.lastT==null || K.t<S.lastT) S.lastT=K.t;\nS.acc += (K.t - S.lastT)*angSpeed; S.lastT=K.t;\nconst globalAng=S.acc;\n\n// ---- rink geometry ----\nconst cx=width*P.x, cy=height*P.y;\nconst rx=u*(0.26+0.20*P.spread);\nconst ry=rx*0.34;\nconst sBase=u*0.0052*P.scale;\n\n// ---- rink floor: dark gloss + rotating spotlights (real-time, lifts luminance) ----\npush();\nnoStroke();\nfill(hw(P.hue+180), 32, 15, 62);\nellipse(cx, cy, rx*2.6, ry*3.0);\nfill(0,0,4,40);\nellipse(cx, cy, rx*2.6, ry*3.0);\nblendMode(ADD);\nconst sweepN=Math.max(3, Math.round(3+P.density*4));\nfor(let s=0;s<sweepN;s++){\n  const sa=K.t*0.55 + s/sweepN*TAU;\n  const lx=cx+Math.cos(sa)*rx*0.85, ly=cy+Math.sin(sa)*ry*0.85;\n  fill(hw(P.hue + s*47 + K.t*12), 72, 92, (5+9*K.pulse+9*A.bass)*(0.45+P.density*0.9));\n  ellipse(lx, ly, rx*0.55, ry*1.1);\n}\nblendMode(BLEND);\npop();\n\n// ---- build skaters, sort back-to-front ----\nconst list=[];\nfor(let i=0;i<N;i++){\n  let off;\n  if(P.act==='couples'){ const pr=Math.floor(i/2), np=Math.ceil(N/2); off = pr/np*TAU + (i%2)*0.30 + fr(pr)*0.35; }\n  else off = i/N*TAU + (fr(i)-0.5)*0.5;\n  const a=off + globalAng;\n  const px=cx + rx*Math.cos(a);\n  const py=cy + ry*Math.sin(a);\n  const depth=(Math.sin(a)+1)/2;\n  list.push({i,a,px,py,depth});\n}\nlist.sort((p,q)=>p.depth-q.depth);\n\n// ---- draw skaters ----\nconst spinEvery = P.act==='jam'?6 : P.act==='couples'?26 : 13;\nfor(const sk of list){\n  const i=sk.i, a=sk.a, depth=sk.depth;\n  sc = sBase * lp(0.60,1.18,depth);\n  hue = skHue(i);\n  kick = clamp(K.pulse*inten + A.bass*0.7, 0, 1);\n  const facing = Math.sin(a)>0 ? -1 : 1;\n\n  // stride tied to orbit speed\n  const stride = globalAng*4 + i*1.3;\n  const legL = Math.sin(stride)*eA;\n  const legR = Math.sin(stride+PI)*eA;\n  // crossover peaks at the tight turns (major-axis ends)\n  const cross = Math.pow(Math.abs(Math.cos(a)),2) * (0.5+0.6*P.energy);\n  // occasional spin\n  const sp = (((K.beat + fr(i*9)*spinEvery) % spinEvery)+spinEvery)%spinEvery;\n  const spinAmt = sp<1.25 ? sp/1.25 : 0;\n  const bodyScaleX = spinAmt>0 ? Math.cos(spinAmt*TAU) : 1;\n  const tilt = facing * P.lean * 0.34 * (0.4+0.6*eA) + (bodyScaleX<0?0:0);\n\n  const body=[hue,72,92];\n  const short=[hw(hue+(P.pal==='mono'?0:170)),58,68];\n  const sock=[hw(hue+62),82,95];\n  const skin=[28,40,82];\n  const hairH=fr(i*3)>0.5?20:340; const hair=[hairH,45,fr(i*3)>0.5?24:14];\n  const wheel=[hw(hue+120),90,100];\n\n  push();\n  translate(sk.px, sk.py);\n  if(!WF && !SIL){ noStroke(); fill(0,0,0,26); ellipse(0, 4*sc, 26*sc*(0.7+0.5*depth), 6.5*sc); }\n\n  // spotlight pool\n  push(); blendMode(ADD); noStroke();\n  for(let r=3;r>0;r--){ fill(hue,55,90,(4+kick*7)*(0.45+P.density*0.6)); ellipse(0,-8*sc,(28+r*12)*sc,(44+r*10)*sc); }\n  blendMode(BLEND); pop();\n\n  rotate(tilt);\n  scale(facing*bodyScaleX, 1);\n  if(WF||CH){ drawingContext.shadowBlur=7*sc; drawingContext.shadowColor='hsl('+Math.round(hue)+',90%,62%)'; }\n\n  // ---- legs (crossover stride) ----\n  const footLx=(-7 + legL*8 + cross*15)*sc;\n  const footRx=( 7 + legR*8 - cross*15)*sc;\n  const kneeLx=lp(-5*sc, footLx, 0.5) - 1.5*sc;\n  const kneeRx=lp( 5*sc, footRx, 0.5) + 1.5*sc;\n  // draw the trailing (further) leg first \u2014 pick by stride so front leg overlays\n  const leftFront = legL >= legR;\n  function drawLeg(hipx, kneex, footx, swing){\n    limb(hipx, -28*sc, kneex, -15*sc, 6.5, short);\n    limb(kneex, -15*sc, footx, -1*sc, 5, sock);\n    // tube-sock stripe\n    if(!WF && !SIL){ paint([hw(hue+62),20,100]); rect(footx-2.5*sc, -9*sc, 5*sc, 2*sc); }\n    skate(footx, wheel);\n  }\n  if(leftFront){ drawLeg(5*sc,kneeRx,footRx,legR); drawLeg(-5*sc,kneeLx,footLx,legL); }\n  else { drawLeg(-5*sc,kneeLx,footLx,legL); drawLeg(5*sc,kneeRx,footRx,legR); }\n\n  // ---- shorts ----\n  paint(short);\n  beginShape(); vertex(-9*sc,-30*sc); vertex(9*sc,-30*sc); vertex(8*sc,-22*sc); vertex(-8*sc,-22*sc); endShape(CLOSE);\n\n  // ---- torso / tank top ----\n  paint(body);\n  beginShape(); vertex(-8*sc,-30*sc); vertex(8*sc,-30*sc); vertex(9*sc,-47*sc); vertex(-9*sc,-47*sc); endShape(CLOSE);\n  if(!WF && !SIL){\n    // core shade + rim\n    noStroke();\n    fill(body[0],body[1]+6,body[2]-26,34); beginShape(); vertex(-9*sc,-30*sc); vertex(-4*sc,-30*sc); vertex(-5*sc,-46*sc); vertex(-9*sc,-47*sc); endShape(CLOSE);\n    fill(0,0,100,20+kick*18); beginShape(); vertex(6*sc,-31*sc); vertex(9*sc,-47*sc); vertex(6*sc,-47*sc); vertex(4*sc,-31*sc); endShape(CLOSE);\n  }\n  if(CH){ push(); blendMode(ADD); noStroke(); fill(hue,22,100,42+kick*30); ellipse(0,-38*sc,14*sc,20*sc); blendMode(BLEND); pop(); }\n  // shimmer on beat\n  if(!WF && !SIL){ push(); blendMode(ADD); noStroke(); fill(hue,30,100,kick*30); ellipse(0,-38*sc,16*sc,22*sc); blendMode(BLEND); pop(); }\n\n  // ---- arms (swing opposite legs; raise on spin) ----\n  const raise=spinAmt;\n  const shy=-45*sc;\n  const hLx=(-9 - legR*9)*sc, hLy=shy + lp(6*sc,-16*sc,raise) + legR*4*sc;\n  const hRx=( 9 - legL*9)*sc, hRy=shy + lp(6*sc,-16*sc,raise) - legL*4*sc;\n  limb(-7*sc, shy, hLx, hLy, 4.5, body); paint(skin); ellipse(hLx,hLy,5.5*sc,5.5*sc);\n  limb( 7*sc, shy, hRx, hRy, 4.5, body); paint(skin); ellipse(hRx,hRy,5.5*sc,5.5*sc);\n\n  // ---- head ----\n  const headBob=Math.sin(stride*0.5)*1.4*sc;\n  push(); translate(0,headBob);\n  // ponytail sway\n  const pt=Math.sin(K.t*3+i)*3*sc;\n  paint(hair); if(!WF){ ellipse(-8*sc+pt*0.3, -52*sc, 7*sc, 13*sc); }\n  paint(skin); ellipse(0,-54*sc,13*sc,14*sc);\n  // hair cap\n  paint(hair); arc(0,-56*sc,15*sc,15*sc, PI+0.2, TAU-0.2, WF?undefined:CHORD);\n  // headband\n  paint([hw(hue+40),85,95]); rect(-7.5*sc,-57*sc,15*sc,2.6*sc,1);\n  if(!WF && !SIL){ noStroke(); fill(0,0,12); ellipse(3*sc,-54*sc,1.8*sc,1.8*sc); } // eye (facing right)\n  pop();\n\n  if(WF||CH) drawingContext.shadowBlur=0;\n  pop();\n}\nblendMode(BLEND);\nstrokeCap(ROUND);\n"
+}
