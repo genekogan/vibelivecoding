@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.boids",
+  "kind": "crowd",
+  "name": "Starling Flock",
+  "desc": "A murmuration of starlings wheeling across a dusk sky as pinpoint silhouettes, cohering into tight balls and tearing into scattering sheets that swirl and dive over the horizon glow.",
+  "tags": [
+    "boids",
+    "flock",
+    "murmuration",
+    "starlings",
+    "birds",
+    "bird",
+    "swarm",
+    "flocking",
+    "dusk",
+    "sky",
+    "silhouette",
+    "sunset",
+    "migration",
+    "nature",
+    "emergent",
+    "particles",
+    "crowd",
+    "cohesion",
+    "alignment",
+    "swirl",
+    "thermal",
+    "ink",
+    "atmospheric",
+    "serene",
+    "sublime",
+    "evening"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.5,
+      "doc": "bird size vs design"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "flight speed / agitation"
+    },
+    "n": {
+      "default": 120,
+      "min": 30,
+      "max": 300,
+      "doc": "flock size (birds)"
+    },
+    "cohesion": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "steer-toward-neighbours weight"
+    },
+    "align": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "velocity-matching weight"
+    },
+    "separate": {
+      "default": 1,
+      "min": 0,
+      "max": 2.5,
+      "doc": "collision-avoidance weight"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "atmospheric haze / dusk glow strength"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "sky + bird hue shift"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "time / motion rate"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.5,
+      "doc": "slow global drift strength"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "murmuration centre x"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "murmuration centre y"
+    },
+    "style": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "ink",
+        "thermal",
+        "trails",
+        "blueprint"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "migrate",
+      "options": [
+        "migrate",
+        "gather",
+        "scatter"
+      ],
+      "doc": "multi-minute flock program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "migrate",
+    "gather",
+    "scatter"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:03:58+00:00",
+    "fps": 58.5,
+    "motion": 0.0091,
+    "lum": 0.293
+  },
+  "code": "const D = { hue: 28, energy: .55, speed: 1, density: .6, scale: 1, x: .5, y: .45, n: 120, cohesion: 1, align: 1, separate: 1, wind: .5, style: 'dusk', act: 'migrate', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU2 = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst N = Math.max(8, Math.min(300, Math.round(P.n)));\nconst ho = P.hue - 28;\n\nconst STY = {\n  dusk:      { sky:[[268,42,22],[8,58,42],[32,84,66]], bird:[24,22,7],  add:false },\n  ink:       { sky:[[34,7,90],[30,11,76],[28,15,64]],  bird:[30,14,28], add:false },\n  thermal:   { sky:[[232,64,9],[248,54,13],[262,48,19]], bird:[20,92,96], add:true },\n  trails:    { sky:[[250,52,7],[258,46,11],[246,40,15]], bird:[40,82,100], add:true },\n  blueprint: { sky:[[214,74,11],[212,66,17],[210,58,23]], bird:[190,82,96], add:false } };\nconst st = STY[P.style] || STY.dusk;\n\n// ---- cached dusk-sky gradient buffer ----\nconst skyKey = width + 'x' + height + P.style + P.seed + Math.round(P.hue);\nif (!S.sky || S.skyKey !== skyKey) {\n  if (!S.sky) S.sky = createGraphics(width, height);\n  else S.sky.resizeCanvas(width, height);\n  const g = S.sky;\n  g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.noStroke();\n  const c = st.sky;\n  for (let yy = 0; yy < height; yy++) {\n    const t = yy / height;\n    let a, b2, f;\n    if (t < 0.5) { a = c[0]; b2 = c[1]; f = t / 0.5; }\n    else { a = c[1]; b2 = c[2]; f = (t - 0.5) / 0.5; }\n    const hh = hw(a[0] + (b2[0] - a[0]) * f + ho);\n    const ss = a[1] + (b2[1] - a[1]) * f;\n    const bb = a[2] + (b2[2] - a[2]) * f;\n    g.fill(hh, ss, bb);\n    g.rect(0, yy, width, 1);\n  }\n  // deterministic star / speckle field for upper sky\n  const nst = Math.floor(40 + P.seed % 30);\n  for (let i = 0; i < nst; i++) {\n    const sxp = fr(i * 5 + 1) * width;\n    const syp = fr(i * 5 + 2) * height * 0.5;\n    const sa = st.add ? 30 : 18;\n    g.fill(hw(st.bird[0] + ho + 20), 10, st.add ? 90 : 82, sa * fr(i * 5 + 3));\n    g.rect(sxp, syp, 1.4, 1.4);\n  }\n  S.skyKey = skyKey;\n}\n\nimage(S.sky, 0, 0);\n\n// slow-drifting dusk glow (sky evolution + luminance lift)\npush();\nblendMode(ADD);\nnoStroke();\nconst gAlpha = (0.6 + 0.8 * P.density);\nconst gx = width * (0.5 + 0.34 * Math.sin(K.t * 0.05));\nconst gy = height * (0.6 - 0.06 * Math.sin(K.t * 0.031));\nfor (let r = 0; r < 3; r++) {\n  fill(hw(30 + ho + 10 * Math.sin(K.t * 0.02)), 46, 30, 7 * gAlpha);\n  ellipse(gx, gy, u * (1.35 - r * 0.28), u * (0.55 - r * 0.11));\n}\nblendMode(BLEND);\npop();\n\n// ---- flock init / rebuild ----\nif (!S.b || S.bn !== N || S.bseed !== P.seed) {\n  S.b = [];\n  for (let i = 0; i < N; i++) {\n    S.b.push({\n      x: fr(i * 2 + 1) * width,\n      y: fr(i * 2 + 2) * height * 0.85,\n      vx: (fr(i * 3 + 5) - 0.5) * 2,\n      vy: (fr(i * 3 + 7) - 0.5) * 2,\n      ph: fr(i + 9) * TAU2 });\n  }\n  S.bn = N; S.bseed = P.seed;\n}\n\nconst inten = 0.5 + 0.6 * K.intensity;\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = {\n  migrate: [[1,1,1,0],[1.2,1.1,.9,.2],[.7,1.3,.8,.6],[1,1,1,.3],[.5,.8,1.4,.9],[1.3,1,.8,.1],[1,1.2,1,.5],[.8,.9,1.1,.4]],\n  gather:  [[1.4,.9,.8,0],[1.6,1,.7,.1],[1.3,1.1,.9,.2],[1.5,.9,.8,.1],[1.2,1,1,.3],[1.5,1,.7,0],[1.3,1.1,.9,.2],[1.4,.9,.8,.1]],\n  scatter: [[.5,1.2,1.5,.3],[.4,1,1.7,.6],[.6,1.3,1.4,.4],[.3,.9,1.8,.8],[.5,1.1,1.5,.5],[.4,1,1.6,.7],[.6,1.2,1.3,.3],[.5,1,1.5,.5]] };\nconst w = (ACT[P.act] || ACT.migrate)[sec];\nconst cohW = P.cohesion * w[0], aliW = P.align * w[1], sepW = P.separate * w[2], swirlW = w[3];\n\nconst cxT = width * (P.x + 0.24 * Math.sin(K.t * 0.06 + 1));\nconst cyT = height * (P.y + 0.16 * Math.sin(K.t * 0.043));\nconst spd = (1.3 + 2.0 * P.energy) * inten * P.speed;\nconst wa = K.t * 0.07;\nconst windx = Math.cos(wa) * P.wind * 0.26 * P.speed;\nconst windy = Math.sin(wa * 0.7) * P.wind * 0.12 * P.speed;\nconst scat = A.bass * 1.6 + K.pulse * 0.25;\nconst bi = Math.floor(K.beat);\n\nconst r2 = (u * 0.13) * (u * 0.13);\nconst sep2 = (u * 0.045) * (u * 0.045);\nconst hb = width * 0.5, vb = height * 0.5;\nconst b = S.b;\n\n// ---- simulate ----\nfor (let i = 0; i < N; i++) {\n  const p = b[i];\n  let ax = 0, ay = 0, cx = 0, cy = 0, sx = 0, sy = 0, cnt = 0;\n  for (let j = 0; j < N; j++) {\n    if (j === i) continue;\n    const o = b[j];\n    let dx = o.x - p.x, dy = o.y - p.y;\n    if (dx > hb) dx -= width; else if (dx < -hb) dx += width;\n    if (dy > vb) dy -= height; else if (dy < -vb) dy += height;\n    const d2 = dx * dx + dy * dy;\n    if (d2 < r2) {\n      ax += o.vx; ay += o.vy;\n      cx += dx; cy += dy; cnt++;\n      if (d2 < sep2 && d2 > 0.01) { sx -= dx / d2 * 40; sy -= dy / d2 * 40; }\n    }\n  }\n  if (cnt > 0) {\n    ax /= cnt; ay /= cnt; cx /= cnt; cy /= cnt;\n    p.vx += ax * 0.04 * aliW + cx * 0.0011 * cohW + sx * 0.02 * sepW;\n    p.vy += ay * 0.04 * aliW + cy * 0.0011 * cohW + sy * 0.02 * sepW;\n  }\n  let tx = cxT - p.x, ty = cyT - p.y;\n  const tl = Math.hypot(tx, ty) + 0.001; tx /= tl; ty /= tl;\n  p.vx += tx * 0.016 + (-ty) * swirlW * 0.07;\n  p.vy += ty * 0.016 + (tx) * swirlW * 0.07;\n  p.vx += windx + (fr(i + bi) - 0.5) * scat;\n  p.vy += windy + (fr(i * 7 + bi) - 0.5) * scat;\n  let sp = Math.hypot(p.vx, p.vy);\n  if (sp > spd) { p.vx = p.vx / sp * spd; p.vy = p.vy / sp * spd; sp = spd; }\n  const floor = spd * 0.38;\n  if (sp < floor) { const bb = floor / (sp + 0.001); p.vx *= bb; p.vy *= bb; sp = floor; }\n  p.x += p.vx; p.y += p.vy;\n  if (p.x < 0) p.x += width; else if (p.x >= width) p.x -= width;\n  if (p.y < 0) p.y += height; else if (p.y >= height) p.y -= height;\n}\n\n// ---- render ----\nnoStroke();\nif (st.add) blendMode(ADD);\nconst size = u * 0.013 * P.scale;\nconst bh = hw(st.bird[0] + ho);\nfor (let i = 0; i < N; i++) {\n  const p = b[i];\n  const ang = Math.atan2(p.vy, p.vx);\n  const flap = 0.5 + 0.5 * Math.sin(K.beat * TAU2 * 1.6 + p.ph);\n  push();\n  translate(p.x, p.y);\n  rotate(ang);\n  if (P.style === 'trails') {\n    const tl2 = Math.min(Math.hypot(p.vx, p.vy) * 4, size * 7);\n    stroke(bh, st.bird[1], st.bird[2], 60);\n    strokeWeight(size * 0.5);\n    line(0, 0, -tl2, 0);\n    noStroke();\n    fill(bh, st.bird[1], st.bird[2], 92);\n    ellipse(0, 0, size * 0.9, size * 0.9);\n  } else if (P.style === 'blueprint') {\n    stroke(bh, st.bird[1], st.bird[2], 88);\n    strokeWeight(1);\n    line(0, 0, -size * 2.2, 0);\n    const wg = size * (0.6 + flap * 1.0);\n    line(0, 0, -size * 1.4, wg);\n    line(0, 0, -size * 1.4, -wg);\n    noStroke();\n  } else {\n    fill(bh, st.bird[1], st.bird[2], st.add ? 66 : 92);\n    const wy = size * (0.35 + flap * 1.15);\n    beginShape();\n    vertex(size * 1.3, 0);\n    vertex(-size * 0.9, wy);\n    vertex(-size * 0.4, 0);\n    vertex(-size * 0.9, -wy);\n    endShape(CLOSE);\n  }\n  pop();\n}\nif (st.add) blendMode(BLEND);\n"
+}

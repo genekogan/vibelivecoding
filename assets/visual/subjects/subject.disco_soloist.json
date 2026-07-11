@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.disco_soloist",
+  "kind": "subject",
+  "name": "Disco Soloist",
+  "desc": "The showstopper disco soloist in a white suit on roller skates, running the full 32-beat Travolta routine with snap-and-lerp points, struts, spins and knee-dips under a pumping spotlight.",
+  "tags": [
+    "disco",
+    "dancer",
+    "soloist",
+    "travolta",
+    "seventies",
+    "70s",
+    "saturday night",
+    "funk",
+    "boogie",
+    "roller",
+    "skates",
+    "afro",
+    "white suit",
+    "strut",
+    "point",
+    "spin",
+    "groove",
+    "nightclub",
+    "party",
+    "character",
+    "subject",
+    "silhouette",
+    "xray",
+    "riso",
+    "costume"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.0,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dance amplitude"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "accent/glow hue (gold default)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beat multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "floor glow strength"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "dance",
+      "options": [
+        "dance",
+        "point",
+        "strut",
+        "spin",
+        "idle"
+      ],
+      "doc": "dance auto-cycles the 32-beat solo phrase; others hold a signature move with beat bounce"
+    },
+    "outfit": {
+      "default": "white_suit",
+      "options": [
+        "white_suit",
+        "black_tux",
+        "gold_lame",
+        "denim"
+      ],
+      "doc": "costume palette"
+    },
+    "style": {
+      "default": "disco",
+      "options": [
+        "disco",
+        "silhouette",
+        "xray",
+        "riso"
+      ],
+      "doc": "aesthetic: full color / pure black rim-lit silhouette / blueprint wireframe contour / 2-ink misregistration"
+    },
+    "act": {
+      "default": "showstopper",
+      "options": [
+        "showstopper",
+        "warmup"
+      ],
+      "doc": "program: showstopper = full-energy phrase, warmup = half-time, restrained early sections"
+    },
+    "swagger": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hip/tilt exaggeration morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "micro-variation seed"
+    }
+  },
+  "acts": [
+    "showstopper",
+    "warmup"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:05:13+00:00",
+    "fps": 61.7,
+    "motion": 0.0276,
+    "lum": 0.141
+  },
+  "code": "const D = { scale:1, energy:.6, hue:45, speed:1, density:.5, x:.5, y:.82, pose:'dance', outfit:'white_suit', style:'disco', act:'showstopper', swagger:.5, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u=Math.min(width,height);\nconst sc=u*P.scale/178;\nconst H=md(P.hue,360);\nconst en=P.energy*(.55+.45*K.intensity);\nconst swag=0.7+P.swagger*0.9;\nconst kick=clp(K.pulse*0.7+A.bass*0.75,0,1.2);\n\n// tempo of choreography\nlet bt=K.beat*P.speed;\nif(P.act==='warmup')bt*=0.5;\nconst amp=en*(P.act==='warmup'&&K.section<3?0.6:1);\n\n// ---- style ----\nconst style=P.style;\nconst SIL=style==='silhouette', XR=style==='xray', RISO=style==='riso';\nconst DETAIL=style==='disco'||RISO;\nconst rimH=md(H+180,360);\nlet INK=null;\nfunction F(h,s,b,a){ a=(a==null?100:a);\n  if(XR){noFill();stroke(rimH,25,100,58);strokeWeight(1.0*sc);return;}\n  if(SIL){noStroke();fill(0,0,7,a);return;}\n  if(INK){noStroke();fill(INK[0],INK[1],INK[2],a*0.9);return;}\n  noStroke();fill(h,s,b,a);\n}\n\n// ---- outfit palette ----\nlet shirt,pants,skin,hair,acc;\nif(P.outfit==='black_tux'){shirt=[0,0,11];pants=[0,0,8];skin=[24,48,80];hair=[0,0,6];acc=[H,82,96];}\nelse if(P.outfit==='gold_lame'){shirt=[45,78,95];pants=[45,72,86];skin=[22,45,80];hair=[0,0,10];acc=[50,25,100];}\nelse if(P.outfit==='denim'){shirt=[214,52,72];pants=[220,58,54];skin=[26,50,82];hair=[30,58,26];acc=[H,68,92];}\nelse {shirt=[0,0,100];pants=[0,0,100];skin=[20,45,78];hair=[0,0,8];acc=[H,90,100];}\n\n// =============== CHOREOGRAPHY ===============\nfunction lrp(a,b,t){return a+(b-a)*t;}\nfunction getSoloMove(b, sb){\n  const bounce=Math.abs(Math.sin(sb*Math.PI))*8;\n  const snap=sb<0.2?sb/0.2:1;\n  if(b<4){const side=(b%2===0)?1:-1;const stride=Math.sin(sb*Math.PI);\n    return{dy:stride*5,tilt:side*0.14*stride,hipX:side*10*stride,lArm:0.4-side*0.6*stride,rArm:0.4+side*0.6*stride,lLeg:side*0.3*stride,rLeg:-side*0.25*stride,crouch:-stride*4,point:0};}\n  if(b<8){const poses=[{lArm:-0.3,rArm:-2.8,tilt:0.08,hipX:6},{lArm:0.8,rArm:-0.3,tilt:-0.1,hipX:-5},{lArm:-0.3,rArm:-1.8,tilt:-0.06,hipX:-4},{lArm:-2.8,rArm:-0.3,tilt:0.1,hipX:5}];\n    const p=poses[(b-4)%4];\n    return{dy:bounce,tilt:p.tilt*snap,hipX:p.hipX*snap,lArm:p.lArm*snap+(1-snap)*(-0.3),rArm:p.rArm*snap+(1-snap)*(-0.3),lLeg:0.1*snap,rLeg:-0.1*snap,crouch:0,point:snap,pointHand:(b%2===0)?'r':'l'};}\n  if(b<12){ if(b<10){const spinT=((b-8)+sb)/2;return{dy:4,tilt:0,hipX:0,lArm:-1.8,rArm:-1.8,lLeg:0,rLeg:0,spin:spinT*6.2832,crouch:0,point:0};}\n    return{dy:bounce*0.4,tilt:0.1*snap,hipX:6*snap,lArm:-0.4,rArm:-2.8*snap,lLeg:0.15*snap,rLeg:-0.08,crouch:0,point:snap,pointHand:'r'};}\n  if(b<16){const ph=b-12; if(ph<2){const dropT=(ph+sb)/2;const dip=Math.pow(dropT,1.5);\n      return{dy:0,tilt:0,hipX:0,lArm:lrp(-0.3,0.6,dip),rArm:lrp(-0.3,0.6,dip),lLeg:lrp(0.05,0.5,dip),rLeg:lrp(-0.05,-0.5,dip),crouch:dip*35,point:0};}\n    const riseT=((ph-2)+sb)/2;const rise=Math.pow(riseT,0.5);\n    return{dy:-rise*10,tilt:0,hipX:0,lArm:lrp(0.6,-2.6,rise),rArm:lrp(0.6,-2.6,rise),lLeg:lrp(0.5,0,rise),rLeg:lrp(-0.5,0,rise),crouch:lrp(35,0,rise),point:rise>0.7?1:0,pointHand:'both'};}\n  if(b<20){const rollT=sb;const side=(b%2===0)?1:-1;\n    return{dy:Math.sin(rollT*Math.PI)*6,tilt:side*Math.sin(rollT*Math.PI)*0.12,hipX:side*Math.sin(rollT*Math.PI*2)*8,lArm:-1.0+Math.sin(rollT*Math.PI)*0.4,rArm:-1.0-Math.sin(rollT*Math.PI)*0.4,lLeg:Math.sin(rollT*Math.PI)*0.08,rLeg:-Math.sin(rollT*Math.PI)*0.08,crouch:Math.sin(rollT*Math.PI*2)*8,point:0};}\n  if(b<24){const isR=(b%2===0);const side=isR?1:-1;const step=Math.sin(sb*Math.PI);\n    return{dy:step*7,tilt:side*0.1*step,hipX:side*9*step,lArm:isR?(-0.5+step*0.2):lrp(0.3,-2.5,snap),rArm:isR?lrp(0.3,-2.5,snap):(-0.5+step*0.2),lLeg:side*0.25*step,rLeg:-side*0.2*step,crouch:-step*5,point:snap*0.8,pointHand:isR?'r':'l'};}\n  if(b<28){const fast=Math.sin(sb*6.2832*2);\n    return{dy:Math.abs(fast)*8,tilt:fast*0.05,hipX:fast*4,lArm:-1.2+fast*0.6,rArm:-1.2-fast*0.6,lLeg:fast*0.15,rLeg:-fast*0.15,crouch:0,point:0};}\n  return{dy:bounce*0.3,tilt:Math.sin(sb*Math.PI)*0.03,hipX:0,lArm:-2.4,rArm:-2.4,lLeg:0.2,rLeg:-0.2,crouch:0,point:1,pointHand:'both'};\n}\nfunction holdMove(pose, sb){\n  const bounce=Math.abs(Math.sin(sb*Math.PI))*7;\n  const sway=Math.sin(bt*Math.PI*0.5);\n  if(pose==='point')return{dy:bounce*0.6,tilt:0.09,hipX:6,lArm:-0.35,rArm:-2.7,lLeg:0.16,rLeg:-0.08,crouch:0,point:1,pointHand:'r'};\n  if(pose==='strut'){const side=sway>0?1:-1;const st=Math.abs(sway);\n    return{dy:st*6,tilt:side*0.12*st,hipX:side*9*st,lArm:-0.5-side*0.4*st,rArm:-0.5+side*0.4*st,lLeg:side*0.24*st,rLeg:-side*0.2*st,crouch:-st*4,point:0};}\n  if(pose==='spin'){return{dy:4,tilt:0,hipX:0,lArm:-1.9,rArm:-1.9,lLeg:0.05,rLeg:-0.05,spin:bt*6.2832,crouch:0,point:0};}\n  // idle groove\n  return{dy:bounce*0.5,tilt:sway*0.05,hipX:sway*3,lArm:-0.6+sway*0.15,rArm:-0.6-sway*0.15,lLeg:sway*0.06,rLeg:-sway*0.06,crouch:0,point:0};\n}\n\nlet mv;\nif(P.pose==='dance'){const b=Math.floor(md(bt,32)*1)%32; const bp=Math.floor(bt)%32; const sb=frc(bt); mv=getSoloMove(bp,sb);}\nelse mv=holdMove(P.pose, frc(bt));\n\n// apply energy + swagger scaling\nmv.dy=(mv.dy||0)*amp; mv.hipX=(mv.hipX||0)*amp*swag; mv.crouch=(mv.crouch||0)*amp;\nmv.tilt=(mv.tilt||0)*(0.6+amp*0.7)*swag;\n\n// =============== BODY ===============\nfunction pointFinger(sx, dir){\n  if(!DETAIL&&!XR)return;\n  if(mv.point>0.2&&(mv.pointHand===dir||mv.pointHand==='both')){\n    stroke(skin[0],skin[1],skin[2]); strokeWeight(2.5*sc);\n    line(dir==='r'?-3.5*sc:3.5*sc,24*sc,dir==='r'?-3.5*sc:3.5*sc,32*sc); noStroke();\n    push();blendMode(ADD);fill(acc[0],70,100,mv.point*80);\n    ellipse(dir==='r'?-3.5*sc:3.5*sc,33*sc,5*sc,5*sc);blendMode(BLEND);pop();\n  }\n}\nfunction drawBody(){\n  push();\n  // roller skates\n  F(0,0,95); rect(-13*sc,-6*sc,11*sc,8*sc,2); rect(2*sc,-6*sc,11*sc,8*sc,2);\n  F(0,0,40); rect(-14*sc,2*sc,13*sc,3*sc,1); rect(1*sc,2*sc,13*sc,3*sc,1);\n  F(acc[0],acc[1]*0.6,acc[2],100);\n  const wy=5.5*sc;\n  for(const wx of [-12,-8,-4,-0.5,3.5,7.5,11.5,15]) ellipse(wx*sc,wy,3.5*sc,3.5*sc);\n  if(DETAIL){F(0,0,100,40); for(const wx of [-12,-4,3.5,11.5]) ellipse(wx*sc,wy-0.8*sc,1.5*sc,1.5*sc);}\n  // legs\n  push(); rotate(mv.lLeg||0); F(pants[0],pants[1],pants[2]);\n  beginShape();vertex(-10*sc,-3*sc);vertex(-2*sc,-3*sc);vertex(-3*sc,-26*sc);vertex(-9*sc,-26*sc);endShape(CLOSE);\n  beginShape();vertex(-14*sc,-3*sc);vertex(2*sc,-3*sc);vertex(-2*sc,-8*sc);vertex(-10*sc,-8*sc);endShape(CLOSE); pop();\n  push(); rotate(mv.rLeg||0); F(pants[0],pants[1],pants[2]);\n  beginShape();vertex(2*sc,-3*sc);vertex(10*sc,-3*sc);vertex(9*sc,-26*sc);vertex(3*sc,-26*sc);endShape(CLOSE);\n  beginShape();vertex(-2*sc,-3*sc);vertex(14*sc,-3*sc);vertex(10*sc,-8*sc);vertex(2*sc,-8*sc);endShape(CLOSE); pop();\n  // belt\n  F(acc[0],acc[1],acc[2]*0.7); rect(-10*sc,-29*sc,20*sc,4*sc,1);\n  F(acc[0],acc[1]*0.5,100,60+kick*40); rect(-3*sc,-29*sc,6*sc,4*sc,1);\n  // torso\n  F(shirt[0],shirt[1],shirt[2]);\n  beginShape();vertex(-12*sc,-28*sc);vertex(12*sc,-28*sc);vertex(13*sc,-52*sc);vertex(-13*sc,-52*sc);endShape(CLOSE);\n  // v-neck + chain\n  F(skin[0],skin[1],skin[2]); triangle(-8*sc,-52*sc,8*sc,-52*sc,0,-38*sc);\n  if(DETAIL){F(acc[0],80,95,50+kick*40); ellipse(0,-42*sc,4*sc,4*sc);}\n  // collar flaps\n  F(shirt[0],Math.max(0,shirt[1]-15),Math.min(100,shirt[2]+8));\n  beginShape();vertex(-13*sc,-52*sc);vertex(-8*sc,-52*sc);vertex(-4*sc,-44*sc);vertex(-18*sc,-52*sc);endShape(CLOSE);\n  beginShape();vertex(13*sc,-52*sc);vertex(8*sc,-52*sc);vertex(4*sc,-44*sc);vertex(18*sc,-52*sc);endShape(CLOSE);\n  if(DETAIL){push();blendMode(ADD);fill(shirt[0],30,100,kick*45);ellipse(0,-40*sc,20*sc,28*sc);blendMode(BLEND);pop();}\n  // left arm\n  push(); translate(-13*sc,-48*sc); rotate(mv.lArm||0);\n  F(shirt[0],shirt[1],shirt[2]); rect(0,0,7*sc,24*sc,2);\n  F(skin[0],skin[1],skin[2]); ellipse(3.5*sc,24*sc,8*sc,8*sc);\n  pointFinger(0,'l'); pop();\n  // right arm\n  push(); translate(13*sc,-48*sc); rotate(mv.rArm||0);\n  F(shirt[0],shirt[1],shirt[2]); rect(-7*sc,0,7*sc,24*sc,2);\n  F(skin[0],skin[1],skin[2]); ellipse(-3.5*sc,24*sc,8*sc,8*sc);\n  pointFinger(0,'r'); pop();\n  // neck\n  F(skin[0],skin[1],skin[2]); rect(-3*sc,-58*sc,6*sc,7*sc);\n  // head\n  const headBob=Math.sin(bt*6.2832*0.5)*2*sc*(0.5+amp*0.5);\n  push(); translate(0,-66*sc+headBob);\n  F(skin[0],skin[1],skin[2]); ellipse(0,0,20*sc,20*sc);\n  // afro\n  F(hair[0],hair[1],hair[2]);\n  arc(0,-2*sc,26*sc,28*sc,Math.PI+0.15,6.2832-0.15,CHORD);\n  ellipse(-11*sc,0,7*sc,14*sc); ellipse(11*sc,0,7*sc,14*sc);\n  // face detail\n  if(DETAIL){\n    // sunglasses\n    fill(0,0,6);noStroke(); rect(-8*sc,-2*sc,6*sc,4*sc,1); rect(2*sc,-2*sc,6*sc,4*sc,1);\n    stroke(0,0,20);strokeWeight(1*sc); line(-2*sc,0,2*sc,0); line(-8*sc,-0.5*sc,-12*sc,-1*sc); line(8*sc,-0.5*sc,12*sc,-1*sc); noStroke();\n    fill(acc[0],60,45,55); rect(-7.5*sc,-1.5*sc,5*sc,3*sc,0.5); rect(2.5*sc,-1.5*sc,5*sc,3*sc,0.5);\n    fill(0,0,100,25+kick*55); ellipse(-5*sc,-1.5*sc,1.8*sc,1.8*sc); ellipse(5*sc,-1.5*sc,1.8*sc,1.8*sc);\n    // smile + teeth\n    noFill();stroke(0,0,8);strokeWeight(1.2*sc); arc(0,4.5*sc,8*sc,5*sc,0.15,Math.PI-0.15); noStroke();\n    fill(0,0,98); rect(-3*sc,4.5*sc,6*sc,2*sc,1);\n  } else if(XR){\n    F(0,0,0); ellipse(-4*sc,-1*sc,3*sc,3*sc); ellipse(4*sc,-1*sc,3*sc,3*sc);\n  }\n  pop(); // head\n  pop(); // body\n}\n\n// =============== RENDER ===============\npush();\ntranslate(P.x*width, P.y*height);\nconst sway=Math.sin(K.t*0.13)*u*0.02;\ntranslate((mv.hipX||0)*sc+sway, (mv.dy||0)*sc+(mv.crouch||0)*sc);\nrotate(mv.spin||0); rotate(mv.tilt||0);\n\n// spotlight\nif(!XR){push();blendMode(ADD);\n  const sp=0.5+kick*0.5+K.intensity*0.3;\n  for(let r=6;r>0;r--){ fill(acc[0]||45,SIL?30:30,100,(3+kick*7)*sp); ellipse(sway*0.2,-30*sc,(70+r*20)*sc,(100+r*22)*sc); }\n  blendMode(BLEND);pop();\n}\n// shadow\nconst crouchAmt=(mv.crouch||0)/35;\nnoStroke(); fill(0,0,0,55); ellipse(0,4*sc,(40+crouchAmt*22)*sc,9*sc);\n// floor glow\npush();blendMode(ADD);\nfill(acc[0],45,60,10+P.density*18+A.rms*30); ellipse(0,3*sc,(60+P.density*40)*sc,12*sc);\nblendMode(BLEND);pop();\n\n// rim glow for silhouette\nif(SIL){push();blendMode(ADD);noFill();stroke(rimH,60,100,40+kick*40);strokeWeight(2.5*sc);\n  ellipse(0,-30*sc,60*sc,120*sc);blendMode(BLEND);pop();}\n\n// body (riso = 2 offset ink passes)\nif(RISO){\n  INK=[205,60,90]; push(); translate(-2.2*sc,-1.4*sc); drawBody(); pop();\n  INK=[338,66,94]; push(); translate(2.2*sc,1.4*sc); drawBody(); pop();\n  INK=null;\n}else{\n  drawBody();\n}\nblendMode(BLEND);\npop();\n"
+}

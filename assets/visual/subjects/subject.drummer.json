@@ -1,0 +1,148 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.drummer",
+  "kind": "subject",
+  "name": "Drummer",
+  "desc": "Pop-art halftone drummer behind a full kit whose sticks plunge onto snare, toms and cymbals exactly on the beat, drum heads flashing and comic impact-stars bursting on every hit, tearing into a tom fill each phrase.",
+  "tags": [
+    "drummer",
+    "drums",
+    "drum kit",
+    "percussion",
+    "percussionist",
+    "musician",
+    "band",
+    "player",
+    "rock",
+    "jazz",
+    "funk",
+    "beat",
+    "rhythm",
+    "backbeat",
+    "sticks",
+    "snare",
+    "tom",
+    "cymbal",
+    "hi-hat",
+    "kick",
+    "fill",
+    "groove",
+    "halftone",
+    "ben-day",
+    "comic",
+    "pop-art",
+    "riso",
+    "blueprint",
+    "xray",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "figure+kit size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "body bob / stick throw / glow amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "shell + shirt hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "groove rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting dust motes"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "torso / shoulder girth morph"
+    },
+    "bright": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.5,
+      "doc": "hit-flash + impact-star intensity"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "impact-star spin / dust layout"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "groove",
+        "fill",
+        "idle"
+      ],
+      "doc": "auto grooves and drops a fill each phrase; fill = constant tom roll; idle = light time-keeping"
+    },
+    "style": {
+      "default": "halftone",
+      "options": [
+        "halftone",
+        "riso",
+        "blueprint",
+        "xray",
+        "noir"
+      ],
+      "doc": "aesthetic: ben-day comic ink / 2-ink misregistration / cyan schematic / wireframe skeleton kit / chiaroscuro"
+    },
+    "act": {
+      "default": "set",
+      "options": [
+        "set",
+        "solo_build"
+      ],
+      "doc": "multi-minute program: set = fill every 8 bars; solo_build = fills every 4 bars and a sustained roll on hot sections"
+    }
+  },
+  "acts": [
+    "set",
+    "solo_build"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:05:29+00:00",
+    "fps": 57.1,
+    "motion": 0.0085,
+    "lum": 0.116
+  },
+  "code": "const D = { scale:1, energy:.6, hue:210, speed:1, density:.5, x:.5, y:.86, chub:.5, bright:.7, seed:0, pose:'auto', style:'halftone', act:'set' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst md = (a,n)=>((a%n)+n)%n;\nconst frc = v=>v-Math.floor(v);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr = i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u = Math.min(width,height);\nconst sc = u*P.scale/340;\nconst bt = K.beat*P.speed;\nconst H = md(P.hue,360);\nconst en = P.energy*(.55+.5*K.intensity);\nconst kick = K.pulse*.6 + A.bass*.8;\nconst bright = P.bright;\nconst chub = .8 + P.chub*.7;\n\nconst style = P.style;\nconst isHalf=style==='halftone', isRiso=style==='riso', isBlue=style==='blueprint', isXray=style==='xray', isNoir=style==='noir';\nconst wire = isBlue||isXray;\nconst comic = isHalf||isRiso;\n\n// ---- timing / pattern ----\nconst stepF = bt*4;              // 16th notes elapsed\nconst barStep = md(stepF,16);\nconst barIdx = Math.floor(bt/4);\nconst phraseBars = P.act==='solo_build'?4:8;\nlet filling;\nif (P.pose==='fill') filling=true;\nelse if (P.pose==='groove'||P.pose==='idle') filling=false;\nelse { filling = (md(barIdx,phraseBars)===phraseBars-1); if (P.act==='solo_build' && K.section>=6) filling=true; }\n\nconst hatSteps=[0,2,4,6,8,10,12,14];\nconst snareSteps=[4,12];\nconst kickSteps=[0,3,8,10];\nconst evenFill=[0,2,4,6,8,10,12,14], oddFill=[1,3,5,7,9,11,13,15];\nconst tomOrder=['snare','tom1','tom2','floor'];\n\nconst INST = {\n  kick:{x:0,y:-30,r:44}, snare:{x:-32,y:-48,r:19}, tom1:{x:-17,y:-86,r:15},\n  tom2:{x:13,y:-90,r:14}, floor:{x:47,y:-34,r:24}, hihat:{x:55,y:-58,r:17},\n  crash:{x:-58,y:-104,r:22}, ride:{x:64,y:-100,r:25}\n};\n\nfunction timing(steps){ let since=99,to=99; for(const s of steps){ for(const o of [-16,0,16]){ const d=barStep-(s+o); if(d>=0&&d<since)since=d; const dt=(s+o)-barStep; if(dt>=0&&dt<to)to=dt; } } return [since/4,to/4]; }\nfunction fillDrum(step){ return tomOrder[clp(Math.floor(md(step,16)/4),0,3)]; }\nfunction hand(sched, drumFn){\n  const t=timing(sched); const since=t[0], to=t[1];\n  const lift=Math.pow(clp(Math.min(since,to)/0.18,0,1),0.7);\n  let ns=99, nsStep=sched[0];\n  for(const s of sched){ for(const o of [0,16]){ const dt=(s+o)-barStep; if(dt>=0&&dt<ns){ns=dt;nsStep=md(s+o,16);} } }\n  const dn=drumFn(nsStep);\n  return {inst:INST[dn], drum:dn, lift, since, to};\n}\nlet rH,lH;\nif (filling){ rH=hand(evenFill,fillDrum); lH=hand(oddFill,fillDrum); }\nelse { rH=hand(hatSteps,()=>'hihat'); lH=hand(snareSteps,()=>'snare'); }\n\nconst hits={};\nfunction addHit(drum,since){ const e=Math.exp(-Math.max(0,since)*7); if(!(drum in hits)||e>hits[drum]) hits[drum]=e; }\naddHit(rH.drum,rH.since); addHit(lH.drum,lH.since);\n{ const t=timing(kickSteps); addHit('kick',t[0]); }\n{ const phraseLen=phraseBars*16; addHit('crash', md(stepF,phraseLen)/4); }\nfunction fe(d){ return hits[d]||0; }\n\n// ---- ink ----\nlet PASS=1;\nfunction FC(h,s,b,a){\n  if(wire){ noFill(); return; }\n  if(PASS===3){ fill(192,72,92,a*.82); return; }\n  if(PASS===4){ fill(330,68,94,a*.82); return; }\n  if(isNoir){ fill(h,s*.5,b*.38,a); return; }\n  fill(h,s,b,a);\n}\nfunction SC(h,s,b,a,w){\n  if(PASS===3){ stroke(192,72,92,a*.82); strokeWeight(w); return; }\n  if(PASS===4){ stroke(330,68,94,a*.82); strokeWeight(w); return; }\n  if(isBlue){ stroke(202,55,96,a); strokeWeight(w*.7); return; }\n  if(isXray){ stroke(md(H+8,360),22,100,a); strokeWeight(w*.6); return; }\n  if(isNoir){ stroke(0,0,7,a); strokeWeight(w*.85); return; }\n  stroke(0,0,8,a); strokeWeight(w);\n}\n\n// ---- parts ----\nfunction impactStar(x,y,rad,env){\n  push(); translate(x,y); rotate(fr(Math.floor(bt)+7)*TAU);\n  const al=clp(env*95,0,95); const n=9;\n  fill(48,90,100,al); stroke(0,0,8,al); strokeWeight(2);\n  beginShape(); for(let i=0;i<n*2;i++){ const a=i/(n*2)*TAU; const rr=(i%2===0)?rad:rad*0.44; vertex(Math.cos(a)*rr,Math.sin(a)*rr);} endShape(CLOSE);\n  noStroke(); fill(0,0,100,al*.9);\n  beginShape(); for(let i=0;i<n*2;i++){ const a=i/(n*2)*TAU+.2; const rr=(i%2===0)?rad*.5:rad*.2; vertex(Math.cos(a)*rr,Math.sin(a)*rr);} endShape(CLOSE);\n  pop();\n}\nfunction cymbal(o,tilt,env){\n  push(); translate(o.x,o.y); rotate(tilt + env*0.22*Math.sin(K.t*38));\n  if(wire){ SC(0,0,100,80,1.6); noFill(); ellipse(0,0,o.r*2,o.r*0.8); ellipse(0,0,o.r*0.55,o.r*0.22); }\n  else { FC(48,58,68,100); SC(0,0,8,100,2.2); ellipse(0,0,o.r*2,o.r*0.85); noStroke(); FC(46,22,92,55); ellipse(0,0,o.r*0.55,o.r*0.26); }\n  if(env>0.02){ push(); blendMode(ADD); noStroke(); fill(48,20,100,clp(env*70*bright,0,80)); ellipse(0,0,o.r*2.4,o.r*1.1); blendMode(BLEND); pop(); }\n  pop();\n}\nfunction drawDrum(name,hh,ss,bb){\n  const o=INST[name]; const env=fe(name);\n  push(); translate(o.x,o.y);\n  if(wire){\n    SC(0,0,100,85,2); noFill(); ellipse(0,0,o.r*2,o.r*1.9); ellipse(0,0,o.r*1.28,o.r*1.22);\n    for(let i=0;i<8;i++){ const a=i/8*TAU; const px=Math.cos(a)*o.r, py=Math.sin(a)*o.r*0.95; SC(0,0,100,45,1); line(px*.82,py*.82,px,py);}\n  } else {\n    noStroke(); FC(hh,ss,bb*.5,100); ellipse(0,o.r*.28,o.r*2,o.r*1.65);\n    SC(0,0,8,100,3); FC(hh,ss*.3,bb,100); ellipse(0,0,o.r*2,o.r*1.9);\n    SC(0,0,8,100,3); noFill(); ellipse(0,0,o.r*2,o.r*1.9);\n    if(comic){ noStroke(); FC(0,0,8,55); for(let dy=0;dy<5;dy++){ for(let dx=-3;dx<=3;dx++){ const px=dx*(o.r*.42)/3, py=(o.r*.32)+dy*(o.r*.4)/5; if(px*px/(o.r*o.r*.62)+py*py/(o.r*o.r)<0.92){ const dd=1.5+dy*0.35; ellipse(px,py,dd,dd);} } } }\n    for(let i=0;i<8;i++){ const a=i/8*TAU; noStroke(); FC(0,0,72,100); ellipse(Math.cos(a)*o.r*.9,Math.sin(a)*o.r*.9,3,3);}\n  }\n  if(env>0.02){ push(); blendMode(ADD); noStroke(); fill(md(H+40,360),25,100,clp(env*70*bright,0,80)); ellipse(0,0,o.r*2*(1+env*.4),o.r*1.9*(1+env*.4)); blendMode(BLEND); pop(); }\n  pop();\n  if(comic && env>0.45){ impactStar(o.x,o.y-o.r*0.7,o.r*1.05*env,env); }\n}\nfunction drawBody(){\n  const shW=52*chub;\n  FC(H,52,66,100); SC(0,0,8,100,3.4);\n  beginShape(); vertex(-22*chub,-56); vertex(22*chub,-56); vertex(28*chub,-94); vertex(-28*chub,-94); endShape(CLOSE);\n  FC(H,52,66,100); SC(0,0,8,100,3); ellipse(0,-95,shW+10,24);\n  noStroke(); FC(24,42,70,100); rect(-6,-104,12,11);\n  push(); translate(headBobX,-120+headBobY); rotate(headTilt);\n  if(isXray){ SC(0,0,100,90,2); noFill(); ellipse(0,0,26,30); noStroke(); fill(0,0,100,80); ellipse(-5,-2,4.5,5.5); ellipse(5,-2,4.5,5.5); rect(-1.2,4,2.4,4); }\n  else {\n    FC(24,42,72,100); SC(0,0,8,100,3); ellipse(0,0,26,30);\n    noStroke(); FC(0,0,18,100); ellipse(-13,0,8,15); ellipse(13,0,8,15);\n    SC(0,0,20,100,4); noFill(); arc(0,-2,30,30,Math.PI+0.3,TAU-0.3);\n    noStroke(); FC(0,0,10,100); ellipse(-5,-2,3.4,3.4); ellipse(6,-2,3.4,3.4);\n  }\n  pop();\n}\nfunction drawArm(shx,shy,hnd){\n  const o=hnd.inst; const raiseMax=30+en*8;\n  const tipx=o.x, tipy=o.y-o.r-hnd.lift*raiseMax;\n  const side=shx<0?-1:1;\n  const dl=Math.hypot(0.45,1), ux=0.45*side/dl, uy=-1/dl;\n  const stickLen=28;\n  const hx=tipx+ux*stickLen, hy=tipy+uy*stickLen;\n  const mx=(shx+hx)/2, my=(shy+hy)/2, ddx=hx-shx, ddy=hy-shy, L=Math.hypot(ddx,ddy)+.001, bend=12*side;\n  const ex=mx-ddy/L*bend, ey=my+ddx/L*bend;\n  SC(H,48,52,100,8); noFill(); line(shx,shy,ex,ey); line(ex,ey,hx,hy);\n  if(wire){ SC(0,0,100,80,1.5); noFill(); ellipse(ex,ey,4,4); ellipse(hx,hy,5,5); }\n  else { noStroke(); FC(24,42,70,100); ellipse(hx,hy,7,7); }\n  SC(30,52,84,100,2.6); line(hx,hy,tipx,tipy);\n  if(!wire){ noStroke(); FC(30,42,92,100); ellipse(tipx,tipy,4,4); }\n}\n\n// motion of head/body\nconst headBobY = kick*3*en;\nconst headBobX = Math.sin(bt*Math.PI*0.5)*2*en;\nconst headTilt = Math.sin(bt*Math.PI)*0.08*en;\nconst bodyDip = (kick*5 + K.swell*2)*en;\nconst sway = Math.sin(bt*Math.PI)*0.03*en;\n\n// ---- render ----\npush();\ntranslate(P.x*width, P.y*height);\nscale(sc);\n\nnoStroke(); fill(0,0,0,40); ellipse(0,12,155,22);\n\nif(isNoir){ push(); blendMode(ADD); noStroke(); for(let r=4;r>0;r--){ fill(H,20,90,6); ellipse(0,-58,120+r*24,150+r*20);} blendMode(BLEND); pop(); }\nif(wire){ noStroke(); fill(isBlue?214:266,42,9,55); ellipse(0,-56,225,225); }\nif(isBlue){ stroke(205,50,58,22); strokeWeight(0.6); for(let gx=-100;gx<=100;gx+=16) line(gx,-140,gx,18); for(let gy=-136;gy<=16;gy+=16) line(-104,gy,104,gy); noStroke(); }\n\nfunction drawFigure(){\n  // stands + back cymbals\n  SC(0,0,55,80,2.2); noFill();\n  line(INST.crash.x,INST.crash.y,-14,-10); line(INST.ride.x,INST.ride.y,12,-10); line(INST.hihat.x,INST.hihat.y-INST.hihat.r,30,-8);\n  cymbal(INST.crash,-0.5,fe('crash'));\n  cymbal(INST.ride,0.42,0);\n  drawBody();\n  drawDrum('floor',md(H+30,360),50,64);\n  drawDrum('kick',H,58,80);\n  drawDrum('tom1',md(H+18,360),54,74);\n  drawDrum('tom2',md(H+18,360),54,74);\n  drawDrum('snare',0,0,86);\n  cymbal(INST.hihat,0.05,fe('hihat'));\n  drawArm(20,-92,rH); drawArm(-20,-92,lH);\n  if(comic && fe('crash')>0.5){ push(); stroke(0,0,10,clp(fe('crash')*55,0,60)); const cr=fe('crash'); for(let i=0;i<12;i++){ const a=fr(i)*TAU; strokeWeight(1.5+fr(i+9)*2); line(Math.cos(a)*72,Math.sin(a)*72-52,Math.cos(a)*(104+cr*14),Math.sin(a)*(104+cr*14)-52);} pop(); }\n}\n\npush();\ntranslate(0,bodyDip); rotate(sway);\nif(isRiso){ PASS=3; push(); translate(-2.4,-1.6); drawFigure(); pop(); PASS=4; push(); translate(2.4,1.6); drawFigure(); pop(); PASS=1; }\nelse { PASS=1; drawFigure(); }\npop();\n\n// drifting dust motes (density) \u2014 a little baseline shimmer\nconst nd=Math.floor(P.density*14);\nnoStroke();\nfor(let i=0;i<nd;i++){ const ph=frc(K.t*(.1+.04*fr(i))+fr(i*3)); const dx=(fr(i*5)-.5)*180, dyy=-140+ph*160; fill(48,30,100,clp(11*(1-ph),0,14)); ellipse(dx+Math.sin(K.t+i)*6,dyy,2.5,2.5);}\n\nblendMode(BLEND);\npop();\n"
+}
