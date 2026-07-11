@@ -83,6 +83,15 @@ mis-directioned. The isaw gain-pump is the sanctioned pump gesture.
 
 Audibility gate: full/peak variants need peak rms > .01 within 2.5s; sparse > .003.
 
+**Loudness rescue levers (empirically confirmed — biggest first):** subs & tonal
+material that read too quiet are fixed by (1) `.shape(.3–.6)` — the strongest lever:
+took a dead-silent `sub_drone` from rms **0.0000 → 0.0572** (harmonic energy that
+time-domain RMS captures); (2) gain toward the slot ceiling; (3) raise pump floors —
+`gain(saw.range(.6,.9).fast(4))` not `range(.4,.8)`; (4) denser full/peak (peak_rms is
+time-averaged — gappy patterns read low even when each hit is loud). The analyser reads
+low subs fine (control: `g1` sine @gain .85 = rms .097), so 0.000–0.008 reads mean the
+CODE is too quiet, not a measurement blind spot.
+
 ## PASS — vocals (verified live)
 
 - **dirt-samples vocal shelf** (dep `dirt-samples`): `n("0 1 2 3").s("speech")` rms .22 ·
