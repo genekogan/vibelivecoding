@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.iso_city",
+  "kind": "genart",
+  "name": "Isometric City",
+  "desc": "An axonometric city that builds itself block-by-block over bars, windows kindling in the loud sections while tiny headlights stream the streets, in soft pastel, cyan blueprint, noir chiaroscuro, or neon-night.",
+  "tags": [
+    "city",
+    "isometric",
+    "axonometric",
+    "cityscape",
+    "buildings",
+    "skyline",
+    "urban",
+    "town",
+    "generative",
+    "genart",
+    "grow",
+    "construction",
+    "blocks",
+    "traffic",
+    "windows",
+    "pastel",
+    "blueprint",
+    "noir",
+    "neon",
+    "night",
+    "chiaroscuro",
+    "architecture",
+    "diorama",
+    "bg",
+    "backdrop"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "heavy",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "grid size (5..8 lots per side)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "tile size / zoom"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "build + traffic rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fraction of windows lit"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "building base hue"
+    },
+    "height": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2,
+      "doc": "building height multiplier"
+    },
+    "traffic": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "headlight/traffic dot count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "city anchor x"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0,
+      "max": 1,
+      "doc": "city anchor y"
+    },
+    "style": {
+      "default": "pastel",
+      "options": [
+        "pastel",
+        "blueprint",
+        "noir",
+        "neon"
+      ],
+      "doc": "render philosophy: soft axonometric pastel / cyan drafting blueprint (edges only) / noir chiaroscuro / neon night"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "city layout + heights seed"
+    },
+    "act": {
+      "default": "grow",
+      "options": [
+        "grow",
+        "cycle",
+        "night"
+      ],
+      "doc": "dramaturgy: build-once-and-stay / buildings rise and fall in waves / same build with heavy window life"
+    }
+  },
+  "acts": [
+    "grow",
+    "cycle",
+    "night"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:43:41+00:00",
+    "fps": 60.2,
+    "motion": 0.0044,
+    "lum": 0.186
+  },
+  "code": "const D = { density:.5, scale:1, speed:1, energy:.6, hue:210, height:1, traffic:.5, x:.5, y:.44, style:'pastel', seed:0, act:'grow' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst G = Math.floor(5 + P.density*3);            // grid 5..8 (density = FIRST numeric)\nconst tileW = u*0.15*P.scale;                      // scale = SECOND numeric (zoom)\nconst tileH = tileW*0.5;\nconst hU = tileW*0.92;                              // height unit\nconst cx = P.x*width, cy = P.y*height;\nconst proj = (gx,gy,h)=>[cx+(gx-gy)*tileW/2, cy+(gx+gy-(G-1))*tileH/2 - h];\n// palette base per style\nconst bg = (st==='blueprint')?[214,60,11]:(st==='noir')?[222,8,7]:(st==='neon')?[244,52,6]:[212,22,15];\n// seeded city + cached ground buffer (rebuild on size/grid/seed/style/scale change)\nconst key = width+'x'+height+'|'+G+'|'+P.seed+'|'+st+'|'+Math.round(tileW)+'|'+Math.round(cx)+','+Math.round(cy);\nif (S.cityKey !== key){\n  S.cityKey = key;\n  S.lots = [];\n  for (let gx=0;gx<G;gx++) for (let gy=0;gy<G;gy++){\n    const idx = gx*G+gy;\n    const r1 = fr(idx*1.7+3.1), r2 = fr(idx*3.3+7.7), r3 = fr(idx*5.1+1.3);\n    const park = r3 < 0.13;\n    S.lots.push({ gx, gy, idx,\n      tall: park?0:(0.5 + r1*r1*3.2),\n      foot: 0.60 + r2*0.30,\n      startB: fr(idx*2.9+0.5)*42,\n      hueoff: (r2-0.5)*46,\n      lane: fr(idx*7.3+2.2) });\n  }\n  const g = createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.fill(bg[0],bg[1],bg[2]); g.rect(0,0,width,height);\n  for (let gx=0;gx<G;gx++) for (let gy=0;gy<G;gy++){\n    const c=[cx+(gx-gy)*tileW/2, cy+(gx+gy-(G-1))*tileH/2]; const f=0.42;\n    const top=[[c[0],c[1]-tileH*f],[c[0]+tileW*f,c[1]],[c[0],c[1]+tileH*f],[c[0]-tileW*f,c[1]]];\n    if (st==='blueprint'){ g.noFill(); g.stroke(200,55,92,45); g.strokeWeight(1);\n      g.beginShape(); top.forEach(p=>g.vertex(p[0],p[1])); g.endShape(g.CLOSE); g.noStroke(); }\n    else { const bl=(st==='noir')?16:(st==='neon')?12:28; g.fill(bg[0]%360, bg[1]*0.7, bl);\n      g.beginShape(); top.forEach(p=>g.vertex(p[0],p[1])); g.endShape(g.CLOSE); }\n  }\n  S.g = g;\n}\nimage(S.g,0,0);\n// slow real-time light sweep -> which face is lit (guarantees motion when fully built)\nconst lightPh = K.t*0.05;\nconst litL = 0.5+0.5*Math.sin(lightPh);\nconst litR = 0.5+0.5*Math.sin(lightPh+2.2);\nconst night = (st==='neon'||st==='noir');\nconst winFrac = 0.18 + P.energy*0.5 + intn*0.28;\nconst sorted = S.lots.slice().sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy));\nlet winBudget = 300;                                // hard cap on lit-window dots (perf)\nnoStroke();\nfor (let li=0; li<sorted.length; li++){\n  const L = sorted[li];\n  if (L.tall<=0) continue;\n  let prog = Math.max(0, Math.min(1, (K.beat - L.startB)/4));   // grows from beats; resets on t0 null\n  let hgt = L.tall*hU*prog;\n  if (P.act==='cycle'){ const w=0.5+0.5*Math.sin(K.beat*0.18 + L.idx*0.9); hgt = L.tall*hU*(0.12+0.88*w); prog=1; }\n  hgt *= (0.6 + P.height*0.7);\n  if (hgt < hU*0.04) continue;\n  const f = L.foot*0.42;\n  const c=[cx+(L.gx-L.gy)*tileW/2, cy+(L.gx+L.gy-(G-1))*tileH/2];\n  const B=[[c[0],c[1]-tileH*f],[c[0]+tileW*f,c[1]],[c[0],c[1]+tileH*f],[c[0]-tileW*f,c[1]]];\n  const T=B.map(p=>[p[0],p[1]-hgt]);\n  const bh=(P.hue+L.hueoff+360)%360;\n  const grow = prog<1 ? (1-prog) : 0;\n  if (st==='blueprint'){\n    stroke(200,58,94,60); strokeWeight(1); noFill();\n    line(B[1][0],B[1][1],T[1][0],T[1][1]); line(B[2][0],B[2][1],T[2][0],T[2][1]); line(B[3][0],B[3][1],T[3][0],T[3][1]);\n    beginShape(); T.forEach(p=>vertex(p[0],p[1])); endShape(CLOSE);\n    line(T[1][0],T[1][1],T[2][0],T[2][1]); line(T[2][0],T[2][1],T[3][0],T[3][1]);\n    noStroke();\n  } else {\n    let s,tB,rB,lB;\n    if (st==='noir'){ s=6; tB=48+grow*18; rB=6+litR*34; lB=5+litL*24; }\n    else if (st==='neon'){ s=55; tB=13; rB=8+litR*10; lB=6+litL*8; }\n    else { s=30; tB=66+grow*14; rB=40+litR*24; lB=28+litL*22; }   // pastel\n    // right face\n    fill(bh,s,rB); beginShape(); [B[1],B[2],T[2],T[1]].forEach(p=>vertex(p[0],p[1])); endShape(CLOSE);\n    // left face\n    fill(bh,s,lB); beginShape(); [B[2],B[3],T[3],T[2]].forEach(p=>vertex(p[0],p[1])); endShape(CLOSE);\n    // roof\n    fill(bh,s*0.8,tB); beginShape(); T.forEach(p=>vertex(p[0],p[1])); endShape(CLOSE);\n    // lit windows: few emissive dots per visible face (bilinear interp)\n    const rows = Math.min(4, Math.max(1, Math.floor(hgt/(hU*0.5))));\n    const flick = (n)=> (0.5+0.5*Math.sin(K.t*(1.2+L.lane*2)+n*2.4)) ;\n    blendMode(night?ADD:BLEND);\n    for (let side=0; side<2; side++){\n      const q = side? [B[2],B[3],T[3],T[2]] : [B[1],B[2],T[2],T[1]];\n      for (let ry=0; ry<rows; ry++) for (let cxn=0; cxn<2; cxn++){\n        if (winBudget<=0) break;\n        const n = L.idx*13 + side*97 + ry*7 + cxn*3;\n        const lit = fr(n) < winFrac;\n        if (!lit) continue;\n        winBudget--;\n        const fv = 0.22+cxn*0.56, gv = 0.18 + ry/(rows)*0.66;\n        // bilinear across quad q (bottom edge q0->q1, top edge q3->q2)\n        const bx=q[0][0]+(q[1][0]-q[0][0])*fv, by=q[0][1]+(q[1][1]-q[0][1])*fv;\n        const tx=q[3][0]+(q[2][0]-q[3][0])*fv, ty=q[3][1]+(q[2][1]-q[3][1])*fv;\n        const px=bx+(tx-bx)*gv, py=by+(ty-by)*gv;\n        const br = night? (55+flick(n)*45) : (86+flick(n)*14);\n        fill(48, night?72:40, br, night?70:88);\n        ellipse(px,py, tileW*0.06, tileW*0.06);\n      }\n    }\n    blendMode(BLEND);\n  }\n}\n// continuous traffic dots along streets (real-time motion floor, never re-phases)\nconst nCar = Math.floor(8 + P.traffic*46);\nblendMode(ADD);\nfor (let d=0; d<nCar; d++){\n  const rr = fr(d*4.1+11.3);\n  const axis = fr(d*2.3+5.5) < 0.5 ? 0 : 1;\n  const lane = Math.floor(fr(d*6.7+1.1)*(G-1)) + 0.5;\n  const dir = fr(d*3.9+8.8) < 0.5 ? 1 : -1;\n  const sp = 0.03 + rr*0.05*(0.6+P.speed*0.8);\n  let s = ((rr + dir*K.t*sp)%1 + 1)%1;               // 0..1 along the street\n  const along = -0.5 + s*(G);\n  const pt = axis? proj(lane, along, 0) : proj(along, lane, 0);\n  const warm = fr(d)<0.5 ? 40 : 200;\n  fill(warm, 65, 100, 80);\n  ellipse(pt[0], pt[1], tileW*0.07, tileW*0.045);\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
