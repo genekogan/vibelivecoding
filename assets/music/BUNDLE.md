@@ -50,7 +50,8 @@ All verified on clean-breaks (`amen`) and uzu (`brk`):
 |---------|-------|----------------------|
 | `.swingBy()` | `…swingBy is not a function` | shuffle via elongation `s("[hh@2 hh]*4")` (triplet feel), or patterned late `s("hh*8").late("[0 .03]*4")` — both PASS |
 | `.swing()` | `…swing is not a function` (same shim missing) | same as above |
-| `.duckorbit()` / `.duck()` / `.duckattack()` / `.duckdepth()` | `…duckorbit is not a function` — **sidechain does not exist in this bundle at all** (tested both trigger/victim directions) | fake pump: `.gain(isaw.range(.35,.05).fast(4))` beat-locked inverted-saw gain — PASS. (`saw.range(hi,lo)` reversed also works.) Scale `.fast(N)` to beats/cycle. |
+| `.duckorbit()` / `.duck()` / `.duckattack()` / `.duckdepth()` | `…duckorbit is not a function` — **sidechain does not exist in this bundle at all** (tested both trigger/victim directions) | THE PUMP IDIOM (verified): gain is sampled at event ONSET (no continuous modulation per voice). Rhythmic parts: `.gain(saw.range(FLOOR, TOP).fast(4))` — on-beat onsets duck to FLOOR, later subdivisions rise toward TOP (rms .14). Sustained pads MUST RE-TRIGGER to pump: `note("[c3,e3,g3]*4").attack(.05).decay(.4).sustain(.3).release(.15).gain(saw.range(.12,.32).fast(4))` (rms .11). NEVER `range(TOP, FLOOR)` ordering with saw — it inverts the duck and can fail audibility. |
+| `.tremolosync()` / tremolo family | `…tremolosync is not a function` | re-trigger pump idiom above, or `.gain("` per-step gain patterns `")` (plain numbers only in mini-notation — NO `${x}*.5` math inside quoted patterns; math like `${gain}*.5` is legal ONLY as a JS argument) |
 | `.scrub()` | `…scrub is not a function` | use `.slice`/`.splice`/`.striate`/`.begin`/`.end` |
 | `gm_*` soundfonts | (contract-known) | vcsl instruments — see packs.json |
 | `setcps()` / `.cps()` in stems | (contract) | server `/strudel/cps` is the only tempo authority |
@@ -81,6 +82,18 @@ mis-directioned. The isaw gain-pump is the sanctioned pump gesture.
 | mridangam hits | .8 | .23 |
 
 Audibility gate: full/peak variants need peak rms > .01 within 2.5s; sparse > .003.
+
+## PASS — vocals (verified live)
+
+- **dirt-samples vocal shelf** (dep `dirt-samples`): `n("0 1 2 3").s("speech")` rms .22 ·
+  `s("yeah:0 yeah:2")` (28 variants) rms .14 · `n("0 3 7").s("diphone")` (pitchable!) ·
+  `n("0 1 2").s("numbers")` · `s("ades2")` · also speechless, speakspell, diphone2,
+  alphabet, miniyeah, baa, breath (texture).
+- **shabda TTS** (deps `shabda-vox-f` / `shabda-vox-m`): custom spoken words.
+  `samples('shabda/speech/en-US/f:groove,sunshine')` then `s("groove sunshine")` — PASS
+  rms .10. Each word = its own sound name. External service at load (~5s) — stems using
+  it should also work musically if the vox drops out; don't build a kit's backbone on it.
+  Chop/pitch them: `.speed("<1 1.2 .8>")`, `.chop(4)`, `.slice(4,"0 2 1 3")`, vowel filter.
 
 ## Environment facts
 
