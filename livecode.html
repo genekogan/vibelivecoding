@@ -280,10 +280,31 @@ const errorTimestamps = new Map();
         return tap;
     }
     AudioNode.prototype.connect = function (target, ...rest) {
-        if (target instanceof AudioDestinationNode) {
+        // Only tap REAL-TIME contexts. Superdough renders reverb impulse
+        // responses in an OfflineAudioContext whose destination is also an
+        // AudioDestinationNode — tapping it would REPLACE the singleton tap
+        // with one on a context that renders once and stops, freezing
+        // state.audio at stale values forever (observed on first .room()).
+        if (target instanceof AudioDestinationNode
+                && !(target.context instanceof OfflineAudioContext)) {
             return origConnect.call(this, getTap(target.context).input, ...rest);
         }
         return origConnect.call(this, target, ...rest);
+    };
+    // Symmetric intercept: a node that connected "to destination" actually holds
+    // an edge to tap.input, so disconnect(destination) must target tap.input or
+    // it throws InvalidAccessError inside superdough (observed: first .room()
+    // reverb init rewires the orbit output, the throw derails the rebuild, and
+    // the analyser subgraph goes inactive — state.audio freezes at stale values).
+    const origDisconnect = AudioNode.prototype.disconnect;
+    AudioNode.prototype.disconnect = function (target, ...rest) {
+        if (target instanceof AudioDestinationNode && tap && tap.ctx === target.context) {
+            try { return origDisconnect.call(this, tap.input, ...rest); }
+            catch (e) { /* edge may predate the tap — fall through */ }
+            return origDisconnect.call(this, target, ...rest);
+        }
+        if (target === undefined) return origDisconnect.call(this);
+        return origDisconnect.call(this, target, ...rest);
     };
     let meterOn = false;
     function startMeter() {
