@@ -1,17 +1,52 @@
-# Music Factory — resumable state (paused 2026-07-11)
+# Music Factory — resumable state (updated 2026-07-11 ~16:10, rescue wave in flight)
+
+## RESUME SESSION 2 STATUS (2026-07-11 afternoon)
+
+- **Rescue wave 1** (14 agents): 4 agents finished (32 stems), 10 died on quota
+  limit mid-run. ~70 stems total got rescued before/during the outage.
+- **CRITICAL LESSON — load-induced false fails**: a `restic` backup (plus the
+  concurrent visual factory) pushed loadavg to ~7; browser main-thread
+  starvation makes Strudel drop/delay events, so `audio.rms` reads sporadic
+  bursts or exactly 0.0000 even for a gain-.88 sine sub. ~66 legitimately
+  rescued stems were falsely re-quarantined this way. The g1-sine control
+  (rms .074) and varying reads proved bridge + analyser are HEALTHY — it's the
+  *scheduling*, not the tap. **valloop now has a load gate (loadavg < 4.0) and
+  a stricter bridge check (≥5/14 healthcheck samples > .03).** Never validate
+  under heavy load; never trust an rms-0.0000 fail without checking loadavg.
+- Fixed state: 66 falsely-failed rescued stems re-queued to inbox (last_fail
+  stripped, fail-tracker reset); **rescue wave 2** (6 agents) launched for the
+  45 stems whose agents died before touching them.
+- valloop source now lives in session 49fb0cba's scratchpad; fail-tracker
+  `valloop_state.json` reset to {}.
+- Verified stems: **283** (was 280; +3 passed even under load).
+
+
 
 Relaunch by re-reading `assets/prompts/music-factory.md`. This file is the
 resume point. Server work uses **port 9766** only.
 
-## Snapshot at pause
+## Snapshot at pause 2 (2026-07-11 ~16:30 — CHECKPOINT: rescue authored, validation pending)
 
 | Metric | Count |
 |--------|-------|
-| **Verified stems** | **280** (drums 60, chords 46, bass 43, lead 42, pad 32, perc 27, texture 17, vox 13) |
+| **Verified stems** | **283** |
 | **Arcs** | 12 (all structurally valid) |
-| **Kits** | 0 (not started) |
-| **Quarantined** (recoverable) | 113 — all under-loudness, not broken code |
-| Inbox | 0 (drained) |
+| **Kits** | 0 (not started — NEXT STEP after inbox drains) |
+| **Inbox (staged, contract-linted)** | **111 rescued stems** — all 113 quarantined were rescued (2 passed validation already); static lint clean (orbit/play()/gain ceilings/deps/tags/banned APIs; note `s("dantranh_tremolo")` is a legal vcsl sample name, not the banned tremolo API) |
+| Quarantined | 0 |
+
+**The 111 validate + commit AUTOMATICALLY** — the load-gated valloop is running
+and will process them (~30-40 min) once 1-min loadavg < 4.0 (a restic backup was
+hogging the machine at pause time). No agent needed. On resume, first check:
+`ls assets/music/inbox | wc -l` (0 = drained) and `grep -c '"kind":"stem"' assets/music/index.jsonl`.
+Fails get 2 automatic attempts (fresh tracker); genuine twice-fails land back in
+`inbox_failed/` — re-rescue those once with deeper levers, then leave any
+stragglers documented here.
+
+## Snapshot at pause 1 (superseded)
+
+280 verified (drums 60, chords 46, bass 43, lead 42, pad 32, perc 27,
+texture 17, vox 13) · 12 arcs · 0 kits · 113 quarantined · inbox 0.
 
 Everything is committed. Latest commits are `music factory: batch …` (valloop
 auto-commits) interleaved with the visual factory's commits on `main`.
@@ -20,7 +55,7 @@ auto-commits) interleaved with the visual factory's commits on `main`.
 
 - `livecode.py --port 9766` — server (PID may change; `pkill -f "livecode.py --port 9766"` to stop)
 - `autopilot_host.py … --snapshots-dir autopilot/snapshots_music` — headed browser on 9766
-- `scratchpad/valloop.py` — **local, non-LLM** validate→index→commit loop; idles on empty inbox, self-heals server+host (only ever touches the 9766 host, never 8766/9866). Drop JSON into `assets/music/inbox/` and it validates automatically.
+- valloop — **local, non-LLM** validate→index→commit loop; idles on empty inbox, self-heals server+host (only ever touches the 9766 host, never 8766/9866). Drop JSON into `assets/music/inbox/` and it validates automatically. **The hardened version (load gate + strict bridge check) is committed at `assets/tools/valloop_music.py`**; the running instance + its `valloop_state.json` fail-tracker live in session 49fb0cba's scratchpad (`/private/tmp/claude-501/-Users-gene-Dev-livecode/49fb0cba-*/scratchpad/`). If it died (reboot), relaunch: `nohup python assets/tools/valloop_music.py > /tmp/lc_music_valloop.log 2>&1 &` (state file will sit next to the tool — fine).
 - The token-burning **Monitor was stopped** at pause.
 
 To fully stop everything: `pkill -f "livecode.py --port 9766"; pkill -f "autopilot_host.py.*snapshots_music"; pkill -f scratchpad/valloop.py`.
@@ -36,13 +71,17 @@ To fully stop everything: `pkill -f "livecode.py --port 9766"; pkill -f "autopil
 
 ## QUEUED (resume here, in order)
 
-1. **Gain-rescue wave** (highest value — recovers ~70-90 of 113 quarantined).
-   - Shards precomputed: `scratchpad/rescue_shards.json` (14 shards of ~8). Fail-tracker (`scratchpad/valloop_state.json`) already reset to `{}` so rescued stems get fresh attempts.
-   - **Empirically-confirmed recipe** (in BUNDLE.md loudness section): (1) `.shape(.3–.6)` — biggest lever, took a silent sub from rms 0.0000→0.0572; (2) gain→slot ceiling; (3) raise pump floor `saw.range(.6,.9)` not `(.4,.8)`; (4) denser full/peak (peak_rms is time-averaged); (5) crackle/noise kits lead with white/pink not crackle.
-   - Each rescue agent: read quarantined `assets/music/inbox_failed/<id>.json` + its `last_fail.detail`, apply recipe preserving musical character, write corrected version to `assets/music/inbox/<id>.json`, then delete the `inbox_failed/` copy. valloop revalidates automatically.
-2. **Kits wave** (~30, task #7) — after rescue drains, so kits draw from the fullest verified set. `livecode-kit-v1`: `{name,desc,cps,key,stems{slot:verified_stem_id},arc,tags}`, ≥2 slots audible in section 0, 2 recommended arcs each, incl. cross-genre wildcards + no-drums texture kits. Validate fires the whole kit (rms balance).
-3. **Spot-listen QA** — fire a few kits end-to-end through arcs (`arc_compile.py <kit> <arc> --fire --port 9766`), confirm mix doesn't clip and the arc audibly evolves.
-4. **Final report + Gene's grading** — `python assets/tools/review.py music --port 9766`.
+0. **Check the automatic validation drained** (see Snapshot at pause 2 above):
+   `ls assets/music/inbox | wc -l` → 0 and quarantine empty means all rescued
+   stems landed; expect ~370-395 verified total. If files remain in inbox the
+   valloop is likely load-gated (check `tail /tmp/lc_music_valloop.log` and
+   `uptime`) or dead (relaunch per Background processes above). If new
+   `inbox_failed/` entries exist: re-rescue ONCE with deeper levers (recipe
+   below), then document stragglers here and move on.
+   - **Rescue recipe** (BUNDLE.md loudness section): (1) `.shape(.3–.6)` — biggest lever; (2) gain→slot ceiling; (3) raise pump floor `saw.range(.6,.9)` not `(.4,.8)`; (4) denser full/peak (peak_rms is time-averaged); (5) crackle/noise kits lead with white/pink not crackle.
+1. **Kits wave** (~30-35) — kits draw from the now-full verified set. `livecode-kit-v1`: `{name,desc,cps,key,stems{slot:verified_stem_id},arc,tags}`, only verified stem ids (grep `assets/music/index.jsonl`), kit cps inside EVERY stem's cps window, ≥2 slots audible in section 0 of the recommended arc, 2 recommended arcs each (12 arc ids under `assets/music/arcs/`), cover every genre column + 2-3 cross-genre wildcards + a couple no-drums texture/ambient kits. Validate via inbox (validate.py fires whole kit at kit cps with `full` variants + param defaults; combined rms > .02; stems must be harmonically compatible AT THEIR DEFAULT keys — kit key is a label, not auto-transposition). Helper: `scratchpad/kit_context.py` in session 49fb0cba dumps a per-genre verified-stem table (id|slot|key|cps|energy|claims|deps) — regenerate it fresh.
+2. **Spot-listen QA** — fire a few kits end-to-end through arcs (`python assets/tools/arc_compile.py <kit> <arc> --fire --port 9766`), confirm mix doesn't clip and the arc audibly evolves. Hush after.
+3. **Final report + Gene's grading** — totals by genre/slot, coverage vs PLAN.md, 10 best, weak spots; then `python assets/tools/review.py music --port 9766`.
 
 ## LEARNED (don't rediscover)
 
@@ -50,3 +89,6 @@ To fully stop everything: `pkill -f "livecode.py --port 9766"; pkill -f "autopil
 - clean-breaks has NO `clean:N` names — named breaks (amen/think/apache…). mridangam loads single-arg only. (packs.json.)
 - Under-loudness (not broken code) is the ONLY significant failure mode — 100% of fails are the audibility gate. Analyser reads subs fine (control g1 sine @.85 = rms .097); low reads mean quiet CODE. `.shape()` is the fix.
 - valloop must target ONLY its own host (`snapshots_music`) / server (`--port 9766`) — a blanket `pkill -f autopilot_host.py` would kill the concurrent visual factory. (Fixed.)
+- **Machine load ≥ ~5 produces FALSE audibility fails** (rms 0.0000 even for a gain-.88 sine): browser main-thread starvation makes Strudel drop/delay note scheduling. The analyser itself stays healthy (g1 sine control ~.074-.097, values vary). Never validate under load; never lower the gate; check `uptime` before trusting a 0.0000 read. valloop_music.py enforces this (loadavg < 4.0 + ≥5/14 loud healthcheck samples).
+- valloop loads its fail-tracker into memory at startup — resetting the JSON file while it runs does nothing (it writes stale counts back). Restart the loop to reset.
+- Workflow tool: pass big args by embedding them in the script literal — the `args` param arrived JSON-stringified once and the script saw `undefined`.
