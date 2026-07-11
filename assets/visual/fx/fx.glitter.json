@@ -1,0 +1,112 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.glitter",
+  "kind": "fx",
+  "name": "Glitter Sparkles",
+  "desc": "A field of prismatic star-glints twinkling on their own real-time phases, popping brighter on treble with rare shooting flecks streaking across the frame.",
+  "tags": [
+    "glitter",
+    "sparkle",
+    "sparkles",
+    "glint",
+    "twinkle",
+    "star",
+    "stars",
+    "shimmer",
+    "prismatic",
+    "spectral",
+    "rainbow",
+    "diamond",
+    "fairy",
+    "magic",
+    "bling",
+    "treble",
+    "hats",
+    "confetti",
+    "overlay",
+    "fx",
+    "atmospheric",
+    "celebration"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of active glint sites (0..150)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "glint size vs design"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base glint hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "twinkle brightness amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "twinkle / drift rate"
+    },
+    "spread": {
+      "default": 1,
+      "min": 0.2,
+      "max": 1.8,
+      "doc": "how far the field spreads from the x/y focus"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field focus y"
+    },
+    "style": {
+      "default": "prismatic",
+      "options": [
+        "prismatic",
+        "silver",
+        "thermal",
+        "halftone",
+        "ink"
+      ],
+      "doc": "prismatic=spectral spikes, silver=chiaroscuro white, thermal=false-color heat, halftone=CMYK print rosette, ink=cold pale flecks"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic field seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:44:58+00:00",
+    "fps": 57.1,
+    "motion": 0.0043,
+    "lum": 0.086
+  },
+  "code": "const D = { density:.5, scale:1, hue:200, energy:.6, speed:1, x:.5, y:.5, spread:1, style:'prismatic', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI*2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst MAXN = 150;\n\n// ---- rebuild deterministic glint field on seed change ----\nif (S.seedUsed !== P.seed || !S.sites) {\n  S.seedUsed = P.seed;\n  S.sites = [];\n  for (let i = 0; i < MAXN; i++) {\n    S.sites.push({\n      bx: fr(i*3+1),\n      by: fr(i*3+2),\n      rate: 0.5 + fr(i*3+3)*3.4,\n      ph: fr(i+11)*TAU,\n      hj: (fr(i+29)-0.5)*70,\n      sz: 0.55 + fr(i+53)*0.9,\n      arms: (fr(i+71) < 0.4) ? 4 : 6,\n      dr: 0.35 + fr(i+97)*0.55,          // real-time drift rate (rad/s)\n      da: 0.04 + fr(i+131)*0.07,         // drift amp (canvas frac) \u2014 bigger travel\n      orb: 0.6 + fr(i+149)*0.9,          // per-site orbit-speed multiplier\n      sh: 3 + fr(i+167)*5\n    });\n  }\n}\n\n// ---- style ramps ----\nconst heat = b => {\n  if (b < .3) return [hw(P.hue-40), 90, 30 + b*120];\n  if (b < .6) return [hw(28), 95, 55 + (b-.3)*130];\n  if (b < .85) return [hw(52), 90, 92];\n  return [hw(52), 22, 100];\n};\nconst spectrum = [0, 45, 130, 195, 265, 315];\n\nconst nActive = Math.round(Math.max(0, Math.min(1, P.density)) * MAXN);\nconst focusX = P.x, focusY = P.y;\nconst grow = 0.5 + P.spread*1.4;\nconst beatPop = K.pulse * P.energy;\nconst sizeU = u * 0.05 * P.scale;\n// GLOBAL real-time field rotation about the focus \u2014 never rephases, drives motion floor\nconst rot = K.t * 0.17 * P.speed;\nconst cr = Math.cos(rot), sr = Math.sin(rot);\n\npush();\nblendMode(ADD);\n\n// ---- slow ambient shimmer wash: faint large patches drifting in real time ----\n// (raises moving-pixel coverage so the motion floor holds even when glints are sparse)\n{\n  const nP = 6;\n  const washV = P.style==='silver' ? 4 : (P.style==='ink' ? 3.5 : 5);\n  for (let i = 0; i < nP; i++) {\n    const sp = 0.05 + fr(i*5+201)*0.05;\n    const dx = Math.sin(K.t*sp*P.speed + i*1.7)*0.5 + 0.5;\n    const dy = Math.cos(K.t*sp*0.8*P.speed + i*2.3)*0.5 + 0.5;\n    const cxp = (focusX + (dx-0.5)*grow*1.1) * width;\n    const cyp = (focusY + (dy-0.5)*grow*1.1) * height;\n    const rad = u * (0.26 + fr(i+211)*0.12) * P.scale;\n    let hh;\n    if (P.style==='thermal') hh = hw(P.hue+8);\n    else if (P.style==='prismatic') hh = hw(P.hue + Math.sin(K.t*0.2 + i)*40);\n    else hh = hw(P.hue);\n    const ss = (P.style==='silver'||P.style==='ink') ? 10 : 40;\n    const swell = 0.7 + 0.3*Math.sin(K.t*0.5 + i*1.1);\n    fill(hh, ss, 100, washV*swell*(0.7 + P.energy*0.5));\n    ellipse(cxp, cyp, rad, rad*0.85);\n  }\n}\n\nfor (let i = 0; i < nActive; i++) {\n  const st = S.sites[i];\n  // slow real-time wander of each site's base position\n  const dxw = Math.sin(K.t*st.dr*P.speed + st.ph)*st.da;\n  const dyw = Math.cos(K.t*st.dr*0.8*P.speed + st.ph*1.3)*st.da;\n  // rotate the whole (offset) field around the focus so every glint travels an arc\n  let relx = (st.bx-0.5)*grow + dxw;\n  let rely = (st.by-0.5)*grow + dyw;\n  const ang0 = rot*st.orb;\n  const c2 = Math.cos(ang0), s2 = Math.sin(ang0);\n  const rrx = relx*c2 - rely*s2;\n  const rry = relx*s2 + rely*c2;\n  const px = (focusX + rrx) * width;\n  const py = (focusY + rry) * height;\n  if (px < -sizeU || px > width+sizeU || py < -sizeU || py > height+sizeU) continue;\n\n  let tw = Math.pow(Math.max(0, Math.sin(K.t*st.rate*P.speed + st.ph)), st.sh);\n  tw = tw*(0.4 + P.energy*0.6) + A.treble*0.7*fr(i+7) + beatPop*fr(i+3)*0.6 + 0.14;\n  tw = Math.min(1.6, tw);\n  if (tw < 0.04) continue;\n\n  const sz = sizeU * st.sz * (0.4 + tw*0.75);\n  const baseHue = hw(P.hue + st.hj);\n\n  if (P.style === 'halftone') {\n    const inks = [[190,80,95],[320,85,95],[52,90,100],[0,0,15]];\n    noStroke();\n    for (let k = 0; k < 4; k++) {\n      const off = k*0.18;\n      const ang = st.ph + k*1.1 + rot*0.5;\n      const ox = Math.cos(ang)*sz*0.22, oy = Math.sin(ang)*sz*0.22;\n      const c = inks[k];\n      fill(c[0], c[1], c[2], 22 + tw*55);\n      for (let d = 0; d < 6; d++) {\n        const a2 = d/6*TAU + off;\n        ellipse(px+ox+Math.cos(a2)*sz*0.32, py+oy+Math.sin(a2)*sz*0.32, sz*0.16, sz*0.16);\n      }\n    }\n    continue;\n  }\n\n  const arms = st.arms;\n  noStroke();\n  for (let a = 0; a < arms; a++) {\n    const ang = a/arms*TAU + rot*0.9 + st.ph*0.2;\n    const len = sz * (a % 2 === 0 ? 1 : 0.55) * (0.85 + tw*0.6);\n    const wdt = sz * 0.09 * (0.6 + tw*0.5);\n    let h2, s2b, v2;\n    if (P.style === 'prismatic') { h2 = hw(baseHue + spectrum[a % 6]); s2b = 88; v2 = 100; }\n    else if (P.style === 'silver') { h2 = hw(P.hue); s2b = 8; v2 = 100; }\n    else if (P.style === 'thermal') { const c = heat(Math.min(1,tw)); h2 = c[0]; s2b = c[1]; v2 = c[2]; }\n    else { h2 = hw(P.hue-10); s2b = 12; v2 = 92; }\n    const tipx = px + Math.cos(ang)*len, tipy = py + Math.sin(ang)*len;\n    const pxn = Math.cos(ang+Math.PI/2)*wdt, pyn = Math.sin(ang+Math.PI/2)*wdt;\n    fill(h2, s2b, v2, 32 + tw*55);\n    triangle(px+pxn, py+pyn, px-pxn, py-pyn, tipx, tipy);\n  }\n  if (P.style === 'thermal') { const c = heat(Math.min(1,tw*1.1)); fill(c[0], c[1]*0.4, 100, 42+tw*55); }\n  else if (P.style === 'silver' || P.style === 'ink') fill(hw(P.hue), 6, 100, 47+tw*50);\n  else fill(hw(baseHue+20), 25, 100, 47+tw*55);\n  ellipse(px, py, sz*0.44*(0.6+tw*0.5), sz*0.44*(0.6+tw*0.5));\n}\n\n// ---- shooting glints crossing the frame (continuous, two overlapping streaks) ----\nif (P.density > 0.05) {\n  for (let lane = 0; lane < 2; lane++) {\n    const period = 4.2 + lane*1.3;\n    const idx = Math.floor((K.t + lane*2.1) / period);\n    const fp = ((K.t + lane*2.1) % period) / period;\n    if (fp < 0.55) {\n      const sy = fr(idx*13+2+lane*97)*height;\n      const dir = fr(idx*13+3+lane*31) < 0.5 ? 1 : -1;\n      const prog = fp/0.55;\n      const sx = (dir > 0 ? -0.1 + prog*2.2 : 1.1 - prog*2.2) * width;\n      const tw = Math.sin(prog*Math.PI);\n      const trail = u*0.18*P.scale;\n      const hh = hw(P.style==='prismatic' ? P.hue + fp*300 : ((P.style==='silver'||P.style==='ink')?P.hue:P.hue+30));\n      const ss = (P.style==='silver'||P.style==='ink') ? 8 : 70;\n      for (let t = 0; t < 7; t++) {\n        const q = t/7;\n        fill(hh, ss, 100, (20 + tw*45)*(1-q));\n        noStroke();\n        ellipse(sx - dir*trail*q, sy + q*trail*0.15, u*0.014*P.scale*(1-q*0.6), u*0.014*P.scale*(1-q*0.6));\n      }\n    }\n  }\n}\n\nblendMode(BLEND);\npop();\nif (drawingContext) drawingContext.shadowBlur = 0;\n"
+}
