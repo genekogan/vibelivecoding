@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.space",
+  "kind": "world",
+  "name": "Space",
+  "desc": "Deep-space vista of a slowly turning spiral galaxy, twinkling starfield, ringed planet and drifting nebula gas.",
+  "tags": [
+    "space",
+    "cosmos",
+    "galaxy",
+    "nebula",
+    "stars",
+    "starfield",
+    "universe",
+    "astronomy",
+    "planet",
+    "saturn",
+    "rings",
+    "deep-space",
+    "sci-fi",
+    "cosmic",
+    "void",
+    "celestial",
+    "world",
+    "background",
+    "dark",
+    "sublime",
+    "wireframe",
+    "voyager",
+    "pulp"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "star + nebula + galaxy element density"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "twinkle, glow and rotation amplitude"
+    },
+    "hue": {
+      "default": 255,
+      "min": 0,
+      "max": 360,
+      "doc": "nebula/galaxy primary hue (violet default)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "rotation + drift rate (beats multiplier)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "feature scale vs design size"
+    },
+    "x": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "galaxy anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "doc": "galaxy anchor y (canvas fraction)"
+    },
+    "style": {
+      "default": "nebula",
+      "options": [
+        "nebula",
+        "wireframe",
+        "spectral",
+        "pulp",
+        "voyager"
+      ],
+      "doc": "render discipline: painterly nebula / vector wireframe schematic / spectral false-color / pulp print / grayscale voyager"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "warp",
+        "orbit"
+      ],
+      "doc": "dramaturgy: gentle parallax drift / hyperspace warp streaks / emphasized orbital rotation"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout seed"
+    },
+    "planets": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "galaxy + planet scale"
+    }
+  },
+  "acts": [
+    "drift",
+    "warp",
+    "orbit"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:44:41+00:00",
+    "fps": 57.8,
+    "motion": 0.0103,
+    "lum": 0.078
+  },
+  "code": "const D = { density:.5, energy:.55, hue:255, speed:1, scale:1, x:.72, y:.28, style:'nebula', act:'drift', seed:0, planets:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst H=md(P.hue,360);\nconst style=P.style;\nconst wireframe=style==='wireframe', spectral=style==='spectral', pulp=style==='pulp', voyager=style==='voyager';\nconst en=clp(P.energy,0,1)*(.5+.6*K.intensity);\nconst dens=clp(P.density,0,1);\nconst W=width, Ht=height, u=Math.min(W,Ht);\nconst t=K.t||0;\n\n// ---- static deep-field buffer keyed on size + seed + style ----\nconst key=W+'x'+Ht+'|'+P.seed+'|'+style;\nif(!S.bg || S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Ht); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.fill(voyager?0:md(H+10,360), voyager?0:50, voyager?8:9); g.rect(0,0,W,Ht);\n  if(!wireframe){\n    g.push(); g.blendMode(ADD);\n    for(let i=0;i<80;i++){\n      const x=fr(i*3.1)*W, y=fr(i*7.7)*Ht, r=(40+fr(i*2.3)*150)*(u/620);\n      const nh = voyager?0 : md(H + (fr(i*5.5)-.5)*120, 360);\n      const ns = voyager?0 : (spectral? 80 : 60);\n      const nb = pulp? 22 : (spectral? 26 : 16);\n      g.fill(nh,ns,nb, 5); g.ellipse(x,y,r,r);\n    }\n    g.pop();\n  } else {\n    g.stroke(md(H,360),40,26,30); g.strokeWeight(1);\n    for(let x=0;x<W;x+=Math.max(40,u*0.08)) g.line(x,0,x,Ht);\n    for(let y=0;y<Ht;y+=Math.max(40,u*0.08)) g.line(0,y,W,y);\n    g.noStroke();\n  }\n  const nStar= voyager?200:260;\n  for(let i=0;i<nStar;i++){\n    const x=fr(i*8.9)*W, y=fr(i*15.1)*Ht, s=(fr(i*2.1)*1.4+0.3)*(u/620);\n    g.fill(0,0,66+fr(i*5)*34, 78); g.ellipse(x,y,s,s);\n  }\n  S.bg=g;\n  const arms=[]; const nA=140;\n  for(let a=0;a<nA;a++){ const ang=a*0.16, rad=a*0.9; arms.push([ang,rad, a]); }\n  S.arms=arms;\n}\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; }\nimage(S.bg,0,0);\n\n// ---- live layer ----\nconst warp = P.act==='warp';\nconst orbit = P.act==='orbit';\nconst cx=W*clp(P.x,0,1), cy=Ht*clp(P.y,0,1);\n\n// slow parallax drift of everything (real-time floor, never re-phases)\nconst drx=Math.sin(t*0.05)*u*0.02, dry=Math.cos(t*0.037)*u*0.016;\n\n// ---- MOTION FLOOR 1: drifting nebula gas (painterly styles) ----\n// Large soft additive clouds whose centers travel on incommensurate real-time\n// frequencies. Big-area brightness changes carry the motion gate with zero audio.\nif(!wireframe){\n  push(); blendMode(ADD);\n  const nG=6;\n  for(let i=0;i<nG;i++){\n    const fx=0.5 + Math.sin(t*(0.045+fr(i*2.1)*0.06) + i*1.3)*0.42;\n    const fy=0.5 + Math.cos(t*(0.038+fr(i*3.3)*0.055) + i*2.1)*0.42;\n    const gx=fx*W, gy=fy*Ht;\n    const gr=(0.34+fr(i*4.7)*0.34)*u*(0.75+dens*0.6);\n    const gh= voyager?0 : md(H + (fr(i*5.5)-.5)*110, 360);\n    const gs= voyager?0 : (spectral?85:55);\n    const gb= (pulp?24:20)+16*en;\n    fill(gh,gs,gb, 6+5*en);\n    ellipse(gx,gy,gr,gr);\n  }\n  noStroke(); pop();\n}\n\n// ---- MOTION FLOOR 2: bright twinkling stars (works in ALL styles) ----\n// Per-star continuous real-time phase; over 8s each phase advances many radians\n// so brightness is decorrelated t vs t+8. Style-independent (brightness gate).\npush(); blendMode(ADD);\nconst nTw=Math.round((warp?150:190)*(0.35+dens));\nfor(let i=0;i<nTw;i++){\n  const bx=fr(i*4.7)*W + drx*(0.5+fr(i)*1.5), by=fr(i*9.3)*Ht + dry*(0.5+fr(i)*1.5);\n  const tw=0.5+0.5*Math.sin(t*(1.1+fr(i*2)*2.6) + i*1.7);\n  const sh= voyager?0 : (spectral? md(H+(fr(i)-.5)*160,360) : md(H+ (fr(i*3)-.5)*40,360));\n  const ss= voyager?0 : 26;\n  if(warp){\n    const ang=Math.atan2(by-cy,bx-cx), len=(8+fr(i*2)*54)*(0.4+en)*(u/620);\n    stroke(sh,ss,100,55*tw); strokeWeight((0.9+fr(i)*1.6)*(u/620));\n    line(bx,by, bx+Math.cos(ang)*len, by+Math.sin(ang)*len);\n  } else {\n    const s=(1.4+fr(i*5.5)*3.4)*(u/620)*(0.35+tw);\n    noStroke(); fill(sh,ss,100, (34+52*tw));\n    ellipse(bx,by,s,s);\n    if(tw>0.8 && !pulp){ stroke(sh,ss,100,52*tw); strokeWeight(0.9*(u/620)); const d=s*2.4; line(bx-d,by,bx+d,by); line(bx,by-d,bx,by+d); noStroke(); }\n  }\n}\nnoStroke(); pop();\n\n// ---- MOTION FLOOR 3 (wireframe): rotating concentric wire rings ----\nif(wireframe){\n  push(); translate(W*0.5+drx, Ht*0.5+dry); blendMode(BLEND);\n  noFill();\n  for(let m=0;m<5;m++){\n    push(); rotate(t*(0.05+m*0.03)*(1+en) + m*0.6);\n    stroke(md(H,360),42,78,30+m*6); strokeWeight(1);\n    ellipse(0,0, u*(0.42+m*0.16), u*(0.24+m*0.13));\n    pop();\n  }\n  // sweeping radar line\n  push(); rotate(t*0.5*(0.6+en)); stroke(md(H+30,360),40,92,55); strokeWeight(1.4);\n  line(0,0,u*0.72,0); pop();\n  pop();\n}\n\n// ---- GALAXY spiral: rotates continuously on real-time t (big-area motion) ----\npush(); translate(cx+drx, cy+dry);\nconst rot=t*0.07*P.speed + (orbit?t*0.07:0);\nrotate(rot);\nblendMode(wireframe?BLEND:ADD);\nconst arms=S.arms||[];\nconst step= wireframe?2:1;\nconst glowP=(0.5+0.5*K.swell)*en + A.mid*0.5;\nconst gScale=(u/620)*(0.85+P.planets*0.5);\nfor(let a=0;a<arms.length;a+=step){\n  const ang=arms[a][0], rad=arms[a][1]*gScale;\n  const gh= voyager?0 : md(H + arms[a][2]*0.6, 360);\n  const gb= 62+32*glowP;\n  if(wireframe){ stroke(md(H,360),42,82,44); strokeWeight(1.2); noFill(); }\n  else { noStroke(); fill(gh, voyager?0:55, gb, 26); }\n  const dsz=(wireframe?1:4)*(u/620)*(1+0.4*Math.sin(t*0.7+a*0.3));\n  const x1=Math.cos(ang)*rad, y1=Math.sin(ang)*rad*0.5;\n  const x2=Math.cos(ang+Math.PI)*rad, y2=Math.sin(ang+Math.PI)*rad*0.5;\n  if(wireframe){ point(x1,y1); point(x2,y2); }\n  else { ellipse(x1,y1,dsz,dsz); ellipse(x2,y2,dsz,dsz); }\n}\nif(!wireframe){ blendMode(ADD); fill(voyager?0:md(H+30,360), voyager?0:30, 100, 34); const cr=u*0.12*(0.6+glowP); ellipse(0,0,cr,cr); }\npop();\n\n// ---- RINGED PLANET: slow orbit / rotation ----\npush();\nconst pOrb = orbit? t*0.09 : t*0.03;\nconst px=W*0.22 + Math.cos(pOrb)*u*0.05, py=Ht*0.64 + Math.sin(pOrb)*u*0.035;\ntranslate(px,py);\nconst pr=u*0.14*(0.6+P.planets*0.8);\nif(wireframe){\n  noFill(); stroke(md(H+40,360),40,90,72); strokeWeight(1.2);\n  ellipse(0,0,pr,pr);\n  for(let m=0;m<5;m++){ const e=pr*(0.3+m*0.16); push(); rotate(t*0.12+m); ellipse(0,0,pr, e); pop(); }\n  push(); rotate(-0.4); ellipse(0,0,pr*1.8,pr*0.6); pop();\n} else {\n  noStroke();\n  const ph=voyager?0:md(H+40,360), ps=voyager?0:70;\n  fill(ph,ps,74); ellipse(0,0,pr,pr);\n  fill(ph,ps,30,60); arc(0,0,pr,pr,-Math.PI*0.5+0.4, Math.PI*0.5+0.4, PIE);\n  push(); rotate(-0.4+Math.sin(t*0.12)*0.03); noFill(); stroke(voyager?0:md(H+50,360),voyager?0:50,92,72); strokeWeight(pr*0.06); ellipse(0,0,pr*1.9,pr*0.62); pop();\n}\npop();\nnoStroke();\n\n// ---- occasional SHOOTING STAR ----\nif(!warp){\n  const ssT=frc(t*0.08);\n  if(ssT<0.14){\n    const life=ssT/0.14; const seedIdx=Math.floor(t*0.08);\n    const sx=fr(seedIdx*3.1)*W, sy=fr(seedIdx*7.7)*Ht*0.6;\n    const ex=sx+u*0.4, ey=sy+u*0.2;\n    const hx=sx+(ex-sx)*life, hy=sy+(ey-sy)*life;\n    push(); blendMode(ADD); stroke(0,0,100,60*(1-life)); strokeWeight(2*(u/620));\n    line(hx-u*0.06,hy-u*0.03,hx,hy); pop();\n  }\n}\n\nblendMode(BLEND);\n"
+}
