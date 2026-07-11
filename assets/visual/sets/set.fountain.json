@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.fountain",
+  "kind": "set",
+  "name": "Tiered Fountain",
+  "desc": "Carved stone tiered fountain with translucent water jets that rise on the bass, arcing spray, drifting pool ripples and a night-light glint.",
+  "tags": [
+    "fountain",
+    "water",
+    "stone",
+    "jets",
+    "spray",
+    "basin",
+    "tiers",
+    "park",
+    "plaza",
+    "garden",
+    "ripple",
+    "droplets",
+    "night",
+    "architecture",
+    "classical",
+    "marble",
+    "prop",
+    "set",
+    "serene",
+    "cascade",
+    "splash"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "overall size vs design"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "spray particle count"
+    },
+    "jets": {
+      "default": 3,
+      "min": 1,
+      "max": 9,
+      "doc": "number of water jets"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "jet height / motion amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "rhythm rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.4,
+      "max": 1,
+      "doc": "base y fraction"
+    },
+    "tiers": {
+      "default": 3,
+      "min": 1,
+      "max": 4,
+      "doc": "number of basin tiers"
+    },
+    "night": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "warm night-light tint amount"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look seed"
+    },
+    "style": {
+      "default": "stone",
+      "options": [
+        "stone",
+        "blueprint",
+        "ink-wash",
+        "thermal",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "calm",
+      "options": [
+        "calm",
+        "surge",
+        "dance"
+      ],
+      "doc": "dramaturgy"
+    }
+  },
+  "acts": [
+    "calm",
+    "surge",
+    "dance"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:40:10+00:00",
+    "fps": 60.2,
+    "motion": 0.0065,
+    "lum": 0.129
+  },
+  "code": "const D = { scale:1, density:.55, jets:3, hue:205, energy:.6, speed:1, x:.5, y:.82, tiers:3, night:.3, seed:0, style:'stone', act:'calm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst hue = ((P.hue%360)+360)%360;\nconst bt = K.beat * P.speed;\nconst cx = P.x*width, base = P.y*height;\nconst sc = P.scale;\nconst tiers = Math.max(1, Math.min(4, Math.round(P.tiers)));\nconst njet = Math.max(1, Math.min(9, Math.round(P.jets)));\n\n// smoothed audio\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\nS.rms  = (S.rms||0)*.85 + (A.rms||0)*.15;\n\n// real-time dt (guard t0 resets)\nif (S.lt == null || K.t < S.lt) S.lt = K.t;\nlet dt = K.t - S.lt; S.lt = K.t;\nif (dt < 0 || dt > 0.2) dt = 1/60;\n\n// palette per style\nfunction pal(){\n  const nt = P.night; // 0 day-cool .. 1 warm night lamp\n  const lampH = 40 - nt*8, lampS = 30 + nt*55;\n  if (st==='blueprint') return { air:[210,60,10], stone:[205,50,16], edge:[195,70,88], water:[195,80,80], foam:[195,40,95], lamp:[195,70,92], schem:true };\n  if (st==='ink-wash')  return { air:[hue,8,12], stone:[hue,6,22], edge:[hue,5,55], water:[hue,12,50], foam:[hue,6,80], lamp:[hue,14,82], ink:true };\n  if (st==='thermal')   return { air:[240,80,6], stone:[280,55,20], edge:[30,85,70], water:[205,85,65], foam:[190,70,92], lamp:[55,95,98], therm:true };\n  if (st==='noir')      return { air:[hue,6,6], stone:[hue,5,14], edge:[hue,4,60], water:[hue,7,40], foam:[hue,4,88], lamp:[lampH,lampS,96], noir:true };\n  // stone (default): carved limestone + translucent water\n  return { air:[hue, 18, 9], stone:[hue+8,14,34], edge:[hue,10,60], water:[hue,55,72], foam:[(hue+8)%360,22,96], lamp:[lampH,lampS,98] };\n}\nconst C = pal();\n\nfunction tierGeom(i){ // i=0 bottom pool .. up\n  const t = i/tiers;\n  const w = u*sc*(0.62 - t*0.34);\n  const y = base - i*u*sc*0.19;\n  const h = u*sc*0.05*(1 - t*0.3);\n  return { w, y, h };\n}\n\n// ---- cached carved stone base ----\nconst bkey = width+'x'+height+':'+st+':'+P.seed+':'+sc.toFixed(2)+':'+tiers+':'+P.x.toFixed(2)+':'+P.y.toFixed(2)+':'+P.night.toFixed(2);\nif (!S.bg || S.bgKey !== bkey){\n  S.bgKey = bkey;\n  const g = (S.bg && S.bg.width===width && S.bg.height===height) ? S.bg : (S.bg = createGraphics(width,height));\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.push();\n  g.noStroke();\n  // faint pool of light on the ground under the fountain\n  g.push(); g.drawingContext.globalAlpha = C.noir?0.5:0.32;\n  for (let r=6;r>0;r--){ g.fill(C.lamp[0],C.lamp[1]*0.4,C.lamp[2], 5); g.ellipse(cx, base+u*sc*0.03, u*sc*(0.7)*(r/6)*2, u*sc*0.34*(r/6)); }\n  g.pop();\n  // carved column\n  const colW = u*sc*0.06;\n  const topY = tierGeom(tiers-1).y - u*sc*0.05;\n  g.fill(C.stone[0],C.stone[1],C.stone[2]*0.9,100);\n  g.rect(cx-colW/2, topY, colW, base-topY, colW*0.3);\n  // raking-light highlight on column left, shadow right\n  if (!C.schem){ g.fill(C.edge[0],C.edge[1],C.edge[2],26); g.rect(cx-colW/2, topY, colW*0.4, base-topY, colW*0.2);\n    g.fill(C.air[0],C.air[1],C.air[2],40); g.rect(cx+colW*0.1, topY, colW*0.4, base-topY, colW*0.2); }\n  // tiers (basins) bottom to top, carved lips with chiaroscuro\n  for (let i=0;i<tiers;i++){\n    const G = tierGeom(i);\n    if (C.schem){ // blueprint: line-only schematic\n      g.noFill(); g.stroke(C.edge[0],C.edge[1],C.edge[2],90); g.strokeWeight(Math.max(1,u*0.0016));\n      g.ellipse(cx, G.y, G.w, G.w*0.34);\n      g.ellipse(cx, G.y+G.h, G.w*0.94, G.w*0.32);\n      g.line(cx-G.w/2, G.y, cx-G.w*0.47, G.y+G.h);\n      g.line(cx+G.w/2, G.y, cx+G.w*0.47, G.y+G.h);\n      // dimension ticks\n      for (let k=0;k<7;k++){ const a=k/6*Math.PI - Math.PI; g.point(cx+Math.cos(a)*G.w/2, G.y+Math.sin(a)*G.w*0.17); }\n      g.noStroke();\n      continue;\n    }\n    // bowl underside (shadow)\n    g.fill(C.stone[0],C.stone[1]*1.1,C.stone[2]*0.55,100);\n    g.ellipse(cx, G.y+G.h*1.1, G.w*0.96, G.w*0.3);\n    // bowl body\n    for (let s=0;s<5;s++){ const t=s/4; g.fill(C.stone[0],C.stone[1]*(1-t*0.3), C.stone[2]*(0.7+t*0.5), 100);\n      g.arc(cx, G.y+G.h*0.5, G.w*(0.98-t*0.02), (G.w*0.34+G.h)*(0.98-t*0.02), 0, Math.PI); }\n    // rim lip\n    g.fill(C.stone[0],C.stone[1]*0.8,C.stone[2]*1.25,100);\n    g.ellipse(cx, G.y, G.w, G.w*0.34);\n    // inner shadow (water well)\n    g.fill(C.water[0],C.water[1],C.water[2]*(C.ink?0.9:0.55), C.ink?55:80);\n    g.ellipse(cx, G.y, G.w*0.8, G.w*0.27);\n    // ink dry-brush edge speckle\n    if (C.ink){ for (let k=0;k<40;k++){ const a=fr(i*40+k)*Math.PI*2; const rr=(0.4+fr(i*40+k+7)*0.1); g.fill(C.edge[0],C.edge[1],C.edge[2]*fr(k+i),40*fr(k*3)); g.ellipse(cx+Math.cos(a)*G.w*0.5*rr*2, G.y+Math.sin(a)*G.w*0.17, u*0.004,u*0.004); } }\n  }\n  g.pop();\n}\nimage(S.bg, 0, 0);\n\n// ---- act shaping ----\nlet jetGain = 1, jetSpread = 1;\nif (P.act==='surge'){ jetGain = 0.5 + K.intensity*1.4; }\nelse if (P.act==='dance'){ jetGain = 0.7 + K.pulse*1.1; jetSpread = 1.15; }\nelse { jetGain = 0.9 + Math.sin(K.t*0.5)*0.12; } // calm: gentle breathe on real-time\n\nconst drive = jetGain * (0.85 + S.bass*1.3 + P.energy*0.5) * (0.6 + K.intensity*0.6);\nconst jetH = u*sc*0.16*drive;\nconst topTierY = tierGeom(tiers-1).y - u*sc*0.05;\n\n// ---- animated water jets ----\npush();\nnoStroke();\nif (!C.noir) blendMode(C.therm?SCREEN:BLEND);\nfor (let j=0;j<njet;j++){\n  const off = njet===1?0:((j/(njet-1))-0.5);\n  const jx = cx + off*u*sc*0.05*jetSpread;\n  const jw = jetSpread*u*sc*0.014;\n  const hh = jetH*(0.7+0.6*(1-Math.abs(off*2)))* (0.72+0.42*Math.sin(K.t*1.7 + j*0.9));\n  // rising translucent column of stacked drops\n  const n = 9;\n  for (let s=0;s<n;s++){ const t=s/(n-1);\n    const yy = topTierY - t*hh;\n    const xx = jx + Math.sin(t*3 + K.t*2 + j)*jw*1.5;\n    const a = C.schem? 30*(1-t) : 55*(1-t*0.7);\n    fill(C.water[0], C.water[1]*(C.ink?0.6:1), Math.min(100,C.water[2]+t*20), a);\n    ellipse(xx, yy, jw*(1.6-t), jw*(2.4-t));\n  }\n  // foam crown at the top\n  fill(C.foam[0],C.foam[1],C.foam[2], C.schem?40:70);\n  ellipse(jx, topTierY-hh, jw*2.2, jw*1.6);\n}\n\n// ---- particle spray (real-time emission, ring-buffer, capped) ----\nif (!S.pp){ S.pp = []; }\nconst CAP = Math.round(30 + P.density*110); // <=140\n// emit based on real-time accumulator so motion never re-phases\nS.emit = (S.emit||0) + dt*(18 + P.density*60)*(0.6+drive*0.6);\nwhile (S.emit >= 1 && S.pp.length < CAP){ S.emit -= 1;\n  const j = Math.floor(fr(K.t*97+S.pp.length)*njet);\n  const off = njet===1?0:((j/(njet-1))-0.5);\n  const jx = cx + off*u*sc*0.05*jetSpread;\n  const ang = -Math.PI/2 + (fr(S.pp.length*3+K.t*13)-0.5)*1.1*jetSpread;\n  const spd = (0.6+fr(S.pp.length*7+K.t*3)*0.7)* (jetH*0.9+u*0.02);\n  S.pp.push({ x:jx, y:topTierY-jetH*0.9, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd, life:1, sz:0.6+fr(S.pp.length)*0.8 });\n}\nconst grav = u*sc*3.2;\nfor (let i=S.pp.length-1;i>=0;i--){ const p=S.pp[i];\n  p.vy += grav*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt*0.5;\n  // land in pool\n  if (p.y > base || p.life<=0){ S.pp.splice(i,1); continue; }\n  const a = C.schem? 45*p.life : 80*p.life;\n  fill(C.foam[0],C.foam[1]*0.7,C.foam[2], a);\n  ellipse(p.x, p.y, jw2(p.sz), jw2(p.sz));\n}\nfunction jw2(s){ return s*u*sc*0.012; }\npop();\n\n// ---- cascading overflow curtains (wide continuous real-time flow) ----\npush();\nnoStroke();\nif (!C.noir) blendMode(C.therm?SCREEN:BLEND);\nconst fallH = u*sc*0.19;\nfor (let i=1;i<tiers;i++){\n  const G = tierGeom(i);\n  const rimY = G.y + G.h*0.5;\n  const wSpan = G.w*0.9;\n  const streaks = Math.round(11 + P.density*11);\n  for (let k=0;k<streaks;k++){\n    const fx = cx + (streaks===1?0:(k/(streaks-1)-0.5))*wSpan;\n    const rate = 0.55 + fr(i*17+k)*0.5;\n    const ph = ((K.t*rate + fr(i*31+k*7)) % 1 + 1) % 1;\n    const yy = rimY + ph*fallH;\n    const wob = Math.sin(K.t*2.0 + k)*u*sc*0.004;\n    const a = (1-ph)*(C.schem?42:62);\n    fill(C.water[0], C.water[1]*(C.ink?0.6:0.85), Math.min(100,C.water[2]+15), a);\n    ellipse(fx+wob, yy, u*sc*0.013, fallH*0.55);\n  }\n}\nblendMode(BLEND);\npop();\n\n// ---- pool ripples (continuous real-time drift) ----\npush();\nnoFill();\nconst pG = tierGeom(0);\nfor (let r=0;r<6;r++){\n  const ph = ((K.t*0.32 + r*0.166) % 1 + 1) % 1;\n  const rr = pG.w*(0.12 + ph*1.02);\n  stroke(C.edge[0], C.edge[1], C.edge[2], (1-ph)*(C.schem?58:52));\n  strokeWeight(Math.max(1.2,u*0.0019));\n  ellipse(cx, pG.y+pG.h*0.3, rr, rr*0.34);\n}\n// bass-driven bright ring\nif (S.bass>0.05){ stroke(C.foam[0],C.foam[1],C.foam[2], S.bass*60); ellipse(cx, pG.y+pG.h*0.3, pG.w*0.9, pG.w*0.3); }\npop();\n\n// night-light glint on top-tier water (real-time shimmer)\npush();\nblendMode(C.noir?BLEND:ADD);\nconst gl = 0.4+0.6*(0.5+0.5*Math.sin(K.t*2.1));\nfill(C.lamp[0],C.lamp[1]*0.6,C.lamp[2], 18*gl*(0.5+P.night));\nellipse(cx, topTierY, u*sc*0.06, u*sc*0.02);\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
