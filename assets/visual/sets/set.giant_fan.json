@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.giant_fan",
+  "kind": "set",
+  "name": "Giant Fan",
+  "desc": "Huge industrial floor fan spinning as a motion-blur steel disc inside a bolted safety cage, blasting turbulent wind streaks downwind that other assets can echo.",
+  "tags": [
+    "fan",
+    "industrial",
+    "machine",
+    "factory",
+    "steel",
+    "cage",
+    "blades",
+    "wind",
+    "gust",
+    "turbine",
+    "rotor",
+    "cooling",
+    "warehouse",
+    "hvac",
+    "mechanical",
+    "spinning",
+    "blur",
+    "raking-light",
+    "monochrome",
+    "desaturated",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "riso",
+    "noir",
+    "gritty",
+    "air",
+    "breeze",
+    "stage-prop"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "blade speed + motion-blur + wind output"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "fan diameter vs design (0.3u radius at 1)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "metal/ink tint hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative spin-rate multiplier"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "cage detail (rings/spokes/bolts) + wind-streak count"
+    },
+    "blades": {
+      "default": 5,
+      "min": 2,
+      "max": 9,
+      "doc": "blade count"
+    },
+    "wind": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.4,
+      "doc": "downwind streak length/reach/intensity"
+    },
+    "blur": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.4,
+      "doc": "motion-blur trail depth"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y fraction"
+    },
+    "style": {
+      "default": "industrial",
+      "options": [
+        "industrial",
+        "blueprint",
+        "riso",
+        "thermal",
+        "noir"
+      ],
+      "doc": "aesthetic: raking-lit steel / schematic wireframe / 2-ink riso / thermal false-color / chiaroscuro noir"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "hash seed for grime/spoke/wind variation"
+    },
+    "act": {
+      "default": "idle",
+      "options": [
+        "idle",
+        "surge",
+        "windmill"
+      ],
+      "doc": "multi-minute spin dramaturgy over sections"
+    }
+  },
+  "acts": [
+    "idle",
+    "surge",
+    "windmill"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:17:28+00:00",
+    "fps": 60.2,
+    "motion": 0.0234,
+    "lum": 0.113
+  },
+  "code": "const D = { energy: .6, scale: 1, hue: 28, speed: 1, density: .55, blades: 5, wind: .7, blur: .7, x: .5, y: .46, style: 'industrial', seed: 0, act: 'idle' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * 0.30 * P.scale;                 // fan radius\nconst nB = Math.max(2, Math.min(9, Math.round(P.blades)));\nconst style = P.style;\nconst wire = style === 'blueprint';\nconst riso = style === 'riso';\nconst thermal = style === 'thermal';\nconst noir = style === 'noir';\n\n// smoothed audio\nS.bass = (S.bass || 0) * .82 + (A.bass || 0) * .18;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\n\n// ---- dramaturgy: section-indexed spin program ----\nconst ACTS = {\n  idle:  [.35,.5,.7,.55,.4,.8,1,.5],\n  surge: [.2,.6,1,.7,.3,.9,1,.8],\n  windmill:[.6,.65,.7,.75,.7,.8,.85,.9] };\nconst arc = (ACTS[P.act] || ACTS.idle)[((K.section % 8) + 8) % 8];\nconst drive = P.energy * (.45 + .75 * arc) + S.bass * .5;\n\n// continuous rotation (REAL time -> never re-phases at 8s)\nconst spinRate = (0.9 + 5.5 * drive) * P.speed;       // rad/s\nconst ang = K.t * spinRate;\nconst gust = 1 + S.bass * .8 + K.pulse * .25 * P.energy;\n\n// housing vibration\nconst vib = (.5 + 2.6 * drive) * (u * .003);\nconst shx = Math.sin(K.t * 21.3 + fr(3) * 6) * vib + Math.sin(K.t * 33.7) * vib * .4;\nconst shy = Math.cos(K.t * 18.9 + fr(7) * 6) * vib * .8;\n\n// ---------- palette ----------\nconst H = P.hue;\nfunction P3(role) {\n  if (wire) return { plate:[210,55,90], hi:[205,20,100], lo:[212,60,64], cage:[205,35,100], blade:[200,45,100], bhi:[195,25,100], hub:[195,55,95], hot:[190,60,100], bolt:[205,30,100], grime:[210,70,50] }[role];\n  if (riso) { const b=[(H+152)%360,72,86]; return { plate:[H,78,88], hi:[H,55,100], lo:[H,86,66], cage:b, blade:[H,80,90], bhi:b, hub:b, hot:[H,70,100], bolt:b, grime:[H,88,58] }[role]; }\n  if (thermal) return { plate:[248,55,30], hi:[210,40,60], lo:[255,70,16], cage:[228,50,44], blade:[18,90,92], bhi:[45,85,100], hub:[52,30,100], hot:[58,20,100], bolt:[210,30,70], grime:[262,60,20] }[role];\n  if (noir) return { plate:[H,10,14], hi:[H,4,96], lo:[H,14,5], cage:[H,8,20], blade:[H,7,26], bhi:[H,3,92], hub:[H,12,30], hot:[H,20,80], bolt:[H,6,44], grime:[H,15,8] }[role];\n  // industrial (default): raking-lit desaturated steel\n  return { plate:[H,13,42], hi:[H,7,72], lo:[H,20,17], cage:[H,10,28], blade:[H,9,52], bhi:[H,5,84], hub:[H,32,46], hot:[(H+10)%360,60,70], bolt:[H,8,60], grime:[H,44,22] }[role];\n}\nconst cf = (r, a) => { const c = P3(r); return color(c[0], c[1], c[2], a == null ? 100 : a); };\n\n// ---------- static housing buffer ----------\nconst key = [Math.round(width), Math.round(height), Math.round(P.scale*100), P.seed, style, Math.round(H), nB, Math.round(P.density*20)].join('|');\nif (!S.buf || S.bufKey !== key) {\n  if (S.buf) S.buf.remove();\n  const Dm = Math.ceil(R * 2.55);\n  const g = createGraphics(Dm, Dm);\n  g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.translate(Dm / 2, Dm / 2);\n  const C = (r, a) => { const c = P3(r); return g.color(c[0], c[1], c[2], a == null ? 100 : a); };\n  const rOut = R, rIn = R * .9, rBrk = R * 1.14;\n\n  // mounting bracket / pole (behind)\n  if (!wire) {\n    g.noStroke();\n    g.fill(C('grime')); g.rect(-R*.10, R*.86, R*.20, R*.7, R*.02);\n    g.fill(C('lo')); g.rect(-R*.13, R*.82, R*.26, R*.16, R*.03);\n    g.fill(C('plate')); g.rect(-R*.09, R*.84, R*.18, R*.66, R*.02);\n    g.fill(C('hi', 40)); g.rect(-R*.09, R*.84, R*.05, R*.66, R*.02);\n  } else {\n    g.noFill(); g.stroke(C('plate')); g.strokeWeight(Math.max(1, R*.008));\n    g.rect(-R*.10, R*.84, R*.20, R*.7);\n  }\n\n  // outer safety-cage rim (steel torus)\n  if (!wire) {\n    g.noStroke();\n    g.fill(C('lo')); g.ellipse(0, R*.03, rBrk*2, rBrk*2);           // drop shadow\n    g.fill(C('plate')); g.ellipse(0, 0, rBrk*2, rBrk*2);\n    g.fill(C('grime', 55)); g.ellipse(0, 0, rBrk*2, rBrk*2);\n    // erase inner (housing well)\n    g.erase(); g.ellipse(0, 0, rOut*2, rOut*2); g.noErase();\n    // raking highlight on upper-left of rim\n    g.noFill(); g.strokeWeight(rBrk - rOut);\n    g.stroke(C('hi', noir ? 100 : 55)); g.arc(0, 0, rBrk + rOut, rBrk + rOut, Math.PI*1.05, Math.PI*1.6);\n    g.stroke(C('lo', 70)); g.arc(0, 0, rBrk + rOut, rBrk + rOut, Math.PI*.1, Math.PI*.55);\n  } else {\n    g.noFill(); g.stroke(C('plate')); g.strokeWeight(Math.max(1.4, R*.012));\n    g.ellipse(0, 0, rBrk*2, rBrk*2); g.ellipse(0, 0, rOut*2, rOut*2);\n  }\n\n  // grille: concentric rings\n  g.noFill();\n  const rings = 3 + Math.round(P.density * 3);\n  for (let r = 1; r <= rings; r++) {\n    const rr = rIn * (r / (rings + .4));\n    g.strokeWeight(Math.max(1, R * (wire ? .006 : .012)));\n    g.stroke(C('cage', wire ? 100 : 78));\n    g.ellipse(0, 0, rr * 2, rr * 2);\n    if (!wire) { g.stroke(C('hi', 24)); g.strokeWeight(Math.max(.8, R*.004)); g.ellipse(-R*.01, -R*.01, rr*2, rr*2); }\n  }\n  // grille: radial spokes\n  const spokes = 8 + Math.round(P.density * 8);\n  for (let i = 0; i < spokes; i++) {\n    const a = (i / spokes) * Math.PI * 2 + fr(i) * .04;\n    g.strokeWeight(Math.max(1, R * (wire ? .005 : .01)));\n    g.stroke(C('cage', wire ? 90 : 66));\n    g.line(Math.cos(a) * rIn * .12, Math.sin(a) * rIn * .12, Math.cos(a) * rIn, Math.sin(a) * rIn);\n  }\n  // bolts around rim\n  if (!wire) {\n    const nBolt = 8 + Math.round(P.density * 8);\n    g.noStroke();\n    for (let i = 0; i < nBolt; i++) {\n      const a = (i / nBolt) * Math.PI * 2;\n      const bx = Math.cos(a) * (rOut + rBrk) / 2, by = Math.sin(a) * (rOut + rBrk) / 2;\n      g.fill(C('lo', 80)); g.circle(bx + R*.006, by + R*.006, R*.05);\n      g.fill(C('bolt')); g.circle(bx, by, R*.045);\n      g.fill(C('hi', 60)); g.circle(bx - R*.012, by - R*.012, R*.018);\n    }\n  }\n  // blueprint dimension ticks\n  if (wire) {\n    g.stroke(C('blade', 70)); g.strokeWeight(1);\n    g.line(0, -rBrk*1.06, 0, -rBrk*1.14); g.line(-R*.04, -rBrk*1.1, R*.04, -rBrk*1.1);\n    g.line(-rBrk*1.06, 0, -rBrk*1.14, 0);\n    g.noFill(); g.ellipse(0, 0, R*.5, R*.5);\n  }\n  g.pop();\n  S.buf = g; S.bufKey = key; S.Dm = Dm;\n}\n\n// ================= LIVE RENDER =================\npush();\ntranslate(cx + shx, cy + shy);\n\n// ---- rotating blades with motion-blur trailing copies ----\nconst trail = Math.max(1, Math.min(10, Math.round(1 + drive * 7 * (.4 + P.blur))));   // blur depth grows w/ speed (capped)\nconst trailStep = spinRate * 0.016 * (.6 + P.blur);                     // radians between ghosts\nconst rBl = R * .82, rHub = R * .2;\nnoStroke();\nfor (let t = trail - 1; t >= 0; t--) {\n  const a0 = ang - t * trailStep;\n  const aFade = (1 - t / trail);\n  const al = wire ? 0 : (thermal ? 70 : 66) * aFade / (1 + trail * .18);\n  for (let b = 0; b < nB; b++) {\n    const a = a0 + (b / nB) * Math.PI * 2;\n    push(); rotate(a);\n    // one blade: leaf shape from hub to tip\n    const bw = R * (.26 + .10 * (P.blur));\n    if (wire) {\n      stroke(cf('blade', 90)); strokeWeight(Math.max(1, R*.006)); noFill();\n      beginShape();\n      vertex(rHub*.4, -bw*.2); bezierVertex(rBl*.5, -bw*.7, rBl*.95, -bw*.2, rBl, 0);\n      bezierVertex(rBl*.95, bw*.2, rBl*.5, bw*.7, rHub*.4, bw*.2);\n      endShape(CLOSE);\n      pop(); continue;\n    }\n    // pitch shading: leading edge bright, trailing dark\n    fill(cf(b === 0 && !thermal ? 'hot' : 'blade', al));\n    beginShape();\n    vertex(rHub*.4, -bw*.15);\n    bezierVertex(rBl*.5, -bw*.85, rBl*.9, -bw*.35, rBl, -bw*.05);\n    bezierVertex(rBl*1.0, bw*.05, rBl*.6, bw*.5, rHub*.4, bw*.15);\n    endShape(CLOSE);\n    if (t === 0) { // crisp leading highlight only on front copy\n      fill(cf('bhi', thermal ? 80 : 60));\n      beginShape();\n      vertex(rHub*.5, -bw*.1);\n      bezierVertex(rBl*.5, -bw*.8, rBl*.88, -bw*.32, rBl*.98, -bw*.05);\n      bezierVertex(rBl*.9, -bw*.02, rBl*.5, -bw*.35, rHub*.5, -bw*.02);\n      endShape(CLOSE);\n    }\n    pop();\n  }\n}\n\n// ---- hub with sweeping specular glint ----\npush();\nif (!wire) {\n  noStroke();\n  fill(cf('hub')); circle(0, 0, rHub * 2);\n  fill(cf('grime', 40)); circle(0, 0, rHub * 2);\n  // rotating glint\n  const gA = ang * .5;\n  fill(cf('hot', 70 + 30 * K.swell));\n  ellipse(Math.cos(gA) * rHub * .4, Math.sin(gA) * rHub * .4, rHub * .8, rHub * .5);\n  fill(cf('bhi', 65)); circle(-rHub*.3, -rHub*.3, rHub*.5);\n  fill(cf('lo', 90)); circle(0, 0, rHub * .55);         // center cap bolt\n  fill(cf('bolt')); circle(0, 0, rHub * .32);\n} else {\n  stroke(cf('hub')); strokeWeight(Math.max(1.4, R*.01)); noFill();\n  circle(0, 0, rHub * 2); circle(0, 0, rHub * .6);\n  line(-rHub, 0, rHub, 0); line(0, -rHub, 0, rHub);\n}\npop();\n\n// ---- static housing (cage + rim + bracket) on top ----\nimage(S.buf, -S.Dm / 2, -S.Dm / 2);\n\n// thermal center hot bloom\nif (thermal) {\n  blendMode(ADD); noStroke();\n  for (let r = 3; r >= 1; r--) { fill(52, 30, 100, 6 + 5 * K.swell); circle(0, 0, rHub * r * 1.3); }\n  blendMode(BLEND);\n}\npop(); // end fan\n\n// =============== WIND STREAKS (downwind, blowing right) ===============\n// continuous outward travel via K.t -> guaranteed motion floor, sweeps the frame\nconst windOn = P.wind * (.5 + drive) * gust;\nconst nW = Math.round((6 + P.density * 26) * Math.min(1, .3 + windOn));\nconst reach = width * (.5 + .5 * Math.min(1.4, windOn));\npush();\ntranslate(cx + shx, cy + shy);\nif (!wire) blendMode(ADD);\nnoFill();\nfor (let i = 0; i < nW; i++) {\n  const seed = fr(i * 2 + 11);\n  const spread = (seed - .5) * R * 2.3;                 // vertical launch offset\n  const spd = (.10 + seed * .16) * (1 + drive);          // travel speed (frac/s)\n  const ph = (K.t * spd + seed) % 1;                     // 0..1 progress, loops\n  const startX = R * .95;\n  const px = startX + ph * reach;\n  const droop = ph * ph * R * .5 * (1 - windOn * .3);    // gravity sag\n  const turb = Math.sin(K.t * 3 + seed * 20 + px * .01) * R * .12 * (.4 + windOn);\n  const py = spread * (1 + ph * .6) + droop + turb;\n  const life = Math.sin(ph * Math.PI);                   // fade in/out along path\n  const len = (R * .35 + reach * .12) * (.5 + windOn);\n  const wcol = P3('wind');\n  const al = life * (wire ? 55 : (34 + 30 * windOn));\n  strokeWeight(Math.max(1, R * .012 * (.6 + life)));\n  stroke(wcol[0], wcol[1], wcol[2], al);\n  // speed-line as short curved dash\n  const x2 = px - len, y2 = py - turb * .3 - Math.sin(K.t*3+seed*20)*R*.02;\n  line(px, py, x2, y2);\n  if (windOn > .5 && i % 3 === 0) { // secondary echo streak (for other assets to riff on)\n    stroke(wcol[0], Math.max(0, wcol[1]-15), Math.min(100, wcol[2]+8), al * .5);\n    line(px, py + R*.05, px - len*.7, y2 + R*.05);\n  }\n}\nblendMode(BLEND);\npop();\n\ndrawingContext.shadowBlur = 0;\nblendMode(BLEND);\n"
+}

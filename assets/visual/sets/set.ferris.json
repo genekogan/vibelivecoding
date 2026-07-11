@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.ferris",
+  "kind": "set",
+  "name": "Ferris Wheel",
+  "desc": "A turning fairground Ferris wheel with pendulum-swinging cabins and rim bulbs that chase in time with the beat, its spin rate rising with the music's intensity.",
+  "tags": [
+    "ferris",
+    "wheel",
+    "fairground",
+    "carnival",
+    "funfair",
+    "amusement",
+    "bulbs",
+    "lights",
+    "cabins",
+    "gondola",
+    "rotating",
+    "fair",
+    "midway",
+    "spokes",
+    "chase",
+    "festival",
+    "night",
+    "set",
+    "prop",
+    "nostalgic",
+    "big-wheel",
+    "observation"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.5,
+      "doc": "wheel radius vs design"
+    },
+    "energy": {
+      "default": 0.75,
+      "min": 0,
+      "max": 1,
+      "doc": "bulb glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rotation + chase rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cabin + rim-bulb count"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "structure/bulb accent hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wheel center x"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.25,
+      "max": 0.7,
+      "doc": "wheel center y"
+    },
+    "style": {
+      "default": "bulbs",
+      "options": [
+        "bulbs",
+        "neon",
+        "noir",
+        "chrome",
+        "blueprint"
+      ],
+      "doc": "incandescent bulbs / neon tube rim / backlit silhouette chiaroscuro / oil-slick chrome / engineering blueprint wireframe"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "phase + bulb pattern seed"
+    },
+    "act": {
+      "default": "chase",
+      "options": [
+        "chase",
+        "sparkle",
+        "pulse"
+      ],
+      "doc": "bulb program: running chase / random sparkle / beat pulse"
+    }
+  },
+  "acts": [
+    "chase",
+    "sparkle",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:16:59+00:00",
+    "fps": 61.7,
+    "motion": 0.0272,
+    "lum": 0.127
+  },
+  "code": "const D = { scale:1, energy:.75, speed:1, density:.5, hue:35, x:.5, y:.46, style:'bulbs', seed:0, act:'chase' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, u = Math.min(width, height);\nconst st = P.style;\nconst cxp = P.x*width, cyp = P.y*height;\nconst R = u*0.4*P.scale;\nconst H = P.hue % 360;\nconst wire = (st==='blueprint');\nconst intn = (K.intensity!=null?K.intensity:0.6);\n// speed = intensity: rotation rate scales with musical intensity + baseline so never static\nif (S.lb==null || K.beat < S.lb) S.lb = K.beat;\nS.lb = K.beat;\nconst rate = (0.10 + 0.5*intn) * P.speed;\nconst theta = K.t * rate + fr(3)*TAU;\n// spoke / cabin count\nconst N = Math.round(8 + P.density*10);\n// structure palette\nlet strut, rimC, spokeC;\nif (wire){ strut=[195,70,80]; rimC=[195,80,90]; spokeC=[195,55,60]; }\nelse if (st==='neon'){ strut=[H,80,70]; rimC=[(H+180)%360,90,100]; spokeC=[(H+60)%360,85,90]; }\nelse if (st==='noir'){ strut=[210,6,72]; rimC=[210,4,90]; spokeC=[210,5,50]; }\nelse if (st==='chrome'){ strut=[210,20,80]; rimC=[280,30,95]; spokeC=[180,25,85]; }\nelse { strut=[28,55,72]; rimC=[H,45,88]; spokeC=[35,40,66]; }\n// ---- support A-frame legs to ground ----\nconst groundY = cyp + R*1.25;\npush();\nif (wire){ stroke(strut[0],strut[1],strut[2],80); strokeWeight(Math.max(1,u*0.003)); noFill(); }\nelse { stroke(strut[0],strut[1],strut[2]*0.7,100); strokeWeight(Math.max(2,u*0.012)); }\nline(cxp, cyp, cxp - R*0.55, groundY);\nline(cxp, cyp, cxp + R*0.55, groundY);\nline(cxp, cyp, cxp - R*0.28, groundY);\nline(cxp, cyp, cxp + R*0.28, groundY);\nif (!wire){ stroke(strut[0],strut[1],strut[2]*0.5,100); strokeWeight(Math.max(2,u*0.014)); line(cxp-R*0.5,groundY, cxp+R*0.5,groundY); }\npop();\n// ---- spokes + rim ----\npush();\ntranslate(cxp, cyp);\n// rim ring\nnoFill();\nif (st==='neon'){ drawingContext.shadowColor=color(rimC[0],rimC[1],100,90).toString(); drawingContext.shadowBlur=u*0.03*(0.5+P.energy); }\nstroke(rimC[0], rimC[1], rimC[2], wire?70:100); strokeWeight(wire?Math.max(1,u*0.003):Math.max(2,u*0.01));\nellipse(0,0,R*2,R*2);\nif (st!=='neon'){} else { drawingContext.shadowBlur=0; }\nellipse(0,0,R*1.86,R*1.86);\n// spokes\nstroke(spokeC[0], spokeC[1], spokeC[2], wire?60:90); strokeWeight(wire?Math.max(1,u*0.0025):Math.max(1.5,u*0.006));\nfor (let i=0;i<N;i++){ const a = theta + i*TAU/N; line(0,0, Math.cos(a)*R, Math.sin(a)*R); }\n// hub\nif (wire){ noFill(); stroke(rimC[0],rimC[1],rimC[2],90); ellipse(0,0,R*0.14,R*0.14); }\nelse { noStroke(); fill(strut[0],strut[1],strut[2]*0.6); ellipse(0,0,R*0.16,R*0.16); fill(rimC[0],rimC[1],rimC[2]); ellipse(0,0,R*0.07,R*0.07); }\npop();\n// ---- bulbs on rim with chase ----\nconst chase = K.beat*P.speed*3;\nconst nBulb = Math.round(20 + P.density*36);\nblendMode(ADD); noStroke();\nfor (let b=0;b<nBulb;b++){\n  const a = theta*0.0 + b*TAU/nBulb;                 // bulbs sit on rim in world frame (rim rotates but bulbs are on the wheel)\n  const aw = theta + b*TAU/nBulb;                     // rotate with wheel\n  const px = cxp + Math.cos(aw)*R, py = cyp + Math.sin(aw)*R;\n  let on;\n  if (P.act==='sparkle'){ on = 0.3 + 0.7*Math.abs(Math.sin(K.t*4 + b*1.7)); }\n  else if (P.act==='pulse'){ on = 0.25 + 0.75*Math.pow(K.pulse,1.5); }\n  else { on = 0.28 + 0.72*Math.pow(Math.max(0,Math.sin((b - chase)*0.7)),4); }\n  on = on*0.7 + 0.3*Math.sin(K.t*5+b)*0.3;            // continuous shimmer floor\n  on = Math.max(0.08, on);\n  const glow = P.energy*(0.6+0.4*K.swell) + (A.treble||0)*0.4;\n  const r = u*0.012*(0.7+on*0.7);\n  const bh = (st==='neon') ? (H+b*4)%360 : (st==='noir'? 45 : (H+on*20)%360);\n  const bsat = st==='noir'?18: (st==='chrome'?30:55);\n  fill(bh, bsat, 100, (10+glow*18)*on); ellipse(px,py, r*2.6, r*2.6);\n  fill(bh, bsat*0.5, 100, 55+on*40); ellipse(px,py, r, r);\n}\nblendMode(BLEND);\n// ---- cabins hanging at N points, pendulum swing ----\nfor (let i=0;i<N;i++){\n  const a = theta + i*TAU/N;\n  const ax = cxp + Math.cos(a)*R, ay = cyp + Math.sin(a)*R;\n  // pendulum: swing driven by tangential motion + continuous sway\n  const sway = Math.sin(K.t*1.6 + i*1.1)*0.18*(0.5+intn) + Math.cos(a)*0.12;\n  const cs = u*0.055*P.scale;\n  const cxc = ax + Math.sin(sway)*cs*1.4;\n  const cyc2 = ay + Math.cos(sway)*cs*1.4 + cs*0.2;\n  push(); translate(cxc, cyc2); rotate(sway);\n  // hanger\n  stroke(strut[0],strut[1],strut[2]*0.7, wire?70:100); strokeWeight(wire?1:Math.max(1.5,u*0.004)); noFill();\n  line(0,-cs*1.4,0,-cs*0.5);\n  const ch = (i%2===0)? rimC : spokeC;\n  if (wire){ stroke(ch[0],ch[1],ch[2],80); noFill(); rect(-cs*0.5,-cs*0.5,cs,cs*0.85,3); line(-cs*0.5,-cs*0.15,cs*0.5,-cs*0.15); }\n  else {\n    noStroke();\n    // roof\n    fill(ch[0],ch[1],ch[2]); arc(0,-cs*0.4, cs*1.15, cs*0.7, Math.PI, TAU, CHORD);\n    // body\n    fill(ch[0], ch[1]*0.8, ch[2]*0.9); rect(-cs*0.5,-cs*0.4,cs,cs*0.8,cs*0.12);\n    // window\n    fill(45, st==='noir'?10:30, st==='noir'?60:96, 85); rect(-cs*0.32,-cs*0.2,cs*0.64,cs*0.42,2);\n    // shade\n    fill(0,0,0,22); rect(cs*0.1,-cs*0.4,cs*0.4,cs*0.8,cs*0.12);\n  }\n  pop();\n}\ndrawingContext.shadowBlur = 0; blendMode(BLEND);\n"
+}

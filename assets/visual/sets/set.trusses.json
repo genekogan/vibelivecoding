@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.trusses",
+  "kind": "set",
+  "name": "Stage Trusses",
+  "desc": "An overhead concert lighting truss with two-to-eight motorized moving heads sweeping volumetric beams through haze and PAR cans strobing on the beat, cueing a new color scheme every section.",
+  "tags": [
+    "truss",
+    "trusses",
+    "rig",
+    "stage",
+    "concert",
+    "lighting",
+    "lights",
+    "moving-head",
+    "par-can",
+    "beam",
+    "spotlight",
+    "laser",
+    "haze",
+    "festival",
+    "show",
+    "gig",
+    "club",
+    "overhead",
+    "dmx",
+    "cue",
+    "strobe",
+    "volumetric",
+    "neon",
+    "noir",
+    "riso",
+    "wireframe",
+    "set",
+    "backdrop",
+    "live"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "n": {
+      "default": 5,
+      "min": 2,
+      "max": 8,
+      "doc": "number of moving heads"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "beam length + brightness"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base cue hue (200=cyan)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "sweep rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 1,
+      "doc": "PAR can count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "truss + fixture size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.13,
+      "min": 0.02,
+      "max": 0.4,
+      "doc": "truss height from top"
+    },
+    "haze": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "volumetric haze density in beams"
+    },
+    "spread": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "beam sweep width"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic head phases + truss"
+    },
+    "style": {
+      "default": "rig",
+      "options": [
+        "rig",
+        "wireframe",
+        "neon",
+        "noir",
+        "riso"
+      ],
+      "doc": "render philosophy: industrial metal rig / schematic wireframe / neon / noir single-color chiaroscuro / 2-ink riso"
+    },
+    "act": {
+      "default": "concert",
+      "options": [
+        "concert",
+        "ballad",
+        "strobe"
+      ],
+      "doc": "multi-minute cue program: driving concert / slow ballad / hard strobe drop"
+    }
+  },
+  "acts": [
+    "concert",
+    "ballad",
+    "strobe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:19:49+00:00",
+    "fps": 59.2,
+    "motion": 0.0084,
+    "lum": 0.091
+  },
+  "code": "const D = { n:5, energy:.65, hue:200, speed:1, density:.5, scale:1, x:.5, y:.13, seed:0, style:'rig', act:'concert', haze:.6, spread:.6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q=Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q-Math.floor(q); };\nconst lp=(a,b,t)=>a+(b-a)*t;\nconst TAU=Math.PI*2;\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=((P.hue%360)+360)%360;\nconst styles=['rig','wireframe','neon','noir','riso'];\nconst st=styles.includes(P.style)?P.style:'rig';\nconst n=Math.max(2,Math.min(8,Math.round(P.n)));\nconst spd=P.speed;\nconst dens=Math.max(.2,Math.min(1,P.density));\nconst trussY=P.y*Hh;\n\n// per-section color schemes (cues advance with the musical arc)\nconst schemes=[[H,90,100],[(H+45)%360,88,100],[(H+180)%360,86,100],[(H+300)%360,90,100],[52,20,100]];\nconst sec=Math.floor(K.section)%schemes.length;\nconst beamC = st==='noir'? [0,0,100] : (st==='riso'? [186,80,96] : schemes[sec]);\nconst beamC2 = st==='riso'? [9,84,96] : schemes[(sec+2)%schemes.length];\n\n// act shaping (multi-minute dramaturgy)\nlet sweepAmp=0.55*P.spread, rate=1, parFlash=1;\nif(P.act==='ballad'){ sweepAmp=0.28*P.spread; rate=0.5; parFlash=0.6; }\nelse if(P.act==='strobe'){ sweepAmp=0.85*P.spread; rate=1.8; parFlash=1.6; }\n\n// \u2500\u2500 truss structure cached (static lattice) \u2500\u2500\nconst key=W+'x'+Hh+'|'+st+'|'+P.seed+'|'+Math.round(trussY)+'|'+P.scale;\nif(S.truss==null || S.tKey!==key){\n  const g=createGraphics(W,Math.max(2,Math.round(trussY+u*0.12))); g.colorMode(g.HSB,360,100,100,100);\n  const th=u*0.055*P.scale;               // truss height\n  const y0=trussY-th/2, y1=trussY+th/2;\n  const mCol = st==='wireframe'?[200,70,96]:(st==='neon'?[H,40,60]:(st==='riso'?[46,10,70]:[0,0,32]));\n  const mDark = st==='wireframe'?[200,60,60]:(st==='riso'?[46,10,50]:[0,0,18]);\n  g.stroke(mCol[0],mCol[1],mCol[2]); g.strokeWeight(Math.max(1.5,u*0.004*P.scale));\n  // top & bottom chords\n  g.line(0,y0,W,y0); g.line(0,y1,W,y1);\n  // diagonal lattice web\n  g.strokeWeight(Math.max(1,u*0.0025*P.scale));\n  const seg=u*0.05*P.scale;\n  for(let x=0;x<W;x+=seg){ g.line(x,y0,x+seg,y1); g.line(x+seg,y0,x,y1); }\n  // vertical posts\n  g.stroke(mDark[0],mDark[1],mDark[2]); for(let x=0;x<=W;x+=seg*2){ g.line(x,y0,x,y1); }\n  if(st!=='wireframe'){ // hang points / motors\n    g.noStroke(); g.fill(mDark[0],mDark[1],mDark[2]);\n    for(let x=seg; x<W; x+=seg*2){ g.rect(x-u*0.006,y0-u*0.02*P.scale,u*0.012,u*0.02*P.scale); }\n  }\n  S.truss=g; S.tKey=key;\n}\n\n// \u2500\u2500 moving-head beams (continuous pan = real-time motion floor) \u2500\u2500\nconst hazeA = P.haze*(0.6+0.4*K.intensity);\nconst eLen = 0.55+P.energy*0.6;   // beam length fraction of height\nblendMode(ADD); noStroke();\nconst bassG=(A.bass||0);\nfor(let i=0;i<n;i++){\n  const ox = lp(W*0.08,W*0.92,n===1?0.5:i/(n-1));\n  const oy = trussY+u*0.03*P.scale;\n  const phase=fr(i*7)*TAU;\n  const dirSign=(i%2===0)?1:-1;\n  // pan: continuous sine drift (never re-phases) + slow section wander\n  const pan = Math.sin(K.t*0.6*rate*spd*dirSign+phase)*sweepAmp\n            + Math.sin(K.t*0.13*spd+phase)*0.18;\n  const ang = Math.PI/2 + pan;\n  const L = Hh*eLen*(0.75+0.25*Math.sin(K.t*1.3+phase));\n  const dx=Math.cos(ang), dy=Math.sin(ang), px=-dy, py=dx;\n  const wTop=u*0.008*P.scale, wBot=u*0.075*P.scale*(0.7+P.energy*0.6);\n  const tipx=ox+dx*L, tipy=oy+dy*L;\n  // beam intensity: clk baseline + audio on top\n  const inten = (0.55+0.45*Math.sin(K.t*1.1+phase)) * (0.7+0.3*K.swell) + bassG*0.5;\n  const cc = (i%2===0)?beamC:beamC2;\n  // volumetric cone (few translucent layers, ADD alpha <=35)\n  for(let lyr=0;lyr<3;lyr++){ const wt=wBot*(0.4+lyr*0.35); const a=(9-lyr*2.5)*hazeA*inten;\n    fill(cc[0],cc[1],cc[2],a); quad(ox+px*wTop,oy+py*wTop, ox-px*wTop,oy-py*wTop, tipx-px*wt,tipy-py*wt, tipx+px*wt,tipy+py*wt); }\n  // bright core\n  fill(cc[0],Math.max(0,cc[1]-40),100, 22*inten); quad(ox+px*wTop*0.5,oy+py*wTop*0.5, ox-px*wTop*0.5,oy-py*wTop*0.5, tipx-px*wBot*0.25,tipy-py*wBot*0.25, tipx+px*wBot*0.25,tipy+py*wBot*0.25);\n  // ground pool where beam lands\n  fill(cc[0],cc[1],100, 16*inten); ellipse(tipx,tipy,wBot*1.6,wBot*0.5);\n  // fixture head hotspot\n  fill(cc[0],40,100, 40*inten); ellipse(ox,oy,u*0.02*P.scale,u*0.02*P.scale);\n}\nblendMode(BLEND);\n\n// moving-head yoke bodies (drawn over truss)\nfor(let i=0;i<n;i++){\n  const ox = lp(W*0.08,W*0.92,n===1?0.5:i/(n-1));\n  const oy = trussY+u*0.03*P.scale;\n  const phase=fr(i*7)*TAU;\n  const dirSign=(i%2===0)?1:-1;\n  const pan = Math.sin(K.t*0.6*rate*spd*dirSign+phase)*sweepAmp+Math.sin(K.t*0.13*spd+phase)*0.18;\n  push(); translate(ox,oy);\n  if(st==='wireframe'){ noFill(); stroke(200,70,96,90); strokeWeight(1.3); rect(-u*0.014*P.scale,-u*0.02*P.scale,u*0.028*P.scale,u*0.03*P.scale); rotate(pan*0.5); rect(-u*0.008*P.scale,0,u*0.016*P.scale,u*0.026*P.scale); }\n  else { noStroke(); fill(0,0,14); rect(-u*0.016*P.scale,-u*0.022*P.scale,u*0.032*P.scale,u*0.03*P.scale,u*0.004); fill(0,0,22); rect(-u*0.012*P.scale,-u*0.024*P.scale,u*0.024*P.scale,u*0.008*P.scale); rotate(pan*0.5); fill(0,0,9); rect(-u*0.009*P.scale,0,u*0.018*P.scale,u*0.026*P.scale,u*0.003); }\n  pop();\n}\n\nimage(S.truss,0,0);\n\n// \u2500\u2500 PAR cans: static downlights flashing on the beat \u2500\u2500\nconst nPar=Math.round(lp(3,9,dens));\nblendMode(ADD); noStroke();\nfor(let i=0;i<nPar;i++){\n  const px2=lp(W*0.06,W*0.94,nPar===1?0.5:i/(nPar-1));\n  const py2=trussY+u*0.04*P.scale;\n  const beat4=Math.floor(K.beat)%4;\n  const on = (i%4)===beat4;\n  const fl = (on? 1: 0.12) * K.pulse*parFlash + 0.08;\n  const pc = schemes[(sec+i)%schemes.length];\n  const cc = st==='noir'?[0,0,100]:(st==='riso'?(i%2?[9,84,96]:[186,80,96]):pc);\n  const L=Hh*0.45*(0.6+fl*0.8);\n  fill(cc[0],cc[1],cc[2], 10*fl);\n  quad(px2-u*0.006,py2, px2+u*0.006,py2, px2+u*0.05*P.scale,py2+L, px2-u*0.05*P.scale,py2+L);\n  fill(cc[0],cc[1],100, 30*fl); ellipse(px2,py2,u*0.016*P.scale,u*0.016*P.scale);\n}\nblendMode(BLEND);\n// PAR can bodies\nfor(let i=0;i<nPar;i++){ const px2=lp(W*0.06,W*0.94,nPar===1?0.5:i/(nPar-1)); const py2=trussY+u*0.028*P.scale; noStroke(); fill(0,0, st==='wireframe'?0:12); if(st==='wireframe'){ stroke(200,70,90,80); strokeWeight(1); noFill(); } ellipse(px2,py2,u*0.02*P.scale,u*0.014*P.scale); }\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}
