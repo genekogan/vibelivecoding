@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.arcade",
+  "kind": "set",
+  "name": "Arcade Cabinet",
+  "desc": "A standing arcade cabinet running an abstract attract-mode game on its scanline CRT that switches every section, with a flickering marquee, wiggling joystick and beat-pulsing buttons.",
+  "tags": [
+    "arcade",
+    "cabinet",
+    "game",
+    "gaming",
+    "retro",
+    "80s",
+    "crt",
+    "scanline",
+    "pixel",
+    "vector",
+    "pong",
+    "invaders",
+    "tetris",
+    "snake",
+    "starfield",
+    "neon",
+    "joystick",
+    "coin-op",
+    "attract",
+    "vaporwave",
+    "synthwave",
+    "nostalgia",
+    "set",
+    "prop",
+    "screen",
+    "phosphor",
+    "blueprint",
+    "riso"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "cabinet size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "game speed + glow amplitude"
+    },
+    "hue": {
+      "default": 265,
+      "min": 0,
+      "max": 360,
+      "doc": "cabinet + phosphor hue (265=violet)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 1,
+      "doc": "on-screen game element count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cabinet center x"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "cabinet center y"
+    },
+    "glow": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "CRT phosphor bloom + marquee glow"
+    },
+    "scan": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "scanline strength"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic art + locked demo game"
+    },
+    "style": {
+      "default": "crt",
+      "options": [
+        "crt",
+        "vector",
+        "neon",
+        "blueprint",
+        "riso"
+      ],
+      "doc": "render philosophy: glowing scanline CRT / additive vector-monitor / neon-outline / schematic blueprint wireframe / 2-ink riso"
+    },
+    "act": {
+      "default": "attract",
+      "options": [
+        "attract",
+        "demo",
+        "glitch"
+      ],
+      "doc": "screen program: attract cycles games by section / demo locks one / glitch degrades"
+    }
+  },
+  "acts": [
+    "attract",
+    "demo",
+    "glitch"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:43:09+00:00",
+    "fps": 60.2,
+    "motion": 0.02,
+    "lum": 0.1
+  },
+  "code": "const D = { scale:1, energy:.6, hue:265, speed:1, density:.5, x:.5, y:.62, seed:0, style:'crt', act:'attract', glow:1, scan:.6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q=Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q-Math.floor(q); };\nconst lp=(a,b,t)=>a+(b-a)*t;\nconst TAU=Math.PI*2;\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=((P.hue%360)+360)%360;\nconst styles=['crt','vector','neon','blueprint','riso'];\nconst st=styles.includes(P.style)?P.style:'crt';\nconst sc=P.scale;\nconst spd=P.speed;\nconst dens=Math.max(.2,Math.min(1,P.density));\n\n// cabinet geometry, anchored on P.x/P.y (screen center)\nconst cw=u*0.34*sc, ch=u*0.62*sc;\nconst cxc=P.x*W, cyc=P.y*Hh;\nconst left=cxc-cw/2, top=cyc-ch/2;\n// screen rect (inside upper cabinet)\nconst scrW=cw*0.78, scrH=ch*0.40, scrX=cxc-scrW/2, scrY=top+ch*0.12;\n\n// real-time motion floor (drives K.t, never re-phases at 8s): whole cabinet drifts +\n// a wide attract-mode light sweeps across the frame. Guarantees > 10% frame-area motion.\nconst drift=u*0.024*Math.min(1.5,sc);\nconst dxo=Math.sin(K.t*0.55)*drift + Math.sin(K.t*0.21)*drift*0.5;\nconst dyo=Math.sin(K.t*0.40)*drift*0.6;\n\n// per-style palette\nfunction pal(){\n  if(st==='vector') return {body:[0,0,7], panel:[0,0,11], bezel:[0,0,3], ink:[H,80,100], ink2:[(H+150)%360,80,100], line:0, phos:1, screenBg:[0,0,3]};\n  if(st==='neon') return {body:[0,0,9], panel:[0,0,13], bezel:[H,60,30], ink:[H,85,100], ink2:[(H+180)%360,90,100], line:1, phos:0, screenBg:[H,50,6]};\n  if(st==='blueprint') return {body:null, panel:null, bezel:null, ink:[205,72,98], ink2:[205,50,70], line:1, phos:0, screenBg:[210,60,10], wire:1};\n  if(st==='riso') return {body:[46,20,90], panel:[46,26,82], bezel:[9,78,90], ink:[186,74,86], ink2:[9,82,96], line:0, phos:0, screenBg:[46,18,86], riso:1};\n  return {body:[H,42,20], panel:[H,50,26], bezel:[0,0,4], ink:[H,30,100], ink2:[(H+40)%360,70,100], line:0, phos:1, screenBg:[H,60,5]}; // crt\n}\nconst C=pal();\nconst wire=C.wire;\n\n// \u2500\u2500 cabinet body cached to buffer (static) \u2500\u2500\nconst key=W+'x'+Hh+'|'+st+'|'+P.seed+'|'+sc+'|'+Math.round(P.x*40)+'|'+Math.round(P.y*40);\nif(S.cab==null || S.cabKey!==key){\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  const drawBox=(x,y,w,h,col,strokeCol)=>{ if(col){g.fill(col[0],col[1],col[2]); g.rect(x,y,w,h,u*0.006);} if(strokeCol){g.noFill(); g.stroke(strokeCol[0],strokeCol[1],strokeCol[2],90); g.strokeWeight(1.4); g.rect(x,y,w,h,u*0.006); g.noStroke();} };\n  if(!wire && C.body){\n    g.fill(C.body[0],C.body[1],Math.max(0,C.body[2]-6));\n    g.beginShape(); g.vertex(left-cw*0.06,top); g.vertex(left+cw,top); g.vertex(left+cw,top+ch); g.vertex(left-cw*0.06,top+ch); g.endShape(g.CLOSE);\n    drawBox(left,top,cw,ch,C.body);\n    drawBox(left,top,cw,ch*0.10,C.panel);\n    g.fill(C.panel[0],C.panel[1],C.panel[2]); g.rect(left,top+ch*0.55,cw,ch*0.16,u*0.006);\n    g.fill(C.body[0],C.body[1],Math.max(0,C.body[2]-9)); g.rect(cxc-cw*0.13,top+ch*0.80,cw*0.26,ch*0.14,u*0.004);\n    g.fill(0,0,60); g.rect(cxc-cw*0.02,top+ch*0.84,cw*0.04,ch*0.02);\n    g.stroke(C.body[0],Math.min(100,C.body[1]+20),Math.max(0,C.body[2]-10),40); g.strokeWeight(1);\n    for(let yy=top+ch*0.20; yy<top+ch*0.52; yy+=u*0.02*sc){ g.line(left+cw*0.04,yy,left+cw*0.20,yy+u*0.02*sc); }\n    g.noStroke();\n  } else if(wire){\n    drawBox(left-cw*0.06,top,cw*1.06,ch,null,C.ink);\n    drawBox(left,top,cw,ch*0.10,null,C.ink2);\n    drawBox(left,top+ch*0.55,cw,ch*0.16,null,C.ink2);\n    drawBox(cxc-cw*0.13,top+ch*0.80,cw*0.26,ch*0.14,null,C.ink2);\n    g.stroke(C.ink2[0],C.ink2[1],C.ink2[2],40); g.strokeWeight(0.8);\n    for(let yy=top+ch*0.20; yy<top+ch*0.52; yy+=u*0.03*sc){ g.line(left+cw*0.04,yy,left+cw*0.20,yy+u*0.02*sc); }\n    g.noStroke();\n  }\n  g.fill(C.bezel?C.bezel[0]:0, C.bezel?C.bezel[1]:0, C.bezel?C.bezel[2]:3);\n  if(!wire) g.rect(scrX-u*0.012,scrY-u*0.012,scrW+u*0.024,scrH+u*0.024,u*0.01);\n  S.cab=g; S.cabKey=key;\n}\n\n// everything below drifts together via the real-time offset\npush(); translate(dxo,dyo);\nimage(S.cab,0,0);\n\n// wide attract-mode light sweep travelling across the whole frame (sawtooth on K.t)\nblendMode(ADD); noStroke();\nconst swp=((K.t*0.055*spd)%1)*(W+u*0.7)-u*0.35;\nconst swAmp=(0.6+P.energy*0.7)*P.glow;\nfill(H,32,100, 4.5*swAmp); ellipse(swp, cyc+ch*0.18, u*0.6, u*0.34);\nfill((H+40)%360,26,100, 3.0*swAmp); ellipse(W-swp, cyc-ch*0.05, u*0.5, u*0.28);\nblendMode(BLEND);\n\n// \u2500\u2500 attract-mode screen: abstract game loop, switches per K.section \u2500\u2500\nlet gi = Math.floor(K.section)%5;\nif(P.act==='demo') gi = Math.floor(P.seed)%5;\nconst gspeed=spd*(0.8+P.energy*0.8);\npush();\ndrawingContext.save(); drawingContext.beginPath();\nconst rr=u*0.01; drawingContext.moveTo(scrX+rr,scrY);\ndrawingContext.arcTo(scrX+scrW,scrY,scrX+scrW,scrY+scrH,rr);\ndrawingContext.arcTo(scrX+scrW,scrY+scrH,scrX,scrY+scrH,rr);\ndrawingContext.arcTo(scrX,scrY+scrH,scrX,scrY,rr);\ndrawingContext.arcTo(scrX,scrY,scrX+scrW,scrY,rr);\ndrawingContext.closePath(); drawingContext.clip();\nnoStroke(); fill(C.screenBg[0],C.screenBg[1],C.screenBg[2]); rect(scrX,scrY,scrW,scrH);\nconst gt=K.t*gspeed;\nconst ix=C.ink, ix2=C.ink2;\nblendMode(st==='crt'||st==='neon'||st==='vector'?ADD:BLEND);\nfunction col(a){ return [ix[0],ix[1],ix[2],a]; }\nfunction col2(a){ return [ix2[0],ix2[1],ix2[2],a]; }\nconst nEl=Math.round(lp(5,16,dens));\nif(gi===0){ // PONG\n  const py1=scrY+scrH*(0.5+0.35*Math.sin(gt*1.7)), py2=scrY+scrH*(0.5+0.35*Math.sin(gt*1.7+0.6));\n  noStroke(); fill(col(90)); rect(scrX+scrW*0.06,py1-scrH*0.13,scrW*0.02,scrH*0.26); rect(scrX+scrW*0.92,py2-scrH*0.13,scrW*0.02,scrH*0.26);\n  const bx=scrX+scrW*(0.5+0.44*Math.sin(gt*2.3)), by=scrY+scrH*(0.5+0.4*Math.sin(gt*3.1+1));\n  fill(col2(100)); rect(bx-scrW*0.012,by-scrW*0.012,scrW*0.024,scrW*0.024);\n  stroke(ix[0],ix[1],ix[2],20); strokeWeight(1); for(let d=0;d<8;d++){ line(cxc,scrY+scrH*(d/8),cxc,scrY+scrH*(d/8+0.06)); }\n} else if(gi===1){ // FALLING BLOCKS\n  noStroke(); const cols=8, bw=scrW/cols;\n  for(let c=0;c<cols;c++){ const h=(fr(c*3)+Math.sin(gt*0.9+c)*0.5+0.5)*scrH*0.5; fill(c%2?col(75):col2(75)); rect(scrX+c*bw+bw*0.12,scrY+scrH-h,bw*0.76,h); }\n  const fx=scrX+((gt*0.3)%1)*scrW, fyy=scrY+((gt*0.7)%1)*scrH*0.5;\n  fill(col2(100)); rect(fx,fyy,bw*0.76,bw*0.76);\n} else if(gi===2){ // STARFIELD\n  noStroke();\n  for(let s2=0;s2<nEl*3;s2++){ const sp=(fr(s2*2)*0.8+0.2); const zz=((gt*sp*0.3+fr(s2))%1); const ang=fr(s2*5)*TAU; const rad=zz*scrW*0.6; const x=cxc+Math.cos(ang)*rad, y=scrY+scrH*0.5+Math.sin(ang)*rad*0.7; fill(col(zz*100)); const sz=zz*u*0.006+0.5; ellipse(x,y,sz,sz); }\n} else if(gi===3){ // SNAKE grid crawl\n  const gc=10, cw2=scrW/gc, rw2=scrH/6; noStroke();\n  const len=8; for(let s2=0;s2<len;s2++){ const idx=Math.floor(gt*4)-s2; const gx2=((idx%gc)+gc)%gc; const gy2=(Math.floor(idx/gc)%6+6)%6; fill(col(100-s2*9)); rect(scrX+gx2*cw2+1,scrY+gy2*rw2+1,cw2-2,rw2-2); }\n  fill(col2(100)); const ax=Math.floor(fr(Math.floor(gt*0.5))*gc), ay=Math.floor(fr(Math.floor(gt*0.5)+9)*6); rect(scrX+ax*cw2+cw2*0.25,scrY+ay*rw2+rw2*0.25,cw2*0.5,rw2*0.5);\n} else { // SPACE INVADERS rows\n  noStroke(); const cols2=7, ox=Math.sin(gt*0.8)*scrW*0.08;\n  for(let r=0;r<3;r++) for(let c=0;c<cols2;c++){ const bob=(Math.floor(gt*3+r)%2)?1:-1; fill(r%2?col(85):col2(85)); const x=scrX+scrW*0.14+c*(scrW*0.72/cols2)+ox, y=scrY+scrH*0.18+r*scrH*0.16+bob*scrH*0.02; rect(x,y,scrW*0.05,scrH*0.06); }\n  const sx=scrX+scrW*(0.5+0.3*Math.sin(gt*2)); fill(col(100)); rect(sx-scrW*0.02,scrY+scrH*0.82,scrW*0.04,scrH*0.05);\n  if(Math.floor(gt*4)%3===0){ stroke(ix2[0],ix2[1],ix2[2],90); strokeWeight(1.5); line(sx,scrY+scrH*0.82,sx,scrY+scrH*0.5); noStroke(); }\n}\nblendMode(BLEND);\nif(st==='crt'||st==='neon'||st==='vector'){\n  stroke(0,0,0, 34*P.scan); strokeWeight(1);\n  const roll=(K.t*u*0.03)% (u*0.006+2);\n  for(let y=scrY+roll; y<scrY+scrH; y+=Math.max(2,u*0.006)){ line(scrX,y,scrX+scrW,y); }\n  noStroke();\n  const bandY=scrY+((K.t*0.15*spd)%1)*scrH;\n  blendMode(ADD); fill(ix[0],20,100,10); rect(scrX,bandY,scrW,scrH*0.10); blendMode(BLEND);\n  drawingContext.shadowBlur=u*0.03; drawingContext.shadowColor='rgba(0,0,0,0.9)'; noFill(); stroke(0,0,0,1); strokeWeight(u*0.02); rect(scrX,scrY,scrW,scrH); noStroke(); drawingContext.shadowBlur=0;\n}\ndrawingContext.restore();\npop();\n\n// \u2500\u2500 screen phosphor glow spill (bass-reactive, clk baseline carries it) \u2500\u2500\nif(C.phos){ blendMode(ADD); noStroke(); const gl=(0.5+0.5*K.swell)*P.glow*(0.7+(A.bass||0)*0.9); for(let i=0;i<4;i++){ fill(ix[0],40,100, 4*gl*(1-i/4)); rect(scrX-i*u*0.01, scrY-i*u*0.01, scrW+i*u*0.02, scrH+i*u*0.02, u*0.02); } blendMode(BLEND); }\n\n// \u2500\u2500 marquee flicker + title glow \u2500\u2500\nconst mFlick = (fr(Math.floor(K.t*7))>0.12?1:0.35) * (0.7+0.3*Math.sin(K.t*11));\nblendMode(ADD); noStroke();\nfill(ix2[0],ix2[1],100, 18*mFlick*P.glow); rect(left+cw*0.04,top+ch*0.01,cw*0.92,ch*0.08,u*0.006);\nblendMode(BLEND);\npush(); textAlign(CENTER,CENTER); textFont('monospace'); textStyle(BOLD);\ntextSize(ch*0.055); fill(ix2[0],20,100, 90*mFlick);\nconst titles=['ARCADE','HI-SCORE','INSERT COIN','PLAYER 1','GAME OVER'];\ntext(titles[Math.floor(K.section)%titles.length], cxc, top+ch*0.05);\npop();\n\n// \u2500\u2500 joystick wiggle + buttons pulse on beat \u2500\u2500\nconst jx=cxc-cw*0.22, jy=top+ch*0.62;\nconst tilt=Math.sin(K.t*3*spd)*0.5 + K.pulse*0.5*(Math.sign(fr(Math.floor(K.beat))-0.5));\npush(); translate(jx,jy);\nstroke(0,0,15); strokeWeight(u*0.012*sc); const sk=u*0.045*sc; line(0,0,tilt*u*0.02*sc,-sk); noStroke();\nfill(st==='riso'?C.ink2[0]:0, st==='riso'?70:0, st==='riso'?90:15); ellipse(0,0,u*0.03*sc,u*0.014*sc);\nfill(0,0,90); const bt=(H)%360; fill(bt,80,95); ellipse(tilt*u*0.02*sc,-sk,u*0.03*sc,u*0.03*sc);\npop();\nfor(let b=0;b<4;b++){ const bx=cxc+cw*(0.02+b*0.08), by=top+ch*0.62; const lit=fr(b*5)<0.5?K.pulse:K.swell; fill((H+b*30)%360,80,60+lit*40); ellipse(bx,by,u*0.026*sc,u*0.026*sc); fill(0,0,100,lit*40); ellipse(bx-u*0.004,by-u*0.004,u*0.01,u*0.01); }\n\npop(); // end real-time drift\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}
