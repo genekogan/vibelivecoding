@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.breakdancer",
+  "kind": "subject",
+  "name": "Breakdancer",
+  "desc": "B-boy cycling toprock, windmills and freezes on the beat, wrapped in graffiti wildstyle spray halo, paint splats and motion-smear arcs.",
+  "tags": [
+    "breakdancer",
+    "bboy",
+    "breakdance",
+    "dancer",
+    "hiphop",
+    "street",
+    "graffiti",
+    "wildstyle",
+    "urban",
+    "windmill",
+    "freeze",
+    "toprock",
+    "spray",
+    "character",
+    "dance",
+    "90s",
+    "funk",
+    "battle",
+    "cypher"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude + glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "figure size vs design"
+    },
+    "hue": {
+      "default": 315,
+      "min": 0,
+      "max": 360,
+      "doc": "jacket/spray primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "paint splat / accent count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "toprock",
+        "windmill",
+        "freeze",
+        "idle"
+      ],
+      "doc": "move \u2014 cycle auto-routines through all"
+    },
+    "style": {
+      "default": "wildstyle",
+      "options": [
+        "wildstyle",
+        "chalk",
+        "neon",
+        "zine"
+      ],
+      "doc": "aesthetic: graffiti fills / chalk lines / glow tubes / photocopy b&w"
+    },
+    "act": {
+      "default": "battle",
+      "options": [
+        "battle",
+        "cypher"
+      ],
+      "doc": "multi-minute program: battle = full routine w/ freeze, cypher = mellow toprock flow"
+    },
+    "smear": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion-smear arc amount"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "limb length morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "splat layout / personality variation"
+    }
+  },
+  "acts": [
+    "battle",
+    "cypher"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-10T19:20:42+00:00",
+    "fps": 61.7,
+    "motion": 0.0111,
+    "lum": 0.099
+  },
+  "code": "const D = { energy:.7, scale:1, hue:315, speed:1, density:.5, x:.5, y:.8, pose:'cycle', style:'wildstyle', act:'battle', smear:.6, limb:.5, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst md = (a, n) => ((a % n) + n) % n;\nconst frc = v => v - Math.floor(v);\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst ez = t => { t = clp(t, 0, 1); return t * t * (3 - 2 * t); };\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst sn = (tt, off) => { const f = Math.floor(tt), xq = tt - f; return (fr(f + off) * (1 - xq) + fr(f + 1 + off) * xq - .5) * 2; };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nconst u = Math.min(width, height);\nconst sc = u * P.scale / 320;\nconst bt = K.beat * P.speed;\nconst sub = frc(bt);\nconst kick = K.pulse * .6 + A.bass * .85;\nconst en = P.energy * (.5 + .5 * K.intensity);\nconst H = md(P.hue, 360);\nconst chalk = P.style === 'chalk', neon = P.style === 'neon', zine = P.style === 'zine';\nconst LL = .78 + P.limb * .5;\n\n// ---- seed-keyed splat layout + soft sprite cache ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.splat = [];\n  for (let i = 0; i < 46; i++) S.splat.push({\n    a: fr(i * 3 + 1) * 6.2832, r: 70 + fr(i * 3 + 2) * 110,\n    s: 3 + fr(i * 3 + 3) * 8, dh: (fr(i * 7 + 4) - .5) * 80,\n    drip: fr(i * 5 + 6) > .74, ph: fr(i * 9 + 8) * 6.2832\n  });\n}\nif (!S.spr) {\n  S.spr = createGraphics(64, 64);\n  S.spr.noStroke();\n  for (let r = 30; r > 0; r--) { S.spr.fill(255, 6); S.spr.ellipse(32, 32, r * 2.1, r * 2.1); }\n}\n\n// ---- choreography: which move now ----\nlet mv = P.pose;\nif (mv === 'cycle') {\n  const ph = md(bt, 16);\n  if (P.act === 'cypher') {\n    mv = ph < 10 ? 'toprock' : ph < 14 ? 'windmill' : (K.section % 4 === 3 ? 'freeze' : 'idle');\n  } else {\n    mv = (K.section % 4 === 1 && ph >= 14) ? 'idle' : ph < 8 ? 'toprock' : ph < 12 ? 'windmill' : 'freeze';\n  }\n}\n\nconst m = { hipX:0, dy:0, crouch:.12, tilt:0, wind:null, windT:0, freeze:false, legSplit:.8,\n            lL:.06, lK:.12, rL:-.06, rK:-.12, lA:.3, lB:.3, rA:-.3, rB:-.3, head:0 };\n\nif (mv === 'toprock') {\n  const s = Math.floor(md(bt, 2)) === 0 ? 1 : -1;\n  const snap = ez(sub / .28);\n  const load = sub > .78 ? (sub - .78) / .22 : 0;   // anticipation: pre-load before next beat\n  const bounce = Math.sin(sub * Math.PI) * 7 * en;\n  m.hipX = s * 9 * snap * en;\n  m.dy = -bounce + load * 3 * en;\n  m.crouch = .12 + load * .3 * en + kick * .08;\n  m.tilt = s * .09 * snap * en;\n  if (s > 0) {\n    m.rL = -.55 * snap * en; m.rK = -.15 * snap; m.lL = .12 * snap; m.lK = .2;\n    m.rA = -2.5 * snap * en - .2; m.rB = -.3; m.lA = .5 - .2 * snap; m.lB = .5;\n  } else {\n    m.lL = .55 * snap * en; m.lK = .15 * snap; m.rL = -.12 * snap; m.rK = -.2;\n    m.lA = 2.5 * snap * en + .2; m.lB = .3; m.rA = -.5 + .2 * snap; m.rB = -.5;\n  }\n  m.head = s * .06 + kick * .1;\n} else if (mv === 'windmill') {\n  const pb = P.pose === 'cycle' ? md(bt, 16) - 8 : md(bt, 4);\n  m.wind = pb * 6.2832 * .75 + Math.sin(pb * 2.2) * .18;\n  m.windT = pb / 4;\n} else if (mv === 'freeze') {\n  m.freeze = true;\n  m.wind = -1.85 + sn(K.t * 3.1, 51) * .05 * en + Math.sin(K.t * .9) * .05;\n  m.legSplit = .95 + K.swell * .3 * en;\n} else { // idle groove\n  const w = Math.sin(md(bt, 2) * Math.PI);\n  m.hipX = w * 6 * en;\n  m.tilt = w * .05 * en;\n  m.dy = -kick * 4 * en;\n  m.crouch = .14 + kick * .1;\n  m.lA = .35 + w * .15; m.rA = -.35 + w * .15; m.lB = .5; m.rB = -.5;\n  m.lL = .05 + w * .04; m.rL = -.05 + w * .04;\n  m.head = Math.sin(bt * Math.PI) * .09 * en + kick * .1 + sn(K.t * .4, 77) * .06;\n}\n\n// ---- style plumbing (multi-pass renders) ----\nlet PASS = 1;\nfunction st() {\n  if (PASS === 0) { stroke(H, 85, 100, 20); strokeWeight(7); noFill(); return; }\n  if (PASS === 2) { stroke(0, 0, 98, 26); strokeWeight(1.4); noFill(); return; }\n  if (chalk) stroke(0, 0, 94, 85);\n  else if (neon) stroke(H, 80, 100, 95);\n  else stroke(0, 0, zine ? 5 : 9, 100);\n  strokeWeight(zine ? 4 : chalk ? 2.4 : 3);\n}\nfunction fl(h, s, b) {\n  if (PASS !== 1) { noFill(); return; }\n  if (chalk) fill(0, 0, 92, 9);\n  else if (neon) fill(232, 45, 13, 96);\n  else if (zine) fill(0, 0, 97, 100);\n  else fill(h, s, b, 100);\n}\n\n// ---- body parts ----\nfunction leg(x, y, a1, a2) {\n  push(); translate(x, y); rotate(a1);\n  st(); fl(md(H + 160, 360), 55, 42);\n  rect(-5.5, -2, 11, 32 * LL, 5);\n  translate(0, 30 * LL); rotate(a2);\n  rect(-5, 0, 10, 30 * LL, 5);\n  translate(0, 30 * LL);\n  fl(0, 0, 96);\n  rect(-6, -2, 17, 9, 3);\n  if (PASS === 1) { noStroke(); fill(md(H + 20, 360), (chalk || zine) ? 0 : 75, zine ? 12 : 78, 90); rect(-6, 4, 17, 3, 1); st(); }\n  pop();\n}\nfunction arm(x, y, a1, a2) {\n  push(); translate(x, y); rotate(a1);\n  st(); fl(H, 80, 90);\n  rect(-4.5, -2, 9, 27 * LL, 5);\n  translate(0, 25 * LL); rotate(a2);\n  rect(-4, 0, 8, 25 * LL, 4);\n  translate(0, 25 * LL);\n  fl(26, 40, 88); ellipse(0, 2, 9.5, 9.5);\n  pop();\n}\nfunction capHead(nod) {\n  push(); rotate(nod);\n  st(); fl(26, 40, 88);\n  ellipse(0, -9, 23, 24);\n  if (PASS === 1) {\n    noStroke();\n    fill(0, 0, 10, 90);\n    arc(0, -4, 10, 4 + kick * 4, .25, Math.PI - .25, CHORD);\n    const blink = frc(K.t * .13 + fr(5) * 2) < .05;\n    fill(0, 0, 12);\n    if (blink) { rect(-6.5, -12, 4.4, 1.4, 1); rect(2.1, -12, 4.4, 1.4, 1); }\n    else { ellipse(-4.4, -11.5, 3, 3.6); ellipse(4.4, -11.5, 3, 3.6); }\n    st();\n  }\n  fl(md(H + 40, 360), 88, 92);\n  arc(0, -14, 24, 19, Math.PI, 6.2832, CHORD);\n  rect(-17, -16, 12, 5, 2);\n  pop();\n}\nfunction windBody(mm) {\n  push();\n  translate(0, -26);\n  rotate(mm.wind);\n  const spl = mm.freeze ? mm.legSplit : .8 + Math.sin(mm.windT * 12.566) * .22;\n  for (let g = -1; g <= 1; g += 2) {\n    push();\n    translate(14, 0);\n    rotate(g * spl * .5 + (mm.freeze && g > 0 ? .55 : 0));\n    st(); fl(md(H + 160, 360), 55, 42);\n    rect(0, -4.5, 50 * LL, 9, 5);\n    fl(0, 0, 96); rect(50 * LL, -5.5, 12, 8, 3);\n    pop();\n  }\n  st(); fl(H, 80, 90);\n  ellipse(-2, 0, 46, 26);\n  fl(26, 40, 88);\n  push(); translate(-29, -2); rotate(-.35);\n  ellipse(0, 0, 20, 21);\n  fl(md(H + 40, 360), 88, 92);\n  arc(0, -5, 21, 15, Math.PI, 6.2832, CHORD);\n  pop();\n  pop();\n}\nfunction figGeom(mm) {\n  if (mm.wind != null) {\n    if (mm.freeze) {\n      push();\n      st(); fl(H, 80, 90);\n      translate(10, -34); rotate(.3);\n      rect(-4.5, 0, 9, 32, 5);\n      translate(0, 31); fl(26, 40, 88); ellipse(0, 3, 10, 8);\n      pop();\n    }\n    windBody(mm);\n    return;\n  }\n  push();\n  translate(mm.hipX, mm.dy);\n  rotate(mm.tilt);\n  const hipY = -60 + mm.crouch * 24;\n  leg(-7, hipY, mm.lL, mm.lK);\n  leg(7, hipY, mm.rL, mm.rK);\n  push();\n  translate(0, hipY);\n  st(); fl(H, 80, 90);\n  beginShape(); vertex(-12, 2); vertex(12, 2); vertex(15, -36); vertex(-15, -36); endShape(CLOSE);\n  if (PASS === 1 && !chalk && !zine) {\n    noStroke(); fill(md(H + 180, 360), 70, 96, 95);\n    rect(-2.5, -35, 5, 36); st();\n  }\n  arm(-14, -32, mm.lA, mm.lB);\n  arm(14, -32, mm.rA, mm.rB);\n  st(); fl(26, 40, 88);\n  rect(-3.5, -42, 7, 7, 2);\n  push(); translate(0, -42); capHead(mm.head); pop();\n  pop();\n  pop();\n}\n\n// ---- render ----\npush();\ntranslate(P.x * width + Math.sin(K.t * .19) * 14 * sc, P.y * height);\nscale(sc);\n\n// spray halo behind everything (breathes with beat + bass)\nblendMode(ADD);\ntint(H, 70, 95, chalk ? 6 : clp(9 + kick * 12 + K.swell * 5, 0, 28));\nimage(S.spr, -170, -270, 340, 340);\nnoTint();\nblendMode(BLEND);\n\n// zine starburst rays\nif (zine) {\n  stroke(0, 0, 8, 40 + kick * 45); strokeWeight(2);\n  for (let i = 0; i < 10; i++) {\n    const aa = i / 10 * 6.2832 + K.t * .05;\n    const r1 = 115 + kick * 18, r2 = r1 + 24 + kick * 20;\n    line(Math.cos(aa) * r1, -60 + Math.sin(aa) * r1 * .7, Math.cos(aa) * r2, -60 + Math.sin(aa) * r2 * .7);\n  }\n  noStroke();\n}\n\n// paint splats + drips (density-gated, seed-placed, K.t shimmer)\nconst nsp = Math.floor(6 + P.density * 38);\nnoStroke();\nfor (let i = 0; i < nsp; i++) {\n  const q = S.splat[i];\n  const wob = 1 + Math.sin(K.t * .3 + q.ph) * .12;\n  const px = Math.cos(q.a + Math.sin(K.t * .07) * .1) * q.r * wob;\n  const py = -55 + Math.sin(q.a) * q.r * .5 * wob;\n  if (zine) fill(0, 0, 12, 55);\n  else if (chalk) fill(0, 0, 92, 22);\n  else if (neon) fill(md(H + q.dh, 360), 85, 100, 20);\n  else fill(md(H + q.dh, 360), 80, 90, 42);\n  ellipse(px, py, q.s, q.s);\n  if (q.drip && !chalk) {\n    const dl = 8 + (Math.sin(K.t * .21 + q.ph) * .5 + .5) * 16;\n    rect(px - q.s * .12, py, q.s * .24, dl, 2);\n  }\n}\n\n// wildstyle arrows orbiting the dancer\nif (P.style === 'wildstyle' || zine) {\n  for (let i = 0; i < 2; i++) {\n    const aa = K.t * .12 + i * Math.PI;\n    push();\n    translate(Math.cos(aa) * 145, -70 + Math.sin(aa) * 55);\n    rotate(aa + .7);\n    noStroke();\n    fill(zine ? 0 : md(H + 30, 360), zine ? 0 : 90, zine ? 10 : 95, 60);\n    beginShape(); vertex(0, -14); vertex(12, 0); vertex(4, 0); vertex(4, 12); vertex(-4, 12); vertex(-4, 0); vertex(-12, 0); endShape(CLOSE);\n    pop();\n  }\n}\n\n// floor shadow\nnoStroke(); fill(0, 0, 0, 42);\nellipse(m.hipX * .6, 1, m.wind != null ? 120 : 72, 13);\n\n// motion-smear arcs during windmill\nif (m.wind != null && !m.freeze && P.smear > .02) {\n  blendMode(ADD); noFill();\n  for (let g = 1; g <= 4; g++) {\n    stroke(md(H + g * 14, 360), 85, 100, clp((26 - g * 5) * P.smear * (.4 + en), 0, 30));\n    strokeWeight(4 - g * .7);\n    const ga = m.wind - g * .33;\n    arc(0, -26, 150, 130, ga - .6, ga + .05);\n    arc(0, -26, 150, 130, ga - .6 + Math.PI, ga + .05 + Math.PI);\n  }\n  blendMode(BLEND); noStroke();\n}\n\n// figure (style passes: neon glow pre-pass, chalk double-line after-pass)\nif (neon) { PASS = 0; blendMode(ADD); figGeom(m); blendMode(BLEND); }\nPASS = 1; figGeom(m);\nif (chalk) { PASS = 2; push(); translate(1.5, -1.1); figGeom(m); pop(); PASS = 1; }\n\n// treble sparkles (baseline shimmer, bloom on hats)\nconst spark = clp(A.treble * 1.5 + Math.max(0, K.swell - .75) * .5, 0, 1);\nblendMode(ADD); noStroke();\nfor (let i = 0; i < 9; i++) {\n  const ang = fr(i * 13 + 3) * 6.2832 + K.t * (.25 + fr(i + 40) * .4);\n  const rr = 55 + fr(i * 17 + 9) * 85;\n  const al = (Math.sin(K.t * (2 + fr(i) * 2.5) + i) * .5 + .5) * (10 + 48 * spark);\n  fill(md(H + 50, 360), 25, 100, clp(al, 0, 55));\n  const sx2 = Math.cos(ang) * rr, sy2 = -60 + Math.sin(ang) * rr * .6;\n  rect(sx2 - .8, sy2 - 4, 1.6, 8, 1);\n  rect(sx2 - 4, sy2 - .8, 8, 1.6, 1);\n}\nblendMode(BLEND);\npop();\n"
+}

@@ -159,7 +159,7 @@ def validate_visual(a, srv, snaps):
         if bed:
             srv.post("/p5/layer", {"name": "bg", "code": "background(240,30,12);"})
         srv.post("/p5/layer", {"name": slot, "code": a["code"].replace("__SLOT__", slot)})
-        time.sleep(2)
+        time.sleep(4.5)  # > snapshot host interval (3s) so img_a is guaranteed post-deploy
         delta = srv.errors()[err0:]
         hits = [e for e in delta if f"[{slot}]" in e.get("message", "")
                 or f'"{slot}"' in e.get("message", "")]

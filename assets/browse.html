@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>livecode asset browser</title>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+  .hidden { display: none !important; }
+
+  #panel {
+    position: fixed; top: 12px; left: 12px; z-index: 20;
+    max-width: 300px; max-height: calc(100vh - 24px); overflow-y: auto;
+    background: rgba(10,10,14,.82);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    color: #cfcfd6; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace;
+    padding: 10px 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.07);
+    scrollbar-width: thin;
+  }
+  #p-head { display: flex; align-items: center; gap: 6px; }
+  #p-counter { color: #8a8a94; }
+  .badge {
+    display: inline-block; padding: 0 6px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .v-ok { color: #2ee59d; } .v-inbox { color: #6a6a74; }
+  #p-id { font-weight: 700; color: #fff; margin-top: 6px; word-break: break-all; }
+  #p-name { color: #b8b8c2; }
+  #p-desc { color: #8a8a94; }
+  #p-tags { margin: 3px 0 2px; }
+  .chip {
+    display: inline-block; background: rgba(255,255,255,.08); border-radius: 3px;
+    padding: 0 5px; margin: 2px 3px 0 0; font-size: 10px; color: #a8a8b2;
+  }
+  #p-variant { margin: 8px 0 4px; color: #e8e8ee; }
+  .prow { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+  .prow label {
+    flex: 0 0 62px; color: #9a9aa4; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; cursor: help;
+  }
+  .prow input[type=range] { flex: 1; min-width: 0; height: 14px; accent-color: #7c5cff; }
+  .prow select {
+    flex: 1; min-width: 0; background: #1a1a22; color: #ddd;
+    border: 1px solid #333; border-radius: 3px; font: 11px ui-monospace, monospace; padding: 1px 2px;
+  }
+  .pval { flex: 0 0 44px; text-align: right; color: #e0e0e8; font-size: 11px; }
+  #p-status { margin-top: 8px; color: #9a9aa4; }
+  #p-watch { color: #6a6a74; transition: color .4s; }
+  #p-watch.pulse { color: #06d6a0; }
+  #p-error { color: #ff5c6c; white-space: pre-wrap; word-break: break-word; margin-top: 4px; }
+  #p-error:empty { display: none; }
+  #p-foot {
+    margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.08);
+    color: #5c5c66; font-size: 10px;
+  }
+
+  #toasts {
+    position: fixed; right: 14px; bottom: 14px; z-index: 30;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+    pointer-events: none;
+  }
+  .toast {
+    background: rgba(10,10,14,.9); border: 1px solid rgba(255,255,255,.12);
+    color: #d8d8e0; font: 12px ui-monospace, monospace; padding: 6px 10px; border-radius: 6px;
+    opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s;
+  }
+  .toast.show { opacity: 1; transform: none; }
+  .toast.fade { opacity: 0; transition: opacity .6s; }
+
+  #keymap {
+    position: fixed; inset: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.45);
+  }
+  #keymap .card {
+    background: rgba(12,12,18,.95); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px; padding: 18px 22px; color: #cfcfd6;
+    font: 12px/1.9 ui-monospace, Menlo, monospace; min-width: 340px;
+  }
+  #keymap h3 { margin: 8px 0 2px; font-size: 10px; letter-spacing: 1.5px; color: #7c5cff; text-transform: uppercase; }
+  #keymap h3:first-child { margin-top: 0; }
+  #keymap .krow { display: flex; gap: 12px; }
+  #keymap .krow .k { flex: 0 0 120px; color: #fff; }
+  kbd {
+    background: rgba(255,255,255,.1); border-radius: 3px; padding: 0 5px;
+    font: 11px ui-monospace, monospace; border: 1px solid rgba(255,255,255,.15);
+  }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <div id="p-head">
+    <span id="p-counter">0/0</span>
+    <span id="p-kind" class="badge"></span>
+    <span id="p-verif"></span>
+  </div>
+  <div id="p-id">no assets yet</div>
+  <div id="p-name"></div>
+  <div id="p-desc">watching /assets/visual/ for the factory…</div>
+  <div id="p-tags"></div>
+  <div id="p-variant"></div>
+  <div id="p-params"></div>
+  <div id="p-status"></div>
+  <div id="p-watch"></div>
+  <div id="p-error"></div>
+  <div id="p-foot">&larr;&rarr; asset &middot; &#8679;&larr;&rarr; kind &middot; &uarr;&darr;/wheel variant &middot; 1-9 jump &middot; r reroll &middot; 0 reset &middot; a audio &middot; [ ] cps &middot; h panel &middot; ? keys</div>
+</div>
+
+<div id="toasts"></div>
+
+<div id="keymap" class="hidden">
+  <div class="card">
+    <h3>concepts</h3>
+    <div class="krow"><span class="k"><kbd>&larr;</kbd> <kbd>&rarr;</kbd></span><span>prev / next asset</span></div>
+    <div class="krow"><span class="k"><kbd>&#8679;&larr;</kbd> <kbd>&#8679;&rarr;</kbd></span><span>first asset of prev / next kind</span></div>
+    <div class="krow"><span class="k">click L / R edge</span><span>prev / next asset</span></div>
+    <h3>variants</h3>
+    <div class="krow"><span class="k"><kbd>&uarr;</kbd> <kbd>&darr;</kbd> / wheel</span><span>cycle variants</span></div>
+    <div class="krow"><span class="k"><kbd>1</kbd>&hellip;<kbd>9</kbd></span><span>jump to variant N</span></div>
+    <div class="krow"><span class="k"><kbd>r</kbd></span><span>reroll seed + jitter numeric params</span></div>
+    <div class="krow"><span class="k"><kbd>0</kbd></span><span>reset params to defaults</span></div>
+    <h3>global</h3>
+    <div class="krow"><span class="k"><kbd>a</kbd></span><span>audio mode: off &rarr; fake &rarr; live</span></div>
+    <div class="krow"><span class="k"><kbd>[</kbd> <kbd>]</kbd></span><span>cps &minus;0.05 / +0.05</span></div>
+    <div class="krow"><span class="k"><kbd>h</kbd></span><span>hide / show panel</span></div>
+    <div class="krow"><span class="k"><kbd>?</kbd></span><span>toggle this overlay</span></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------- constants
+var KIND_ORDER = ['world','floor','set','subject','crowd','fx','post','genart','palette'];
+var KIND_COLORS = {
+  world: '#7c5cff', floor: '#2ec4b6', set: '#ff9f1c', subject: '#ef476f',
+  crowd: '#ffd166', fx: '#06d6a0', post: '#999', genart: '#4cc9f0', palette: '#f8f'
+};
+var DIRS = ['subjects','worlds','floors','sets','crowds','fx','post','genart','palettes','inbox'];
+var NO_BED = { world: 1, genart: 1, palette: 1 };
+var AUDIO_MODES = ['off','fake','live'];
+
+// -------------------------------------------- engine-mirroring global state
+window.state = { cps: 0.62, t0: null, P: {} };
+window.state.audio = zeroAudio();
+
+var app = {
+  assets: [],                    // ordered list
+  byId: Object.create(null),     // id -> asset
+  seen: new Set(),               // "dir/file" keys already ingested (or invalid)
+  current: null,
+  variants: [],
+  variantIndex: 0,
+  currentSeed: 0,
+  audioMode: 'fake',
+  widgets: {},
+  lastErr: { msg: '', count: 0, shownAt: 0 },
+  wheelAt: 0,
+  polling: false,
+  ready: false
+};
+
+function el(id) { return document.getElementById(id); }
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function fmt(v) {
+  v = Number(v);
+  if (!isFinite(v)) return String(v);
+  return Number.isInteger(v) ? String(v) : v.toFixed(2);
+}
+function zeroAudio() {
+  return { bass: 0, lowmid: 0, mid: 0, treble: 0, rms: 0, fft: new Array(32).fill(0) };
+}
+
+// ------------------------------------------------------------------- clock
+// EXACT mirror of the real engine's clock math.
+function updateClock() {
+    const cps = window.state.cps || 0.5;
+    if (window.state.t0 == null) window.state.t0 = millis() / 1000;
+    const t = millis() / 1000 - window.state.t0;
+    const beat = t * cps * 4;
+    const secBeats = window.state.secBeats || 32;
+    const section = Math.floor(beat / secBeats) % 8;
+    const arc = window.state.arc || [.2, .4, .7, .9, .3, .6, 1, .4];
+    window.state.clk = { t, cps, beat, bar: beat/4, cyc: (beat/4)%1, phase: beat%1,
+        pulse: Math.pow(1-(beat%1),3), swell: Math.pow(Math.max(0,Math.sin((beat%1)*Math.PI)),2),
+        section, intensity: arc[section % arc.length], fps: frameRate() };
+}
+
+// ------------------------------------------------------------------- audio
+function updateAudio() {
+  if (app.audioMode === 'live') return;           // 250ms poller owns it
+  if (app.audioMode === 'off') { window.state.audio = zeroAudio(); return; }
+  var K = window.state.clk;
+  if (!K) { window.state.audio = zeroAudio(); return; }
+  var c01 = function (v) { return clamp(v, 0, 1); };
+  var bass   = c01(K.pulse * (0.5 + 0.4 * Math.sin(K.t * 0.13)));
+  var lowmid = c01(0.3 + 0.25 * K.swell);
+  var mid    = c01(0.25 + 0.2 * Math.sin(K.beat * Math.PI / 2));
+  var treble = c01(((K.beat * 4) % 1 < 0.5 ? 0.5 : 0.15) + Math.random() * 0.05);
+  var rms    = c01(0.05 + 0.08 * K.pulse);
+  var fft = new Array(32);
+  for (var i = 0; i < 32; i++) {
+    var f = i / 31;
+    fft[i] = c01(bass + (treble - bass) * f + 0.08 * Math.sin(K.t * 3 + i * 0.7));
+  }
+  window.state.audio = { bass: bass, lowmid: lowmid, mid: mid, treble: treble, rms: rms, fft: fft };
+}
+
+function normAudio(v) {
+  var a = zeroAudio();
+  if (v && typeof v === 'object') {
+    ['bass','lowmid','mid','treble','rms'].forEach(function (k) {
+      if (typeof v[k] === 'number' && isFinite(v[k])) a[k] = v[k];
+    });
+    if (Array.isArray(v.fft)) a.fft = v.fft;
+  }
+  return a;
+}
+
+setInterval(function () {
+  if (app.audioMode !== 'live') return;
+  fetch('/p5/read?key=audio', { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (j) { window.state.audio = normAudio(j && j.value); })
+    .catch(function () { window.state.audio = zeroAudio(); });
+}, 250);
+
+function cycleAudio() {
+  var i = AUDIO_MODES.indexOf(app.audioMode);
+  app.audioMode = AUDIO_MODES[(i + 1) % AUDIO_MODES.length];
+  if (app.audioMode !== 'live') window.state.audio = zeroAudio();
+  renderPanelDynamic();
+}
+
+function setCps(d) {
+  window.state.cps = clamp(Math.round((window.state.cps + d) * 100) / 100, 0.2, 1.2);
+  renderPanelDynamic();
+}
+
+// ---------------------------------------------------------------- variants
+function defaultSeed(a) {
+  return (a.params && a.params.seed && isFinite(Number(a.params.seed.default)))
+    ? Number(a.params.seed.default) : 0;
+}
+
+function buildVariants(a) {
+  if (!a.slot) return [{ opts: {} }];             // palette: single view
+  var entries = Object.entries(a.params || {}).filter(function (e) {
+    return Array.isArray(e[1].options) && e[1].options.length;
+  });
+  // style-major: the param literally named "style" varies slowest
+  entries.sort(function (x, y) {
+    return (x[0] === 'style' ? -1 : 0) - (y[0] === 'style' ? -1 : 0);
+  });
+  if (!entries.length) {                          // no options params -> 8 seeds
+    var d = defaultSeed(a);
+    return Array.from({ length: 8 }, function (_, i) {
+      return { opts: {}, seed: i === 0 ? d : (d + i * 1237) % 10000 };
+    });
+  }
+  var combos = [{}];
+  entries.forEach(function (e) {
+    var next = [];
+    combos.forEach(function (c) {
+      e[1].options.forEach(function (o) {
+        var n = Object.assign({}, c);
+        n[e[0]] = o;
+        next.push(n);
+      });
+    });
+    combos = next.slice(0, 24);                   // cap at 24, order-preserving
+  });
+  return combos.map(function (o) { return { opts: o }; });
+}
+
+function defaultVariantIndex(a) {
+  for (var i = 0; i < app.variants.length; i++) {
+    var o = app.variants[i].opts, keys = Object.keys(o);
+    if (!keys.length) return 0;
+    var ok = keys.every(function (k) {
+      return String(o[k]) === String((a.params[k] || {}).default);
+    });
+    if (ok) return i;
+  }
+  return 0;
+}
+
+function applyVariant() {
+  var a = app.current;
+  if (!a) return;
+  // spec-mandated reset on asset/variant switch:
+  if (a.slot) window.state[a.slot] = undefined;
+  window.state.P = {};
+  window.state.t0 = null;
+  if (!a.slot) { renderPanelDynamic(); return; }  // palette has no code
+  var v = app.variants[app.variantIndex] || { opts: {} };
+  if (v.seed != null) app.currentSeed = v.seed;
+  var P = {};
+  Object.entries(a.params || {}).forEach(function (e) { P[e[0]] = e[1].default; });
+  Object.assign(P, v.opts);
+  if (a.params && a.params.seed) P.seed = app.currentSeed;
+  window.state.P[a.slot] = P;
+  refreshWidgets();
+  renderPanelDynamic();
+}
+
+function cycleVariant(dir) {
+  var n = app.variants.length;
+  if (n < 2) return;
+  app.variantIndex = ((app.variantIndex + dir) % n + n) % n;
+  applyVariant();
+}
+
+function gotoVariant(i) {
+  if (i >= 0 && i < app.variants.length && app.variants.length > 1) {
+    app.variantIndex = i;
+    applyVariant();
+  }
+}
+
+function reroll() {
+  var a = app.current;
+  if (!a || !a.slot) return;
+  app.currentSeed = Math.floor(Math.random() * 10000);
+  var P = window.state.P[a.slot] || (window.state.P[a.slot] = {});
+  Object.entries(a.params || {}).forEach(function (e) {
+    var k = e[0], s = e[1];
+    if (k === 'seed' || k === 'x' || k === 'y') return;   // never jitter x/y
+    if (Array.isArray(s.options)) return;                 // options untouched
+    var d = Number(s.default);
+    if (!isFinite(d)) return;
+    var min = isFinite(Number(s.min)) ? Number(s.min) : 0;
+    var max = isFinite(Number(s.max)) ? Number(s.max) : (d ? d * 2 : 1);
+    P[k] = clamp(d + (Math.random() * 0.5 - 0.25) * (max - min), min, max);
+  });
+  if (a.params && a.params.seed) P.seed = app.currentSeed;
+  window.state[a.slot] = undefined;               // new seed -> regenerate state
+  refreshWidgets();
+  renderPanelDynamic();
+}
+
+function resetParams() {
+  var a = app.current;
+  if (!a || !a.slot) return;
+  app.currentSeed = defaultSeed(a);
+  app.variantIndex = defaultVariantIndex(a);
+  applyVariant();
+}
+
+function variantText() {
+  var a = app.current;
+  if (!a || !a.slot) return '';
+  var n = app.variants.length;
+  var v = app.variants[app.variantIndex] || { opts: {} };
+  var parts = Object.entries(v.opts).map(function (e) { return e[0] + '=' + e[1]; });
+  var P = (window.state.P && window.state.P[a.slot]) || {};
+  var seed = P.seed != null ? P.seed : app.currentSeed;
+  var s = 'variant ' + (app.variantIndex + 1) + '/' + n;
+  if (parts.length) s += ': ' + parts.join(' ');
+  return s + ' · seed ' + fmt(seed);
+}
+
+// -------------------------------------------------------------- navigation
+function selectAsset(a) {
+  var prev = app.current;
+  if (prev && prev !== a) {
+    if (prev.slot) window.state[prev.slot] = undefined;   // clear old slot state
+    if (prev.orphaned) removeAsset(prev);                 // deferred inbox removal
+  }
+  app.current = a;
+  app.currentSeed = defaultSeed(a);
+  app.variants = buildVariants(a);
+  app.variantIndex = defaultVariantIndex(a);
+  applyVariant();
+  if (app.ready) background(0);                   // wipe residue between assets
+  renderPanelStatic();
+}
+
+function step(dir) {
+  var n = app.assets.length;
+  if (!n) return;
+  var i = app.assets.indexOf(app.current);
+  i = i < 0 ? 0 : ((i + dir) % n + n) % n;
+  selectAsset(app.assets[i]);
+}
+
+function jumpKind(dir) {
+  var n = app.assets.length;
+  if (!n) return;
+  var groups = [], last = null;
+  app.assets.forEach(function (a, i) {
+    if (a.kind !== last) { groups.push(i); last = a.kind; }
+  });
+  var ci = Math.max(0, app.assets.indexOf(app.current));
+  var ckind = app.assets[ci].kind;
+  var g = 0;
+  for (var j = 0; j < groups.length; j++) {
+    if (app.assets[groups[j]].kind === ckind) { g = j; break; }
+  }
+  g = ((g + dir) % groups.length + groups.length) % groups.length;
+  selectAsset(app.assets[groups[g]]);
+}
+
+// --------------------------------------------------------------- discovery
+function kindRank(k) { var i = KIND_ORDER.indexOf(k); return i < 0 ? KIND_ORDER.length : i; }
+
+function sortAssets() {
+  app.assets.sort(function (a, b) {
+    return (kindRank(a.kind) - kindRank(b.kind)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
+}
+
+function compileAsset(a) {
+  a.fn = null;
+  a.compileError = null;
+  if (!a.code || !a.slot) return;
+  try {
+    a.fn = new Function(a.code.replace(/__SLOT__/g, a.slot));
+  } catch (e) {
+    a.compileError = String(e && e.message || e);
+  }
+}
+
+function loadAssetFile(dir, file) {
+  return fetch('/assets/visual/' + dir + '/' + encodeURIComponent(file), { cache: 'no-store' })
+    .then(function (r) { if (!r.ok) throw new Error('retry'); return r.text(); })
+    .then(function (txt) {
+      var j;
+      try { j = JSON.parse(txt); }
+      catch (e) { return 'retry'; }               // half-written -> retry next poll
+      if (!j || typeof j !== 'object' || !j.id) return null;
+      var kind = j.kind || 'subject';
+      var isPalette = kind === 'palette';
+      if (isPalette && (!j.values || typeof j.values !== 'object')) return null;
+      if (!isPalette && (typeof j.code !== 'string' || !Array.isArray(j.slots) || !j.slots.length)) return null;
+      var a = {
+        id: String(j.id), kind: kind,
+        name: j.name || String(j.id), desc: j.desc || '',
+        tags: Array.isArray(j.tags) ? j.tags : [],
+        params: (j.params && typeof j.params === 'object') ? j.params : {},
+        values: isPalette ? j.values : null,
+        code: isPalette ? null : j.code,
+        slot: isPalette ? null : String(j.slots[0]),
+        inbox: dir === 'inbox',
+        verified: dir !== 'inbox' || !!j.verified,
+        dir: dir, file: file,
+        fn: null, compileError: null, orphaned: false
+      };
+      compileAsset(a);
+      return a;
+    })
+    .catch(function () { return 'retry'; });
+}
+
+function integrateAsset(a) {
+  var ex = app.byId[a.id];
+  if (ex) {
+    if (ex.inbox && !a.inbox) {                   // promoted: prefer verified copy
+      var wasCurrent = ex === app.current;
+      var slotChanged = ex.slot !== a.slot;
+      Object.assign(ex, {
+        kind: a.kind, name: a.name, desc: a.desc, tags: a.tags, params: a.params,
+        values: a.values, code: a.code, slot: a.slot, inbox: false, verified: true,
+        dir: a.dir, file: a.file, fn: a.fn, compileError: a.compileError, orphaned: false
+      });
+      sortAssets();
+      if (wasCurrent) {                           // hot-swap code, keep viewing
+        app.variants = buildVariants(ex);
+        if (app.variantIndex >= app.variants.length) app.variantIndex = 0;
+        if (slotChanged) applyVariant();
+        renderPanelStatic();
+      }
+      renderPanelDynamic();
+      return false;
+    }
+    return false;                                 // inbox copy of a known id: ignore
+  }
+  app.byId[a.id] = a;
+  app.assets.push(a);
+  sortAssets();                                   // current stays what it is; index recomputed
+  toast('+ ' + a.id);
+  if (!app.current) selectAsset(a);
+  renderPanelDynamic();
+  return true;
+}
+
+function removeAsset(a) {
+  var i = app.assets.indexOf(a);
+  if (i >= 0) app.assets.splice(i, 1);
+  if (app.byId[a.id] === a) delete app.byId[a.id];
+  renderPanelDynamic();
+}
+
+async function poll() {
+  if (app.polling) return;
+  app.polling = true;
+  try {
+    var added = 0;
+    var present = {};                             // dir -> Set(files), successful listings only
+    for (var d = 0; d < DIRS.length; d++) {
+      var dir = DIRS[d], html;
+      try {
+        var res = await fetch('/assets/visual/' + dir + '/', { cache: 'no-store' });
+        if (!res.ok) continue;                    // 404 dir is fine
+        html = await res.text();
+      } catch (e) { continue; }
+      var files = [], re = /href="([^"]+\.json)"/g, m;
+      while ((m = re.exec(html))) {
+        try { files.push(decodeURIComponent(m[1])); } catch (e) { /* skip bad href */ }
+      }
+      present[dir] = new Set(files);
+      for (var f = 0; f < files.length; f++) {
+        var key = dir + '/' + files[f];
+        if (app.seen.has(key)) continue;
+        var got = await loadAssetFile(dir, files[f]);
+        if (got === 'retry') continue;            // malformed/half-written: retry next poll
+        app.seen.add(key);
+        if (got && integrateAsset(got)) added++;
+      }
+    }
+    // inbox entries whose file vanished (moved out by the validator)
+    if (present.inbox) {
+      app.assets.slice().forEach(function (a) {
+        if (!a.inbox || present.inbox.has(a.file)) return;
+        app.seen.delete('inbox/' + a.file);
+        if (a === app.current) a.orphaned = true; // don't yank; drop on navigate-away
+        else removeAsset(a);
+      });
+    }
+    if (added) pulseWatch();
+  } finally {
+    app.polling = false;
+    renderPanelDynamic();
+  }
+}
+
+setInterval(poll, 4000);
+poll();
+
+// ------------------------------------------------------------------- panel
+function badgeText(hex) {
+  var h = hex.replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#111' : '#fff';
+}
+
+function setParam(k, v) {
+  var a = app.current;
+  if (!a || !a.slot) return;
+  (window.state.P[a.slot] || (window.state.P[a.slot] = {}))[k] = v;
+  renderPanelDynamic();
+}
+
+function buildWidgets(a) {
+  var wrap = el('p-params');
+  wrap.textContent = '';
+  app.widgets = {};
+  if (!a || !a.slot) return;
+  var P = (window.state.P && window.state.P[a.slot]) || {};
+  Object.entries(a.params || {}).forEach(function (e) {
+    var k = e[0], s = e[1];
+    var row = document.createElement('div');
+    row.className = 'prow';
+    var lab = document.createElement('label');
+    lab.textContent = k;
+    if (s.doc) lab.title = s.doc;
+    row.appendChild(lab);
+    if (Array.isArray(s.options) && s.options.length) {
+      var sel = document.createElement('select');
+      s.options.forEach(function (o, idx) {
+        var op = document.createElement('option');
+        op.value = String(idx);
+        op.textContent = String(o);
+        sel.appendChild(op);
+      });
+      var cur = P[k] != null ? P[k] : s.default;
+      var ci = s.options.findIndex(function (o) { return String(o) === String(cur); });
+      sel.value = String(ci < 0 ? 0 : ci);
+      sel.addEventListener('change', function () {
+        setParam(k, s.options[Number(sel.value)]);
+        sel.blur();                               // keys keep working after use
+      });
+      row.appendChild(sel);
+      app.widgets[k] = { type: 'select', sel: sel, spec: s };
+    } else {
+      var d = Number(s.default) || 0;
+      var min = isFinite(Number(s.min)) ? Number(s.min) : 0;
+      var max = isFinite(Number(s.max)) ? Number(s.max) : (d ? d * 2 : 1);
+      var ints = Number.isInteger(min) && Number.isInteger(max) && Number.isInteger(Number(s.default));
+      var rng = document.createElement('input');
+      rng.type = 'range';
+      rng.min = min; rng.max = max;
+      rng.step = ints ? 1 : ((max - min) / 100 || 0.01);
+      var curV = P[k] != null ? P[k] : d;
+      rng.value = curV;
+      var out = document.createElement('span');
+      out.className = 'pval';
+      out.textContent = fmt(curV);
+      rng.addEventListener('input', function () {
+        var v = Number(rng.value);
+        out.textContent = fmt(v);
+        setParam(k, v);                           // immediate — code reads P every frame
+      });
+      rng.addEventListener('change', function () { rng.blur(); });
+      row.appendChild(rng);
+      row.appendChild(out);
+      app.widgets[k] = { type: 'range', rng: rng, out: out, spec: s };
+    }
+    wrap.appendChild(row);
+  });
+}
+
+function refreshWidgets() {
+  var a = app.current;
+  if (!a || !a.slot) return;
+  var P = window.state.P[a.slot] || {};
+  Object.entries(app.widgets).forEach(function (e) {
+    var k = e[0], w = e[1];
+    var cur = P[k] != null ? P[k] : w.spec.default;
+    if (w.type === 'select') {
+      var ci = w.spec.options.findIndex(function (o) { return String(o) === String(cur); });
+      w.sel.value = String(ci < 0 ? 0 : ci);
+    } else {
+      w.rng.value = cur;
+      w.out.textContent = fmt(cur);
+    }
+  });
+}
+
+function renderPanelStatic() {
+  var a = app.current;
+  var kb = el('p-kind'), vb = el('p-verif');
+  app.lastErr = { msg: '', count: 0, shownAt: 0 };
+  if (!a) {
+    el('p-id').textContent = 'no assets yet';
+    el('p-name').textContent = '';
+    el('p-desc').textContent = 'watching /assets/visual/ for the factory…';
+    el('p-tags').textContent = '';
+    kb.textContent = ''; kb.style.background = 'transparent';
+    vb.textContent = ''; vb.className = '';
+    el('p-params').textContent = '';
+    el('p-error').textContent = '';
+    app.widgets = {};
+    renderPanelDynamic();
+    return;
+  }
+  kb.textContent = a.kind;
+  var col = KIND_COLORS[a.kind] || '#666';
+  kb.style.background = col;
+  kb.style.color = badgeText(col);
+  vb.textContent = a.verified ? '✓' : '○';
+  vb.className = a.verified ? 'v-ok' : 'v-inbox';
+  el('p-id').textContent = a.id;
+  el('p-name').textContent = a.name || '';
+  el('p-desc').textContent = a.desc || '';
+  var tw = el('p-tags');
+  tw.textContent = '';
+  (a.tags || []).forEach(function (t) {
+    var c = document.createElement('span');
+    c.className = 'chip';
+    c.textContent = String(t);
+    tw.appendChild(c);
+  });
+  buildWidgets(a);
+  el('p-error').textContent = a.compileError ? ('compile error: ' + a.compileError) : '';
+  renderPanelDynamic();
+}
+
+function renderPanelDynamic() {
+  var a = app.current, n = app.assets.length;
+  var i = a ? app.assets.indexOf(a) : -1;
+  el('p-counter').textContent = 'asset ' + (n ? (i + 1) + '/' + n : '0/0');
+  el('p-variant').textContent = a ? variantText() : '';
+  el('p-status').textContent = 'audio: ' + app.audioMode + ' · cps ' + window.state.cps.toFixed(2);
+  el('p-watch').textContent = n + ' asset' + (n === 1 ? '' : 's') + ' · watching for new assets…';
+}
+
+function pulseWatch() {
+  var w = el('p-watch');
+  w.classList.add('pulse');
+  setTimeout(function () { w.classList.remove('pulse'); }, 1500);
+}
+
+function recordError(e) {
+  var msg = String(e && e.message || e);
+  var now = performance.now();
+  if (msg === app.lastErr.msg) {
+    app.lastErr.count++;
+    if (now - app.lastErr.shownAt < 1000) return; // throttle identical messages
+  } else {
+    app.lastErr = { msg: msg, count: 1, shownAt: 0 };
+  }
+  app.lastErr.shownAt = now;
+  el('p-error').textContent = msg + (app.lastErr.count > 1 ? ' ×' + app.lastErr.count : '');
+}
+
+function toast(msg) {
+  var t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  el('toasts').appendChild(t);
+  requestAnimationFrame(function () { t.classList.add('show'); });
+  setTimeout(function () {
+    t.classList.add('fade');
+    setTimeout(function () { t.remove(); }, 700);
+  }, 2500);
+}
+
+function togglePanel() { el('panel').classList.toggle('hidden'); }
+function toggleKeymap() { el('keymap').classList.toggle('hidden'); }
+el('keymap').addEventListener('click', function () { el('keymap').classList.add('hidden'); });
+
+// ---------------------------------------------------------------- keyboard
+window.addEventListener('keydown', function (e) {
+  if (e.metaKey || e.ctrlKey || e.altKey) return; // keep cmd+R etc. intact
+  var ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT')) ae.blur();
+  var key = /^[A-Za-z]$/.test(e.key) ? e.key.toLowerCase() : e.key;
+  switch (key) {
+    case 'ArrowRight': e.preventDefault(); if (e.shiftKey) jumpKind(1); else step(1); break;
+    case 'ArrowLeft':  e.preventDefault(); if (e.shiftKey) jumpKind(-1); else step(-1); break;
+    case 'ArrowDown':  e.preventDefault(); cycleVariant(1); break;
+    case 'ArrowUp':    e.preventDefault(); cycleVariant(-1); break;
+    case 'r': reroll(); break;
+    case '0': resetParams(); break;
+    case 'a': cycleAudio(); break;
+    case '[': setCps(-0.05); break;
+    case ']': setCps(0.05); break;
+    case 'h': togglePanel(); break;
+    case '?': toggleKeymap(); break;
+    default:
+      if (key >= '1' && key <= '9') gotoVariant(Number(key) - 1);
+  }
+}, true);
+
+// --------------------------------------------------------------- rendering
+function setup() {
+  var c = createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+  colorMode(HSB, 360, 100, 100, 100);
+  background(0);
+  c.elt.addEventListener('click', function (e) {
+    if (e.clientX < window.innerWidth * 0.2) step(-1);
+    else if (e.clientX > window.innerWidth * 0.8) step(1);
+  });
+  c.elt.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var now = performance.now();
+    if (now - app.wheelAt < 160) return;
+    app.wheelAt = now;
+    cycleVariant(e.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+  app.ready = true;
+  renderPanelStatic();
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  background(0);
+}
+
+function drawWaiting() {
+  push();
+  noStroke();
+  fill(0, 0, 55);
+  textFont('monospace');
+  textAlign(CENTER, CENTER);
+  textSize(14);
+  text('waiting for assets…', width / 2, height / 2);
+  fill(0, 0, 30);
+  textSize(11);
+  text('polling /assets/visual/ every 4s', width / 2, height / 2 + 22);
+  pop();
+}
+
+function drawPalette(a) {
+  background(0, 0, 7);
+  push();
+  noStroke();
+  textFont('monospace');
+  textSize(11);
+  textAlign(LEFT, TOP);
+  var entries = Object.entries(a.values || {});
+  var pad = 28, labelH = 18, gap = 16, cellW = 150, cellH = 64;
+  var cols = Math.max(1, Math.floor((width - pad * 2 + gap) / (cellW + gap)));
+  entries.forEach(function (e, i) {
+    var name = e[0], val = e[1];
+    var x = pad + (i % cols) * (cellW + gap);
+    var y = pad + Math.floor(i / cols) * (cellH + labelH + gap);
+    var sw = (Array.isArray(val) && Array.isArray(val[0])) ? val : [val];
+    var w = cellW / sw.length;
+    sw.forEach(function (c, j) {
+      if (Array.isArray(c) && c.length >= 3) fill(c[0], c[1], c[2], c.length > 3 ? c[3] : 100);
+      else fill(0, 0, 50);
+      rect(x + j * w, y, w, cellH,
+           j === 0 ? 6 : 0, j === sw.length - 1 ? 6 : 0,
+           j === sw.length - 1 ? 6 : 0, j === 0 ? 6 : 0);
+    });
+    fill(0, 0, 85);
+    text(name, x, y + cellH + 5);
+  });
+  pop();
+}
+
+function draw() {
+  updateClock();
+  updateAudio();
+  var a = app.current;
+  if (!a) { background(0, 0, 5); drawWaiting(); return; }
+  if (a.kind === 'palette') { drawPalette(a); return; }
+  if (!NO_BED[a.kind]) background(240, 30, 12);   // validator's bed behind non-fullscreen assets
+  if (a.compileError || !a.fn) return;
+  push();
+  try { a.fn(); } catch (err) { recordError(err); }
+  pop();
+}
+</script>
+</body>
+</html>

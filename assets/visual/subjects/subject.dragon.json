@@ -1,0 +1,148 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dragon",
+  "kind": "subject",
+  "name": "Dragon",
+  "desc": "Front-facing cartoon dragon with flapping ribbed wings, seeded horns and ember cracks \u2014 hovers on the beat, headbangs, soars figure-eights and torches the downbeat with a fire-breath cone.",
+  "tags": [
+    "dragon",
+    "wyvern",
+    "drake",
+    "fantasy",
+    "mythical",
+    "medieval",
+    "fairytale",
+    "creature",
+    "monster",
+    "beast",
+    "reptile",
+    "fire",
+    "firebreath",
+    "flame",
+    "wings",
+    "flying",
+    "fly",
+    "hover",
+    "teal",
+    "green",
+    "character",
+    "kaiju"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "size vs design"
+    },
+    "hue": {
+      "default": 140,
+      "min": 0,
+      "max": 360,
+      "doc": "body hue (belly auto-cream)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flame particles, ember cracks, belly plates"
+    },
+    "x": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.7,
+      "min": 0.05,
+      "max": 1,
+      "doc": "anchor y (canvas fraction, body center)"
+    },
+    "wings": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wingspan morph"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body roundness morph"
+    },
+    "horns": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horn length morph"
+    },
+    "pose": {
+      "default": "hover",
+      "options": [
+        "hover",
+        "idle",
+        "dance",
+        "firebreath",
+        "soar"
+      ],
+      "doc": "choreography preset (dance=headbang+wing pumps; soar=lemniscate flight)"
+    },
+    "style": {
+      "default": "classic",
+      "options": [
+        "classic",
+        "neon",
+        "blueprint",
+        "ember"
+      ],
+      "doc": "aesthetic: flat cartoon / dark+glow outlines / dashed cyan schematic linework / charcoal body with glowing fissures"
+    },
+    "act": {
+      "default": "solo",
+      "options": [
+        "solo",
+        "medley",
+        "siege"
+      ],
+      "doc": "multi-minute dramaturgy (solo=obey pose; medley=cycle poses by section; siege=idle-soar-hover with firebreath on intense sections)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic crack/rib variation"
+    }
+  },
+  "acts": [
+    "solo",
+    "medley",
+    "siege"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:36:55+00:00",
+    "fps": 59.9,
+    "motion": 0.0055,
+    "lum": 0.094
+  },
+  "code": "const D = { energy:.6, scale:1, hue:140, speed:1, density:.5, x:.65, y:.7, wings:.5, chub:.5, horns:.5, pose:'hover', style:'classic', act:'solo', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst u = Math.min(width, height);\nconst s = u * 0.0015 * P.scale;\nconst L = (a, b, t) => a + (b - a) * t;\nconst fr = i => { const v = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return v - Math.floor(v); };\n\n// ---- seed-keyed structures: ember cracks + belly plate rows ----\nif (S.seedUsed !== P.seed || S.densUsed !== P.density) {\n  S.seedUsed = P.seed; S.densUsed = P.density;\n  S.cracks = [];\n  const nc = 3 + Math.round(P.density * 4);\n  for (let i = 0; i < nc; i++) {\n    const a0 = fr(i + 13) * 6.2832, r0 = .25 + fr(i + 29) * .5;\n    const x1 = Math.cos(a0) * 34 * r0, y1 = Math.sin(a0) * 48 * r0;\n    const x2 = x1 + (fr(i + 47) - .5) * 30, y2 = y1 + (fr(i + 61) - .5) * 30;\n    const x3 = x2 + (fr(i + 83) - .5) * 22, y3 = y2 + (fr(i + 97) - .5) * 22;\n    S.cracks.push({ x1, y1, x2, y2, x3, y3, ph: fr(i + 111) * 6.2832 });\n  }\n  S.ribJit = [fr(201) * .16 - .08, fr(202) * .16 - .08, fr(203) * .16 - .08];\n  S.plateRows = 3 + Math.round(fr(204) * 2 + P.density);\n}\n\n// ---- clock derivations ----\nconst bt = K.beat * P.speed;\nconst ph = ((bt % 1) + 1) % 1;\nconst pulse = Math.pow(1 - ph, 3);\nconst kick = Math.min(1, K.pulse * .6 + A.bass * .8);\nconst step = Math.floor(bt);\nconst wob = Math.sin(K.t * .21);\n\n// ---- act -> pose + energy envelope ----\nlet pose = P.pose, em = 1;\nif (P.act === 'medley') {\n  const seq = ['idle','hover','dance','firebreath','soar','dance','firebreath','hover'];\n  pose = seq[((K.section % 8) + 8) % 8];\n  em = .55 + K.intensity * .65;\n} else if (P.act === 'siege') {\n  const sec = ((K.section % 8) + 8) % 8;\n  pose = K.intensity > .72 ? 'firebreath' : (sec < 2 ? 'idle' : sec < 4 ? 'soar' : 'hover');\n  em = .45 + K.intensity * .7;\n}\nconst E = Math.min(1, Math.max(0, P.energy * em));\n\n// ---- choreography rig ----\nlet dx = 0, dy = 0, bob = 0, lean = 0, hipX = 0, squash = 0,\n    wingL = 0, wingR = 0, fold = 0, legRot = 0, tailAmp = .3, tailRate = 1.6,\n    mouth = .08, fireOn = 0, bellyGlow = 0, headRot = 0;\n\nif (pose === 'hover') {\n  const raise = ph > .55 ? (ph - .55) / .45 : 0;        // wings lift late in the beat...\n  wingL = wingR = (raise * .9 - pulse * 1.1) * E;       // ...and slam down on the pulse\n  dy = (-26 - pulse * 10 * E) * s + Math.sin(K.t * .8) * 5 * s;\n  legRot = Math.sin(K.t * 2.3) * .18;\n  hipX = Math.sin(K.t * .33) * 6 * s;\n  tailAmp = .3; tailRate = 1.6;\n  headRot = Math.sin(K.t * .5) * .05;\n  mouth = .08 + pulse * .06;\n} else if (pose === 'idle') {\n  fold = 1;\n  bob = Math.sin(K.t * 1.1) * 2.2 * s;\n  squash = Math.sin(K.t * 1.1) * .02;\n  const rf = (((bt / 16) % 1) + 1) % 1;                 // wing ruffle every 4 bars\n  wingL = wingR = rf < .1 ? Math.sin(K.t * 26) * .25 * E : -.05;\n  tailAmp = .18; tailRate = 1.1;\n  headRot = (fr(Math.floor(K.t / 3.1) + 9) - .5) * .4;\n  mouth = Math.max(0, Math.sin(K.t * .5)) * .1;\n} else if (pose === 'dance') {\n  const sway = Math.sin(bt * Math.PI);\n  hipX = sway * 10 * s * E; lean = sway * .1 * E;\n  bob = (Math.abs(sway) * -4 - pulse * 3) * s * E;\n  wingL = ((step % 2 === 0) ? pulse : .12) * -1.2 * E;\n  wingR = ((step % 2 === 1) ? pulse : .12) * -1.2 * E;\n  headRot = pulse * .35 * E;                            // head bang\n  tailAmp = .4; tailRate = 3.2;\n  mouth = pulse * .25 * E;\n} else if (pose === 'firebreath') {\n  const c8 = (((bt / 8) % 1) + 1) % 1;\n  const wind = c8 < .18 ? c8 / .18 : (c8 < .25 ? 1 - (c8 - .18) / .07 : 0);   // rear back, then release\n  fireOn = (c8 >= .25 && c8 < .8) ? Math.sin((c8 - .25) / .55 * Math.PI) : 0;\n  headRot = -wind * .3 + fireOn * .12;\n  lean = -wind * .12 + fireOn * .06;\n  mouth = wind * .25 + fireOn;\n  bellyGlow = wind + fireOn * .5;\n  wingL = wingR = -.2 - fireOn * .3 + wind * .4;\n  bob = fireOn * Math.sin(K.t * 25) * 1.5 * s * E;\n  tailAmp = .25 + fireOn * .3; tailRate = 2;\n} else if (pose === 'soar') {\n  const a = K.t * .42 * P.speed + P.seed * .1;          // lemniscate flight path\n  dx = Math.sin(a) * u * .15;\n  dy = -u * .07 + Math.sin(2 * a) * u * .07;\n  lean = Math.cos(a) * .3;\n  wingL = wingR = Math.sin(bt * Math.PI) * .8 * E - .1;\n  legRot = .5;\n  tailAmp = .2; tailRate = 1.3; mouth = .05;\n}\n\n// ---- palette + morphs ----\nconst hb = ((P.hue % 360) + 360) % 360;\nconst hbelly = (hb + 280) % 360;                        // cream belly (preserved from original)\nconst bodyW = 74 * s * (.82 + P.chub * .42);\nconst bodyH = 104 * s * (1.06 - P.chub * .16);\nconst wm = (.6 + P.wings * .9) * (1 - fold * .45);\nconst hm = .5 + P.horns * 1.0;\nconst st = P.style;\nconst lw = Math.max(1, u * .0032);\n\nconst cx = P.x * width + wob * u * .012 + dx;\nconst cy = P.y * height + dy;\n// eye positions tracking head rotation about the neck pivot (for accent glows)\nconst eyc = Math.cos(headRot), eys = Math.sin(headRot);\nconst eLx = (-10 * eyc - (-28) * eys) * s, eLy = (-10 * eys + (-28) * eyc) * s - 34 * s;\nconst eRx = (10 * eyc - (-28) * eys) * s, eRy = (10 * eys + (-28) * eyc) * s - 34 * s;\n\npush();\n\n// ground shadow (stays on the ground; fades with altitude)\nconst hgt = Math.max(0, -(dy + bob)) / (u * .25);\nfill(0, 0, 0, 34 * Math.max(.25, 1 - hgt * .7));\nellipse(P.x * width + wob * u * .012, P.y * height + 72 * s, bodyW * 1.5 * (1 - hgt * .35), 13 * s);\n\ntranslate(cx, cy + bob);\n\n// aura\nblendMode(ADD);\nnoStroke();\nconst auraR = u * (.15 + .09 * E) * (1 + A.rms * .8) * (1 + Math.sin(K.t * .6) * .06) + kick * u * .02;\nfill(hb, 55, 70, 6 + K.intensity * 8 + kick * 5);\nellipse(0, -10 * s, auraR * 2, auraR * 1.7);\nblendMode(BLEND);\n\nrotate(lean);\nscale(1 + squash, 1 - squash);\ntranslate(hipX, 0);\n\n// ---- style paint system ----\nfunction F(h, sa, b, a) {\n  a = a == null ? 100 : a;\n  if (st === 'neon') { fill(h, Math.min(sa, 70), Math.min(b * .2, 15), a); stroke(h, 88, 100, Math.min(a, 90)); strokeWeight(lw); }\n  else if (st === 'blueprint') { noFill(); stroke(212, 55, 96, Math.min(a, 92)); strokeWeight(Math.max(1, u * .002)); }\n  else if (st === 'ember') { noStroke(); fill(h, Math.min(sa, 45), Math.min(b * .28, 20), a); }\n  else { noStroke(); fill(h, sa, b, a); }\n}\n\nconst tailWag = Math.sin(K.t * tailRate + Math.sin(K.t * .45)) * tailAmp;\nconst blink = ((K.t + P.seed * .17) % 5.3) < .13;\n\n// blueprint construction guides\nif (st === 'blueprint') {\n  drawingContext.setLineDash([u * .012, u * .009]);\n  noFill(); stroke(212, 40, 90, 50); strokeWeight(Math.max(1, u * .0015));\n  ellipse(0, 0, bodyW * 1.5, bodyH * 1.3);\n  line(-bodyW * .95, 0, bodyW * .95, 0);\n  line(0, -bodyH * .75, 0, bodyH * .7);\n  drawingContext.setLineDash([]);\n}\n\n// tail (K.t wag \u2014 aperiodic vs beat)\npush(); translate(0, 30 * s); rotate(Math.sin(K.t * (tailRate + .9)) * .3 + tailWag * .4);\nF(hb, 70, 55);\nbeginShape(); vertex(0, 0); vertex(50 * s, 20 * s); vertex(70 * s, 10 * s); vertex(50 * s, 32 * s); vertex(0, 20 * s); endShape(CLOSE);\nF(hb, 74, 50);\ntriangle(66 * s, 4 * s, 84 * s, 12 * s, 66 * s, 26 * s);\npop();\n\n// legs (dangle in the air, planted on the ground)\npush(); translate(-16 * s, 52 * s); rotate(legRot); F(hb, 70, 50); ellipse(0, 0, 18 * s, 36 * s); pop();\npush(); translate(16 * s, 52 * s); rotate(-legRot); F(hb, 70, 50); ellipse(0, 0, 18 * s, 36 * s); pop();\n\n// wings with seeded membrane ribs\nfunction wing(side, ang) {\n  push(); translate(side * 30 * s, -20 * s);\n  rotate(side * (.6 + fold * .8) + side * ang * .6);\n  const tx1 = side * 56 * s * wm, ty1 = -30 * s;\n  const tx2 = side * 40 * s * wm, ty2 = 30 * s;\n  F((hb + 15) % 360, 60, 45);\n  triangle(0, 0, tx1, ty1, tx2, ty2);\n  // ribs\n  if (st !== 'ember') {\n    stroke(hb, 50, st === 'blueprint' ? 96 : 28, 60); strokeWeight(Math.max(1, u * .0015));\n    for (let r = 0; r < 3; r++) {\n      const q = .25 + r * .25 + S.ribJit[r];\n      line(0, 0, L(tx1, tx2, q), L(ty1, ty2, q));\n    }\n    noStroke();\n  }\n  // wing tip sparkle on treble\n  if (A.treble > .12 || st === 'neon') {\n    blendMode(ADD); noStroke();\n    fill((hb + 40) % 360, 40, 100, 25 + A.treble * 55);\n    ellipse(tx1, ty1, 6 * s, 6 * s);\n    blendMode(BLEND);\n  }\n  pop();\n}\nwing(-1, wingL);\nwing(1, wingR);\n\n// body + belly\nF(hb, 70, 60); ellipse(0, 0, bodyW, bodyH);\nF(hbelly, 45, 90); ellipse(0, 12 * s, bodyW * .54, bodyH * .63);\n// belly plate rows\nif (st !== 'blueprint') {\n  stroke(hbelly, 50, 70, 45); strokeWeight(Math.max(1, u * .0015)); noFill();\n  for (let r = 0; r < S.plateRows; r++) {\n    const yy = (2 + r * 13) * s;\n    const w2 = bodyW * .5 * (1 - Math.pow((yy - 12 * s) / (bodyH * .32), 2) * .5);\n    arc(0, yy, Math.max(4 * s, w2), 10 * s, .3, Math.PI - .3);\n  }\n  noStroke();\n}\n// belly glow (firebreath windup / ember style)\nif (bellyGlow > .05 || st === 'ember') {\n  blendMode(ADD); noStroke();\n  const bg = st === 'ember' ? .35 + kick * .5 + bellyGlow : bellyGlow;\n  fill(30, 90, 100, 18 * bg + A.bass * 14);\n  ellipse(0, 12 * s, bodyW * .5, bodyH * .5);\n  fill(50, 70, 100, 10 * bg);\n  ellipse(0, 12 * s, bodyW * .3, bodyH * .3);\n  blendMode(BLEND);\n}\n// arms\nF(hb, 70, 55); ellipse(-34 * s, 0, 14 * s, 42 * s); ellipse(34 * s, 0, 14 * s, 42 * s);\n\n// head group (rears back around the neck)\npush(); translate(0, -34 * s); rotate(headRot); translate(0, -24 * s);\n// horns\nF((hb + 220) % 360, 25, 85);\ntriangle(-14 * s, -22 * s, -7 * s, -22 * s, -16 * s * hm, -42 * s * hm);\ntriangle(14 * s, -22 * s, 7 * s, -22 * s, 16 * s * hm, -42 * s * hm);\n// lower jaw\npush(); translate(8 * s, 2 * s); rotate(Math.min(1, mouth) * .55);\nF(hb, 72, 52); triangle(8 * s, 2 * s, 40 * s, 10 * s, 10 * s, 12 * s);\npop();\n// skull + snout\nF(hb, 72, 62); ellipse(0, 0, 60 * s, 50 * s);\nF(hb, 72, 55); triangle(18 * s, -8 * s, 52 * s, 0, 20 * s, 8 * s);\n// nostril\nF(hb, 60, 30); ellipse(44 * s, -2 * s, 3.5 * s, 3.5 * s);\n// eyes (front-facing pair, preserved from original)\nF(0, 0, 100); ellipse(-10 * s, -4 * s, 12 * s, blink ? 2 * s : 12 * s); ellipse(10 * s, -4 * s, 12 * s, blink ? 2 * s : 12 * s);\nif (!blink) {\n  const px = lean * 8 * s + (pose === 'soar' ? Math.cos(K.t * .42 * P.speed) * 2.5 * s : wob * 1.5 * s);\n  F(0, 0, 8); ellipse(-10 * s + px, -4 * s, 5 * s, 5 * s); ellipse(10 * s + px, -4 * s, 5 * s, 5 * s);\n  F(0, 0, 100, 90); ellipse(-11.5 * s, -5.5 * s, 1.8 * s, 1.8 * s); ellipse(8.5 * s, -5.5 * s, 1.8 * s, 1.8 * s);\n}\n// brows\nF(hb, 76, 45); ellipse(-10 * s, -11 * s, 13 * s, 4 * s); ellipse(10 * s, -11 * s, 13 * s, 4 * s);\npop(); // head\n\n// ember cracks \u2014 seeded glowing fissures, flicker with the kick\nif (st === 'ember') {\n  push(); blendMode(ADD); noFill();\n  for (const c of S.cracks) {\n    const fl = .5 + .5 * Math.sin(K.t * 3.1 + c.ph);\n    stroke(24, 95, 100, 26 + 34 * fl * (.5 + kick * .8));\n    strokeWeight(Math.max(1, u * .002));\n    line(c.x1 * s, c.y1 * s, c.x2 * s, c.y2 * s);\n    line(c.x2 * s, c.y2 * s, c.x3 * s, c.y3 * s);\n  }\n  noStroke();\n  fill(20, 90, 100, 30 + kick * 40);\n  ellipse(eLx, eLy, 5 * s, 5 * s); ellipse(eRx, eRy, 5 * s, 5 * s);   // coal eyes\n  blendMode(BLEND); pop();\n}\n\n// neon accents\nif (st === 'neon') {\n  blendMode(ADD); noStroke();\n  fill((hb + 40) % 360, 50, 100, 40 + kick * 40);\n  ellipse(eLx, eLy, 6 * s, 6 * s); ellipse(eRx, eRy, 6 * s, 6 * s);\n  fill(hb, 30, 100, 20 + A.treble * 45);\n  ellipse(0, 0, bodyW * .5, bodyH * .5);\n  blendMode(BLEND);\n}\n\n// fire breath \u2014 cone of additive flame from the snout\nif (fireOn > .02 || (pose !== 'firebreath' && kick > .93 && (pose === 'hover' || pose === 'dance') && E > .3)) {\n  const f = Math.max(fireOn, (kick - .93) * 8);\n  // mouth tip position, tracking head rotation about the neck pivot\n  const mx = 48 * s, my = -22 * s;\n  const gx = mx * Math.cos(headRot) - my * Math.sin(headRot);\n  const gy = mx * Math.sin(headRot) + my * Math.cos(headRot) - 34 * s;\n  push(); blendMode(ADD); noStroke();\n  const len = (36 + 60 * f * (.6 + .4 * E) + A.bass * 50) * s;\n  const nF = 6 + Math.round(P.density * 7);\n  for (let i = 0; i < nF; i++) {\n    const q = (i + .5) / nF;\n    const jit = Math.sin(K.t * 21 + i * 2.4) * (2 + 6 * q) * s;\n    const w = (8 + 26 * q) * s * f;\n    fill(L(55, 14, q), 95, 100, (52 - 36 * q) * f);\n    ellipse(gx + q * len, gy + jit * .6 + q * 5 * s, w * 1.5, w);\n  }\n  fill(55, 40, 100, 55 * f);\n  ellipse(gx + 4 * s, gy, 12 * s * (.5 + f), 9 * s * (.5 + f));\n  blendMode(BLEND); pop();\n}\n\nblendMode(BLEND);\npop();\n"
+}

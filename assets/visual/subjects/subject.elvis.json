@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.elvis",
+  "kind": "subject",
+  "name": "Elvis",
+  "desc": "White-jumpsuit rock'n'roll king with pompadour, shades and a mic \u2014 hip swivels, windmill arm, knee drops and rubber legs, seeded rhinestones twinkling to the treble and notes floating off the microphone.",
+  "tags": [
+    "elvis",
+    "presley",
+    "king",
+    "rock",
+    "rocknroll",
+    "rockstar",
+    "singer",
+    "crooner",
+    "vegas",
+    "jumpsuit",
+    "pompadour",
+    "sideburns",
+    "retro",
+    "50s",
+    "70s",
+    "dancer",
+    "performer",
+    "music",
+    "star",
+    "human",
+    "character",
+    "celebrity"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "size vs design"
+    },
+    "hue": {
+      "default": 330,
+      "min": 0,
+      "max": 360,
+      "doc": "accent hue (gems, scarf, neon/velvet suit)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rhinestone count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.58,
+      "min": 0.05,
+      "max": 1,
+      "doc": "anchor y (canvas fraction, chest height)"
+    },
+    "flare": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bell-bottom flare morph"
+    },
+    "pomp": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pompadour height morph"
+    },
+    "pose": {
+      "default": "swivel",
+      "options": [
+        "swivel",
+        "idle",
+        "windmill",
+        "kneedrop",
+        "rubberlegs"
+      ],
+      "doc": "choreography preset (swivel=hip dance with 8-beat arm strike phrase)"
+    },
+    "style": {
+      "default": "vegas",
+      "options": [
+        "vegas",
+        "comic",
+        "neon",
+        "velvet"
+      ],
+      "doc": "aesthetic: white+gold showman / bold ink outlines with halftone / dark suit neon-sign outlines / black-velvet airbrush with rim light"
+    },
+    "act": {
+      "default": "solo",
+      "options": [
+        "solo",
+        "medley",
+        "finale"
+      ],
+      "doc": "multi-minute dramaturgy (solo=obey pose; medley=cycle poses by section; finale=escalate idle to kneedrop)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic rhinestone layout"
+    }
+  },
+  "acts": [
+    "solo",
+    "medley",
+    "finale"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:37:12+00:00",
+    "fps": 59.9,
+    "motion": 0.0052,
+    "lum": 0.095
+  },
+  "code": "const D = { energy:.6, scale:1, hue:330, speed:1, density:.5, x:.5, y:.58, flare:.5, pomp:.5, pose:'swivel', style:'vegas', act:'solo', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst u = Math.min(width, height);\nconst s = u * 0.0015 * P.scale;\nconst L = (a, b, t) => a + (b - a) * t;\nconst fr = i => { const v = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return v - Math.floor(v); };\n\n// ---- seed/density-keyed structures: rhinestones ----\nif (S.seedUsed !== P.seed || S.densUsed !== P.density) {\n  S.seedUsed = P.seed; S.densUsed = P.density;\n  S.gems = [];\n  const ng = 4 + Math.round(P.density * 12);\n  for (let i = 0; i < ng; i++) {\n    const gy = 16 + fr(i + 21) * 52;\n    const hw = L(26, 18, (gy - 16) / 52) * .8;\n    S.gems.push({ x: (fr(i + 61) * 2 - 1) * hw, y: gy, d: 2.6 + fr(i + 81) * 3 });\n  }\n}\n\n// ---- clock derivations ----\nconst bt = K.beat * P.speed;\nconst ph = ((bt % 1) + 1) % 1;\nconst pulse = Math.pow(1 - ph, 3);\nconst kick = Math.min(1, K.pulse * .6 + A.bass * .8);\nconst step = Math.floor(bt);\nconst wob = Math.sin(K.t * .21);\n\n// ---- act -> pose + energy envelope ----\nlet pose = P.pose, em = 1;\nif (P.act === 'medley') {\n  const seq = ['idle','swivel','rubberlegs','swivel','windmill','swivel','kneedrop','swivel'];\n  pose = seq[((K.section % 8) + 8) % 8];\n  em = .55 + K.intensity * .65;\n} else if (P.act === 'finale') {\n  const sec = ((K.section % 8) + 8) % 8;\n  pose = sec < 1 ? 'idle' : sec < 3 ? 'swivel' : sec < 5 ? 'rubberlegs' : sec < 6 ? 'windmill' : 'kneedrop';\n  em = .5 + sec * .08;\n}\nconst E = Math.min(1, Math.max(0, P.energy * em));\n\n// ---- choreography rig ----\nlet swivHip = 0, swivTor = 0, bob = 0, crouch = 0, stance = 0,\n    la1 = -.2, la2 = -.2, ra1 = -.15, ra2 = -.1, legL = 0, legR = 0,\n    headNodv = 0, headTiltv = 0, mic = false, sing = false, point = 0, trail = false;\n\nif (pose === 'swivel') {\n  const sway = Math.sin(bt * Math.PI);\n  swivHip = sway * .38 * E;\n  swivTor = -sway * .22 * E;\n  bob = (-Math.abs(sway) * 3.5 - pulse * 2.5 * E) * s;\n  legR = (step % 2 !== 0) ? Math.sin(ph * Math.PI) * .55 * E : 0;   // knee kick on offbeats\n  legL = -swivHip * .3;\n  const t8 = ((bt % 8) + 8) % 8;                                    // 8-beat arm phrase:\n  if (t8 >= 7) { ra1 = L(-.5, .7, t8 - 7); }                        // wind up behind...\n  else if (t8 < 1) { ra1 = -2.65 + Math.pow(1 - t8, 3) * .5; point = 1 - t8; }  // ...strike up on the one\n  else { ra1 = -.5 + Math.sin(bt * 1.5708) * .3; }\n  ra2 = -.15;\n  la1 = -1.7 + Math.sin(K.t * 1.3) * .05; la2 = -1.0;               // mic to the lips\n  mic = true; sing = ph < .35;\n  headNodv = pulse * .18 * E; headTiltv = sway * .06;\n} else if (pose === 'idle') {\n  bob = Math.sin(K.t * 1.2) * 2 * s;\n  swivHip = Math.sin(K.t * .4) * .05; swivTor = -swivHip * .5;\n  const c16 = (((bt / 16) % 1) + 1) % 1;                            // combs his hair every 4 bars\n  if (c16 < .15) { const q = Math.sin(c16 / .15 * Math.PI); ra1 = L(-.15, -2.35, q); ra2 = L(-.1, -1.2, q); }\n  else { ra1 = -.15 + Math.sin(K.t * .8) * .06; ra2 = -.1; }\n  la1 = -.2 + Math.sin(K.t * .9) * .04; la2 = -.25;\n  mic = true; sing = false;                                          // mic held low, crooner at rest\n  headNodv = K.pulse * .07 * E; headTiltv = Math.sin(K.t * .3) * .04;\n} else if (pose === 'windmill') {\n  ra1 = -bt * Math.PI * (.5 + E * .7); ra2 = -.12; trail = true;    // continuous windmill\n  la1 = 1.35; la2 = .3;\n  legL = -.28 * E; legR = .28 * E; stance = 8 * s * E;\n  crouch = 6 * s * E; bob = -pulse * 3 * s * E;\n  swivTor = -.12; swivHip = .05;\n  headTiltv = -.08; headNodv = pulse * .15 * E;\n} else if (pose === 'kneedrop') {\n  const c4 = (((bt / 4) % 1) + 1) % 1;\n  let dropT = c4 < .2 ? c4 / .2 : (c4 < .65 ? 1 : (c4 < .9 ? 1 - (c4 - .65) / .25 : 0));\n  const dE = dropT * dropT * (3 - 2 * dropT);\n  crouch = dE * 30 * s;\n  legL = dE * .95; legR = -dE * .3;\n  const hold = (c4 >= .2 && c4 < .65) ? 1 : 0;\n  ra1 = L(-.4, -2.7, dE); ra2 = -.1; point = hold;\n  la1 = L(-.2, 1.2, dE); la2 = .2;\n  headNodv = -dE * .25;\n  swivTor = dE * .1;\n  mic = false; sing = hold === 1 && ph < .4;\n} else if (pose === 'rubberlegs') {\n  const jig = Math.sin(bt * 6.2832) * E;                            // double-time leg wobble\n  legL = jig * .3; legR = -jig * .3;\n  swivHip = jig * .1; swivTor = -jig * .06;\n  bob = -Math.abs(jig) * 2.5 * s;\n  la1 = 1.1 + jig * .15; la2 = .4;\n  ra1 = -1.1 + jig * .15; ra2 = -.4;\n  headTiltv = jig * .05; headNodv = pulse * .12 * E;\n}\n\n// ---- palette + morphs ----\nconst hb = ((P.hue % 360) + 360) % 360;\nconst st = P.style;\nconst lw = Math.max(1, u * .0032);\nconst flareW = 8 + 18 * P.flare;\nconst pompH = .7 + P.pomp * .6;\nconst suit = st === 'neon' ? [hb, 45, 13] : st === 'velvet' ? [hb, 18, 42] : [0, 0, 97];\nconst suitSh = st === 'neon' ? [hb, 50, 10] : st === 'velvet' ? [hb, 22, 34] : [0, 0, 86];\nconst skin = st === 'neon' ? [hb, 40, 16] : st === 'velvet' ? [28, 26, 55] : [28, 38, 88];\nconst dark = st === 'velvet' ? [hb, 30, 18] : [0, 0, 10];\n\nfunction F(c, a) {\n  a = a == null ? 100 : a;\n  if (st === 'neon') { fill(c[0], c[1], c[2], a); stroke(hb, 85, 100, Math.min(a, 90)); strokeWeight(lw); }\n  else if (st === 'comic') { fill(c[0], Math.min(c[1] * 1.1, 95), c[2], a); stroke(0, 0, 12, a); strokeWeight(lw); }\n  else { noStroke(); fill(c[0], c[1], c[2], a); }\n}\n\nconst gold = st === 'neon' ? [hb, 70, 100] : [45, 85, 95];\nconst cx = P.x * width + wob * u * .01;\nconst cy = P.y * height;\n\npush();\ntranslate(cx, cy);\n\n// spotlight aura\nblendMode(ADD);\nnoStroke();\nconst auraR = u * (.16 + .08 * E) * (1 + A.rms * .8) * (1 + Math.sin(K.t * .7) * .05) + kick * u * .015;\nfill(st === 'vegas' || st === 'comic' ? 45 : hb, 45, 95, 6 + K.intensity * 8 + kick * 5);\nellipse(0, 20 * s, auraR * 1.9, auraR * 2.3);\nblendMode(BLEND);\n\n// ground shadow\nfill(0, 0, 0, 36);\nellipse(0, 114 * s, (70 + P.flare * 20) * s + stance * 2, 12 * s);\n\ntranslate(0, bob + crouch);\n\n// ---- lower body: legs + belt (hip group swivels) ----\npush(); translate(0, 66 * s); rotate(swivHip);\nfunction leg(side, rot, kickA) {\n  push(); translate(side * (8 * s + stance), 0); rotate(side * rot + kickA);\n  F(suit); ellipse(0, 12 * s, 17 * s, 30 * s);                       // thigh\n  F(suit);                                                           // bell-bottom flare\n  beginShape();\n  vertex(-7 * s, 22 * s); vertex(7 * s, 22 * s);\n  vertex(flareW * s, 46 * s); vertex(-flareW * s, 46 * s);\n  endShape(CLOSE);\n  if (st === 'vegas' || st === 'velvet') {                           // side stripe\n    noStroke(); fill(gold[0], gold[1], gold[2], 80);\n    beginShape(); vertex(5 * s, 22 * s); vertex(7 * s, 22 * s); vertex(flareW * s, 46 * s); vertex(flareW * s - 3 * s, 46 * s); endShape(CLOSE);\n  }\n  F(dark); ellipse(side * 3 * s, 47 * s, 24 * s, 8 * s);             // shoe\n  pop();\n}\nleg(-1, .06, legL);\nleg(1, -.06, -legR);\n// belt + buckle\nF(gold); rect(-16 * s, -4 * s, 32 * s, 7 * s, 2 * s);\nnoStroke(); fill(gold[0], 40, 100, 55 + kick * 45);\nrect(-5 * s, -4 * s, 10 * s, 7 * s, 2 * s);\npop();\n\n// ---- torso group (counter-swivels) ----\npush(); rotate(swivTor);\n// jumpsuit torso\nF(suit);\nbeginShape(); vertex(-30 * s, 10 * s); vertex(30 * s, 10 * s); vertex(22 * s, 72 * s); vertex(-22 * s, 72 * s); endShape(CLOSE);\n// side shading\nif (st !== 'comic') { noStroke(); fill(suitSh[0], suitSh[1], suitSh[2], 70); beginShape(); vertex(14 * s, 10 * s); vertex(30 * s, 10 * s); vertex(22 * s, 72 * s); vertex(12 * s, 72 * s); endShape(CLOSE); }\n// comic halftone dots\nif (st === 'comic') {\n  noStroke(); fill(230, 25, 30, 25);\n  for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {\n    const yy = (18 + r * 11) * s;\n    const hw = L(27, 20, r / 4) * s;\n    ellipse(-hw + (c + .5) * (hw * 2 / 5) + (r % 2) * 2 * s, yy, 2.4 * s, 2.4 * s);\n  }\n}\n// giant collar\nF(suit);\nbeginShape(); vertex(-30 * s, 10 * s); vertex(0, 4 * s); vertex(-6 * s, 30 * s); endShape(CLOSE);\nbeginShape(); vertex(30 * s, 10 * s); vertex(0, 4 * s); vertex(6 * s, 30 * s); endShape(CLOSE);\n// v-neck + scarf\nF(skin); triangle(-6 * s, 6 * s, 6 * s, 6 * s, 0, 22 * s);\nF([hb, 75, 90]); beginShape(); vertex(-6 * s, 6 * s); vertex(6 * s, 6 * s); vertex(0, 40 * s); endShape(CLOSE);\n// rhinestones \u2014 seeded, twinkle on treble + their own clock\nnoStroke();\nfor (let i = 0; i < S.gems.length; i++) {\n  const g = S.gems[i];\n  const tw = fr(i * 7 + Math.floor((K.t + P.seed) * 2.2)) > .76 || A.treble > .45;\n  fill(hb, st === 'vegas' ? 60 : 80, 95, 90);\n  ellipse(g.x * s, g.y * s, g.d * s, g.d * s);\n  if (tw) {\n    blendMode(ADD);\n    fill(0, 0, 100, 70);\n    ellipse(g.x * s, g.y * s, g.d * 1.8 * s, g.d * 1.8 * s);\n    stroke(0, 0, 100, 55); strokeWeight(Math.max(1, u * .001));\n    line((g.x - g.d * 1.6) * s, g.y * s, (g.x + g.d * 1.6) * s, g.y * s);\n    line(g.x * s, (g.y - g.d * 1.6) * s, g.x * s, (g.y + g.d * 1.6) * s);\n    noStroke(); blendMode(BLEND);\n  }\n}\n\n// ---- head group ----\npush(); translate(0, headNodv * 8 * s); rotate(headTiltv);\n// sideburns behind face edges\nF(dark); ellipse(-21 * s, -8 * s, 9 * s, 24 * s); ellipse(21 * s, -8 * s, 9 * s, 24 * s);\n// face\nF(skin); ellipse(0, -14 * s, 44 * s, 50 * s);\n// ear hints\nF(skin); ellipse(-22 * s, -14 * s, 7 * s, 12 * s); ellipse(22 * s, -14 * s, 7 * s, 12 * s);\n// pompadour (morphable height)\nF(dark);\narc(0, -24 * s, 60 * s, 66 * s, Math.PI, Math.PI * 2, CHORD);\nellipse(-30 * s, -30 * s, 22 * s, 30 * s);\nellipse(30 * s, -30 * s, 22 * s, 30 * s);\nellipse(0, (-40 - 12 * pompH) * s, 40 * s, (20 + 14 * pompH) * s);\nellipse(14 * s, (-38 - 10 * pompH) * s, 24 * s, (14 + 8 * pompH) * s);   // quiff curl\n// sunglasses\nF([0, 0, 8]); rect(-22 * s, -18 * s, 44 * s, 10 * s, 4 * s);\nnoStroke(); fill(0, 0, 5); ellipse(-13 * s, -16 * s, 15 * s, 10 * s); ellipse(13 * s, -16 * s, 15 * s, 10 * s);\nfill(0, 0, 100, 22 + A.treble * 55 + K.pulse * 20);                     // lens glint\nellipse(-16 * s, -18 * s, 4 * s, 2.5 * s); ellipse(10 * s, -18 * s, 4 * s, 2.5 * s);\n// nose + curled lip\nnoStroke(); fill(skin[0], skin[1] + 8, skin[2] - 8); ellipse(0, -7 * s, 7 * s, 9 * s);\nif (sing) { fill(20, 60, 45); ellipse(0, 2 * s, 9 * s, (5 + pulse * 7) * s); }\nelse { noFill(); stroke(20, 50, 35); strokeWeight(Math.max(1, u * .0015)); arc(1 * s, 2 * s, 12 * s, 6 * s, .2, Math.PI * .75); noStroke(); }\npop(); // head\n\n// ---- arms (two segments, drawn over torso) ----\nfunction arm(side, a1, a2, hasMic, pt) {\n  push(); translate(side * 28 * s, 14 * s); rotate(a1);\n  F(suit); ellipse(0, 11 * s, 13 * s, 26 * s);                       // upper arm\n  translate(0, 22 * s); rotate(a2);\n  F(suit); ellipse(0, 10 * s, 11 * s, 24 * s);                       // forearm\n  F(suit); ellipse(0, 17 * s, 14 * s, 8 * s);                        // flared cuff\n  F(skin); ellipse(0, 23 * s, 9 * s, 9 * s);                         // hand\n  if (hasMic) {\n    noStroke(); fill(0, 0, 25); rect(0, 21 * s, 10 * s, 4 * s, 2 * s);\n    fill(0, 0, 18); ellipse(13 * s, 23 * s, 9 * s, 9 * s);\n    fill(0, 0, 60, 70); ellipse(11.5 * s, 21.5 * s, 3 * s, 3 * s);\n  }\n  if (pt > .1) {                                                     // pointing hand glow\n    blendMode(ADD); noStroke();\n    fill(gold[0], 70, 100, pt * 70);\n    ellipse(0, 26 * s, 8 * s, 8 * s);\n    blendMode(BLEND);\n  }\n  pop();\n}\narm(-1, la1, la2, mic, 0);\narm(1, ra1, ra2, false, point);\n\n// windmill hand trail (analytic ghost positions)\nif (trail) {\n  blendMode(ADD); noStroke();\n  for (let i = 1; i <= 4; i++) {\n    const g = ra1 + i * .38;\n    fill(hb, 60, 100, 34 - i * 7);\n    ellipse(28 * s - Math.sin(g) * 40 * s, 14 * s + Math.cos(g) * 40 * s, 8 * s, 8 * s);\n  }\n  blendMode(BLEND);\n}\npop(); // torso group\n\n// music notes rising while singing at the mic\nif (mic && (pose === 'swivel')) {\n  blendMode(ADD); noStroke();\n  for (let i = 0; i < 3; i++) {\n    const q = ((K.t * .22 + i * .333) % 1 + 1) % 1;\n    const nx = (10 + Math.sin(K.t * 2 + i * 2.1) * 6) * s + q * 26 * s;\n    const ny = -34 * s - q * 66 * s;\n    const al = 60 * Math.sin(q * Math.PI);\n    fill(gold[0], 60, 100, al);\n    ellipse(nx, ny, 5 * s, 4 * s);\n    stroke(gold[0], 60, 100, al); strokeWeight(Math.max(1, u * .0015));\n    line(nx + 2.4 * s, ny, nx + 2.4 * s, ny - 9 * s);\n    noStroke();\n  }\n  blendMode(BLEND);\n}\n\n// velvet rim light \u2014 airbrushed hue glow down one side\nif (st === 'velvet') {\n  blendMode(ADD); noStroke();\n  fill(hb, 65, 95, 12);\n  ellipse(-16 * s, 24 * s, 44 * s, 120 * s);\n  fill(hb, 55, 100, 10);\n  ellipse(-12 * s, -20 * s, 30 * s, 44 * s);\n  blendMode(BLEND);\n}\n\nblendMode(BLEND);\npop();\n"
+}

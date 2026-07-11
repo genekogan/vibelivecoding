@@ -146,6 +146,37 @@ on `K.pulse`). Avoid: centered-radial-rainbow default look, uniform HSB cycling,
 motionless clipart with a sine bob. Curves (`beginShape`/`bezierVertex`) over
 primitive-only bodies where the form calls for it.
 
+## AESTHETIC MANDATE — escape the cartoon default (Gene's directive)
+
+First-wave assets ALL came out reading "cute cartoon": thick outlines, flat
+fills, big friendly eyes, rounded blob bodies, one bounce. Competent but a
+monoculture. **Your job now is aesthetic DIVERGENCE.** Each template should feel
+like it came from a different artist. Push edgy / experimental / sophisticated:
+
+- **Your assigned `style` default is the ANCHOR — commit hard, make it
+  NON-cartoon.** "ink-wash" → real brushed sumi (dry-brush edges, bleed, tonal
+  washes), not grey cartoon fill. "brutalist" → hard concrete, harsh raking
+  shadow, monochrome, weight. "riso" → true 2-ink misregistration + halftone.
+- **At least ONE style option per asset must be non-representational or
+  radically abstracted** — from: wireframe / X-ray / anatomical, single
+  continuous contour line, pure silhouette (no interior), glitch-fractured /
+  datamoshed, low-poly faceted, halftone/CMYK print, ASCII/dot-matrix,
+  cubist-fragmented, blueprint/schematic, chiaroscuro (form from light only, no
+  outline), stippled/hatched engraving, iridescent/oil-slick, thermal false-color.
+- **Rendering philosophy varies, not just palette.** Options differ in HOW form
+  is built: outline-vs-mass, hard-vs-soft edge, flat-vs-modeled light,
+  geometric-vs-organic, clean-vs-degraded. A hue swap is NOT a style.
+- **Texture beats flat fill** — hatching, stippling, scanlines, grain, gradient
+  mapping, layered translucency, `shadowBlur` on few shapes. Big flat HSB fills
+  are the cartoon tell; break them up.
+- **Line quality is a choice** — vary strokeWeight expressively; tapered / wobbly
+  / broken / doubled lines, or no outline at all (mass and shadow only).
+- **Mood range** — not everything is a happy party. Allow eerie, austere,
+  melancholy, menacing, sacred, clinical, decayed, sublime. Let `hue`/palette
+  extremes reach desaturated, near-monochrome, and dark-key — not only brights.
+- Edgy ≠ noisy mush: composition and contrast still rule, stay performant. But
+  default to the sophisticated/experimental read over the cute one.
+
 ## Workflow for each asset you author
 
 1. Design: subject + assigned style discipline + variant axes + dramaturgy.
@@ -161,3 +192,19 @@ primitive-only bodies where the form calls for it.
 Tags: ≥8, generous synonyms ("duck" → duck bird animal waterfowl quack pond
 yellow cute), categories, moods, colors, era/genre words. `desc` is one vivid
 sentence — Gene's prose gets grepped against desc+tags.
+
+## Design size & motion amplitude (added after first validation failures)
+
+Live-canvas evidence: a well-rigged character occupying ~3% of the frame reads
+as STATIC on the 320px motion gate (mean-diff 0.003 < 0.004) no matter how it
+flails. Rules:
+
+- **Subjects**: at `P.scale=1` the hero stands **0.40–0.55 × min(width,height)
+  tall**. It's a stage hero, not scenery.
+- **Baseline motion must displace the silhouette**: whole-body bob/sway/steps
+  of ≥5% of body height + limb swings — not just outline wiggles or eye blinks.
+- **Sets/fx**: the animated portion should sweep ≥10% of the frame area over
+  8s (beams move, particles cross, cones pump).
+- **Param poke sanity**: with the first two numeric params at max, the render
+  must OBVIOUSLY differ (e.g. scale max ≥ 1.8 → nearly double size; energy max
+  → exaggerated dance). If max just looks like default, the gate fails you.

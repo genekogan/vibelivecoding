@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dj",
+  "kind": "subject",
+  "name": "Human DJ",
+  "desc": "Flat-poster duotone DJ behind twin spinning turntables \u2014 head-nod locked to the beat, cue-headphone press, crossfader scratch flicks, and an arms-up drop with confetti, VU meters dancing on the booth.",
+  "tags": [
+    "dj",
+    "human",
+    "person",
+    "turntable",
+    "decks",
+    "vinyl",
+    "record",
+    "mixer",
+    "club",
+    "rave",
+    "music",
+    "scratch",
+    "drop",
+    "headphones",
+    "duotone",
+    "poster",
+    "flat",
+    "booth",
+    "character",
+    "performer",
+    "party",
+    "nightlife"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bounce, nod snap, scratch violence"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "size vs design (600px min-dim)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "primary ink hue; second ink sits ~168 deg away"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "halftone dots, confetti, grain"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0.3,
+      "max": 0.95,
+      "doc": "floor line at the booth base"
+    },
+    "bop": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "head-nod amplitude"
+    },
+    "groove": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "torso sway amount"
+    },
+    "pose": {
+      "default": "mix",
+      "options": [
+        "mix",
+        "cue",
+        "scratch",
+        "drop"
+      ],
+      "doc": "working the mixer / one cup pressed to the ear / scratching the right deck / arms-up drop (mix auto-drops at peak sections)"
+    },
+    "style": {
+      "default": "duotone",
+      "options": [
+        "duotone",
+        "neon",
+        "ink",
+        "riso"
+      ],
+      "doc": "aesthetic: 2-ink flat poster+halftone / dark glow rims / paper line-art+hatch / overprint+grain"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (confetti, halftone jitter)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:36:38+00:00",
+    "fps": 59.9,
+    "motion": 0.0068,
+    "lum": 0.223
+  },
+  "code": "const D = { energy:.6, scale:1, hue:200, speed:1, density:.5, x:.5, y:.8, bop:.6, groove:.5, pose:'mix', style:'duotone', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------- helpers ----------\nconst u = Math.min(width, height);\nconst sc = (u/600) * P.scale;\nconst ax = P.x*width, ay = P.y*height;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst rot2 = (x, y, a) => [x*Math.cos(a) - y*Math.sin(a), x*Math.sin(a) + y*Math.cos(a)];\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat; // tolerate t0 resets\nS.lastBeat = K.beat;\n\n// seed-keyed structures\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.conf = []; for (let i = 0; i < 14; i++) S.conf.push({ x: fr(i*3+10)*2-1, w: fr(i*3+11), r: fr(i*3+12)*6.283 });\n}\n\n// ---------- rhythm ----------\nconst e = P.energy;\nconst bt = K.beat * P.speed;\nconst ph = K.phase;\nconst liftArc = Math.sin(ph * PI);\nconst kick = Math.min(1, K.pulse*(0.5 + 0.5*K.intensity) + A.bass*0.6);\n\n// section dramaturgy: the default mixer auto-hypes at peak sections\nlet mode = P.pose;\nif (mode === 'mix' && K.intensity > 0.85) mode = 'drop';\n\n// head nod LOCKED to the beat: pull back late in the phase, drop on the pulse\nconst prep = Math.pow(Math.max(0, (ph - 0.55))/0.45, 2);\nconst nodY = (kick*(3.5 + 4*e) - prep*2.5) * P.bop;\nconst bb = liftArc*(1.5 + 4*e)*(mode === 'drop' ? 2 : 1);           // body bounce\nconst swayX = Math.sin(K.t*0.27 + P.seed)*4*(0.5 + P.groove);       // slow independent drift\nconst leanA = Math.sin(bt*TAU/8)*0.08*P.groove + (mode === 'scratch' ? -0.05 : 0) + Math.sin(K.t*0.23 + P.seed)*0.045;\n// the \"song\" slowly progresses: tonearm tracks toward the label over ~90s, then a new record drops\nconst songT = ((K.t*0.012 + fr(101)) % 1 + 1) % 1;\n\n// record spin (continuous \u2014 never static), scratch wiggles it\nconst recA = K.beat*P.speed*0.9;\nconst scrW = mode === 'scratch' ? Math.sin(bt*TAU)*(0.9 + 0.5*e) : 0;\nconst recAR = recA + scrW*1.4;\n\n// ---------- style palettes ----------\nconst H = ((P.hue % 360) + 360) % 360;\nlet inkC, accC, paperC, skinC, lineC, lw, glowOn = false, hatchOn = false, grainOn = false;\nif (P.style === 'neon')      { inkC=[H,55,16]; accC=[(H+140)%360,80,100]; paperC=[H,45,12];       skinC=[H,25,30];          lineC=[H,90,100];       lw=2.2; glowOn = true; }\nelse if (P.style === 'ink')  { inkC=[H,10,95]; accC=[H,35,45];            paperC=[H,5,98];        skinC=[H,8,93];           lineC=[H,42,18];        lw=2.8; hatchOn = true; }\nelse if (P.style === 'riso') { inkC=[H,72,88]; accC=[(H+150)%360,68,82];  paperC=[(H+150)%360,14,96]; skinC=[H,35,95];      lineC=[(H+150)%360,82,40]; lw=0; grainOn = true; }\nelse                         { inkC=[H,75,55]; accC=[(H+168)%360,72,94];  paperC=[(H+40)%360,7,98];   skinC=[(H+168)%360,42,96]; lineC=[H,80,28];   lw=0; }\nconst F  = c => fill(c[0], c[1], c[2]);\nconst SK = (c, w) => { if (w > 0) { stroke(c[0], c[1], c[2]); strokeWeight(w); } else noStroke(); };\n\n// ---------- cached poster disc (flat-poster backdrop) ----------\nconst pKey = width + 'x' + height + '|' + P.style + '|' + Math.round(H) + '|' + P.seed + '|' + Math.round(P.density*10) + '|' + Math.round(P.scale*20);\nif (!S.poster || S.posterKey !== pKey) {\n  S.posterKey = pKey;\n  const side = Math.max(48, Math.min(1000, Math.round(430*sc)));\n  if (S.poster && S.poster.remove) S.poster.remove();\n  S.poster = createGraphics(side, side);\n  const g = S.poster;\n  g.colorMode(HSB, 360, 100, 100, 100);\n  g.noStroke();\n  const c0 = side/2, R = side*0.46;\n  if (P.style === 'neon') {\n    g.fill(H, 50, 8, 92); g.circle(c0, c0, R*2);\n    g.noFill(); g.stroke(accC[0], accC[1], accC[2], 80); g.strokeWeight(side*0.008);\n    g.circle(c0, c0, R*1.9); g.circle(c0, c0, R*1.45);\n    g.stroke(H, 80, 70, 40); g.strokeWeight(side*0.004);\n    for (let i = 1; i < 7; i++) g.line(c0 - R, c0 - R + i*(R/3.5), c0 + R, c0 - R + i*(R/3.5));\n  } else if (P.style === 'riso') {\n    g.fill(inkC[0], inkC[1], inkC[2], 45); g.circle(c0 + side*0.012, c0 - side*0.01, R*2);\n    g.fill(accC[0], accC[1], accC[2], 45); g.circle(c0 - side*0.012, c0 + side*0.01, R*2);\n    for (let i = 0; i < 90; i++) { g.fill(lineC[0], lineC[1], lineC[2], 18); g.circle(c0 + (fr(i*11+3)*2-1)*R*0.9, c0 + (fr(i*11+7)*2-1)*R*0.9, fr(i*11+9)*side*0.012 + 1); }\n  } else {\n    // duotone / ink: paper disc + sunburst wedges + halftone dots\n    g.fill(paperC[0], paperC[1], paperC[2], 96); g.circle(c0, c0, R*2);\n    for (let i = 0; i < 12; i++) {\n      if (i % 2 === 0) continue;\n      g.fill(inkC[0], inkC[1], inkC[2], P.style === 'ink' ? 7 : 10);\n      g.arc(c0, c0, R*2, R*2, i*TAU/12, (i + 1)*TAU/12);\n    }\n    const dotN = Math.round(6 + P.density*10);\n    for (let iy = -dotN; iy <= dotN; iy++) for (let ix = -dotN; ix <= dotN; ix++) {\n      const dxx = ix/dotN, dyy = iy/dotN, rr = Math.sqrt(dxx*dxx + dyy*dyy);\n      if (rr > 0.92) continue;\n      g.fill(inkC[0], inkC[1], inkC[2], 30);\n      g.circle(c0 + dxx*R, c0 + dyy*R, (1 - rr)*side*0.012 + side*0.002 + fr(ix*31 + iy*7)*side*0.003);\n    }\n    g.noFill(); g.stroke(inkC[0], inkC[1], inkC[2], 90); g.strokeWeight(side*0.012);\n    g.circle(c0, c0, R*1.97);\n  }\n}\n\n// =============== DRAW ===============\npush();\ntranslate(ax, ay);\nscale(sc);\n\n// poster backdrop, drifting slowly\npush(); translate(0, -168); rotate(K.t*0.02 + Math.sin(K.t*0.11)*0.05);\nimageMode(CENTER); image(S.poster, 0, 0, 430, 430); imageMode(CORNER);\npop();\n\n// confetti burst at the drop (and at peak sections)\nif (mode === 'drop') {\n  noStroke();\n  const cn = Math.round(4 + P.density*10);\n  for (let i = 0; i < cn; i++) {\n    const cf2 = S.conf[i % S.conf.length];\n    const p = ((bt*0.22 + cf2.w) % 1 + 1) % 1;\n    fill(i % 2 === 0 ? accC[0] : inkC[0], i % 2 === 0 ? accC[1] : inkC[1], i % 2 === 0 ? accC[2] : inkC[2], (1 - p)*70);\n    push(); translate(cf2.x*230 + Math.sin(K.t*2 + cf2.r)*14, -320 + p*260); rotate(cf2.r + K.t*3);\n    rect(-4, -1.5, 8, 3, 1); pop();\n  }\n}\n\n// floor shadow + neon underglow\nnoStroke(); fill(0, 0, 0, 24); ellipse(0, 3, 390, 18);\nif (glowOn) { push(); blendMode(ADD); fill(accC[0], accC[1], accC[2], 7 + A.bass*16 + kick*4); ellipse(0, -40, 480, 220); blendMode(BLEND); pop(); }\n\n// ---------- the DJ (behind the booth) ----------\nconst waistY = -86;\nconst shW = 35;\nconst shw = rot2(-shW, -72, leanA), shwR = rot2(shW, -72, leanA);\nconst shL = [swayX + shw[0], waistY - bb + shw[1]], shR = [swayX + shwR[0], waistY - bb + shwR[1]];\nconst earW = rot2(-29, -102, leanA);\nconst earL = [swayX + earW[0], waistY - bb + earW[1] + nodY*0.6];\n\npush(); translate(swayX, waistY - bb); rotate(leanA);\n// torso\nF(inkC); SK(lineC, lw);\nbeginShape(); vertex(-31, 6); vertex(31, 6); vertex(37, -64); vertex(-37, -64); endShape(CLOSE);\nrect(-37, -74, 74, 18, 9);\n// jacket details\nSK(P.style === 'duotone' ? accC : lineC, Math.max(lw, 1.6)); noFill();\nline(0, 2, 0, -60);\nline(-14, -62, -4, -50); line(14, -62, 4, -50);\nif (hatchOn) { SK(lineC, 1); for (let i = 0; i < 6; i++) line(-30 + i*11, 4, -20 + i*11, -60); }\nif (grainOn) { noStroke(); fill(accC[0], accC[1], accC[2], 20); for (let i = 0; i < 20; i++) circle((fr(i*9+70)*2-1)*30, -fr(i*9+71)*60, 2 + fr(i*9+72)*3); }\n// head (nods on the beat)\npush(); translate(0, -96 + nodY); rotate(Math.sin(bt*TAU/8)*0.06*P.groove + (mode === 'cue' ? -0.16 : 0) + (mode === 'drop' ? -0.08 : 0));\nF(skinC); SK(lineC, lw); rect(-8, -4, 16, 14, 4);      // neck\ncircle(0, -16, 52);                                    // head\n// hair \u2014 flat-top block\nF(P.style === 'duotone' ? [H, 85, 30] : (glowOn ? [H, 70, 8] : lineC)); noStroke();\narc(0, -24, 56, 42, PI, TAU);\nrect(-28, -28, 8, 16, 3); rect(20, -28, 8, 16, 3);\n// shades\nF(P.style === 'ink' ? lineC : (P.style === 'duotone' ? inkC : [0, 0, 10])); noStroke();\nrect(-19, -22, 17, 9, 3.5); rect(2, -22, 17, 9, 3.5);\nrect(-3, -20, 6, 3);\nif (glowOn) { push(); blendMode(ADD); fill(accC[0], accC[1], accC[2], 35 + A.treble*40); rect(-17, -20.5, 13, 6, 3); rect(4, -20.5, 13, 6, 3); blendMode(BLEND); pop(); }\nconst shn = -18 + (((K.t*0.3) % 1 + 1) % 1)*30;        // lens shine sweep\nstroke(0, 0, 100, 55); strokeWeight(1.8); line(shn, -21, shn + 3, -13);\n// mouth: grin wide at the drop, easy smile otherwise\nif (mode === 'drop') { noStroke(); F([H, 60, 15]); ellipse(0, -2, 15, 10 + kick*4); F([0, 0, 98]); rect(-6, -6, 12, 3.5, 1); }\nelse { SK([H, 40, P.style === 'neon' ? 80 : 22], 2); noFill(); arc(0, -4, 14, 8 + K.swell*3, 0.3, PI - 0.3); }\n// headphones\nSK(accC, 6); noFill(); arc(0, -18, 62, 58, PI + 0.12, TAU - 0.12);\nF(accC); noStroke();\nrect(-34, -12, 11, 20, 5); rect(23, -12, 11, 20, 5);\n// LED on the cup blinks with the pulse\npush(); blendMode(ADD); noStroke(); fill(accC[0], accC[1], accC[2], 25 + kick*55); circle(28.5, -2, 5 + kick*3); blendMode(BLEND); pop();\npop(); // head\npop(); // torso\n\n// ---------- booth + decks (in front of the DJ) ----------\n// tabletop\nF(P.style === 'duotone' ? inkC : (glowOn ? [H, 50, 9] : accC)); SK(lineC, lw);\nrect(-181, -80, 362, 10, 3);\n// front panel\nF(P.style === 'ink' || P.style === 'duotone' ? paperC : (glowOn ? [H, 52, 13] : inkC)); SK(lineC, Math.max(lw, glowOn ? 1.8 : 0));\nrect(-175, -70, 350, 70, 6);\n// panel deco\nif (P.style === 'duotone') { noStroke(); F(accC); quad(-120, -70, -78, -70, -128, 0, -170, 0); F(inkC); quad(-70, -70, -52, -70, -102, 0, -120, 0); }\nif (hatchOn) { SK(lineC, 1); for (let i = 0; i < 16; i++) line(-170 + i*22, -4, -152 + i*22, -66); }\nif (grainOn) { noStroke(); fill(lineC[0], lineC[1], lineC[2], 14); for (let i = 0; i < 26; i++) circle((fr(i*13+30)*2-1)*168, -6 - fr(i*13+31)*58, 2 + fr(i*13+32)*3.5); }\nif (glowOn) { SK(accC, 2); noFill(); rect(-175, -70, 350, 70, 6); line(-175, -35, 175, -35); }\n// VU meters (clk baseline + audio on top)\nconst vuL = constrain(0.2 + K.swell*0.35 + K.intensity*0.22 + Math.sin(K.t*0.9)*0.13 + A.rms*1.3, 0, 1);\nconst vuR = constrain(0.15 + (1 - K.phase)*0.4*K.intensity + Math.sin(K.t*1.13 + 2)*0.13 + A.bass*0.9, 0, 1);\nfor (let sdd = 0; sdd < 2; sdd++) {\n  const vx = sdd === 0 ? 128 : 152, vv = sdd === 0 ? vuL : vuR;\n  const lit = Math.round(vv*6);\n  for (let i = 0; i < 6; i++) {\n    const on = i < lit;\n    if (glowOn) fill(i > 3 ? 0 : (H + 140) % 360, 80, on ? 100 : 24, on ? 90 : 30);\n    else if (P.style === 'duotone' || P.style === 'ink') { const c = i > 3 ? accC : inkC; fill(c[0], c[1], c[2], on ? 95 : 18); }\n    else { const c = i > 3 ? inkC : accC; fill(c[0], c[1], c[2], on ? 95 : 18); }\n    noStroke(); rect(vx, -16 - i*8.5, 16, 6, 1.5);\n  }\n}\n// blinking ON AIR dot\nnoStroke(); fill(accC[0], accC[1], accC[2], 30 + (Math.floor(bt) % 2 === 0 ? kick*60 : 0));\ncircle(-140, -58, 7);\n\n// turntables\nfor (let sdd = -1; sdd <= 1; sdd += 2) {\n  const tx = sdd*95, ty = -86;\n  const ra = sdd < 0 ? recA : recAR;\n  F(P.style === 'duotone' ? inkC : (glowOn ? [H, 55, 18] : accC)); SK(lineC, lw);\n  ellipse(tx, ty, 104, 32);                              // platter\n  F(glowOn ? [H, 60, 6] : (P.style === 'ink' ? paperC : [H, 30, 14])); SK(lineC, lw > 0 ? 1.5 : 0);\n  ellipse(tx, ty, 90, 27);                               // record\n  noFill(); stroke(glowOn ? accC[0] : paperC[0], glowOn ? accC[1] : paperC[1], glowOn ? accC[2] : paperC[2], 45);\n  strokeWeight(1);\n  ellipse(tx, ty, 66, 20); ellipse(tx, ty, 46, 14);      // grooves\n  noStroke(); F(accC); ellipse(tx, ty, 24, 7.5);         // label\n  fill(0, 0, glowOn ? 90 : 20); circle(tx, ty, 3);       // spindle\n  // rotation marker \u2014 the tell that vinyl is spinning\n  fill(0, 0, glowOn ? 100 : 96, 92);\n  circle(tx + Math.cos(ra)*33, ty + Math.sin(ra)*9.5, 4.5);\n  // tonearm \u2014 tracks slowly toward the label as the \"song\" plays out (~90s per side)\n  const nr = 36 - songT*22;\n  SK(lineC[2] > 50 ? lineC : [H, 20, glowOn ? 85 : 35], 3);\n  line(tx + 44, ty - 16, tx + nr*0.55, ty - 3 - songT*2);\n  noStroke(); F(accC); circle(tx + 44, ty - 16, 7);\n  fill(0, 0, glowOn ? 90 : 30); circle(tx + nr*0.55, ty - 3 - songT*2, 4);\n}\n// mixer\nF(P.style === 'duotone' ? inkC : (glowOn ? [H, 52, 15] : inkC)); SK(lineC, lw);\nrect(-30, -94, 60, 26, 4);\n// crossfader \u2014 flicks during scratch, lazy sweep otherwise\nconst cfX = mode === 'scratch' ? Math.tanh(Math.sin(bt*TAU)*3)*11 : Math.sin(bt*TAU/8 + K.t*0.16)*11;\nSK(paperC, 2.5); line(-14, -82, 14, -82);\nnoStroke(); F(accC); rect(cfX - 3.5, -86, 7, 9, 2);\nfor (let i = -1; i <= 1; i++) { F(paperC); circle(i*13, -91, 5); }\n\n// ---------- arms (IK, drawn over the booth) ----------\nfunction arm2(sx, sy, hx, hy, sign, w) {\n  const L1 = 42, L2 = 44;\n  let dx = hx - sx, dy = hy - sy;\n  const d0 = Math.max(0.001, Math.sqrt(dx*dx + dy*dy));\n  const d = constrain(d0, 8, L1 + L2 - 4);\n  const ux = dx/d0, uy = dy/d0;\n  const hx2 = sx + ux*d, hy2 = sy + uy*d;\n  const base = Math.atan2(hy2 - sy, hx2 - sx);\n  const q = Math.acos(constrain((L1*L1 + d*d - L2*L2)/(2*L1*d), -1, 1))*sign;\n  const ex = sx + Math.cos(base + q)*L1, ey = sy + Math.sin(base + q)*L1;\n  if (lw > 0) { stroke(lineC[0], lineC[1], lineC[2]); strokeWeight(w + lw*1.8); line(sx, sy, ex, ey); line(ex, ey, hx2, hy2); }\n  stroke(inkC[0], inkC[1], inkC[2]); strokeWeight(w);\n  line(sx, sy, ex, ey); line(ex, ey, hx2, hy2);\n  noStroke(); F(skinC); circle(hx2, hy2, 15);\n  if (lw > 0) { SK(lineC, lw*0.8); noFill(); circle(hx2, hy2, 15); }\n  return [hx2, hy2];\n}\nlet hL, hR;\nif (mode === 'cue') {\n  hL = earL;                                                      // press the cup\n  hR = [95 + Math.cos(recAR)*22, -86 + Math.sin(recAR)*6.5];      // ride the platter\n} else if (mode === 'scratch') {\n  hR = [95 + Math.cos(-0.9 + scrW*0.5)*30, -90 + Math.sin(-0.9 + scrW*0.5)*9];\n  hL = [cfX, -84];\n} else if (mode === 'drop') {\n  hL = [-74, -238 - kick*12]; hR = [74, -244 - kick*12];\n} else { // mix\n  hL = [-16 + Math.sin(bt*TAU/4)*3 + Math.sin(K.t*0.41)*6, -92 + liftArc];\n  hR = [10 + Math.sin(bt*TAU/2)*7 + Math.sin(K.t*0.33 + 1)*5, -91];\n}\nconst hLd = arm2(shL[0], shL[1], hL[0], hL[1], 1, 11);\nconst hRd = arm2(shR[0], shR[1], hR[0], hR[1], -1, 11);\n// open hands at the drop\nif (mode === 'drop') {\n  SK(skinC, 3.5);\n  for (let i = -1; i <= 1; i++) { line(hLd[0], hLd[1] - 4, hLd[0] + i*6, hLd[1] - 13); line(hRd[0], hRd[1] - 4, hRd[0] + i*6, hRd[1] - 13); }\n}\n// headphone cable: left cup down to the mixer, sways with the nod\nSK(P.style === 'duotone' ? accC : (glowOn ? accC : lineC), 2);\nnoFill();\nbezier(earL[0] - 3, earL[1] + 10, -60 + Math.sin(K.t*1.1)*8, -40, -30, -60, -12, -70);\n\npop(); // world\nblendMode(BLEND);\n"
+}
