@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.feedback_zoom",
+  "kind": "post",
+  "name": "Feedback Zoom",
+  "desc": "Video-feedback echo tunnel: the scene smears into a rotating, zooming spiral seeded by beat rings so it churns even over a still frame.",
+  "tags": [
+    "feedback",
+    "echo",
+    "tunnel",
+    "zoom",
+    "spiral",
+    "trails",
+    "recursion",
+    "vortex",
+    "kaleidoscope",
+    "psychedelic",
+    "smear",
+    "ghost",
+    "warp",
+    "post",
+    "overlay",
+    "motion",
+    "hypnotic",
+    "rotate"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "mix": {
+      "default": 0.7,
+      "min": 0.15,
+      "max": 1,
+      "doc": "final overlay strength of the tunnel over the scene"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.4,
+      "doc": "self-seed burst: core dot size + orbiting spark count & brightness"
+    },
+    "zoom": {
+      "default": 0.05,
+      "min": 0,
+      "max": 0.22,
+      "doc": "per-frame zoom rate of the echo tunnel"
+    },
+    "spin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 3,
+      "doc": "per-frame rotation of the echo"
+    },
+    "fade": {
+      "default": 0.86,
+      "min": 0.5,
+      "max": 0.965,
+      "doc": "trail persistence (higher = longer trails)"
+    },
+    "sat": {
+      "default": 70,
+      "min": 0,
+      "max": 100,
+      "doc": "echo saturation"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "echo tint / seed hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "zoom+spin rate multiplier"
+    },
+    "style": {
+      "default": "echo",
+      "options": [
+        "echo",
+        "chroma",
+        "kaleido",
+        "ghost",
+        "ink"
+      ],
+      "doc": "aesthetic: color trails / spectral drift / mirrored / grayscale chiaroscuro / dark low-key ink"
+    },
+    "act": {
+      "default": "expand",
+      "options": [
+        "expand",
+        "implode",
+        "warp"
+      ],
+      "doc": "tunnel program: outward / inward / oscillating"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "expand",
+    "implode",
+    "warp"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:41:01+00:00",
+    "fps": 61.7,
+    "motion": 0.0057,
+    "lum": 0.083
+  },
+  "code": "const D = { mix:.7, energy:.5, zoom:.05, spin:.5, fade:.86, sat:70, hue:280, speed:1, style:'echo', act:'expand', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, dg = drawingContext;\nconst clamp = (v,a,b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nfunction style_is(s){ return P.style === s; }\n\nconst md = 480, sc = md / Math.max(W, H);\nconst bw = Math.max(2, Math.round(W*sc)), bh = Math.max(2, Math.round(H*sc));\nconst key = bw + 'x' + bh;\nif (!S.a || S.key !== key || S.seedUsed !== P.seed) {\n  S.a = createGraphics(bw, bh); S.b = createGraphics(bw, bh);\n  S.a.colorMode(HSB,360,100,100,100); S.b.colorMode(HSB,360,100,100,100);\n  S.a.clear(); S.b.clear();\n  S.key = key; S.seedUsed = P.seed; S.pp = false;\n}\n\nconst beatKick = clamp(K.pulse*.6 + A.bass*.8, 0, 1.4);\nconst inten = K.intensity==null ? .6 : K.intensity;\nconst en = clamp(P.energy, 0, 1.4);\n\nlet zdir = 1, spinMul = 1;\nif (P.act === 'implode') zdir = -1;\nelse if (P.act === 'warp') { zdir = Math.sin(K.t*0.5) >= 0 ? 1 : -1; spinMul = 1.8; }\nconst z = 1 + zdir * clamp(P.zoom,0,0.22) * (0.5 + 0.6*beatKick + 0.3*inten) * P.speed;\nconst spin = P.spin * 0.045 * spinMul * P.speed * (0.6 + 0.7*beatKick + 0.4*Math.sin(K.t*0.31));\nconst fade = clamp(P.fade, 0.5, 0.965);\nconst inject = clamp(1 - fade + 0.04 + 0.10*beatKick, 0.02, 0.6);\n\nlet th = P.hue, ts = P.sat, tb = 100;\nif (style_is('chroma')) { th = (P.hue + K.t*40) % 360; ts = 85; }\nelse if (style_is('ghost')) { ts = 6; tb = 100; }\nelse if (style_is('ink')) { ts = clamp(P.sat,30,80); tb = 74; }\n\nconst src = S.pp ? S.a : S.b, dst = S.pp ? S.b : S.a;\nconst bctx = dst.drawingContext;\n\ndst.push();\ndst.clear();\ndst.translate(bw/2, bh/2);\ndst.rotate(spin);\ndst.scale(z);\ndst.imageMode(CENTER);\ndst.tint(th, ts, tb, fade*100);\ndst.image(src, 0, 0);\nif (style_is('kaleido')) { dst.scale(-1, 1); dst.image(src, 0, 0); }\ndst.pop();\n\nbctx.save();\nbctx.globalCompositeOperation = 'source-over';\nbctx.globalAlpha = inject;\ntry { bctx.drawImage(dg.canvas, 0, 0, bw, bh); } catch(e) {}\nbctx.globalAlpha = 1;\nbctx.restore();\n\n// self-seed: drifting core dot + energy-scaled orbiting sparks + beat ring\ndst.push();\ndst.noStroke();\nconst dhu = style_is('ghost') ? 0 : (P.hue + 40) % 360;\nconst dsa = style_is('ghost') ? 0 : 80;\nconst dx = bw*(0.5 + 0.30*Math.cos(K.t*0.9 + fr(1)*6.28));\nconst dy = bh*(0.5 + 0.30*Math.sin(K.t*1.17 + fr(2)*6.28));\ndst.fill(dhu, dsa, style_is('ink')?80:96, 60 + 30*beatKick);\ndst.circle(dx, dy, bw*(0.02 + 0.12*en));\nconst sparks = Math.floor(2 + en*7);\nfor (let i=0;i<sparks;i++){\n  const ph = fr(i*3+7)*6.28;\n  const rr = bw*(0.10 + 0.24*fr(i*5+1));\n  const sx = bw*0.5 + Math.cos(K.t*(0.5+0.6*fr(i)) + ph)*rr;\n  const sy = bh*0.5 + Math.sin(K.t*(0.6+0.7*fr(i*2)) + ph)*rr;\n  dst.fill(dhu, dsa, style_is('ink')?78:98, 35 + 45*en);\n  dst.circle(sx, sy, bw*(0.008 + 0.03*en));\n}\nif (beatKick > 0.12) {\n  dst.noFill();\n  dst.stroke((P.hue + 180)%360, style_is('ghost')?0:70, 98, 55*beatKick);\n  dst.strokeWeight(bw*0.008*(1 + beatKick));\n  dst.circle(bw/2, bh/2, bw*(0.10 + 0.16*beatKick));\n}\ndst.pop();\n\nblendMode(BLEND);\nimageMode(CORNER);\ndg.save();\ndg.globalAlpha = clamp(P.mix, 0.15, 1);\nimage(dst, 0, 0, W, H);\ndg.restore();\n\nS.pp = !S.pp;\nblendMode(BLEND);\ndg.shadowBlur = 0;\n"
+}
