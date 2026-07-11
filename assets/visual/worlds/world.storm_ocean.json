@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.storm_ocean",
+  "kind": "world",
+  "name": "Stormy Ocean",
+  "desc": "A dark heaving sea under a bruised squall sky \u2014 layered swell crests, blown spray, and partial-frame lightning that flares on treble spikes.",
+  "tags": [
+    "ocean",
+    "sea",
+    "storm",
+    "stormy",
+    "waves",
+    "swell",
+    "water",
+    "marine",
+    "dark",
+    "moody",
+    "night",
+    "tempest",
+    "squall",
+    "lightning",
+    "spray",
+    "foam",
+    "weather",
+    "seascape",
+    "maritime",
+    "eerie",
+    "ominous",
+    "brooding",
+    "cinematic",
+    "background",
+    "world",
+    "blue"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "storm intensity \u2014 swell height, spray volume, foam & flash amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "detail \u2014 number of swell bands (3..8), cloud & spray count"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "primary sea/sky hue (210 cold marine blue)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "beats-relative scroll/heave rate multiplier"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "wave amplitude + wavelength vs design size"
+    },
+    "chop": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "high-frequency choppiness on the crests"
+    },
+    "spray": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "blown spray + foam quantity"
+    },
+    "lightning": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flash frequency & brightness (0 = no lightning)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wind direction bias (0 left, 1 right) \u2014 sets scroll sign"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.2,
+      "max": 0.7,
+      "doc": "horizon height as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look seed (clouds, spray, bolts)"
+    },
+    "style": {
+      "default": "dark marine",
+      "options": [
+        "dark marine",
+        "ink wash",
+        "blueprint",
+        "thermal",
+        "riso"
+      ],
+      "doc": "rendering discipline \u2014 marine tonal wash, sumi ink, schematic contour wireframe, thermal false-color, riso 2-ink misregistration"
+    },
+    "act": {
+      "default": "squall",
+      "options": [
+        "squall",
+        "swell",
+        "doldrums"
+      ],
+      "doc": "multi-minute dramaturgy \u2014 building squall, long rolling swell, or calm-to-building doldrums"
+    }
+  },
+  "acts": [
+    "squall",
+    "swell",
+    "doldrums"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:04:44+00:00",
+    "fps": 59.9,
+    "motion": 0.0158,
+    "lum": 0.185
+  },
+  "code": "const D = { energy:.6, density:.5, hue:210, speed:1, scale:1, chop:.5, spray:.5, lightning:.5, x:.5, y:.42, seed:0, style:'dark marine', act:'squall' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst W = width, H = height, u = Math.min(W,H), TAU = Math.PI*2;\nconst hue = ((P.hue%360)+360)%360;\nconst st = P.style;\nconst wind = P.x - .5, windSign = wind >= 0 ? 1 : -1, windMag = .5 + Math.abs(wind);\nconst horizon = H * P.y;\n\n// smoothed audio (blended ON TOP of clk baseline, never as sole motion)\nS.bass = (S.bass||0)*.85 + (A.bass||0)*.15;\nS.tre  = (S.tre ||0)*.7  + (A.treble||0)*.3;\nS.rms  = (S.rms ||0)*.85 + (A.rms||0)*.15;\n\n// dramaturgy: act + section arc -> storm scalar (30s..5min evolution via K.section/intensity)\nconst sec = (K.intensity != null ? K.intensity : .6);\nconst act = P.act;\nconst stormBase = act==='doldrums' ? .30 : act==='swell' ? .62 : .48;\nconst stormArc  = act==='squall'   ? sec : act==='swell' ? (.55 + .45*sec) : (.15 + .85*sec);\nconst storm = Math.min(1.5, (stormBase*.5 + stormArc) * (0.55 + 0.9*P.energy) + S.rms*.4);\n\n// continuous real-time drift (NEVER re-phases at 8s \u2014 the motion floor)\nconst drift = K.t * P.speed * windSign;\nconst ampScale = P.scale * (0.7 + 1.2*storm);\nconst nB = Math.max(3, Math.round(3 + 5*P.density));\n\n// per-style spray tint\nlet sprH = hue, sprS = 10;\nif (st==='ink wash'){ sprS = 0; }\nelse if (st==='blueprint'){ sprH = 190; sprS = 60; }\nelse if (st==='thermal'){ sprH = 50; sprS = 40; }\nelse if (st==='riso'){ sprH = 8; sprS = 70; }\n\nconst heat = (v) => { const stops=[[235,80,30],[270,78,45],[330,82,58],[355,85,68],[380,90,80],[412,95,90]];\n  v=Math.max(0,Math.min(.999,v)); const f=v*(stops.length-1), i=Math.floor(f), g2=f-i, a=stops[i], b=stops[i+1];\n  return [(a[0]+(b[0]-a[0])*g2)%360, a[1]+(b[1]-a[1])*g2, a[2]+(b[2]-a[2])*g2]; };\n\n// ---- cached backdrop (sky gradient + style texture), keyed on size/seed/style/hue/horizon ----\nconst bkey = W+'x'+H+':'+P.seed+':'+st+':'+Math.round(hue)+':'+Math.round(P.y*100);\nif (!S.base || S.bkey !== bkey){\n  const g = createGraphics(W,H); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  if (st==='ink wash'){\n    for (let y=0;y<horizon;y+=2){ const f=y/horizon; g.fill(0,0, 58+26*f); g.rect(0,y,W,2); }\n    g.fill(0,0,20); g.rect(0,horizon,W,H-horizon);\n  } else if (st==='blueprint'){\n    g.fill(220,62,13); g.rect(0,0,W,H);\n    g.stroke(190,55,55,9); g.strokeWeight(1); const gs=u*0.075;\n    for (let x=0;x<=W;x+=gs) g.line(x,0,x,H);\n    for (let y=0;y<=H;y+=gs) g.line(0,y,W,y);\n    g.noStroke();\n  } else if (st==='thermal'){\n    for (let y=0;y<horizon;y+=2){ const f=y/horizon; g.fill(235, 72, 9+16*f); g.rect(0,y,W,2); }\n    g.fill(232,70,14); g.rect(0,horizon,W,H-horizon);\n  } else if (st==='riso'){\n    g.fill(42,11,88); g.rect(0,0,W,H);\n    g.fill(210,18,64,16); const ds=u*0.028;\n    for (let y=0;y<H;y+=ds) for (let x=(Math.floor(y/ds)%2?ds/2:0);x<W;x+=ds) g.circle(x,y,ds*0.34);\n  } else { // dark marine (anchor)\n    for (let y=0;y<horizon;y+=2){ const f=y/horizon; const gl=Math.pow(f,1.6);\n      g.fill((hue+ (12-24*f))%360, 30-16*f, 20+24*gl + 8*Math.sin(f*3.1)); g.rect(0,y,W,2); }\n    // ominous horizon glow\n    g.fill((hue+20)%360, 24, 50, 40); g.rect(0,horizon-u*0.06,W,u*0.12);\n    g.fill(hue, 40, 11); g.rect(0,horizon,W,H-horizon);\n  }\n  S.base = g; S.bkey = bkey;\n}\nimage(S.base,0,0);\n\n// ---- cloud churn (drifts on K.t; motion even without waves) ----\nnoStroke();\nconst nC = Math.max(3, Math.round(3 + 3*P.density));\nfor (let i=0;i<nC;i++){\n  const cw = u*(0.42+0.55*fr(i*3+2))*(1+0.35*storm);\n  const cy = horizon*(0.18+0.6*fr(i*3+1)) - u*0.02;\n  const ch = cw*(0.24+0.14*fr(i*3+3));\n  const span = W + cw;\n  let cx = ((fr(i*3)*span + drift*(7+i*2)) % span + span) % span - cw/2;\n  if (st==='blueprint'){\n    noFill(); stroke(190,65,60,26); strokeWeight(1);\n    ellipse(cx,cy,cw,ch); ellipse(cx,cy,cw*0.7,ch*0.7); noStroke();\n  } else if (st==='riso'){\n    blendMode(MULTIPLY);\n    fill(175,55,70,16); ellipse(cx-u*0.008,cy,cw,ch);\n    fill(8,62,80,13); ellipse(cx+u*0.01,cy+u*0.006,cw*0.94,ch);\n    blendMode(BLEND);\n  } else {\n    const dk = st==='ink wash', th = st==='thermal';\n    const ch1 = dk?[0,0,34]:th?[232,60,20]:[(hue+8)%360,18,13];\n    for (let l=0;l<3;l++){ const s=1-l*0.24;\n      fill(ch1[0],ch1[1],ch1[2], (dk?11:9)+l*6); ellipse(cx,cy,cw*s,ch*s); }\n  }\n}\n\n// ---- lightning: baseline schedule (audio-independent) + treble trigger; partial-frame ----\nif (S.nextBolt==null || S.nextBolt>K.t+40 || S.nextBolt<K.t-2) S.nextBolt = K.t + (1.4+3*fr(7));\nconst boltRate = 0.3 + P.lightning*1.5 + storm*0.6;\nif (K.t >= S.nextBolt){\n  S.flash = Math.min(1, 0.65+0.5*P.lightning);\n  S.boltX = fr(Math.floor(K.t*11)+3)*W;\n  S.boltJ = Math.floor(K.t*11);\n  S.nextBolt = K.t + (0.6 + 2.6*fr(Math.floor(K.t*7)+5)) / Math.max(0.25, boltRate);\n}\nif (S.tre>0.45 && S.tre>(S.treP||0)+0.06 && P.lightning>0){\n  S.flash = Math.min(1, 0.7+0.5*P.lightning); S.boltX = fr(Math.floor(K.t*13)+9)*W; S.boltJ = Math.floor(K.t*13);\n}\nS.treP = S.tre;\nif (S.flash>0.02){\n  const fa = S.flash*(18 + 26*P.lightning);\n  const fh = st==='blueprint'?190 : st==='thermal'?52 : st==='riso'?45 : (hue+6)%360;\n  blendMode(SCREEN); noStroke();\n  fill(fh, st==='ink wash'?0:14, 94, fa);\n  rect(0,0,W, horizon);                 // top region ONLY -> strobe-safe partial frame\n  // jagged bolt\n  blendMode(st==='riso'?BLEND:ADD);\n  stroke(fh, st==='ink wash'?0:20, 96, S.flash*80); strokeWeight(1.6+P.lightning*1.4);\n  let bx=S.boltX, by=0; const segs=7;\n  for (let s2=1;s2<=segs;s2++){ const ny=horizon*s2/segs; const nx=bx + (fr(S.boltJ*3+s2)-.5)*u*0.09; line(bx,by,nx,ny); bx=nx; by=ny; }\n  noStroke(); blendMode(BLEND);\n  S.flash *= 0.80;\n} else S.flash = 0;\n\n// ---- sea: heaving swell bands, drawn far -> near ----\nif (st==='blueprint') noFill();\nconst step = Math.max(8, W/90);\nfor (let bi=0;bi<nB;bi++){\n  const t = nB>1 ? bi/(nB-1) : 1;\n  const yBase = horizon + (H-horizon)*Math.pow(t,1.35);\n  const amp = u*(0.006+0.05*t)*ampScale;\n  const wl  = u*(0.5+1.9*t)/(0.55+P.scale*0.6);\n  const ph  = drift*(0.6+t*1.1) + bi*1.7;\n  const heave = Math.sin(K.beat*0.5*P.speed + bi)*u*0.010*storm + K.swell*u*0.008*storm;\n  const crest = (x) => { const nx=x/wl;\n    return yBase + heave\n      - amp*Math.sin(nx*TAU + ph)\n      - amp*0.5*Math.sin(nx*TAU*2.3 + ph*1.7 + bi)\n      - amp*P.chop*0.75*Math.sin(nx*TAU*5.1 + drift*2.2 + bi*2); };\n\n  if (st==='blueprint'){\n    stroke(190,68, 78-38*t, 68-34*t); strokeWeight(1); noFill();\n    beginShape(); for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x)); endShape();\n  } else if (st==='riso'){\n    const off = u*0.011*(0.5+storm);\n    blendMode(MULTIPLY); noStroke();\n    fill(175, 62, 66, 42); beginShape();\n      for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x));\n      vertex(W+step,H); vertex(-step,H); endShape(CLOSE);\n    fill(8, 68, 80, 34); beginShape();\n      for (let x=-step;x<=W+step;x+=step) vertex(x+off,crest(x)+off);\n      vertex(W+step,H); vertex(-step,H); endShape(CLOSE);\n    blendMode(BLEND);\n  } else if (st==='thermal'){\n    const hc = heat(0.15+0.8*t); noStroke();\n    fill(hc[0],hc[1],hc[2]); beginShape();\n      for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x));\n      vertex(W+step,H); vertex(-step,H); endShape(CLOSE);\n    const sh = heat(Math.min(0.99,0.35+0.8*t));\n    stroke(sh[0], sh[1]*0.7, Math.min(96,sh[2]+16), 70); strokeWeight(1.4); noFill();\n    beginShape(); for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x)); endShape();\n  } else if (st==='ink wash'){\n    noStroke(); fill(0,0, 28-14*t, 44); beginShape();\n      for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x));\n      vertex(W+step,H); vertex(-step,H); endShape(CLOSE);\n  } else { // dark marine\n    noStroke(); fill(hue, 22+30*t, 22-13*t); beginShape();\n      for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x));\n      vertex(W+step,H); vertex(-step,H); endShape(CLOSE);\n    stroke((hue+14)%360, 26, 40+22*t, 46); strokeWeight(1.4); noFill();\n    beginShape(); for (let x=-step;x<=W+step;x+=step) vertex(x,crest(x)); endShape();\n    noStroke();\n  }\n\n  // foam / whitecaps on the near bands\n  if (t>0.45 && st!=='blueprint'){\n    const foamP = 0.10 + 0.55*P.energy + storm*0.15;\n    const fw = st==='ink wash' ? [0,0,90] : st==='thermal' ? [55,40,96] : st==='riso' ? [8,60,72] : [(hue+10)%360,10,92];\n    if (st==='riso') blendMode(MULTIPLY);\n    stroke(fw[0],fw[1],fw[2], 78); strokeWeight(1.2+t);\n    for (let x=0;x<=W;x+=step){ if (fr(bi*97 + x*0.13 + Math.floor(drift*3))<foamP){\n      const y0=crest(x), y1=crest(x+step*0.7); stroke(fw[0],fw[1],fw[2], 55+40*Math.min(1,Math.abs(y0-y1)/(amp+1)));\n      line(x, y0-1, x+step*0.6, y1-1); } }\n    noStroke(); if (st==='riso') blendMode(BLEND);\n  }\n}\n\n// ---- spray particles (continuous emission -> strong real-time motion floor) ----\nif (S.lt==null || K.t<S.lt) S.lt = K.t;\nlet dt = Math.min(0.05, Math.max(0, K.t - S.lt)); S.lt = K.t;\nS.sp = S.sp || []; S.si = S.si || 0;\nconst nearCrestY = horizon + (H-horizon)*Math.pow(0.82,1.35) - u*0.02;\nconst emit = Math.round((1.5 + 11*P.spray) * (0.3+storm) * (dt/0.016));\nfor (let k=0;k<emit && S.sp.length<130;k++){\n  S.si++; const px = fr(S.si*1.7)*W;\n  S.sp.push({ x:px, y:nearCrestY - u*0.01*fr(S.si),\n    vx: windSign*(0.35+fr(px)*0.8)*windMag + (fr(px*2)-.5)*0.6,\n    vy: -(1.1+2.1*fr(px*3))*(0.6+storm), l:1 });\n}\nnoStroke();\nfor (const p of S.sp){ p.x += p.vx*u*0.02; p.y += p.vy*u*0.02; p.vy += u*0.0011; p.l -= dt*1.1; }\nS.sp = S.sp.filter(p => p.l>0 && p.y<H+4);\nfor (const p of S.sp){ const a = p.l*70*(0.4+P.spray);\n  fill(sprH, sprS, 92, a); circle(p.x, p.y, u*0.006*(0.4+p.l)); }\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
