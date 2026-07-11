@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.desert",
+  "kind": "floor",
+  "name": "Desert Floor",
+  "desc": "A wind-raked dune plane receding to a heat-hazed horizon, sand ripples scrolling underfoot as grains blow across and the sun flares on the beat.",
+  "tags": [
+    "desert",
+    "dune",
+    "sand",
+    "sahara",
+    "arid",
+    "wasteland",
+    "ground",
+    "floor",
+    "plane",
+    "perspective",
+    "wind",
+    "heat",
+    "haze",
+    "warm",
+    "amber",
+    "thermal",
+    "cartography",
+    "topographic",
+    "noir",
+    "riso",
+    "minimal",
+    "austere",
+    "sunset",
+    "dusk"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "ripple-row + blowing-grain count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "dune size / perspective spread of the plane"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow amplitude + beat sun-flare"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "sand hue (32 = warm amber)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "wind/scroll rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic dune-shadow/grain seed"
+    },
+    "style": {
+      "default": "dune",
+      "options": [
+        "dune",
+        "thermal",
+        "cartography",
+        "noir",
+        "riso"
+      ],
+      "doc": "aesthetic: raked warm sand / thermal false-color / topographic contour schematic / moonlit chiaroscuro / 2-ink riso halftone"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "gust",
+        "dusk"
+      ],
+      "doc": "dramaturgy: steady drift / beat-gusting wind / slow-breathing dusk color shift"
+    }
+  },
+  "acts": [
+    "drift",
+    "gust",
+    "dusk"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:12:00+00:00",
+    "fps": 61.7,
+    "motion": 0.0104,
+    "lum": 0.472
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .6, hue: 32, speed: 1, x: .5, y: .46, seed: 0, style: 'dune', act: 'drift' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst sty = P.style, H = P.hue;\nconst hz = cl(P.y,.28,.72)*height, cx = cl(P.x,.05,.95)*width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t,1.7)*groundH;\nconst hwOf = t => width*(.05 + t*.95)*.5*P.scale;\nconst NR = Math.round(10 + P.density*30);\n\n// audio smoothed, blended on top of clk baseline\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\nS.tre  = (S.tre||0)*.82 + (A.treble||0)*.18;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.7);\n\n// real-time wind scroll (integrate real seconds -> never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nlet sp = P.speed*(.5 + .8*K.intensity);\nif (P.act === 'gust') sp *= 1 + 1.0*kick;\nif (P.act === 'dusk') sp *= .4 + .8*(.5 + .5*Math.sin(K.t*.05 + K.section));\nS.scroll = (S.scroll||0) + dt*sp*.5;\nconst scroll = S.scroll;\n// dusk act slowly shifts the sand toward sunset amber\nconst dh = P.act==='dusk' ? (H - 14*(.5+.5*Math.sin(K.t*.045))) : H;\n\n// ---- cached base: sky + graded sand plane + static dune shadows/grain ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*6)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = (S.base && S.base.width===width && S.base.height===height) ? S.base : createGraphics(width,height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 56;\n  // sky above horizon\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz; let h,s,b;\n    if (sty==='thermal'){ h=232-70*f; s=64; b=6+14*f; }\n    else if (sty==='cartography'){ h=H; s=22; b=6+5*f; }\n    else if (sty==='noir'){ h=222; s=22-14*f; b=5+12*f; }\n    else if (sty==='riso'){ h=(f<.5?18:190); s=42; b=12+16*f; }\n    else { h=(H+16 - 22*f); s=44-18*f; b=30+50*f; } // dune dusk sky\n    g.fill(h,s,cl(b,2,92),100); g.rect(0,y-1,width,hz/STR+2);\n  }\n  // horizon heat haze band\n  if (sty!=='cartography'){ g.push(); g.blendMode(ADD);\n    for (let i=0;i<7;i++){ const r=(7-i)*groundH*.05;\n      g.fill(sty==='thermal'?42:(sty==='noir'?210:(H+8)), sty==='noir'?18:64, sty==='noir'?66:96, 8);\n      g.rect(0, hz-r*.36, width, r); } g.pop(); }\n  // sand plane gradient\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR); let h,s,b;\n    if (sty==='thermal'){ h=250-250*Math.pow(t,1.25); s=86; b=12+72*Math.pow(t,1.5); if(t>.86){h=46;s=cl(30-160*(t-.86),0,40);b=95;} }\n    else if (sty==='cartography'){ h=H; s=26; b=8+16*t; }\n    else if (sty==='noir'){ h=222; s=cl(16-14*t,0,18); b=8+40*Math.pow(t,1.3); }\n    else if (sty==='riso'){ h=22; s=54-20*t; b=30+40*Math.pow(t,1.2); }\n    else { h=(H+8 - 8*t); s=52-14*t; b=26 + 46*Math.pow(t,1.15); } // warm sand\n    g.fill(h,s,cl(b,3,92),100); g.rect(0,y-1,width,(y2-y)+2);\n  }\n  // static long dune shadow bands (soft undulating) + grain\n  g.push();\n  if (sty==='cartography'){ // topographic contour lines = schematic, non-representational\n    g.stroke(H,34,72,40); g.strokeWeight(1); g.noFill();\n    for (let c=0;c<14;c++){ const base=fr(c*7)*groundH; g.beginShape();\n      for (let xx=0;xx<=width;xx+=14){ const t=cl((base + Math.sin(xx*.004 + c*1.3 + fr(c*7+1)*6)*groundH*.10 + c*groundH*.02)/groundH,0,1);\n        g.vertex(xx, yOf(cl(t,.02,1))); } g.endShape(); }\n    g.stroke(H,30,52,18); for (let i=1;i<12;i++){ const y=i/12*hz; g.line(0,y,width,y); }\n    g.noStroke();\n  } else {\n    g.blendMode(sty==='noir'?BLEND:MULTIPLY);\n    for (let d=0;d<6;d++){ const dt2=(d+1)/7, y=yOf(dt2), hw=hwOf(dt2);\n      const sh = sty==='noir'?color(220,20,18,26):color((H-6),50,40,22);\n      g.fill(sh); g.noStroke();\n      g.beginShape(); g.vertex(cx-hw,y);\n      for (let xx=-hw;xx<=hw;xx+=hw/8){ g.vertex(cx+xx, y + Math.sin(xx*.01 + d*1.7 + fr(d)*6)*groundH*.03*dt2); }\n      g.vertex(cx+hw,y+groundH*.05*dt2); g.vertex(cx-hw,y+groundH*.05*dt2); g.endShape(CLOSE); }\n    // fine static grain\n    g.blendMode(sty==='thermal'?ADD:MULTIPLY);\n    for (let i=0;i<170;i++){ const t=.08+.92*fr(i*3), y=yOf(t), hw=hwOf(t), x=cx+(fr(i*3+1)*2-1)*hw;\n      const gb = sty==='thermal'?color(38,70,90,5): sty==='riso'?color(i%2?188:20,60,60,10):color((H-4),40,30,10);\n      g.fill(gb); g.ellipse(x,y,1+t*2.4,1+t*1.6); }\n  }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base,0,0);\n\n// ---- live wind ripples scrolling toward viewer ----\nnoFill();\nfor (let r=0;r<=NR;r++){ let t=(r - (scroll%1))/NR; if (t<=0.01||t>1) continue;\n  const y=yOf(t), hw=hwOf(t), near=t;\n  let h,s,b,a,sw;\n  if (sty==='thermal'){ h=250-250*Math.pow(t,1.25); s=90; b=100; a=10+46*near; sw=.5+near*2.0; }\n  else if (sty==='cartography'){ h=H; s=30; b=88; a=12+40*near; sw=.5+near*1.3; }\n  else if (sty==='noir'){ h=220; s=10; b=100; a=8+44*near; sw=.5+near*2.0; }\n  else if (sty==='riso'){ h=(r%2?188:20); s=70; b=96; a=12+40*near; sw=.6+near*2.2; }\n  else { h=(dh+10); s=30; b=94; a=10+44*near; sw=.5+near*2.4; } // dune crest highlight\n  stroke(h,s,b, a*(.55+.6*glow));\n  strokeWeight(sw);\n  beginShape();\n  for (let u=0;u<=1.001;u+=1/10){ const xx=-hw + u*2*hw;\n    const wob = Math.sin(u*8 + r*.9 + K.t*.7)*groundH*.010*near + Math.sin(u*3 - scroll*1.3)*groundH*.014*near;\n    vertex(cx+xx, y + wob); }\n  endShape();\n}\n\n// ---- heat shimmer over the far plane (continuous, real-time) ----\nif (sty!=='cartography'){ push(); blendMode(ADD); noStroke();\n  for (let i=0;i<10;i++){ const t=.05+ i*.045, y=yOf(t), hw=hwOf(t);\n    const off=Math.sin(K.t*2.2 + i*1.4)*width*.006*(1-t);\n    fill(sty==='thermal'?44:(dh+6), sty==='noir'?12:56, sty==='noir'?70:96, 4+5*glow);\n    rect(-off, y-groundH*.006, width+off*2, groundH*.016); }\n  pop();\n}\n\n// ---- blowing sand grains: horizontal wind drift (real-time, never re-phases) ----\nconst NP = Math.round(P.density*70);\npush(); blendMode(sty==='noir'?SCREEN:ADD); noStroke();\nfor (let i=0;i<NP;i++){ const t=.10+.88*fr(i*4);\n  const y=yOf(t), hw=hwOf(t);\n  const lane = fr(i*4+1);\n  let px = ((lane + (scroll*.5 + K.t*.28)*(.4+.6*fr(i*4+2))) % 1); // wind blows across\n  const x = cx + (px*2-1)*hw;\n  const sz = (1.2 + 5*t) * (1 + .5*S.tre);\n  let h = sty==='thermal'?(20+40*t): sty==='noir'?210: sty==='riso'?(i%2?188:22):(dh+6);\n  let s = sty==='noir'?10:60;\n  const a = (8 + 34*t) * (.5+.9*glow) * (.6+.7*fr(i*4+2));\n  fill(h,s,100,Math.min(42,a));\n  ellipse(x, y + Math.sin(K.t*1.1 + i)*groundH*.006*t, sz*2.2, sz);\n}\npop();\n\n// ---- sun/heat flare at horizon on the beat (partial-frame, strobe-safe) ----\npush(); blendMode(ADD); noStroke();\nconst flare = (kick*.6 + K.swell*.4)*glow;\nconst fh = sty==='thermal'?46: sty==='noir'?214: (dh+4);\nfor (let i=0;i<5;i++){ const rr=(5-i)*groundH*.05*(1+flare);\n  fill(fh, sty==='noir'?14:62, sty==='noir'?82:98, 3+8*flare);\n  rect(0, hz-rr*.42, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

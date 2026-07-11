@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.underwater",
+  "kind": "floor",
+  "name": "Underwater Floor",
+  "desc": "Sunlit seabed under rippling caustic light that dapples across the sand cells in real time, with marine snow drifting up through the water column; sonar-sounding, bioluminescent and engraved-stipple variants.",
+  "tags": [
+    "underwater",
+    "ocean",
+    "sea",
+    "seabed",
+    "seafloor",
+    "aquatic",
+    "water",
+    "caustics",
+    "light",
+    "dappled",
+    "reef",
+    "abyss",
+    "deep",
+    "marine",
+    "bubbles",
+    "plankton",
+    "bioluminescent",
+    "sonar",
+    "perspective",
+    "floor",
+    "stage",
+    "blue",
+    "teal",
+    "cyan",
+    "aqua",
+    "serene",
+    "submerged",
+    "tide"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "caustic cell + particle count"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "caustic brightness + glow amplitude"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue (190 = teal-cyan)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll + caustic ripple rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "cell size / perspective spread"
+    },
+    "warp": {
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel curvature of converging lines"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic sand / plankton seed"
+    },
+    "style": {
+      "default": "caustics",
+      "options": [
+        "caustics",
+        "sonar",
+        "biolume",
+        "stipple"
+      ],
+      "doc": "aesthetic: rippling caustic light / sonar depth-sounding rings / bioluminescent plankton / hatched engraving"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "surge",
+        "tide"
+      ],
+      "doc": "dramaturgy: steady drift / beat surge / slow breathing tide"
+    }
+  },
+  "acts": [
+    "drift",
+    "surge",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:13:23+00:00",
+    "fps": 59.9,
+    "motion": 0.0308,
+    "lum": 0.343
+  },
+  "code": "const D = { density: .55, energy: .55, hue: 190, speed: 1, scale: 1, warp: .2, x: .5, y: .46, seed: 0, style: 'caustics', act: 'drift' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst hz = cl(P.y, .28, .72) * height;\nconst cx = cl(P.x, .05, .95) * width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t, 1.7) * groundH;\nconst hwOf = t => width * (.045 + t * .95) * .5 * P.scale;\nconst NR = Math.round(8 + P.density * 16);\nconst NC = Math.round(6 + P.density * 12);\nconst H = P.hue;\n\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.6);\n\n// real-time seabed scroll + independent caustic phase (never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.5 + .7*K.intensity);\nif (P.act === 'surge') sp *= 1 + .9*kick;\nif (P.act === 'tide')  sp *= .3 + 1.0*(.5 + .5*Math.sin(K.t*.05 + K.section*.9));\nS.scroll = (S.scroll||0) + dt*sp*.5;\nS.cph = (S.cph||0) + dt*(.6+.5*P.speed);   // caustic ripple time, continuous\nconst scroll = S.scroll, cph = S.cph;\n\n// ---- cached water-column base (deep gradient + still seabed sand) ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*8)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 60;\n  // water column above the seabed (light shafts descend)\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz;\n    let h,s,b;\n    if (sty==='sonar'){ h=H; s=70; b=6+5*(1-f); }\n    else if (sty==='biolume'){ h=H+10; s=75; b=3+8*(1-f); }\n    else { h=H-8; s=60-24*f; b=18+42*(1-f); }  // caustics / stipple\n    g.fill(h,cl(s,4,90),cl(b,3,80),100); g.rect(0,y,width,hz/STR+1);\n  }\n  // seabed sand plane\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR);\n    let h,s,b;\n    if (sty==='sonar'){ h=H; s=75; b=5+4*t; }\n    else if (sty==='biolume'){ h=H; s=70; b=cl(4+5*t,3,16); }\n    else { h=H-18+16*t; s=cl(30-14*t,8,60); b=cl(60-40*Math.pow(t,.8),12,72); }\n    g.fill(h,cl(s,3,90),b,100); g.rect(0,y,width,(y2-y)+1);\n  }\n  // static seabed texture\n  g.push();\n  if (sty==='caustics'||sty==='stipple'){ // scattered sand grains / shells\n    g.blendMode(sty==='stipple'?BLEND:ADD);\n    for(let i=0;i<200;i++){ const t=.04+.96*fr(i*2), y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(i*2+1)*2-1)*hw; const r=1+t*3.4;\n      if(sty==='stipple'){ g.fill(H-14,20,cl(30+40*fr(i*3),10,80),40+40*t); }\n      else { g.fill(H+6,18,100,3+6*t); }\n      g.ellipse(x,y,r,r); } }\n  else if (sty==='biolume'){ /* dark \u2014 glow drawn live */ }\n  else if (sty==='sonar'){ /* concentric rings drawn live */ }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- CAUSTICS: rippling dappled light on the seabed (the motion floor) ----\nif (sty==='caustics'){ push(); blendMode(ADD); noStroke();\n  const NCx=NC, NRy=NR;\n  for(let r=0;r<NRy;r++){ const t0=r/NRy,t1=(r+1)/NRy; const y0=yOf(t0),y1=yOf(t1);\n    const hw0=hwOf(t0),hw1=hwOf(t1);\n    for(let c=0;c<NCx;c++){ const u0=c/NCx,u1=(c+1)/NCx;\n      const cxr=(u0+u1)*.5, cc=(Math.sin((cxr*7+t0*4+cph)*1.4)+Math.sin((t0*3-cxr*5+cph*1.3)*1.1))*.5;\n      const bri=cl(cc,0,1); if(bri<.12) continue;\n      const x0a=cx-hw0+u0*2*hw0,x0b=cx-hw0+u1*2*hw0,x1a=cx-hw1+u0*2*hw1,x1b=cx-hw1+u1*2*hw1;\n      fill((H+8)%360, 45-20*t0, 100, (10+34*bri)*(.5+.7*glow)*(1+.4*S.tre));\n      quad(x0a,y0,x0b,y0,x1b,y1,x1a,y1); } }\n  pop(); }\n\n// ---- STIPPLE: hatched engraving light lines ----\nif (sty==='stipple'){ push(); stroke(H+6,24,100,0); noFill();\n  for(let r=0;r<=NR;r++){ let t=(r-(scroll%1))/NR; if(t<=0||t>1)continue;\n    const y=yOf(t),hw=hwOf(t); const shim=.5+.5*Math.sin(t*9+cph*1.4);\n    stroke(H+6,20,cl(50+40*shim,20,100),(14+40*t)*(.5+.6*glow)); strokeWeight(.5+t*1.2);\n    line(cx-hw,y,cx+hw,y); }\n  pop(); }\n\n// ---- SONAR: expanding depth-sounding rings + wire grid ----\nif (sty==='sonar'){ push(); noFill();\n  for(let ring=0;ring<5;ring++){ let rp=(ring/5 + cph*.12)%1; const t=rp;\n    const y=yOf(t),hw=hwOf(t); stroke(H,80,100,(50*(1-t))*(.5+.6*glow)); strokeWeight(.8+ (1-t)*1.6);\n    drawingContext.shadowBlur=8*glow; drawingContext.shadowColor=color(H,90,100,80).toString();\n    line(cx-hw,y,cx+hw,y); }\n  drawingContext.shadowBlur=0;\n  for (let c=0;c<=NC;c++){ const u=c/NC,d=(u-.5);\n    const xTop=cx+d*width*.03*P.scale, xBot=cx+d*width*1.9*P.scale*(1+P.warp*1.2*d*d*4);\n    stroke(H,55,90,26*(.6+.5*glow)); strokeWeight(.7); line(xTop,hz,xBot,height); }\n  pop(); }\n\n// ---- BIOLUME: glowing plankton constellations on dark seabed ----\nif (sty==='biolume'){ push(); blendMode(ADD); noStroke();\n  const NB=Math.round(70+P.density*120);\n  for(let i=0;i<NB;i++){ const lane=fr(i*3); let prog=(fr(i*3+1)+scroll*.1*(.5+fr(i*3+2)))%1;\n    const t=1-prog; if(t<=.03) continue; const y=yOf(t),hw=hwOf(t);\n    const x=cx+(lane*2-1)*hw*.95 + Math.sin(cph*.9+i)*hw*.06;\n    const pu=.4+.6*(.5+.5*Math.sin(cph*2+i*1.7)); const sz=(1.2+4*t)*pu;\n    fill((H+30+40*fr(i*3+5))%360, 60, 100, Math.min(48,(8+34*t)*pu*(.5+.9*glow)));\n    ellipse(x,y,sz,sz); }\n  pop(); }\n\n// ---- floating marine snow / bubbles rising (always on) ----\nconst NP = Math.round(30 + P.density * 70);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane=fr(i*4);\n  let prog=(fr(i*4+2) - cph*.06*(.5+fr(i*4+1)))%1; prog=(prog+1)%1;\n  const t=1-prog; if(t<=.02) continue;\n  const y=yOf(t) - (1-t)*groundH*.15, hw=hwOf(t);\n  const x=cx+(lane*2-1)*hw*.9 + Math.sin(cph*.7+i*1.3)*hw*.08;\n  const sz=(1+4*t)*(1+.4*S.tre);\n  fill(H+12, 30, 100, Math.min(38,(7+28*t)*(.5+.8*glow)));\n  ellipse(x,y,sz,sz);\n}\npop();\n\n// gentle surface caustic wash near horizon (partial, safe)\npush(); blendMode(ADD); noStroke();\nconst wash=(kick*.4+K.swell*.4)*glow;\nfor(let i=0;i<4;i++){ const rr=(4-i)*groundH*.05*(1+wash);\n  fill(H, 40, 92, 3+7*wash); rect(0, hz-rr*.4, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

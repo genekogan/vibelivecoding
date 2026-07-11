@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.riso_poster",
+  "kind": "world",
+  "name": "Riso Duotone Poster",
+  "desc": "A fluorescent two-ink risograph poster: a halftone sun over ridged hills, the pink and blue plates jittering in and out of registration on the beat while overprint blooms dark where they cross.",
+  "tags": [
+    "riso",
+    "risograph",
+    "duotone",
+    "halftone",
+    "print",
+    "poster",
+    "screenprint",
+    "misregistration",
+    "overprint",
+    "fluorescent",
+    "retro",
+    "graphic",
+    "sun",
+    "ink",
+    "dots",
+    "two-tone",
+    "mono",
+    "blueprint",
+    "sunset",
+    "world",
+    "background",
+    "zine",
+    "japanese-print",
+    "minimal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "sun & ray-burst size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "halftone dot fineness + coverage (rebuilds plates)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "misregistration + ray-length motion amplitude"
+    },
+    "hue": {
+      "default": 330,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue offset applied to both plates"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "jitter + ray-rotation rate (beats)"
+    },
+    "misreg": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plate misregistration distance"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sun anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "sun anchor y (canvas fraction)"
+    },
+    "style": {
+      "default": "riso",
+      "options": [
+        "riso",
+        "mono",
+        "blueprint",
+        "sunset"
+      ],
+      "doc": "aesthetic: two-ink fluorescent halftone / single-ink newsprint / white schematic line-art on cyanotype (abstract) / smooth duotone gradient, no dots"
+    },
+    "pal": {
+      "default": "fluoro",
+      "options": [
+        "fluoro",
+        "toxic",
+        "plum",
+        "sea"
+      ],
+      "doc": "ink duo: fluoro pink+blue / green+orange / purple+red / teal+navy"
+    },
+    "act": {
+      "default": "rise",
+      "options": [
+        "rise",
+        "set",
+        "hold"
+      ],
+      "doc": "multi-minute sun program: rise slowly climbs, set sinks, hold steady"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "dot jitter + hill silhouette layout"
+    }
+  },
+  "acts": [
+    "rise",
+    "set",
+    "hold"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:15:15+00:00",
+    "fps": 59.9,
+    "motion": 0.1101,
+    "lum": 0.459
+  },
+  "code": "const D = { scale:1, density:.5, energy:.6, hue:330, speed:1, misreg:.5, x:.5, y:.42, style:'riso', pal:'fluoro', act:'rise', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style, blueprint=style==='blueprint', mono=style==='mono', sunset=style==='sunset';\nconst en=clp(P.energy,0,1)*(.5+.5*K.intensity);\nconst dens=clp(P.density,0,1);\n\n// ---- palette (two ink hues) ----\nconst PALS={fluoro:[330,205], toxic:[92,26], plum:[282,352], sea:[178,224]};\nconst base=PALS[P.pal]||PALS.fluoro;\nconst hOff=P.hue-330;\nlet hA=md(base[0]+hOff,360), hB=md(base[1]+hOff,360);\n// paper\nlet paperH=45,paperS=10,paperB=87;\nif(blueprint){paperH=md(hB,360);paperS=68;paperB=32;}\nelse if(mono){paperH=40;paperS=6;paperB=88;}\n\n// ---- build cached ink buffers, keyed on size/seed/style/densBucket/pal ----\nconst dBucket=Math.round(dens*4);\nconst key=W+'x'+Hh+'|'+P.seed+'|'+style+'|'+P.pal+'|'+dBucket;\nif(S.key!==key){\n  S.key=key;\n  const gA=createGraphics(W,Hh), gB=createGraphics(W,Hh);\n  [gA,gB].forEach(g=>{g.colorMode(g.HSB,360,100,100,100);g.noStroke();g.clear();});\n  const sp=Math.max(5, u*(0.030 - dens*0.020)); // dot spacing: dense->finer\n  const jit=sp*0.28;\n  // sky wash into gA (dots grow toward top)\n  const skyBot=Hh*0.62;\n  for(let y=-sp; y<skyBot+sp; y+=sp){\n    for(let x=-sp; x<W+sp; x+=sp){\n      const i=(x*13.1+y*7.7);\n      const gy=1-clp(y/skyBot,0,1);           // 1 at top\n      let r=sp*0.30 + sp*0.42*gy;\n      r*= .7+ .6*fr(i);\n      if(blueprint) continue;                  // blueprint drawn as lines below\n      const px=x+(fr(i+1)-.5)*jit, py=y+(fr(i+2)-.5)*jit;\n      gA.fill(hA, mono?0:78, mono?12:96, 100);\n      gA.circle(px,py,r*2);\n    }\n  }\n  // hills into gB (dots on stacked hill bands)\n  const nHills=3;\n  for(let hI=0; hI<nHills; hI++){\n    const hy=Hh*(0.60+hI*0.14);\n    const amp=u*(0.05+0.03*fr(hI*9+5));\n    const ph=fr(hI*3+2)*TAU, wl=1.2+fr(hI*4)*1.6;\n    for(let x=-sp; x<W+sp; x+=sp){\n      const top=hy - amp*Math.sin(x/W*TAU*wl+ph) - amp*0.4*Math.sin(x/W*TAU*wl*2.3+ph);\n      for(let y=top; y<Hh+sp; y+=sp){\n        const i=(x*5.3+y*9.1+hI*777);\n        const dpth=clp((y-top)/(Hh-top+1),0,1);\n        let r=sp*0.24 + sp*0.40*(1-dpth);\n        r*= .7+.6*fr(i);\n        if(blueprint) continue;\n        const px=x+(fr(i+1)-.5)*jit, py=y+(fr(i+2)-.5)*jit;\n        gB.fill(hB, mono?0:80, mono?10:92, 100);\n        gB.circle(px,py,r*2);\n      }\n    }\n  }\n  // blueprint: white schematic line art on gA\n  if(blueprint){\n    gA.noFill(); gA.stroke(45,4,98,90);\n    for(let hI=0; hI<nHills; hI++){\n      const hy=Hh*(0.58+hI*0.13), amp=u*(0.05+0.03*fr(hI*9+5));\n      const ph=fr(hI*3+2)*TAU, wl=1.2+fr(hI*4)*1.6;\n      gA.strokeWeight(1.1+hI*0.5); gA.beginShape();\n      for(let x=-4;x<=W+4;x+=8){const yy=hy-amp*Math.sin(x/W*TAU*wl+ph)-amp*0.4*Math.sin(x/W*TAU*wl*2.3+ph);gA.vertex(x,yy);}\n      gA.endShape();\n    }\n    // grid ticks\n    gA.strokeWeight(0.6); gA.stroke(45,4,98,28);\n    const gs=u*0.09;\n    for(let x=0;x<W;x+=gs)gA.line(x,0,x,Hh);\n    for(let y=0;y<Hh;y+=gs)gA.line(0,y,W,y);\n  }\n  S.gA=gA; S.gB=gB; S.sp=sp;\n  // sun sprite (small buffer) \u2014 halftone disc / rings\n  const SR=Math.ceil(u*0.42);\n  const gs2=createGraphics(SR*2,SR*2); gs2.colorMode(gs2.HSB,360,100,100,100); gs2.noStroke(); gs2.clear();\n  const ssp=Math.max(4,SR*(0.10-dens*0.055));\n  if(blueprint){\n    gs2.noFill(); gs2.stroke(45,4,98,92);\n    for(let rr=SR*0.25; rr<SR*0.98; rr+=SR*0.16){gs2.strokeWeight(1.0);gs2.circle(SR,SR,rr*2);}\n    for(let a=0;a<TAU;a+=TAU/24){gs2.strokeWeight(0.8);gs2.line(SR,SR,SR+Math.cos(a)*SR*0.96,SR+Math.sin(a)*SR*0.96);}\n  } else {\n    for(let y=-ssp;y<SR*2+ssp;y+=ssp){\n      for(let x=-ssp;x<SR*2+ssp;x+=ssp){\n        const dx=x-SR,dy=y-SR,rd=Math.hypot(dx,dy)/SR;\n        if(rd>1.02)continue;\n        let r=ssp*0.62*(1-rd*0.55); r*=.75+.5*fr(x*3.1+y*2.7);\n        gs2.fill(hA, mono?0:80, mono?14:98,100);\n        gs2.circle(x,y,r*2);\n      }\n    }\n  }\n  S.sun=gs2; S.SR=SR;\n}\n\n// ---- LIVE COMPOSITE ----\nnoStroke();\nbackground(paperH,paperS,paperB);\n\nconst kick=K.pulse*.5 + A.bass*.7;\nconst drift=K.t*0.6;\n// misregistration offsets (jitter on beat + continuous drift, never re-phasing)\nconst mA=P.misreg*u*0.012*(0.6+en);\nconst offAx=Math.cos(drift*0.7)*mA + Math.sin(K.beat*TAU*P.speed)*mA*0.4*(0.3+kick);\nconst offAy=Math.sin(drift*0.9)*mA*0.8;\nconst offBx=-Math.cos(drift*0.5+1.1)*mA*1.1 - Math.sin(K.beat*TAU*P.speed+0.7)*mA*0.4*(0.3+kick);\nconst offBy=-Math.sin(drift*0.6+0.4)*mA*0.7;\n\nconst oldBlend=drawingContext.globalCompositeOperation;\nif(!blueprint&&!sunset) blendMode(MULTIPLY);\n\n// sunset: smooth vertical duotone gradient instead of dots\nif(sunset){\n  for(let y=0;y<Hh;y+=3){\n    const t=y/Hh; const h=md(hA+(hB-hA)*t,360);\n    fill(h, 55+30*(1-t), 96-40*t, 100); rect(0,y,W,3);\n  }\n}\n\n// sky ink A\nimage(S.gA, offAx, offAy);\n\n// rotating ray burst behind sun (ink A)\nconst sunX=P.x*W, sunY=P.y*Hh - u*0.02*Math.sin(K.t*0.5) ;\n// act arc: sun height drifts over minutes\nlet rise=0;\nif(P.act==='set'){ rise = -0.10*u*(0.5+0.5*Math.sin(K.t*0.05)); }\nelse if(P.act==='rise'){ rise = 0.12*u*Math.sin(K.t*0.045); }\nconst scy=sunY - rise;\npush(); translate(sunX,scy); rotate(K.t*0.12*P.speed + drift*0.05);\nconst nrays=blueprint?0:22; const rayLen=u*0.30*(0.7+en)*P.scale*(1+0.15*kick);\nif(!mono){for(let i=0;i<nrays;i++){const a=i/nrays*TAU; const w=TAU/nrays*0.42;\n  fill(hA,70,90, 22+18*en);\n  triangle(Math.cos(a)*u*0.18*P.scale,Math.sin(a)*u*0.18*P.scale,\n    Math.cos(a-w)*rayLen,Math.sin(a-w)*rayLen, Math.cos(a+w)*rayLen,Math.sin(a+w)*rayLen);\n}}\npop();\n\n// sun sprite \u2014 pulse breathe + slow spin (gives blueprint ticks visible motion)\nconst sunScale=P.scale*(0.86+0.10*K.swell+0.10*kick);\nconst sw=S.SR*2*sunScale;\npush(); translate(sunX,scy); rotate(-K.t*0.08*P.speed - drift*0.03);\nimage(S.sun, -sw/2, -sw/2, sw, sw); pop();\n\n// hills ink B\nimage(S.gB, offBx, offBy);\n\n// drifting cloud bands (real-time scroll), few translucent bars\nif(!blueprint){\n  blendMode(MULTIPLY);\n  const nb=Math.floor(2+dens*4);\n  for(let i=0;i<nb;i++){\n    const by=Hh*(0.10+0.30*fr(i*7+3));\n    const bh=u*(0.012+0.02*fr(i*5+1));\n    const sx=md(-drift*(20+i*8)*(0.6+en) + fr(i*3)*W, W+u*0.6)-u*0.3;\n    fill(hB, 40, 80, 10+8*en);\n    ellipse(sx, by+u*0.02*Math.sin(K.t*0.3+i), u*(0.20+0.14*fr(i*9)), bh*3);\n  }\n}\n\n// seal / paper vignette to keep luminance safe\nblendMode(BLEND);\n// vermilion-free light grain on beat for texture (few dots, cheap)\nif(en>0.02){\n  const nd=Math.floor(30*dens);\n  fill(mono?0:hB, mono?0:30, mono?8:20, 6+10*kick);\n  for(let i=0;i<nd;i++){const gx=frc(fr(i+Math.floor(K.beat))*1.7)*W, gy=frc(fr(i+7+Math.floor(K.beat))*1.3)*Hh; circle(gx,gy,u*0.004);}\n}\n// corner registration marks (static graphic ident)\nstroke(mono?0:hA, mono?0:60, mono?20:70, 55); strokeWeight(1.2); noFill();\nconst m=u*0.03;\n[[m,m],[W-m,m],[m,Hh-m],[W-m,Hh-m]].forEach(c=>{line(c[0]-6,c[1],c[0]+6,c[1]);line(c[0],c[1]-6,c[0],c[1]+6);});\nnoStroke();\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldBlend; drawingContext.shadowBlur=0;\n"
+}
