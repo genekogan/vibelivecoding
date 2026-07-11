@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.jungle",
+  "kind": "world",
+  "name": "Jungle",
+  "desc": "Layered rainforest canopy with hanging vines, swaying god-ray light shafts and drifting spores over a dark forest floor.",
+  "tags": [
+    "jungle",
+    "rainforest",
+    "forest",
+    "canopy",
+    "tropical",
+    "foliage",
+    "leaves",
+    "vines",
+    "emerald",
+    "green",
+    "biolum",
+    "bioluminescent",
+    "fireflies",
+    "rain",
+    "woodblock",
+    "blueprint",
+    "nature",
+    "wilderness",
+    "landscape",
+    "world",
+    "background",
+    "lush",
+    "verdant"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "foliage, motes and light-shaft density"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "canopy sway, shaft flicker and glow amplitude"
+    },
+    "hue": {
+      "default": 120,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage primary hue (green default)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "sway + drift rate (beats multiplier)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "feature scale vs design size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal anchor (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical anchor (canvas fraction)"
+    },
+    "style": {
+      "default": "emerald",
+      "options": [
+        "emerald",
+        "biolum",
+        "woodblock",
+        "blueprint",
+        "noir"
+      ],
+      "doc": "render discipline: emerald wash / bioluminescent night / woodblock print / blueprint schematic / moonlit noir"
+    },
+    "act": {
+      "default": "breeze",
+      "options": [
+        "breeze",
+        "fireflies",
+        "rain"
+      ],
+      "doc": "dramaturgy: breezy dappled light / rising fireflies / downpour"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout seed"
+    },
+    "layers": {
+      "default": 4,
+      "min": 3,
+      "max": 6,
+      "doc": "number of receding canopy layers"
+    }
+  },
+  "acts": [
+    "breeze",
+    "fireflies",
+    "rain"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:07:47+00:00",
+    "fps": 59.9,
+    "motion": 0.0207,
+    "lum": 0.284
+  },
+  "code": "const D = { density:.5, energy:.6, hue:120, speed:1, scale:1, x:.5, y:.5, style:'emerald', act:'breeze', seed:0, layers:4 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);}, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst H=md(P.hue,360);\nconst style=P.style;\nconst biolum=style==='biolum', woodblock=style==='woodblock', blueprint=style==='blueprint', noir=style==='noir';\nconst en=clp(P.energy,0,1)*(.45+.6*K.intensity);\nconst dens=clp(P.density,0,1);\nconst W=width, Ht=height, u=Math.min(W,Ht);\nconst hzY=Ht*0.5;\n\n// ---- static base buffer keyed on size + seed + style ----\nconst key=W+'x'+Ht+'|'+P.seed+'|'+style+'|'+Math.round(P.layers);\nif(!S.bg || S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Ht); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  // deep sky / understory gradient\n  for(let y=0;y<Ht;y++){\n    const t=y/Ht; let sh,ss,sb;\n    if(biolum){ sh=md(H+140,360); ss=70; sb=4+t*10; }\n    else if(noir){ sh=150; ss=clp(30-t*20,4,40); sb=6+t*14; }\n    else if(blueprint){ sh=205; ss=52; sb=12+t*4; }\n    else if(woodblock){ sh=md(H+6,360); ss=44; sb=(t<.5?78:60); }\n    else { sh=md(H-14+t*8,360); ss=clp(58+t*14,20,88); sb=clp(30+ (t<.4? (0.4-t)*90 : 0),16,80); }\n    g.fill(sh,ss,sb); g.rect(0,y,W,1);\n  }\n  // hazy light pool upper canopy gap\n  if(!blueprint){ g.fill(biolum?md(H+150,360):(noir?150:52), biolum?60:50, biolum?30:82, biolum?26:34); g.ellipse(W*(0.3+fr(3)*0.4), hzY*0.55, u*1.1, u*0.8); }\n\n  // CANOPY layers \u2014 leaf-clusters receding\n  const nL=Math.max(3,Math.min(6,Math.round(P.layers)));\n  for(let L=0;L<nL;L++){\n    const dep=L/(nL-1);\n    const base=hzY*(0.18+L*0.2);\n    let lh,ls,lb;\n    if(biolum){ lh=md(H+120+L*16,360); ls=76; lb=16+L*10; }\n    else if(noir){ lh=150; ls=18; lb=5+L*7; }\n    else if(blueprint){ lh=205; ls=0; lb=0; }\n    else if(woodblock){ lh=md(H+(L%2? 10:-6),360); ls=52; lb=34+L*12; }\n    else { lh=md(H+L*10,360); ls=clp(62+L*6,30,90); lb=22+L*14; }\n    for(let x=-50;x<W+50;x+=64){\n      const px=x + fr(L*40+x)*26, py=base + Math.sin(x*0.01+L)*hzY*0.06;\n      const rw=(94+fr(x*0.3+L)*70)*(u/560), rh=rw*0.66;\n      if(blueprint){ g.noFill(); g.stroke(205,48,90,50); g.strokeWeight(1.0); g.ellipse(px,py,rw,rh); g.noStroke(); }\n      else { g.fill(lh,ls,lb); g.ellipse(px,py,rw,rh);\n        if(woodblock){ g.fill(lh,ls*0.8,lb*0.6,60); g.arc(px,py,rw,rh,Math.PI*0.1,Math.PI*0.9); } }\n    }\n  }\n  // hanging VINES\n  const vn=woodblock?7:9;\n  for(let v=0;v<vn;v++){\n    const vx=fr(v*29+2)*W, len=hzY*(0.5+fr(v*7)*0.9);\n    const wob=0.02+fr(v*3)*0.02;\n    if(blueprint){ g.stroke(205,46,86,45);} else { g.stroke(biolum?md(H+130,360):(noir?150:md(H+8,360)), biolum?70:60, biolum?26:(noir?10:22)); }\n    g.strokeWeight((2.4+fr(v)*2)*(u/560)); g.noFill();\n    g.beginShape(); for(let y=0;y<len;y+=16){ g.vertex(vx+Math.sin(y*wob+v)*16, y); } g.endShape();\n    // leaf nodes\n    if(!blueprint){ g.noStroke(); g.fill(biolum?md(H+140,360):(noir?150:md(H+14,360)), 66, biolum?30:(noir?12:34));\n      for(let y=30;y<len;y+=54){ g.ellipse(vx+Math.sin(y*wob+v)*16, y, 12*(u/560),7*(u/560)); } }\n  }\n  g.noStroke();\n  // forest floor\n  const fh=biolum?md(H+150,360):(noir?150:md(H+4,360)), fs=biolum?60:(noir?14:62), fb=biolum?10:(noir?6:12);\n  g.fill(fh,fs,fb); g.rect(0,Ht*0.86,W,Ht*0.14);\n  S.bg=g;\n}\nimage(S.bg,0,0);\n\n// ---- live animated layer ----\nconst rain = P.act==='rain';\nconst fire = P.act==='fireflies';\n\n// GOD-RAY light shafts \u2014 sweep across frame in real time (big-area motion)\nif(!rain){\n  push(); blendMode(ADD);\n  const nS=3+Math.round(dens*3);\n  const sway=Math.sin(K.t*0.5)*0.14 + Math.sin(K.t*0.23)*0.08;\n  for(let i=0;i<nS;i++){\n    const sx=W*(0.16+0.68*fr(i*11+1)) + Math.sin(K.t*0.3+i)*W*0.03;\n    const ang=(-0.18+0.36*fr(i*5)) + sway;\n    const flick=0.6+0.4*Math.sin(K.t*1.3+i*2) + A.treble*0.5;\n    const rh=biolum?md(H+150,360):(noir?150:54), rs=biolum?70:44;\n    fill(rh,rs,biolum?60:96, (biolum?6:8)*flick*(0.5+en));\n    const topY=hzY*0.2, botY=Ht*0.92, w=u*0.11;\n    quad(sx-w*0.35, topY, sx+w*0.35, topY, sx+w+Math.tan(ang)*botY, botY, sx-w+Math.tan(ang)*botY, botY);\n  }\n  pop();\n}\n\n// FLOATING MOTES / SPORES / FIREFLIES \u2014 continuous drift (motion floor)\nconst maxM = Math.round((fire?150:110)*(0.3+dens));\npush(); blendMode(ADD);\nfor(let i=0;i<maxM;i++){\n  const rise = fire? K.t*0.05*(0.6+fr(i*2.2)) : K.t*0.02*(0.5+fr(i*2.2));\n  const bx = fr(i*3.3)*W + Math.sin(K.t*0.6 + i)*u*0.03;\n  const by = md(fr(i*7.1)*Ht - rise*Ht, Ht);\n  const tw = 0.5+0.5*Math.sin(K.t*(fire?2.4:1.4) + i*1.7);\n  const s=(fire?2.2:1.5)*(u/560)*(0.5+tw);\n  const mh = fire? 70 : (biolum?md(H+150,360):(noir?150:md(H+40,360)));\n  fill(mh, fire?85:50, fire?100:88, (fire?40:16)*(0.4+tw)*(0.5+en));\n  ellipse(bx,by,s,s);\n}\npop();\n\n// CANOPY SWAY overlay \u2014 translucent leaf clusters drifting on K.t (never re-phases)\npush(); blendMode(BLEND);\nconst swayAmt=(0.6+0.8*en);\nconst nC=Math.round(18*(0.4+dens));\nconst chH=biolum?md(H+120,360):(noir?150:md(H+6,360));\nfor(let i=0;i<nC;i++){\n  const bx=fr(i*13+5)*W, by=hzY*(0.15+fr(i*9)*0.4);\n  const dx=Math.sin(K.t*0.9 + i*0.7)*u*0.02*swayAmt + Math.sin(K.t*0.4+i)*u*0.012*swayAmt;\n  const rw=(70+fr(i*4)*50)*(u/560);\n  fill(chH, biolum?70:58, biolum?24:(noir?9:24), 30);\n  ellipse(bx+dx, by+Math.sin(K.t*0.7+i)*u*0.008*swayAmt, rw, rw*0.6);\n}\npop();\n\n// RAIN streaks (act)\nif(rain){\n  push(); blendMode(ADD);\n  const nR=Math.round(160*(0.4+dens));\n  for(let i=0;i<nR;i++){\n    const rx=fr(i*3.1)*W, ry=md(fr(i*8.8)*Ht + K.t*1.4*(0.6+fr(i*2)*0.8)*Ht, Ht);\n    stroke(noir?150:196, 30, 92, 22); strokeWeight(1.1*(u/560));\n    line(rx,ry,rx-3*(u/560),ry+16*(u/560));\n  }\n  noStroke(); pop();\n  // mist wash\n  push(); blendMode(BLEND); noStroke(); fill(noir?150:190, 16, 40, 10+8*Math.sin(K.t*0.6)); rect(0,0,W,Ht); pop();\n}\n\nblendMode(BLEND);\n"
+}
