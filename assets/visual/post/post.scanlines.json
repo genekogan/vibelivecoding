@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.scanlines",
+  "kind": "post",
+  "name": "CRT Scanlines",
+  "desc": "Retro CRT overlay: horizontal scanlines with barrel-darkened corners, a glass sheen, and rolling refresh bands that sweep down the tube; aperture-grille and VHS-tracking variants included.",
+  "tags": [
+    "scanlines",
+    "crt",
+    "post",
+    "overlay",
+    "retro",
+    "tv",
+    "monitor",
+    "tube",
+    "vhs",
+    "trinitron",
+    "aperture",
+    "grille",
+    "shadowmask",
+    "phosphor",
+    "raster",
+    "refresh",
+    "rolling",
+    "barrel",
+    "glitch",
+    "analog",
+    "80s",
+    "90s",
+    "vaporwave",
+    "lo-fi",
+    "finish"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "gap": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spacing between scanlines"
+    },
+    "thickness": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "scanline weight + darkness"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flicker + band amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "rolling-band + tracking rate"
+    },
+    "hue": {
+      "default": 130,
+      "min": 0,
+      "max": 360,
+      "doc": "phosphor tint hue"
+    },
+    "curvature": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel corner darkening amount"
+    },
+    "glow": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rolling refresh-band brightness"
+    },
+    "flicker": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness flicker (treble-reactive)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "reserved feature scale"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "VHS dropout count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "style": {
+      "default": "crt",
+      "options": [
+        "crt",
+        "trinitron",
+        "shadowmask",
+        "vhs"
+      ],
+      "doc": "aesthetic: horizontal scanlines / vertical RGB aperture grille (abstract) / RGB dot-triad shadow mask (abstract) / degraded VHS tracking tear + chroma bleed + dropouts"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "dropout + noise layout"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:42:25+00:00",
+    "fps": 59.9,
+    "motion": 0.0158,
+    "lum": 0.078
+  },
+  "code": "const D = { gap:.5, thickness:.5, energy:.6, speed:1, hue:130, curvature:.5, glow:.5, flicker:.4, scale:1, density:.5, x:.5, y:.5, style:'crt', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst en=clp(P.energy,0,1)*(.5+.6*K.intensity);\nconst gap=clp(P.gap,0,1), thick=clp(P.thickness,0,1);\nconst eh=md(P.hue,360);\nconst period=Math.max(2, Math.round(u*(0.004+gap*0.02)));\nconst lineH=Math.max(1, Math.round(period*(0.35+thick*0.5)));\nconst curv=clp(P.curvature,0,1);\n\n// cached overlay buffer (mask + barrel + sheen), rebuilt only on size/style/param bucket change\nconst key=W+'x'+Hh+'|'+style+'|'+period+'_'+lineH+'|'+P.seed+'|'+Math.round(curv*4)+'|'+Math.round(eh/20);\nif(S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.clear(); g.noStroke();\n  const gc=g.drawingContext;\n  if(style==='trinitron'){\n    // vertical aperture grille \u2014 bright RGB bars, dark separators (composited MULTIPLY)\n    const cw=Math.max(3,period);\n    for(let x=0;x<W;x+=cw){\n      const ch=Math.floor(x/cw)%3, hh=ch===0?0:ch===1?120:240;\n      g.fill(hh,70,100,100); g.rect(x,0,cw*0.82,Hh);\n      g.fill(0,0,0,100); g.rect(x+cw*0.82,0,cw*0.18,Hh);\n    }\n    g.fill(0,0,0,45); for(let y=0;y<Hh;y+=Math.max(3,period)) g.rect(0,y,W,Math.max(1,lineH*0.5));\n  } else if(style==='shadowmask'){\n    // RGB dot triad grid on black \u2014 emissive mask look under MULTIPLY\n    const cw=Math.max(3,period*1.1);\n    g.fill(0,0,0,100); g.rect(0,0,W,Hh);\n    for(let y=0;y<Hh;y+=cw){\n      const off=(Math.floor(y/cw)%2)*cw*0.5;\n      for(let x=0;x<W;x+=cw){\n        const ch=Math.floor(x/cw)%3, hh=ch===0?0:ch===1?120:240;\n        g.fill(hh,70,100,100); g.ellipse(x+off+cw*0.5,y+cw*0.5,cw*0.56,cw*0.56);\n      }\n    }\n  } else {\n    // crt / vhs \u2014 translucent horizontal scanlines\n    g.fill(0,0,0, 28+thick*42);\n    for(let y=0;y<Hh;y+=period) g.rect(0,y,W,lineH);\n    if(style==='crt'){ g.fill(eh,55,100,5); for(let y=lineH;y<Hh;y+=period) g.rect(0,y,W,Math.max(1,period-lineH)); }\n  }\n  // barrel corner darkening (all styles)\n  const rr=Math.max(W,Hh)*0.78;\n  const bg=gc.createRadialGradient(W/2,Hh/2,rr*(0.42+(1-curv)*0.32),W/2,Hh/2,rr*1.06);\n  bg.addColorStop(0,'rgba(0,0,0,0)'); bg.addColorStop(1,`rgba(0,0,0,${(0.22+curv*0.46).toFixed(3)})`);\n  gc.globalCompositeOperation='source-over'; gc.fillStyle=bg; gc.fillRect(0,0,W,Hh);\n  // glass specular sheen (upper-left)\n  const sg=gc.createRadialGradient(W*0.3,Hh*0.22,0,W*0.3,Hh*0.22,u*0.55);\n  sg.addColorStop(0,'rgba(255,255,255,0.06)'); sg.addColorStop(1,'rgba(255,255,255,0)');\n  gc.globalCompositeOperation='lighter'; gc.fillStyle=sg; gc.fillRect(0,0,W,Hh);\n  gc.globalCompositeOperation='source-over';\n  S.scan=g;\n}\n\nnoStroke();\nblendMode(MULTIPLY);\nimage(S.scan,0,0);\nblendMode(BLEND);\n\n// --- live: rolling refresh bands (motion floor \u2014 two speeds so they never realign at 8s) ---\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst glow=clp(P.glow,0,1);\nconst span=Hh+u*0.3;\nconst flick=1 + (A.treble*0.4 + (fr(Math.floor(K.t*22))-0.5)*0.5)*clp(P.flicker,0,1)*en;\ndc.globalCompositeOperation='lighter';\n[[0.19,0.0,0.10],[0.115,0.5,0.07]].forEach((b,bi)=>{\n  const v=u*b[0]*(0.4+P.speed);\n  const by=md(K.t*v + b[1]*span, span)-u*0.15;\n  const bh=u*b[2]*(0.9+0.3*Math.sin(K.t*0.4+bi));\n  const lg=dc.createLinearGradient(0,by-bh,0,by+bh);\n  const ba=clp((0.05+0.13*glow)*flick*(bi?0.6:1),0,0.28);\n  lg.addColorStop(0,'rgba(255,255,255,0)');\n  lg.addColorStop(0.5,`rgba(255,255,255,${ba.toFixed(3)})`);\n  lg.addColorStop(1,'rgba(255,255,255,0)');\n  dc.fillStyle=lg; dc.fillRect(0,by-bh,W,bh*2);\n});\ndc.globalCompositeOperation=oldOp;\n\n// --- vhs: jittering tracking tear + chroma bleed + dropouts ---\nif(style==='vhs'){\n  const ty=md(K.t*u*0.05 + Math.sin(K.t*2.0)*u*0.12, Hh);\n  const th=u*(0.02+0.03*Math.abs(Math.sin(K.t*0.7)));\n  blendMode(SCREEN); noStroke();\n  fill(0,0,100, 8+16*en); rect(0,ty,W,th);\n  fill(md(eh+170,360),80,100,10*en); rect(u*0.01,ty,W,th*0.5);\n  fill(md(eh+300,360),80,100,10*en); rect(-u*0.01,ty+th*0.5,W,th*0.5);\n  const nn=Math.round(5+9*clp(P.density,0,1));\n  fill(0,0,100,18*en);\n  for(let i=0;i<nn;i++){ const fs=i+Math.floor(K.t*15); const nx=fr(fs*1.7)*W, ny=fr(fs*2.3)*Hh, nw=u*0.02+fr(fs*3.1)*u*0.06; rect(nx,ny,nw,Math.max(1,period*0.6)); }\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke();\n"
+}

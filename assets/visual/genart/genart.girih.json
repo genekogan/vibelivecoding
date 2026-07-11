@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.girih",
+  "kind": "genart",
+  "name": "Girih Tessellation",
+  "desc": "Islamic girih strapwork of interlaced star rosettes that unfolds rosette-by-rosette from the centre while a luminous glow-band sweeps the ribbon lattice on the beat, in gilt-manuscript, Moroccan zellige mosaic, drafting-blueprint, sumi-ink and neon-plasma renderings.",
+  "tags": [
+    "girih",
+    "islamic",
+    "geometric",
+    "tessellation",
+    "strapwork",
+    "star",
+    "rosette",
+    "polygon",
+    "tiling",
+    "pattern",
+    "arabesque",
+    "moorish",
+    "zellige",
+    "mosaic",
+    "sacred geometry",
+    "interlace",
+    "weave",
+    "gold",
+    "manuscript",
+    "blueprint",
+    "schematic",
+    "ink",
+    "neon",
+    "decagon",
+    "tenfold",
+    "symmetry",
+    "generative",
+    "genart",
+    "backdrop",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "rosette packing (sparse..tight lattice)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "rosette radius (small..large stars)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "glow-band travel rate along strapwork"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow-band peak brightness"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "strapwork/mosaic primary hue (45=gold)"
+    },
+    "points": {
+      "default": 10,
+      "min": 6,
+      "max": 12,
+      "doc": "star points per rosette (8/10/12-fold)"
+    },
+    "glow": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "glow-band width along the ribbons"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lattice offset x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lattice offset y"
+    },
+    "style": {
+      "default": "gold",
+      "options": [
+        "gold",
+        "zellige",
+        "blueprint",
+        "ink",
+        "neon"
+      ],
+      "doc": "render philosophy: gilt double-ribbon on lapis / filled ceramic mosaic mass / cyan drafting schematic with guide circles / sumi single-ink / additive neon plasma"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic rosette phases + zellige palette"
+    },
+    "act": {
+      "default": "unfold",
+      "options": [
+        "unfold",
+        "pulse",
+        "weave"
+      ],
+      "doc": "dramaturgy: 30s outward unfold then hold / fully-lit beat pulse / slow interlace weave-in"
+    }
+  },
+  "acts": [
+    "unfold",
+    "pulse",
+    "weave"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:39:15+00:00",
+    "fps": 59.9,
+    "motion": 0.0126,
+    "lum": 0.238
+  },
+  "code": "const D = { density:.5, scale:1, speed:1, energy:.6, hue:45, points:10, glow:.5, x:.5, y:.5, style:'gold', act:'unfold', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst n = Math.max(6, Math.min(12, Math.round(P.points)));\nconst R = u*0.135*(0.5+P.scale);\nconst spacing = Math.max(u*0.09, R*1.72*(1.28 - P.density*0.62));\n\nfunction paintBg(buf, st, hue){\n  buf.push(); buf.noStroke();\n  let base;\n  if (st==='ink') base=[38,10,86];\n  else if (st==='blueprint') base=[214,72,14];\n  else if (st==='zellige') base=[28,45,20];\n  else if (st==='neon') base=[260,55,6];\n  else base=[248,62,12];\n  buf.background(base[0],base[1],base[2]);\n  const g = buf.drawingContext.createRadialGradient(buf.width*0.5,buf.height*0.5,buf.width*0.08, buf.width*0.5,buf.height*0.5,buf.width*0.72);\n  if (st==='ink'){ g.addColorStop(0,'rgba(255,255,255,0.05)'); g.addColorStop(1,'rgba(70,40,10,0.30)'); }\n  else { g.addColorStop(0,'rgba(255,255,255,0.06)'); g.addColorStop(1,'rgba(0,0,0,0.42)'); }\n  buf.drawingContext.fillStyle=g; buf.drawingContext.fillRect(0,0,buf.width,buf.height);\n  buf.pop();\n}\n\nconst key = [width,height,n,R.toFixed(1),spacing.toFixed(1),P.seed,P.x.toFixed(2),P.y.toFixed(2),st].join('|');\nif (S.key !== key){\n  S.key = key;\n  let z = ((P.seed*2246822519)>>>0) ^ 0x9e3779b9; z=(z+2654435761)>>>0;\n  const rnd = ()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  const cxN = Math.ceil(width/spacing)+2, cyN = Math.ceil(height/spacing)+2;\n  const ox = (P.x-0.5)*spacing, oy=(P.y-0.5)*spacing;\n  let ros=[];\n  for (let gy=-1; gy<cyN; gy++) for (let gx=-1; gx<cxN; gx++){\n    const cx = gx*spacing + spacing*0.5 + ox;\n    const cy = gy*spacing + spacing*0.5 + oy;\n    if (cx<-R||cx>width+R||cy<-R||cy>height+R) continue;\n    const phi = (rnd()*0.5) + ((gx+gy)&1?Math.PI/n:0);\n    ros.push({cx:cx, cy:cy, phi:phi});\n  }\n  // cap for perf\n  if (ros.length>82){ ros.sort((a,b)=> (Math.hypot(a.cx-width/2,a.cy-height/2)) - (Math.hypot(b.cx-width/2,b.cy-height/2))); ros=ros.slice(0,82); }\n  // reveal order: outward from center\n  ros.sort((a,b)=> (Math.hypot(a.cx-width/2,a.cy-height/2)) - (Math.hypot(b.cx-width/2,b.cy-height/2)));\n  const skip = Math.max(2, Math.round(n/3));\n  const rin = R*0.42;\n  const segs=[];\n  for (let ri=0; ri<ros.length; ri++){\n    const o=ros[ri];\n    const outer=[], valley=[];\n    for (let k=0;k<n;k++){ const a=o.phi+k*(2*Math.PI/n); outer.push([o.cx+Math.cos(a)*R, o.cy+Math.sin(a)*R]); }\n    for (let k=0;k<n;k++){ const a=o.phi+(k+0.5)*(2*Math.PI/n); valley.push([o.cx+Math.cos(a)*rin, o.cy+Math.sin(a)*rin]); }\n    const poly=[]; for (let k=0;k<n;k++){ poly.push(outer[k]); poly.push(valley[k]); }\n    // star interlace ribbons: connect outer[k] -> outer[k+skip]\n    for (let k=0;k<n;k++){ const b=outer[(k+skip)%n]; segs.push([outer[k][0],outer[k][1],b[0],b[1],ri]); }\n    // petal ring: outer[k] -> valley[k] (single ribbon leg keeps the woven look, lighter on perf)\n    for (let k=0;k<n;k++){ const a=outer[k], b=valley[k]; segs.push([a[0],a[1],b[0],b[1],ri]); }\n    // connectors reaching toward neighbours\n    for (let k=0;k<n;k++){ const a=o.phi+k*(2*Math.PI/n); const ex=o.cx+Math.cos(a)*(spacing*0.5), ey=o.cy+Math.sin(a)*(spacing*0.5); segs.push([outer[k][0],outer[k][1],ex,ey,ri]); }\n    ros[ri].poly=poly; ros[ri].R=R;\n  }\n  for (let i=0;i<segs.length;i++){ const mx=(segs[i][0]+segs[i][2])*0.5, my=(segs[i][1]+segs[i][3])*0.5; segs[i].push((mx/width+my/height)*0.5); }\n  S.ros=ros; S.segs=segs; S.total=ros.length; S.pal=[];\n  for (let i=0;i<8;i++) S.pal.push([(P.hue + i*41 + rnd()*20)%360, 55+rnd()*30, 60+rnd()*35]);\n  if (S.bg) S.bg.remove();\n  S.bg = createGraphics(width,height); S.bg.colorMode(HSB,360,100,100,100); paintBg(S.bg, st, P.hue);\n}\n\nimage(S.bg,0,0);\n\nconst total=S.total, segs=S.segs, ros=S.ros;\n// monotonic K.t drives a smooth 30s unfold then a hold, wrapping each epoch (tolerates t0 reset)\nlet revealFrac = 1;\nif (P.act==='unfold') revealFrac = Math.min(1, ((K.t||0) % 54) / 30);\nelse if (P.act==='weave') revealFrac = Math.min(1, 0.35 + 0.65*((K.t||0)%40)/22);\nconst revealN = Math.max(1, Math.floor(revealFrac*total));\n\n// glow band sweeps diagonally: beat-locked + continuous K.t drift (never re-phases)\nconst bandC = ((K.beat*0.14*P.speed) + K.t*0.055) % 1;\nconst gw = 0.06 + P.glow*0.22;\nconst beatFlash = K.pulse*0.5 + A.rms*1.2;\nconst peak = 55 + P.energy*35;\n\nif (st==='zellige'){\n  noStroke();\n  for (let ri=0; ri<revealN; ri++){\n    const o=ros[ri], pc=S.pal[ri%S.pal.length];\n    beginShape(); for (let j=0;j<o.poly.length;j++) vertex(o.poly[j][0],o.poly[j][1]); endShape(CLOSE);\n    fill(pc[0], pc[1], pc[2]*(0.62+0.3*intn));\n    beginShape(); for (let j=0;j<o.poly.length;j++) vertex(o.poly[j][0],o.poly[j][1]); endShape(CLOSE);\n  }\n}\n\nif (st==='blueprint'){\n  noFill(); stroke(205,55,50,26); strokeWeight(1);\n  for (let ri=0; ri<revealN; ri++){ const o=ros[ri]; circle(o.cx,o.cy,o.R*2); circle(o.cx,o.cy,o.R*0.84); }\n}\n\nif (st==='neon'){ blendMode(ADD); }\nfor (let i=0;i<segs.length;i++){\n  const s=segs[i]; if (s[4] >= revealN) continue;\n  let dd=Math.abs(s[5]-bandC); if (dd>0.5) dd=1-dd;\n  const gAmt=Math.max(0, 1 - dd/gw);\n  if (st==='gold'){\n    stroke(44,72,42, 90); strokeWeight(6.0*(0.6+P.scale*0.3)); line(s[0],s[1],s[2],s[3]);\n    stroke((46-gAmt*8), 60-gAmt*45, 82+gAmt*18, 96); strokeWeight(2.2*(0.6+P.scale*0.3)); line(s[0],s[1],s[2],s[3]);\n  } else if (st==='ink'){\n    stroke(228, 16, 10, 70+gAmt*20); strokeWeight(3.4*(0.5+P.scale*0.35)*(0.7+0.5*Math.sin(i*2.1))); line(s[0],s[1],s[2],s[3]);\n  } else if (st==='blueprint'){\n    stroke((200 - gAmt*10), 62-gAmt*40, 78+gAmt*22, 62+gAmt*30); strokeWeight(1.3+gAmt*1.4); line(s[0],s[1],s[2],s[3]);\n  } else if (st==='zellige'){\n    stroke(30, 25, 8, 78); strokeWeight(2.6*(0.6+P.scale*0.3)); line(s[0],s[1],s[2],s[3]);\n    if (gAmt>0){ stroke(48, 20, 100, gAmt*40); strokeWeight(1.4); line(s[0],s[1],s[2],s[3]); }\n  } else if (st==='neon'){\n    if (gAmt>0.35){ drawingContext.shadowBlur=12; drawingContext.shadowColor='hsla('+((P.hue)%360)+',95%,60%,0.9)'; }\n    stroke((P.hue+gAmt*20)%360, 90-gAmt*30, 70+gAmt*30+peak*0.15, 55+gAmt*40); strokeWeight(1.8+gAmt*2.2); line(s[0],s[1],s[2],s[3]);\n    drawingContext.shadowBlur=0;\n  }\n}\n\n// central beat bloom on revealed rosettes (partial-frame, not a full flash)\nif (beatFlash>0.05){\n  noStroke();\n  const bh = st==='neon'?(P.hue)%360:(st==='ink'?38:46);\n  blendMode(ADD);\n  for (let ri=0; ri<revealN; ri++){ const o=ros[ri]; fill(bh, st==='ink'?30:40, 100, beatFlash*14); circle(o.cx,o.cy, o.R*0.5*(1+beatFlash*0.3)); }\n  blendMode(BLEND);\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

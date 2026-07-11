@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.great_wave",
+  "kind": "genart",
+  "name": "Ukiyo-e Wave",
+  "desc": "A Hokusai great-wave off Kanagawa that rises and crashes once per bar with parametric claw-foam spirals over drifting cloud streaks and a snow-capped Fuji, in Prussian-blue woodblock, aged sepia, brushed sumi, dark storm, or a cyan schematic-contour blueprint.",
+  "tags": [
+    "wave",
+    "ocean",
+    "sea",
+    "ukiyo-e",
+    "ukiyoe",
+    "hokusai",
+    "great wave",
+    "kanagawa",
+    "woodblock",
+    "japanese",
+    "japan",
+    "fuji",
+    "mount fuji",
+    "foam",
+    "surf",
+    "swell",
+    "crash",
+    "claw",
+    "indigo",
+    "prussian blue",
+    "sepia",
+    "sumi",
+    "ink",
+    "blueprint",
+    "schematic",
+    "storm",
+    "water",
+    "generative",
+    "genart",
+    "bg",
+    "backdrop",
+    "edo"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wave height / crash amplitude"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "number of claw foam fingers (3..10)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.8,
+      "doc": "overall wave scale vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.6,
+      "doc": "crash cadence + drift rate (beats-relative)"
+    },
+    "hue": {
+      "default": 212,
+      "min": 0,
+      "max": 360,
+      "doc": "base sea hue (woodblock/storm)"
+    },
+    "spray": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "foam spray droplet count on the crash"
+    },
+    "fuji": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "show Mount Fuji (>.5)"
+    },
+    "boats": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "show tossed boats (>.5)"
+    },
+    "x": {
+      "default": 0.34,
+      "min": 0.15,
+      "max": 0.6,
+      "doc": "crest anchor x fraction"
+    },
+    "y": {
+      "default": 0.68,
+      "min": 0.4,
+      "max": 0.9,
+      "doc": "waterline y fraction"
+    },
+    "style": {
+      "default": "woodblock",
+      "options": [
+        "woodblock",
+        "sepia",
+        "sumi",
+        "storm",
+        "blueprint"
+      ],
+      "doc": "render philosophy: Prussian-blue keyblock print / aged sepia / brushed sumi wash / dark storm / cyan schematic-contour blueprint"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "foam/cloud/boat layout seed"
+    },
+    "act": {
+      "default": "swell",
+      "options": [
+        "swell",
+        "calm",
+        "typhoon"
+      ],
+      "doc": "dramaturgy: rolling swell / laminar calm / violent typhoon"
+    }
+  },
+  "acts": [
+    "swell",
+    "calm",
+    "typhoon"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:39:31+00:00",
+    "fps": 60.6,
+    "motion": 0.0987,
+    "lum": 0.533
+  },
+  "code": "const D = { energy:.6, density:.55, scale:1, speed:1, hue:212, spray:.6, fuji:1, boats:1, x:.34, y:.68, style:'woodblock', act:'swell', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W=width, H=height, u=Math.min(W,H), TAU=Math.PI*2;\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\nconst st=P.style, intn=(K.intensity!=null?K.intensity:.6);\n\n// ---- palette per style (rendering philosophy, not just hue) ----\nfunction pal(s){\n  if(s==='sepia')     return {sky:[[34,14,90],[30,30,72]], deep:[28,52,26], mid:[30,44,46], lip:[32,32,66], foam:[36,10,93], key:[26,55,16], line:[28,50,22], fuji:[30,20,60], cap:[35,6,92]};\n  if(s==='sumi')      return {sky:[[38,5,93],[36,8,80]], deep:[220,10,14], mid:[222,8,34], lip:[224,6,52], foam:[40,3,94], key:[225,10,10], line:[224,10,20], fuji:[224,6,48], cap:[40,3,92]};\n  if(s==='blueprint') return {sky:[[220,72,10],[218,78,7]], deep:[198,70,80], mid:[198,64,72], lip:[196,60,90], foam:[190,40,98], key:[196,66,88], line:[200,60,60], fuji:[196,55,70], cap:[190,30,98]};\n  if(s==='storm')     return {sky:[[218,34,20],[222,42,10]], deep:[212,55,16], mid:[204,44,30], lip:[196,30,48], foam:[186,14,80], key:[220,40,8], line:[210,30,26], fuji:[214,24,36], cap:[196,10,74]};\n  return {sky:[[36,16,93],[204,34,74]], deep:[218,82,30], mid:[210,72,54], lip:[204,52,74], foam:[42,7,98], key:[222,46,12], line:[220,55,22], fuji:[212,30,58], cap:[40,6,95]};\n}\nconst C=pal(st);\nconst key=W+'x'+H+'.'+st+'.'+(P.fuji|0)+'.'+P.seed;\n\n// ---- baked sky + Fuji buffer (built once per key) ----\nif(!S.bg || S.bgKey!==key){\n  S.bgKey=key;\n  const g=createGraphics(W,H); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  for(let yy=0; yy<H; yy+=2){\n    const t=yy/H, a=C.sky[0], b=C.sky[1];\n    g.fill(a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t);\n    g.rect(0,yy,W,2);\n  }\n  if(st==='blueprint'){\n    g.stroke(C.line[0],C.line[1],C.line[2],26); g.strokeWeight(1);\n    const gs=Math.max(28,u*0.07);\n    for(let gx=0;gx<W;gx+=gs) g.line(gx,0,gx,H);\n    for(let gy=0;gy<H;gy+=gs) g.line(0,gy,W,gy);\n    g.noStroke();\n  }\n  if(P.fuji>0.5){\n    const fx=W*0.66, fh=u*0.34, fw=u*0.62, base=H*0.62;\n    if(st==='blueprint'){\n      g.noFill(); g.stroke(C.fuji[0],C.fuji[1],C.fuji[2],70); g.strokeWeight(1.4);\n      g.triangle(fx-fw/2,base, fx,base-fh, fx+fw/2,base);\n      g.noStroke();\n    } else {\n      g.fill(C.fuji[0],C.fuji[1],C.fuji[2],86);\n      g.triangle(fx-fw/2,base, fx,base-fh, fx+fw/2,base);\n      // snow cap\n      g.fill(C.cap[0],C.cap[1],C.cap[2],94);\n      const cy=base-fh*0.66, cw=fw*0.34;\n      g.beginShape();\n      g.vertex(fx-cw,cy+fh*0.1); g.vertex(fx-cw*0.4,cy-fh*0.02); g.vertex(fx-cw*0.15,cy+fh*0.06);\n      g.vertex(fx+cw*0.2,cy-fh*0.03); g.vertex(fx+cw*0.55,cy+fh*0.07); g.vertex(fx+cw,cy+fh*0.11);\n      g.vertex(fx,cy-fh*0.16);\n      g.endShape(CLOSE);\n    }\n  }\n  S.bg=g;\n}\nimage(S.bg,0,0);\n\n// ---- crash phase (rise->crest->recede once per bar); K.t drift = never re-phases ----\nconst rate=0.25*P.speed;\nconst cp=(((K.beat*rate)%1)+1)%1;\nconst amp01=Math.sin(cp*Math.PI);                    // 0..1..0 over the bar\nconst curl01=cp>0.5 ? Math.sin((cp-0.5)/0.5*Math.PI) : 0;\nconst en=clp(P.energy,0,1);\nconst ampMul = P.act==='calm' ? 0.55 : (P.act==='typhoon' ? 1.25 : 1);\nconst swAmp=(0.16+en*0.34)*ampMul*(0.7+intn*0.5) + A.rms*0.5;   // hump reach as frac of u\nconst baseY=H*clp(P.y,0.4,0.9);\nconst hx=W*clp(P.x,0.15,0.6);\nconst hump=u*swAmp*(0.35+amp01*0.85);\nconst tcrash=curl01*(0.6+en) + A.bass*0.6;\n\nnoStroke();\n// ---- distant swell wall behind the claw (mid tone) ----\nfunction surface(yBase, humpAmt, spreadK, rip){\n  beginShape();\n  vertex(0,H);\n  const step=Math.max(9,W/130);\n  for(let x=-step;x<=W+step;x+=step){\n    const d=(x-hx)/(u*spreadK);\n    const bell=Math.exp(-d*d);\n    const ripple=Math.sin(x*0.012 + K.t*0.9*P.speed)*rip + Math.sin(x*0.031 - K.t*1.5)*rip*0.5;\n    const y=yBase - humpAmt*bell - ripple*u*0.012 + u*0.02*Math.sin(x*0.006+K.t*0.4);\n    vertex(x,y);\n  }\n  vertex(W,H); vertex(0,H);\n  endShape(CLOSE);\n}\nif(st==='blueprint'){\n  noFill(); stroke(C.mid[0],C.mid[1],C.mid[2],55); strokeWeight(1.2);\n  surface(baseY+u*0.05, hump*0.6, 0.9, 0.7);\n  stroke(C.deep[0],C.deep[1],C.deep[2],85); strokeWeight(1.6);\n  surface(baseY, hump, 0.6, 1.0);\n  noStroke();\n} else {\n  fill(C.mid[0],C.mid[1],C.mid[2], st==='sumi'?60:88);\n  surface(baseY+u*0.06, hump*0.55, 0.95, 0.7);\n  fill(C.deep[0],C.deep[1],C.deep[2], st==='sumi'?72:96);\n  surface(baseY, hump, 0.6, 1.0);\n}\n\n// ---- the claw: overhanging lip + curling fingers at the crest ----\nconst crestY=baseY-hump*0.86, crestX=hx;\npush();\ntranslate(crestX,crestY);\nconst reach=u*(0.16+en*0.16)*(0.6+amp01);\nconst droop=u*(0.10+tcrash*0.16);\nif(st==='blueprint'){\n  noFill(); stroke(C.lip[0],C.lip[1],C.lip[2],80); strokeWeight(1.6);\n  beginShape();\n  vertex(0,0);\n  bezierVertex(reach*0.4,-u*0.10, reach*1.05,-u*0.06, reach*1.2, u*0.02);\n  bezierVertex(reach*1.28, droop*0.7, reach*1.0, droop, reach*0.7, droop*0.9);\n  endShape();\n} else {\n  fill(C.lip[0],C.lip[1],C.lip[2], st==='sumi'?70:92);\n  beginShape();\n  vertex(0,0);\n  bezierVertex(reach*0.35,-u*0.12, reach*1.0,-u*0.07, reach*1.22,-u*0.005);\n  bezierVertex(reach*1.34,droop*0.85, reach*0.98,droop*1.05, reach*0.66,droop*0.9);\n  bezierVertex(reach*0.5,droop*0.5, reach*0.55,-u*0.01, 0,0);\n  endShape(CLOSE);\n}\n// Hokusai claw fingers: parametric log-spirals of foam\nconst nFing=Math.round(3+P.density*7);\nfor(let f=0; f<nFing; f++){\n  const ft=f/(nFing-1||1);\n  const fxp=reach*(0.55+ft*0.75);\n  const fyp=-u*0.02 + droop*ft*0.5;\n  const fingLen=u*(0.03+0.05*fr(f*3.1))*(0.7+curl01*0.9);\n  const dir=(fr(f*7.7)<0.5?1:-1);\n  push(); translate(fxp,fyp);\n  if(st==='blueprint'){ noFill(); stroke(C.foam[0],C.foam[1],C.foam[2],70); strokeWeight(1.1); }\n  else { noStroke(); }\n  let px=0,py=0;\n  const turns=1.6+fr(f*2.3)*1.4;\n  const segs=10;\n  for(let s2=0;s2<=segs;s2++){\n    const a=s2/segs*TAU*turns;\n    const r=fingLen*(s2/segs)*0.7;\n    const nx=Math.cos(a*dir + K.t*0.4)*r, ny=-Math.sin(a*dir + K.t*0.4)*r - fingLen*(s2/segs);\n    if(st==='blueprint'){ if(s2>0) line(px,py,nx,ny); }\n    else { fill(C.foam[0],C.foam[1],C.foam[2], 60+30*(s2/segs)); circle(nx,ny, fingLen*0.16*(1-s2/segs*0.4)+1.2); }\n    px=nx;py=ny;\n  }\n  pop();\n}\npop();\n\n// keyblock contour on the deep wave (woodblock/sepia carved outline)\nif(st==='woodblock'||st==='sepia'){\n  noFill(); stroke(C.key[0],C.key[1],C.key[2],70); strokeWeight(Math.max(1.4,u*0.0024));\n  surface(baseY, hump, 0.6, 1.0);\n  noStroke();\n}\n\n// ---- foam spray on the crash (seed-deterministic dots, drift on K.t) ----\nconst nSpray=Math.round((16+P.spray*70)*(0.3+tcrash));\nif(nSpray>0){\n  if(st==='blueprint'){ stroke(C.foam[0],C.foam[1],C.foam[2],75); strokeWeight(1.4); } else noStroke();\n  for(let i=0;i<nSpray;i++){\n    const life=(fr(i*1.7)+K.t*(0.4+P.speed*0.5))%1;\n    const ang=-Math.PI*0.5 + (fr(i*4.4)-0.5)*1.3;\n    const sp=u*(0.06+fr(i*9.1)*0.16)*(0.6+tcrash);\n    const sx=crestX+reach*0.9 + Math.cos(ang)*sp*life + (fr(i*13.7)-0.5)*u*0.08;\n    const sy=crestY-u*0.05 + Math.sin(ang)*sp*life + life*life*u*0.16 - u*0.04;\n    const al=(1-life)*80*(0.4+tcrash);\n    if(st==='blueprint'){ if(al>4) point(sx,sy); }\n    else { fill(C.foam[0],C.foam[1],C.foam[2],al); circle(sx,sy, u*0.006*(1-life)+1.4); }\n  }\n}\n\n// ---- drifting cloud streaks (real-time motion floor, few shapes) ----\nnoStroke();\nconst cloudA=st==='blueprint'?0:1;\nif(cloudA){\n  for(let c=0;c<4;c++){\n    const cw=u*(0.22+fr(c*3.3)*0.2);\n    const cy=H*(0.12+fr(c*5.1)*0.24);\n    let cx=(fr(c*8.8)*W + K.t*u*(0.006+fr(c*2.2)*0.01)*P.speed)%(W+cw*2)-cw;\n    fill(C.foam[0], C.foam[1]*0.5, C.foam[2], 7+2*Math.sin(K.t*0.3+c));\n    ellipse(cx,cy,cw,cw*0.34);\n    ellipse(cx+cw*0.3,cy+u*0.01,cw*0.7,cw*0.28);\n  }\n}\n\n// ---- optional boats bobbing in the troughs ----\nif(P.boats>0.5 && st!=='blueprint'){\n  const nB=2;\n  for(let b=0;b<nB;b++){\n    const bx=W*(0.5+b*0.16)+Math.sin(K.t*0.4+b)*u*0.01;\n    const by=baseY+u*0.02 + Math.sin(K.t*1.1+b*2)*u*0.012;\n    const bw=u*0.09;\n    push(); translate(bx,by); rotate(Math.sin(K.t*0.9+b)*0.12);\n    fill(C.key[0],C.key[1],C.key[2],80); noStroke();\n    beginShape();\n    vertex(-bw*0.5,0); vertex(bw*0.5,0); vertex(bw*0.34,bw*0.13); vertex(-bw*0.34,bw*0.13);\n    endShape(CLOSE);\n    // a few oarsmen dashes\n    stroke(C.key[0],C.key[1],C.key[2],70); strokeWeight(Math.max(1.4,u*0.004));\n    for(let o=-1;o<=1;o++) line(o*bw*0.2,-bw*0.02,o*bw*0.2,-bw*0.09);\n    noStroke();\n    pop();\n  }\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

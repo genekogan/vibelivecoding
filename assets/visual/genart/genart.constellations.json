@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.constellations",
+  "kind": "genart",
+  "name": "Constellation Map",
+  "desc": "A deep-sky star chart where twinkling stars are progressively laced together by constellation lines drawing themselves in, a faint mythic figure hinted behind the active sign and a rare shooting star streaking past.",
+  "tags": [
+    "constellation",
+    "stars",
+    "star-chart",
+    "starfield",
+    "sky",
+    "night",
+    "astronomy",
+    "celestial",
+    "zodiac",
+    "cosmos",
+    "space",
+    "map",
+    "mythic",
+    "generative",
+    "parchment",
+    "antique",
+    "blueprint",
+    "schematic",
+    "spectral",
+    "false-color",
+    "shooting-star",
+    "twinkle",
+    "procedural",
+    "serene",
+    "sacred",
+    "navigation",
+    "bg",
+    "background",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "star count \u2014 higher fills a richer sky"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "twinkle amplitude + line glow + figure visibility"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "twinkle + line draw-in + sky-drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "star/marker + line weight vs design size"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "sky + line + star-tint hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "celestial-pole x (rotation + figure center)"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "celestial-pole y (rotation + figure center)"
+    },
+    "lines": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "constellation richness \u2014 number of signs woven"
+    },
+    "style": {
+      "default": "night",
+      "options": [
+        "night",
+        "parchment",
+        "blueprint",
+        "spectral"
+      ],
+      "doc": "render philosophy \u2014 glowing deep-sky / engraved antique ink / technical schematic / temperature false-color"
+    },
+    "act": {
+      "default": "reveal",
+      "options": [
+        "reveal",
+        "wheel",
+        "storm"
+      ],
+      "doc": "dramaturgy \u2014 lines lace in / whole sky wheels round the pole / frequent shooting stars"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "star + constellation + figure seed (hash-deterministic)"
+    }
+  },
+  "acts": [
+    "reveal",
+    "wheel",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:38:00+00:00",
+    "fps": 59.2,
+    "motion": 0.0047,
+    "lum": 0.049
+  },
+  "code": "const D = { density:.5, energy:.6, speed:1, scale:1, hue:220, x:.5, y:.45, lines:.6, style:'night', act:'reveal', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst night=style==='night', parch=style==='parchment', blue=style==='blueprint', spec=style==='spectral';\nconst hue=md(P.hue,360);\nconst dens=clp(P.density,0,1);\nconst en=clp(P.energy,0,1);\nconst spd=P.speed;\n\n// star count from density (FIRST poke param \u2014 obvious structural change)\nconst NSTAR=Math.round(90+dens*180);\n// constellation richness from lines param\nconst NCON=Math.round(3+clp(P.lines,0,1)*7);\n\nfunction temp(t){t=clp(t,0,1); // spectral: hot-blue -> white -> yellow -> orange -> red\n  if(t<.3){const k=t/.3;return[md(222-8*k,360),70-40*k,100];}\n  if(t<.6){const k=(t-.3)/.3;return[md(214+ (46*k),360),8+52*k,100];}\n  const k=(t-.6)/.4;return[md(50-40*k,360),60+30*k,100-14*k];\n}\n\n// ---- build seed/density-deterministic sky (stars + constellations + figure) ----\nconst key=P.seed+'|'+NSTAR+'|'+NCON+'|'+style;\nif(S.key!==key){\n  S.key=key; S.seedUsed=P.seed;\n  const stars=[];\n  for(let s=0;s<NSTAR;s++){\n    const mag=Math.pow(fr(s*1.7+3),2.1);              // few bright, many faint\n    stars.push({ x:fr(s*3.1+1), y:fr(s*5.7+2), mag,\n      b: 30+70*(1-mag), sz:0.4+2.4*(1-mag),\n      tr:0.5+2.8*fr(s*7.3+4), tp:fr(s*2.9+5)*TAU,\n      tmp:fr(s*4.4+6) });\n  }\n  // pick bright anchor stars, weave each constellation as a short path/tree\n  const bright=stars.map((v,i)=>i).sort((a,b)=>stars[a].mag-stars[b].mag).slice(0,Math.min(stars.length,NCON*5));\n  const segs=[]; const cons=[];\n  let bi=0;\n  for(let c=0;c<NCON && bi<bright.length;c++){\n    const len=3+Math.floor(fr(c*11.1+9)*4);\n    const idxs=[]; let cur=bright[bi++]; idxs.push(cur);\n    for(let l=1;l<len && bi<bright.length;l++){\n      // connect to nearest unused-ish bright star for a plausible figure\n      let best=-1,bd=1e9;\n      for(let q=bi;q<Math.min(bi+6,bright.length);q++){\n        const o=bright[q]; const dd=Math.hypot(stars[o].x-stars[cur].x,stars[o].y-stars[cur].y);\n        if(dd<bd){bd=dd;best=q;}\n      }\n      if(best<0)break; const nx=bright[best]; bright[best]=bright[bi]; bright[bi]=nx; bi++;\n      segs.push({a:cur,b:nx,c}); cur=nx; idxs.push(cur);\n    }\n    // constellation bounds for the hinted mythic figure\n    let mnx=1,mny=1,mxx=0,mxy=0;\n    idxs.forEach(o=>{mnx=Math.min(mnx,stars[o].x);mny=Math.min(mny,stars[o].y);mxx=Math.max(mxx,stars[o].x);mxy=Math.max(mxy,stars[o].y);});\n    cons.push({idxs,cx:(mnx+mxx)/2,cy:(mny+mxy)/2,r:Math.max(mxx-mnx,mxy-mny)/2+0.04});\n  }\n  S.stars=stars; S.segs=segs; S.cons=cons; S.nseg=segs.length;\n  S.bgKey=null; // force bg rebuild\n}\n// ---- cached backdrop (gradient + nebula), keyed on size+style+seed ----\nconst bgKey=W+'x'+Hh+'|'+style+'|'+P.seed;\nif(S.bgKey!==bgKey){\n  S.bgKey=bgKey;\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  if(parch){ g.background(40,16,90);\n    for(let i=0;i<2600;i++){ const x=fr(i*1.3+11)*W,y=fr(i*2.1+12)*Hh; g.fill(32,40,55,4+8*fr(i*0.7)); g.rect(x,y,1.4,1.4);} // foxing grain\n    g.fill(34,30,40,10); for(let r=0;r<5;r++){g.ellipse(fr(r*9.1+21)*W,fr(r*4.3+22)*Hh,u*0.4,u*0.34);} }\n  else if(blue){ g.background(220,72,16);\n    g.stroke(200,50,90,10); g.strokeWeight(0.7);\n    const st=u*0.08; for(let x=0;x<=W;x+=st)g.line(x,0,x,Hh); for(let y=0;y<=Hh;y+=st)g.line(0,y,W,y); g.noStroke(); }\n  else { // night / spectral deep sky gradient + nebula\n    const top=night?[235,80,12]:[250,70,9], bot=night?[220,55,3]:[275,60,4];\n    for(let y=0;y<Hh;y+=2){ const t=y/Hh; g.fill(md(top[0]+(bot[0]-top[0])*t,360),top[1]+(bot[1]-top[1])*t,top[2]+(bot[2]-top[2])*t); g.rect(0,y,W,2);}\n    for(let n=0;n<4;n++){ const nx=fr(n*6.1+31)*W,ny=fr(n*3.7+32)*Hh,nr=u*(0.2+0.3*fr(n*2.2+33)); const nh=md(hue+ (n*40-40),360);\n      for(let k=4;k>=1;k--){ g.fill(nh,40,60,3*k/4); g.ellipse(nx,ny,nr*k*0.5,nr*k*0.42);} }\n  }\n  S.bg=g;\n}\n\nconst stars=S.stars, segs=S.segs, cons=S.cons, nseg=S.nseg;\n\n// ---- global slow sky rotation (real-time motion floor for ALL styles) ----\nconst wheel=P.act==='wheel';\nconst rot=K.t*(wheel?0.02:0.005)*spd;\nconst cxp=P.x*W, cyp=P.y*Hh, cs=Math.cos(rot), sn=Math.sin(rot);\nfunction proj(nx,ny){ const px=(nx-P.x)*W, py=(ny-P.y)*Hh; return [cxp+px*cs-py*sn, cyp+px*sn+py*cs]; }\n\nimage(S.bg,0,0);\n\n// ---- constellation reveal progress: continuously cycles (guarantees 8s diff) ----\nconst revRate=(P.act==='storm')?0.10:0.055;\nconst rev=md(K.t*revRate*spd + K.section*0.13, 1);   // 0..1 sweep across all segments\nconst litCon=Math.floor(rev*Math.max(1,cons.length));\n\n// draw hinted mythic figure behind the currently-lit constellation\nif(cons.length){\n  const cc=cons[md(litCon,cons.length)];\n  const [fx,fy]=proj(cc.cx,cc.cy); const fr2=cc.r*Math.min(W,Hh)*1.4;\n  const figA=en*(0.5+0.5*K.swell)*ez((rev*cons.length)%1);\n  if(figA>0.02 && !blue){\n    push(); translate(fx,fy);\n    const fh=parch?32:md(hue+30,360), fs=parch?45:40, fb=parch?35:70;\n    noFill(); stroke(fh,fs,fb, (parch?22:16)*figA); strokeWeight(u*0.004*clp(P.scale,.5,2));\n    beginShape();\n    for(let a=0;a<=10;a++){ const an=a/10*TAU; const rr=fr2*(0.5+0.35*Math.sin(an*3+cc.cx*9)+0.2*Math.cos(an*2+P.seed)); vertex(Math.cos(an)*rr,Math.sin(an)*rr*0.8);}\n    endShape(CLOSE); pop();\n  }\n}\n\n// ---- constellation lines drawing in ----\nconst lineH = night? md(hue+6,360) : spec? md(hue+10,360) : parch? 30 : 195;\nconst lineS = parch?55: blue?55: 45;\nconst lineB = parch?38: 92;\nstrokeCap(ROUND);\nfor(let s=0;s<nseg;s++){\n  const seg=segs[s]; const t0=s/Math.max(1,nseg);\n  // reveal window for this segment\n  const w=clp((rev - t0)*Math.max(4,nseg*0.5),0,1);\n  if(w<=0) continue;\n  const A0=stars[seg.a], B0=stars[seg.b];\n  const [ax,ay]=proj(A0.x,A0.y), [bx,by]=proj(B0.x,B0.y);\n  const ex=ax+(bx-ax)*ez(w), ey=ay+(by-ay)*ez(w);\n  const active=Math.abs(seg.c-litCon)<1;\n  const gl=active? (0.7+0.6*K.pulse+0.7*A.mid) : 0.35;\n  stroke(lineH,lineS, lineB, (parch?70:38)*gl*(0.5+0.7*en));\n  strokeWeight(u*(active?0.0028:0.0016)*clp(P.scale,.5,2.2));\n  if(blue){ // schematic dashed vector\n    const dl=Math.hypot(ex-ax,ey-ay), n=Math.max(2,Math.floor(dl/8));\n    for(let d=0;d<n;d+=2){ const u0=d/n,u1=Math.min(1,(d+1)/n); line(ax+(ex-ax)*u0,ay+(ey-ay)*u0, ax+(ex-ax)*u1,ay+(ey-ay)*u1);} }\n  else line(ax,ay,ex,ey);\n}\n\n// ---- stars (twinkle = continuous real-time motion) ----\nnoStroke();\nconst twGlobal=0.6+0.8*en;\nfor(let s=0;s<stars.length;s++){\n  const st=stars[s]; const [x,y]=proj(st.x,st.y);\n  if(x< -4||x>W+4||y<-4||y>Hh+4) continue;\n  const tw=night||spec? (0.6+0.4*Math.sin(K.t*st.tr*spd+st.tp)) : (0.8+0.2*Math.sin(K.t*st.tr*0.5+st.tp));\n  const b=clp(st.b*tw*twGlobal,0,100);\n  const sz=st.sz*u*0.0032*clp(P.scale,.5,2.2)*(0.8+0.5*tw);\n  if(spec){ const c=temp(st.tmp); noStroke(); fill(c[0],c[1]*0.9,clp(b,10,100)); circle(x,y,sz*1.2); }\n  else if(parch){ // engraved ink star: cross tick\n    stroke(30,60,28,clp(b,20,90)); strokeWeight(u*0.0016); const r=sz*1.3;\n    line(x-r,y,x+r,y); line(x,y-r,x,y+r); noStroke(); if(st.mag<0.15){fill(30,60,26,b);circle(x,y,sz*0.9);} }\n  else if(blue){ // ring marker\n    stroke(195,45,95,clp(b,15,80)); strokeWeight(u*0.0013); noFill(); circle(x,y,sz*2.0);\n    if(st.mag<0.1){noStroke();fill(195,30,100,b);circle(x,y,sz*0.9);} noStroke(); }\n  else { // night: white-blue glow dot, shadowBlur only on the brightest\n    if(st.mag<0.12){ drawingContext.shadowBlur=sz*3.5; drawingContext.shadowColor='rgba(180,210,255,0.9)'; }\n    fill(md(hue+ (st.mag<0.3?0:8),360), st.mag<0.2?18:8, b); circle(x,y,sz); drawingContext.shadowBlur=0; }\n}\ndrawingContext.shadowBlur=0;\n\n// ---- rare shooting star (real-time schedule; frequent in 'storm') ----\nconst period=P.act==='storm'?3.5:11.0;\nconst ph=md(K.t/period + fr(99.1), 1);\nif(ph<0.12){\n  const k=ph/0.12; const seedi=Math.floor(K.t/period);\n  const sx=fr(seedi*3.7+41)*W, sy=fr(seedi*1.9+42)*Hh*0.5;\n  const ang=(-0.35+0.7*fr(seedi*5.3+43))+Math.PI*0.15;\n  const len=u*0.22; const hx=sx+Math.cos(ang)*len*k, hy=sy+Math.sin(ang)*len*k;\n  const tx=hx-Math.cos(ang)*len*0.5, ty=hy-Math.sin(ang)*len*0.5;\n  const fade=Math.sin(k*Math.PI);\n  blendMode(ADD);\n  stroke(md(hue+20,360),20,100,70*fade); strokeWeight(u*0.003); line(tx,ty,hx,hy);\n  noStroke(); fill(0,0,100,90*fade); circle(hx,hy,u*0.01*(0.5+fade));\n  blendMode(BLEND);\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}
