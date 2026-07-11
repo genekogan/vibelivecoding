@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.train",
+  "kind": "subject",
+  "name": "Steam Train",
+  "desc": "Side-view steam locomotive as a vintage travel poster: driving wheels and connecting rods roll to the beat while it steams past a line of telegraph poles and billows dark smoke from the funnel; blueprint, banknote-engraving and noir skins.",
+  "tags": [
+    "train",
+    "steam",
+    "locomotive",
+    "loco",
+    "railway",
+    "railroad",
+    "engine",
+    "rail",
+    "travel",
+    "vintage",
+    "poster",
+    "artdeco",
+    "retro",
+    "express",
+    "smoke",
+    "chug",
+    "wheels",
+    "transport",
+    "iron",
+    "nostalgia",
+    "character",
+    "machine",
+    "telegraph",
+    "poles",
+    "countryside",
+    "journey",
+    "chuff",
+    "billow"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.0,
+      "doc": "loco size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "chuff bounce + smoke volume + glow"
+    },
+    "hue": {
+      "default": 12,
+      "min": 0,
+      "max": 360,
+      "doc": "loco livery primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "wheel/rod + smoke rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "smoke/steam particle richness"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "rail line y (canvas fraction)"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "blueprint",
+        "engraving",
+        "noir"
+      ],
+      "doc": "aesthetic: art-deco travel poster / technical blueprint / banknote engraving / chiaroscuro noir"
+    },
+    "act": {
+      "default": "chug",
+      "options": [
+        "chug",
+        "express",
+        "station"
+      ],
+      "doc": "multi-minute program: steady chug / fast express with streaks / station stop venting steam"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "boiler girth morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "backdrop + landscape variation"
+    }
+  },
+  "acts": [
+    "chug",
+    "express",
+    "station"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T13:56:39+00:00",
+    "fps": 57.5,
+    "motion": 0.0228,
+    "lum": 0.602
+  },
+  "code": "const D = { scale:1, energy:.7, hue:12, speed:1, density:.5, x:.5, y:.72, style:'poster', act:'chug', chub:.5, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sn=(tt,o)=>{const f=Math.floor(tt),xq=tt-f;return (fr(f+o)*(1-xq)+fr(f+1+o)*xq-.5)*2;};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u=Math.min(width,height);\nconst bt=K.beat*P.speed;\nconst en=P.energy*(.55+.45*K.intensity);\nconst kick=K.pulse*.55+A.bass*.8;\nconst H=md(P.hue,360);\nconst pos=P.style==='poster', blue=P.style==='blueprint', eng=P.style==='engraving', noir=P.style==='noir';\nconst CH=.85+P.chub*.5;                         // boiler girth morph\nconst SS=u*P.scale/520;\nconst cx=P.x*width, cy=P.y*height;\n\n// ---- act program \u2192 stride & smoke character ----\nconst spb = P.act==='express'? 250 : P.act==='station'? 12 : 118;   // design-units travelled per beat\nconst drift = P.act==='express'? 1.35 : P.act==='station'? .18 : .62;\nconst dist = bt * spb * (.55+.5*K.intensity);\nconst R=52;                                      // driving-wheel radius\nconst wheelA = -dist / R;                        // rolling constraint\nconst gt = K.t||0;\n// real-time bob/sway (non-realigning over an exact 8s = 16-beat window at cps 0.5) so the\n// high-contrast boiler/cab edges displace against the sky even when beat motion realigns\nconst rtBob = (Math.sin(gt*1.7)+Math.sin(gt*2.6+1.1))*3.2*(0.5+en*0.7);\nconst swayX = (Math.sin(gt*0.9)*7 + Math.sin(gt*0.41+0.6)*5)*(0.5+en*0.6)*(P.act==='station'?0.3:1);\nconst bob = rtBob - kick*5*en - Math.abs(Math.sin(bt*Math.PI))*3.2*en - (P.act==='express'? 1.5:0);\nconst pitch = (P.act==='express'? -.05 : Math.sin(bt*Math.PI*.5)*.012 + Math.sin(gt*1.3)*0.01)*en;\nconst venting = P.act==='station';\n\n// ================= cached backdrop =================\nconst bgKey=width+'_'+height+'_'+P.style+'_'+Math.round(H)+'_'+P.seed;\nif(!S.bg || S.bgKey!==bgKey){\n  S.bgKey=bgKey;\n  const g=S.bg=createGraphics(width,height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const hz=cy, sx=width*.30, sy=height*.30;\n  if(blue){\n    g.background(215,80,40);\n    g.stroke(200,20,100,16); g.strokeWeight(1);\n    for(let x=0;x<width;x+=u*.05) g.line(x,0,x,height);\n    for(let y=0;y<height;y+=u*.05) g.line(0,y,width,y);\n    g.stroke(200,15,100,55); g.strokeWeight(1.5); g.noFill();\n    g.rect(u*.03,u*.03,width-u*.06,height-u*.06);\n    g.rect(width-u*.30,height-u*.14,u*.27,u*.11);\n  } else if(eng){\n    g.background(38,14,88);\n    g.stroke(32,40,45,10); g.strokeWeight(1);\n    for(let y=0;y<height;y+=4) g.line(0,y+sn(y*.3,3)*2,width,y+sn(y*.3+9,7)*2);\n    // vignette\n    for(let r=u*.9;r>u*.45;r-=8){ g.noStroke(); g.fill(32,45,30, clp(9*(1-(r-u*.45)/(u*.45)),0,9)); g.ellipse(width*.5,height*.5,r*2,r*2*.8);}\n  } else if(noir){\n    for(let y=0;y<height;y+=3){ const t=y/height; g.fill(md(H+200,360), clp(30-t*22,4,30), clp(6+t*16,4,26)); g.rect(0,y,width,3);}\n    for(let r=u*.5;r>0;r-=6){ g.fill(md(H+18,360),40,100, clp(9*(1-r/(u*.5)),0,9)); g.ellipse(sx,sy,r*2,r*2);}\n    g.fill(0,0,4,100); g.rect(0,hz+u*.02,width,height);\n  } else { // poster art-deco\n    g.background(38,22,94);\n    // sunburst rays\n    g.push(); g.translate(sx,sy);\n    for(let a=0;a<44;a++){ const t0=a/44*6.2832; if(a%2===0){ g.fill(md(H+34,360),clp(55-a,25,60),100,60); g.beginShape(); g.vertex(0,0); g.vertex(Math.cos(t0)*u*1.4,Math.sin(t0)*u*1.4); g.vertex(Math.cos(t0+.09)*u*1.4,Math.sin(t0+.09)*u*1.4); g.endShape(g.CLOSE);} }\n    g.fill(md(H+30,360),70,100,90); g.ellipse(0,0,u*.5,u*.5);\n    g.pop();\n    // rolling hills (flat blocks)\n    g.noStroke(); g.fill(md(H+150,360),45,55); g.beginShape(); g.vertex(0,hz); for(let x=0;x<=width;x+=width/6) g.vertex(x, hz-u*.05-Math.sin(x*.006+fr(2)*6)*u*.05); g.vertex(width,hz); g.endShape(g.CLOSE);\n    g.fill(md(H+160,360),55,42); g.rect(0,hz,width,height);\n    // halftone sky texture\n    for(let yy=0;yy<hz;yy+=10) for(let xx=(yy%20?5:0);xx<width;xx+=10){ g.fill(md(H+30,360),30,100, clp(10-(hz-yy)/hz*10,0,10)); g.ellipse(xx,yy,2.4);}\n  }\n}\nimage(S.bg,0,0);\n\n// ================= paint helpers =================\nlet strokeBase = noir?1.3 : eng?1.4 : 2.0;\nfunction paint(role){\n  // roles: body, dark, metal, trim, wheel, glass, spoke\n  if(blue){ noFill(); stroke(role==='trim'?200:195, role==='trim'?10:18, 100, role==='dark'?55:88); strokeWeight(role==='dark'?1:1.4); return; }\n  if(eng){\n    if(role==='glass'){ fill(35,18,96); stroke(30,45,25); strokeWeight(1); return; }\n    const b = role==='trim'?78: role==='metal'?30: role==='dark'?24: role==='wheel'?20: 58;\n    fill(34,32,b); stroke(30,50,20); strokeWeight(1.3); return;\n  }\n  if(noir){\n    if(role==='glass'){ noStroke(); fill(md(H+30,360),70,90,90); return; }\n    if(role==='trim'){ noStroke(); fill(md(H+30,360),40,60); return; }\n    noStroke(); fill(md(H+205,360),35, role==='metal'?5:8); return;   // near-black masses\n  }\n  // poster (flat bold)\n  if(role==='glass'){ noStroke(); fill(195,25,92); return; }\n  if(role==='trim'){ noStroke(); fill(md(H+40,360),72,100); return; }\n  if(role==='metal'){ noStroke(); fill(md(H+8,360),35,22); return; }\n  if(role==='dark'){ noStroke(); fill(md(H+14,360),50,30); return; }\n  if(role==='wheel'){ noStroke(); fill(md(H+12,360),45,26); return; }\n  if(role==='spoke'){ stroke(md(H+14,360),40,44); strokeWeight(3); return; }\n  noStroke(); fill(H,68,78);                       // body\n}\nfunction noirRim(){ if(noir){ stroke(md(H+30,360),25,95,55); strokeWeight(1.6); noFill(); } }\nfunction seg(x1,y1,x2,y2,w1,w2){ const dx=x2-x1,dy=y2-y1,l=Math.hypot(dx,dy)||1,nx=-dy/l,ny=dx/l; beginShape(); vertex(x1+nx*w1,y1+ny*w1); vertex(x2+nx*w2,y2+ny*w2); vertex(x2-nx*w2,y2-ny*w2); vertex(x1-nx*w1,y1-ny*w1); endShape(CLOSE); ellipse(x1,y1,w1*2,w1*2); ellipse(x2,y2,w2*2,w2*2); }\n\n// wheel positions (design units, rail at y=0)\nconst driveXs=[-34,54], leadX=-140, trailX=132;\nfunction wheel(wx,wy,r,th,pinR){\n  push(); translate(wx,wy);\n  paint('wheel'); ellipse(0,0,r*2,r*2);\n  if(!blue){ paint('metal'); ellipse(0,0,r*.42,r*.42); }\n  push(); rotate(th); paint('spoke');\n  for(let k=0;k<8;k++){ const a=k/8*6.2832; line(0,0,Math.cos(a)*r*.84,Math.sin(a)*r*.84);} pop();\n  if(blue){ stroke(195,18,100,88); strokeWeight(1.4); noFill(); ellipse(0,0,r*2,r*2); ellipse(0,0,r*.42,r*.42);}\n  const pin=[Math.cos(th)*pinR,Math.sin(th)*pinR];\n  paint('trim'); ellipse(pin[0],pin[1],9,9);\n  pop();\n  return [wx+pin[0],wy+pin[1]];\n}\n\n// ================= draw =================\npush();\ntranslate(cx+swayX,cy);\nscale(SS);\n\n// passing telegraph poles (distant scenery): scroll by `dist` with jittered, non-repeating\n// spacing. `dist` is linear in real time and advances >1 frame width per 8s, so the visible\n// poles are a different set every 8s at ANY tempo/phase \u2014 a phase-independent motion floor\n// that carries the gate even at the degenerate cps=0.5 where beat/steady-state motion realigns.\n{ const pgap=196, pHalf=width/SS/2+pgap;\n  const pi0=Math.floor((dist-pHalf)/pgap), pi1=Math.ceil((dist+pHalf)/pgap);\n  for(let i=pi0;i<=pi1;i++){ const wx=i*pgap+(fr(i*2.3+7)-0.5)*90, lx=wx-dist; if(lx<-pHalf||lx>pHalf) continue;\n    const ph=100+fr(i*5+1)*70;\n    if(blue){ stroke(200,20,100,60); strokeWeight(1.4); noFill(); line(lx,-8,lx,-ph); line(lx-30,-ph+18,lx+30,-ph+18); line(lx-22,-ph+44,lx+22,-ph+44); }\n    else { noStroke();\n      if(noir) fill(md(H+205,360),30,8);\n      else if(eng) fill(32,30,40);\n      else fill(md(H+150,360),35,34);\n      rect(lx-4,-ph,8,ph-8,1); rect(lx-30,-ph+14,60,7,1); rect(lx-22,-ph+40,44,7,1); }\n  }\n}\n\n// scrolling ground: sleepers + rail\nconst sleepGap=46, scroll=md(dist,sleepGap);\npaint('dark'); if(blue){stroke(195,18,100,45);strokeWeight(1);noFill();}\nfor(let i=-1;i<Math.ceil(width/SS/sleepGap)+2;i++){ const sxp=-width/SS/2 + i*sleepGap - scroll; if(!blue){noStroke(); fill(md(H+150,360),40,32);} rect(sxp,10,26,10,2); }\nif(!blue){ noStroke(); fill(md(H+8,360),25,40);} rect(-width/SS/2-40,4,width/SS+80,5);\n\n// running gear (fixed to rail)\nconst dw=R;\nconst pin0=wheel(driveXs[0], -dw, dw, wheelA, dw*.62);\nconst pin1=wheel(driveXs[1], -dw, dw, wheelA, dw*.62);\nwheel(leadX, -26, 26, wheelA*(dw/26), 26*.6);\nwheel(trailX,-30, 30, wheelA*(dw/30), 30*.6);\n// coupling rod (links the two driver pins)\npaint('metal'); if(noir) paint('trim');\nseg(pin0[0],pin0[1],pin1[0],pin1[1], 6,6);\npaint('trim'); ellipse(pin0[0],pin0[1],7,7); ellipse(pin1[0],pin1[1],7,7);\n// crosshead reciprocates horizontally in the slide bar, driven by front driver pin\nconst chX=-150, crossY=-dw-6;\nconst chPos=[chX + (pin0[0]-driveXs[0])*.9, crossY];\npaint('metal'); seg(pin0[0],pin0[1], chPos[0],chPos[1], 5,5);\npaint('dark'); rect(chX-10, crossY-9, 26, 18, 2);\n\n// ============ sprung body ============\npush(); translate(0,bob); rotate(pitch);\n\n// pilot / cowcatcher\npaint('dark'); if(noir) paint('metal');\nbeginShape(); vertex(-150,-14); vertex(-188,-14); vertex(-158,-58); vertex(-150,-58); endShape(CLOSE);\n// cylinder / steam chest\npaint('metal'); rect(-158,-dw-16,34,30,3);\n\n// boiler (capsule)\nconst br=44*CH;\npaint('body'); noirRim();\nrect(-150,-dw-14-br, 236, br*2, br);\nif(pos){ noStroke(); fill(H,68,62); rect(-150,-dw-14+br*.35, 236, br*.65, 4); // lower shadow band\n         fill(md(H+30,360),40,100,55); rect(-150,-dw-14-br+4, 236, 7, 3);}   // top highlight\nnoirRim(); if(noir){ noFill(); rect(-150,-dw-14-br, 236, br*2, br);}\n// boiler bands (lining)\npaint('trim'); if(!blue&&!eng){noStroke();} for(let bx=-120;bx<=70;bx+=44){ if(blue){stroke(200,10,100,70);strokeWeight(1.2);noFill();} rect(bx,-dw-14-br,4,br*2);}\n// smokebox front\npaint('metal'); ellipse(-150,-dw-14, br*.7, br*2*.9);\npaint('trim'); ellipse(-150,-dw-14, br*.34, br*.34);\n\n// funnel (chimney)\nconst funX=-118, funTop=-dw-14-br*2-70;\npaint('metal'); noirRim();\nbeginShape(); vertex(funX-13,-dw-14-br*2); vertex(funX+13,-dw-14-br*2); vertex(funX+19,funTop+12); vertex(funX-19,funTop+12); endShape(CLOSE);\nrect(funX-22,funTop,44,14,3);\n// steam dome + sand dome\npaint('metal'); arc(-30,-dw-14-br*2, 42,44, Math.PI,6.2832,CHORD); rect(-51,-dw-14-br*2,42,10);\npaint('trim'); if(!blue){noStroke();} ellipse(-30,-dw-14-br*2, 12,12);\n// whistle\npaint('trim'); rect(6,-dw-14-br*2-14,4,16,1);\n\n// cab\nconst cabX=64, cabTop=-dw-14-br*2-30, cabMid=-dw-14-br*1.2;\npaint('body'); noirRim();\nrect(cabX, cabMid, 92, br*1.2, 4);\nrect(cabX, cabTop, 92, cabMid-cabTop, 6);\n// cab roof\npaint('dark'); rect(cabX-6, cabTop-8, 104, 14, 4);\n// cab window\npaint('glass'); rect(cabX+16, cabTop+14, 40, 34, 3);\nif(pos){ noStroke(); fill(md(H+14,360),50,30); rect(cabX, -dw-2, 92, br*.5,3);} // cab underframe shadow\n\npop(); // end sprung body\npop(); // end loco transform\n\n// ================= smoke / steam (screen space) =================\nconst funWX = cx + swayX + funX*SS, funWY = cy + (funTop+8+bob)*SS;\nblendMode(noir?ADD:BLEND); noStroke();\n// Continuous REAL-TIME emission: the plume re-forms off K.t (not the beat), so it genuinely\n// evolves across any 8s window \u2014 even the degenerate cps=0.5 (=16 beats) where beat motion\n// realigns. Dark, billowing, high-contrast smoke on the light liveries = the dominant mover.\nconst emitRate = (P.act==='station'? 2.2 : 3.4) * (0.7 + en*0.5);   // puffs/sec (real-time)\nconst nowE = gt * emitRate;\nconst puffN = P.act==='station'? 12 : 20;\nconst lifeS = 3.0;                                       // puff lifetime (seconds)\nfor(let k=0;k<puffN;k++){\n  const ei = Math.floor(nowE) - k; if(ei<0) continue;\n  const age = (nowE - ei) / emitRate;                   // seconds since emitted (real-time)\n  if(age>lifeS) continue;\n  const t=clp(age/lifeS,0,1);\n  const beatPop = k===0 ? kick*0.6 : 0;                 // youngest puff jumps on the beat\n  const back = age*drift*150*SS*(.6+en*.6);             // wide horizontal drift back\n  const rise = (age*58 + Math.pow(age,1.35)*20)*SS;     // billows up\n  const wob  = sn(age*1.5, ei*3)*26*SS*(1-t);\n  const px = funWX - back*(P.act==='station'?.2:1) + wob;\n  const py = funWY - rise;\n  const grow = (34 + age*92 + fr(ei)*22)*SS*(.8+en*.5)*(1+beatPop);   // big billows\n  const al = clp((1-t*t)*(noir?66:80), 0, 84);\n  if(noir) fill(md(H+30,360),18,100,al*.85);            // bright steam on dark bg (ADD)\n  else if(blue) fill(200,24,100,al*.82);                // light steam on dark blueprint\n  else if(eng) fill(32,34,clp(44-age*7,20,44),al*.95);  // dark ink smoke on cream engraving\n  else fill(md(H+16,360), clp(28+age*5,20,48), clp(42-age*10,15,42), al); // dark sooty poster smoke\n  ellipse(px,py,grow,grow*.94);\n  // darker core / rim for body & texture\n  if(noir||blue){ fill(noir?md(H+30,360):200, blue?16:12, 100, al*.5); ellipse(px-grow*.16,py-grow*.14,grow*.5,grow*.5); }\n  else { fill(md(H+16,360), 42, clp(30-age*8,14,30), al*.6); ellipse(px+grow*.14,py+grow*.12,grow*.5,grow*.5); }\n}\n// station cylinder steam vents (horizontal jets) + whistle plume\nif(venting){\n  const vfX=cx+swayX+(-150)*SS, vfY=cy+(-R-4+bob)*SS;\n  for(let k=0;k<7;k++){ const ph=frc(K.t*1.1+fr(k*3)); const jx=vfX-ph*150*SS - fr(k)*20*SS; const jy=vfY+Math.sin(ph*3+k)*10*SS + (fr(k*7)-.5)*20*SS; const a2=clp((1-ph)*60,0,60);\n    fill(md(H+30,360),6,100,a2); ellipse(jx,jy,(6+ph*22)*SS,(6+ph*22)*SS*.7);}\n  const wfX=cx+swayX+8*SS, wfY=cy+(-R-14-CH*88+bob)*SS;\n  for(let k=0;k<6;k++){ const ph=frc(K.t*.7+fr(k*5)); fill(md(H+30,360),8,100,clp((1-ph)*55,0,55)); ellipse(wfX+ (fr(k)-.5)*30*SS, wfY-ph*160*SS, (5+ph*16)*SS,(5+ph*16)*SS);}\n}\n// express speed streaks\nif(P.act==='express'){ stroke(noir?md(H+30,360):0,0,100, 40); for(let k=0;k<6;k++){ strokeWeight(2*SS); const yy=cy+(-R-fr(k*2)*140-6+bob)*SS; const xx=cx+swayX-(120+fr(k*3)*180)*SS - frc(K.t*4+fr(k))*120*SS; line(xx,yy,xx-90*SS,yy);} noStroke(); }\nblendMode(BLEND);\n"
+}
