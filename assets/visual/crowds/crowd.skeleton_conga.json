@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.skeleton_conga",
+  "kind": "crowd",
+  "name": "Skeleton Conga Line",
+  "desc": "A calavera conga line of papel-picado skeletons snaking across the frame, hands on the shoulders ahead, kicking a leg out on every fourth beat while their bones rattle to the hi-hats.",
+  "tags": [
+    "skeleton",
+    "skeletons",
+    "calavera",
+    "conga",
+    "conga-line",
+    "dance",
+    "parade",
+    "procession",
+    "dia-de-muertos",
+    "day-of-the-dead",
+    "papel-picado",
+    "cut-paper",
+    "mexican",
+    "folk-art",
+    "bones",
+    "skull",
+    "posada",
+    "engraving",
+    "neon",
+    "xray",
+    "festive",
+    "macabre",
+    "spooky",
+    "halloween",
+    "fiesta",
+    "crowd",
+    "march",
+    "celebration"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "skeleton height vs design"
+    },
+    "n": {
+      "default": 8,
+      "min": 4,
+      "max": 14,
+      "doc": "skeletons in the line"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "march speed + kick throw"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall motion rate"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue shift"
+    },
+    "sway": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "snake wave amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "decorative cut-out detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor (line scrolls)"
+    },
+    "y": {
+      "default": 0.58,
+      "min": 0.2,
+      "max": 0.9,
+      "doc": "line vertical centre"
+    },
+    "style": {
+      "default": "papel-picado",
+      "options": [
+        "papel-picado",
+        "engraving",
+        "bone",
+        "neon",
+        "xray"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "parade",
+      "options": [
+        "parade",
+        "spiral",
+        "breakdown"
+      ],
+      "doc": "multi-minute line program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "parade",
+    "spiral",
+    "breakdown"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:04:10+00:00",
+    "fps": 61.7,
+    "motion": 0.0777,
+    "lum": 0.124
+  },
+  "code": "const D = { scale: 1, n: 8, energy: .6, speed: 1, hue: 320, sway: .6, density: .5, x: .5, y: .58, style: 'papel-picado', act: 'parade', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst PI = Math.PI, TAU2 = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst N = Math.max(4, Math.min(14, Math.round(P.n)));\nconst sty = P.style;\nconst glow = (sty === 'xray' || sty === 'neon');\nconst inten = 0.4 + 0.6 * K.intensity;\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\n\n// festive papel-picado tissue palette (hue-shifted by P.hue)\nconst FEST = [ [0,0,0], [40,90,100], [190,80,96], [140,70,92], [55,88,100], [270,55,96] ];\nconst ho = P.hue - 320;\n\n// act programs: how the line is arranged\nconst ACT = {\n  parade:    { seg: 1.0, coil: 0.0, scatter: 0.0, sp: 1.0 },\n  spiral:    { seg: 0.85, coil: 0.4 + 0.5 * (sec % 4) / 3, scatter: 0.0, sp: 0.85 },\n  breakdown: { seg: 1.15, coil: 0.0, scatter: (sec % 4 === 2) ? 0.9 : 0.15, sp: 1.2 } };\nconst ac = ACT[P.act] || ACT.parade;\n\nconst seg = (0.9 / N + 0.02) * ac.seg;               // spacing along path (0..1 units)\nconst lead = K.t * 0.12 * P.speed * (0.6 + 0.8 * P.energy) * ac.sp;   // continuous scroll\nconst waveA = u * 0.11 * P.sway * (0.55 + 0.65 * inten);\nconst bodyH = u * 0.34 * P.scale;                    // skeleton height at scale 1\n\n// ---- paint state helpers ----\nlet curW = 1;\nfunction boneStroke(bright, a) {\n  if (sty === 'neon') { stroke(hw(160 + ho), 90, 100, a == null ? 100 : a); }\n  else if (sty === 'xray') { stroke(hw(200 + ho), 30, 100, a == null ? 90 : a); }\n  else if (sty === 'engraving') { stroke(35, 12, 16, a == null ? 100 : a); }\n  else stroke(0, 0, bright, a == null ? 100 : a);\n}\nfunction boneFill(col, a) {\n  if (sty === 'neon') { noFill(); return false; }\n  if (sty === 'xray') { fill(hw(200 + ho), 45, 96, (a == null ? 34 : a)); return true; }\n  if (sty === 'engraving') { fill(38, 10, 90, a == null ? 100 : a); return true; }\n  if (sty === 'bone') { fill(38, 16, 92, a == null ? 100 : a); return true; }\n  fill(hw(col[0] + (col[1] ? ho : 0)), col[1], col[2], a == null ? 100 : a); return true; // papel-picado\n}\n\n// draw a single limb bone as a capsule\nfunction bone(x1, y1, x2, y2, w, col) {\n  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) + 1e-3;\n  const nx = -dy / len * w, ny = dx / len * w;\n  if (sty === 'bone') { drawingContext.shadowBlur = 6; drawingContext.shadowColor = 'rgba(0,0,0,0.5)'; }\n  const f = boneFill(col);\n  if (glow) { boneStroke(100); strokeWeight(w * 1.1); line(x1, y1, x2, y2); }\n  else {\n    boneStroke(sty === 'engraving' ? 16 : 0, sty === 'papel-picado' ? 0 : 100);\n    strokeWeight(sty === 'papel-picado' ? w * 0.16 : 1.1);\n    if (!f) noStroke();\n    beginShape();\n    vertex(x1 + nx, y1 + ny); vertex(x2 + nx, y2 + ny);\n    vertex(x2 - nx, y2 - ny); vertex(x1 - nx, y1 - ny);\n    endShape(CLOSE);\n    // knuckle ends\n    if (f) { noStroke(); boneFill(col); ellipse(x1, y1, w * 2, w * 2); ellipse(x2, y2, w * 2, w * 2); }\n  }\n  if (sty === 'engraving') { // hatch shading\n    boneStroke(16, 40); strokeWeight(0.6);\n    for (let h = -1; h <= 1; h++) line(x1 + nx * h * 0.6, y1 + ny * h * 0.6, x2 + nx * h * 0.6, y2 + ny * h * 0.6);\n  }\n  drawingContext.shadowBlur = 0;\n}\n\nfunction skull(x, y, r, col, treble) {\n  push(); translate(x, y);\n  if (sty === 'bone') { drawingContext.shadowBlur = 8; drawingContext.shadowColor = 'rgba(0,0,0,0.5)'; }\n  if (glow) {\n    boneStroke(100); strokeWeight(r * 0.14); noFill();\n    ellipse(0, -r * 0.1, r * 1.7, r * 1.9);\n    rect(-r * 0.5, r * 0.55, r, r * 0.7, r * 0.2);\n  } else {\n    boneFill(col); if (sty === 'papel-picado') { noStroke(); } else { boneStroke(sty === 'engraving' ? 16 : 0); strokeWeight(1.1); }\n    // scalloped cranium\n    beginShape();\n    for (let a = 0; a <= TAU2 + 0.01; a += TAU2 / 24) {\n      const scal = (sty === 'papel-picado') ? (1 + 0.05 * Math.sin(a * 12)) : 1;\n      vertex(Math.cos(a) * r * 0.85 * scal, -r * 0.1 + Math.sin(a) * r * 0.95 * scal);\n    }\n    endShape(CLOSE);\n    boneFill(col); rect(-r * 0.5, r * 0.55, r, r * 0.62, r * 0.18);\n  }\n  drawingContext.shadowBlur = 0;\n  // eye sockets + nasal (dark cut-outs)\n  const eye = (sty === 'neon') ? null : (sty === 'xray') ? [200, 60, 20] : [0, 0, 6];\n  if (eye) { noStroke(); fill(eye[0], eye[1], eye[2], sty === 'xray' ? 80 : 100); }\n  else { noFill(); boneStroke(100); strokeWeight(r * 0.09); }\n  const ew = r * 0.42;\n  ellipse(-r * 0.34, -r * 0.16, ew, ew * 1.15);\n  ellipse(r * 0.34, -r * 0.16, ew, ew * 1.15);\n  if (eye) { fill(eye[0], eye[1], eye[2]); triangle(0, r * 0.05, -r * 0.14, r * 0.34, r * 0.14, r * 0.34); noStroke(); }\n  else { triangle(0, r * 0.05, -r * 0.14, r * 0.34, r * 0.14, r * 0.34); }\n  // grin teeth\n  boneStroke(0, sty === 'neon' ? 90 : 70); strokeWeight(Math.max(0.8, r * 0.05));\n  for (let t = -2; t <= 2; t++) line(t * r * 0.18, r * 0.55, t * r * 0.18, r * 0.95 + treble * r * 0.3);\n  noStroke();\n  pop();\n}\n\n// ---- draw the conga line ----\nfor (let i = N - 1; i >= 0; i--) {                    // back-to-front\n  const col = FEST[(i + Math.floor(P.seed)) % FEST.length];\n  const pos = lead - i * seg;\n  const wrapT = ((pos % 1) + 1) % 1;                  // 0..1 wrap across width\n  let bx = wrapT * (width + bodyH) - bodyH * 0.5;\n  const phase = wrapT * TAU2 * 1.6 + K.t * 0.5 * P.speed;\n  let by = height * P.y + Math.sin(phase) * waveA;\n  // coil (spiral act) pulls line toward centre with rotation\n  if (ac.coil > 0) { const cr = u * 0.28 * (1 - i / N); const ca = wrapT * TAU2 * 1.4 + K.t * 0.3;\n    bx = bx * (1 - ac.coil) + (width * 0.5 + Math.cos(ca) * cr) * ac.coil;\n    by = by * (1 - ac.coil) + (height * P.y + Math.sin(ca) * cr * 0.6) * ac.coil; }\n  if (ac.scatter > 0) { bx += (fr(i * 2 + 1) - 0.5) * width * 0.5 * ac.scatter;\n    by += (fr(i * 2 + 2) - 0.5) * height * 0.4 * ac.scatter; }\n\n  // per-skeleton rippled kick (every 4th beat, cascading down the line)\n  const local = K.beat * P.speed - i * 0.16;\n  const lbi = Math.floor(local), lph = local - lbi;\n  const onKick = ((((lbi % 4) + 4) % 4) === 0);\n  const kick = onKick ? Math.pow(1 - lph, 3) : 0;\n  const bob = -kick * bodyH * 0.09 + Math.sin(phase) * 0 - Math.abs(Math.sin(K.beat * PI * P.speed + i)) * bodyH * 0.02;\n  by += bob;\n  // treble rattle\n  const rat = A.treble * u * 0.012 + K.pulse * u * 0.002;\n  const jit = () => (fr(i * 9 + Math.floor(K.t * 30)) - 0.5) * rat;\n\n  const s = bodyH;\n  const w = s * 0.045;\n  // slope tilt from wave\n  const tilt = Math.cos(phase) * 0.12 * (waveA / (u * 0.11 + 1e-3));\n  push();\n  translate(bx + jit(), by + jit());\n  rotate(tilt);\n  // spine\n  const hipY = 0, shoY = -s * 0.34, neckY = -s * 0.46;\n  bone(0, hipY, 0, shoY, w * 0.9, col);\n  // pelvis\n  bone(-s * 0.11, hipY, s * 0.11, hipY, w * 1.1, col);\n  // ribcage (curved bars)\n  for (let r = 0; r < 4; r++) {\n    const ry = shoY + r * s * 0.06;\n    const rw = s * (0.13 - r * 0.012);\n    boneFill(col, sty === 'xray' ? 22 : 100);\n    if (sty === 'papel-picado') noStroke(); else { boneStroke(sty === 'engraving' ? 16 : 0); strokeWeight(1); if (glow) noFill(); }\n    if (glow) { strokeWeight(w * 0.7); noFill(); }\n    beginShape(); vertex(-rw, ry - s * 0.02); vertex(0, ry + s * 0.01); vertex(rw, ry - s * 0.02); endShape();\n    // papel-picado punched holes in ribcage\n    if (sty === 'papel-picado' && r % 2 === 0) { fill(0, 0, 8); ellipse(0, ry - s * 0.005, w * 1.1, w * 1.1); }\n  }\n  // arms reach forward onto shoulder ahead (conga hold) + swing on kick\n  const armSw = kick * 0.5 + Math.sin(K.beat * PI * P.speed + i) * 0.15;\n  const shx = s * 0.13;\n  bone(-shx, shoY, -shx - s * 0.16, shoY - s * 0.02 - armSw * s * 0.1, w * 0.7, col);\n  bone(-shx - s * 0.16, shoY - s * 0.02 - armSw * s * 0.1, -shx - s * 0.34, shoY - s * 0.12 - armSw * s * 0.16, w * 0.6, col);\n  bone(shx, shoY, shx + s * 0.16, shoY + s * 0.04 + armSw * s * 0.08, w * 0.7, col);\n  bone(shx + s * 0.16, shoY + s * 0.04 + armSw * s * 0.08, shx + s * 0.32, shoY - s * 0.02 - armSw * s * 0.12, w * 0.6, col);\n  // legs \u2014 one plants, one kicks out on the beat (conga step)\n  const kdir = (i % 2 === 0) ? 1 : -1;\n  const kOut = kick * kdir * s * 0.24;\n  const kUp = kick * s * 0.14;\n  // planted leg\n  bone(-s * 0.08, hipY, -s * 0.1, hipY + s * 0.26, w * 0.8, col);\n  bone(-s * 0.1, hipY + s * 0.26, -s * 0.09, hipY + s * 0.5, w * 0.7, col);\n  // kicking leg\n  bone(s * 0.08, hipY, s * 0.11 + kOut * 0.5, hipY + s * 0.24 - kUp, w * 0.8, col);\n  bone(s * 0.11 + kOut * 0.5, hipY + s * 0.24 - kUp, s * 0.12 + kOut, hipY + s * 0.46 - kUp * 1.4, w * 0.7, col);\n  // skull\n  skull(0, neckY - s * 0.14, s * 0.14, col, A.treble);\n  pop();\n}\nnoStroke();\ndrawingContext.shadowBlur = 0;\n"
+}
