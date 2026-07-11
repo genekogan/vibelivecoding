@@ -68,3 +68,14 @@ use **nohup detached scripts** instead, which survive.
 `python assets/tools/review.py visual` — deploys each asset live, keys 1–5 to
 grade. Grades → `assets/review.jsonl`, folded into the index. Second pass:
 improve/replace ≤2, make variations of 5s, rescue the graveyard.
+
+## Spot-compose sanity check (2026-07-11 ~14:35 ET)
+Composed a full 10-slot neon-club scene (world.club/floor.led_grid/set.dj_booth/
+set.mirror_ball/subject.dj/subject.robot/crowd.disco_dancers/fx.lasers/
+fx.confetti/post.vignette). Result: **60fps, 10 layers, 0 runtime errors** on
+clean all-at-once deploy — slots bind, z-order holds, perf well above the 20fps
+stage floor. (A transient "push is not a function" appears only during slow
+one-by-one deploys — a mid-frame init race, harmless.) Tuning note: set.dj_booth
+renders an oversized bright backdrop panel that dominates the frame; needs a
+P.scale/opacity trim to layer politely. Crowd/subjects read as stylized (not
+cartoon-cute) — aesthetic redirect confirmed on-canvas.
