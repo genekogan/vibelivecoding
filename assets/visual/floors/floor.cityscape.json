@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.cityscape",
+  "kind": "floor",
+  "name": "Cityscape Floor",
+  "desc": "Synthwave perspective grid scrolling toward a glowing horizon with rising neon motes; blueprint, thermal false-color and wet-asphalt noir variants.",
+  "tags": [
+    "cityscape",
+    "city",
+    "grid",
+    "synthwave",
+    "retrowave",
+    "neon",
+    "perspective",
+    "floor",
+    "stage",
+    "vaporwave",
+    "tron",
+    "street",
+    "night",
+    "magenta",
+    "cyan",
+    "blueprint",
+    "thermal",
+    "noir",
+    "dark",
+    "electronic",
+    "dance",
+    "80s",
+    "outrun"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "grid line + rising-mote count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "neon glow amplitude + beat flare"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "primary grid hue (300 = synthwave magenta)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "grid cell size / perspective spread"
+    },
+    "warp": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel curvature of the converging verticals"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic starfield/mote seed"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "blueprint",
+        "thermal",
+        "noir"
+      ],
+      "doc": "aesthetic: neon synthwave / drafting blueprint / thermal false-color / wet-asphalt noir"
+    },
+    "act": {
+      "default": "cruise",
+      "options": [
+        "cruise",
+        "pulse",
+        "tide"
+      ],
+      "doc": "dramaturgy: steady cruise / beat-surging pulse / slow-breathing tide"
+    }
+  },
+  "acts": [
+    "cruise",
+    "pulse",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:03:03+00:00",
+    "fps": 59.9,
+    "motion": 0.0185,
+    "lum": 0.136
+  },
+  "code": "const D = { density: .55, energy: .6, hue: 300, speed: 1, scale: 1, warp: .3, x: .5, y: .46, seed: 0, style: 'neon', act: 'cruise' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst hz = cl(P.y, .28, .72) * height;\nconst cx = cl(P.x, .05, .95) * width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t, 1.7) * groundH;\nconst hwOf = t => width * (.045 + t * .95) * .5 * P.scale;\nconst NR = Math.round(9 + P.density * 34);\nconst NC = Math.round(6 + P.density * 18);\n\n// audio-smoothed, blended on top of clk baseline\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nS.tre  = (S.tre||0)*.8 + (A.treble||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.7);\n\n// real-time scroll floor (integrate real seconds -> never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.55 + .8*K.intensity);\nif (P.act === 'pulse') sp *= 1 + 1.1*kick;\nif (P.act === 'tide')  sp *= .35 + .95*(.5 + .5*Math.sin(K.t*.06 + K.section*.9));\nS.scroll = (S.scroll||0) + dt*sp*.62;\nconst scroll = S.scroll;\n\n// palettes per style\nconst H = P.hue;\nconst P2 = (H + 150) % 360;                 // complement-ish accent\nconst isDark = sty!=='thermal';\n\n// ---- cached structural base (plane gradient + static texture) ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*8)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8)+'|'+Math.round(P.warp*8);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  // sky/void above horizon\n  const STR = 54;\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz;\n    let h,s,b;\n    if (sty==='thermal'){ h= 230-120*f; s=70; b=8+10*f; }\n    else if (sty==='blueprint'){ h=P.hue; s=64; b=14+8*f; }\n    else if (sty==='noir'){ h=0; s=0; b=4+9*f; }\n    else { h=(H+40*f)%360; s=55; b=4+9*(1-f); }\n    g.fill(h,s,b,100); g.rect(0,y,width,hz/STR+1);\n  }\n  // horizon glow band\n  if (sty!=='blueprint'){ g.push(); g.blendMode(ADD);\n    for(let i=0;i<7;i++){ const r=(7-i)*groundH*.05; const bb= sty==='noir'?60:70;\n      g.fill(sty==='thermal'?45:H, sty==='noir'?0:80, bb, 9);\n      g.rect(0, hz-r*.35, width, r); } g.pop(); }\n  // ground plane gradient\n  for (let i=0;i<STR;i++){ const f=i/STR, t=f, y=yOf(t), y2=yOf((i+1)/STR);\n    let h,s,b;\n    if (sty==='thermal'){ h= 250-250*Math.pow(t,1.3); s=85; b=14+70*Math.pow(t,1.6); if(t>.82){h=45;s=30-100*(t-.82);b=94;} }\n    else if (sty==='blueprint'){ h=P.hue; s=60; b=16+14*t; }\n    else if (sty==='noir'){ h=0; s=0; b=6+30*Math.pow(t,1.4); }\n    else { h=(H+30*t)%360; s=48-20*t; b=7+16*Math.pow(t,1.3); }\n    g.fill(h,s,cl(b,2,90),100); g.rect(0,y,width,(y2-y)+1);\n  }\n  // static texture per style\n  g.push();\n  if (sty==='noir'){ // wet-asphalt speckle reflections\n    g.blendMode(ADD);\n    for(let i=0;i<140;i++){ const t=.15+.85*fr(i*2), y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(i*2+1)*2-1)*hw; g.fill(0,0,90,4+8*t); g.rect(x-.5*t*4,y, 1+t*4, t*18); } }\n  else if (sty==='blueprint'){ // graph ticks above horizon\n    g.stroke(P.hue,45,60,26); g.strokeWeight(1);\n    for(let i=1;i<10;i++){ const y=i/10*hz; g.line(0,y,width,y); }\n    for(let i=1;i<16;i++){ const x=i/16*width; g.line(x,0,x,hz); } g.noStroke(); }\n  else if (sty==='thermal'){ // faint hot noise\n    g.blendMode(ADD);\n    for(let i=0;i<90;i++){ const t=fr(i*3), y=yOf(.1+.9*t), x=fr(i*3+1)*width;\n      g.fill(30+40*t,80,90,5); g.ellipse(x,y,6+t*10,6+t*10); } }\n  else { // neon starfield above horizon\n    g.blendMode(ADD);\n    for(let i=0;i<70;i++){ const x=fr(i*5)*width, y=fr(i*5+1)*hz*.94, m=fr(i*5+2);\n      g.fill((H+120*m)%360,60,90,20+40*m); g.ellipse(x,y,1+m*2.4,1+m*2.4); } }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- live animated grid + particles ----\nnoFill();\nconst warp = P.warp;\nconst wx = (u, t) => { const d = (u-0.5); return cx + d*width*(.03 + t*t*1.9)*P.scale * (1 + warp*1.3*d*d*4*(1-t)); };\n\n// scanning horizontal rows\nfor (let r=0; r<=NR; r++){\n  let t = (r - ((scroll)%1)) / NR;\n  if (t<=0.0 || t>1) continue;\n  const y = yOf(t), hw = hwOf(t);\n  const near = t;\n  let h,s,b,a,sw;\n  if (sty==='neon'){ h=H; s=90; b=100; a=18+70*near; sw=.6+near*2.6; }\n  else if (sty==='thermal'){ h=250-250*Math.pow(t,1.3); s=90; b=100; a=14+55*near; sw=.6+near*2.2; }\n  else if (sty==='blueprint'){ h=P.hue; s=30; b=96; a=22+50*near; sw=.5+near*1.4; }\n  else { h=0; s=0; b=100; a=10+52*near; sw=.5+near*2.2; } // noir\n  stroke(h,s,b, a*(.6+.6*glow));\n  strokeWeight(sw);\n  if (sty==='neon'){ drawingContext.shadowBlur = (6+18*near)*glow; drawingContext.shadowColor = color(h,s,100,90).toString(); }\n  line(cx-hw, y, cx+hw, y);\n}\ndrawingContext.shadowBlur = 0;\n\n// converging verticals\nfor (let c=0; c<=NC; c++){\n  const u = c/NC;\n  let h,s,b,a,sw;\n  if (sty==='neon'){ h=P2; s=90; b=100; a=42; sw=1.4; }\n  else if (sty==='thermal'){ h=20; s=80; b=95; a=30; sw=1.1; }\n  else if (sty==='blueprint'){ h=P.hue; s=28; b=96; a=40; sw=.9; }\n  else { h=0; s=0; b=100; a=26; sw=1.1; }\n  stroke(h,s,b, a*(.6+.5*glow));\n  strokeWeight(sw);\n  if (sty==='neon'){ drawingContext.shadowBlur = 8*glow; drawingContext.shadowColor = color(h,s,100,80).toString(); }\n  line(wx(u,0)*.001+cx*.999, hz, wx(u,1), height);\n}\ndrawingContext.shadowBlur = 0;\n\n// rising light motes / embers (continuous travel)\nconst NP = Math.round(P.density * 74);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane = fr(i*4);\n  const spd = .5 + fr(i*4+1)*1.1;\n  let prog = (fr(i*4+2) + scroll*.14*spd) % 1;\n  const t = 1 - prog;                 // travels from viewer up toward horizon\n  if (t<=.02) continue;\n  const y = yOf(t), hw = hwOf(t);\n  const x = cx + (lane*2-1)*hw*.96 + Math.sin(K.t*.6 + i)*hw*.03;\n  const sz = (1.4 + 6*t) * (1 + .6*S.tre);\n  let h = sty==='thermal' ? (18+40*t) : sty==='noir' ? 0 : (H + 160*fr(i*4+3))%360;\n  let s = sty==='noir' ? 0 : 80;\n  const a = (10 + 40*t) * (.5+.9*glow) * (.7 + .8*fr(i*4+1));\n  fill(h, s, 100, Math.min(46, a));\n  ellipse(x, y, sz, sz);\n}\npop();\n\n// horizon flare pump on the beat (partial-frame, safe for strobe gate)\npush(); blendMode(ADD); noStroke();\nconst flare = (kick*.7 + K.swell*.3) * glow;\nconst fh = sty==='thermal'?45 : sty==='noir'?0 : H;\nfor (let i=0;i<5;i++){ const rr=(5-i)*groundH*.045*(1+flare);\n  fill(fh, sty==='noir'?0:70, sty==='noir'?85:95, 4+9*flare);\n  rect(0, hz-rr*.4, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
