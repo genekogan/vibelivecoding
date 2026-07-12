@@ -19,6 +19,7 @@ in an inbox/, are moved to their catalog directory. Failing assets get a
 
 import argparse
 import json
+import os
 import re
 import string
 import sys
@@ -52,6 +53,12 @@ class Gate(Exception):
     def __init__(self, gate, detail):
         super().__init__(f"{gate}: {detail}")
         self.gate, self.detail = gate, detail
+
+
+class Defer(Exception):
+    """Not a verdict — the environment (machine load) prevented a trustworthy
+    measurement. The asset is left exactly as-is (no verified stamp, no fail
+    stamp, not moved) so a later run under calmer load decides it."""
 
 
 class Server:
@@ -256,6 +263,45 @@ def load_deps(srv, deps):
     time.sleep(2.5)
 
 
+def control_rms(srv):
+    """Fire a known-loud 909 pattern and return its peak rms. Used to tell a
+    genuinely-silent stem (control loud, stem silent) apart from a machine-load
+    audio stall (control ALSO silent) — the latter must never fail a good stem."""
+    try:
+        srv.post("/strudel/track", {"name": "drums",
+                 "code": 's("bd*4, hh*8").bank("RolandTR909").gain(.9).play()'})
+        peak = srv.peak_rms(3, max_seconds=6)
+    finally:
+        srv.post("/strudel/stop", {"name": "drums"})
+    return peak
+
+
+def engine_health(srv):
+    """Pre-flight the audio engine before validating anything. Returns (ok, why).
+    Catches (a) a frozen/absent audio bridge, (b) the missing-DSP-worklet
+    regression (shape/coarse/crush silent → BUNDLE.md's loudness rescue silently
+    breaks every stem), and (c) a machine so loaded the browser can't make sound.
+    When unhealthy we ABORT rather than mass-fail — a bad engine must never be
+    allowed to strip 'verified' off a whole catalog of good stems."""
+    ctrl = control_rms(srv)
+    if ctrl <= 0.05:
+        return False, (f"909 control silent (peak {ctrl:.4f}) — bridge frozen or "
+                       f"machine too loaded (loadavg {os.getloadavg()[0]:.1f}); "
+                       f"NOT validating (would false-fail good stems)")
+    # shape must boost a dry saw; if it silences, the DSP worklets aren't loaded
+    try:
+        srv.post("/strudel/track", {"name": "lead",
+                 "code": 'note("c3*4").s("sawtooth").lpf(1500).gain(.5).shape(.5).orbit(5).play()'})
+        shp = srv.peak_rms(3, max_seconds=6)
+    finally:
+        srv.post("/strudel/stop", {"name": "lead"})
+    if shp <= 0.01:
+        return False, (f"shape() control silent (peak {shp:.4f}) — superdough DSP "
+                       f"AudioWorklets not registered on this page. Reload "
+                       f"livecode.html + click Start (initAudio runs on start).")
+    return True, f"909={ctrl:.2f} shape={shp:.2f}"
+
+
 def validate_stem(a, srv):
     check_stem_schema(a)
     slot = a["slot"]
@@ -276,7 +322,14 @@ def validate_stem(a, srv):
             rms_by_variant[variant] = round(rms, 4)
             floor = 0.003 if variant == "sparse" else 0.01
             if rms <= floor:
-                raise Gate("audible", f"{variant}: rms {rms:.4f} <= {floor}")
+                # Discriminate real silence from a machine-load stall: fire the
+                # known-loud control. If it's ALSO silent, the box is starved —
+                # DEFER (leave the stem untouched) instead of failing a good stem.
+                srv.post("/strudel/stop", {"name": slot})
+                if control_rms(srv) <= 0.05:
+                    raise Defer(f"{variant}: rms {rms:.4f} but 909 control also "
+                                f"silent (loadavg {os.getloadavg()[0]:.1f}) — machine too busy")
+                raise Gate("audible", f"{variant}: rms {rms:.4f} <= {floor} (control loud → genuinely silent)")
         return ({"at": now_iso(), "rms": rms_by_variant},
                 f"rms full={rms_by_variant['full']}, sparse={rms_by_variant['sparse']}")
     finally:
@@ -353,13 +406,21 @@ def write_asset(path, a):
     path.write_text(json.dumps(a, indent=2) + "\n")
 
 
-def validate_file(path, srv, snaps):
-    """Returns True on pass. Prints the result line; stamps/moves the file."""
+def validate_file(path, srv, snaps, demote=False):
+    """Validate one asset. Returns "pass" | "fail" | "defer".
+
+    Prints the result line and updates the file:
+    - pass: stamp verified, drop last_fail, and (if in an inbox) move to catalog.
+    - fail: stamp last_fail. If `demote` and the file is already in the catalog
+      (a re-audit of a 'verified' asset that no longer holds up), strip verified
+      and move it back to inbox/ so it is invisible until genuinely re-fixed.
+    - defer: leave the file untouched (environment prevented a real measurement).
+    """
     try:
         a = json.loads(path.read_text())
     except Exception as e:
         print(f"FAIL {path.name}: parse: {e}")
-        return False
+        return "fail"
     aid = a.get("id", path.stem)
     try:
         fmt = a.get("format")
@@ -371,11 +432,23 @@ def validate_file(path, srv, snaps):
             verified, detail = validate_kit(a, srv)
         else:
             raise Gate("schema", f"unknown format {fmt!r}")
+    except Defer as d:
+        print(f"DEFER {aid}: {d}")
+        return "defer"
     except Gate as g:
         print(f"FAIL {aid}: {g.gate}: {g.detail}")
         a["last_fail"] = {"at": now_iso(), "gate": g.gate, "detail": str(g.detail)}
-        write_asset(path, a)
-        return False
+        was_verified = a.get("verified") is not None
+        a["verified"] = None
+        if demote and was_verified and "inbox" not in path.parts:
+            dest = ASSETS / "music" / "inbox" / path.name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            write_asset(dest, a)
+            path.unlink()
+            print(f"  DEMOTED {aid}: verified→inbox (was silent/broken on re-audit)")
+        else:
+            write_asset(path, a)
+        return "fail"
     a["verified"] = verified
     a.pop("last_fail", None)
     write_asset(path, a)
@@ -384,7 +457,7 @@ def validate_file(path, srv, snaps):
         dest.parent.mkdir(parents=True, exist_ok=True)
         path.rename(dest)
     print(f"PASS {aid} ({detail})")
-    return True
+    return "pass"
 
 
 def main():
@@ -394,13 +467,20 @@ def main():
     ap.add_argument("--snapshots", default=str(ROOT / "autopilot" / "snapshots"))
     ap.add_argument("--inbox", choices=["visual", "music"],
                     help="validate everything in assets/<domain>/inbox/")
+    ap.add_argument("--audit", choices=["music"],
+                    help="RE-validate the already-'verified' catalog against the "
+                         "live engine; demote any stem that is now silent/broken "
+                         "back to inbox/ (catches engine regressions). Implies the "
+                         "engine health pre-check.")
     args = ap.parse_args()
 
     paths = list(args.paths)
     if args.inbox:
         paths += sorted((ASSETS / args.inbox / "inbox").glob("*.json"))
+    if args.audit:
+        paths += sorted((ASSETS / args.audit / "stems").glob("*/*.json"))
     if not paths:
-        ap.error("no asset files given (pass PATHs or --inbox)")
+        ap.error("no asset files given (pass PATHs, --inbox, or --audit)")
     snaps = Path(args.snapshots)
     if not snaps.is_absolute() and not snaps.exists():
         snaps = ROOT / args.snapshots
@@ -415,15 +495,28 @@ def main():
                  "open livecode.html or start autopilot_host.py")
     srv.post("/show/recording", {"enabled": False})
 
-    failed = 0
+    # Engine health pre-check for any music run: never validate audio against a
+    # broken/starved engine — it would false-fail (or, if the gate were weak,
+    # false-pass) a whole catalog. Abort cleanly instead.
+    music_run = args.inbox == "music" or args.audit or any(
+        "music" in p.parts for p in paths)
+    if music_run:
+        ok, why = engine_health(srv)
+        print(f"{'engine OK' if ok else 'ENGINE UNHEALTHY'}: {why}")
+        if not ok:
+            sys.exit(2)
+
+    demote = bool(args.audit)
+    counts = {"pass": 0, "fail": 0, "defer": 0}
     for p in paths:
         if not p.exists():
             print(f"FAIL {p}: missing: file not found")
-            failed += 1
+            counts["fail"] += 1
             continue
-        if not validate_file(p, srv, snaps):
-            failed += 1
-    sys.exit(1 if failed else 0)
+        counts[validate_file(p, srv, snaps, demote=demote)] += 1
+    print(f"\n== {counts['pass']} pass, {counts['fail']} fail, "
+          f"{counts['defer']} deferred (load) ==")
+    sys.exit(1 if counts["fail"] else 0)
 
 
 if __name__ == "__main__":
