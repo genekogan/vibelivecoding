@@ -25,7 +25,34 @@
 Relaunch by re-reading `assets/prompts/music-factory.md`. This file is the
 resume point. Server work uses **port 9766** only.
 
-## Snapshot at pause 3 (2026-07-11 ~18:45 — validation BLOCKED by machine load)
+## Snapshot 4 (2026-07-11 evening — COLLECTION COMPLETE, catalog audit finishing)
+
+**389 verified stems · 35 kits · 12 arcs · 436 indexed assets.** All committed.
+Stems by slot: drums 71, bass 66, lead 59, chords 54, perc 44, pad 41, texture 30, vox 24.
+
+- **Root cause of the mass silence FOUND & FIXED**: `owned_transport.js` skips
+  `initStrudel()`, which is also what registers superdough's DSP AudioWorklets —
+  so `.shape/.coarse/.crush` output SILENCE (a regression that silenced ~139
+  verified + all 107 rescued stems, since BUNDLE.md's loudness rescue leans on
+  shape). Fix: `livecode.html` start handler now calls `window.initAudio()` after
+  `ac.resume()`. See [[dsp-worklets-initaudio]] memory. **Users must hard-reload
+  livecode.html once to pick it up.**
+- **Validation is now self-policing** (validate.py): engine health pre-check
+  (aborts if bridge/worklets/load bad — never corrupts the catalog), Defer verdict
+  (load-silence ≠ real-silence via a 909 control), and `--audit music` that
+  re-validates the verified catalog and DEMOTES anything now silent. valloop
+  auto-audits hourly when idle.
+- Rescue: 107/107 quarantined recovered; 4 inherently-quiet VCSL mallet/perc
+  stems boosted (framedrum→darbuka body layer, glock/marimba shape+clip).
+- QA: 6 kits fired through arcs — clean dynamics, no clipping, audible, evolving.
+  build_drop verified end-to-end (needs a kit to fire; had none before).
+- The full catalog audit was interrupted ~1/3 in (0 demotions); the valloop's
+  hourly auto-audit finishes it autonomously.
+
+REMAINING (optional polish): key/mode tag hygiene (dupes like `major pentatonic`
+vs `major:pentatonic`); vox is the thinnest slot (24). Otherwise done.
+
+## Snapshot at pause 3 (2026-07-11 ~18:45 — SUPERSEDED — was: validation blocked by load)
 
 **State:** 283 verified stems · **107 rescued stems staged & clean in inbox** ·
 0 kits · 12 arcs. All committed (`c368719`).
