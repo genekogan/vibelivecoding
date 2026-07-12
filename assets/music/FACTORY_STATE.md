@@ -25,7 +25,34 @@
 Relaunch by re-reading `assets/prompts/music-factory.md`. This file is the
 resume point. Server work uses **port 9766** only.
 
-## Snapshot at pause 2 (2026-07-11 ~16:30 — CHECKPOINT: rescue authored, validation pending)
+## Snapshot at pause 3 (2026-07-11 ~18:45 — validation BLOCKED by machine load)
+
+**State:** 283 verified stems · **107 rescued stems staged & clean in inbox** ·
+0 kits · 12 arcs. All committed (`c368719`).
+
+**The blocker is environmental, definitively diagnosed:** concurrent AI-agent
+sessions on this machine (opencode, codex, claude) hold 1-min loadavg swinging
+**5–13**. Above ~load 5 the browser audio thread stalls for seconds and a
+genuinely LOUD stem reads `rms 0.0000` non-deterministically. Proven: raw
+`sawtooth` peaks 0.05 at load 5 but 0.00 at load 12; the 909 control peaks 0.58
+at load 9 (bridge/analyser HEALTHY); the same stem config read 0.12 then 0.00
+one minute apart as load spiked. **The 107 staged stems are musically fine —
+they play when load is low. Do NOT re-rescue them; they are not broken.**
+supersaw is a real quiet-synth caveat (~0.008, a few trance/rave stems) — those
+few may need a louder treatment, but only confirm that at low load.
+
+**What's armed:** the load-gated valloop (`assets/tools/valloop_music.py`) is
+running; it preloads external packs + validates + commits automatically the
+moment loadavg drops below 4.5. validate.py's `peak_rms` is now adaptive
+(listens through stalls without lowering the gate). So the 107 drain with ZERO
+tokens whenever the machine frees up — no agent action needed.
+
+**To finish:** either wait for the machine to quiet (other agents to stop), or
+run the factory when the box is otherwise idle. Then: verify inbox drained →
+kits wave → QA → report. Kit AUTHORING and kit VALIDATION both need the same
+low-load window (kits fire stems through the same bridge).
+
+## Snapshot at pause 2 (2026-07-11 ~16:30 — superseded)
 
 | Metric | Count |
 |--------|-------|
