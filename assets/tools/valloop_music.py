@@ -151,14 +151,45 @@ def settled_inbox():
     return [p for p in sorted(INBOX.glob("*.json")) if now - p.stat().st_mtime > 15]
 
 
+AUDIT_EVERY = 3600  # seconds between automatic full-catalog re-audits when idle
+
+
+def run_audit():
+    """Re-validate the whole verified catalog against the live engine and demote
+    anything now silent/broken. Its own engine health-check aborts cleanly if the
+    engine is bad, so this never mass-demotes on a transient fault."""
+    print("AUDIT: re-validating verified catalog (--audit music)", flush=True)
+    r = sh("python", "assets/tools/validate.py", "--port", "9766",
+           "--audit", "music", timeout=7200)
+    out = (r.stdout or "") + (r.stderr or "")
+    demoted = [l for l in out.splitlines() if "DEMOTED" in l]
+    tail = out.strip().splitlines()[-1:] if out.strip() else []
+    print(f"AUDIT: {len(demoted)} demoted; {' '.join(tail)}", flush=True)
+    for l in demoted:
+        print("  " + l.strip()[:160], flush=True)
+    if demoted:
+        sh("python", "assets/tools/build_index.py", "music", timeout=300)
+        sh("git", "add", "assets/music")
+        sh("git", "commit", "-m",
+           f"music factory: audit demoted {len(demoted)} silent/broken stems to inbox"
+           "\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>")
+
+
 def main():
     FAILED.mkdir(exist_ok=True)
     fails = json.loads(STATE.read_text()) if STATE.exists() else {}
     total_pass = 0
+    last_audit = 0.0
     print("valloop started", flush=True)
     while True:
         files = settled_inbox()
         if not files:
+            # Idle: periodically re-audit the catalog so an engine regression
+            # (like the DSP-worklet break) can never silently rot 'verified'.
+            if load_ok() and (time.time() - last_audit) > AUDIT_EVERY:
+                if server_up() and ready() and bridge_ok():
+                    run_audit()
+                    last_audit = time.time()
             time.sleep(30)
             continue
         if not load_ok():
