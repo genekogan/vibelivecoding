@@ -189,7 +189,7 @@
 <body>
 
 <div id="overlay">
-    <button id="start-btn">Start Audio & Visuals (v1)</button>
+    <button id="start-btn">Start Audio & Visuals (v3)</button>
     <div id="init-status">Loading...</div>
 </div>
 
@@ -210,15 +210,41 @@
         <span id="track-count">0 tracks</span> |
         <span id="layer-count">0 layers</span> |
         <span id="fps-display">--</span> fps |
-        v1 | [C] code [L] log [←→] steps
+        v3 | [C] code [L] log [←→] steps
     </span>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
-<script src="https://unpkg.com/@strudel/web@1.0.3"></script>
+<script type="module">
+import * as Strudel from "https://esm.sh/@strudel/web@1.0.3?bundle&target=es2022";
+
+// Export the exact pinned ESM surface without invoking initStrudel(). The
+// convenience initializer constructs a hidden scheduler, so production makes
+// that entry point impossible and lets owned_transport.js create the sole REPL.
+for (const [name, value] of Object.entries(Strudel)) {
+    if (name !== "initStrudel") window[name] = value;
+}
+window.__strudelExportNames = Object.freeze(Object.keys(Strudel));
+Object.defineProperty(window, "initStrudel", {
+    configurable: true,
+    writable: false,
+    value: function hiddenSchedulerForbidden() {
+        throw new Error("initStrudel() is disabled: use the owned livecode transport");
+    },
+});
+window.__strudelModuleContract = Object.freeze({
+    web: "1.0.3",
+    core: "1.0.1",
+    webaudio: "1.0.1",
+    superdough: "1.0.1",
+    source: "esm.sh-pinned-bundle",
+    hiddenInitDisabled: true,
+});
+</script>
+<script src="owned_transport.js"></script>
 
 <script>
-const VERSION = 2;
+const VERSION = 3;
 
 // ── Sample caching (from strudel.html) ──────────────────────
 const _originalFetch = window.fetch;
@@ -243,6 +269,7 @@ window.fetch = async function(url, opts) {
 let ws = null;
 let reconnectTimer = null;
 let strudelReady = false;
+let ownedTransport = null;
 let p5Ready = false;
 let showCode = false;
 let showLog = false;
@@ -269,13 +296,25 @@ const errorTimestamps = new Map();
         if (tap && tap.ctx === ctx) return tap;
         const input = ctx.createGain();
         const an = ctx.createAnalyser();
+        const monitor = ctx.createGain();
         an.fftSize = 2048;               // ~21.5Hz/bin @44.1kHz — resolves kick fundamentals
         an.smoothingTimeConstant = 0.6;
         origConnect.call(input, an);
-        origConnect.call(input, ctx.destination);
-        tap = { ctx, input, an,
+        origConnect.call(input, monitor);
+        origConnect.call(monitor, ctx.destination);
+        tap = { ctx, input, an, monitor,
                 freq: new Uint8Array(an.frequencyBinCount),
                 wave: new Uint8Array(an.fftSize) };
+        window.__livecodeAudioTap = {
+            context: ctx,
+            analyser: an,
+            setMonitorGain(value) {
+                const gain = Math.max(0, Number(value) || 0);
+                monitor.gain.setValueAtTime(gain, ctx.currentTime);
+                return gain;
+            },
+            getMonitorGain() { return monitor.gain.value; },
+        };
         startMeter();
         return tap;
     }
@@ -366,32 +405,27 @@ window.addEventListener("unhandledrejection", (e) => {
     addLogEntry("strudel", "[unhandled] " + msg, false);
 });
 
-// ── Initialize Strudel ──────────────────────────────────────
-initStatus.textContent = "Loading Strudel...";
-initStrudel();
-
-// Wrap Pattern.prototype.play for debug
-(function patchPlay() {
-    const checkPlay = setInterval(() => {
-        if (typeof Pattern === "undefined" || !Pattern.prototype.play) return;
-        clearInterval(checkPlay);
-        const _origPlay = Pattern.prototype.play;
-        Pattern.prototype.play = function() {
-            addLogEntry("strudel", ".play() called", true);
-            _origPlay.call(this);
-        };
-    }, 50);
-})();
-
-(async function initStrudelAsync() {
-    // Poll for window.evaluate
-    let attempts = 0;
-    while (typeof window.evaluate !== "function" && attempts < 100) {
-        await new Promise(r => setTimeout(r, 100));
-        attempts++;
+// ── Initialize one owned Strudel scheduler ──────────────────
+// Do not call @strudel/web initStrudel(): it creates a module-scoped Cyclist
+// that the application cannot read or control. The local adapter prebakes the
+// same language/audio scope and owns the only production scheduler.
+initStatus.textContent = "Loading owned Strudel transport...";
+(async function initOwnedStrudelAsync() {
+    try {
+        ownedTransport = await createOwnedStrudelTransport({
+            cps: 0.5,
+            reconnectPolicy: "declared-hard-reset",
+            onError: (where, error) => addLogEntry("strudel", `[${where}] ${error?.message || error}`, false),
+        });
+        diag.transportOwner = "owned-webaudio-Cyclist";
+        diag.transportFormat = ownedTransport.serializableSnapshot("ready-diagnostic").format;
+        diag.hiddenInitDisabled = true;
+    } catch (error) {
+        diag.transportError = error.message || String(error);
+        initStatus.textContent = "Owned Strudel transport failed: " + diag.transportError;
+        addLogEntry("strudel", diag.transportError, false);
+        return;
     }
-    diag.evaluateFound = typeof window.evaluate === "function";
-    diag.evaluateWaitMs = attempts * 100;
 
     // Load sample banks
     diag.samplesAvail = typeof window.samples === "function";
@@ -414,6 +448,7 @@ initStrudel();
     diag.hushAvail = typeof window.hush === "function";
     diag.stackAvail = typeof window.stack === "function";
     diag.getAudioCtxAvail = typeof window.getAudioContext === "function";
+    diag.schedulerOwned = !!ownedTransport?.scheduler;
 
     strudelReady = true;
     checkAllReady();
@@ -425,30 +460,70 @@ window.setup = function() {
     pixelDensity(1);   // retina fill-rate: ~3-4x cheaper, protects the 20fps floor
     colorMode(HSB, 360, 100, 100, 100);
     background(0);
+
+    // Strudel and p5 both expose a few short global names (frameRate is one
+    // observed collision). Capture p5's installed global-mode descriptors
+    // before Strudel prebakes its evaluation vocabulary. The transport restores
+    // these for every visual frame and temporarily swaps Strudel's scope only
+    // while compiling a musical pattern.
+    const p5Globals = {};
+    for (const name of Object.getOwnPropertyNames(p5.prototype)) {
+        if (Object.prototype.hasOwnProperty.call(window, name)) {
+            p5Globals[name] = Object.getOwnPropertyDescriptor(window, name);
+        }
+    }
+    for (const name of [
+        "width", "height", "frameCount", "deltaTime", "focused",
+        "mouseX", "mouseY", "pmouseX", "pmouseY", "winMouseX", "winMouseY",
+        "touches", "key", "keyCode", "keyIsPressed", "mouseIsPressed",
+    ]) {
+        if (Object.prototype.hasOwnProperty.call(window, name)) {
+            p5Globals[name] = Object.getOwnPropertyDescriptor(window, name);
+        }
+    }
+    window.__livecodeP5Globals = Object.freeze(p5Globals);
+    p5Ready = true;
+    checkAllReady();
 };
 
-// Clock authority: sole beat/tempo truth for every layer. Layers read
-// window.state.clk — never frameCount-based beat math (breaks below 60fps
-// and on tempo change). state.cps is pushed by the server on /strudel/cps;
-// scene transitions null state.t0 to restart the section arc.
+// Clock authority: one immutable frame derived from the owned AudioContext-
+// backed Cyclist. It freezes while audio is suspended/stopped and phase remains
+// continuous through tempo changes. Presentation phase is exposed separately
+// as an estimate; it is not mislabeled as scheduler truth.
 function updateClock() {
-    const cps = window.state.cps || 0.5;
-    if (window.state.t0 == null) window.state.t0 = millis() / 1000;
-    const t = millis() / 1000 - window.state.t0;
-    const beat = t * cps * 4;                      // 4 beats per cycle
+    const transport = ownedTransport?.frame() || window.state.transport || {};
+    const cps = transport.cps || 0.5;
+    const t = transport.seconds || 0;
+    // Visuals follow the estimated cycle at the audio output device when an
+    // audible Strudel hap has provided a schedule anchor. Silent/metadata-only
+    // patterns fall back to the phase-continuous scheduler integral.
+    const visualEstimate = Number.isFinite(transport.presentationCycleEstimate)
+        ? transport.presentationCycleEstimate
+        : transport.cycle;
+    const cycle = Math.max(0, visualEstimate || 0);
+    const beat = cycle * 4;
     const secBeats = window.state.secBeats || 32;  // 8 bars per section default
     const section = Math.floor(beat / secBeats) % 8;
     const arc = window.state.arc || [.2, .4, .7, .9, .3, .6, 1, .4];
+    window.state.cps = cps; // legacy readers; transport remains the authority
     window.state.clk = {
         t, cps, beat,
-        bar: beat / 4,
-        cyc: (beat / 4) % 1,
+        bar: cycle,
+        cyc: cycle % 1,
         phase: beat % 1,                                   // 0 at each beat onset
         pulse: Math.pow(1 - (beat % 1), 3),                // spikes on the beat, decays
         swell: Math.pow(Math.max(0, Math.sin((beat % 1) * Math.PI)), 2),
         section,
         intensity: arc[section % arc.length],
         fps: frameRate(),
+        schedulerCycle: transport.cycle || 0,
+        schedulerQueryCycle: transport.schedulerQueryCycle ?? null,
+        audioGraphCycleEstimate: transport.audioGraphCycleEstimate ?? null,
+        generation: transport.generation || 0,
+        playing: !!transport.playing,
+        source: transport.source || "uninitialized",
+        confidence: transport.confidence || "uninitialized",
+        presentationCycleEstimate: transport.presentationCycleEstimate ?? null,
     };
 }
 
@@ -480,8 +555,6 @@ window.draw = function() {
 window.windowResized = function() {
     resizeCanvas(windowWidth, windowHeight);
 };
-
-p5Ready = true;
 
 function checkAllReady() {
     if (p5Ready && strudelReady) {
@@ -725,6 +798,8 @@ function connect() {
 
         if (msg.target === "strudel") {
             executeStrudelCode(msg.code, msg.id, !!msg.evaluate);
+        } else if (msg.target === "transport") {
+            executeTransportMessage(msg);
         } else if (msg.target === "video") {
             executeVideoMessage(msg);
         } else {
@@ -757,6 +832,60 @@ function sendResponse(id, success, errorMessage, result) {
         payload = { type: "error", id, message: errorMessage };
     }
     ws.send(JSON.stringify(payload));
+}
+
+// ── Execute owned transport command ─────────────────────────
+async function executeTransportMessage(msg) {
+    const { id, mode } = msg;
+    try {
+        if (!ownedTransport) throw new Error("Owned Strudel transport is not ready");
+        let result;
+        switch (mode) {
+            case "configure":
+                result = ownedTransport.configure({
+                    cps: msg.cps,
+                    serverGeneration: msg.serverGeneration,
+                    reconnectPolicy: msg.reconnectPolicy,
+                    reason: msg.reason || "server-configure",
+                });
+                break;
+            case "set_cps":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                result = ownedTransport.setCps(msg.cps, msg.reason || "server-set-cps");
+                break;
+            case "hush":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                strudelTracks.clear();
+                updateCounts();
+                updateCodeOverlay();
+                result = ownedTransport.hush(msg.reason || "server-hush");
+                break;
+            case "reset":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                result = await ownedTransport.resetAtBoundary(
+                    msg.quantumCycles ?? 1,
+                    msg.reason || "server-quantized-reset",
+                );
+                break;
+            case "snapshot":
+                result = ownedTransport.serializableSnapshot(msg.reason || "server-snapshot");
+                break;
+            default:
+                throw new Error(`Unknown transport mode: ${mode}`);
+        }
+        addLogEntry("strudel", `transport:${mode}`, true);
+        sendResponse(id, true, null, result);
+    } catch (err) {
+        const message = err.message || String(err);
+        addLogEntry("strudel", `transport:${mode}: ${message}`, false);
+        sendResponse(id, false, message);
+    }
 }
 
 // ── Audio context keep-alive ────────────────────────────────
@@ -965,6 +1094,22 @@ document.getElementById("start-btn").addEventListener("click", async () => {
         acState = ac.state;
         if (ac.state === "suspended") await ac.resume();
         acState = ac.state;
+
+        // Register superdough's DSP AudioWorklets on the owned context. The owned
+        // transport deliberately skips initStrudel(), which is what normally does
+        // this — so without it, worklet-backed effects (.shape / .coarse / .crush)
+        // silently output NOTHING (distort/lpf/gain are unaffected). Must run after
+        // resume() so the context is running when addModule registers the modules.
+        try {
+            if (typeof window.initAudio === "function") {
+                await window.initAudio();
+                diag.dspWorklets = "registered";
+            } else {
+                diag.dspWorklets = "initAudio-missing";
+            }
+        } catch (e) {
+            diag.dspWorklets = "error: " + (e.message || String(e));
+        }
 
         // Test beep
         const osc = ac.createOscillator();
