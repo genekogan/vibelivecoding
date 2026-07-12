@@ -1,0 +1,15 @@
+# Markos Kay
+
+- **Bio/context**: Markos R. Kay — London-based multidisciplinary artist/director (Greek origin), fine-art background + MA at Central Saint Martins, focused on **art & science, digital abstraction, generative art**. Medium is **3D particle/fluid simulation** (Houdini-class DCC tools, GPU sims) rendered to film and print, not real-time p5 — but the aesthetic (luminous particles in a dark volume) is directly emulable. Themes: emergence, evolution, complexity, artificial life, the microscopic and quantum. Work shown at Ernst Haeckel's Phyletic Museum; *Quantum Fluctuations* in Fidelity's collection.
+
+- **Signature techniques**: **3D particle-system simulations** advected by procedural flow/**fluid-dynamics** fields — "the same underlying principle as the simulations used at CERN," repurposing scientific-viz tooling as an art medium. Millions of particles form **virtual organisms, cells, diatoms, biogenetic soups and subatomic-collision sprays**; he runs hundreds–thousands of permutations and curates intuitively. Look-family: **emissive point clouds + volumetric/depth-of-field rendering**, curl-noise/vortex advection, metaball-ish fluid coalescence, sometimes shot with virtual cameras placed randomly inside the sim (aDiatomea).
+
+- **Palette logic**: Predominantly **dark-field** (black/deep-navy void) with **luminous, additive particles** — bioluminescent teals, magentas, ambers, and **scientific false-color** (spectral heat maps, membrane pinks, electron-blue). Rich but controlled: one or two glowing hues blooming against darkness, occasional milky translucent fluids (cytoplasm) or pastel scientific-illustration palettes for the softer series.
+
+- **Mark-making / texture**: **Granular, misty, particulate** — clouds of fine glowing dots with heavy depth-of-field bokeh, wispy fluid filaments, soft volumetric haze. Feels microscopic/photographic (like confocal or electron-microscope imagery) rather than hard-edged vector. Additive glow dominates; deep blacks; shallow focus picks one plane.
+
+- **Motion/temporal qualities**: Everything **flows, swarms and self-organizes**: particles advect along invisible fields, coalesce into an organism or structure, then disperse — birth/emergence/dissolution arcs. Fluid turbulence, drifting swarms, blooming and collapsing. For a VJ loop: additive particle field on curl-noise with DOF-style falloff, slow coalesce↔scatter cycle, emissive trails; pair micro-scale swarm motion with a slow overall drift. Continuous, organic, never mechanically looping.
+
+- **Key works**: *aDiatomea* (2008, virtual diatom organisms filmed by cameras inside the sim); *The Flow* (2011, generative short film of emergent particle life); *Quantum Fluctuations* (2016, subatomic-collision particle "paintings," Fidelity collection); *aBiogenesis* (origin-of-life fluid/particle series); *Cytoplasmic Playgrounds*; *Human After All*; *Microscopic Leaps*.
+
+- **Links**: https://www.mrkism.com/ · Wikipedia https://en.wikipedia.org/wiki/Markos_Kay · MoCDA https://www.mocda.org/artists/markos-kay · WePresent (WeTransfer) feature · Flickr photostream (mrkism) · Vimeo.

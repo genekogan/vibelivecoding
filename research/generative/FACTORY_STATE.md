@@ -38,7 +38,27 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 4. Kill duds, targeted re-author for near-misses, `validate.py` the keepers.
 5. Commit every ~15–20 accepted; `build_index.py visual`; update COVERAGE.md ticks + this file.
 
+## HARD-WON INFRA LEARNINGS (read before authoring/validating)
+- **QUOTA/SESSION LIMIT is the binding constraint.** Big parallel Workflow fan-outs
+  (16 + 40 agents) burned ~2.5M subagent tokens in ~13min and hit the session limit
+  ("resets 2:30am ET"). PACE the night: the MAIN LOOP (hand-authoring on the canvas)
+  keeps working when the subagent pool is throttled → hand-authoring is the PRIMARY,
+  quota-resilient engine. Retry small subagent waves opportunistically, never depend on them.
+- **`window.state.P` is NEVER initialized by the engine** (only `window.state = {}`).
+  `/p5/state {key:"P.<slot>"}` runs `window.state.P.<slot> = value` which THROWS on null P
+  → the poke silently no-ops. FIX: run `/p5/send window.state.P = window.state.P || {}` once
+  (survives /p5/clear). gf_snap.ensure_clk now does this. Style/param branches themselves work
+  (verified: thermal renders red once P is init'd).
+- **The params VALIDATION gate can FALSE-PASS** on any always-moving asset: it pokes the
+  first 2 numerics and checks the frame changed >0.003 — but a drifting field changes >0.003
+  from natural motion alone even if the poke no-ops. So VISUALLY confirm params respond;
+  don't trust the gate. (My hand-authored assets read P every frame → genuinely responsive.)
+- Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
+
 ## Progress log (newest first)
+- 2026-07-12 09:35 — Salvaged from throttled workflows: 39 artist cards, 11 technique files,
+  MANIFEST.jsonl (184 image URLs / 20 artists), corpus download running. First asset
+  genart.plasma_warp authored + validated + in catalog. Pivoting to main-loop hand-authoring loop.
 - 2026-07-12 01:10 — Step 0 complete: server/host/clk verified, PROBE.md written
   (machine holds 60fps even on 3-layer heavy stack), research/ scaffolding + COVERAGE.md +
   vision harness built & smoke-tested on existing genart. Launching Phase 1 research +
