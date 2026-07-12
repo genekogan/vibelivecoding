@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ripple_tank",
+  "kind": "genart",
+  "name": "Ripple Tank",
+  "desc": "A coarse-grid wave-equation ripple tank where two-to-four vibrating dippers radiate expanding circular wavefronts that cross into shimmering interference caustics while bass drops splash fresh rings, rendered as blue-green caustic water, ironbow thermal, oscilloscope phosphor, blueprint contour, or liquid mercury chrome.",
+  "tags": [
+    "ripple",
+    "ripple-tank",
+    "wave",
+    "waves",
+    "wave-equation",
+    "propagation",
+    "interference",
+    "caustics",
+    "caustic",
+    "water",
+    "ripples",
+    "dipper",
+    "pond",
+    "concentric",
+    "rings",
+    "wavefront",
+    "physics",
+    "simulation",
+    "field",
+    "shimmer",
+    "oscilloscope",
+    "phosphor",
+    "thermal",
+    "blueprint",
+    "schematic",
+    "contour",
+    "mercury",
+    "chrome",
+    "liquid",
+    "generative",
+    "genart",
+    "abstract",
+    "fluid",
+    "hydrodynamics",
+    "background",
+    "fullbleed",
+    "blue",
+    "teal",
+    "hypnotic",
+    "ambient"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wave amplitude + display contrast + caustic-shimmer brightness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "source count (2-4) + drop cadence + contour band count + highlight richness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "dipper oscillation + orbit + drift + sim substeps rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "ripple wavelength / ring spacing (bigger = longer, wider waves)"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "water/palette base hue (thermal & mercury are false-color, hue-agnostic)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "source-field + drop bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "source-field + drop bias y"
+    },
+    "style": {
+      "default": "caustic",
+      "options": [
+        "caustic",
+        "thermal",
+        "phosphor",
+        "blueprint",
+        "mercury"
+      ],
+      "doc": "render philosophy: blue-green caustic water / ironbow thermal false-color / oscilloscope phosphor iso-traces / blueprint schematic contour lines / liquid mercury chrome"
+    },
+    "act": {
+      "default": "ripples",
+      "options": [
+        "ripples",
+        "storm",
+        "tide"
+      ],
+      "doc": "multi-minute program: ripples = calm drifting interference / storm = agitated tank, more & bigger drops, longer sustain / tide = sources slowly converge and the swell breathes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "source layout + drop-sequence seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg; lower leaves translucent feedback trails)"
+    }
+  },
+  "acts": [
+    "ripples",
+    "storm",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-12T14:01:12+00:00",
+    "fps": 59.5,
+    "motion": 0.1372,
+    "lum": 0.341
+  },
+  "code": "const D = { energy:.6, density:.5, speed:1, scale:1, hue:190, x:.5, y:.5, style:'caustic', act:'ripples', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = 6.28318530718, clp=(v,a,b)=>v<a?a:v>b?b:v;\nconst en=clp(P.energy,0,1), dens=clp(P.density,0,1), spd=clp(P.speed,0.2,4), scl=clp(P.scale,0.4,2.6);\nconst style=P.style, act=P.act;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// ---- coarse grid sizing (aspect-fit, ~150 on the long edge) ----\nconst LS=150;\nlet GW,GH;\nif(width>=height){ GW=LS; GH=Math.max(24,Math.round(LS*height/width)); }\nelse { GH=LS; GW=Math.max(24,Math.round(LS*width/height)); }\nGW=Math.min(176,GW); GH=Math.min(176,GH);\nconst N=GW*GH;\n\nconst hsh=i=>{ const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453; return s-Math.floor(s); };\n\n// ---- (re)build sim buffers on size/seed change ----\nif(!S.u || S.gw!==GW || S.gh!==GH || S.seedUsed!==(P.seed|0)){\n  S.gw=GW; S.gh=GH; S.seedUsed=(P.seed|0);\n  S.u=new Float32Array(N); S.up=new Float32Array(N);\n  // border-absorbing factor: soft damping band near the tank walls (no runaway reflections)\n  S.bf=new Float32Array(N);\n  const B=Math.max(4,Math.round(Math.min(GW,GH)*0.10));\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const d=Math.min(x,y,GW-1-x,GH-1-y);\n    S.bf[y*GW+x]= d>=B ? 1 : (0.86+0.14*(d/B));\n  }\n  // seed a few initial drops so the tank starts alive (not a flat field)\n  for(let k=0;k<5;k++){\n    const cx=Math.floor((0.2+hsh(k*3+1)*0.6)*GW), cy=Math.floor((0.2+hsh(k*3+2)*0.6)*GH), rr=2+Math.floor(hsh(k*3+3)*3);\n    const amp=(hsh(k*3+4)<0.5?-1:1)*0.8;\n    for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n      const xx=cx+dx, yy=cy+dy; if(xx<0||yy<0||xx>=GW||yy>=GH)continue;\n      const dd=dx*dx+dy*dy; if(dd>rr*rr)continue;\n      S.u[yy*GW+xx]+=amp*Math.exp(-dd/(rr*rr*0.5));\n    }\n  }\n  S.buf=null;\n}\nif(!S.buf || S.bkw!==GW || S.bkh!==GH){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1); S.bkw=GW; S.bkh=GH; }\n\n// ---- (re)build wave sources on seed/count change ----\nconst nSrc = 2 + Math.round(dens*2) + (act==='storm'?1:0);\nconst nS = Math.min(5, nSrc);\nif(!S.src || S.src.length!==nS || S.srcSeed!==(P.seed|0)){\n  S.srcSeed=(P.seed|0);\n  const src=[];\n  for(let i=0;i<nS;i++){\n    src.push({\n      cx:0.2+hsh(i*9+1)*0.6, cy:0.2+hsh(i*9+2)*0.6,\n      orbR:0.03+hsh(i*9+3)*0.09, orb:(hsh(i*9+7)<0.5?-1:1)*(0.15+hsh(i*9+4)*0.4),\n      fm:0.7+hsh(i*9+5)*0.8, ph:hsh(i*9+6)*TAU\n    });\n  }\n  S.src=src;\n}\nconst src=S.src;\n\n// ---- color LUT keyed on style + drifting hue ----\nconst sec=K.section|0;\nconst hueDrift = sec*11 + Math.sin(K.t*0.02)*8;\nconst hb = (((P.hue+hueDrift)%360)+360)%360;\nconst nb = 5 + Math.round(dens*9);\nconst lkey = style+'|'+Math.round(hb);\nif(S.lkey!==lkey){\n  S.lkey=lkey;\n  const R=new Uint8Array(128),G=new Uint8Array(128),Bc=new Uint8Array(128);\n  for(let i=0;i<128;i++){\n    const t=i/127; let c;\n    if(style==='thermal'){\n      const stops=[[8,4,24],[52,10,96],[150,28,120],[224,64,44],[255,152,32],[255,242,186]];\n      const ff=t*(stops.length-1); let si=Math.floor(ff); if(si>stops.length-2)si=stops.length-2; const tt=ff-si;\n      const a=stops[si],b=stops[si+1];\n      R[i]=a[0]+(b[0]-a[0])*tt; G[i]=a[1]+(b[1]-a[1])*tt; Bc[i]=a[2]+(b[2]-a[2])*tt; continue;\n    } else if(style==='phosphor'){\n      c=color(140,90,4+t*11);\n    } else if(style==='blueprint'){\n      c=color(212,74,10+t*20);\n    } else if(style==='mercury'){\n      c=color(210,6+(1-t)*7, 15+t*44+34*Math.pow(t,6));\n    } else { // caustic\n      c=color((hb+(t-0.5)*26+360)%360, 96-t*54, 6+t*72);\n    }\n    R[i]=c.levels[0]; G[i]=c.levels[1]; Bc[i]=c.levels[2];\n  }\n  S.R=R; S.G=G; S.Bc=Bc;\n}\nconst R=S.R,G=S.G,Bc=S.Bc;\n\n// ---- per-frame source positions (K.t orbit + slow per-section migration) ----\nconst SX=new Float32Array(nS), SY=new Float32Array(nS), SV=new Float32Array(nS);\nconst gbx=(P.x-0.5)*0.5, gby=(P.y-0.5)*0.5;\nlet converge=0;\nif(act==='tide'){ converge=0.5+0.5*Math.sin(K.t*0.03*spd); }\nfor(let i=0;i<nS;i++){\n  const s=src[i];\n  const tgx=0.16+hsh(sec*13+i*29+3)*0.68, tgy=0.16+hsh(sec*13+i*29+5)*0.68;\n  s.cx+=(tgx-s.cx)*0.012; s.cy+=(tgy-s.cy)*0.012;\n  const a=s.ph+K.t*spd*s.orb;\n  const orbR=s.orbR*(0.7+0.4*Math.sin(K.t*0.05*spd+i));\n  let pxs=s.cx+Math.cos(a)*orbR+gbx;\n  let pys=s.cy+Math.sin(a)*orbR+gby;\n  if(act==='tide'){ pxs=0.5+(pxs-0.5)*(1.15-converge*0.7); pys=0.5+(pys-0.5)*(1.15-converge*0.7); }\n  SX[i]=clp(pxs,0.05,0.95); SY[i]=clp(pys,0.05,0.95);\n  const om=(0.9+s.fm*0.8)*spd*(2.0/scl);\n  const amp=(0.5+en*0.25)*(0.75+0.5*K.intensity);\n  SV[i]=amp*Math.sin(om*K.t + s.ph*3 + i*1.7);\n}\n\n// ---- run the wave equation: leapfrog u'' = c^2 * laplacian(u), damped ----\nconst c2=0.28, damp=(act==='storm')?0.997:0.9955;\nconst subs=spd>2.2?2:1;\nlet cu=S.u, pu=S.up; const bf=S.bf;\nfor(let it=0;it<subs;it++){\n  for(let y=0;y<GH;y++){\n    const row=y*GW, rowU=(y>0?y-1:y)*GW, rowD=(y<GH-1?y+1:y)*GW;\n    for(let x=0;x<GW;x++){\n      const i=row+x;\n      const iL=row+(x>0?x-1:x), iR=row+(x<GW-1?x+1:x), iU=rowU+x, iD=rowD+x;\n      const lap=cu[iL]+cu[iR]+cu[iU]+cu[iD]-4*cu[i];\n      let un=(2*cu[i]-pu[i]+c2*lap)*damp*bf[i];\n      if(un>3)un=3; else if(un<-3)un=-3;\n      pu[i]=un;\n    }\n  }\n  const tmp=cu; cu=pu; pu=tmp;\n  // drive the vibrating dippers on the fresh buffer -> radiate continuous ring trains\n  for(let i=0;i<nS;i++){\n    const sxc=Math.floor(SX[i]*GW), syc=Math.floor(SY[i]*GH);\n    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){\n      const xx=sxc+dx, yy=syc+dy; if(xx<0||yy<0||xx>=GW||yy>=GH)continue;\n      cu[yy*GW+xx]=SV[i];\n    }\n  }\n}\nS.u=cu; S.up=pu;\n\n// ---- drops: baseline K.t cadence (audio-free motion floor) + bass splashes ----\nconst dropIvl=(act==='storm')?0.35:(0.9-dens*0.45);\nconst tick=Math.floor(K.t/Math.max(0.15,dropIvl));\nif(S.dTick==null||tick<S.dTick)S.dTick=tick-1;\nlet doDrop=false, dropAmp=0;\nif(tick>S.dTick){ S.dTick=tick; doDrop=true; dropAmp=1.0; }\nif(A.bass>0.35 && (K.beat|0)!==(S.bBeat|0)){ S.bBeat=K.beat|0; doDrop=true; dropAmp=Math.max(dropAmp,0.7+A.bass*0.8); }\nif(doDrop){\n  const dn=(act==='storm')?2:1;\n  for(let q=0;q<dn;q++){\n    const sk=tick*3+q*7+(P.seed|0);\n    const rx=0.12+hsh(sk+1)*0.76, ry=0.12+hsh(sk+2)*0.76;\n    const cx=Math.floor((rx*0.7+P.x*0.3)*GW), cy=Math.floor((ry*0.7+P.y*0.3)*GH);\n    const rr=2+Math.floor(dens*3), aa=dropAmp*(hsh(sk+3)<0.5?-1:1);\n    const cu2=S.u;\n    for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n      const xx=cx+dx,yy=cy+dy; if(xx<0||yy<0||xx>=GW||yy>=GH)continue;\n      const dd=dx*dx+dy*dy; if(dd>rr*rr)continue;\n      cu2[yy*GW+xx]+=aa*Math.exp(-dd/(rr*rr*0.5));\n    }\n  }\n}\n\n// ---- map wave height -> color into the coarse buffer ----\nconst fld=S.u;\nconst dispGain=0.6+en*1.7+K.intensity*0.3;\nconst caustGain=0.4+en*1.8;\nconst densRich=dens;\nconst isCaustic=style==='caustic', isTherm=style==='thermal', isPhos=style==='phosphor', isBlue=style==='blueprint', isMerc=style==='mercury';\nconst buf=S.buf; buf.loadPixels(); const px=buf.pixels;\nfor(let y=0;y<GH;y++){\n  const row=y*GW, rowU=(y>0?y-1:y)*GW, rowD=(y<GH-1?y+1:y)*GW;\n  for(let x=0;x<GW;x++){\n    const i=row+x;\n    const iL=row+(x>0?x-1:x), iR=row+(x<GW-1?x+1:x);\n    const h=fld[i];\n    const gx=fld[iR]-fld[iL], gy=fld[rowD+x]-fld[rowU+x];\n    const gm=Math.sqrt(gx*gx+gy*gy);\n    let hn=h*dispGain; if(hn>1)hn=1; else if(hn<-1)hn=-1;\n    const t=0.5+0.5*hn;\n    let li=t*127|0; if(li<0)li=0; else if(li>127)li=127;\n    let r=R[li],g=G[li],b=Bc[li];\n    if(isCaustic){\n      let hl=gm*(5+caustGain*7); if(hl>1)hl=1; hl*=hl;\n      const crest=t>0.62?(t-0.62)*2.6:0; const sp=crest*crest*caustGain;\n      const add=(hl*118+sp*58)*(0.55+0.45*densRich);\n      r+=add*0.75; g+=add*1.0; b+=add*1.02;\n    } else if(isTherm){\n      let e=gm*caustGain*7; if(e>1)e=1;\n      r+=e*22; g+=e*14; b+=e*4;\n    } else if(isPhos){\n      const q=t*nb; let d=q-Math.round(q); if(d<0)d=-d;\n      const lw=0.16; let ln=d<lw?1-d/lw:0; ln*=ln;\n      const glow=ln*(0.55+caustGain*0.5)*(0.6+gm*10);\n      r+=glow*36; g+=glow*225; b+=glow*95;\n    } else if(isBlue){\n      const q=t*nb; let d=q-Math.round(q); if(d<0)d=-d;\n      const lw=0.14; let ln=d<lw?1-d/lw:0; ln=Math.pow(ln,1.3);\n      const glow=ln*(0.55+caustGain*0.4)*(0.6+gm*8);\n      r+=glow*110; g+=glow*205; b+=glow*230;\n    } else { // mercury\n      let e=gm*(6+caustGain*8); if(e>1)e=1; e*=e;\n      const chrome=e*150;\n      r+=chrome*0.94; g+=chrome*1.0; b+=chrome*1.06;\n    }\n    if(r<0)r=0;else if(r>255)r=255;\n    if(g<0)g=0;else if(g>255)g=255;\n    if(b<0)b=0;else if(b>255)b=255;\n    const o=i*4; px[o]=r; px[o+1]=g; px[o+2]=b; px[o+3]=255;\n  }\n}\nbuf.updatePixels();\n\n// ---- composite full-bleed ----\npush();\ndrawingContext.imageSmoothingEnabled = !(isBlue||isPhos);\nif(P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(buf,0,0,width,height);\npop();\ndrawingContext.imageSmoothingEnabled = true;\n\n// ---- faint audio shimmer on top (partial, never full-frame -> won't strobe) ----\nif(A.treble>0.02||A.rms>0.02){\n  push(); blendMode(ADD); noStroke();\n  const gl=(A.treble*0.5+A.rms*0.4)*(0.4+en*0.6);\n  fill((hb+40)%360,30,100,clp(gl*20,0,18));\n  rect(0,0,width,height);\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

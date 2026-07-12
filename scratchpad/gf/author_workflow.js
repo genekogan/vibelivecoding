@@ -31,6 +31,13 @@ HARD REQUIREMENTS (any miss = rejected):
 10. Dramaturgy: use K.section (0..7) + K.intensity for a 30s-5min arc so the piece EVOLVES (not just loops) — palette drift, complexity build, behavior change across sections.
 11. tags: ≥10 generous synonyms/moods/colors/categories. desc: one vivid sentence.
 
+COMMON WAVE-1 FAILURES — DO NOT REPEAT:
+- **Monochrome default.** Many pieces came out grey/white-on-black. Your DEFAULT style must be RICH and COLORFUL (real palette, saturated where apt, or a committed duotone) — grayscale is allowed only as a NAMED alternate style, never the default. Use an iq cosine palette / HSB hues / thermal ramp so the opening frame has color.
+- **Too dark.** Several validated at luminance 0.03-0.08 (near the 0.02 black-floor — fragile). Aim for frame-mean luminance ~0.15-0.6 at defaults: fill the frame with tone, don't leave 80% black. Add ambient ground color / raise exposure.
+- **Static trails.** Curve/trail pieces (harmonograph etc) went STATIC because the figure closed and retraced the same path. If you draw a parametric curve into a fade-trail buffer, you MUST drift the coefficients/frequencies continuously on K.t so the path NEVER exactly repeats — perpetual novelty is the motion floor. Verify mentally: is something different 8s from now?
+- **Over-saturated sim fields.** Agent/reaction fields (physarum etc) can flood the frame if deposit is too high / decay too low. Tune so the STRUCTURE reads (thin bright veins on dark ground, or clear cells) — not a solid wash. Balance deposit LOW, decay/evaporate meaningful, diffusion modest.
+- **Weak effect.** Make the signature of the technique unmistakable and fill the frame with it (a lone grey blob is a fail). Bold, legible, edge-to-edge.
+
 WORKFLOW: write the raw JS to a scratch file, syntax-check it:
   node -e 'const c=require("fs").readFileSync("<tmp>","utf8"); new Function(c.replace(/__SLOT__/g,"bg")); console.log("OK")'
 then build the JSON (escape newlines) and verify it parses:
