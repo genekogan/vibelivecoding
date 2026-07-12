@@ -24,6 +24,46 @@ composite** with other assets. Highly parametric. Beautiful. Never static.
 
 ---
 
+## Operating doctrine — run autonomously for many hours; do not stop early
+
+This is a **long, autonomous, goal-directed job measured in hours, not minutes.**
+Run it as a **dynamic, Ralph-Wiggum-style loop**: at every moment there is a next
+most-valuable unit of work; you pick it up, do it, verify it with your own eyes,
+and immediately pick up the next — **constant forward motion across the whole
+catalog until the Phase "Done when" gates are all objectively met.** The loop, not
+a fixed plan, is the operating mode.
+
+**Non-negotiables:**
+
+- **Never stop early, and never skimp on compute to finish faster.** Do not
+  declare done, wind down, hand back, or ask "should I continue?" while any
+  acceptance gate is unmet. If you feel an urge to stop or shortcut — that is the
+  signal to instead **widen coverage, raise the quality bar, or try another
+  technique.** Finishing fast is a non-goal; finishing *thoroughly and beautifully*
+  is the goal.
+- **Compute is not a constraint — spend it lavishly.** Prefer more parallel
+  agents, more candidate variations, more distinct techniques, more critique-and-
+  refine iterations, more validation passes. Never trade breadth or quality for a
+  smaller token bill. If quota throttles you, that is a pause, not an ending:
+  commit, checkpoint `FACTORY_STATE.md`, and **resume automatically the moment
+  quota returns** — recompute "remaining" from disk and keep going.
+- **Favor autonomy.** Make decisions and proceed; do not block on the user. The
+  only reasons to surface to Gene are: a truly ambiguous creative fork you cannot
+  resolve from the corpus, or a hard external blocker (dead server you cannot
+  revive). Otherwise keep working. Post progress pings, but do not wait on replies.
+- **Favor horizontalness (breadth).** Maximize parallel fan-out. Cover as many
+  *distinct* generative techniques and aesthetics as possible before deepening any
+  one — the win condition is a wide, diverse oeuvre, not three polished pieces. A
+  technique only counts once you have **verified it on the canvas: it runs, it is
+  visible, it moves, and it looks good** (your vision says so). Untested code is
+  worth nothing here.
+- **Loop until genuinely dry, not until tired.** Keep generating until the
+  count-and-quality target is met *and* the coverage checklist is saturated *and*
+  two consecutive rounds surface nothing new worth keeping. Only then is Phase 3
+  done. Idle time is a bug — if you're waiting on one thing, fan out on another.
+
+---
+
 ## Read first (in order) — do not skip
 
 1. `assets/CONTRACT.md` — the asset contract. Every asset MUST follow it byte-for-byte
@@ -228,6 +268,15 @@ This is a Ralph loop: **always advance the next most valuable unit, self-correct
 your own eyes, and keep going until done.** Quality gate is your vision; the mechanical
 gate is the floor, not the goal. Kill anything that's merely "passes but forgettable."
 
+**Keep the loop saturated.** Run many candidates in flight — while one batch validates
+on the canvas, subagents author the next family. Never let the canvas sit idle and never
+let quota sit unused: if you're blocked on one axis, fan out on another (more families,
+more style variants, more recipe chains). The target is a **range** — deliberately try
+techniques you're unsure will work, verify them on-canvas, and keep the ones that surprise
+you. Breadth of *verified, visibly-good* techniques is the score. Do not converge and stop
+at 100 if the compendium still has unexplored territory and quality is holding — push
+toward the top of the 100–200 band and beyond if the work is still landing.
+
 **Coverage discipline**: maintain a live checklist of families × looks so the 100–200
 span the gamut (calm↔violent, sparse↔dense, monochrome↔chromatic, geometric↔organic,
 crisp↔textural). Spot-compose a multi-layer VJ scene every ~40 assets (2–3 generative
@@ -267,6 +316,22 @@ multi-layer VJ compositions captured and reviewed.
   (research downloads; blind candidate authoring) with Workflow fan-outs. Keep the
   **vision-critique-refine loop serial** on the one canvas. Front-load authoring before
   quota windows close; validation and vision review are cheaper and can trail.
+- **Runs for hours, unattended.** Expect this to span many hours and multiple quota
+  windows. The correct end state is *all acceptance gates met*, not *time elapsed* or
+  *tokens spent*. Between now and then the loop should essentially never be idle: author,
+  deploy, look, critique, refine, validate, commit, repeat — fanning out wherever there's
+  slack. Do not summarize-and-stop, do not ask permission to keep going, do not reduce the
+  target to close out sooner. When one phase's gate is met, roll straight into the next.
+
+## Anti-patterns (do NOT do these)
+
+- Declaring "done" or writing a final report while any "Done when" gate is unmet.
+- Cutting the asset count, the download count, the technique coverage, or the quality bar
+  to finish faster or spend less compute.
+- Stopping to ask the user whether to continue, or waiting on a reply to proceed.
+- Shipping assets you never rendered and looked at — "it should work" is not acceptance.
+- Piling many variants onto one or two safe techniques instead of covering the gamut.
+- Going quiet/idle while quota is available or while the canvas is free.
 
 ## Hard rules
 
