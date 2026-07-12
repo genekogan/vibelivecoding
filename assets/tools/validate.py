@@ -77,14 +77,25 @@ class Server:
             raise Gate("read", f"/p5/read?key={key} failed: {d.get('error')}")
         return d["value"]
 
-    def peak_rms(self, seconds):
-        """Poll audio.rms over a window and return the peak (patterns have gaps —
-        a single point-sample between notes reads 0 even for audible stems)."""
-        peak, deadline = 0.0, time.time() + seconds
-        while time.time() < deadline:
+    def peak_rms(self, seconds, max_seconds=None, confidence=0.02):
+        """Poll audio.rms over a window and return the peak.
+
+        Patterns have gaps (a point-sample between notes reads 0), AND under CPU
+        contention the browser audio thread stalls for seconds at a time — so a
+        fixed short window can read 0.0000 for a genuinely audible stem. Strategy:
+        keep polling until we either clear `confidence` (comfortably above the
+        0.01 gate → definitely audible, return at once) or exhaust `max_seconds`.
+        A real signal produces a burst within a few seconds even under load; a
+        silent stem never clears it no matter how long we listen — so the gate's
+        pass/fail semantics are unchanged, only its patience under stalls."""
+        max_seconds = max(seconds, max_seconds if max_seconds is not None
+                          else seconds * 3)
+        peak, start = 0.0, time.time()
+        while True:
             peak = max(peak, self.read("audio").get("rms", 0))
+            if peak >= confidence or time.time() - start >= max_seconds:
+                return peak
             time.sleep(0.2)
-        return peak
 
 
 # ── snapshot helpers ─────────────────────────────────────────────────────────

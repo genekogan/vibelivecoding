@@ -15,14 +15,45 @@ from pathlib import Path
 
 import requests
 
-MAX_LOAD = 4.0  # 1-min loadavg above this starves browser audio scheduling
-                # (dropouts -> false "audible" fails); wait for calm instead.
+MAX_LOAD = 4.5  # 1-min loadavg above this starves browser audio scheduling:
+                # the audio thread stalls for seconds and a genuinely LOUD stem
+                # reads rms 0.0000 non-deterministically (verified: raw sawtooth
+                # peaks 0.05 at load 5 but 0.00 at load 12). Wait for calm — never
+                # lower the audibility gate to compensate.
 
 ROOT = Path("/Users/gene/Dev/livecode")
 INBOX = ROOT / "assets/music/inbox"
 FAILED = ROOT / "assets/music/inbox_failed"
 BASE = "http://localhost:9766"
 STATE = Path(__file__).parent / "valloop_state.json"
+PACKS = ROOT / "assets/music/packs.json"
+PRELOADED = {"tidal-drum-machines", "uzu-drumkit", "piano", "vcsl"}
+
+
+def preload_external_packs():
+    """Send samples() for every non-preloaded pack the inbox depends on and wait
+    generously, so external-pack stems don't false-fail on a cold cache under
+    load (validate.py's per-stem 2.5s dep wait is too short when the machine is
+    busy). samples() is idempotent/cached, so this is cheap on re-entry."""
+    try:
+        packs = json.loads(PACKS.read_text())
+    except Exception:
+        return
+    needed = set()
+    for p in INBOX.glob("*.json"):
+        try:
+            for d in (json.loads(p.read_text()).get("deps") or []):
+                if d in packs and d not in PRELOADED and not d.startswith("_"):
+                    needed.add(d)
+        except Exception:
+            continue
+    for name in sorted(needed):
+        try:
+            requests.post(BASE + "/strudel/send", json={"code": packs[name]}, timeout=15)
+        except Exception:
+            pass
+    if needed:
+        time.sleep(12)
 
 
 def sh(*cmd, timeout=None, **kw):
@@ -140,6 +171,7 @@ def main():
                 print("BATCH: bridge unrecoverable — sleeping 120s", flush=True)
                 time.sleep(120)
                 continue
+        preload_external_packs()  # warm the sample cache before validating
         r = sh("python", "assets/tools/validate.py", "--port", "9766",
                "--inbox", "music", timeout=3600)
         out = (r.stdout or "") + (r.stderr or "")
