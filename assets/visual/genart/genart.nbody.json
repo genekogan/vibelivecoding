@@ -1,0 +1,117 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.nbody",
+  "kind": "genart",
+  "name": "Spiral Galaxy N-Body",
+  "desc": "A rotating N-body disk galaxy \u2014 hundreds of gravitating stars seeded on logarithmic spiral arms wind through differential rotation into luminous trailing arms around a glowing core, perpetually shearing and re-forming; renders galactic blue-to-amber, plasma, firefly, blackbody heat, or monochrome vector-trails.",
+  "tags": [
+    "nbody",
+    "gravity",
+    "galaxy",
+    "spiral",
+    "stars",
+    "orbital",
+    "particles",
+    "astro",
+    "cosmic",
+    "differential-rotation",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "space",
+    "nebula",
+    "trails",
+    "emergent",
+    "glow",
+    "physics"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "star count (fuller disk)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "star brightness / glow"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.1,
+      "max": 3.0,
+      "doc": "orbital + winding rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "galaxy radius"
+    },
+    "warp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of spiral arms (2..4)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "galactic center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "galactic center y"
+    },
+    "style": {
+      "default": "galactic",
+      "options": [
+        "galactic",
+        "plasma",
+        "firefly",
+        "heat",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic galaxy seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T03:06:50+00:00",
+    "fps": 60.2,
+    "motion": 0.019,
+    "lum": 0.066
+  },
+  "code": "const D = { density:.6, energy:.62, speed:1, scale:1, warp:.5, hue:210, x:.5, y:.5, style:'galactic', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst wh = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst style = P.style;\nconst cx = width * P.x, cy = height * P.y;\nconst R = u * 0.46 * (0.6 + P.scale * 0.6);           // galaxy radius (fills frame)\nconst NB = Math.round(160 + P.density * 320);          // body count 160..480\n\n// persistent trail buffer\nif (!S.buf || S.bkey !== width + 'x' + height) {\n  S.buf = createGraphics(width, height); S.buf.colorMode(HSB, 360, 100, 100, 100); S.buf.pixelDensity(1);\n  S.bkey = width + 'x' + height; S.seeded = false;\n}\nconst g = S.buf;\n\nlet sr = ((P.seed + 1) * 2654435761) >>> 0;\nfunction rnd(){ sr ^= sr<<13; sr>>>=0; sr ^= sr>>17; sr ^= sr<<5; sr>>>=0; return sr/4294967295; }\nfunction gauss(){ return (rnd()+rnd()+rnd()-1.5)*0.9; }\n\n// seed a two-arm logarithmic-spiral disk with orbital velocity (differential rotation -> winding arms)\nconst sec = K.section | 0;\nfunction seed() {\n  sr = ((P.seed + 1 + sec*131) * 2654435761) >>> 0;\n  const arms = 2 + (Math.round(P.warp*2));            // 2..4 spiral arms\n  const wind = 2.6;                                   // spiral tightness\n  S.bx = new Float32Array(NB); S.by = new Float32Array(NB);\n  S.vx = new Float32Array(NB); S.vy = new Float32Array(NB); S.hu = new Float32Array(NB);\n  for (let i = 0; i < NB; i++) {\n    const rr = R * Math.pow(rnd(), 0.62);              // denser toward center\n    const arm = Math.floor(rnd()*arms);\n    const th = wind * Math.log((rr + R*0.06)/(R*0.06)) + arm*(TAU/arms) + gauss()*0.28;\n    const px = cx + Math.cos(th)*rr, py = cy + Math.sin(th)*rr*0.98;\n    S.bx[i] = px; S.by[i] = py;\n    // TRUE circular-orbit speed for the softened central potential (so stars orbit, not plunge)\n    const GMseed = u*u * 0.0016 * (0.6 + P.speed);\n    const amag = GMseed * rr / Math.pow(rr*rr + (u*0.085)*(u*0.085), 1.5);\n    const v = Math.sqrt(amag * rr) * (0.96 + rnd()*0.08);   // tiny eccentricity spread\n    const tx = -Math.sin(th), ty = Math.cos(th);\n    S.vx[i] = tx*v; S.vy[i] = ty*v;\n    S.hu[i] = rr / R;                                  // radius param -> hue/temp\n  }\n  S.seeded = true; S.seedUsed = P.seed; S.nbUsed = NB; S.secUsed = sec;\n  // clear buffer to dark ground on reseed\n  g.push(); g.blendMode(BLEND);\n  g.drawingContext.fillStyle = 'rgb(4,5,12)'; g.drawingContext.fillRect(0,0,width,height); g.pop();\n}\nif (!S.seeded || S.seedUsed !== P.seed || S.nbUsed !== NB || S.secUsed !== sec) seed();\n\nconst bx=S.bx, by=S.by, vx=S.vx, vy=S.vy, hu=S.hu;\nconst GM = u*u * 0.0016 * (0.6 + P.speed);             // central mass strength\nconst soft = (u*0.085)*(u*0.085);                      // softening (no singularity)\nconst dt = 0.45;\nconst steps = 3;\n\n// integrate: central gravity + weak differential shear keeps arms alive\nfor (let st = 0; st < steps; st++) {\n  for (let i = 0; i < NB; i++) {\n    const dx = cx - bx[i], dy = cy - by[i];\n    const r2 = dx*dx + dy*dy + soft;\n    const f = GM / (r2 * Math.sqrt(r2));\n    vx[i] += dx * f * dt; vy[i] += dy * f * dt;\n    bx[i] += vx[i] * dt; by[i] += vy[i] * dt;\n  }\n}\n\n// ---- render: fade trails, additive glow bodies + core ----\ng.push();\ng.blendMode(BLEND);\ng.noStroke();\ng.drawingContext.globalAlpha = 1;\ng.fill(230, 40, 6, 26 + (1-P.energy)*8);               // stronger wash -> SHORT trails, stars read as moving points (motion floor)\ng.rect(0,0,width,height);\n\ng.blendMode(ADD);\nconst hb = P.hue;\nconst spd0 = u*0.004;\nfor (let i = 0; i < NB; i++) {\n  const sp = Math.sqrt(vx[i]*vx[i] + vy[i]*vy[i]);\n  const heat = Math.min(1, sp / (spd0*3));             // fast/inner = hot\n  let hgt, sat, val, sz;\n  if (style === 'plasma')      { hgt = wh(hb + 160 - heat*160); sat = 85; }\n  else if (style === 'firefly'){ hgt = wh(40 + heat*20); sat = 78; }\n  else if (style === 'heat')   { hgt = wh(60 - heat*60); sat = 90; }\n  else if (style === 'mono')   { hgt = 210; sat = 6; }\n  else                         { hgt = wh(hb + 40 - heat*70 + hu[i]*30); sat = 55 + heat*30; } // galactic blue->amber\n  val = 72 + heat*28;\n  sz = (1.1 + (1-hu[i])*2.8) * (u*0.0030) * (0.8 + P.energy*0.8);\n  g.fill(hgt, sat, val, 46 + P.energy*32);\n  g.circle(bx[i], by[i], sz);\n}\n// bright galactic core glow\nconst cg = g.drawingContext.createRadialGradient(cx,cy,1, cx,cy, u*0.22);\ncg.addColorStop(0, 'rgba(255,244,220,0.55)');\ncg.addColorStop(0.4, 'rgba(255,200,140,0.16)');\ncg.addColorStop(1, 'rgba(60,40,120,0)');\ng.drawingContext.fillStyle = cg; g.drawingContext.fillRect(0,0,width,height);\ng.pop();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}
