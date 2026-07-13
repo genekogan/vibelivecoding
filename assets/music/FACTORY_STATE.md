@@ -22,18 +22,27 @@ expansion per Gene's standing directives (vox was thinnest slot; "more kits";
   `drone_dawn`), `kit.exp_polymeter`. Each references only verified stems whose
   cps windows all intersect the kit cps (the `validate_kit` hard gate).
 
-**STATUS**: all 27 assets sit in `assets/music/inbox/`, static-lint clean.
-`valloop_music.py` (running) will validate + index + commit them autonomously
-once loadavg < 4.5 — do NOT run validate.py by hand (collides with the loop).
-Static lint tool: `scratchpad/inbox_lint.py` (ephemeral — regenerate if needed).
+**RESULT (session-3 COMPLETE, ~04:20 EDT)**: valloop validated the batch under
+low load → **26/27 passed first try** (all 9 kits + 17/18 vox). One vox stem
+(`vox.trance.anthem_hook.01`) genuinely under-loud (full rms 0.0074) — the
+`.vowel()` formant + heavy `.room(.6)` were energy sinks; **rescued** (denser
+8-notes/cycle, `.shape(.55)`, dropped the vowel filter, tamed reverb, pump floor
+`saw.range(.8,1)×gain`) → re-validated **full rms 0.0585**. All 18 vox verified.
+- **Live QA** (arc_compile --fire): world_raga / reggaeton_dembow / reich_minimal
+  / shoegaze_wall / concrete_collage all fired clean — audible, no clipping, ZERO
+  runtime errors, arcs evolve (world_raga swept rms 0.04→0.42). Swapped
+  `concrete_collage` default arc to `tide` (its `long_arch` intro opened near-silent).
 
-**REMAINING**: (1) confirm the valloop drains the inbox; re-rescue any
-under-loudness fails with the `.shape(.3–.6)` / gain-ceiling / pump-floor recipe;
-(2) live QA — fire a few new kits through arcs (`arc_compile.py <kit> <arc> --fire`)
-at low load, confirm evolving + no clip; (3) final report + leave server idle
-(POST /strudel/hush) for Gene's `review.py music --port 9766`.
+**FINAL CATALOG: 407 stems · 44 kits · 12 arcs (463 indexed).**
 
-**Expected final if all pass**: ~407 stems · ~44 kits · 12 arcs.
+**valloop is STOPPED** (was mid-audit; I took an exclusive server window for the
+trance re-validate + QA, and left it stopped so Gene's `review.py` grades on an
+idle server without audit collision). Server is hushed/idle.
+- To resume autonomous audit/drain: `nohup python assets/tools/valloop_music.py > /tmp/lc_music_valloop.log 2>&1 &`
+- To grade: `python assets/tools/review.py music --port 9766`
+- Working-tree note: the valloop's hourly audit leaves stems' `verified.rms`
+  metadata perpetually re-written; that churn is reverted at each of my commits
+  so the tree stays clean. Restarting the valloop will re-introduce it (harmless).
 
 ---
 
