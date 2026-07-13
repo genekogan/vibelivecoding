@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.hex_automaton",
+  "kind": "genart",
+  "name": "Hex Cellular Automaton",
+  "desc": "A six-neighbor cyclic cellular automaton on a hexagonal honeycomb lattice that self-organizes from noise into rotating six-fold snowflake fronts and crystalline spiral waves tiling the whole frame, rendered as iridescent crystal rings, amber honeycomb, blue-white ice, radioactive green, or an etched hex engraving.",
+  "tags": [
+    "hexagonal",
+    "hexagon",
+    "hex",
+    "honeycomb",
+    "comb",
+    "cellular-automaton",
+    "automata",
+    "ca",
+    "cyclic-ca",
+    "greenberg-hastings",
+    "lattice",
+    "six-fold",
+    "hexagonal-lattice",
+    "snowflake",
+    "crystal",
+    "crystalline",
+    "ice",
+    "frost",
+    "amber",
+    "gold",
+    "green",
+    "toxic",
+    "etched",
+    "engraving",
+    "spiral",
+    "waves",
+    "wavefront",
+    "front",
+    "growth",
+    "self-organizing",
+    "emergent",
+    "excitable-medium",
+    "geometric",
+    "grid",
+    "tessellation",
+    "iridescent",
+    "colorful",
+    "psychedelic",
+    "generative",
+    "genart",
+    "abstract",
+    "field",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.6,
+      "doc": "hex cell size / grid coarseness (higher = chunkier visible honeycomb, fewer cells)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / wavefront glow amplitude"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "reseed cadence + nucleation richness (higher = more new fronts)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "generations advanced per second (front rotation rate)"
+    },
+    "states": {
+      "default": 12,
+      "min": 4,
+      "max": 24,
+      "doc": "number of color states N (cycle length / ring thickness)"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue rotating the palette wheel"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reseed nucleus center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reseed nucleus center y"
+    },
+    "style": {
+      "default": "crystal",
+      "options": [
+        "crystal",
+        "honeycomb",
+        "ice",
+        "toxic",
+        "etched"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic initial noise + reseed variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T03:39:33+00:00",
+    "fps": 60.2,
+    "motion": 0.2464,
+    "lum": 0.498
+  },
+  "code": "const D = { scale: 1, energy: .6, density: .55, speed: 1, states: 12, hue: 205, x: .5, y: .5, style: 'crystal', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst SQ3 = 1.7320508, TAU = 6.2831853;\n// ---- coarse buffer sized to canvas aspect (<=256) ----\nconst BW = 232, BH = Math.max(64, Math.min(256, Math.round(BW * height / Math.max(1, width))));\n// ---- hex grid: scale controls cell coarseness (bigger scale = chunkier honeycomb, fewer cells) ----\nconst cols = Math.max(20, Math.min(120, Math.round(44 / Math.max(0.4, P.scale))));\nconst R = BW / (cols * SQ3 + SQ3 * 0.5);\nconst hx = SQ3 * R, vy = 1.5 * R;\nconst rows = Math.max(4, Math.floor((BH - 2 * R) / vy) + 1);\nconst originX = hx * 0.5, originY = R;\nconst NC = cols * rows;\nconst N = Math.max(4, Math.min(24, P.states | 0));\nconst seedI = P.seed | 0;\n\n// deterministic hash (no p5 random); Math.imul keeps the 32-bit mix exact\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\n// ---- coarse graphics buffer ----\nif (!S.g || S.gw !== BW || S.gh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.gw = BW; S.gh = BH; }\n\n// ---- pixel -> hex-cell LUT (rebuilt only on geometry change) ----\nconst lutSig = BW + 'x' + BH + '|' + cols + 'x' + rows;\nif (S.lutSig !== lutSig) {\n  S.lutSig = lutSig;\n  const cellOf = new Int32Array(BW * BH);\n  const rn = new Uint8Array(BW * BH);\n  for (let py = 0; py < BH; py++) {\n    for (let pxi = 0; pxi < BW; pxi++) {\n      const X = pxi - originX, Y = py - originY;\n      // pixel -> fractional axial (pointy-top)\n      const q = (SQ3 / 3 * X - Y / 3) / R;\n      const rr = (2 / 3 * Y) / R;\n      // cube round\n      const cxq = q, czq = rr, cyq = -cxq - czq;\n      let rx = Math.round(cxq), ry = Math.round(cyq), rz = Math.round(czq);\n      const xd = Math.abs(rx - cxq), yd = Math.abs(ry - cyq), zd = Math.abs(rz - czq);\n      if (xd > yd && xd > zd) rx = -ry - rz; else if (yd > zd) ry = -rx - rz; else rz = -rx - ry;\n      // axial(rx,rz) -> odd-r offset\n      let orow = rz;\n      let ocol = rx + ((rz - (rz & 1)) >> 1);\n      if (orow < 0) orow = 0; else if (orow >= rows) orow = rows - 1;\n      if (ocol < 0) ocol = 0; else if (ocol >= cols) ocol = cols - 1;\n      const idx = orow * cols + ocol;\n      // distance to that cell's center -> normalized radial (for honeycomb gaps / etched outlines)\n      const ccx = originX + hx * (ocol + 0.5 * (orow & 1));\n      const ccy = originY + vy * orow;\n      const dx = pxi - ccx, dy = py - ccy;\n      let d = Math.sqrt(dx * dx + dy * dy) / R; if (d > 1) d = 1;\n      const o = py * BW + pxi;\n      cellOf[o] = idx;\n      rn[o] = (d * 255) | 0;\n    }\n  }\n  S.cellOf = cellOf; S.rn = rn;\n}\n\n// ---- (re)build hex grid state + 6-neighbor table on size / seed / states change ----\nconst buildSig = cols + 'x' + rows + '_' + seedI + '_' + N;\nif (S.buildSig !== buildSig || !S.st) {\n  S.buildSig = buildSig;\n  S.st = new Uint8Array(NC);\n  S.st2 = new Uint8Array(NC);\n  S.age = new Uint8Array(NC);\n  for (let k = 0; k < NC; k++) S.st[k] = (gh(k, 4242) * N) | 0;\n  const nb = new Int32Array(NC * 6);\n  const DE = [[1, 0], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]]; // even rows (odd-r)\n  const DO = [[1, 0], [1, -1], [0, -1], [-1, 0], [0, 1], [1, 1]];   // odd rows\n  for (let j = 0; j < rows; j++) {\n    const dd = (j & 1) ? DO : DE;\n    for (let i = 0; i < cols; i++) {\n      const k = j * cols + i, o = k * 6;\n      for (let m = 0; m < 6; m++) {\n        const ni = ((i + dd[m][0]) % cols + cols) % cols;\n        const nj = ((j + dd[m][1]) % rows + rows) % rows;\n        nb[o + m] = nj * cols + ni;\n      }\n    }\n  }\n  S.nb = nb;\n  S.step = null;\n}\n\n// ---- hex cyclic CA (Greenberg-Hastings): s -> (s+1)%N if any 6-neighbor holds (s+1)%N ----\nfunction evolve() {\n  const st = S.st, nx = S.st2, ag = S.age, nb = S.nb;\n  for (let k = 0; k < NC; k++) {\n    const s = st[k];\n    const nv = s + 1 === N ? 0 : s + 1;\n    const o = k * 6;\n    let c = 0;\n    if (st[nb[o]] === nv) c++;\n    if (st[nb[o + 1]] === nv) c++;\n    if (st[nb[o + 2]] === nv) c++;\n    if (st[nb[o + 3]] === nv) c++;\n    if (st[nb[o + 4]] === nv) c++;\n    if (st[nb[o + 5]] === nv) c++;\n    if (c >= 1) { nx[k] = nv; ag[k] = 0; }\n    else { nx[k] = s; const a = ag[k]; if (a < 250) ag[k] = a + 1; }\n  }\n  const t = S.st; S.st = S.st2; S.st2 = t;\n}\n\n// ---- reseed a disc so fresh six-fold fronts keep nucleating ----\nfunction reseed(ccol, crow, rad, gen) {\n  const st = S.st, ag = S.age, r2 = rad * rad;\n  for (let dj = -rad; dj <= rad; dj++) {\n    for (let di = -rad; di <= rad; di++) {\n      if (di * di + dj * dj > r2) continue;\n      const i = ((ccol + di) % cols + cols) % cols, j = ((crow + dj) % rows + rows) % rows;\n      const idx = j * cols + i;\n      st[idx] = (gh(i * 7 + 3, j * 13 + gen) * N) | 0;\n      ag[idx] = 0;\n    }\n  }\n}\n\n// ---- clock -> generations/sec (continuous K.t drives evolution; never re-phases) ----\nconst secN = Math.floor(K.section) % 8;\nconst gps = 1.2 + P.speed * 4 + K.intensity * 2;\nconst target = Math.floor(K.t * gps);\nif (S.step == null || target < S.step) S.step = target;\n\nconst RP = Math.max(5, Math.round(34 - P.density * 26 - secN));\nconst rad = Math.max(2, Math.round((0.06 + P.density * 0.10) * Math.min(cols, rows)));\nconst ccol = Math.floor(P.x * cols + Math.sin(K.t * 0.12) * cols * 0.20);\nconst crow = Math.floor(P.y * rows + Math.cos(K.t * 0.10) * rows * 0.20);\n\nif (target - S.step > rows * 2) {\n  S.step = target;\n} else {\n  let guard = 0;\n  while (S.step < target && guard < 6) {\n    evolve();\n    S.step++; guard++;\n    if (S.step % RP === 0) reseed(ccol, crow, rad, S.step);\n    if (S.step % 41 === 0) { // six-fold defect ring -> snowflake symmetry\n      const cc = Math.floor(P.x * cols), cr = Math.floor(P.y * rows);\n      for (let a6 = 0; a6 < 6; a6++) {\n        const ang = a6 * Math.PI / 3 + S.step * 0.05;\n        const ri = Math.round(cc + Math.cos(ang) * cols * 0.18);\n        const rj = Math.round(cr + Math.sin(ang) * rows * 0.18);\n        reseed(((ri % cols) + cols) % cols, ((rj % rows) + rows) % rows, 1, S.step + a6);\n      }\n    }\n  }\n}\n\n// ---- palette + exposure (section-drift dramaturgy) ----\nconst hueOff = (P.hue + secN * 14 + K.t * 1.6);\nconst hr = ((hueOff % 360) + 360) % 360 / 360;\nconst expo = Math.min(1.5, 0.45 + P.energy * 0.9 + K.intensity * 0.25 + A.rms * 0.5);\nconst freshOf = a => a === 0 ? 1 : (a === 1 ? 0.6 : (a === 2 ? 0.32 : (a === 3 ? 0.16 : 0.05)));\nfunction pal(m) {\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr + 0.00)),\n          0.5 + 0.5 * Math.cos(TAU * (m + hr + 0.33)),\n          0.5 + 0.5 * Math.cos(TAU * (m + hr + 0.66))];\n}\nconst style = P.style;\nfunction colOf(s, a, OUT) {\n  const ph = s / N, f = freshOf(a);\n  if (style === 'honeycomb') {\n    const v = Math.min(1, (0.28 + ph * 0.55 + f * 0.35) * expo);\n    OUT[0] = Math.min(1, 0.16 + v * 1.0); OUT[1] = Math.min(1, 0.06 + v * 0.72); OUT[2] = Math.min(1, v * 0.16);\n  } else if (style === 'ice') {\n    const v = Math.min(1, (0.14 + ph * 0.30 + f * 0.5) * expo), w = f;\n    OUT[0] = Math.min(1, 0.03 + v * 0.30 + w * 0.5); OUT[1] = Math.min(1, 0.09 + v * 0.5 + w * 0.5); OUT[2] = Math.min(1, 0.24 + v * 0.6 + w * 0.4);\n  } else if (style === 'toxic') {\n    const g = Math.min(1, (0.10 + ph * 0.55 + f * 0.7) * expo);\n    OUT[0] = Math.min(1, 0.04 + g * 0.45); OUT[1] = Math.min(1, 0.05 + g * 0.98); OUT[2] = Math.min(1, 0.03 + g * 0.18);\n  } else if (style === 'etched') {\n    const g = Math.min(1, 0.72 - ph * 0.4 + f * 0.15);\n    OUT[0] = g; OUT[1] = g; OUT[2] = Math.min(1, g * 1.03);\n  } else { // crystal (default): iq cosine iridescent six-fold rings\n    const c = pal(ph + f * 0.12);\n    const sh = Math.min(1, (0.19 + ph * 0.26 + f * 0.42) * expo + 0.03);\n    OUT[0] = Math.min(1, c[0] * sh + f * 0.10); OUT[1] = Math.min(1, c[1] * sh + f * 0.10); OUT[2] = Math.min(1, c[2] * sh + f * 0.10);\n  }\n}\n\n// ---- render coarse buffer (rebuild on generation / live-poke change) ----\nconst rsig = S.step + '|' + style + '|' + Math.round(hueOff) + '|' + Math.round(expo * 20) + '|' + N + '|' + BW + 'x' + BH + '|' + cols;\nif (S.rsig !== rsig) {\n  S.rsig = rsig;\n  let gapStart, gapStrength;\n  if (style === 'honeycomb') { gapStart = 0.78; gapStrength = 0.92; }\n  else if (style === 'etched') { gapStart = 0.74; gapStrength = 0.96; }\n  else if (style === 'toxic') { gapStart = 0.80; gapStrength = 0.6; }\n  else if (style === 'ice') { gapStart = 0.82; gapStrength = 0.45; }\n  else { gapStart = 0.83; gapStrength = 0.4; }\n  if (!S.cR || S.cR.length !== NC) { S.cR = new Float32Array(NC); S.cG = new Float32Array(NC); S.cB = new Float32Array(NC); }\n  const cR = S.cR, cG = S.cG, cB = S.cB, OUT = [0, 0, 0], st = S.st, ag = S.age;\n  for (let k = 0; k < NC; k++) { colOf(st[k], ag[k], OUT); cR[k] = OUT[0]; cG[k] = OUT[1]; cB[k] = OUT[2]; }\n  const g = S.g; g.loadPixels(); const px = g.pixels, cellOf = S.cellOf, rn = S.rn, g1 = 1 / (1 - gapStart), NP = BW * BH;\n  for (let o = 0; o < NP; o++) {\n    const idx = cellOf[o], rnf = rn[o] / 255;\n    let e = 1;\n    if (rnf > gapStart) { e = 1 - (rnf - gapStart) * g1 * gapStrength; if (e < 0) e = 0; }\n    const p4 = o * 4;\n    px[p4] = cR[idx] * e * 255; px[p4 + 1] = cG[idx] * e * 255; px[p4 + 2] = cB[idx] * e * 255; px[p4 + 3] = 255;\n  }\n  g.updatePixels();\n}\n\n// ---- draw: upscale with slow continuous rotation + zoom breath (motion floor between generations) ----\nconst ang = K.t * 0.018;\nconst zoom = 1.5 + Math.sin(K.t * 0.09) * 0.05 + A.rms * 0.12;\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2, height / 2);\nrotate(ang);\nscale(zoom);\nimageMode(CENTER);\nimage(S.g, 0, 0, width, height);\npop();\nimageMode(CORNER);\n\n// ---- audio glow ON TOP of clk baseline (all-zero during validation; partial alpha, never strobes) ----\nif (A.bass > 0.01 || A.treble > 0.01 || A.rms > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  fill((hueOff + 20) % 360, 45, 100, (A.bass * 0.6 + A.rms * 0.4) * P.energy * 16);\n  rect(0, 0, width, height);\n  fill((hueOff + 90) % 360, 55, 100, A.treble * P.energy * 11);\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}
