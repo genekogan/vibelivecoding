@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.percolation",
+  "kind": "genart",
+  "name": "Invasion Percolation",
+  "desc": "Fluid invades a random-threshold porous medium always through the weakest available pore, growing a ramified fractal cluster that strands dark trapped voids like oil fingering through rock, colored by invasion time from early violet to late gold and perpetually dissolving to regrow on fresh geology.",
+  "tags": [
+    "percolation",
+    "invasion percolation",
+    "porous",
+    "fingering",
+    "viscous fingering",
+    "oil",
+    "water",
+    "crude",
+    "brine",
+    "geology",
+    "reservoir",
+    "capillary",
+    "fractal",
+    "dendrite",
+    "ramified",
+    "growth",
+    "cluster",
+    "frontier",
+    "trapped voids",
+    "invasion",
+    "medium",
+    "min-heap",
+    "field",
+    "generative",
+    "genart",
+    "abstract",
+    "organic",
+    "violet",
+    "gold",
+    "thermal",
+    "moss",
+    "ink",
+    "duotone",
+    "dark",
+    "backdrop",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "pore/cell size (higher = chunkier coarser medium, fewer cells)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "cluster mass / target fill fraction (higher = more of frame invaded)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "invasion rate \u2014 cells invaded per frame (frontier advance speed)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "frontier glow / bloom amplitude"
+    },
+    "hue": {
+      "default": 275,
+      "min": 0,
+      "max": 360,
+      "doc": "time-flow palette base hue (violet start of the invasion-time ramp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seed nucleus anchor x (clamped 0.08-0.92)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seed nucleus anchor y (clamped 0.08-0.92)"
+    },
+    "rough": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "threshold-field roughness: low=smooth blobby lakes/few voids, high=spiky ramified fingering/many trapped voids"
+    },
+    "style": {
+      "default": "time-flow",
+      "options": [
+        "time-flow",
+        "oil-water",
+        "thermal",
+        "moss",
+        "ink"
+      ],
+      "doc": "render philosophy: iq violet->gold invasion-time / crude-brine duotone / blue->red thermal false-color / organic greens / mono black-ink cluster on cream print"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic medium + growth seed (rebuilds the random-threshold field)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:33:53+00:00",
+    "fps": 58.8,
+    "motion": 0.2332,
+    "lum": 0.331
+  },
+  "code": "const D = { scale:1, density:.55, speed:1, energy:.6, hue:275, x:.5, y:.5, rough:.5, style:'time-flow', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst st = P.style;\n\n// --- grid dims from scale (larger scale = chunkier cells), <=180 wide ---\nconst GW = clp(Math.round(150/Math.pow(clp(P.scale,0.4,2.6),0.85)), 44, 180);\nconst GH = clp(Math.round(GW*height/width), 28, 180);\n\n// --- pixel buffer ---\nif (!S.g || S.gk !== GW+'x'+GH){ if (S.g) S.g.remove(); S.g = createGraphics(GW,GH); S.g.pixelDensity(1); S.gk = GW+'x'+GH; }\n\nfunction hsb2rgb(h,s,v){ h=((h%360)+360)%360; const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b;\n  if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}\n  else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}\n  return [(r+m)*255,(g+m)*255,(b+m)*255]; }\n\n// --- 256 time->color LUT + medium/void tones (rebuild on style/hue/section) ---\nconst sec = (K.section||0);\nif (S.lutKey !== st+'|'+(P.hue|0)+'|'+sec){\n  S.lutKey = st+'|'+(P.hue|0)+'|'+sec;\n  const hs = sec*6;\n  const lut = new Uint8ClampedArray(768);\n  for(let k=0;k<256;k++){ const t=k/255; let c;\n    if(st==='oil-water') c=hsb2rgb(30+hs*0.3 - t*8, 0.86-0.4*t, 0.12+t*0.58);\n    else if(st==='thermal') c=hsb2rgb(255+hs - t*255, 0.92-0.6*Math.max(0,t-0.55), 0.32+t*0.6);\n    else if(st==='moss') c=hsb2rgb(108+hs - t*46, 0.74-0.32*t, 0.22+t*0.6);\n    else if(st==='ink') c=hsb2rgb(45, 0.07, 0.16+t*0.36);\n    else c=hsb2rgb(P.hue+hs + t*130, 0.80-0.24*t, 0.42+t*0.52);\n    lut[k*3]=c[0]; lut[k*3+1]=c[1]; lut[k*3+2]=c[2]; }\n  S.lut = lut;\n  if(st==='oil-water'){ S.med=hsb2rgb(196,0.52,0.25); S.vd=hsb2rgb(205,0.6,0.07); S.acc=[36,55,100]; }\n  else if(st==='thermal'){ S.med=hsb2rgb(238,0.58,0.13); S.vd=hsb2rgb(240,0.5,0.05); S.acc=[14,45,100]; }\n  else if(st==='moss'){ S.med=hsb2rgb(122,0.48,0.16); S.vd=hsb2rgb(30,0.5,0.08); S.acc=[64,60,100]; }\n  else if(st==='ink'){ S.med=hsb2rgb(45,0.10,0.90); S.vd=hsb2rgb(45,0.05,0.55); S.acc=[45,6,100]; }\n  else { S.med=hsb2rgb(P.hue-10,0.5,0.19); S.vd=hsb2rgb(P.hue-20,0.5,0.09); S.acc=[(P.hue+130)%360,45,100]; }\n}\n\n// --- medium epoch: new random medium on time-epoch OR section change ---\nconst period = 37;\nconst tEpoch = Math.floor(K.t/period);\nconst key = GW+'x'+GH+'|'+P.seed+'|'+tEpoch+'|'+sec+'|'+P.rough.toFixed(2)+'|'+P.density.toFixed(2);\nif (S.key !== key){\n  S.key = key;\n  const sd = ((P.seed*2654435761) ^ (tEpoch*40503) ^ (sec*668265263)) >>> 0;\n  const N = GW*GH;\n  S.thr = new Float32Array(N); S.inv = new Uint8Array(N); S.tim = new Float32Array(N); S.front = new Uint8Array(N);\n  S.heap = []; S.tips = []; S.counter = 0; S.fc = 0;\n  const lh = (ix,iy)=>{ let h=((ix*374761393)^(iy*668265263)^(sd*2246822519))>>>0; h=(h^(h>>>13)); h=(h*1274126177)>>>0; return ((h^(h>>>16))>>>0)/4294967295; };\n  const vnz = (x,y)=>{ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy; const uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy);\n    const a=lh(ix,iy),b=lh(ix+1,iy),c=lh(ix,iy+1),d=lh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; };\n  const F1 = 5 + (1-P.rough)*3;\n  for(let y=0;y<GH;y++) for(let x=0;x<GW;x++){ const i=y*GW+x;\n    const corr = 0.62*vnz(x/GW*F1, y/GH*F1) + 0.38*vnz(x/GW*F1*2.3+7.1, y/GH*F1*2.3-3.2);\n    const wht = lh(x*3+1, y*5+2);\n    let tv = (1-P.rough)*corr + P.rough*wht;\n    S.thr[i] = Math.min(0.999, Math.max(0.001, tv + (lh(x*7+3,y*11+5)-0.5)*0.05)); }\n  S.norm = Math.max(1, Math.floor(N*(0.26+P.density*0.24)));\n  const sx = Math.min(GW-2, Math.max(1, Math.floor(clp(P.x,0.08,0.92)*GW)));\n  const sy = Math.min(GH-2, Math.max(1, Math.floor(clp(P.y,0.08,0.92)*GH)));\n  S.seed0 = sy*GW+sx;\n  S.justBuilt = true;\n}\n\nconst thr = S.thr, inv = S.inv, tim = S.tim, front = S.front;\nfunction hpush(i){ const H=S.heap; H.push(i); let c=H.length-1; while(c>0){ const p=(c-1)>>1; if(thr[H[p]]<=thr[H[c]])break; const t=H[p];H[p]=H[c];H[c]=t; c=p; } }\nfunction hpop(){ const H=S.heap; const top=H[0], last=H.pop(); if(H.length){ H[0]=last; const n=H.length; let c=0; for(;;){ const l=2*c+1,r=l+1; let m=c; if(l<n&&thr[H[l]]<thr[H[m]])m=l; if(r<n&&thr[H[r]]<thr[H[m]])m=r; if(m===c)break; const t=H[m];H[m]=H[c];H[c]=t; c=m; } } return top; }\nfunction tryFront(j){ if(inv[j]===0 && front[j]===0){ front[j]=1; hpush(j); } }\nfunction invade(ci){ inv[ci]=1; tim[ci]=S.counter++; const x=ci%GW, y=(ci/GW)|0;\n  S.tips.push(ci); if(S.tips.length>150) S.tips.shift();\n  if(x>0) tryFront(ci-1); if(x<GW-1) tryFront(ci+1); if(y>0) tryFront(ci-GW); if(y<GH-1) tryFront(ci+GW); }\nfunction growN(n){ const H=S.heap; let did=0, guard=0; while(did<n && H.length && guard<n*5+64){ guard++; const ci=hpop(); if(inv[ci]!==0) continue; invade(ci); did++; } return did; }\nfunction markTrapped(){ const N=GW*GH; let reach=S.reach; if(!reach||reach.length!==N){ reach=S.reach=new Uint8Array(N); S.q=new Int32Array(N); } reach.fill(0); const q=S.q; let qt=0,qh=0;\n  for(let x=0;x<GW;x++){ let i=x; if(inv[i]===0){reach[i]=1;q[qt++]=i;} i=(GH-1)*GW+x; if(inv[i]===0&&!reach[i]){reach[i]=1;q[qt++]=i;} }\n  for(let y=0;y<GH;y++){ let i=y*GW; if(inv[i]===0&&!reach[i]){reach[i]=1;q[qt++]=i;} i=y*GW+GW-1; if(inv[i]===0&&!reach[i]){reach[i]=1;q[qt++]=i;} }\n  while(qh<qt){ const ci=q[qh++]; const x=ci%GW,y=(ci/GW)|0;\n    if(x>0){const j=ci-1; if(inv[j]===0&&!reach[j]){reach[j]=1;q[qt++]=j;}}\n    if(x<GW-1){const j=ci+1; if(inv[j]===0&&!reach[j]){reach[j]=1;q[qt++]=j;}}\n    if(y>0){const j=ci-GW; if(inv[j]===0&&!reach[j]){reach[j]=1;q[qt++]=j;}}\n    if(y<GH-1){const j=ci+GW; if(inv[j]===0&&!reach[j]){reach[j]=1;q[qt++]=j;}} }\n  for(let i=0;i<N;i++){ if(inv[i]===0 && !reach[i]) inv[i]=2; } }\n\nif (S.justBuilt){ S.justBuilt=false; invade(S.seed0); const pg=Math.floor(GW*GH*(0.14+P.density*0.28)); growN(pg); markTrapped(); }\n\n// --- live growth: the advancing frontier is the motion ---\nconst rate = Math.max(1, Math.round((3+P.speed*6)*(0.5+intn) + A.bass*30));\ngrowN(rate);\nS.fc = (S.fc||0)+1; if(S.fc%16===0) markTrapped();\n\n// --- render grid -> pixels ---\nS.g.loadPixels(); const px=S.g.pixels; const lut=S.lut, norm=S.norm, med=S.med, vd=S.vd;\nconst N=GW*GH;\nfor(let i=0;i<N;i++){ const o=i*4; const s=inv[i];\n  if(s===1){ let t01=tim[i]/norm; if(t01>1)t01=1; const p3=((t01*255)|0)*3; px[o]=lut[p3]; px[o+1]=lut[p3+1]; px[o+2]=lut[p3+2]; }\n  else if(s===2){ px[o]=vd[0]; px[o+1]=vd[1]; px[o+2]=vd[2]; }\n  else { const tx=0.72+0.5*thr[i]; px[o]=med[0]*tx; px[o+1]=med[1]*tx; px[o+2]=med[2]*tx; }\n  px[o+3]=255; }\nS.g.updatePixels();\n\n// --- draw buffer with slow K.t advection drift (never re-phases -> motion floor) ---\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nconst dx=Math.sin(K.t*0.13)*width*0.014, dy=Math.cos(K.t*0.11)*height*0.014;\nimage(S.g, -width*0.03+dx, -height*0.03+dy, width*1.06, height*1.06);\npop();\n\n// --- live frontier glow: invasion tips shimmer (audio sparkle on top) ---\npush(); blendMode(ADD); noStroke();\nconst tips=S.tips, sxp=width/GW, syp=height/GH, acc=S.acc, eAmp=(0.45+P.energy);\nfor(let k=0;k<tips.length;k++){ const ci=tips[k]; const gx=ci%GW, gy=(ci/GW)|0;\n  const pulse=0.5+0.5*Math.sin(K.t*2.6 - k*0.09);\n  const gl=(3.5+pulse*8)*eAmp + A.treble*24 + K.pulse*5;\n  fill(acc[0], acc[1], acc[2], Math.min(58,gl));\n  circle(gx*sxp+sxp*0.5+dx, gy*syp+syp*0.5+dy, sxp*(1.5+pulse*1.4)); }\nblendMode(BLEND); pop();\ndrawingContext.shadowBlur = 0;\n"
+}

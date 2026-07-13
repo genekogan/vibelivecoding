@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gumowski_mira",
+  "kind": "genart",
+  "name": "Gumowski-Mira Attractor",
+  "desc": "A Gumowski-Mira strange attractor whose nonlinear recurrence breeds swirling mandalas, insectoid shells and galactic filaments that perpetually morph as a and b drift, its log-density point cloud glowing magenta-to-cyan on a deep indigo ground.",
+  "tags": [
+    "gumowski-mira",
+    "gumowski",
+    "mira",
+    "strange-attractor",
+    "attractor",
+    "chaos",
+    "dynamical-system",
+    "recurrence",
+    "nonlinear",
+    "iteration",
+    "density",
+    "point-cloud",
+    "mandala",
+    "filament",
+    "galaxy",
+    "galactic",
+    "shell",
+    "insectoid",
+    "organic",
+    "fractal",
+    "generative",
+    "genart",
+    "abstract",
+    "field",
+    "fullbleed",
+    "background",
+    "bg",
+    "bioluminescent",
+    "glow",
+    "magenta",
+    "cyan",
+    "indigo",
+    "gold",
+    "ember",
+    "thermal",
+    "pencil",
+    "sumi",
+    "graphite",
+    "psychedelic",
+    "cosmic",
+    "ambient",
+    "math-art",
+    "iq-palette",
+    "log-density"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.68,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude (auto-exposed, always visible)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "attractor zoom (higher = larger, overspills frame)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "orbit / iterate count (sparse sparkle -> dense body)"
+    },
+    "morph": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how far/fast a,b drift -> speed the creature reshapes"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "drift + rotation rate"
+    },
+    "persist": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "density-buffer decay (crisp -> long luminous smear)"
+    },
+    "hue": {
+      "default": 318,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (rotates the whole ramp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "attractor anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "attractor anchor y"
+    },
+    "style": {
+      "default": "bioluminescent",
+      "options": [
+        "bioluminescent",
+        "goldsilk",
+        "ember",
+        "plasma",
+        "pencil"
+      ],
+      "doc": "render philosophy: deep-sea glow / indigo-gold silk / blackbody ember / electric plasma / graphite-on-cream sketch"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic drift phase + orbit scatter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:32:57+00:00",
+    "fps": 61.7,
+    "motion": 0.0656,
+    "lum": 0.423
+  },
+  "code": "const D = { energy: .68, scale: 1, density: .55, morph: .5, speed: 1, persist: .5, hue: 318, x: .5, y: .5, style: 'bioluminescent', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse density grid (long axis 200; keyed on canvas size) ----\nconst LA = 200;\nlet cw, ch;\nif (width >= height) { cw = LA; ch = Math.max(64, Math.round(LA * height / width)); }\nelse { ch = LA; cw = Math.max(64, Math.round(LA * width / height)); }\nif (S.gridKey !== cw + 'x' + ch) {\n  S.gridKey = cw + 'x' + ch; S.cw = cw; S.ch = ch;\n  S.hist = new Float32Array(cw * ch);\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(cw, ch); S.buf.pixelDensity(1);\n  S.rad = 8;\n}\ncw = S.cw; ch = S.ch; const N4 = cw * ch;\nconst hist = S.hist;\nif (S.rad == null || !isFinite(S.rad)) S.rad = 8;\n\n// ---- seeded inline hash (no p5 random) ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.phA = fr(1) * 6.283; S.phB = fr(2) * 6.283; S.soff = fr(3) * 100; S.arot = fr(4) * 6.283;\n  S.rad = 8;\n}\nconst hsh = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7 + S.soff) * 43758.5453; return s - Math.floor(s); };\n\n// ---- palette LUT (256x3 float) built once per style/hue change ----\nfunction hsb2rgb(h, s, b) {\n  h = ((h % 360) + 360) % 360; s /= 100; b /= 100;\n  const c = b * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = b - c;\n  let r, g, bl, hp = h / 60;\n  if (hp < 1) { r = c; g = x; bl = 0; } else if (hp < 2) { r = x; g = c; bl = 0; }\n  else if (hp < 3) { r = 0; g = c; bl = x; } else if (hp < 4) { r = 0; g = x; bl = c; }\n  else if (hp < 5) { r = x; g = 0; bl = c; } else { r = c; g = 0; bl = x; }\n  return [r + m, g + m, bl + m];\n}\nconst STOPS = {\n  bioluminescent: [[0,305,95,16],[.28,318,92,46],[.5,285,88,70],[.68,245,80,88],[.84,190,66,99],[1,185,12,100]],\n  goldsilk:       [[0,250,88,12],[.3,256,82,42],[.55,42,72,78],[.8,45,55,96],[1,48,14,100]],\n  ember:          [[0,10,96,7],[.28,6,98,46],[.55,24,95,84],[.8,42,86,98],[1,50,20,100]],\n  plasma:         [[0,300,92,14],[.3,316,90,56],[.52,270,82,74],[.72,200,86,92],[1,182,30,100]]\n};\nconst styKey = (P.style === 'goldsilk' || P.style === 'gold-silk') ? 'goldsilk'\n  : (STOPS[P.style] ? P.style : (P.style === 'pencil' ? 'pencil' : 'bioluminescent'));\n// slow palette drift across the arc (rebuilds only when the rounded hue changes)\nconst driftHue = P.hue + Math.sin(K.t * 0.015) * 14 + K.section * 6;\nconst palTag = styKey + '|' + Math.round(driftHue);\nif (styKey !== 'pencil' && S.palTag !== palTag) {\n  S.palTag = palTag;\n  const stops = STOPS[styKey] || STOPS.bioluminescent;\n  const hoff = driftHue - 318;\n  const srgb = stops.map(s => { const c = hsb2rgb(s[1] + hoff, s[2], s[3]); return [s[0], c[0], c[1], c[2]]; });\n  const lut = new Float32Array(256 * 3);\n  for (let i = 0; i < 256; i++) {\n    const t = i / 255; let a = srgb[0], b = srgb[srgb.length - 1];\n    for (let k = 0; k < srgb.length - 1; k++) { if (t >= srgb[k][0] && t <= srgb[k + 1][0]) { a = srgb[k]; b = srgb[k + 1]; break; } }\n    const sp = (b[0] - a[0]) || 1, f = (t - a[0]) / sp;\n    lut[i * 3] = a[1] + (b[1] - a[1]) * f; lut[i * 3 + 1] = a[2] + (b[2] - a[2]) * f; lut[i * 3 + 2] = a[3] + (b[3] - a[3]) * f;\n  }\n  S.lut = lut;\n}\nconst lut = S.lut;\n\n// ---- Gumowski-Mira recurrence: f(x) = a x + 2(1-a)x^2/(1+x^2) ----\nconst intn = (K.intensity != null ? K.intensity : .6);\nconst T = K.t * P.speed;\nconst a0 = 0.31, b0 = 0.99;\nlet a = a0 + (0.03 + P.morph * 0.36) * Math.sin(T * 0.13 + S.phA);\nlet b = b0 + (0.005 + P.morph * 0.06) * Math.sin(T * 0.09 + S.phB);\nif (a > 0.85) a = 0.85; else if (a < -0.85) a = -0.85;\nif (b > 1.0) b = 1.0; else if (b < 0.9) b = 0.9;\nconst a2 = 2 * (1 - a);\nconst f = x => a * x + a2 * x * x / (1 + x * x);\n\n// whole-attractor rotation about origin (K.t motion floor \u2014 never re-phases)\nconst rot = K.t * 0.04 * P.speed + S.arot;\nconst cr = Math.cos(rot), sr = Math.sin(rot);\nconst rad = Math.max(0.5, S.rad);\nconst inv = P.scale / (rad * 2.15);\nconst ox = 0.5 + (P.x - 0.5), oy = 0.5 + (P.y - 0.5);\n\n// ---- rolling decay + running max ----\nconst decay = 0.80 + P.persist * 0.17;\nlet nMax = 0;\nfor (let i = 0; i < N4; i++) { const v = hist[i] * decay; hist[i] = v; if (v > nMax) nMax = v; }\n\n// ---- iterate many scattered orbits; splat into density grid ----\nconst total = Math.floor((24000 + P.density * 34000) * (0.6 + intn * 0.5) + A.bass * 6000);\nconst steps = 168;\nconst nOrb = Math.max(24, Math.ceil(total / steps));\nconst startR = Math.min(rad * 0.62, 13);\nconst aRot = K.t * 0.05;\nconst FENCE = 90;\nlet thisMax = 1e-4;\nfor (let o = 0; o < nOrb; o++) {\n  const rr = Math.sqrt(hsh(o * 2 + 11)) * startR;\n  const ang = hsh(o * 2 + 12) * 6.283 + aRot;\n  let x = Math.cos(ang) * rr, y = Math.sin(ang) * rr;\n  for (let s = 0; s < steps; s++) {\n    const xn = b * y + f(x);\n    const yn = -x + f(xn);\n    x = xn; y = yn;\n    if (!(x > -FENCE && x < FENCE && y > -FENCE && y < FENCE)) break;\n    if (s < 8) continue;\n    const ax = x < 0 ? -x : x, ay = y < 0 ? -y : y;\n    if (ax > thisMax) thisMax = ax; if (ay > thisMax) thisMax = ay;\n    const gx = x * cr - y * sr, gy = x * sr + y * cr;\n    const px = (gx * inv + ox) * cw | 0, py = (gy * inv + oy) * ch | 0;\n    if (px >= 0 && px < cw && py >= 0 && py < ch) { const bi = py * cw + px; const nv = hist[bi] + 1; hist[bi] = nv; if (nv > nMax) nMax = nv; }\n  }\n}\n// slow auto-fit of the framing radius (follows drift, immune to occasional escapees)\nS.rad += (thisMax - S.rad) * 0.06;\nif (S.rad < 0.5) S.rad = 0.5;\n\n// ---- log-density + gamma tone map into the coarse buffer ----\nconst expo = 0.72 + P.energy * 2.4 + K.pulse * 0.2 + A.rms * 1.0 + intn * 0.3;\nconst invG = 1 / 2.6;\nconst logMax = Math.log(1 + nMax * expo) + 1e-3;\nconst pencil = (styKey === 'pencil');\nlet bgR, bgG, bgB;\nif (pencil) { bgR = 236; bgG = 230; bgB = 213; }\nelse if (styKey === 'ember') { bgR = 13; bgG = 5; bgB = 7; }\nelse if (styKey === 'goldsilk') { bgR = 11; bgG = 10; bgB = 26; }\nelse { bgR = 16; bgG = 7; bgB = 28; }\nconst buf = S.buf; buf.loadPixels(); const q = buf.pixels;\nfor (let i = 0; i < N4; i++) {\n  const n = hist[i]; let R, G, B;\n  if (n < 1e-3) { R = bgR; G = bgG; B = bgB; }\n  else {\n    let br = Math.log(1 + n * expo) / logMax; if (br > 1) br = 1;\n    br = Math.pow(br, invG);\n    if (pencil) {\n      const ink = br * 0.93;\n      R = bgR * (1 - ink) + 34 * ink; G = bgG * (1 - ink) + 32 * ink; B = bgB * (1 - ink) + 40 * ink;\n    } else {\n      let k = (br * 255) | 0; if (k < 0) k = 0; if (k > 255) k = 255;\n      R = lut[k * 3] * 255; G = lut[k * 3 + 1] * 255; B = lut[k * 3 + 2] * 255;\n    }\n  }\n  const p4 = i * 4; q[p4] = R; q[p4 + 1] = G; q[p4 + 2] = B; q[p4 + 3] = 255;\n}\nbuf.updatePixels();\n\n// ---- composite: upscale + cheap ADD bloom (glow styles) ----\npush();\ntint(0, 0, 100, P.alpha);\nimage(buf, 0, 0, width, height);\nif (!pencil) {\n  blendMode(ADD);\n  tint(0, 0, 100, (18 + P.energy * 22 + A.treble * 20) * (P.alpha / 100));\n  image(buf, 0, 0, width, height);\n  blendMode(BLEND);\n}\nnoTint();\npop();\nblendMode(BLEND);\n"
+}
