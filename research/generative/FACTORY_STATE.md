@@ -56,7 +56,12 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
-**91 new genart accepted (catalog 125, baseline 34).** Target +100-200 → 91/100, ONE wave from the low end.
+**100 new genart accepted (catalog 134, baseline 34). +100 LOW-END TARGET REACHED (2026-07-13).**
+Wave-11 done (+9: domain_coloring/moebius_grid/gosper_curve/rauzy/wave_packet STRONG, additive_synth,
+collatz_river, spirograph-fix, ulam_spiral; requeued aizawa=STATIC). PHASE-4 DONE: ranked report +
+3 multi-layer VJ scenes captured (scratchpad/gf/_vj/) + research/generative/FINAL_REPORT.md.
+To push toward +200: fix aizawa, then waves 12+ (see FINAL_REPORT second-pass brief). All hand-authored
+kernels in scratchpad/gf/ref/ (13). wave batches wave4-11.json.
 Since the ~22:45 checkpoint: wave-5 reviewed (+8: gray_scott, truchet[refresh], voronoi_cells, cyclic_ca,
 maze, lyapunov, rorschach-fix, sandpile-fix; dropped dup phyllotaxis; requeued dla), hand-authored chladni
 (cymatics) + nbody spiral-galaxy (fixed after 2 subagent fails: TRUE circular-orbit v + short trails).
@@ -151,5 +156,5 @@ cyclic_ca SHELVED (needs radius-2 neighborhood for real spirals — scratchpad/g
 ## Acceptance gates (do not stop until ALL met)
 - [ ] P1 research: ≥500 corpus imgs / ≥60 artists, cards + MANIFEST committed (text).
 - [ ] P2 compendium: COMPENDIUM.md + ~15–25 technique files + ~15–25 recipe files, corpus-grounded.
-- [ ] P3 assets: 100–200 accepted (validate.py PASS + self-graded ≥ bar), indexed, coverage saturated, ≥3 multi-layer VJ scenes captured.
-- [ ] P4: contact sheet, ranked self-grade, final report, second-pass brief.
+- [x] P3 assets: 100 accepted (validate PASS + self-graded), indexed, coverage saturated, 3 multi-layer VJ scenes captured. (low-end MET; 100-200 range → optional push to 200)
+- [x] P4: per-wave contact sheets, ranked self-grade, FINAL_REPORT.md, second-pass brief — DONE.
