@@ -1,0 +1,178 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.boids",
+  "kind": "genart",
+  "name": "Murmuration",
+  "desc": "A Reynolds boids flock of hundreds of starlings that swirls, splits and reforms across a graded dusk sky, its speed painted as hue while motion-blur ribbons trail behind \u2014 switchable to additive neon vectors, a thermal density heat-map, a blueprint vector schematic, or dry sumi-ink silhouettes.",
+  "tags": [
+    "boids",
+    "flocking",
+    "murmuration",
+    "starlings",
+    "birds",
+    "flock",
+    "swarm",
+    "reynolds",
+    "separation",
+    "alignment",
+    "cohesion",
+    "emergence",
+    "particles",
+    "agents",
+    "ribbons",
+    "dusk",
+    "sunset",
+    "neon",
+    "thermal",
+    "blueprint",
+    "ink",
+    "sumi",
+    "silhouette",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "organic",
+    "flight",
+    "swirl",
+    "nature",
+    "atmospheric"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "streak brightness / length / force gain (obvious at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flock size \u2014 agent count 180..620 (crowd at max)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "flight speed (vmax, clamped)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "neighbor radius + bird size (big = one giant flock)"
+    },
+    "cohesion": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "pull toward flockmates (max = tight clumps)"
+    },
+    "separation": {
+      "default": 1.6,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "push off close neighbors (max = disperse)"
+    },
+    "alignment": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "match heading (max = coherent sweep)"
+    },
+    "reach": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "neighbor radius fraction"
+    },
+    "wander": {
+      "default": 0.4,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "curl-noise wander floor (keeps flock alive)"
+    },
+    "attract": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pull toward the roving attractor"
+    },
+    "trail": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "motion-blur persistence (low = long smears)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "sky + bird base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "attractor home x / sun position"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "attractor home y"
+    },
+    "style": {
+      "default": "dusk-flock",
+      "options": [
+        "dusk-flock",
+        "neon-vector",
+        "thermal-density",
+        "blueprint-vectors",
+        "ink-silhouette"
+      ],
+      "doc": "render philosophy"
+    },
+    "act": {
+      "default": "murmur",
+      "options": [
+        "murmur",
+        "startle",
+        "settle"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout + variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": [
+    "murmur",
+    "startle",
+    "settle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:49:42+00:00",
+    "fps": 64.9,
+    "motion": 0.0552,
+    "lum": 0.304
+  },
+  "code": "const D = { energy:.6, density:.5, speed:1, scale:1, cohesion:1.0, separation:1.6, alignment:1.0, reach:.5, wander:.4, attract:.45, trail:.5, hue:28, x:.5, y:.5, style:'dusk-flock', act:'murmur', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height), key = width+'x'+height, st = P.style, ga = Math.max(0, P.alpha)/100;\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\n\n// \u2500\u2500 graded sky / ground buffer (rebuilt only on style/hue/seed/size change) \u2500\u2500\nconst SW = Math.min(240, Math.max(80, Math.round(width/4)));\nconst SH = Math.max(48, Math.round(SW*height/Math.max(1,width)));\nconst skyKey = st+'|'+Math.round(P.hue)+'|'+(P.seed|0)+'|'+SW+'x'+SH;\nif (S.skyKey !== skyKey) {\n  S.skyKey = skyKey; S.needEstab = true;\n  let g2 = S.sky;\n  if (!g2 || S.skW!==SW || S.skH!==SH) { g2 = S.sky = createGraphics(SW, SH); g2.pixelDensity(1); S.skW=SW; S.skH=SH; }\n  g2.colorMode(g2.HSB, 360, 100, 100, 100);\n  g2.noStroke();\n  if (st === 'ink-silhouette') {\n    for (let jy=0; jy<SH; jy++){ const ty=jy/(SH-1); g2.fill(38, 9, 91 - ty*9); g2.rect(0,jy,SW,1); }\n    for (let k=0;k<240;k++){ const gx=fr(k*2+1)*SW, gy=fr(k*2+2)*SH; g2.fill(34, 16, 66, 16); const rr=1+fr(k*3+5)*2.2; g2.ellipse(gx,gy,rr,rr); }\n  } else if (st === 'neon-vector') {\n    for (let jy=0; jy<SH; jy++){ const ty=jy/(SH-1); g2.fill((P.hue+200)%360, 60, 3+ty*4); g2.rect(0,jy,SW,1); }\n  } else if (st === 'thermal-density') {\n    for (let jy=0; jy<SH; jy++){ const ty=jy/(SH-1); g2.fill(245, 48, 2+ty*3.5); g2.rect(0,jy,SW,1); }\n  } else if (st === 'blueprint-vectors') {\n    for (let jy=0; jy<SH; jy++){ const ty=jy/(SH-1); g2.fill(212, 62, 8+ty*4); g2.rect(0,jy,SW,1); }\n    g2.stroke(200, 45, 45, 24); g2.strokeWeight(1);\n    const gs = SW/14;\n    for (let gx=gs; gx<SW; gx+=gs) g2.line(gx,0,gx,SH);\n    for (let gy=gs; gy<SH; gy+=gs) g2.line(0,gy,SW,gy);\n    g2.noStroke();\n  } else { // dusk-flock \u2014 graded dusk sky + sun glow\n    for (let jy=0; jy<SH; jy++){ const ty=jy/(SH-1); const tt=ty*ty*(3-2*ty);\n      const h=((P.hue+205+tt*155)%360+360)%360; g2.fill(h, 42+ty*32, 24+tt*30); g2.rect(0,jy,SW,1); }\n    g2.blendMode(g2.ADD);\n    const sx=P.x*SW, sy=0.75*SH;\n    for (let r=0;r<6;r++){ const rr=(0.62-r*0.09)*SW; g2.fill((P.hue+16)%360, 62, 72, 8); g2.ellipse(sx, sy, rr, rr*0.7); }\n    g2.blendMode(g2.BLEND);\n  }\n}\n\n// \u2500\u2500 population (rebuilt only on seed / size / count change) \u2500\u2500\nconst N = Math.floor(180 + P.density*440);\nif (S.seedUsed!==P.seed || S.pkey!==key || !S.ps || S.ps.length!==N){\n  S.seedUsed=P.seed; S.pkey=key;\n  let z=(P.seed*2654435761+12345)>>>0;\n  S.rnd=()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  S.ps=[];\n  for (let i=0;i<N;i++){ const a=S.rnd()*6.2832;\n    S.ps.push({ x:S.rnd()*width, y:S.rnd()*height, vx:Math.cos(a)*(0.4+S.rnd()*0.6), vy:Math.sin(a)*(0.4+S.rnd()*0.6) }); }\n}\nconst ps=S.ps, rnd=S.rnd;\n\n// \u2500\u2500 arc + acts (30s\u20135min; never re-phases \u2014 K.t / K.section driven) \u2500\u2500\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst sweep = 0.5 + 0.5*Math.sin(K.section*0.8 + K.t*0.012);   // laminar \u2194 splitting\nconst cohMul = 0.7 + sweep*0.7 + K.swell*0.3;\nconst sepMul = 1.18 - sweep*0.34;\nconst spdMul = 0.82 + intn*0.5;\nlet followK = 0.0022 + P.attract*0.006;\nlet sepSpike = 1;\nif (P.act==='startle'){ sepSpike = 1 + (K.pulse*1.6 + A.bass*1.3); }\nelse if (P.act==='settle'){ followK *= 1.9; }\n// wandering global attractor \u2014 homes at P.x,P.y, roves on real time (no re-phase)\nconst atx = ((P.x + 0.30*Math.sin(K.t*0.041 + 1.3)) % 1 + 1) % 1 * width;\nconst aty = ((P.y + 0.24*Math.sin(K.t*0.033 + 0.7)) % 1 + 1) % 1 * height;\n\n// \u2500\u2500 steering constants (resolution-relative) \u2500\u2500\nconst rad = u*(0.032 + P.reach*0.11) * P.scale, rad2 = rad*rad;\nconst sepR2 = (rad*0.5)*(rad*0.5);\nconst vmax = u*(0.0035 + P.speed*0.008) * spdMul, vmin = vmax*0.18;\nconst wCoh = (0.30 + P.cohesion*1.0) * cohMul;\nconst wAli = 0.35 + P.alignment*1.25;\nconst wSep = (0.60 + P.separation*1.6) * sepMul * sepSpike;\nconst wanderAmt = vmax*(0.05 + P.wander*0.5);\nconst forceCap = vmax*0.9;\nconst hw=width*0.5, hh=height*0.5;\nconst hueDrift = K.t*7;\n\n// \u2500\u2500 spatial hash (cell = neighbor radius; reused buckets \u2192 O(N\u00b7k)) \u2500\u2500\nconst cell=Math.max(6,rad), cols=Math.max(1,Math.ceil(width/cell)), rows=Math.max(1,Math.ceil(height/cell));\nlet grid=S.grid;\nif (!grid || S.gc!==cols || S.gr!==rows){ grid=S.grid=new Array(cols*rows); S.gc=cols; S.gr=rows; for (let i=0;i<grid.length;i++) grid[i]=[]; }\nfor (let i=0;i<grid.length;i++) grid[i].length=0;\nconst cellOf=(x,y)=>((((Math.floor(x/cell)%cols)+cols)%cols) + (((Math.floor(y/cell)%rows)+rows)%rows)*cols);\nfor (let i=0;i<N;i++){ const p=ps[i]; grid[cellOf(p.x,p.y)].push(i); }\n\n// \u2500\u2500 fade toward the sky/ground buffer (motion-blur trails) \u2500\u2500\nconst fadeA = (8 + P.trail*34) * ga;\nblendMode(BLEND);\nnoStroke();\ntint(0,0,100, S.needEstab ? 100 : fadeA);\nimage(S.sky, 0, 0, width, height);\nnoTint();\nS.needEstab = false;\n\nconst additive = (st==='neon-vector' || st==='thermal-density');\nblendMode(additive ? ADD : BLEND);\n\n// \u2500\u2500 one pass: neighbor sums (hash) \u2192 steer \u2192 integrate \u2192 draw \u2500\u2500\nfor (let i=0;i<N;i++){\n  const p=ps[i];\n  const cx=(((Math.floor(p.x/cell)%cols)+cols)%cols), cy=(((Math.floor(p.y/cell)%rows)+rows)%rows);\n  let sx=0,sy=0, ax=0,ay=0, gx=0,gy=0, cnt=0, lc=0;\n  for (let ox=-1;ox<=1;ox++) for (let oy=-1;oy<=1;oy++){\n    const b=grid[((((cx+ox)%cols)+cols)%cols) + (((((cy+oy)%rows)+rows)%rows)*cols)];\n    for (let k=0;k<b.length;k++){\n      const j=b[k]; if (j===i) continue; const q=ps[j];\n      let dx=q.x-p.x, dy=q.y-p.y;\n      if (dx>hw)dx-=width; else if (dx<-hw)dx+=width;\n      if (dy>hh)dy-=height; else if (dy<-hh)dy+=height;\n      const d2=dx*dx+dy*dy; if (d2>rad2||d2<1e-4) continue;\n      gx+=dx; gy+=dy; ax+=q.vx; ay+=q.vy;\n      if (d2<sepR2){ const inv=1/d2; sx-=dx*inv; sy-=dy*inv; }\n      cnt++;\n      if (st==='blueprint-vectors' && lc<2 && j>i && d2<rad2*0.34){ stroke(200,50,80,22*ga); strokeWeight(0.7); line(p.x,p.y,p.x+dx,p.y+dy); lc++; }\n    }\n  }\n  let accx=0, accy=0;\n  if (cnt>0){ const inv=1/cnt;\n    accx += gx*inv*wCoh*0.02 + ((ax*inv)-p.vx)*wAli*0.35 + sx*wSep*3.0;\n    accy += gy*inv*wCoh*0.02 + ((ay*inv)-p.vy)*wAli*0.35 + sy*wSep*3.0;\n  }\n  let adx=atx-p.x; if (adx>hw)adx-=width; else if (adx<-hw)adx+=width;\n  let ady=aty-p.y; if (ady>hh)ady-=height; else if (ady<-hh)ady+=height;\n  accx += adx*followK; accy += ady*followK;\n  const wa = noise(p.x*0.0016, p.y*0.0016, K.t*0.045 + S.seedUsed*0.017)*12.566;\n  accx += Math.cos(wa)*wanderAmt; accy += Math.sin(wa)*wanderAmt;\n  const am=Math.hypot(accx,accy); if (am>forceCap){ const s=forceCap/am; accx*=s; accy*=s; }\n  p.vx+=accx; p.vy+=accy;\n  let sp=Math.hypot(p.vx,p.vy);\n  if (sp>vmax){ const s=vmax/sp; p.vx*=s; p.vy*=s; sp=vmax; }\n  else if (sp<vmin && sp>1e-4){ const s=vmin/sp; p.vx*=s; p.vy*=s; sp=vmin; }\n  if (!isFinite(p.x)||!isFinite(p.y)||!isFinite(p.vx)||!isFinite(p.vy)){ p.x=rnd()*width; p.y=rnd()*height; p.vx=rnd()-0.5; p.vy=rnd()-0.5; sp=vmin; }\n  p.x=(p.x+p.vx+width)%width; p.y=(p.y+p.vy+height)%height;\n\n  const sn=Math.min(1, sp/(vmax||1));\n  if (st==='dusk-flock'){\n    const h=(P.hue + 272 + sn*100 + hueDrift)%360;\n    stroke((h+360)%360, 55+sn*35, Math.min(100, 34+sn*56+A.rms*20), (46+P.energy*30)*ga);\n    strokeWeight((0.9+P.energy*1.4+sn*0.8)*P.scale);\n    const tl=2.4+P.energy*4+sn*3; line(p.x,p.y, p.x-p.vx*tl, p.y-p.vy*tl);\n  } else if (st==='neon-vector'){\n    const hd=Math.atan2(p.vy,p.vx);\n    const h=((P.hue + hueDrift + hd*28)%360+360)%360;\n    const al=Math.min(32, (12+P.energy*16+K.pulse*6)*ga);\n    stroke(h, 82, Math.min(100, 60+sn*40+A.rms*40), al);\n    strokeWeight((0.8+P.energy*1.5)*P.scale);\n    const tl=2.5+P.energy*4; line(p.x,p.y, p.x-p.vx*tl, p.y-p.vy*tl);\n  } else if (st==='thermal-density'){\n    const dens=Math.min(1, cnt/14);\n    const h=((240 - sn*240)%360+360)%360;\n    const al=Math.min(30, (10+P.energy*13+dens*10)*ga);\n    stroke(h, 85-dens*30, Math.min(100, 45+sn*38+dens*25+A.rms*30), al);\n    strokeWeight((1.0+P.energy*1.5+dens*1.2)*P.scale);\n    const tl=2.2+P.energy*3.4; line(p.x,p.y, p.x-p.vx*tl, p.y-p.vy*tl);\n  } else if (st==='blueprint-vectors'){\n    const sp2=Math.max(1e-3, sp);\n    stroke(196, 55, 92, 66*ga); strokeWeight(1.0*P.scale);\n    const vl=(4+sn*11)*P.scale; line(p.x,p.y, p.x+(p.vx/sp2)*vl, p.y+(p.vy/sp2)*vl);\n    noStroke(); fill(190, 42, 96, 80*ga); const nr=2.1*P.scale; ellipse(p.x,p.y,nr,nr);\n  } else { // ink-silhouette\n    const jj=fr(i);\n    if (sn>0.5){ stroke(28, 16, 10+jj*8, (18+jj*28)*ga); strokeWeight((0.8+jj)*P.scale); const tl=2+sn*3; line(p.x,p.y, p.x-p.vx*tl, p.y-p.vy*tl); }\n    noStroke(); fill(28, 14, 8+jj*7, (30+jj*44)*ga); const r=(1.4+jj*2.2+P.energy*1.5)*P.scale; ellipse(p.x,p.y,r,r);\n  }\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0;\n"
+}

@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.penrose",
+  "kind": "genart",
+  "name": "Penrose Tiling",
+  "desc": "An aperiodic Penrose P3 rhombus quasilattice grown by deflation into a fivefold sun of gold-and-bronze rhombs on deep indigo, slowly turning while a luminous inflation-front sweeps the tiles outward, in gilt-manuscript, drafting blueprint, neon strapwork, riso duotone and sumi-ink renderings.",
+  "tags": [
+    "penrose",
+    "aperiodic",
+    "quasicrystal",
+    "quasilattice",
+    "tiling",
+    "rhombus",
+    "rhomb",
+    "deflation",
+    "fivefold",
+    "pentagonal",
+    "golden-ratio",
+    "phi",
+    "quasiperiodic",
+    "fibonacci",
+    "tessellation",
+    "pattern",
+    "geometric",
+    "sacred geometry",
+    "mosaic",
+    "stained-glass",
+    "gilt",
+    "manuscript",
+    "gold",
+    "indigo",
+    "blueprint",
+    "schematic",
+    "neon",
+    "riso",
+    "duotone",
+    "sumi",
+    "ink",
+    "abstract",
+    "generative",
+    "genart",
+    "backdrop",
+    "bg",
+    "mathematical",
+    "symmetry"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "deflation depth 3..5 (chunky rhombs .. fine quasilattice) - rebuilds"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "rhombus size / zoom (small tight tiling .. large bold rhombs) - rebuilds"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow-front and beat-bloom brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "inflation-front sweep and turn rate"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue (44=warm gold)"
+    },
+    "glow": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "width of the sweeping inflation glow-front"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tiling sun centre x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tiling sun centre y (canvas fraction)"
+    },
+    "style": {
+      "default": "gilt",
+      "options": [
+        "gilt",
+        "blueprint",
+        "neon",
+        "riso",
+        "sumi"
+      ],
+      "doc": "render philosophy: gilt-manuscript gold-on-indigo mass / cyan drafting schematic with guide circles / additive neon strapwork / two-ink riso duotone with misregistration / sumi single-ink dry-brush"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic sun phase + per-tile tone jitter (rebuilds cache)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    },
+    "act": {
+      "default": "inflate",
+      "options": [
+        "inflate",
+        "drift",
+        "pulse"
+      ],
+      "doc": "dramaturgy: front sweeps outward / whole quasilattice turns / fully-lit beat pulses"
+    }
+  },
+  "acts": [
+    "inflate",
+    "drift",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:52:10+00:00",
+    "fps": 59.9,
+    "motion": 0.1005,
+    "lum": 0.351
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, speed:1, hue:44, glow:.5, x:.5, y:.5, style:'gilt', seed:0, alpha:100, act:'inflate' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\n\nconst depth = 3 + Math.round(Math.max(0,Math.min(1,P.density))*2);   // 3..5 -> 130..890 tris\nconst diag = Math.hypot(width,height);\nconst BW = Math.min(2048, Math.ceil(diag*1.04));                     // oversize so slow rotation never voids\nconst key = [width,height,depth,st,P.seed,P.scale.toFixed(2),P.x.toFixed(2),P.y.toFixed(2)].join('|');\n\nif (S.key !== key){\n  S.key = key;\n  const PHI = (1+Math.sqrt(5))/2;\n  const ph0 = fr(1)*Math.PI*2;\n  // seed wheel of 10 fat Robinson half-rhombi (fivefold sun); mirror alternate for seamless edges\n  let tris = [];\n  for (let i=0;i<10;i++){\n    let B={x:Math.cos((2*i-1)*Math.PI/10+ph0), y:Math.sin((2*i-1)*Math.PI/10+ph0)};\n    let C={x:Math.cos((2*i+1)*Math.PI/10+ph0), y:Math.sin((2*i+1)*Math.PI/10+ph0)};\n    if (i%2===0){ const s=B; B=C; C=s; }\n    tris.push([0,{x:0,y:0},B,C]);\n  }\n  // deflation (Preshing): fat -> 1 fat + 1 thin ; thin -> 2 thin + 1 fat\n  for (let d=0; d<depth; d++){\n    const out=[];\n    for (let k=0;k<tris.length;k++){\n      const T=tris[k], c=T[0], Aa=T[1], Bb=T[2], Cc=T[3];\n      if (c===0){\n        const Pp={x:Aa.x+(Bb.x-Aa.x)/PHI, y:Aa.y+(Bb.y-Aa.y)/PHI};\n        out.push([0,Cc,Pp,Bb],[1,Pp,Cc,Aa]);\n      } else {\n        const Q={x:Bb.x+(Aa.x-Bb.x)/PHI, y:Bb.y+(Aa.y-Bb.y)/PHI};\n        const R={x:Bb.x+(Cc.x-Bb.x)/PHI, y:Bb.y+(Cc.y-Bb.y)/PHI};\n        out.push([1,R,Cc,Aa],[1,Q,R,Bb],[0,R,Q,Aa]);\n      }\n    }\n    tris=out;\n  }\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(BW,BW); S.buf.pixelDensity(1); S.buf.colorMode(HSB,360,100,100,100);\n  const g = S.buf;\n  const CX = BW*0.5 + (P.x-0.5)*BW*0.22, CY = BW*0.5 + (P.y-0.5)*BW*0.22;\n  const sc = BW*(0.46 + 0.30*P.scale);\n  // opaque ground (never leave buffer transparent -> genart no-bed luminance)\n  g.push(); g.noStroke();\n  let bg;\n  if (st==='blueprint') bg=[214,66,15];\n  else if (st==='neon') bg=[262,52,6];\n  else if (st==='riso') bg=[40,10,90];\n  else if (st==='sumi') bg=[40,9,86];\n  else bg=[252,58,13];                         // gilt: deep indigo/lapis\n  g.background(bg[0],bg[1],bg[2]);\n  const rg = g.drawingContext.createRadialGradient(CX,CY,BW*0.03, CX,CY,BW*0.62);\n  if (st==='riso'||st==='sumi'){ rg.addColorStop(0,'rgba(255,255,255,0.05)'); rg.addColorStop(1,'rgba(60,40,10,0.16)'); }\n  else { rg.addColorStop(0,'rgba(255,238,196,0.11)'); rg.addColorStop(1,'rgba(0,0,0,0.34)'); }\n  g.drawingContext.fillStyle=rg; g.drawingContext.fillRect(0,0,BW,BW);\n  g.pop();\n\n  const cents=[];\n  g.push();\n  for (let k=0;k<tris.length;k++){\n    const T=tris[k], c=T[0];\n    const ax=CX+T[1].x*sc, ay=CY+T[1].y*sc;\n    const bx=CX+T[2].x*sc, by=CY+T[2].y*sc;\n    const cx=CX+T[3].x*sc, cy=CY+T[3].y*sc;\n    const rr = Math.hypot((T[1].x+T[2].x+T[3].x)/3,(T[1].y+T[2].y+T[3].y)/3);\n    const jt = fr(k*3+7);\n    if (st==='gilt'){\n      if (c===0){ g.fill((42+jt*8)%360, 60+jt*16, 52+rr*22+jt*14); }\n      else { g.fill((30+jt*8)%360, 78+jt*12, 38+rr*16+jt*12); }\n      g.noStroke();\n      g.beginShape(); g.vertex(ax,ay); g.vertex(bx,by); g.vertex(cx,cy); g.endShape(CLOSE);\n    } else if (st==='riso'){\n      if (c===0){ g.fill(348, 58, 84, 82); } else { g.fill(190, 50, 80, 82); }\n      g.noStroke();\n      const ox = c===0?1.6:-1.6, oy=c===0?-1.6:1.6;   // fake ink misregistration\n      g.beginShape(); g.vertex(ax+ox,ay+oy); g.vertex(bx+ox,by+oy); g.vertex(cx+ox,cy+oy); g.endShape(CLOSE);\n    } else if (st==='blueprint'){\n      g.fill(210, 60, 22, c===0?26:12); g.noStroke();\n      g.beginShape(); g.vertex(ax,ay); g.vertex(bx,by); g.vertex(cx,cy); g.endShape(CLOSE);\n    } else if (st==='neon'){\n      g.fill((P.hue + (c?40:0))%360, 55, c?8:11); g.noStroke();\n      g.beginShape(); g.vertex(ax,ay); g.vertex(bx,by); g.vertex(cx,cy); g.endShape(CLOSE);\n    }\n    // leading: stroke legs A->B and C->A, SKIP base B->C (merges half-rhombi into seamless rhombs)\n    if (st==='gilt'){\n      g.stroke(250,55,7,72); g.strokeWeight(Math.max(1,sc*0.006));\n      g.line(ax,ay,bx,by); g.line(cx,cy,ax,ay);\n    } else if (st==='blueprint'){\n      g.stroke(200-rr*8, 66, 84, 48); g.strokeWeight(1);\n      g.line(ax,ay,bx,by); g.line(cx,cy,ax,ay);\n    } else if (st==='riso'){\n      g.stroke(c===0?348:190, 44, 42, 30); g.strokeWeight(1);\n      g.line(ax,ay,bx,by); g.line(cx,cy,ax,ay);\n    } else if (st==='sumi'){\n      const dry = 0.55+0.75*fr(k*5+2);\n      g.stroke(34, 24, 16, 52+jt*36); g.strokeWeight(Math.max(0.8, sc*0.0075*dry));\n      if (fr(k*7+3)>0.13){ g.line(ax,ay,bx,by); }\n      if (fr(k*7+5)>0.13){ g.line(cx,cy,ax,ay); }\n    } else if (st==='neon'){\n      g.stroke((P.hue)%360, 60, 26, 40); g.strokeWeight(1);\n      g.line(ax,ay,bx,by); g.line(cx,cy,ax,ay);\n    }\n    cents.push({x:(ax+bx+cx)/3 - BW*0.5, y:(ay+by+cy)/3 - BW*0.5, c:c, r:rr});\n  }\n  g.pop();\n  if (st==='blueprint'){\n    g.push(); g.noFill(); g.stroke(200,50,72,26); g.strokeWeight(1);\n    for (let ci=1; ci<=5; ci++){ g.circle(CX,CY, sc*2*ci/5); }\n    g.pop();\n  }\n  S.cents=cents; S.BW=BW; S.total=tris.length;\n}\n\n// ---------- live overlay (baked buffer + K.t motion floor) ----------\nconst rot = K.t*(0.008 + P.speed*0.011) * (P.act==='drift'?1.7:1.0);\nconst alphaMul = P.alpha/100;\npush();\ntranslate(width*0.5, height*0.5);\nrotate(rot);\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(S.buf, -S.BW*0.5, -S.BW*0.5);\nnoTint();\n\n// glow-front: an expanding ring re-lights tiles by radial order (continuous K.t -> never re-phases)\nconst front = (P.act==='drift') ? ((K.t*P.speed*0.05)%1.08) : ((K.t*P.speed*0.09) % 1.08);\nconst bw = 0.09 + P.glow*0.15 + (P.act==='pulse'?0.06:0);\nconst peak = 42 + P.energy*46;\nconst beatBloom = (K.pulse*0.5 + A.bass*0.9) * (P.act==='pulse'?2.0:1.0);\nconst shimmer = 0.5+0.5*Math.sin(K.t*0.6);\nblendMode(ADD);\nnoStroke();\nconst cents=S.cents; let drawn=0;\nfor (let i=0;i<cents.length && drawn<150;i++){\n  const tc=cents[i];\n  const dd=Math.abs(tc.r-front);\n  if (dd>=bw) continue;\n  const amt = Math.max(0,1-dd/bw);\n  const hx = (P.hue + tc.c*22 + tc.r*46 + K.section*20) % 360;\n  const a = (0.06 + peak*0.006)*amt*(0.6+intn)*(0.55+0.45*shimmer) * alphaMul * 100 * 0.33;\n  fill(hx, st==='neon'?70:44, 100, a);\n  circle(tc.x, tc.y, u*0.045*(0.7+amt));\n  drawn++;\n}\n// central sun beat bloom (partial-frame only -> never trips the strobe gate)\nif (beatBloom>0.04){\n  fill((P.hue+18)%360, 34, 100, Math.min(30, beatBloom*11)*alphaMul);\n  circle(0,0, u*0.5*(1+beatBloom*0.18));\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\npop();\n"
+}

@@ -77,9 +77,14 @@ def snap_one(path, outdir):
     save_full(outdir/f"{aid}__a_full.png")
     ia = grab320(); time.sleep(8); ib = grab320()
     save_full(outdir/f"{aid}__b_full.png")
-    # downscaled copies for the sheet (a-frame is the beauty frame)
-    if ia: ia.resize((320, ia.size[1])).save(outdir/f"{aid}__a.png")
-    if ib: ib.save(outdir/f"{aid}__b.png")
+    # COLOR downscaled copies for the contact sheet (grab320 is grayscale for motion calc only)
+    for tag in ("a", "b"):
+        fp = outdir/f"{aid}__{tag}_full.png"
+        try:
+            with Image.open(fp) as im:
+                im = im.convert("RGB"); w,h = im.size
+                im.resize((340, max(1, round(h*340/w)))).save(outdir/f"{aid}__{tag}.png")
+        except Exception: pass
     motion = mean_diff(ia,ib) if (ia and ib) else -1
     lum = mean_lum(ib) if ib else -1
     rec = {"id":aid,"kind":kind,"fps":round(fps,1),"motion":round(motion,4),
