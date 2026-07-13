@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.iron_filings",
+  "kind": "genart",
+  "name": "Magnetic Field Lines",
+  "desc": "Iron filings tracing the writhing field of drifting magnetic dipoles, streamline slivers curling into bipolar arcs and cusps and clustering hot at the poles, graded cool-weak to incandescent-dense.",
+  "tags": [
+    "iron-filings",
+    "magnetic",
+    "magnet",
+    "dipole",
+    "field-lines",
+    "fieldlines",
+    "magnetism",
+    "flux",
+    "flow-field",
+    "streamlines",
+    "physics",
+    "science",
+    "electromagnetic",
+    "poles",
+    "bipolar",
+    "cusp",
+    "heatmap",
+    "thermal",
+    "field-heat",
+    "aurora",
+    "neon",
+    "blueprint",
+    "schematic",
+    "grey",
+    "filings",
+    "arcs",
+    "loops",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "dark",
+    "orange",
+    "blue",
+    "cyan",
+    "violet",
+    "green",
+    "glow",
+    "textural",
+    "scientific",
+    "clinical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "filing count (streamline seed grid density)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "brightness / glow / filing alpha & weight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "dipole orbit + rotation rate (field writhe)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "filing sliver length + dipole pole separation"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (heat/aurora/neon tint)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "dipole orbit center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "dipole orbit center y"
+    },
+    "poles": {
+      "default": 3,
+      "min": 2,
+      "max": 4,
+      "doc": "number of drifting dipoles"
+    },
+    "style": {
+      "default": "field-heat",
+      "options": [
+        "field-heat",
+        "iron-grey",
+        "aurora",
+        "neon-flux",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic dipole rig variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg; lower=filing trails)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:10:47+00:00",
+    "fps": 59.9,
+    "motion": 0.0364,
+    "lum": 0.117
+  },
+  "code": "const D = { density: .6, energy: .62, speed: 1, scale: 1, hue: 28, x: .5, y: .5, poles: 3, style: 'field-heat', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H), TAU = 6.28318530718;\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\nconst style = P.style;\n\n// --- seed-deterministic dipole rig (rebuild on seed / pole-count change) ---\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst NP = clp(Math.round(P.poles), 2, 4);\nif (S.seedUsed !== P.seed || S.npUsed !== NP) {\n  S.seedUsed = P.seed; S.npUsed = NP; S.dips = [];\n  for (let d = 0; d < NP; d++) {\n    S.dips.push({\n      oaBase:   fr(d*4+1) * TAU,\n      orbitR:   0.09 + fr(d*4+2) * 0.17,\n      orbitRate:(0.5 + fr(d*4+3)) * 0.09 * (fr(d*4+11) < 0.5 ? -1 : 1),\n      oriBase:  fr(d*4+4) * TAU,\n      rotRate:  (0.5 + fr(d*4+5)) * 0.12 * (fr(d*4+13) < 0.5 ? -1 : 1),\n      sep:      0.05 + fr(d*4+6) * 0.06\n    });\n  }\n}\n\n// --- clock-driven dipole motion (continuous K.t drift = motion floor) ---\nconst spd  = 0.15 + P.speed;                 // never fully frozen even at speed 0\nconst tt   = K.t;\nconst sec  = K.section || 0;\nconst intn = K.intensity != null ? K.intensity : .6;\nconst midX = clp(P.x,0,1) * W, midY = clp(P.y,0,1) * H;\nconst orbK = 0.82 + 0.32 * Math.sin(sec * 0.7);   // section breathes the orbit radius\nconst strq = 0.7 + intn * 0.5;                    // section/intensity breathes strength\nconst hb   = (P.hue + sec * 7 + Math.sin(tt * 0.05) * 10 + 360) % 360;\n\nconst poles = [];\nfor (let d = 0; d < S.dips.length; d++) {\n  const dp = S.dips[d];\n  const oa = dp.oaBase + tt * dp.orbitRate * spd;\n  const cx = midX + Math.cos(oa) * dp.orbitR * orbK * u;\n  const cy = midY + Math.sin(oa) * dp.orbitR * orbK * u;\n  const ori = dp.oriBase + tt * dp.rotRate * spd;\n  const half = dp.sep * u * (0.7 + P.scale * 0.5);\n  const hx = Math.cos(ori) * half, hy = Math.sin(ori) * half;\n  poles.push({ x: cx + hx, y: cy + hy, q:  strq });\n  poles.push({ x: cx - hx, y: cy - hy, q: -strq });\n}\n\n// --- analytic superposed dipole field (monopole pairs), normalized ~O(1) ---\nconst soft2 = (0.012 * u) * (0.012 * u);\nfunction field(x, y) {\n  let bx = 0, by = 0;\n  for (let p = 0; p < poles.length; p++) {\n    const pl = poles[p];\n    const dx = x - pl.x, dy = y - pl.y;\n    const inv = pl.q / (dx*dx + dy*dy + soft2) * u;\n    bx += dx * inv; by += dy * inv;\n  }\n  return [bx, by];\n}\n\n// --- exposure / dramaturgy scalars ---\nconst briK = Math.min(1.7, 0.6 + P.energy*0.7 + intn*0.25 + K.pulse*0.15*P.energy + A.treble*0.4);\nconst eA   = 0.5 + P.energy * 0.9;\nconst stepLen = u * 0.011 * (0.5 + P.scale * 0.9);\nconst HALF = 3, STEPS = 6;\n\n// --- ground veil (opaque repaint at alpha 100; translucent trails when < 100) ---\nnoStroke();\nlet gH, gS, gB;\nif (style === 'iron-grey')      { gH = 40;  gS = 8;  gB = 86; }\nelse if (style === 'aurora')    { gH = 248; gS = 62; gB = 8; }\nelse if (style === 'neon-flux') { gH = (hb + 180) % 360; gS = 45; gB = 7; }\nelse if (style === 'blueprint') { gH = 213; gS = 72; gB = 26; }\nelse                            { gH = (hb + 205) % 360; gS = 58; gB = 12; }  // field-heat deep-blue ground\nblendMode(BLEND);\nfill(gH, gS, gB, P.alpha); rect(0, 0, W, H);\n\n// --- pole glows: hot clusters + color + luminance lift (partial, never full-frame) ---\nconst pulseGlow = K.pulse * 8 * P.energy + A.bass * 20;\nif (style === 'iron-grey') {\n  push(); blendMode(MULTIPLY); noStroke();\n  for (let p = 0; p < poles.length; p++) {\n    const gr = u * (0.16 + 0.05 * intn);\n    fill(35, 9, 72, 26); ellipse(poles[p].x, poles[p].y, gr*2.0, gr*2.0);\n    fill(35, 12, 60, 30); ellipse(poles[p].x, poles[p].y, gr*0.9, gr*0.9);\n  }\n  blendMode(BLEND); pop();\n} else {\n  push(); blendMode(ADD); noStroke();\n  const gr = u * (0.15 + 0.10 * intn) * (0.8 + P.energy * 0.5);\n  const ga = Math.min(34, 9 + P.energy * 14 + pulseGlow);\n  for (let p = 0; p < poles.length; p++) {\n    const neg = poles[p].q < 0;\n    let h1, h2, s1, s2;\n    if (style === 'aurora')        { h1 = neg ? 285 : 150; s1 = 80; h2 = neg ? 300 : 130; s2 = 55; }\n    else if (style === 'neon-flux'){ h1 = hb; s1 = 88; h2 = (hb + 22) % 360; s2 = 55; }\n    else if (style === 'blueprint'){ h1 = 205; s1 = 30; h2 = 200; s2 = 12; }\n    else                           { h1 = (hb + 14) % 360; s1 = 88; h2 = (hb + 44) % 360; s2 = 55; } // heat\n    fill(h1, s1, 92, ga * 0.55); ellipse(poles[p].x, poles[p].y, gr*2.1, gr*2.1);\n    fill(h2, s2, 100, ga);       ellipse(poles[p].x, poles[p].y, gr*0.85, gr*0.85);\n  }\n  blendMode(BLEND); pop();\n}\n\n// --- iron filings: short streamline slivers, colored by |B| (cool weak -> hot dense) ---\nconst glowStyle = (style === 'aurora' || style === 'neon-flux');\npush();\nif (glowStyle) blendMode(ADD);\nconst cols = Math.round(12 + P.density * 24);\nconst rows = Math.max(3, Math.round(cols * H / W));\nconst cw = W / cols, ch = H / rows;\nfor (let gy = 0; gy < rows; gy++) {\n  for (let gx = 0; gx < cols; gx++) {\n    const jx = (Math.sin((gx*12.9898 + gy*78.233 + P.seed*0.7)) * 43758.545) % 1;\n    const jy = (Math.sin((gx*39.346 + gy*11.135 + P.seed*1.3)) * 24634.633) % 1;\n    let x = (gx + 0.5 + (jx - 0.5) * 0.9) * cw;\n    let y = (gy + 0.5 + (jy - 0.5) * 0.9) * ch;\n    // back up half a needle so the sliver straddles the seed\n    for (let k = 0; k < HALF; k++) {\n      const b = field(x, y); const m = Math.sqrt(b[0]*b[0] + b[1]*b[1]) || 1e-6;\n      x -= b[0] / m * stepLen; y -= b[1] / m * stepLen;\n    }\n    // integrate forward, drawing color-graded segments\n    for (let k = 0; k < STEPS; k++) {\n      const b = field(x, y); const m = Math.sqrt(b[0]*b[0] + b[1]*b[1]);\n      if (m < 1e-5) break;\n      const s = m / (m + 2.2);\n      let sh, ss, sb, sa, sw;\n      if (style === 'iron-grey')      { sh = 35;  ss = 6;  sb = clp(34 - s*26, 4, 40); sa = (52 + s*44) * eA; sw = 0.8 + s*1.4; }\n      else if (style === 'aurora')    { sh = (s < 0.5 ? 288 - s*280 : 150 - (s-0.5)*40) % 360; ss = 80; sb = (34 + s*62) * briK; sa = (28 + s*52) * eA; sw = 0.9 + s*1.8; }\n      else if (style === 'neon-flux') { sh = (hb + s*40) % 360; ss = 92 - s*30; sb = (44 + s*56) * briK; sa = (34 + s*54) * eA; sw = 1.0 + s*2.0; }\n      else if (style === 'blueprint') { sh = 200; ss = clp(20 - s*18, 2, 20); sb = clp((60 + s*38) * briK, 46, 98); sa = (55 + s*40) * eA; sw = 0.8 + s*1.2; }\n      else                            { sh = (hb + (1 - s) * 200) % 360; ss = clp(96 - s*40, 45, 100); sb = (24 + s*76) * briK; sa = (46 + s*50) * eA; sw = 0.8 + s*1.7; }\n      stroke((sh + 360) % 360, ss, Math.min(100, sb), Math.min(100, sa));\n      strokeWeight(sw);\n      const nx = x + b[0] / m * stepLen, ny = y + b[1] / m * stepLen;\n      line(x, y, nx, ny);\n      x = nx; y = ny;\n      if (x < -u*0.1 || x > W + u*0.1 || y < -u*0.1 || y > H + u*0.1) break;\n    }\n  }\n}\npop();\nblendMode(BLEND);\n"
+}

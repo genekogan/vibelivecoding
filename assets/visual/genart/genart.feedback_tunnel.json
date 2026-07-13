@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.feedback_tunnel",
+  "kind": "genart",
+  "name": "Feedback Tunnel",
+  "desc": "An infinite video-feedback tunnel where a bold faceted ring and rotating spokes are copied back scaled-up and rotated every frame, spiralling endless echoes outward to the edges as a spectral vortex, neon kaleidoscope, thermal infrared, monochrome strobe, or iridescent oil-slick.",
+  "tags": [
+    "feedback",
+    "tunnel",
+    "video-feedback",
+    "vortex",
+    "spiral",
+    "kaleidoscope",
+    "zoom",
+    "recursion",
+    "echo",
+    "infinite",
+    "wormhole",
+    "psychedelic",
+    "rave",
+    "spectral",
+    "rainbow",
+    "neon",
+    "thermal",
+    "infrared",
+    "oil-slick",
+    "iridescent",
+    "mono",
+    "strobe",
+    "hypnotic",
+    "trippy",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "swirl",
+    "mandala",
+    "droste",
+    "portal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "expand": {
+      "default": 1.035,
+      "min": 1.002,
+      "max": 1.09,
+      "doc": "per-frame zoom of the feedback copy (>1 spirals echoes OUTWARD to fill the frame)"
+    },
+    "spin": {
+      "default": 0.03,
+      "min": 0.0,
+      "max": 0.14,
+      "doc": "per-frame rotation of the feedback copy (swirl amount)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "motif brightness + echo persistence (higher = brighter, longer trails)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "hue-cycle / arm sweep rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of radial spokes + stroke weight"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "size of the injected ring motif"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tunnel focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tunnel focus y"
+    },
+    "style": {
+      "default": "spectral-vortex",
+      "options": [
+        "spectral-vortex",
+        "neon-kaleido",
+        "infrared",
+        "mono-strobe",
+        "oil-slick"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:09:50+00:00",
+    "fps": 66.2,
+    "motion": 0.0693,
+    "lum": 0.18
+  },
+  "code": "const D = { expand: 1.035, spin: 0.03, energy: .6, speed: 1, density: .5, scale: 1, hue: 200, x: .5, y: .5, style: 'spectral-vortex', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- ping-pong feedback buffers, cached on size (half-canvas per PROBE) ----\nconst BW = Math.min(560, Math.max(180, Math.round(width * 0.5)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.g || S.key !== BW + 'x' + BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.g.colorMode(HSB, 360, 100, 100, 100);\n  S.h = createGraphics(BW, BH); S.h.pixelDensity(1); S.h.colorMode(HSB, 360, 100, 100, 100);\n  S.g.noStroke(); S.g.fill(P.hue, 55, 12); S.g.rect(0, 0, BW, BH);\n  S.key = BW + 'x' + BH;\n}\n// deterministic per-seed offsets (inline hash, no p5 random)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 360; S.roff = fr(2) * 6.283; S.sideBias = 3 + Math.floor(fr(3) * 6); S.spokeBias = Math.floor(fr(4) * 5);\n}\n\nconst g = S.g, h = S.h;\nconst cx = BW * 0.5, cy = BH * 0.5;\nconst mx = P.x * BW, my = P.y * BH;\nconst style = P.style;\nconst u = Math.min(BW, BH);\nconst TAU = 6.28318530718;\n\n// dramaturgy: slow section-driven breathing + palette drift over minutes\nconst sec = K.section | 0;\nconst arc = 0.5 + 0.5 * Math.sin(K.t * 0.045 + sec);\nconst kick = K.pulse * 0.5 + A.bass * 0.9;\nconst glow = K.swell * 0.3 + A.rms * 0.8;\n\n// per-frame feedback transform \u2014 this BUILDS the tunnel (continuous, never re-phases)\nconst zoom = P.expand + kick * 0.02 + arc * 0.006;              // >1 => spirals OUTWARD to the edges\nconst dir = (sec % 2) ? -1 : 1;\nconst rot = (P.spin * (0.7 + 0.5 * arc)) * dir + A.mid * 0.03 + Math.sin(K.t * 0.05) * 0.008;\nconst decay = 0.94 - P.energy * 0.06;                          // brightness multiply guard (0.88..0.94) => never washes to white\n\n// motif palette / brightness (fresh content injected every frame)\nconst motH = (P.hue + S.hoff + K.t * 26 * P.speed + sec * 12) % 360;\nconst bri = 78 + P.energy * 22 + glow * 20;\nconst ringR = u * (0.20 + 0.16 * P.scale) * (1 + kick * 0.15);\nconst sides = S.sideBias + (style === 'spectral-vortex' ? 4 : 3);\nconst sw = Math.max(1.5, u * 0.012 * (0.6 + P.density));\nconst spin2 = K.t * 0.5 * P.speed + S.roff;\nconst nSpokes = Math.round(3 + P.density * 8 + S.spokeBias + A.treble * 6);\n\nfunction ringDraw(gr, r, n, a0, wght) {\n  gr.noFill(); gr.strokeWeight(wght);\n  for (let i = 0; i < n; i++) {\n    const a = a0 + i / n * TAU, b = a0 + (i + 1) / n * TAU;\n    let hu, sa, bl;\n    if (style === 'spectral-vortex') { hu = (motH + i / n * 200) % 360; sa = 90; bl = bri; }\n    else if (style === 'oil-slick') { hu = (motH + i / n * 320 + 30 * Math.sin(a * 3)) % 360; sa = 55; bl = 52 + 38 * (0.5 + 0.5 * Math.sin(a * 4)); }\n    else if (style === 'infrared') { const tf = 0.5 + 0.5 * Math.sin(a + spin2); hu = 8 + tf * 40; sa = 100 - tf * 45; bl = 55 + tf * 45; }\n    else if (style === 'mono-strobe') { hu = 0; sa = 0; bl = bri; }\n    else { hu = motH; sa = 82; bl = bri; }\n    gr.stroke(hu, sa, bl, 100);\n    gr.line(Math.cos(a) * r, Math.sin(a) * r, Math.cos(b) * r, Math.sin(b) * r);\n  }\n}\nfunction discDraw(gr, r) {\n  gr.noStroke();\n  let dh, ds, db, da;\n  if (style === 'infrared') { dh = 4; ds = 95; db = 45 + glow * 15; da = 42; }\n  else if (style === 'mono-strobe') { dh = 0; ds = 0; db = 32; da = 42; }\n  else if (style === 'oil-slick') { dh = (motH + 60) % 360; ds = 48; db = 30; da = 46; }\n  else { dh = motH; ds = 85; db = 45 + glow * 20; da = 40; }\n  gr.fill(dh, ds, db, da);\n  gr.circle(0, 0, r * 2);\n}\n\n// ---- 1) feedback step: ambient fill (gap guard + luminance floor) then transformed copy ----\nh.blendMode(BLEND);\nh.push();\nh.noStroke();\nconst ambH = (P.hue + S.hoff + K.t * 6 * P.speed + sec * 20) % 360;\nh.fill(ambH, 45, 10 + arc * 5);\nh.rect(0, 0, BW, BH);\nh.pop();\n\nh.push();\nh.translate(cx, cy); h.rotate(rot); h.scale(zoom); h.translate(-cx, -cy);\nh.tint(0, 0, decay * 100);\nh.image(g, 0, 0, BW, BH);\nh.noTint();\nh.pop();\n\n// ---- 2) inject a BOLD motif so the echo always has fresh content ----\nh.push();\nh.translate(mx, my);\nif (style === 'neon-kaleido') {\n  const KN = 6;\n  for (let m = 0; m < KN; m++) {\n    h.push();\n    h.rotate(spin2 + m / KN * TAU);\n    h.blendMode(ADD); discDraw(h, ringR * 0.5);\n    h.blendMode(BLEND);\n    ringDraw(h, ringR, Math.max(7, sides), 0, sw);\n    h.stroke(motH, 80, bri, 90); h.strokeWeight(sw * 0.7);\n    h.line(0, 0, ringR * 1.5, 0);\n    h.pop();\n  }\n  h.blendMode(BLEND);\n} else {\n  discDraw(h, ringR * 0.9);\n  ringDraw(h, ringR, Math.max(7, sides), spin2, sw);\n  h.strokeWeight(sw * 0.6);\n  for (let k = 0; k < nSpokes; k++) {\n    const a = spin2 + k / nSpokes * TAU;\n    const sh = style === 'mono-strobe' ? 0 : (motH + k * 12) % 360;\n    const ss = style === 'mono-strobe' ? 0 : (style === 'infrared' ? 90 : 70);\n    const sb = style === 'infrared' ? 92 : bri;\n    h.stroke(sh, ss, sb, 70);\n    h.line(Math.cos(a) * ringR * 0.3, Math.sin(a) * ringR * 0.3, Math.cos(a) * ringR * 1.35, Math.sin(a) * ringR * 1.35);\n  }\n}\nh.pop();\n\n// ---- 3) swap + blit to full canvas ----\nS.g = h; S.h = g;\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.g, 0, 0, width, height);\npop();\n"
+}

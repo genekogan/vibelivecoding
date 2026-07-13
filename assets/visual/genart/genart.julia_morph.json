@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.julia_morph",
+  "kind": "genart",
+  "name": "Morphing Julia Set",
+  "desc": "A living escape-time Julia fractal whose complex parameter c orbits an incommensurate epicycle near the Mandelbrot boundary so the filigree endlessly morphs between dendrite, rabbit, dragon and spiral forms, rendered as an electric blue-violet field veined with gold filaments, glowing blackbody embers, drifting full-spectrum psychedelia, glacial cyan ice, or a copperplate contour engraving.",
+  "tags": [
+    "julia",
+    "julia-set",
+    "fractal",
+    "escape-time",
+    "escape time",
+    "smooth-iteration",
+    "complex",
+    "mandelbrot",
+    "chaos",
+    "math",
+    "morph",
+    "morphing",
+    "dendrite",
+    "rabbit",
+    "dragon",
+    "spiral",
+    "filaments",
+    "filigree",
+    "tendrils",
+    "orbit",
+    "c-orbit",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "electric",
+    "blue",
+    "violet",
+    "gold",
+    "ember",
+    "fire",
+    "thermal",
+    "psychedelic",
+    "ice",
+    "cyan",
+    "engraving",
+    "copperplate",
+    "contour",
+    "glow",
+    "hypnotic",
+    "cosmic",
+    "kaleidoscopic",
+    "iridescent",
+    "iq-palette",
+    "zoom",
+    "living"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / filament glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 3.0,
+      "doc": "view zoom into the fractal (higher = deeper detail)"
+    },
+    "detail": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "iteration depth / filament fineness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "c-orbit morph rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "colour banding / contour richness"
+    },
+    "hue": {
+      "default": 225,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (electric = blue-violet)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view centre y"
+    },
+    "style": {
+      "default": "electric",
+      "options": [
+        "electric",
+        "ember",
+        "psychedelic",
+        "ice",
+        "etched"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic orbit + framing variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:11:20+00:00",
+    "fps": 59.5,
+    "motion": 0.0159,
+    "lum": 0.237
+  },
+  "code": "const D = { energy: .62, scale: 1, detail: .5, speed: 1, density: .55, hue: 225, x: .5, y: .5, style: 'electric', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clamp = (v,a,b)=> v<a?a:(v>b?b:v);\n\n// ---- coarse escape-time buffer (per-pixel Julia iteration, image()-upscaled) ----\nconst BW = 185, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\n\n// ---- seed-dependent morph path + framing (rebuild only when seed changes) ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph1 = fr(1)*6.2831;          // primary orbit phase\n  S.ph2 = fr(2)*6.2831;          // secondary epicycle phase\n  S.rBase = 0.70 + fr(3)*0.09;   // c-orbit radius near the Mandelbrot boundary -> connected morphing Julias\n  S.rot = (fr(4)-0.5)*0.5;       // view rotation\n  S.px0 = (fr(5)-0.5)*0.10;      // view pan jitter\n  S.py0 = (fr(6)-0.5)*0.10;\n}\n\n// hsv h(deg) s,v(0..1) -> rgb(0..1)\nfunction hsv(h,s,v){ h=((h%360)+360)%360; const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b;\n  if(h<60){r=c;g=x;b=0;}else if(h<120){r=x;g=c;b=0;}else if(h<180){r=0;g=c;b=x;}else if(h<240){r=0;g=x;b=c;}else if(h<300){r=x;g=0;b=c;}else{r=c;g=0;b=x;}\n  return [r+m,g+m,b+m]; }\n\n// ---- animated params (read every frame) ----\nconst style = P.style;\nconst sec = K.section;\nconst hDrift = Math.sin(sec*0.7 + K.t*0.015)*16;      // per-section palette drift\nconst hb = P.hue + hDrift;\nconst expo = 0.46 + P.energy*0.82 + K.intensity*0.30 + A.rms*0.5;\nconst dens = P.density;\nconst maxIter = Math.floor(36 + P.detail*84 + K.intensity*20);   // complexity builds with intensity\nconst invLog2 = 1/Math.log(2);\nconst cyc = K.t*0.12;                                  // psychedelic band drift\n\n// ---- build a 256-entry exterior palette LUT (cheap; rebuilt per frame so it drifts) ----\nif (!S.lut) S.lut = new Float32Array(256*3);\nconst lut = S.lut;\nfor (let k=0;k<256;k++){\n  const m = k/255; let r,g,b;\n  if (style==='ember'){                                // blackbody: red -> orange -> yellow -> white\n    r = clamp(Math.pow(m,0.55)*1.55, 0,1);\n    g = clamp((m-0.28)*1.75, 0,1);\n    b = clamp((m-0.62)*2.3, 0,1);\n    r = r*0.94 + 0.05;                                 // dim ember floor (never dead black)\n  } else if (style==='psychedelic'){                   // full-spectrum drifting bands\n    const c = hsv((m*(2.2+dens*5)+cyc+hb/360)*360, 0.85, clamp(0.2+m*0.76,0,1));\n    r=c[0]; g=c[1]; b=c[2];\n  } else if (style==='ice'){                            // cyan/white glacial\n    r = clamp(m*m*1.05+0.05, 0,1);\n    g = clamp(0.16+m*0.9, 0,1);\n    b = clamp(0.34+m*0.72, 0,1);\n  } else if (style==='etched'){                         // copperplate contours: white lines on graded ground\n    const lines = m*(5+dens*18);\n    const f = lines-Math.floor(lines); const edge=Math.min(f,1-f);\n    const ink = clamp((0.11-edge)/0.08,0,1);\n    const v = ink*0.95 + m*0.13 + 0.02;\n    r=v*0.99; g=v*0.98; b=v;\n  } else {                                              // electric (default): blue/violet field -> gold filaments\n    const baseV = 0.44 + 0.55*m;\n    const baseS = clamp(0.9 - m*0.45, 0,1);\n    const cb = hsv(hb + m*40, baseS, baseV);\n    const gold = Math.pow(m, 3.2);\n    r = clamp(cb[0]*(1-gold*0.85) + gold*1.0, 0,1);\n    g = clamp(cb[1]*(1-gold*0.85) + gold*0.80, 0,1);\n    b = clamp(cb[2]*(1-gold*0.85) + gold*0.30, 0,1);\n  }\n  const o=k*3; lut[o]=r; lut[o+1]=g; lut[o+2]=b;\n}\n\n// ---- morphing c: incommensurate epicycle near the M-boundary -> perpetual dendrite/rabbit/dragon/spiral morph ----\nconst w1 = K.t*(0.028 + P.speed*0.045) + S.ph1;\nconst w2 = K.t*(0.017 + P.speed*0.026) + S.ph2;\nconst R = S.rBase + 0.05*Math.sin(sec*0.7 + K.t*0.02) + A.bass*0.03;\nconst cr = R*Math.cos(w1) + 0.06*Math.cos(w2*2.0 + 1.1);\nconst ci = R*Math.sin(w1) + 0.06*Math.sin(w2*2.0 - 0.4);\n\n// ---- view: slow zoom-breathe + pan drift for extra life ----\nconst zb = 1 + 0.08*Math.sin(K.t*0.04) + A.rms*0.14;\nconst halfY = 1.6/(P.scale*zb), halfX = halfY*(BW/BH);\nconst vx = (P.x-0.5)*1.2 + S.px0 + Math.sin(K.t*0.011)*0.05;\nconst vy = (P.y-0.5)*1.2 + S.py0 + Math.cos(K.t*0.009)*0.05;\nconst cosR = Math.cos(S.rot), sinR = Math.sin(S.rot);\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j=0;j<BH;j++){\n  const dyc = (j/(BH-1)-0.5)*2*halfY;\n  for (let i=0;i<BW;i++){\n    const dxc = (i/(BW-1)-0.5)*2*halfX;\n    let zr = vx + dxc*cosR - dyc*sinR;\n    let zi = vy + dxc*sinR + dyc*cosR;\n    let n=0, trap=1e9, m2=zr*zr+zi*zi;\n    while (n<maxIter && m2<=256){\n      const nr = zr*zr - zi*zi + cr;\n      zi = 2*zr*zi + ci; zr = nr;\n      m2 = zr*zr+zi*zi;\n      if (m2<trap) trap=m2;\n      n++;\n    }\n    let r,g2,b;\n    if (n>=maxIter){\n      // interior: dark-tinted orbit-trap glow (never pure black)\n      const tv = clamp(1 - Math.sqrt(trap)*0.9, 0, 1);\n      if (style==='ember'){ const v=(0.05+tv*0.5)*expo*0.8; r=clamp(v*1.1,0,1); g2=clamp(v*0.42,0,1); b=clamp(v*0.12,0,1); }\n      else if (style==='psychedelic'){ const c=hsv((tv*1.5+cyc)*360+hb,0.8,clamp((0.06+tv*0.5)*expo*0.8,0,1)); r=c[0];g2=c[1];b=c[2]; }\n      else if (style==='ice'){ const v=(0.05+tv*0.5)*expo*0.85; r=clamp(v*0.5,0,1); g2=clamp(v*0.85,0,1); b=clamp(v*1.1+0.03,0,1); }\n      else if (style==='etched'){ const h=((tv*6)%1)<0.5?0.13:0.07; r=h*0.99; g2=h*0.98; b=h; }\n      else { const v=clamp((0.13+tv*0.55)*expo,0,1); const c=hsv(hb-8, clamp(0.85-tv*0.4,0,1), v); r=c[0];g2=c[1];b=c[2]; }\n    } else {\n      // exterior: smooth continuous iteration -> palette LUT\n      const mag=Math.sqrt(m2);\n      let sm = n + 1 - Math.log(Math.log(mag))*invLog2;\n      if (sm<0) sm=0;\n      let m = sm/maxIter; if (m>1) m=1; if (m<0) m=0;\n      const idx = (m*255)|0; const o=idx*3;\n      const ex = clamp(expo,0,1.8);\n      r = clamp(lut[o]*ex,0,1); g2 = clamp(lut[o+1]*ex,0,1); b = clamp(lut[o+2]*ex,0,1);\n    }\n    const o=4*(j*BW+i);\n    px[o]=r*255; px[o+1]=g2*255; px[o+2]=b*255; px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\npop();\n// audio-reactive filament bloom (partial ADD wash; zero during validation; never a full-frame flash)\nif ((A.bass>0.02 || A.treble>0.02 || A.rms>0.02) && style!=='etched'){\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass*0.5 + A.treble*0.35 + A.rms*0.35)*P.energy;\n  fill((hb+30)%360, 45, 100, clamp(glow*20,0,22));\n  rect(0,0,width,height);\n  blendMode(BLEND); pop();\n}\n"
+}
