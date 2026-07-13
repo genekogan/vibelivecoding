@@ -1,4 +1,43 @@
-# Music Factory — resumable state (updated 2026-07-11 ~16:10, rescue wave in flight)
+# Music Factory — resumable state (updated 2026-07-13 ~03:05 EDT, session-3 expansion in flight)
+
+## SESSION 3 (2026-07-13 ~03:00 EDT — post-3hr-pause EXPANSION)
+
+On resume, the catalog was already **COMPLETE**: 389 stems / 35 kits / 12 arcs,
+0 quarantined, valloop audit passing 389/389. Machine load was high (~9 — the
+visual factory's "+100 TARGET REACHED" closeout), so **live QA/validation is
+load-blocked** (valloop gate = loadavg < 4.5). Did a focused, LOAD-INDEPENDENT
+expansion per Gene's standing directives (vox was thinnest slot; "more kits";
+"variety is king"; "spend quota"):
+
+- **+18 vox stems → inbox** (6 subagents) filling vox genre gaps: ukg/garage/
+  footwork, jungle/dnb/trance, disco/gqom/afrobeat, drone/ambient/world-sindhen,
+  drill/gaze/gamelan-kecak, idm-glitch/concrete/triphop. All pass the static
+  lint (orbit 8, 3 variants ending `.play()`, gain ≤ .50, deps ⊆ packs.json, no
+  banned APIs, ≥8 tags). Sources: dirt-samples vocal shelf + shabda accents +
+  vowel-filtered synth choir.
+- **+9 kits → inbox** for gap genres: `kit.reich_minimal` (C maj), `kit.latin_salsa`
+  (Bb), `kit.reggaeton_dembow` (Gm), `kit.shoegaze_wall` (C#), `kit.concrete_collage`,
+  `kit.world_raga` (E), `kit.gamelan_kotekan` (Db pent, w/ drums — distinct from
+  drumless `gamelan_fm`), `kit.drone_deep` (E maj — distinct from C-lydian
+  `drone_dawn`), `kit.exp_polymeter`. Each references only verified stems whose
+  cps windows all intersect the kit cps (the `validate_kit` hard gate).
+
+**STATUS**: all 27 assets sit in `assets/music/inbox/`, static-lint clean.
+`valloop_music.py` (running) will validate + index + commit them autonomously
+once loadavg < 4.5 — do NOT run validate.py by hand (collides with the loop).
+Static lint tool: `scratchpad/inbox_lint.py` (ephemeral — regenerate if needed).
+
+**REMAINING**: (1) confirm the valloop drains the inbox; re-rescue any
+under-loudness fails with the `.shape(.3–.6)` / gain-ceiling / pump-floor recipe;
+(2) live QA — fire a few new kits through arcs (`arc_compile.py <kit> <arc> --fire`)
+at low load, confirm evolving + no clip; (3) final report + leave server idle
+(POST /strudel/hush) for Gene's `review.py music --port 9766`.
+
+**Expected final if all pass**: ~407 stems · ~44 kits · 12 arcs.
+
+---
+
+## (earlier) updated 2026-07-11 ~16:10, rescue wave in flight
 
 ## RESUME SESSION 2 STATUS (2026-07-11 afternoon)
 
