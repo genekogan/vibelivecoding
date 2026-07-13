@@ -55,7 +55,19 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
   don't trust the gate. (My hand-authored assets read P every frame → genuinely responsive.)
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
-## >>> RESUME HERE (checkpoint 2026-07-12 ~22:45, opus-4-8 session) <<<
+## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
+**51 new genart accepted (catalog 85, baseline 34).** Target +100-200 → ~halfway to low end; keep going.
+Since the ~22:45 checkpoint: wave-5 reviewed (+8: gray_scott, truchet[refresh], voronoi_cells, cyclic_ca,
+maze, lyapunov, rorschach-fix, sandpile-fix; dropped dup phyllotaxis; requeued dla), hand-authored chladni
+(cymatics) + nbody spiral-galaxy (fixed after 2 subagent fails: TRUE circular-orbit v + short trails).
+Wave-6 (10 agents) IN FLIGHT: metaballs, clifford, plasma_globe, smoke, double_pendulum, feedback_tunnel,
+koch_flake, hex_automaton (8 new) + dla-fix (bigger/faster crystal). Only dla still in graveyard requeue.
+NOTE: check every wave asset's id vs existing catalog before validating — phyllotaxis & truchet already
+existed (validate silently OVERWRITES same-id). Hand-authored kernels now in scratchpad/gf/ref/:
+plasma/epicycles/caustics/noise_contour/godrays/prism/physarum/harmonograph + pixel_sort/lenia/watercolor/
+chladni/nbody (13). wave batches: wave4/5/6.json.
+
+---- (older checkpoint 22:45) ----
 **42 new genart accepted (catalog 76, baseline 34).** Since the 24-checkpoint, added:
 - wave-3 review: apollonian, drip_paint, lorenz, lowpoly_mesh, newton_fractal, spacefill, superformula (7).
 - guilloche: hand-fixed pale->'engraved' high-contrast (was requeue), accepted.
