@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gray_scott",
+  "kind": "genart",
+  "name": "Gray-Scott Turing",
+  "desc": "A living Gray-Scott reaction-diffusion field where two chemicals react into spots, coral, fingerprint mazes and self-replicating mitosis blobs, forever growing and dividing as feed/kill march a ring of regimes over minutes; rendered as a vivid teal-to-hot-pink coral ramp, an x-ray bone radiograph, blackbody thermal, mossy terrarium, or black fingerprint ink on cream.",
+  "tags": [
+    "reaction-diffusion",
+    "gray-scott",
+    "turing",
+    "turing-pattern",
+    "morphogenesis",
+    "coral",
+    "mitosis",
+    "cell-division",
+    "maze",
+    "fingerprint",
+    "spots",
+    "stripes",
+    "chemistry",
+    "chemical",
+    "diffusion",
+    "simulation",
+    "emergent",
+    "organic",
+    "growth",
+    "field",
+    "x-ray",
+    "radiograph",
+    "bone",
+    "thermal",
+    "blackbody",
+    "moss",
+    "lichen",
+    "ink",
+    "sumi",
+    "fingerprint-maze",
+    "teal",
+    "cyan",
+    "magenta",
+    "pink",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "alive",
+    "biological",
+    "petri-dish",
+    "cellular"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast / color gain of the V-concentration ramp (higher = hotter, more saturated crests)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "display zoom \u2014 magnify a sub-region of the pattern (guaranteed visible change)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "simulation steps/frame + regime-march rate (0.2 still steps every frame)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "perpetual V-injector count & radius (nucleation that keeps the field alive & evolving)"
+    },
+    "feed": {
+      "default": 0.037,
+      "min": 0.024,
+      "max": 0.058,
+      "doc": "Gray-Scott feed offset \u2014 shifts the whole regime ring warmer (fuller/coral) or leaner (sparser/spots)"
+    },
+    "kill": {
+      "default": 0.062,
+      "min": 0.05,
+      "max": 0.068,
+      "doc": "Gray-Scott kill offset \u2014 lower = fuller maze, higher = sparser spots (ring stays alive at both extremes)"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "tint of the breathing glow overlay (does not recolor the raw field ramp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "injector bias + zoom pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "injector bias + zoom pan y"
+    },
+    "style": {
+      "default": "coral",
+      "options": [
+        "coral",
+        "bone",
+        "thermal",
+        "moss",
+        "ink-maze"
+      ],
+      "doc": "field->color philosophy: coral = vivid teal->cyan->yellow->hot-pink / bone = x-ray white-on-navy radiograph (abstract) / thermal = blackbody ironbow heat / moss = green-ochre terrarium / ink-maze = black fingerprint ink on cream paper (mono, abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed-patch layout (rebuilds the field on change)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg; lower = translucent field via tint)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:57:44+00:00",
+    "fps": 59.9,
+    "motion": 0.1645,
+    "lum": 0.441
+  },
+  "code": "const D = { energy:.6, scale:1, speed:1, density:.5, feed:.037, kill:.062, hue:190, x:.5, y:.5, style:'coral', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\nconst W=width,H=height,u=Math.min(W,H);\nconst hsh=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\n\n// ---- coarse Gray-Scott grid, size + seed keyed (<=164 wide) ----\nconst LS=148;\nconst GW=Math.max(48,Math.min(164,Math.round(LS*W/Math.max(W,H))));\nconst GH=Math.max(28,Math.min(104,Math.round(LS*H/Math.max(W,H))));\nconst N=GW*GH;\nif(!S.a || S.gw!==GW || S.gh!==GH || S.seedUsed!==(P.seed|0)){\n  S.gw=GW; S.gh=GH; S.seedUsed=(P.seed|0);\n  S.a=new Float32Array(N); S.b=new Float32Array(N);\n  S.a2=new Float32Array(N); S.b2=new Float32Array(N);\n  for(let i=0;i<N;i++){ S.a[i]=1; S.b[i]=0; }        // U=1 everywhere, V=0\n  const patches=44+Math.round(hsh(1)*40);             // many scattered V seed patches -> edge-to-edge morphogenesis\n  for(let s=0;s<patches;s++){\n    const cx=Math.floor(hsh(s*4+2)*GW), cy=Math.floor(hsh(s*4+3)*GH), rr=1+Math.floor(hsh(s*4+5)*3);\n    for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n      if(dx*dx+dy*dy>rr*rr)continue;\n      const x=((cx+dx)%GW+GW)%GW, y=((cy+dy)%GH+GH)%GH;\n      S.b[y*GW+x]=0.9;\n    }\n  }\n  if(!S.buf || S.bkw!==GW || S.bkh!==GH){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1); S.bkw=GW; S.bkh=GH; }\n  S.burn=10;   // burn-in spread over the first ~10 frames (~0.17s) so the pattern is grown before any capture (no single-frame fps stall)\n}\nconst a=S.a,b=S.b,a2=S.a2,b2=S.b2,buf=S.buf;\n\n// ---- regime sweep: march a ring of LIVING Gray-Scott waypoints over minutes ----\n// mitosis -> spots -> fine-maze -> fingerprint -> holes -> coral -> (loop). Every waypoint AND\n// every interpolated midpoint stays in the living zone, so the field NEVER dies (Gray-Scott can't\n// recover from an all-dead field). P.feed/P.kill offset the whole ring warmer/colder.\nconst REG=[[0.037,0.062],[0.030,0.062],[0.026,0.055],[0.029,0.057],[0.039,0.058],[0.052,0.062]];\nconst nR=REG.length;\nconst phase=K.section*0.7 + K.t*(0.010+P.speed*0.012);   // minutes-scale march; K.t term = never static\nconst fp=((phase%nR)+nR)%nR, ri=fp|0, rt=fp-ri, w0=REG[ri], w1=REG[(ri+1)%nR];\nconst baseF=w0[0]+(w1[0]-w0[0])*rt, baseK=w0[1]+(w1[1]-w0[1])*rt;\nconst feedC=clp(baseF+(P.feed-0.037),0.014,0.086);\nconst killC=clp(baseK+(P.kill-0.062),0.030,0.070);\nconst DA=1.0, DB=0.5;\n\n// ---- perpetual V injector: motion floor + never-freeze; audio only ADDS ----\nconst dens=clp(P.density,0,1);\nconst injN=1+Math.round(dens*2);\nfor(let q=0;q<injN;q++){\n  const ang=K.t*(0.19+q*0.09)+q*2.3, rad=0.22+0.15*Math.sin(K.t*0.05+q*1.7);\n  const ix=Math.floor((0.5+(P.x-0.5)*0.5+Math.cos(ang)*rad)*GW);\n  const iy=Math.floor((0.5+(P.y-0.5)*0.5+Math.sin(ang)*rad)*GH);\n  const rr=1+Math.round(dens*2), amp=0.30+A.bass*0.4+K.pulse*0.15;\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    if(dx*dx+dy*dy>rr*rr)continue;\n    const x=((ix+dx)%GW+GW)%GW, y=((iy+dy)%GH+GH)%GH, idx=y*GW+x;\n    b[idx]=Math.min(1,b[idx]+amp*0.5);\n  }\n}\n\n// ---- iterate Gray-Scott: 9-pt isotropic Laplacian, toroidal wrap; >=1 step/frame = motion floor ----\nlet iters=Math.max(1,Math.round((1.2+P.speed*1.3)*(0.7+0.6*K.intensity)));\nif(iters>7) iters=7;\nif(S.burn>0){ iters+=30; S.burn--; }   // accelerated cook for the first frames, then off\nlet sa=a,sb=b,da=a2,db=b2;\nfor(let it=0;it<iters;it++){\n  for(let y=0;y<GH;y++){\n    const ym=(y-1+GH)%GH, yp=(y+1)%GH, r0=ym*GW, r1=y*GW, r2=yp*GW;\n    for(let x=0;x<GW;x++){\n      const xm=(x-1+GW)%GW, xp=(x+1)%GW, i=r1+x;\n      const av=sa[i], bv=sb[i];\n      const la=0.2*(sa[r1+xm]+sa[r1+xp]+sa[r0+x]+sa[r2+x])+0.05*(sa[r0+xm]+sa[r0+xp]+sa[r2+xm]+sa[r2+xp])-av;\n      const lb=0.2*(sb[r1+xm]+sb[r1+xp]+sb[r0+x]+sb[r2+x])+0.05*(sb[r0+xm]+sb[r0+xp]+sb[r2+xm]+sb[r2+xp])-bv;\n      const rea=av*bv*bv;\n      let na=av+(DA*la-rea+feedC*(1-av));\n      let nb=bv+(DB*lb+rea-(killC+feedC)*bv);\n      da[i]=na<0?0:na>1?1:na; db[i]=nb<0?0:nb>1?1:nb;\n    }\n  }\n  const ta=sa;sa=da;da=ta; const tb=sb;sb=db;db=tb;\n}\nif(sa!==S.a){ S.a.set(sa); S.b.set(sb); }\nconst fld=S.b;\n\n// ---- field V -> RGB straight into buffer pixels (RAW RGBA bytes \u2014 the HSB mode does not touch these) ----\nconst gain=1.6+clp(P.energy,0,1)*3.2, st=P.style;\nbuf.loadPixels(); const px=buf.pixels;\nfunction ramp(stops,f){ const n=stops.length-1, ff=clp(f,0,1)*n; let k=ff|0; if(k>=n)k=n-1; const t=ff-k, s0=stops[k], s1=stops[k+1]; return [s0[0]+(s1[0]-s0[0])*t, s0[1]+(s1[1]-s0[1])*t, s0[2]+(s1[2]-s0[2])*t]; }\nconst CORAL=[[8,40,52],[16,120,138],[70,205,205],[240,225,95],[245,72,150]];\nconst THERM=[[4,2,14],[70,10,90],[190,30,30],[245,140,20],[255,245,190]];\nconst MOSS=[[10,24,12],[45,95,40],[110,140,55],[180,170,80],[222,206,138]];\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x;\n  let f=clp((fld[i]-0.02)*gain,0,1), r,g,bl;\n  if(st==='coral'){ const c=ramp(CORAL,f); r=c[0]; g=c[1]; bl=c[2]; }\n  else if(st==='thermal'){ const c=ramp(THERM,Math.pow(f,0.9)); r=c[0]; g=c[1]; bl=c[2]; }\n  else if(st==='moss'){ const c=ramp(MOSS,f); r=c[0]; g=c[1]; bl=c[2]; }\n  else if(st==='bone'){ // x-ray radiograph: bone-white structures edge-lit on dark navy\n    const xm=(x-1+GW)%GW, xp=(x+1)%GW, ym=(y-1+GH)%GH, yp=(y+1)%GH;\n    const gx=fld[y*GW+xp]-fld[y*GW+xm], gy=fld[yp*GW+x]-fld[ym*GW+x];\n    const e=clp(Math.hypot(gx,gy)*gain*2.6,0,1);\n    const m=clp(Math.pow(f,0.8)+e*0.6,0,1);\n    r=10+m*220; g=14+m*226; bl=26+m*230;\n  } else { // ink-maze: black fingerprint ink on warm cream paper\n    const ink=clp(Math.pow(f,0.85),0,1), tone=1-ink*0.93;\n    r=242*tone+3; g=232*tone+3; bl=206*tone+3;\n  }\n  const j=i*4; px[j]=clp(r,0,255); px[j+1]=clp(g,0,255); px[j+2]=clp(bl,0,255); px[j+3]=255;\n}\nbuf.updatePixels();\n\n// ---- composite: upscale to full frame; P.scale = display zoom on a centered sub-rect ----\nconst zoom=clp(P.scale,1,2.6), sw=GW/zoom, sh=GH/zoom;\nconst sx=clp((GW-sw)*(0.15+P.x*0.7),0,GW-sw), sy=clp((GH-sh)*(0.15+P.y*0.7),0,GH-sh);\nnoStroke(); drawingContext.imageSmoothingEnabled=true;\npush();\nif(P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(buf,0,0,W,H,sx,sy,sw,sh);\npop();\n\n// ---- finishing (PARTIAL-frame only \u2014 never a full-frame flash) ----\nif(st!=='ink-maze'){\n  blendMode(ADD); noStroke();\n  const hb=(((P.hue%360)+360)%360);\n  const gl=clp((7+9*K.swell+A.bass*16+A.rms*10)*0.6,0,13);\n  fill(hb, st==='bone'?18:42, 100, gl);\n  rect(0,0,W,H);\n  blendMode(BLEND);\n} else { // cream never reads flat: faint warm vignette frame\n  noFill(); strokeWeight(u*0.14); stroke(35,12,52,9); rect(-u*0.07,-u*0.07,W+u*0.14,H+u*0.14); noStroke();\n}\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}
