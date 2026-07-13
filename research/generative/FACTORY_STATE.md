@@ -55,17 +55,39 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
   don't trust the gate. (My hand-authored assets read P every frame → genuinely responsive.)
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
-## LIVE PROGRESS SNAPSHOT (recompute from `ls assets/visual/genart` on resume)
-**Accepted new genart (13, catalog 47):** plasma_warp, epicycles, caustics, quasicrystal,
-datascape, strange_dejong, ripple_tank, noise_contour, moire_weave, warp_grid, oil_slick,
-godrays, prism. (baseline 34.) 7 of these hand-authored (reliable templates), 6 from subagents.
-**Wave 2b AUTHORING (12):** boids, mandelbrot, penrose, lightning, elementary_ca, stable_fluids,
-ifs_flame, halftone_cmyk, kaleidoscope + fixes harmonograph, physarum, pixel_sort. (ifs_flame landed.)
-**Wave 3 PREPPED (scratchpad/gf/wave3.json, 12):** venation, guilloche, lorenz, apollonian, maze,
-spacefill, lowpoly_mesh, godrays(SKIP-done), rorschach, drip_paint, newton_fractal, sandpile, superformula.
-**Still to author:** watercolor (requeue-color), lenia (failed twice). cyclic_ca shelved (needs r=2).
-**QUOTA: two session-limit hits from concurrent bursts. Keep waves ≤~12; don't run 2 waves at once.**
-**Requeue queue (re-author with COLOR + fuller frame):** watercolor (pale/mono).
+## >>> RESUME HERE (checkpoint 2026-07-12 ~21:00, paused on quota) <<<
+**24 new genart accepted (catalog 58, baseline 34).** Accepted list: plasma_warp, epicycles,
+caustics, quasicrystal, datascape, strange_dejong, ripple_tank, noise_contour, moire_weave,
+warp_grid, oil_slick, godrays, prism, boids, mandelbrot, penrose, ifs_flame, kaleidoscope,
+halftone_cmyk, lightning, stable_fluids, elementary_ca, harmonograph, physarum.
+(9 hand-authored in scratchpad/gf/ref/*.js; 15 from subagent waves.)
+
+**IMMEDIATE NEXT STEP — 8 wave-3 assets sit in assets/visual/inbox/ AUTHORED BUT UNREVIEWED:**
+apollonian, drip_paint, guilloche, lorenz, lowpoly_mesh, newton_fractal, spacefill, superformula.
+→ Resume by: `python3 scratchpad/gf/gf_snap.py --outdir scratchpad/gf/_wave3 --glob 'assets/visual/inbox/*.json'`
+  then `python3 scratchpad/gf/gf_sheet.py --dir scratchpad/gf/_wave3 --out scratchpad/gf/_wave3/sheet.png --cols 3`,
+  READ the sheet (COLOR now), accept good ones via `validate.py`, requeue/hand-author the rest.
+(Wave-3 workflow may also still land venation, maze, rorschach, sandpile — check inbox.)
+
+**Then keep the loop going:** launch next author wave (~12 uncovered families) via
+`Workflow scriptPath=scratchpad/gf/author_workflow.js args=<[{id,name,family,recipe,kernel,style}]>`.
+Still-uncovered families toward 100-200: venation, maze, rorschach, sandpile, lenia, watercolor,
+pixel_sort(hand-author — subagents fail it 2x), bz/excitable-spirals(FHN, careful), curl_smoke,
+langton_ant, wireworld, celtic_knot, hyperbolic, koch, nbody, double_pendulum, plasma_globe,
+smoke, diffusion_dye, testcard, seven_segment, scanlines, watercolor, flow_ribbons, cyclic_ca(r=2).
+
+**HARD-WON PATTERNS (reuse):**
+- Contact sheet NOW shows COLOR (gf_snap fixed). Earlier grayscale sheets caused false 'monochrome' calls.
+- Subagent hit-rate ~70-80% once judged in color. They occasionally miss: harmonograph (drew dashes),
+  physarum (blob/single-vein collapse), pixel_sort (no visible sort). Hand-author those — I nailed all 3.
+- physarum: init agents UNIFORMLY across field (central disk collapses to a blob); higher grid res
+  (300w) + more agents (3000-9000) + short sensor dist = finer network. Mine is accepted but veins a
+  bit thick — a later pass could go finer.
+- Trail/curve pieces: two-pass glow (wide ADD dim + thin bright core), continuous coeff/precession
+  drift on K.t so they never re-phase (motion floor). See epicycles.js / harmonograph.js.
+- Perf trap: shadowBlur on MANY shapes tanks fps to 10 (warp_grid). Use it on ≤~30 shapes only.
+- QUOTA: session-limit hit 3x from concurrent bursts. Keep waves ≤~12 agents; ONE wave at a time.
+**Requeue/hand-author queue:** pixel_sort (2x subagent fail), watercolor (pale/mono), lenia (2x fail).
 **Wave cadence that works:** author_workflow.js fans out ~10-13 agents (args = family batch,
 passed as JSON — parses string). Each reads author-brief + genart.plasma_warp.json template.
 ~60-70% accept on-canvas; requeue the rest with specific critique (delete inbox file → re-issue
