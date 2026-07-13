@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.bz_spirals",
+  "kind": "genart",
+  "name": "Excitable-Medium Spirals",
+  "desc": "A FitzHugh-Nagumo excitable-medium chemistry where emergent rotating spiral waves and expanding target rings sweep the frame, colliding and annihilating like a living Belousov-Zhabotinsky chemical clock - painted in vivid blue-cyan-yellow-magenta reagent, bioluminescent teal, thermographic blackbody, pink-violet litmus, or bare hue-driven wavefront contours.",
+  "tags": [
+    "reaction-diffusion",
+    "excitable-media",
+    "belousov-zhabotinsky",
+    "bz",
+    "fitzhugh-nagumo",
+    "spiral-wave",
+    "target-wave",
+    "chemical-clock",
+    "oscillating-reaction",
+    "activator-inhibitor",
+    "fibrillation",
+    "cardiac",
+    "wavefront",
+    "morphogenesis",
+    "chemistry",
+    "petri-dish",
+    "spiral",
+    "rings",
+    "field",
+    "simulation",
+    "organic",
+    "generative",
+    "genart",
+    "abstract",
+    "colorful",
+    "bioluminescent",
+    "thermal",
+    "litmus",
+    "contour",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast / gain of the field->color mapping (crisper brighter crests at max)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "display zoom - magnify a sub-region of the spiral field"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette rotation (fully drives the contour line color)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "FHN integration steps/frame - wavefront propagation rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pacemaker source count + injection radius (more target rings)"
+    },
+    "excite": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "excitability - a few lazy rotors -> dense churning fibrillation"
+    },
+    "coupling": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "diffusion / wavelength - tight fine spirals vs broad slow scrolls"
+    },
+    "cores": {
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "doc": "seeded spiral rotor count (re-tiles the medium on change)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pacemaker seed bias + zoom pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pacemaker seed bias + zoom pan y"
+    },
+    "style": {
+      "default": "chemical-clock",
+      "options": [
+        "chemical-clock",
+        "bioluminescent",
+        "thermographic",
+        "litmus",
+        "contour"
+      ],
+      "doc": "chemical-clock = vivid blue->cyan->yellow->magenta reagent / bioluminescent = teal-green glow on black / thermographic = blackbody heat ramp / litmus = pink-violet duotone / contour = non-representational bright iso-lines of the activator wavefront"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "spiral rotor layout + handedness"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:31:59+00:00",
+    "fps": 60.2,
+    "motion": 0.1891,
+    "lum": 0.356
+  },
+  "code": "const D = { energy:.6, scale:1, hue:210, speed:1, density:.5, excite:.45, coupling:.5, cores:3, x:.5, y:.5, style:'chemical-clock', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), W=width, H=height, umin=Math.min(W,H), TAU=Math.PI*2;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;   // tolerate t0 reset\nconst hsh=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\n\n// --- coarse FHN grid, size + seed + cores keyed (140x79 default, cap 160x92) ---\nconst LS=140;\nconst GW=clp(Math.round(LS*W/Math.max(W,H)),44,160)|0;\nconst GH=clp(Math.round(LS*H/Math.max(W,H)),26,92)|0;\nconst N=GW*GH;\nconst cores=clp(Math.round(P.cores),1,8)|0;\nconst key=GW+'x'+GH+'_'+(P.seed|0)+'_'+cores;\nif(!S.u||S.key!==key){\n  S.key=key;\n  S.u=new Float32Array(N); S.v=new Float32Array(N);\n  S.u2=new Float32Array(N); S.v2=new Float32Array(N);\n  // tiled cross-field IC -> a grid of counter-rotating rotors (emergent self-sustaining spirals)\n  const tx=Math.max(1,Math.round(Math.sqrt(cores))), ty=Math.max(1,Math.round(cores/tx));\n  const twd=GW/tx, thd=GH/ty;\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const i=y*GW+x;\n    const cxI=Math.floor(x/twd)%tx, cyI=Math.floor(y/thd)%ty;\n    const lx=x-cxI*twd, ly=y-cyI*thd;\n    const flip=hsh(cxI*7+cyI*13+1)>0.5?1:-1;         // random rotor handedness per tile\n    const flipV=hsh(cxI*17+cyI*31+2)>0.5?1:-1;\n    let uu=((lx<twd*0.5)?1:-1)*flip;                  // half-plane wavefront\n    let vv=((ly/thd)-0.5)*flipV;                       // refractory gradient -> free end curls\n    uu+=(hsh(i)-0.5)*0.06;                             // break exact symmetry\n    S.u[i]=uu; S.v[i]=vv;\n  }\n  if(S.buf&&S.buf.remove)S.buf.remove();\n  S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1);\n  S.burn=34;   // burn-in so the FIRST visible frame already shows curling spirals (no flat/strobe start)\n}\nlet u=S.u,v=S.v,u2=S.u2,v2=S.v2; const buf=S.buf;\n\n// --- FHN constants + section drift (dramaturgy over minutes) ---\nconst drift=K.t*0.014 + K.section*0.5;\nlet excite=clp(P.excite + 0.14*Math.sin(drift*0.6), 0, 1);       // regime wanders across sections\nconst Du=clp(0.6+P.coupling*0.8, 0.5, 1.5);                       // coupling -> wavelength (CFL: Du*dt<=0.25)\nconst dt=0.13, aa=0.7, bb=0.8;\nconst eps=clp(0.052 + (0.5-excite)*0.05, 0.03, 0.09);            // small eps -> slow recovery -> sustained rotation\n\n// --- perpetual pacemaker injection: motion floor + never-settle guard (spawns target rings) ---\nconst beat=K.pulse*0.6 + A.bass*0.7;                             // baseline (K) carries it; audio only ADDS\nconst nInj=clp(1+Math.round((P.density*0.6+excite*0.5)*4),1,6)|0;\nfor(let q=0;q<nInj;q++){\n  const ang=K.t*(0.15+q*0.06)+q*2.4, rad=0.16+0.15*Math.sin(K.t*0.05+q*1.3);\n  const cx=Math.floor((0.5+(P.x-0.5)*0.5+Math.cos(ang)*rad)*GW);\n  const cy=Math.floor((0.5+(P.y-0.5)*0.5+Math.sin(ang)*rad)*GH);\n  const rr=1+Math.round(P.density*2);\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    if(dx*dx+dy*dy>rr*rr)continue;\n    const x=((cx+dx)%GW+GW)%GW, y=((cy+dy)%GH+GH)%GH, i=y*GW+x;\n    u[i]=1.5+beat*0.4; if(v[i]>-0.2)v[i]=-0.2;                   // excited + non-refractory -> emits a ring\n  }\n}\n// tiny K.t noise sweep so the medium never freezes anywhere\nconst nph=Math.floor(K.t*3);\nfor(let k=0;k<N;k+=6){ u[k]+=(hsh(k+nph)-0.5)*0.02; }\n\n// --- integrate FHN (u fast activator diffuses, v slow inhibitor); >=1 step EVERY frame = motion floor ---\nconst steps=Math.max(1, Math.round((1.4+P.speed*1.4)*(0.6+0.6*K.intensity)) + (S.burn||0));\nlet sU=u,sV=v,dU=u2,dV=v2;\nfor(let it=0; it<steps; it++){\n  for(let y=0;y<GH;y++){\n    const ym=(y-1+GH)%GH, yp=(y+1)%GH, r0=ym*GW, r1=y*GW, r2=yp*GW;\n    for(let x=0;x<GW;x++){\n      const xm=(x-1+GW)%GW, xp=(x+1)%GW, i=r1+x, uv=sU[i], vv=sV[i];\n      const lap=sU[r1+xm]+sU[r1+xp]+sU[r0+x]+sU[r2+x]-4*uv;      // 4-neighbor Laplacian\n      let nu=uv+dt*(Du*lap + uv - uv*uv*uv/3 - vv);\n      let nv=vv+dt*(eps*(uv + aa - bb*vv));\n      if(nu!==nu||nu<-2)nu=-2; else if(nu>2)nu=2;                // CLAMP + NaN guard (cubic blows up otherwise)\n      if(nv!==nv)nv=0; else if(nv<-1.6)nv=-1.6; else if(nv>1.6)nv=1.6;\n      dU[i]=nu; dV[i]=nv;\n    }\n  }\n  const tu=sU;sU=dU;dU=tu; const tv=sV;sV=dV;dV=tv;              // ping-pong\n}\nif(sU!==S.u){ S.u.set(sU); S.v.set(sV); }\nS.burn=0;\nconst fld=S.u;\n\n// --- palette: hue-rotate the LUT stops once/frame (cheap), then per-pixel lerp ---\nconst st=P.style;\nfunction hueRot(r,g,b,deg){\n  const a=deg*Math.PI/180, c=Math.cos(a), s=Math.sin(a);\n  const m0=0.213+c*0.787-s*0.213, m1=0.715-c*0.715-s*0.715, m2=0.072-c*0.072+s*0.928;\n  const m3=0.213-c*0.213+s*0.143, m4=0.715+c*0.285+s*0.140, m5=0.072-c*0.072-s*0.283;\n  const m6=0.213-c*0.213-s*0.787, m7=0.715-c*0.715+s*0.715, m8=0.072+c*0.928+s*0.072;\n  return [clp(r*m0+g*m1+b*m2,0,255), clp(r*m3+g*m4+b*m5,0,255), clp(r*m6+g*m7+b*m8,0,255)];\n}\nconst RAMPS={\n  'chemical-clock':{s:[[22,40,110],[20,150,210],[245,225,90],[225,70,195]], base:210},\n  'bioluminescent':{s:[[2,14,16],[6,64,58],[26,196,150],[186,255,204]], base:165},\n  'thermographic':{s:[[6,3,12],[86,14,10],[214,72,14],[255,226,142]], base:20},\n  'litmus':{s:[[30,10,44],[122,32,132],[224,66,150],[255,188,214]], base:300}\n};\nconst contour = (st==='contour');\nconst ramp = RAMPS[st] || RAMPS['chemical-clock'];\nconst delta = (((P.hue - ramp.base)%360)+360)%360;\nconst stops = ramp.s.map(c=>hueRot(c[0],c[1],c[2],delta));\nconst L=stops.length;\nconst en=clp(P.energy,0,1), ctr=1.0+en*0.9;\nconst secH=(((P.hue + K.section*8)%360)+360)%360;\nconst hueLine=hueRot(30,150,255, (((secH-210)%360)+360)%360);   // contour line color, hue-driven\n\nbuf.loadPixels(); const px=buf.pixels;\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x; let r,g,bl;\n  if(contour){\n    const xm=(x-1+GW)%GW,xp=(x+1)%GW,ym=(y-1+GH)%GH,yp=(y+1)%GH;\n    const gx=fld[y*GW+xp]-fld[y*GW+xm], gy=fld[yp*GW+x]-fld[ym*GW+x];\n    const e=clp(Math.hypot(gx,gy)*(0.9+en*2.2),0,1);\n    const m0=clp((fld[i]+2)/4,0,1);\n    const base=12+m0*10;                                        // base>0 keeps mean-lum off the floor\n    r=base*0.35+e*hueLine[0]; g=base*0.55+e*hueLine[1]; bl=base*1.0+e*hueLine[2];\n  } else {\n    const m0=clp((fld[i]+2)/4,0,1);\n    const m=clp(0.5+(m0-0.5)*ctr,0,1);\n    const ff=m*(L-1); let k=ff|0; if(k>L-2)k=L-2; const t=ff-k;\n    const c0=stops[k], c1=stops[k+1];\n    r=c0[0]+(c1[0]-c0[0])*t; g=c0[1]+(c1[1]-c0[1])*t; bl=c0[2]+(c1[2]-c0[2])*t;\n    r=r*0.94+9; g=g*0.94+13; bl=bl*0.94+26;                     // faint chemistry haze -> never dead black\n  }\n  const j=i*4; px[j]=clp(r,0,255); px[j+1]=clp(g,0,255); px[j+2]=clp(bl,0,255); px[j+3]=255;\n}\nbuf.updatePixels();\n\n// --- composite: upscale to full frame; P.scale = display zoom on a centered sub-rect ---\nconst zoom=clp(P.scale,1,2.8), sw=GW/zoom, sh=GH/zoom;\nconst sx=clp((GW-sw)*(0.15+P.x*0.7),0,GW-sw), sy=clp((GH-sh)*(0.15+P.y*0.7),0,GH-sh);\nnoStroke(); drawingContext.imageSmoothingEnabled=true;\npush();\nif(P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(buf,0,0,W,H,sx,sy,sw,sh);\npop();\n\n// --- finishing: partial-frame breath/bass glow (alpha<=13, never full-frame flash -> motion-diff<0.35) ---\nif(!contour){\n  push(); blendMode(ADD); noStroke();\n  fill(secH, st==='thermographic'?55:42, 100, clp((5+9*K.swell+A.bass*16)*0.5,0,13));\n  rect(0,0,W,H);\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

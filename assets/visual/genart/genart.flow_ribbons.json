@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.flow_ribbons",
+  "kind": "genart",
+  "name": "Flow-Field Ribbons",
+  "desc": "Long silky streamlines traced through an evolving Perlin flow field and drawn as translucent tapering ribbons that braid and layer into a wind-swept, sunset-lit fabric, forever reseeding as the field rotates and scrolls.",
+  "tags": [
+    "flow-field",
+    "flowfield",
+    "ribbons",
+    "streamlines",
+    "silk",
+    "fabric",
+    "weave",
+    "braid",
+    "perlin",
+    "noise",
+    "curl",
+    "wind",
+    "sunset",
+    "aurora",
+    "copper",
+    "watercolor",
+    "blueprint",
+    "generative",
+    "genart",
+    "abstract",
+    "organic",
+    "flowing",
+    "translucent",
+    "veils",
+    "tapestry",
+    "full-bleed",
+    "background",
+    "bg",
+    "ambient",
+    "topographic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "ribbon count / weave fill"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "brightness / glow / ribbon alpha"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "field drift + scroll + integration step rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 3.0,
+      "doc": "swirl size (bigger = broader sweeps)"
+    },
+    "warp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field turbulence / how tightly ribbons coil"
+    },
+    "braid": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lateral interleave \u2014 how much neighbours weave"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (300=sunset)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ribbon-cluster anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ribbon-cluster anchor y"
+    },
+    "style": {
+      "default": "silk",
+      "options": [
+        "silk",
+        "aurora",
+        "copper",
+        "watercolor",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic ribbon layout / hues"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:31:25+00:00",
+    "fps": 61.0,
+    "motion": 0.1859,
+    "lum": 0.261
+  },
+  "code": "const D = { hue: 300, energy: .6, speed: 1, density: .55, scale: 1, warp: .5, braid: .45, x: .5, y: .5, style: 'silk', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = 6.28318530718;\nconst clp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst sd = (P.seed|0);\nconst hsh = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\n// --- per-style discipline: ground tone, blend, ribbon width ---\nconst style = P.style;\nlet addMode=true, wMul=1, gH=286, gS=50, gB=21, fadeA=9;\nif (style==='aurora'){ addMode=true; wMul=1.75; gH=236; gS=64; gB=12; fadeA=8; }\nelse if (style==='copper'){ addMode=true; wMul=0.55; gH=20; gS=46; gB=7; fadeA=11; }\nelse if (style==='watercolor'){ addMode=false; wMul=2.15; gH=42; gS=14; gB=88; fadeA=7; }\nelse if (style==='blueprint'){ addMode=true; wMul=0.5; gH=214; gS=82; gB=28; fadeA=10; }\n\n// --- size-keyed feedback fabric buffer (opaque ground, own HSB space) ---\nconst scl = Math.min(1, 820/Math.max(width,height));\nconst BW = Math.max(2, Math.round(width*scl)), BH = Math.max(2, Math.round(height*scl));\nconst key = width+'x'+height;\nif (!S.buf || S.key !== key){\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1);\n  S.buf.colorMode(HSB, 360, 100, 100, 100);\n  S.buf.noStroke();\n  S.buf.background(gH, gS, gB);\n  S.key = key; S.bw = BW; S.bh = BH;\n}\nconst g = S.buf, bw = S.bw, bh = S.bh, bu = Math.min(bw,bh);\n\n// --- dramaturgy + audio (clk baseline carries motion; audio only adds on top) ---\nconst sect = K.section||0, intn = clp((K.intensity!=null?K.intensity:.6),0,1);\nconst hueShift = sect*15;\nconst aud = A.rms*0.5 + A.bass*0.4;\n\n// --- evolving perlin flow field: drifts, scrolls & rotates on K.t forever ---\nconst sp = (2.3 / Math.max(bw,bh)) / clp(P.scale,0.35,3);\nconst zt = K.t*(0.05 + P.speed*0.06) + sd*0.37;\nconst scx = K.t*(bu*0.010 + P.speed*bu*0.015);\nconst scy = K.t*(bu*0.006);\nconst rotG = K.t*(0.03 + P.speed*0.035);\nconst coil = 1.0 + P.warp*3.5 + intn*1.0 + A.lowmid*0.8;\nfunction fang(px,py){\n  let n = noise((px+scx)*sp, (py+scy)*sp, zt);\n  if (P.warp>0.02) n += (noise((px+scx)*sp*2.3+11.2, (py+scy)*sp*2.3+4.7, zt*1.4)-0.5)*P.warp*0.55;\n  return n*TAU*coil + rotG;\n}\n\n// --- fade previous fabric toward ground (partial \u2192 trails weave & linger) ---\ng.push();\ng.noStroke();\ng.blendMode(BLEND);\ng.fill(gH, gS, gB, fadeA*(1 - intn*0.28));\ng.rect(0,0,bw,bh);\ng.blendMode(addMode ? ADD : BLEND);\n\n// --- trace & braid ribbons through the field, re-integrated every frame ---\nconst NR = Math.round(7 + P.density*30);\nconst L = 36;\nconst stepPx = bu*0.011*(0.55 + P.speed*0.9);\nconst baseW = bu*0.012*(0.45 + clp(P.scale,0.35,3)*0.7)*wMul;\nconst briBoost = intn*8 + aud*26;\nconst alBoost = 1 + K.swell*0.3 + A.rms*0.6;\nlet bud = 1500;\n\nfor (let r=0; r<NR && bud>0; r++){\n  const h0 = hsh(r*2+1), h1 = hsh(r*2+2), h2 = hsh(r*2+3);\n  let x = (P.x + (h0-0.5)*1.05 + 0.05*Math.sin(K.t*0.12 + r))*bw;\n  let y = (P.y + (h1-0.5)*1.05 + 0.05*Math.cos(K.t*0.10 + r*1.3))*bh;\n  let plx=0,ply=0,prx=0,pry=0;\n  for (let k=0; k<=L && bud>0; k++){\n    const t = k/L;\n    const a = fang(x,y) + P.braid*Math.sin(k*0.45 + K.t*1.3 + r*2.0)*0.6;\n    const w = baseW*(0.30 + Math.sin(Math.PI*t)*0.85);\n    const nx = -Math.sin(a), ny = Math.cos(a);\n    const lx = x+nx*w, ly = y+ny*w, rx = x-nx*w, ry = y-ny*w;\n    if (k>0){\n      const edge = 0.30 + Math.sin(Math.PI*t)*0.70;\n      let hue, sat, bri, al;\n      if (style==='aurora'){\n        hue = (130 + (0.5+0.5*Math.sin(a*1.6 + K.t*0.3 + r))*150 + hueShift)%360;\n        sat = 72; bri = 40 + Math.sin(Math.PI*t)*30 + briBoost; al = edge*(4 + P.energy*13)*alBoost;\n      } else if (style==='copper'){\n        hue = (20 + (h2-0.5)*14 + 360)%360;\n        sat = 88; bri = 42 + Math.sin(k*0.5 - K.t*2.5 + r)*34 + briBoost; al = edge*(8 + P.energy*20)*alBoost;\n      } else if (style==='watercolor'){\n        hue = (P.hue + t*80 + (h0-0.5)*46 + hueShift + 360)%360;\n        sat = 34; bri = 46 + Math.sin(Math.PI*t)*14; al = edge*(5 + P.energy*9)*alBoost;\n      } else if (style==='blueprint'){\n        hue = (206 + (h2-0.5)*12 + 360)%360;\n        sat = 12; bri = 82 + briBoost*0.4; al = edge*(8 + P.energy*17)*alBoost;\n      } else { // silk \u2014 sunset spectrum along ribbon length\n        hue = (P.hue + t*115 + (h0-0.5)*24 + hueShift + 360)%360;\n        sat = 80; bri = 52 + Math.sin(Math.PI*t)*36 + briBoost; al = edge*(6 + P.energy*20)*alBoost;\n      }\n      g.fill(hue, sat, clp(bri,0,100), clp(al,0,45));\n      g.quad(plx,ply, lx,ly, rx,ry, prx,pry);\n      bud--;\n    }\n    plx=lx; ply=ly; prx=rx; pry=ry;\n    x += Math.cos(a)*stepPx; y += Math.sin(a)*stepPx;\n  }\n}\ng.blendMode(BLEND);\ng.pop();\n\npush();\nif (P.alpha < 100) tint(0,0,100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

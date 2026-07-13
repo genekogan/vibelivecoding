@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.curl_smoke",
+  "kind": "genart",
+  "name": "Curl-Noise Smoke",
+  "desc": "Thousands of luminous motes advected through an incompressible divergence-free curl-noise field, folding into turbulent filaments and vortices like ink drifting in water, in warm ember, indigo ink, teal aurora, bright spark-storm, or graphite pencil-flow.",
+  "tags": [
+    "curl-noise",
+    "curl",
+    "flow-field",
+    "flow",
+    "smoke",
+    "ink",
+    "ink-in-water",
+    "fluid",
+    "vortex",
+    "turbulence",
+    "particles",
+    "motes",
+    "advection",
+    "divergence-free",
+    "field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "ember",
+    "amber",
+    "crimson",
+    "violet",
+    "teal",
+    "aurora",
+    "indigo",
+    "spark",
+    "graphite",
+    "monochrome",
+    "dye",
+    "plume",
+    "swirl",
+    "filaments",
+    "organic",
+    "atmospheric",
+    "thermal",
+    "psychedelic",
+    "ambient",
+    "flow_fields"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "mote count (more = denser smoke)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / deposit brightness + trail persistence"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "field drift + advection rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 3.0,
+      "doc": "eddy size (higher = bigger vortices)"
+    },
+    "turb": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.5,
+      "doc": "vortex/turbulence strength (0=laminar rivers)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "horizontal wind bias"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "vertical wind bias"
+    },
+    "style": {
+      "default": "ember",
+      "options": [
+        "ember",
+        "ink",
+        "aurora",
+        "spark",
+        "pencil"
+      ],
+      "doc": "render philosophy: warm ADD ember smoke / indigo ink-in-water on pale / teal aurora veils / bright spark-storm points / mono graphite flow"
+    },
+    "act": {
+      "default": "plume",
+      "options": [
+        "plume",
+        "gust",
+        "vortex"
+      ],
+      "doc": "multi-minute program: steady rising plume / section-synced surges / rotational vortex about anchor"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": [
+    "plume",
+    "gust",
+    "vortex"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:32:16+00:00",
+    "fps": 59.9,
+    "motion": 0.0666,
+    "lum": 0.149
+  },
+  "code": "const D = { density:.55, energy:.6, speed:1, scale:1, turb:.6, hue:28, x:.5, y:.5, style:'ember', act:'plume', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height;\nconst clp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst MAX = 2000;\n\n// ---- half-res feedback smoke buffer, size-keyed cache ----\nconst FW = Math.max(2, Math.floor(W/2)), FH = Math.max(2, Math.floor(H/2));\nif (!S.fb || S.fw !== FW || S.fh !== FH){\n  if (S.fb && S.fb.remove) S.fb.remove();\n  S.fb = createGraphics(FW, FH);\n  S.fb.pixelDensity(1);\n  S.fb.colorMode(HSB, 360, 100, 100, 100);\n  S.fb.noStroke();\n  S.fb.background(0, 0, 5);\n  S.fw = FW; S.fh = FH; S.reseed = true;\n}\n\n// ---- particles (seed-deterministic), rebuild on seed / size change ----\nif (!S.px || S.seedUsed !== P.seed || S.reseed){\n  S.reseed = false; S.seedUsed = P.seed;\n  S.px = new Float32Array(MAX); S.py = new Float32Array(MAX);\n  S.life = new Float32Array(MAX); S.gen = new Uint16Array(MAX);\n  const fr = i => { const s = Math.sin(i*127.1 + (P.seed|0)*311.7) * 43758.5453; return s - Math.floor(s); };\n  for (let i=0;i<MAX;i++){\n    S.px[i] = fr(i*3+1)*FW; S.py[i] = fr(i*3+2)*FH;\n    S.life[i] = 24 + fr(i*3+3)*230;\n  }\n  S.hoff = fr(11)*26;\n}\n\n// ---- per-frame field + dramaturgy constants ----\nconst style = P.style, act = P.act;\nconst sub = (style === 'ink' || style === 'pencil');\nconst asDots = (style === 'spark');\nconst sec = K.section|0, intn = (K.intensity!=null?K.intensity:.6);\nconst nf = 0.010 / clp(P.scale, 0.3, 3);\nconst zt = K.t*(0.05 + P.speed*0.09) + (P.seed|0)*0.137;\nconst eps = 1.5;\nconst turbAmt = clp(P.turb, 0, 1.5) + A.lowmid*0.6 + K.swell*0.12;\nconst hh = (a,b)=>{ const s = Math.sin(a*127.1 + b*311.7 + (P.seed|0)*74.7) * 43758.5453; return s - Math.floor(s); };\nconst psi = (x,y)=>{\n  let v = noise(x*nf, y*nf, zt);\n  if (turbAmt > 0.001) v += turbAmt*0.42*noise(x*nf*2.4 + 31.7, y*nf*2.4 + 11.3, zt*1.5 + 5.0);\n  return v;\n};\n\nconst gust = (act==='gust') ? (0.5 + (sec%2?0.95:0.25) + K.pulse*0.6) : 1;\nlet stepPx = (0.7 + P.speed*1.9) * (0.7 + intn*0.55) * gust;\nlet wx = (P.x-0.5)*2.4*(0.8+P.speed*0.5);\nlet wy = (P.y-0.5)*2.4*(0.8+P.speed*0.5);\nif (act==='plume') wy -= (0.6 + P.speed*0.9);\nconst cxp = P.x*FW, cyp = P.y*FH;\n\nconst baseHue = (((P.hue + S.hoff + sec*6) % 360) + 360) % 360;\nconst pulse = K.pulse*P.energy*0.5 + A.bass*0.4;\n\n// ---- fade the buffer toward its ground tone ----\nlet gH, gS, gB;\nif (sub){ gH = (style==='ink'?32:34); gS = (style==='ink'?7:4); gB = (style==='ink'?90:86); }\nelse { gH = (baseHue+300)%360; gS = (style==='aurora'?55:(style==='spark'?45:50)); gB = (style==='spark'?8:13); }\nS.fb.push();\nS.fb.blendMode(BLEND);\nS.fb.noStroke();\nconst fade = sub ? (7 + P.energy*6) : (style==='spark' ? (12 + P.energy*10) : (6 + P.energy*6));\nS.fb.fill(gH, gS, gB, fade);\nS.fb.rect(0, 0, FW, FH);\n\n// ---- advect motes through the divergence-free curl field + deposit ----\nS.fb.blendMode(sub ? MULTIPLY : ADD);\nconst activeN = Math.max(24, Math.floor(clp(P.density,0,1)*MAX));\nconst streakA = (sub ? (16 + P.energy*30) : (8 + P.energy*16)) * gust;\nS.fb.strokeWeight(FW > 640 ? (asDots?2.2:1.5) : (asDots?1.8:1.2));\nfor (let i=0;i<activeN;i++){\n  let x = S.px[i], y = S.py[i];\n  const d1 = psi(x, y+eps) - psi(x, y-eps);   // vx  \u221d dPsi/dy\n  const d2 = psi(x+eps, y) - psi(x-eps, y);   // vy = -dPsi/dx\n  let a = Math.atan2(-d2, d1);\n  const m = Math.hypot(d1, d2);\n  const spd = clp(m/nf*0.9, 0, 1);\n  if (act==='vortex'){ const rx=x-cxp, ry=y-cyp; a = a*0.55 + (Math.atan2(ry,rx)+1.5708)*0.45; }\n  let nx = x + Math.cos(a)*stepPx + wx;\n  let ny = y + Math.sin(a)*stepPx + wy;\n  let h,s,b;\n  if (sub){\n    if (style==='ink'){ h=(baseHue+200)%360; s=68 - spd*26; b=18 + spd*34; }\n    else { h=0; s=0; b=22 + spd*30; }\n  } else if (style==='aurora'){ h=(130 + spd*62)%360; s=82 - spd*26; b=36 + spd*52 + pulse*28; }\n  else if (style==='spark'){ h=(baseHue+180)%360; s=28 - spd*24; b=60 + spd*40 + pulse*36; }\n  else { h=(baseHue+262 + spd*105)%360; s=90 - spd*32; b=40 + spd*55 + pulse*30; } // ember\n  S.fb.stroke((((h%360)+360)%360), clp(s,0,100), clp(b,0,100), streakA);\n  let wrapped=false;\n  if (nx<0){nx+=FW;wrapped=true;} else if(nx>=FW){nx-=FW;wrapped=true;}\n  if (ny<0){ny+=FH;wrapped=true;} else if(ny>=FH){ny-=FH;wrapped=true;}\n  if (wrapped || asDots) S.fb.point(nx, ny); else S.fb.line(x, y, nx, ny);\n  S.px[i]=nx; S.py[i]=ny;\n  S.life[i]-=1;\n  if (S.life[i] <= 0){\n    const g = (S.gen[i] = (S.gen[i]+1) & 65535);\n    S.px[i] = hh(i, g)*FW; S.py[i] = hh(i+7, g)*FH;\n    S.life[i] = 50 + hh(i+3, g)*210;\n  }\n}\nS.fb.blendMode(BLEND);\nS.fb.pop();\n\n// ---- composite smoke buffer to full canvas ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, clp(P.alpha,0,100));\nimage(S.fb, 0, 0, W, H);\npop();\n"
+}

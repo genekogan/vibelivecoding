@@ -1,0 +1,157 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.venation",
+  "kind": "genart",
+  "name": "Leaf Venation",
+  "desc": "Space-colonization vein networks branch toward scattered auxin sources and thicken into a glowing leaf-coral-river tree that fills the frame then reseeds, rendered as gold hyphae on teal-black, botanical green veins, a cyanotype blueprint, crimson nerve dendrites, or sumi ink-roots.",
+  "tags": [
+    "venation",
+    "veins",
+    "leaf",
+    "space colonization",
+    "space-colonization",
+    "runions",
+    "nervous system",
+    "hyphae",
+    "xylem",
+    "growth",
+    "branching",
+    "tree",
+    "coral",
+    "river",
+    "dendrite",
+    "network",
+    "organic",
+    "botanical",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "gold",
+    "amber",
+    "teal",
+    "blueprint",
+    "cyanotype",
+    "crimson",
+    "sumi",
+    "ink",
+    "morphogenesis",
+    "biological",
+    "filament",
+    "fractal",
+    "procedural",
+    "auxin",
+    "roots",
+    "neuron",
+    "meandering",
+    "hypnotic",
+    "ambient"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "auxin sources (70..400) + node cap (350..1600) -> how densely the veins fill the frame"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "vein brightness/glow + sap-pulse & wobble amplitude + audio gain"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "growth iterations/frame + sap-flow rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "overall size of the growing figure"
+    },
+    "taper": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "Murray thickness law: 0 = uniform filament, 1 = fat trunk + hairline tips"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "influence radius (0.09u..0.22u): low = bushy/dense, high = long reaching veins"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "filament hue (hyphae gold / nerve crimson); accent for the fixed-palette styles"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (root/center, drawn clamped 0.12..0.88)"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (root/center, drawn clamped 0.12..0.88)"
+    },
+    "style": {
+      "default": "hyphae",
+      "options": [
+        "hyphae",
+        "leaf",
+        "cyanotype",
+        "nerve",
+        "ink"
+      ],
+      "doc": "render philosophy: hyphae = luminous gold filaments on deep teal-black (Nervous System) / leaf = botanical amber-to-green veins on cream / cyanotype = hairline white contour + node ticks on blueprint blue (abstract schematic) / nerve = crimson dendrites w/ branch swells on near-black, eerie / ink = tapering dry-brush sumi roots on rice-paper, near-monochrome"
+    },
+    "act": {
+      "default": "grow",
+      "options": [
+        "grow",
+        "breathe",
+        "prune"
+      ],
+      "doc": "grow = steady growth, hold, reseed a fresh figure each cycle / breathe = growth rate swells with section intensity / prune = shorter hold -> faster perpetual churn"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic auxin scatter + ground texture; each reseed advances it so the tree is never the same twice"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg; lower = translucent field over layers below)"
+    }
+  },
+  "acts": [
+    "grow",
+    "breathe",
+    "prune"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:32:49+00:00",
+    "fps": 59.9,
+    "motion": 0.0451,
+    "lum": 0.194
+  },
+  "code": "const D = { density:.5, energy:.55, speed:1, scale:1, taper:.55, spread:.5, hue:45, x:.5, y:.55, style:'hyphae', act:'grow', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst st=P.style;\nconst intn=(K.intensity!=null?K.intensity:.6);\nconst en=clp(P.energy,0,1);\nconst dens=clp(P.density,0,1);\nconst aMul=clp(P.alpha,0,100)/100;\n\n// tolerate t0 / clock resets (K.t can jump backwards)\nif(S.buildT==null || K.t < S.buildT-0.5) S.buildT=K.t;\nif(S.doneAt==null || K.t < S.doneAt-0.5) S.doneAt=K.t;\n\n// ---------- static ground buffer (cached per size/style/seed) ----------\nconst gkey=W+'x'+Hh+'|'+st+'|'+(P.seed|0);\nif(!S.ground || S.gkey!==gkey){\n  S.gkey=gkey;\n  if(S.ground) S.ground.remove();\n  const g=createGraphics(W,Hh); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const fr=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453; return s-Math.floor(s);};\n  let bh,bs,bb;\n  if(st==='leaf'){bh=46;bs=15;bb=80;}\n  else if(st==='cyanotype'){bh=214;bs=76;bb=22;}\n  else if(st==='nerve'){bh=350;bs=48;bb=8;}\n  else if(st==='ink'){bh=40;bs=11;bb=80;}\n  else {bh=188;bs=64;bb=16;} // hyphae deep teal\n  g.fill(bh,bs,bb); g.rect(0,0,W,Hh);\n  const dark=(st==='hyphae'||st==='nerve'||st==='cyanotype');\n  if(dark){\n    const gx=clp(P.x,.15,.85)*W, gy=clp(P.y,.15,.85)*Hh;\n    for(let i=0;i<64;i++){const f=i/63;\n      g.fill(bh, clp(bs-16*f,10,90), lrp(bb+(st==='cyanotype'?9:15), bb, f), 8);\n      g.ellipse(gx,gy,u*(2.0-f*1.7),u*(2.0-f*1.7));}\n  }\n  if(st==='ink'||st==='leaf'){\n    for(let i=0;i<2200;i++){ g.fill(30,12, fr(i*3+7)<.5?70:100, 4); g.rect(fr(i*3+8)*W, fr(i*3+9)*Hh, 1.5,1.5); }\n  }\n  // soft corner vignette for depth (all styles)\n  g.noFill();\n  for(let i=0;i<34;i++){const f=i/33; g.stroke(bh,bs,0,3); g.strokeWeight(u*0.03);\n    g.ellipse(W/2,Hh/2, W*1.5-f*W*0.7, Hh*1.5-f*Hh*0.7);}\n  g.noStroke();\n  S.ground=g;\n}\n\n// ---------- growth state (local coords, origin-centered) ----------\nconst R=u*0.42;\nconst NA=Math.round(70+dens*330);\nconst cap=Math.round(350+dens*1250);\nconst di=u*(0.09+clp(P.spread,0,1)*0.13);\nconst dk=u*0.03;\nconst seg=u*0.016;\nconst bkey=W+'x'+Hh+'|'+st+'|'+(P.seed|0)+'|'+(S.gen||0)+'|'+Math.round(dens*10)+'|'+Math.round(clp(P.spread,0,1)*10);\nif(!S.nodes || S.bkey!==bkey){\n  S.bkey=bkey;\n  let z=(((P.seed|0)*2654435761) ^ ((S.gen||0)*40503) ^ 0x9e3779b9)>>>0;\n  const rnd=()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  S.attr=[];\n  for(let i=0;i<NA;i++){ const a=rnd()*6.2832, rr=R*Math.sqrt(rnd());\n    S.attr.push({x:Math.cos(a)*rr, y:Math.sin(a)*rr*0.86 - R*0.12}); }\n  S.nodes=[{x:0,y:R*0.82,par:-1,depth:0,flow:1,ch:0}];\n  S.done=false; S.doneAt=K.t; S.buildT=K.t;\n}\n\n// ---------- grow a few iterations / frame ----------\nlet iters = S.done ? 0 : Math.max(1, Math.round((0.8+P.speed*2.2)*(0.5+intn) + A.bass*3));\nif(P.act==='breathe') iters=Math.max(1,Math.round(iters*(0.55+1.2*intn)));\nfor(let it=0; it<iters && !S.done; it++){\n  const nodes=S.nodes, attr=S.attr, cs=di;\n  const grid=new Map();\n  for(let i=0;i<nodes.length;i++){ const p=nodes[i];\n    const k=Math.floor(p.x/cs)+','+Math.floor(p.y/cs); let b=grid.get(k); if(!b){b=[];grid.set(k,b);} b.push(i); }\n  const pull=new Map();\n  for(let ai=attr.length-1; ai>=0; ai--){ const a=attr[ai];\n    let best=-1, bd=di*di; const bx=Math.floor(a.x/cs), by=Math.floor(a.y/cs);\n    for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){ const b=grid.get((bx+ox)+','+(by+oy)); if(!b)continue;\n      for(let jj=0;jj<b.length;jj++){ const j=b[jj], p=nodes[j], dx=p.x-a.x, dy=p.y-a.y, d2=dx*dx+dy*dy;\n        if(d2<bd){bd=d2;best=j;} } }\n    if(best<0) continue;\n    if(bd<dk*dk){ attr.splice(ai,1); continue; }\n    const p=nodes[best], d=Math.sqrt(bd)||1; let e=pull.get(best)||{dx:0,dy:0};\n    e.dx+=(a.x-p.x)/d; e.dy+=(a.y-p.y)/d; pull.set(best,e);\n  }\n  if(pull.size===0 || nodes.length>=cap){ S.done=true; S.doneAt=K.t; break; }\n  pull.forEach((e,idx)=>{ if(nodes.length>=cap) return;\n    const m=Math.hypot(e.dx,e.dy)||1, p=nodes[idx];\n    const nx=p.x+e.dx/m*seg, ny=p.y+e.dy/m*seg;\n    nodes.push({x:nx,y:ny,par:idx,depth:p.depth+1,flow:1,ch:0});\n    p.ch=(p.ch||0)+1;\n    let k=idx, guard=0; while(k>=0 && guard++<2000){ nodes[k].flow++; k=nodes[k].par; }\n  });\n}\n// failsafe reseed if a growth stalls before exhausting attractors\nif(!S.done && K.t-S.buildT>34){ S.done=true; S.doneAt=K.t; }\n// hold the finished figure, then reseed a fresh one (perpetual novelty)\nconst holdT = P.act==='prune'?2.0 : (P.act==='breathe'?3.5:5.0);\nif(S.done && K.t-S.doneAt>holdT){ S.gen=(S.gen||0)+1; S.nodes=null; }\n\n// ---------- draw ----------\nif(aMul<1) tint(0,0,100,P.alpha);\nimage(S.ground,0,0,W,Hh);\nnoTint();\n\nconst nodes=S.nodes, n=nodes?nodes.length:0;\nif(n>0){\n  const anchorX=clp(P.x,.12,.88)*W, anchorY=clp(P.y,.12,.88)*Hh;\n  const sc=clp(P.scale,.4,2.2)*(1+0.03*Math.sin(K.t*0.21));\n  const orbX=Math.sin(K.t*0.11)*u*0.035, orbY=Math.cos(K.t*0.083)*u*0.035;\n  const rot=K.t*0.028 + Math.sin(K.t*0.05)*0.06;\n  const wob=u*0.010*(0.6+0.7*en);\n  const wx=new Float32Array(n), wy=new Float32Array(n);\n  for(let i=0;i<n;i++){ const p=nodes[i];\n    wx[i]=p.x + wob*Math.sin(K.t*0.8 + i*0.37);\n    wy[i]=p.y + wob*Math.cos(K.t*0.7 + i*0.31); }\n  const wBase=u*0.0016;\n  const sapSp=1.6*clp(P.speed,.2,3), sapK=0.16;\n  const taperExp=0.30+clp(P.taper,0,1)*0.40;\n\n  push();\n  translate(anchorX+orbX, anchorY+orbY);\n  rotate(rot);\n  scale(sc);\n  strokeCap(ROUND);\n  noFill();\n\n  if(st==='hyphae'||st==='nerve'){\n    const baseHue = st==='nerve'?350:md(P.hue,360);\n    // soft wide underlay glow (BLEND, low alpha -> no runaway)\n    for(let i=1;i<n;i++){ const p=nodes[i], par=p.par; if(par<0)continue;\n      const w=wBase*(0.6+clp(Math.pow(p.flow,taperExp),1,9));\n      const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n      const br=clp(0.45+0.5*sap*(0.5+en)+A.treble*0.5*sap,0,1);\n      const hh=md(baseHue+p.depth*0.6+(st==='nerve'?sap*30:sap*14),360);\n      stroke(hh, st==='nerve'?70:60, 55*br, 16*aMul);\n      strokeWeight(w*2.6);\n      line(wx[par],wy[par],wx[i],wy[i]); }\n    // bright cores\n    for(let i=1;i<n;i++){ const p=nodes[i], par=p.par; if(par<0)continue;\n      const w=wBase*(0.6+clp(Math.pow(p.flow,taperExp),1,9));\n      const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n      const br=clp(0.5+0.55*sap*(0.5+en)+A.treble*0.6*sap,0,1.2);\n      const hh=md(baseHue+p.depth*0.5,360);\n      const sat=st==='nerve'?80:clp(85-p.depth*0.3,42,90);\n      stroke(hh, sat, clp(70+40*br,0,100), clp((70+25*sap)*aMul,0,100));\n      strokeWeight(w);\n      line(wx[par],wy[par],wx[i],wy[i]); }\n    // additive swells at branch points / tips (few)\n    blendMode(ADD); noStroke();\n    let cnt=0;\n    for(let i=1;i<n && cnt<90;i++){ const p=nodes[i];\n      if((p.ch||0)>=2){ const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n        fill(md(baseHue+(st==='nerve'?10:20),360), st==='nerve'?70:55, 100, clp((8+sap*14)*aMul+A.treble*20*aMul,0,100));\n        circle(wx[i],wy[i], wBase*(3+4*sap)); cnt++; } }\n    blendMode(BLEND); noFill();\n  } else if(st==='leaf'){\n    for(let i=1;i<n;i++){ const p=nodes[i], par=p.par; if(par<0)continue;\n      const w=wBase*(0.7+clp(Math.pow(p.flow,taperExp),1,10));\n      const dr=clp(p.depth/26,0,1);\n      const hh=lrp(38,120,dr);\n      const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n      stroke(hh, lrp(72,72,dr), lrp(40,54,dr), clp((78+8*sap)*aMul,0,100));\n      strokeWeight(w);\n      line(wx[par],wy[par],wx[i],wy[i]); }\n  } else if(st==='cyanotype'){\n    const lw=Math.max(0.8,u*0.0011);\n    strokeWeight(lw);\n    for(let i=1;i<n;i++){ const p=nodes[i], par=p.par; if(par<0)continue;\n      const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n      stroke(200,12,100, clp((70+20*sap)*aMul,0,100));\n      line(wx[par],wy[par],wx[i],wy[i]); }\n    // schematic node ticks at branch points\n    stroke(200,20,100,60*aMul); strokeWeight(lw);\n    let cnt=0;\n    for(let i=1;i<n && cnt<170;i++){ const p=nodes[i];\n      if((p.ch||0)>=2){ const t=u*0.006;\n        line(wx[i]-t,wy[i],wx[i]+t,wy[i]); line(wx[i],wy[i]-t,wx[i],wy[i]+t); cnt++; } }\n  } else { // ink-root sumi\n    for(let i=1;i<n;i++){ const p=nodes[i], par=p.par; if(par<0)continue;\n      const w=wBase*(0.7+clp(Math.pow(p.flow,taperExp+0.1),1,12));\n      const jit=1+0.18*Math.sin(K.t*0.9+i*1.7);\n      const sap=0.5+0.5*Math.sin(K.t*sapSp - p.depth*sapK);\n      stroke(28,22, lrp(24,12, clp(p.flow/40,0,1)), clp((80+10*sap)*aMul,0,100));\n      strokeWeight(w*jit);\n      line(wx[par],wy[par],wx[i],wy[i]); }\n  }\n  pop();\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}
