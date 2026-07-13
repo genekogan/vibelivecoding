@@ -56,13 +56,14 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
-**55 new genart accepted (catalog 89, baseline 34).** Target +100-200 → ~halfway to low end; keep going.
+**64 new genart accepted (catalog 98, baseline 34).** Target +100-200 → nearing low end; keep going.
 Since the ~22:45 checkpoint: wave-5 reviewed (+8: gray_scott, truchet[refresh], voronoi_cells, cyclic_ca,
 maze, lyapunov, rorschach-fix, sandpile-fix; dropped dup phyllotaxis; requeued dla), hand-authored chladni
 (cymatics) + nbody spiral-galaxy (fixed after 2 subagent fails: TRUE circular-orbit v + short trails).
-Wave-6 done (+4: clifford, hex_automaton, double_pendulum, smoke; dropped dup metaballs+dla; requeued
-feedback_tunnel/koch_flake/plasma_globe). Wave-7 IN FLIGHT: julia_morph, magnetic_pendulum, marbling,
-forest_fire, iron_filings, matrix_rain, starfield_warp (7 new) + feedback_tunnel/koch_flake/plasma_globe fixes.
+Wave-6 done (+4). Wave-7 done (+9: magnetic_pendulum STANDOUT, matrix_rain, forest_fire, iron_filings,
+starfield_warp, julia_morph + feedback_tunnel/koch_flake/plasma_globe fixes ALL succeeded; dropped dup marbling).
+Wave-8 IN FLIGHT (10 new): conway_life, ising, percolation, biham_middleton, gumowski_mira, hopalong,
+wang_tiles, buddhabrot, slit_scan, coulomb_lattice.
 NOTE: check every wave asset's id vs existing catalog before validating — phyllotaxis & truchet already
 existed (validate silently OVERWRITES same-id). Hand-authored kernels now in scratchpad/gf/ref/:
 plasma/epicycles/caustics/noise_contour/godrays/prism/physarum/harmonograph + pixel_sort/lenia/watercolor/
