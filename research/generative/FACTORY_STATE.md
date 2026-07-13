@@ -55,7 +55,27 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
   don't trust the gate. (My hand-authored assets read P every frame → genuinely responsive.)
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
+## LIVE PROGRESS SNAPSHOT (recompute from `ls assets/visual/genart` on resume)
+**Accepted new genart (9 as of 09:55):** plasma_warp, epicycles, caustics, quasicrystal,
+datascape, strange_dejong, ripple_tank, noise_contour, moire_weave. (baseline was 34 → catalog 43.)
+**Requeue queue (re-author with COLOR + fuller frame):** watercolor (pale/mono). physarum,
+harmonograph, pixel_sort are being re-authored in wave 2.
+**Wave cadence that works:** author_workflow.js fans out ~10-13 agents (args = family batch,
+passed as JSON — parses string). Each reads author-brief + genart.plasma_warp.json template.
+~60-70% accept on-canvas; requeue the rest with specific critique (delete inbox file → re-issue
+family w/ FIX recipe in next wave). Batch-review via gf_snap glob → gf_sheet contact sheet → 1 look.
+**Prepped batches:** scratchpad/gf/wave2.json (running), wave3.json (12 families ready).
+**Wave-1 lessons baked into author_workflow.js RULES:** default MUST be colorful (not grey),
+luminance ~0.15-0.6 (several came too dark), trail pieces need continuous coeff-drift (harmonograph
+went static), sim fields must not saturate (physarum flooded), effect must be edge-to-edge.
+**Hand-authored templates (proven kernels):** plasma_warp (per-pixel domain-warp field),
+epicycles (parametric vector + fade-trail glow), caustics + noise_contour (per-pixel field),
+cyclic_ca SHELVED (needs radius-2 neighborhood for real spirals — scratchpad/gf/ref/cyclic_ca.js).
+**Next actions:** when wave 2 lands → gf_snap glob + sheet → accept/requeue/validate → launch wave 3
+(wave3.json) → repeat toward 100-200. Keep ONE wave always authoring so the loop self-continues.
+
 ## Progress log (newest first)
+- 2026-07-12 09:55 — 9 accepted. Wave-2 (10 new + 3 fixes) authoring. Rhythm established.
 - 2026-07-12 09:35 — Salvaged from throttled workflows: 39 artist cards, 11 technique files,
   MANIFEST.jsonl (184 image URLs / 20 artists), corpus download running. First asset
   genart.plasma_warp authored + validated + in catalog. Pivoting to main-loop hand-authoring loop.
