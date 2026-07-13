@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wallpaper_group",
+  "kind": "genart",
+  "name": "Symmetry Wallpaper",
+  "desc": "A seeded harmonic motif replicated under the plane symmetry groups \u2014 mirrors, glides, 2/4/6-fold rotations \u2014 folding an ornate seamless kaleidoscopic wallpaper that drifts continuously and morphs its symmetry every section, rendered as jewel-facet ornament, gold Islamic star lattice, leaded art-nouveau glass, neon psychedelia, or two-tone woodblock.",
+  "tags": [
+    "wallpaper",
+    "wallpaper-group",
+    "symmetry",
+    "tiling",
+    "tessellation",
+    "kaleidoscope",
+    "ornament",
+    "pattern",
+    "mirror",
+    "glide",
+    "rotation",
+    "p4m",
+    "p6m",
+    "plane-group",
+    "seamless",
+    "lattice",
+    "mandala",
+    "stained-glass",
+    "islamic",
+    "arabesque",
+    "art-nouveau",
+    "jewel",
+    "psychedelic",
+    "woodblock",
+    "geometric",
+    "decorative",
+    "repeat",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "harmonic",
+    "kaleido"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "cells": {
+      "default": 3.6,
+      "min": 1.2,
+      "max": 9.0,
+      "doc": "number of unit cells across the frame (tile count)"
+    },
+    "warp": {
+      "default": 0.42,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "organic domain-warp bending of the lattice"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / ornament glow amplitude"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "overall zoom (bigger = fewer, larger cells)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "motif harmonic richness (seed wavevectors)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "drift / phase-flow rate"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice phase offset x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice phase offset y"
+    },
+    "group": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "p1",
+        "p2",
+        "pm",
+        "pg",
+        "pmm",
+        "p4",
+        "p4m",
+        "p6",
+        "p6m"
+      ],
+      "doc": "plane symmetry group ('auto' cycles on section)"
+    },
+    "style": {
+      "default": "jewel",
+      "options": [
+        "jewel",
+        "islamic",
+        "art-nouveau",
+        "psychedelic",
+        "woodblock"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic motif variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:40:46+00:00",
+    "fps": 61.0,
+    "motion": 0.1841,
+    "lum": 0.377
+  },
+  "code": "const D = { cells: 3.6, warp: .42, energy: .62, scale: 1, density: .55, speed: 1, hue: 300, x: .5, y: .5, group: 'auto', style: 'jewel', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse buffer (image()-upscaled) ----\nlet BW = Math.min(190, Math.round(width * 0.32)); BW = Math.max(96, BW);\nlet BH = Math.max(60, Math.round(BW * height / width));\nif (!S.g || S.gk !== BW + 'x' + BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.gk = BW + 'x' + BH; }\n\n// ---- cosine LUT (fast periodic field) ----\nif (!S.ct) { const N = 4096; const ct = new Float32Array(N); for (let i = 0; i < N; i++) ct[i] = Math.cos(i / N * 6.28318530718); S.ct = ct; S.ctN = N; S.ctK = N / 6.28318530718; }\nconst ct = S.ct, N = S.ctN, KL = S.ctK;\nconst cel = q => { let ii = (q * N) | 0; ii = ((ii % N) + N) % N; return ct[ii]; };        // cos(2*PI*q)\nconst cer = a => { let ii = (a * KL) | 0; ii = ((ii % N) + N) % N; return ct[ii]; };        // cos(a radians)\n\n// ---- seed hash ----\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- symmetry group (morphs on section when 'auto') ----\nconst AUTO = ['p6m', 'p4m', 'pmm', 'p4', 'p6', 'pm', 'p2', 'pg'];\nconst grp = (P.group && P.group !== 'auto') ? P.group : AUTO[(((K.section | 0) % 8) + 8) % 8];\nconst hexG = (grp === 'p6' || grp === 'p6m');\n\nfunction xf(g) { const R = d => d * Math.PI / 180;\n  switch (g) {\n    case 'p1': return [[0, 0, 0]];\n    case 'p2': return [[0, 0, 0], [R(180), 0, 0]];\n    case 'pm': return [[0, 0, 0], [0, 1, 0]];\n    case 'pg': return [[0, 0, 0], [0, 1, Math.PI]];\n    case 'pmm': return [[0, 0, 0], [R(180), 0, 0], [0, 1, 0], [R(180), 1, 0]];\n    case 'p4': return [[0, 0, 0], [R(90), 0, 0], [R(180), 0, 0], [R(270), 0, 0]];\n    case 'p4m': return [[0, 0, 0], [R(90), 0, 0], [R(180), 0, 0], [R(270), 0, 0], [0, 1, 0], [R(90), 1, 0], [R(180), 1, 0], [R(270), 1, 0]];\n    case 'p6': return [0, 60, 120, 180, 240, 300].map(d => [R(d), 0, 0]);\n    case 'p6m': { const o = []; [0, 60, 120, 180, 240, 300].forEach(d => { o.push([R(d), 0, 0]); o.push([R(d), 1, 0]); }); return o; }\n    default: return [[0, 0, 0]];\n  }\n}\nconst tf = xf(grp), orbit = tf.length, maxW = 18;\nlet nS = 2 + Math.round(P.density * 3);          // 2..5 seed vectors\nif (nS * orbit > maxW) nS = Math.max(1, Math.floor(maxW / orbit));\n\nconst wkey = grp + '|' + P.seed + '|' + nS;\nif (S.wkey !== wkey) {\n  S.wkey = wkey;\n  const kx = [], ky = [], am = [], ph = [], dr = [], s3 = Math.sqrt(3) / 2;\n  for (let si = 0; si < nS; si++) {\n    const m = 1 + Math.floor(fr(si * 7 + 1) * 3);   // 1..3\n    const n = Math.floor(fr(si * 7 + 2) * 5) - 2;   // -2..2\n    let bx, by;\n    if (hexG) { bx = m + n * 0.5; by = n * s3; } else { bx = m; by = n; }\n    const a = (0.45 + fr(si * 7 + 3) * 0.75) / (0.6 + Math.hypot(m, n) * 0.32);\n    const p0 = fr(si * 7 + 4) * 6.28318;\n    const d0 = (fr(si * 7 + 5) - 0.5) * 0.5;         // slow per-wave phase drift\n    for (const t3 of tf) {\n      const ca = Math.cos(t3[0]), sa = Math.sin(t3[0]);\n      let rx = bx * ca - by * sa, ry = bx * sa + by * ca;\n      if (t3[1]) ry = -ry;\n      kx.push(rx * 6.28318); ky.push(ry * 6.28318);\n      am.push(a); ph.push(p0 + t3[2]); dr.push(d0);\n    }\n  }\n  let amax = 0; for (const v of am) amax += Math.abs(v);\n  S.kx = kx; S.ky = ky; S.am = am; S.ph = ph; S.dr = dr; S.amax = Math.max(0.001, amax); S.nw = kx.length;\n}\n\n// ---- per-frame ----\nconst t = K.t, spd = P.speed;\nconst nCells = P.cells / Math.max(0.3, P.scale);\nconst phx = P.x * 0.7 + t * spd * 0.030;\nconst phy = P.y * 0.7 - t * spd * 0.023;\nconst wAmp = P.warp * 0.5, tW = t * spd * 0.16;\nconst nw = S.nw, kx = S.kx, ky = S.ky, am = S.am, dr = S.dr, amax = S.amax;\nconst phw = []; for (let w = 0; w < nw; w++) phw[w] = S.ph[w] + t * spd * dr[w];\nconst expo = Math.min(1.6, 0.7 + P.energy * 0.9 + K.intensity * 0.4 + A.rms * 0.6);\nconst style = P.style;\nconst L = style === 'islamic' ? 5 : style === 'art-nouveau' ? 3 : style === 'woodblock' ? 2 : 4;\nconst hb = (P.hue + fr(99) * 40 + (K.section | 0) * 15) % 360, hbr = hb / 360;\nconst pal = x => [0.5 + 0.5 * cel(x + hbr), 0.5 + 0.5 * cel(x + hbr + 0.33), 0.5 + 0.5 * cel(x + hbr + 0.67)];\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst mn = Math.min(BW, BH), inv = 1 / mn;\nfor (let j = 0; j < BH; j++) {\n  const wy0 = (j - BH * 0.5) * inv;\n  for (let i = 0; i < BW; i++) {\n    const wx0 = (i - BW * 0.5) * inv;\n    let X = wx0 * nCells + phx, Y = wy0 * nCells + phy;\n    if (wAmp > 0.001) { const dx = wAmp * cel(0.5 * Y + tW), dy = wAmp * cel(0.5 * X - tW * 1.1); X += dx; Y += dy; }\n    let f = 0;\n    for (let w = 0; w < nw; w++) f += am[w] * cer(kx[w] * X + ky[w] * Y + phw[w]);\n    const mmm = 0.5 + 0.5 * f / amax;                 // 0..1 field\n    const q = mmm * L, fd = q - Math.floor(q), ld = Math.min(fd, 1 - fd) * 2;\n    const lm = Math.max(0, 1 - ld / 0.16);            // contour / facet line mask\n    let r, gg, b;\n    if (style === 'islamic') {\n      const band = Math.floor(mmm * 4) / 3, c = pal(band * 0.5 + 0.15);\n      r = 0.05 + c[0] * 0.28 * (0.4 + band); gg = 0.06 + c[1] * 0.34 * (0.4 + band); b = 0.11 + c[2] * 0.5 * (0.4 + band);\n      const gold = lm; r += gold * 1.0; gg += gold * 0.78; b += gold * 0.30;\n    } else if (style === 'art-nouveau') {\n      const c = pal(mmm * 0.7 + 0.4), sat = 0.6, br = 0.20 + 0.60 * Math.pow(mmm, 1.1);\n      r = (c[0] * sat + (1 - sat) * 0.5) * br; gg = (c[1] * sat + (1 - sat) * 0.5) * br; b = (c[2] * sat + (1 - sat) * 0.5) * br;\n      const lead = lm * 0.9; r *= (1 - lead); gg *= (1 - lead); b *= (1 - lead);\n    } else if (style === 'psychedelic') {\n      const c = pal(mmm * 1.6 + t * spd * 0.05 + (K.section | 0) * 0.1), br = 0.25 + 0.70 * Math.pow(mmm, 0.9) * expo;\n      r = c[0] * br; gg = c[1] * br; b = c[2] * br;\n      const glow = lm * 0.6; r += glow; gg += glow * 0.9; b += glow;\n    } else if (style === 'woodblock') {\n      let k = 1 - Math.pow(mmm, 1.3); k = Math.min(1, k + lm * 0.5);\n      r = 0.90 * (1 - k) + 0.06 * k; gg = 0.86 * (1 - k) + 0.08 * k; b = 0.74 * (1 - k) + 0.20 * k;\n    } else { // jewel (default)\n      const shade = Math.pow(mmm, 1.15), c = pal(mmm * 0.85 + (K.section | 0) * 0.03), br = 0.16 + 0.72 * shade * expo;\n      r = c[0] * br; gg = c[1] * br; b = c[2] * br;\n      const spk = lm * (0.35 + 0.4 * shade); r += spk * 0.9; gg += spk * 0.85; b += spk * 0.7;\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = r * 255; px[o + 1] = gg * 255; px[o + 2] = b * 255; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n// audio bloom on top of the clk baseline (partial, never full-frame flash)\nif (A.bass > 0.02 || A.rms > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  fill((hb + 20) % 360, 40, 100, (A.bass * 0.4 + A.rms * 0.3) * 22);\n  rect(0, 0, width, height); blendMode(BLEND); pop();\n}\n"
+}
