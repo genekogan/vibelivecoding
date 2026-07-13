@@ -56,16 +56,18 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
-**73 new genart accepted (catalog 107, baseline 34).** Target +100-200 → 73/100, ~3 waves out; keep going.
+**82 new genart accepted (catalog 116, baseline 34).** Target +100-200 → 82/100, ~2 waves out; keep going.
 Since the ~22:45 checkpoint: wave-5 reviewed (+8: gray_scott, truchet[refresh], voronoi_cells, cyclic_ca,
 maze, lyapunov, rorschach-fix, sandpile-fix; dropped dup phyllotaxis; requeued dla), hand-authored chladni
 (cymatics) + nbody spiral-galaxy (fixed after 2 subagent fails: TRUE circular-orbit v + short trails).
 Wave-6 done (+4). Wave-7 done (+9: magnetic_pendulum STANDOUT, matrix_rain, forest_fire, iron_filings,
 starfield_warp, julia_morph + feedback_tunnel/koch_flake/plasma_globe fixes ALL succeeded; dropped dup marbling).
 Wave-8 done (+9: gumowski_mira STANDOUT, buddhabrot, conway_life, hopalong, ising, percolation, slit_scan,
-wang_tiles, biham; requeued coulomb_lattice). Wave-9 IN FLIGHT (9 new + coulomb fix): karman_vortex,
-lissajous_grid, kuramoto, fractal_tree, ferrofluid, snowflake, string_art, maurer_rose, kelvin_helmholtz.
-Requeue backlog: coulomb_lattice (in wave-9). All hand-authored kernels in scratchpad/gf/ref/. wave4-9.json.
+wang_tiles, biham; requeued coulomb_lattice). Wave-9 done (+8: karman_vortex, kelvin_helmholtz, kuramoto, lissajous_grid, maurer_rose, snowflake,
+string_art, coulomb-fix; hand-authored fractal_tree after subagent failed motion gate). Wave-10 IN FLIGHT
+(9 new + ferrofluid fix): delaunay_flux, lichtenberg, munching_squares, celtic_knot, droste, wallpaper_group,
+stipple, spirograph, kolam. Hand-authored kernels: +fractal_tree.js (incommensurate-wind motion-floor trick).
+wave4-10.json. Requeue backlog: ferrofluid (in wave-10).
 NOTE: check every wave asset's id vs existing catalog before validating — phyllotaxis & truchet already
 existed (validate silently OVERWRITES same-id). Hand-authored kernels now in scratchpad/gf/ref/:
 plasma/epicycles/caustics/noise_contour/godrays/prism/physarum/harmonograph + pixel_sort/lenia/watercolor/
