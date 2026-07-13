@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.string_art",
+  "kind": "genart",
+  "name": "String Art Envelopes",
+  "desc": "Curve-stitching string art: hundreds of straight translucent threads laced between nails on rotating circles weave into glowing cardioid, nephroid and mystic-rose envelope curves whose connection offset drifts so the caustics endlessly breathe and morph; renders as multi-hue neon, gold-silk, cyan blueprint, spectral rose, or white thread on black.",
+  "tags": [
+    "string-art",
+    "curve-stitching",
+    "thread",
+    "threads",
+    "nails",
+    "envelope",
+    "caustic",
+    "cardioid",
+    "nephroid",
+    "mystic-rose",
+    "rose",
+    "spirograph",
+    "moire",
+    "geometry",
+    "geometric",
+    "line-art",
+    "stitching",
+    "neon",
+    "gold",
+    "blueprint",
+    "schematic",
+    "spectral",
+    "rainbow",
+    "glow",
+    "additive",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "op-art",
+    "luminous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "nail count / thread density (higher = denser mesh)"
+    },
+    "weave": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "envelope order \u2014 connection multiplier k (cardioid -> high-order rose)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow amplitude / thread brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "offset-drift / rotation rate"
+    },
+    "families": {
+      "default": 3,
+      "min": 1,
+      "max": 4,
+      "doc": "number of layered thread families (different hues/centers)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "circle radius vs frame"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (families spread from here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor y"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "gold-silk",
+        "blueprint",
+        "rainbow-rose",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic per-family variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:14:54+00:00",
+    "fps": 64.9,
+    "motion": 0.0886,
+    "lum": 0.215
+  },
+  "code": "const D = { density: .55, weave: .5, energy: .62, speed: 1, families: 3, scale: 1, hue: 210, x: .5, y: .5, style: 'neon', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 60;\n  S.fj = [];\n  for (let f = 0; f < 4; f++) S.fj.push({\n    dx: (fr(10 + f) - .5) * 0.14,\n    dy: (fr(20 + f) - .5) * 0.14,\n    rj: 0.80 + fr(30 + f) * 0.34,\n    kj: (fr(40 + f) - .5) * 0.9,\n    ph: fr(50 + f) * 6.283\n  });\n}\n\nconst u = Math.min(width, height);\nconst style = P.style;\nconst t = K.t * (0.15 + P.speed * 0.55);\nconst sec = K.section | 0, inten = K.intensity;\nconst fam = Math.max(1, Math.min(4, P.families | 0));\nconst Mn = Math.round(64 + P.density * 168);                 // nail count 64..232\nconst perFam = Math.min(Mn, Math.max(24, Math.floor(560 / fam))); // cap total lines\nconst kBase = 2 + P.weave * 5.2;                             // envelope order 2..7.2\nconst cx = P.x * width, cy = P.y * height;\nconst baseR = 0.60 * u * P.scale;\nconst expo = Math.min(1.9, 0.5 + P.energy * 0.9 + inten * 0.3 + A.rms * 0.6);\nconst gRot = t * 0.10;\nconst av = P.alpha / 100;\nconst baseHue0 = (P.hue + sec * 16) % 360;\n\n// background: dark tone, never near-black (opaque mode only)\nlet bgh, bgs, bgb, ghue, gsat;\nif (style === 'gold-silk') { bgh = 32; bgs = 55; bgb = 6; ghue = 40; gsat = 45; }\nelse if (style === 'blueprint') { bgh = 212; bgs = 62; bgb = 13; ghue = 205; gsat = 55; }\nelse if (style === 'mono') { bgh = 0; bgs = 0; bgb = 5; ghue = 0; gsat = 0; }\nelse if (style === 'rainbow-rose') { bgh = (P.hue + 220) % 360; bgs = 30; bgb = 7; ghue = baseHue0; gsat = 40; }\nelse { bgh = (P.hue + 205) % 360; bgs = 42; bgb = 8; ghue = baseHue0; gsat = 42; } // neon\nif (P.alpha >= 100) background(bgh, bgs, bgb);\n\n// soft central glow \u2014 fills frame, lifts luminance floor\npush(); blendMode(ADD); noStroke();\nconst breathe = 0.6 + 0.4 * Math.sin(K.t * 0.35) + K.swell * 0.2;\nfor (let r = 0; r < 3; r++) {\n  const rr = u * (1.35 - r * 0.34) * (0.7 + P.scale * 0.3);\n  fill(ghue, gsat, 100, (3.4 - r * 0.8) * expo * av * breathe);\n  ellipse(cx, cy, rr * 2, rr * 2);\n}\nblendMode(BLEND); pop();\n\n// thread families\npush();\nblendMode(ADD);\ntranslate(cx, cy);\nrotate(gRot);\nconst w1 = Math.max(1.3, u * 0.0055) * (0.9 + P.energy * 0.4);\nconst w2 = Math.max(0.6, u * 0.0020);\nconst kick = 1 + A.bass * 0.5 + K.pulse * 0.15;\nconst a1a = Math.min(14, (5 + P.energy * 7) * expo * av * (style === 'blueprint' ? 0.6 : 1));\nconst a2a = Math.min(34, (12 + P.energy * 16) * expo * av * kick);\nconst TWO = 6.28318530718;\n\nfor (let f = 0; f < fam; f++) {\n  const j = S.fj[f];\n  const fcx = j.dx * u, fcy = j.dy * u;\n  const R = baseR * j.rj;\n  const k = kBase + f * 0.9 + j.kj * 0.5 + Math.sin(t * 0.23 + j.ph) * 0.6 + sec * 0.12;\n  const off = t * (3.0 + f * 0.7) + j.ph * 4.0;      // continuous drift -> envelope breathes\n  const famHue = (P.hue + f * 54 + S.hoff * 0.3 + sec * 16) % 360;\n  const step = Mn / perFam;\n  const isBP = style === 'blueprint';\n  for (let n = 0; n < perFam; n++) {\n    const i = n * step;\n    const ang1 = TWO * i / Mn;\n    const ang2 = TWO * (i * k + off) / Mn;\n    const x1 = fcx + Math.cos(ang1) * R, y1 = fcy + Math.sin(ang1) * R;\n    const x2 = fcx + Math.cos(ang2) * R, y2 = fcy + Math.sin(ang2) * R;\n    let h, s, b2core;\n    if (style === 'mono') { h = 0; s = 0; b2core = 100; }\n    else if (style === 'gold-silk') {\n      const chord = Math.abs(Math.sin((ang2 - ang1) * 0.5));\n      h = 34 + Math.sin(ang1 * 3 + t) * 9; s = 78 - chord * 34; b2core = 100;\n    }\n    else if (isBP) { h = 200; s = 82; b2core = 100; }\n    else if (style === 'rainbow-rose') { h = (P.hue + (i / Mn) * 720 + f * 40) % 360; s = 92; b2core = 100; }\n    else { h = famHue; s = 88; b2core = 100; } // neon\n    // pass 1 \u2014 wide dim halo (colored)\n    strokeWeight(w1); stroke(h, s, 58, a1a); line(x1, y1, x2, y2);\n    // pass 2 \u2014 thin bright core (white-hot for glow)\n    strokeWeight(w2); stroke(h, s * 0.5, b2core, a2a); line(x1, y1, x2, y2);\n    if (isBP) { strokeWeight(w2 * 1.6); stroke(190, 40, 100, a2a * 0.9); point(x1, y1); }\n  }\n  if (isBP) { noFill(); strokeWeight(0.8); stroke(200, 70, 90, 10 * av); ellipse(fcx, fcy, R * 2, R * 2); }\n}\nblendMode(BLEND);\npop();\n\n// audio treble sparkle on the caustic \u2014 partial, never full-frame\nif ((A.treble > 0.02 || A.rms > 0.02) && P.alpha > 5) {\n  push(); blendMode(ADD); noStroke();\n  const sp = (A.treble * 0.6 + A.rms * 0.3) * P.energy * av;\n  fill((baseHue0 + 40) % 360, 30, 100, sp * 20);\n  ellipse(cx, cy, u * 0.5, u * 0.5);\n  blendMode(BLEND); pop();\n}\n"
+}

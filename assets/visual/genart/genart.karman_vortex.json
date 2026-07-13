@@ -1,0 +1,157 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.karman_vortex",
+  "kind": "genart",
+  "name": "Von Karman Vortex Street",
+  "desc": "Flow past a hidden obstacle sheds alternating counter-rotating vortices that peel off into the classic staggered double row, warm and cool dye streaming downstream to reveal the swirling wake \u2014 as vorticity-tinted dye on dark fluid, grey schlieren shadowgraph, blue-to-white thermal false-color, indigo ink-in-water, or glowing neon flux.",
+  "tags": [
+    "von-karman",
+    "karman",
+    "vortex",
+    "vortex-street",
+    "vortices",
+    "wake",
+    "shedding",
+    "vortex-shedding",
+    "strouhal",
+    "lamb-oseen",
+    "fluid",
+    "flow",
+    "flow-field",
+    "flowfield",
+    "dye",
+    "advection",
+    "semi-lagrangian",
+    "stable-fluids",
+    "aerodynamics",
+    "wind-tunnel",
+    "turbulence",
+    "eddy",
+    "swirl",
+    "curl",
+    "schlieren",
+    "shadowgraph",
+    "thermal",
+    "ink-water",
+    "suminagashi",
+    "neon",
+    "cfd",
+    "simulation",
+    "fluid-dynamics",
+    "physics",
+    "science",
+    "warm-cool",
+    "teal",
+    "orange",
+    "cyan",
+    "staggered",
+    "downstream",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "colorful",
+    "organic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "dye brightness / exposure / contrast"
+    },
+    "swirl": {
+      "default": 0.8,
+      "min": 0.0,
+      "max": 2.0,
+      "doc": "vortex circulation strength (0 = laminar streaks, 2 = tight violent rolls)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "grid resolution + number of shed vortices + dye-streak count/injection"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "downstream convection + shedding rate (beats-relative drift)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "street wavelength / vortex size (bigger = broader, fewer eddies)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "warm-dye base hue (cool dye is its complement)"
+    },
+    "x": {
+      "default": 0.22,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "obstacle x position (shedding point)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wake centerline y"
+    },
+    "style": {
+      "default": "dye-wake",
+      "options": [
+        "dye-wake",
+        "schlieren",
+        "thermal",
+        "ink-water",
+        "neon-flux"
+      ],
+      "doc": "render philosophy"
+    },
+    "act": {
+      "default": "steady",
+      "options": [
+        "steady",
+        "gust",
+        "laminar"
+      ],
+      "doc": "multi-minute dramaturgy program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (centerline phase)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": [
+    "steady",
+    "gust",
+    "laminar"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:13:07+00:00",
+    "fps": 61.0,
+    "motion": 0.1089,
+    "lum": 0.471
+  },
+  "code": "const D = { energy: .62, swirl: .8, density: .55, speed: 1, scale: 1, hue: 28, x: .22, y: .5, style: 'dye-wake', act: 'steady', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>v<a?a:v>b?b:v, TAU=6.28318530718;\nconst hsh=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\nconst sstep=(e0,e1,x)=>{let t=clp((x-e0)/(e1-e0||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,xx=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const k=Math.floor(h/60)%6;if(k===0){r=c;g=xx;b=0;}else if(k===1){r=xx;g=c;b=0;}else if(k===2){r=0;g=c;b=xx;}else if(k===3){r=0;g=xx;b=c;}else if(k===4){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;}return[r+m,g+m,b+m];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height;\n\n// ---- coarse dye grid (long axis 96..160), size+density keyed ----\nconst LA=Math.min(160, Math.round(96 + clp(P.density,0,1)*64));\nconst AR=W/H;\nconst GW=AR>=1?LA:Math.max(40,Math.round(LA*AR));\nconst GH=AR>=1?Math.max(40,Math.round(LA/AR)):LA;\nif(!S.a || S.gw!==GW || S.gh!==GH){\n  S.gw=GW; S.gh=GH; const N=GW*GH;\n  S.a=new Float32Array(N); S.b=new Float32Array(N);      // warm dye, cool dye\n  S.ta=new Float32Array(N); S.tb=new Float32Array(N);\n  S.vx=new Float32Array(N); S.vy=new Float32Array(N); S.vo=new Float32Array(N); // velocity + normalized vorticity\n  if(S.buf&&S.buf.remove)S.buf.remove();\n  S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1);\n  // seed a two-tone inflow field so frame 0 is already legible (not blank/mono)\n  const half=Math.round(GW*0.5);\n  for(let y=0;y<GH;y++)for(let x=0;x<half;x++){\n    const i=y*GW+x, fade=1-x/half;\n    if(y<GH*0.5) S.a[i]=0.5*fade; else S.b[i]=0.5*fade;\n  }\n  S.lastT=null;\n}\nconst GN=GW*GH, aA=S.a,bA=S.b,ta=S.ta,tb=S.tb,vxF=S.vx,vyF=S.vy,voF=S.vo,buf=S.buf;\nif(S.seedUsed!==(P.seed|0)){S.seedUsed=(P.seed|0); S.syph=hsh(9)*TAU;}\n\n// dt guard (tolerate t0 resets / backward jumps)\nlet dt=K.t-(S.lastT!=null?S.lastT:K.t); if(!(dt>0)||dt>0.5)dt=0.016; S.lastT=K.t;\n\nconst inten=K.intensity!=null?K.intensity:.6;\n\n// ---- act dramaturgy (all smooth on K.t / intensity => never teleports vortices) ----\nlet actCirc=1, actInj=1, actFade=0;\nif(P.act==='gust'){ const gp=0.5+0.5*Math.sin(K.t*0.45+S.syph); actCirc=0.7+gp*0.8; actInj=0.7+gp*0.9+K.pulse*0.4; }\nelse if(P.act==='laminar'){ actCirc=0.5; actInj=0.9; actFade=0.001; }\n\n// ---- geometry (grid units) ----\nconst sc=clp(P.scale,0.4,2.6);\nconst oxg=clp(P.x,0.04,0.6)*GW;                               // obstacle x (near left)\nlet oyg=clp(P.y,0.15,0.85)*GH + Math.sin(K.t*0.11+S.syph)*GH*0.05;   // slow centerline wander (anti-periodic)\noyg=clp(oyg,GH*0.12,GH*0.88);\nconst lam=GW*0.20*sc;                                         // vortex-street wavelength\nconst hRow=0.28*lam;                                          // staggered row spacing (Karman stability ratio)\nconst core=clp(0.16*lam,2,64);                                // vortex core radius\nconst obR=clp(lam*0.12,2,44);                                 // obstacle radius / shear-point offset\n\nconst convF=GW*0.135*clp(P.speed,0.2,3);                      // downstream convection (cells/sec)\nconst f=Math.max(0.05, 2*convF/lam);                          // shedding frequency (=> spacing lam)\n\n// ---- build the staggered train of Lamb-Oseen (regularized) vortices, drifting on K.t ----\nconst mNow=Math.floor(K.t*f);\nconst NV=clp(Math.round(2*(GW-oxg)/lam)+3,4,18);\nconst cc=core*core;\nconst gBase=2*core*convF*(0.5+clp(P.swirl,0,2)*1.3)*(0.6+inten*0.5)*actCirc;  // Gamma sizing => peak swirl ~ mult*convF\nconst vX=[],vY=[],vG=[],vSg=[];\nfor(let k=0;k<NV;k++){\n  const m=mNow-k, age=K.t-m/f;\n  if(age<0) continue;\n  const xc=oxg+convF*age;\n  if(xc>GW+lam) continue;\n  const par=((m%2)+2)%2;                                      // 0 = top row, 1 = bottom row\n  const yc=oyg+(par===0?-1:1)*hRow*0.5;\n  const sgn=par===0?1:-1;                                     // alternating rotation (ccw top / cw bottom)\n  const strength=sstep(0,0.6/f,age)*(1-sstep(GW-lam*0.6,GW+core,xc));  // smooth birth + fade-out (anti-strobe)\n  if(strength<0.02) continue;\n  vX.push(xc); vY.push(yc); vG.push(gBase*strength*sgn); vSg.push(sgn*strength);\n}\nconst NVi=vX.length;\n\n// ---- 1. velocity field = uniform flow + sum of vortices ; normalized signed vorticity for tinting ----\nfor(let y=0;y<GH;y++){\n  for(let x=0;x<GW;x++){\n    const i=y*GW+x;\n    let vx=convF, vy=0, vo=0;\n    for(let q=0;q<NVi;q++){\n      const dx=x-vX[q], dy=y-vY[q], r2=dx*dx+dy*dy+1e-3, g=vG[q]/(r2+cc);\n      vx+=-dy*g; vy+=dx*g;\n      vo+=vSg[q]*cc/(r2+cc);\n    }\n    vxF[i]=vx; vyF[i]=vy; voF[i]=vo;\n  }\n}\n\n// ---- 2. semi-Lagrangian advect both dye channels (backtrace + bilinear) ----\nconst dissip=clp(0.9935+clp(P.density,0,1)*0.003+actFade,0.99,0.998);\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x;\n  let dxs=vxF[i]*dt, dys=vyF[i]*dt;\n  if(dxs>6)dxs=6; else if(dxs<-6)dxs=-6;\n  if(dys>6)dys=6; else if(dys<-6)dys=-6;\n  let sx=x-dxs, sy=y-dys;\n  if(sx<0)sx=0; else if(sx>GW-1.001)sx=GW-1.001;\n  if(sy<0)sy=0; else if(sy>GH-1.001)sy=GH-1.001;\n  const x0=sx|0,y0=sy|0,fx=sx-x0,fy=sy-y0,i00=y0*GW+x0,i10=i00+1,i01=i00+GW,i11=i01+1;\n  const w00=(1-fx)*(1-fy),w10=fx*(1-fy),w01=(1-fx)*fy,w11=fx*fy;\n  ta[i]=(aA[i00]*w00+aA[i10]*w10+aA[i01]*w01+aA[i11]*w11)*dissip;\n  tb[i]=(bA[i00]*w00+bA[i10]*w10+bA[i01]*w01+bA[i11]*w11)*dissip;\n}\n\n// ---- 3. inject dye : discrete dye-rake streaklines from the left (bright filaments on dark fluid) + shear-layer feeds ----\nconst cols=Math.max(2,Math.round(GW*0.025));\nconst nStk=Math.round(4+clp(P.density,0,1)*6);                // 4..10 dye streams\nconst injL=(0.11+clp(P.density,0,1)*0.08)*actInj;\nfor(let s=0;s<nStk;s++){\n  const syr=Math.round((s+0.5)/nStk*GH), warm=syr<oyg;\n  for(let x=0;x<cols;x++)for(let dyk=-1;dyk<=1;dyk++){\n    const gy=syr+dyk; if(gy<0||gy>=GH) continue;\n    const i=gy*GW+x, amt=injL*(dyk===0?1:0.45);\n    if(warm) ta[i]=Math.min(1.4, ta[i]+amt); else tb[i]=Math.min(1.4, tb[i]+amt);\n  }\n}\nconst injS=((0.08+clp(P.density,0,1)*0.09)*actInj*(0.7+0.3*Math.sin(K.t*f*Math.PI))+K.pulse*0.05+A.bass*0.08);\nconst spx=Math.round(oxg+obR*0.6), rr=Math.max(1,Math.round(obR*0.5)), r2m=(rr+0.7)*(rr+0.7);\nconst feeds=[[spx,Math.round(oyg-obR),ta],[spx,Math.round(oyg+obR),tb]];\nfor(let q=0;q<2;q++){\n  const cx=feeds[q][0], cy=feeds[q][1], arr=feeds[q][2];\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    const gx=cx+dx, gy=cy+dy; if(gx<0||gx>=GW||gy<0||gy>=GH) continue;\n    const fall=Math.max(0,1-(dx*dx+dy*dy)/r2m);\n    const i=gy*GW+gx; arr[i]=Math.min(1.5, arr[i]+fall*injS);\n  }\n}\n\n// ---- 4. map dye + vorticity -> colour -> coarse buffer -> upscale ----\nconst style=P.style, en=clp(P.energy,0,1);\nconst hdrift=(K.section-3)*5, hbase=((P.hue%360)+360)%360;\nconst warmC=hsb2rgb(hbase+hdrift, 0.86, 1.0);\nconst coolC=hsb2rgb(hbase+188+hdrift, 0.82, 1.0);\nconst fluidC=hsb2rgb((hbase+205)%360, 0.55, 0.10);           // dark teal/navy fluid\nconst neonW=hsb2rgb(hbase+hdrift, 0.92, 1.0), neonC=hsb2rgb(hbase+190+hdrift, 0.92, 1.0);\nconst inkI=hsb2rgb(232,0.72,0.22), inkS=hsb2rgb(20,0.55,0.28), paper=[0.87,0.85,0.78];\nconst gain=0.85+en*1.25, expo=0.8+en*0.45+inten*0.22;\nconst heat=t=>{t=clp(t,0,1);const r=clp(1.5*t,0,1);const g=clp(1.55*t-0.55,0,1);const b=clp(1.6*t-1.1,0,1)+clp(0.36-1.25*t,0,0.36);return[r,g,b];};\nbuf.loadPixels(); const pix=buf.pixels;\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x, av=ta[i], bv=tb[i], tot=av+bv, vo=voF[i];\n  let r,g,bl;\n  if(style==='schlieren'){\n    const iL=x>0?i-1:i, iR=x<GW-1?i+1:i, iU=y>0?i-GW:i, iD=y<GH-1?i+GW:i;\n    const gx_=(ta[iR]+tb[iR])-(ta[iL]+tb[iL]);\n    const gy_=(ta[iD]+tb[iD])-(ta[iU]+tb[iU]);\n    let s=0.46+(gx_*4.2+gy_*1.6)*(0.6+en)-tot*0.04+vo*0.05;\n    s=clp(s,0.03,0.97); r=s; g=s; bl=s*1.02;\n  } else if(style==='thermal'){\n    const d=clp(tot*gain*0.85*expo,0,1);\n    const c=heat(d); r=c[0]; g=c[1]; bl=c[2];\n  } else if(style==='ink-water'){\n    const ka=clp(av*gain*0.85,0,1), kb=clp(bv*gain*0.85,0,1);\n    r=paper[0]; g=paper[1]; bl=paper[2];\n    r-=(paper[0]-inkS[0])*ka; g-=(paper[1]-inkS[1])*ka; bl-=(paper[2]-inkS[2])*ka;\n    r-=(r-inkI[0])*kb; g-=(g-inkI[1])*kb; bl-=(bl-inkI[2])*kb;\n  } else if(style==='neon-flux'){\n    const gN=1.1+en*2.0, glow=tot*tot*0.09, hot=clp(tot-0.95,0,1)*0.55;\n    r=0.02+(av*neonW[0]+bv*neonC[0])*gN+glow+hot;\n    g=0.02+(av*neonW[1]+bv*neonC[1])*gN+glow+hot;\n    bl=0.03+(av*neonW[2]+bv*neonC[2])*gN+glow+hot;\n  } else { // dye-wake (default): warm/cool dye on dark fluid, vorticity structure everywhere\n    const vt=clp(vo*0.75,-1,1), wv=vt>0?vt:0, cv=vt<0?-vt:0;\n    r=fluidC[0]+warmC[0]*wv*0.12+coolC[0]*cv*0.12+(av*warmC[0]+bv*coolC[0])*gain;\n    g=fluidC[1]+warmC[1]*wv*0.12+coolC[1]*cv*0.12+(av*warmC[1]+bv*coolC[1])*gain;\n    bl=fluidC[2]+warmC[2]*wv*0.12+coolC[2]*cv*0.12+(av*warmC[2]+bv*coolC[2])*gain;\n    r*=expo; g*=expo; bl*=expo;\n  }\n  const p=i*4;\n  pix[p]=clp(r,0,0.98)*255; pix[p+1]=clp(g,0,0.98)*255; pix[p+2]=clp(bl,0,0.98)*255; pix[p+3]=255;\n}\nbuf.updatePixels();\ndrawingContext.imageSmoothingEnabled=true;\nnoStroke(); push();\nif(P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(buf,0,0,W,H);\npop();\n\n// ---- ping-pong swap ----\nS.a=ta; S.b=tb; S.ta=aA; S.tb=bA;\n\n// gentle partial-frame audio/beat breathe on the dark styles (well under strobe cap; skip light ink-water)\nif(style!=='ink-water'){\n  blendMode(ADD); noStroke();\n  const bh=style==='schlieren'?(hbase+hdrift):(hbase+hdrift+ (style==='thermal'?300:0));\n  fill(((bh%360)+360)%360,40,100, clp(4+6*K.swell+A.bass*8+A.treble*3,0,14));\n  rect(0,0,W,H);\n  blendMode(BLEND);\n}\ndrawingContext.shadowBlur=0; blendMode(BLEND);\n"
+}
