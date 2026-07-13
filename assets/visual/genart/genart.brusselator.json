@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.brusselator",
+  "kind": "genart",
+  "name": "Brusselator Cells",
+  "desc": "An autocatalytic Brusselator reaction-diffusion medium whose chemistry breathes edge-to-edge \u2014 indigo-teal-yellow-red concentration cells that pulse as Turing spots, expand as target waves, and shear into oscillating stripe domains that never settle.",
+  "tags": [
+    "brusselator",
+    "reaction-diffusion",
+    "reaction_diffusion",
+    "turing",
+    "turing-patterns",
+    "morphogenesis",
+    "chemical-oscillator",
+    "autocatalytic",
+    "oscillator",
+    "belousov",
+    "bz",
+    "spots",
+    "stripes",
+    "target-waves",
+    "cells",
+    "field",
+    "chemistry",
+    "petri-dish",
+    "thermal",
+    "litmus",
+    "contour",
+    "generative",
+    "abstract",
+    "fullbleed",
+    "background",
+    "breathing",
+    "pulsing",
+    "organic",
+    "indigo",
+    "teal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "contrast/gain of the concentration ramp + glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "display zoom into the cell field"
+    },
+    "react": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reaction B toward the Hopf boundary (oscillation strength: calm patterns -> hot breathing)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4.0,
+      "doc": "integrator steps/frame = wave propagation rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "feature scale: few big cells (0) -> many small cells (1)"
+    },
+    "hue": {
+      "default": 250,
+      "min": 0,
+      "max": 360,
+      "doc": "palette anchor hue (rotates the ramp; drives the contour lines)"
+    },
+    "coupling": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "activator diffusion / wavelength fine-tune"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "seed/injection bias + zoom pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "seed/injection bias + zoom pan y"
+    },
+    "style": {
+      "default": "chemical",
+      "options": [
+        "chemical",
+        "thermal",
+        "bio",
+        "litmus",
+        "contour"
+      ],
+      "doc": "render philosophy (contour = non-representational iso-lines)"
+    },
+    "act": {
+      "default": "breathe",
+      "options": [
+        "breathe",
+        "target",
+        "stripes"
+      ],
+      "doc": "multi-minute program: breathing spots / concentric target rings / oscillating stripe domains"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic init + feed-phase field (rebuild on change)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": [
+    "breathe",
+    "target",
+    "stripes"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:07:37+00:00",
+    "fps": 59.2,
+    "motion": 0.056,
+    "lum": 0.291
+  },
+  "code": "const D = { energy:.6, scale:1, react:.5, speed:1, density:.5, hue:250, coupling:.5, x:.5, y:.5, style:'chemical', act:'breathe', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), W=width, H=height;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;   // tolerate t0 reset\nconst hsh=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\n\n// --- coarse grid, size + seed keyed ---\nconst LS=132;\nconst GW=clp(Math.round(LS*W/Math.max(W,H)),40,160)|0;\nconst GH=clp(Math.round(LS*H/Math.max(W,H)),24,92)|0;\nconst N=GW*GH, key=GW+'x'+GH+'_'+(P.seed|0);\nif(!S.X||S.key!==key){\n  S.key=key;\n  S.X=new Float32Array(N); S.Y=new Float32Array(N);\n  S.X2=new Float32Array(N); S.Y2=new Float32Array(N);\n  S.amp=new Float32Array(N);   // spatial feed-modulation phase field (smooth) -> desynced oscillation\n  const Ab=1.2, Bb=1.9+P.react*2.8;\n  // smooth low-freq phase field from seed (value-noise-ish): sum of a few sines with seed offsets\n  const p1=hsh(11)*6.283, p2=hsh(12)*6.283, p3=hsh(13)*6.283, k1=hsh(14)*0.5+0.15, k2=hsh(15)*0.5+0.15;\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const i=y*GW+x;\n    const ph=Math.sin(x*k1+p1)+Math.cos(y*k2+p2)+0.6*Math.sin((x+y)*0.11+p3);\n    S.amp[i]=ph*2.1;                                   // per-cell phase for the traveling feed wave\n    S.X[i]=Ab+(hsh(i*2+1)-0.5)*0.9;                    // near fixed point + noise -> spots nucleate\n    S.Y[i]=Bb/Ab+(hsh(i*2+2)-0.5)*0.9;\n  }\n  if(S.buf&&S.buf.remove)S.buf.remove();\n  S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1);\n  S.lo=0; S.hi=2; S.burn=140;                          // burn-in so first visible frame is already patterned\n}\nlet X=S.X,Y=S.Y,X2=S.X2,Y2=S.Y2; const buf=S.buf, amp=S.amp;\n\n// --- reaction params + slow section drift (dramaturgy across minutes) ---\nconst drift=K.t*0.025 + K.section*0.6;\nconst Ab=1.2;\nlet Bb=1.9+P.react*2.8 + 0.20*Math.sin(drift) + 0.12*Math.sin(K.t*0.011);\nlet amdAmp=0.12;\nif(P.act==='target'){ Bb=clp(1.75+0.10*Math.sin(drift*0.7),1.6,2.3); amdAmp=0.07; }   // calm pacemaker rings\nelse if(P.act==='stripes'){ Bb+=0.7; amdAmp=0.22; }                                     // hotter -> oscillating stripe domains\nBb=clp(Bb,1.6,5.6);\n// diffusion: density -> feature scale (fewer big <-> many small); coupling -> Dx wavelength fine-tune\nconst Dx=1.5+P.coupling*1.4;\nlet Dy=8+(1-P.density)*10;                                                              // 8..18, ratio 3..7\nif(P.act==='stripes') Dy*=0.72;\nconst dt=0.010;\nconst feedWave=K.t*0.09;                                                                // continuous feed drift = motion floor\n\n// --- perpetual local excitation: seeds new waves; baseline (K) carries it, audio only ADDS ---\nconst beat=K.pulse*0.6 + A.bass*0.6;\nconst nInj = P.act==='target' ? 1 : (1+Math.round(P.density*2));\nfor(let q=0;q<nInj;q++){\n  const ang=K.t*(0.13+q*0.05)+q*2.4, rad=P.act==='target'?0.0:0.10+0.12*Math.sin(K.t*0.04+q);\n  const cx=Math.floor((0.5+(P.x-0.5)*0.5+Math.cos(ang)*rad)*GW);\n  const cy=Math.floor((0.5+(P.y-0.5)*0.5+Math.sin(ang)*rad)*GH);\n  const rr=1+Math.round(P.density*2), inj=0.9+beat*1.2;\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    if(dx*dx+dy*dy>rr*rr)continue;\n    const xx=((cx+dx)%GW+GW)%GW, yy=((cy+dy)%GH+GH)%GH, i=yy*GW+xx;\n    Y[i]=Math.min(14,Y[i]+inj);                        // kick the inhibitor -> a fresh wavefront\n  }\n}\n\n// --- step the Brusselator (explicit Euler, 5-point Laplacian, toroidal wrap) ---\n// MOTION FLOOR: >=1 step every frame + traveling feed field => never settles, never re-phases at 8s.\nconst steps = clp(Math.round((6+P.speed*9)*(0.55+0.6*K.intensity)) + (S.burn||0), 4, 40);\nlet sX=X,sY=Y,dX=X2,dY=Y2;\nfor(let it=0; it<steps; it++){\n  for(let y=0;y<GH;y++){\n    const ym=(y-1+GH)%GH, yp=(y+1)%GH, r0=ym*GW, r1=y*GW, r2=yp*GW;\n    for(let x=0;x<GW;x++){\n      const xm=(x-1+GW)%GW, xp=(x+1)%GW, i=r1+x;\n      const xv=sX[i], yv=sY[i];\n      const lapX=sX[r1+xm]+sX[r1+xp]+sX[r0+x]+sX[r2+x]-4*xv;\n      const lapY=sY[r1+xm]+sY[r1+xp]+sY[r0+x]+sY[r2+x]-4*yv;\n      const Al=Ab*(1+amdAmp*Math.sin(amp[i]+feedWave));   // spatially varying feed => desynced breathing waves\n      const xy=xv*xv*yv;\n      let nx=xv+dt*(Al + xy - (Bb+1)*xv + Dx*lapX);\n      let ny=yv+dt*(Bb*xv - xy + Dy*lapY);\n      dX[i]=nx<0?0:nx>8?8:nx; dY[i]=ny<0?0:ny>14?14:ny;   // clamp keeps explicit-Euler bounded\n    }\n  }\n  const tx=sX;sX=dX;dX=tx; const ty=sY;sY=dY;dY=ty;       // ping-pong\n}\nif(sX!==S.X){ S.X.set(sX); S.Y.set(sY); }\nS.burn=0;\nconst fld=S.X;\n\n// --- auto-normalize (smoothed) so luminance stays mid-band as B drifts ---\nlet mn=1e9,mx=-1e9;\nfor(let i=0;i<N;i+=2){ const v=fld[i]; if(v<mn)mn=v; if(v>mx)mx=v; }\nS.lo+= (mn-S.lo)*0.06; S.hi+= (mx-S.hi)*0.06;\nconst span=Math.max(0.35,S.hi-S.lo), inv=1/span, lo=S.lo;\nconst contrast=0.8+P.energy*1.6;\n\n// --- palette: multi-stop ramps, hue-rotated by P.hue; contour = non-representational iso-lines ---\nconst st=P.style, hd=(((P.hue-250)%360)+360)%360;\nfunction rgb2hsv(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; let h=0; if(d>1e-6){ if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; h*=60; if(h<0)h+=360; } return [h, mx<=0?0:d/mx, mx]; }\nfunction hsv2rgb(h,s,v){ const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b; h=((h%360)+360)%360; if(h<60){r=c;g=x;b=0;}else if(h<120){r=x;g=c;b=0;}else if(h<180){r=0;g=c;b=x;}else if(h<240){r=0;g=x;b=c;}else if(h<300){r=x;g=0;b=c;}else{r=c;g=0;b=x;} return [(r+m)*255,(g+m)*255,(b+m)*255]; }\nconst RAMPS={\n  chemical:[[50,30,118],[26,150,158],[240,220,70],[228,66,44]],  // indigo -> teal -> yellow -> red\n  thermal:[[6,4,22],[92,20,112],[224,52,40],[255,180,44],[255,250,214]],\n  bio:[[8,26,20],[16,120,88],[42,190,120],[186,240,124]],\n  litmus:[[40,10,60],[152,30,120],[232,92,162],[246,202,222]]\n};\nlet stops=null;\nif(st==='chemical'||st==='thermal'||st==='bio'||st==='litmus'){\n  const base=RAMPS[st]; stops=[];\n  for(let k=0;k<base.length;k++){ if(hd<1){stops.push(base[k]);} else { const hv=rgb2hsv(base[k][0],base[k][1],base[k][2]); stops.push(hsv2rgb(hv[0]+hd,hv[1],hv[2])); } }\n}\nconst NS=stops?stops.length-1:0;\nfunction ramp(f){ let ff=f*NS; let k=ff|0; if(k>=NS)k=NS-1; const t=ff-k, a=stops[k], b=stops[k+1]; return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }\n\nbuf.loadPixels(); const px=buf.pixels;\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x;\n  let f=clp((fld[i]-lo)*inv,0,1);\n  f=clp((f-0.5)*contrast+0.5+0.10,0,1);\n  let r,g,bl;\n  if(st==='contour'){                                 // NON-representational: bright iso-lines on dark ground, hue-driven\n    const xm=(x-1+GW)%GW,xp=(x+1)%GW,ym=(y-1+GH)%GH,yp=(y+1)%GH;\n    const band=Math.abs(((f*7)%1)-0.5);\n    const line=clp((0.12-band)*10,0,1);\n    const gx=fld[y*GW+xp]-fld[y*GW+xm], gy=fld[yp*GW+x]-fld[ym*GW+x];\n    const edge=clp(Math.hypot(gx,gy)*inv*3.0,0,1);\n    const lit=Math.max(line, edge*0.9);\n    const base=14+f*22;                               // base>0 keeps mean luminance off the floor\n    const col=hsv2rgb(P.hue, 0.20+0.35*(1-lit), 0.55+0.45*lit);\n    const m=base/255+lit;\n    r=col[0]*Math.min(1,m); g=col[1]*Math.min(1,m); bl=col[2]*Math.min(1,m);\n    r=clp(r+base*(1-lit)*0.3,0,255); g=clp(g+base*(1-lit)*0.3,0,255); bl=clp(bl+base*(1-lit)*0.3,0,255);\n  } else {\n    const c=ramp(f); r=c[0]; g=c[1]; bl=c[2];\n  }\n  const j=i*4; px[j]=clp(r,0,255); px[j+1]=clp(g,0,255); px[j+2]=clp(bl,0,255); px[j+3]=255;\n}\nbuf.updatePixels();\n\n// --- composite: upscale to full frame; P.scale = display zoom on a centered/pannable sub-rect ---\nconst zoom=clp(P.scale,1,2.8), sw=GW/zoom, sh=GH/zoom;\nconst sx=clp((GW-sw)*(0.15+P.x*0.7),0,GW-sw), sy=clp((GH-sh)*(0.15+P.y*0.7),0,GH-sh);\npush();\nnoStroke(); drawingContext.imageSmoothingEnabled=true;\nif(P.alpha<100) tint(0,0,100,P.alpha);\nimage(buf,0,0,W,H,sx,sy,sw,sh);\npop();\n\n// --- finishing: gentle breath/bass glow, PARTIAL alpha (<=14) so no full-frame flash/strobe ---\nif(st!=='contour' && P.alpha>40){\n  push(); blendMode(ADD); noStroke();\n  fill((((P.hue%360)+360)%360), st==='litmus'?40:52, 100, clp((5+9*K.swell+A.bass*16)*0.5,0,13));\n  rect(0,0,W,H);\n  blendMode(BLEND); pop();\n}\ndrawingContext.shadowBlur=0; noStroke();\n"
+}

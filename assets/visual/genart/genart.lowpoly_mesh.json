@@ -2,105 +2,104 @@
   "format": "livecode-visual-v1",
   "id": "genart.lowpoly_mesh",
   "kind": "genart",
-  "name": "Low-Poly Gradient Mesh",
-  "desc": "A Delaunay triangulation of gently drifting points whose facets are flat-filled from a domain-warped color field, forming a crystalline low-poly mesh that reads as smooth aurora gradients, leaded stained glass, thermal false-color, a cyan blueprint wireframe, or chalky pastel shards.",
+  "name": "Low-Poly Mesh",
+  "desc": "A drifting low-poly triangulation whose facets flip and shimmer, each flat-shaded by its own normal against a slowly sweeping light so the surface reads as a faceted jewel catching moving glints.",
   "tags": [
     "lowpoly",
     "low-poly",
-    "delaunay",
-    "triangulation",
-    "voronoi",
     "mesh",
+    "triangulation",
     "facets",
-    "crystalline",
+    "faceted",
+    "crystal",
+    "gem",
+    "jewel",
     "geometric",
     "polygon",
-    "triangles",
-    "gradient",
-    "aurora",
-    "stained-glass",
-    "thermal",
+    "triangle",
+    "tessellation",
+    "tiling",
+    "symmetry",
+    "shard",
+    "crystalline",
+    "flat-shaded",
+    "specular",
+    "glint",
+    "copper",
+    "ice",
+    "sunset",
     "blueprint",
     "wireframe",
-    "pastel",
-    "facet",
-    "gem",
-    "faceted",
-    "domain-warp",
-    "color-field",
+    "abstract",
     "generative",
     "genart",
-    "abstract",
     "fullbleed",
     "background",
     "bg",
-    "smooth",
-    "iridescent",
-    "cool",
-    "warm",
-    "field"
+    "gemstone",
+    "prism"
   ],
   "slots": [
     "bg"
   ],
   "budget": "medium",
   "params": {
-    "density": {
+    "relief": {
       "default": 0.55,
       "min": 0.0,
       "max": 1.0,
-      "doc": "facet count (more = finer mesh, up to ~130 points)"
+      "doc": "facet height amplitude (flat sheet -> deep dramatic crystalline relief)"
     },
-    "warp": {
-      "default": 0.55,
-      "min": 0.0,
+    "density": {
+      "default": 0.5,
+      "min": 0.15,
       "max": 1.0,
-      "doc": "domain-warp turbulence of the underlying color field"
+      "doc": "mesh resolution (coarse chunky facets -> fine shattered mesh)"
     },
     "energy": {
       "default": 0.6,
       "min": 0.0,
       "max": 1.0,
-      "doc": "exposure/glow + point drift amplitude"
+      "doc": "exposure + glint strength"
     },
     "speed": {
       "default": 1,
       "min": 0.0,
       "max": 3.0,
-      "doc": "drift + color-boil rate"
+      "doc": "vertex drift + light-sweep rate"
     },
     "scale": {
       "default": 1,
-      "min": 0.4,
-      "max": 2.6,
-      "doc": "color-field feature zoom"
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "vertex jitter amount"
     },
     "hue": {
-      "default": 155,
+      "default": 275,
       "min": 0,
       "max": 360,
-      "doc": "palette base hue (155=aurora green-cyan)"
+      "doc": "jewel palette base hue"
     },
     "x": {
       "default": 0.5,
       "min": 0.0,
       "max": 1.0,
-      "doc": "field/drift anchor x"
+      "doc": "light azimuth bias"
     },
     "y": {
-      "default": 0.5,
+      "default": 0.45,
       "min": 0.0,
       "max": 1.0,
-      "doc": "field/drift anchor y"
+      "doc": "light elevation"
     },
     "style": {
-      "default": "aurora",
+      "default": "gem",
       "options": [
-        "aurora",
-        "stained",
-        "thermal",
-        "blueprint",
-        "pastel"
+        "gem",
+        "crystal-ice",
+        "sunset",
+        "copper",
+        "blueprint"
       ],
       "doc": "render philosophy"
     },
@@ -108,7 +107,7 @@
       "default": 0,
       "min": 0,
       "max": 9999,
-      "doc": "deterministic point lattice + field"
+      "doc": "deterministic mesh variation"
     },
     "alpha": {
       "default": 100,
@@ -120,10 +119,10 @@
   "acts": null,
   "deps": [],
   "verified": {
-    "at": "2026-07-13T02:03:51+00:00",
+    "at": "2026-07-13T14:10:27+00:00",
     "fps": 59.9,
-    "motion": 0.0244,
+    "motion": 0.1863,
     "lum": 0.27
   },
-  "code": "const D = { density: .55, warp: .55, energy: .6, speed: 1, scale: 1, hue: 155, x: .5, y: .5, style: 'aurora', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nfunction hsh(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + sd * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const a = fx * fx * (3 - 2 * fx), b = fy * fy * (3 - 2 * fy); const p = hsh(ix, iy), q = hsh(ix + 1, iy), r = hsh(ix, iy + 1), s = hsh(ix + 1, iy + 1); return p + (q - p) * a + (r - p) * b + (p - q - r + s) * a * b; }\nfunction fbm(x, y) { return 0.58 * vn(x, y) + 0.28 * vn(x * 2.03 + 4.1, y * 2.03 - 2.7) + 0.14 * vn(x * 4.06 - 1.9, y * 4.06 + 6.3); }\n\n// ---- interior point count (density) : rebuild base lattice on seed or count change ----\nconst N = Math.round(30 + P.density * 100);\nif (S.seedUsed !== P.seed || S.nUsed !== N) {\n  S.seedUsed = P.seed; S.nUsed = N;\n  S.hoff = fr(5) * 40; S.o1 = fr(1) * 30; S.o2 = fr(2) * 30;\n  const gx = Math.max(2, Math.round(Math.sqrt(N * 1.3))), gy = Math.max(2, Math.ceil(N / gx));\n  S.base = [];\n  let idx = 0;\n  for (let yy = 0; yy < gy && idx < N; yy++) for (let xx = 0; xx < gx && idx < N; xx++) {\n    const jx = fr(idx * 2 + 17), jy = fr(idx * 2 + 18);\n    S.base.push({\n      x: (xx + 0.15 + jx * 0.7) / gx,\n      y: (yy + 0.15 + jy * 0.7) / gy,\n      p1: fr(idx * 3 + 21) * 6.283, p2: fr(idx * 3 + 22) * 6.283, ds: 0.5 + fr(idx * 3 + 23) * 1.2\n    });\n    idx++;\n  }\n  // fixed border ring (no duplicates) guarantees full-frame coverage\n  S.bord = [];\n  const lo = -0.14, hi = 1.14, st = 4;\n  for (let s = 0; s < st; s++) { const f = s / (st - 1); S.bord.push([lo + f * (hi - lo), lo]); S.bord.push([lo + f * (hi - lo), hi]); }\n  for (let s = 1; s < st - 1; s++) { const f = s / (st - 1); S.bord.push([lo, lo + f * (hi - lo)]); S.bord.push([hi, lo + f * (hi - lo)]); }\n}\n\nconst style = P.style;\nconst tp = K.t * (0.15 + P.speed * 0.25);          // point drift clock\nconst tc = K.t * (0.05 + P.speed * 0.12);           // color-field advection clock\nconst drift = 0.026 + P.energy * 0.045 + A.rms * 0.05;\nconst sway = 0.015 * Math.sin(K.t * 0.05 + S.hoff);\nconst zoom = 2.2 / (0.4 + P.scale * 1.1);\nconst W = 0.5 + P.warp * 3.2;\nconst hb = (P.hue + K.section * 18 + S.hoff) % 360;\nconst expo = 0.7 + P.energy * 0.7 + K.intensity * 0.3 + A.bass * 0.5;\nconst cx = (P.x - 0.5) * 0.4, cy = (P.y - 0.5) * 0.4;\n\nfunction pal(m) {\n  const hr = hb / 360;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)), 0.5 + 0.5 * Math.cos(6.2831 * (m + hr + 0.33)), 0.5 + 0.5 * Math.cos(6.2831 * (m + hr + 0.66))];\n}\nfunction field(fx, fy) {\n  const nx = (fx - 0.5) * zoom + S.o1, ny = (fy - 0.5) * zoom + S.o2;\n  const qx = fbm(nx + tc * 0.6, ny + 1.3), qy = fbm(nx + 3.1, ny - tc * 0.5);\n  const v = fbm(nx + W * qx, ny + W * qy + 2.2);\n  return [Math.min(1, Math.max(0, v)), qx - qy];\n}\nfunction colorFor(fx, fy) {\n  const f = field(fx, fy), v = f[0], grad = f[1];\n  let r, g, b;\n  if (style === 'thermal') {\n    const m = Math.min(1, Math.max(0, v * expo * 1.15));\n    r = Math.min(1, m * 3.0); g = Math.min(1, Math.max(0, m * 3.0 - 1.0)); b = Math.min(1, Math.max(0, m * 3.4 - 2.3));\n    r = r * 0.94 + 0.05; g = g * 0.94 + 0.03; b = b * 0.94 + 0.05;\n  } else if (style === 'stained') {\n    const c = pal(v * 1.25 + grad * 0.45); const mn = Math.min(c[0], c[1], c[2]);\n    const sh = 0.4 + 0.6 * Math.min(1, v * expo + 0.1);\n    r = ((c[0] - mn) + mn * 0.12) * sh * 1.35; g = ((c[1] - mn) + mn * 0.12) * sh * 1.35; b = ((c[2] - mn) + mn * 0.12) * sh * 1.35;\n  } else if (style === 'blueprint') {\n    r = 0.02 + v * 0.05; g = 0.05 + v * 0.09; b = 0.11 + v * 0.16;\n  } else if (style === 'pastel') {\n    const c = pal(v * 0.8 + grad * 0.3);\n    r = 0.6 + c[0] * 0.32; g = 0.6 + c[1] * 0.32; b = 0.6 + c[2] * 0.32;\n    r *= (0.85 + v * 0.15); g *= (0.85 + v * 0.15); b *= (0.85 + v * 0.15);\n  } else { // aurora (default) \u2014 smooth rich iq-cosine facets\n    const c = pal(v * 1.0 + grad * 0.35); const sh = Math.pow(Math.min(1, v * expo + 0.15), 1.1);\n    r = c[0] * sh * 0.88 + 0.09; g = c[1] * sh * 0.88 + 0.09; b = c[2] * sh * 0.88 + 0.09;\n  }\n  return [Math.min(1, Math.max(0, r)), Math.min(1, Math.max(0, g)), Math.min(1, Math.max(0, b))];\n}\nfunction rgb2hsb(r, g, b) {\n  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;\n  let h = 0;\n  if (d > 1e-6) { if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }\n  const s = mx <= 0 ? 0 : d / mx;\n  return [h, s * 100, Math.min(1, mx) * 100];\n}\n\n// ---- assemble current point positions + per-point colors ----\nconst XS = [], YS = [], R = [], G = [], B = [];\nfor (let i = 0; i < N; i++) {\n  const bp = S.base[i];\n  const ax = Math.sin(tp * bp.ds + bp.p1) + 0.5 * Math.sin(tp * bp.ds * 1.7 + bp.p2);\n  const ay = Math.cos(tp * bp.ds * 0.9 + bp.p2) + 0.5 * Math.cos(tp * bp.ds * 1.3 + bp.p1);\n  const px = bp.x + drift * ax * 0.7 + sway + cx;\n  const py = bp.y + drift * ay * 0.7 + cy;\n  XS.push(px); YS.push(py);\n  const col = colorFor(px, py); R.push(col[0]); G.push(col[1]); B.push(col[2]);\n}\nfor (let i = 0; i < S.bord.length; i++) {\n  const bx = S.bord[i][0], by = S.bord[i][1];\n  XS.push(bx); YS.push(by);\n  const col = colorFor(bx, by); R.push(col[0]); G.push(col[1]); B.push(col[2]);\n}\nconst M = XS.length;\n// super-triangle verts\nXS.push(-8, 8, 0); YS.push(-8, -8, 8);\n\n// ---- Bowyer-Watson Delaunay ----\nfunction circum(ax, ay, bx, by, cxx, cyy) {\n  const dd = 2 * (ax * (by - cyy) + bx * (cyy - ay) + cxx * (ay - by));\n  if (Math.abs(dd) < 1e-12) return [0, 0, -1];\n  const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = cxx * cxx + cyy * cyy;\n  const ux = (a2 * (by - cyy) + b2 * (cyy - ay) + c2 * (ay - by)) / dd;\n  const uy = (a2 * (cxx - bx) + b2 * (ax - cxx) + c2 * (bx - ax)) / dd;\n  const r2 = (ax - ux) * (ax - ux) + (ay - uy) * (ay - uy);\n  return [ux, uy, r2];\n}\nfunction mk(a, b, c) { return { a: a, b: b, c: c, cc: circum(XS[a], YS[a], XS[b], YS[b], XS[c], YS[c]) }; }\nlet tris = [mk(M, M + 1, M + 2)];\nfor (let p = 0; p < M; p++) {\n  const pxx = XS[p], pyy = YS[p];\n  const edges = [], keep = [];\n  for (let ti = 0; ti < tris.length; ti++) {\n    const T = tris[ti], cc = T.cc; let bad = false;\n    if (cc[2] >= 0) { const dx = pxx - cc[0], dy = pyy - cc[1]; if (dx * dx + dy * dy < cc[2] - 1e-12) bad = true; }\n    if (bad) { edges.push(T.a, T.b, T.b, T.c, T.c, T.a); } else keep.push(T);\n  }\n  const ne = edges.length / 2;\n  for (let e = 0; e < ne; e++) {\n    const a = edges[2 * e], b = edges[2 * e + 1]; let cnt = 0;\n    for (let f = 0; f < ne; f++) { const c2 = edges[2 * f], d2 = edges[2 * f + 1]; if ((a === c2 && b === d2) || (a === d2 && b === c2)) cnt++; }\n    if (cnt === 1) keep.push(mk(a, b, p));\n  }\n  tris = keep;\n}\n\n// ---- render facets ----\npush();\nconst al = P.alpha; // facets tile the whole frame, so opaque bg needs no clear\nlet constStroke = false, sw = Math.max(1, u * 0.0018);\nif (style === 'stained') { constStroke = true; sw = Math.max(1, u * 0.006); stroke(hb, 40, 8, al); strokeWeight(sw); }\nelse if (style === 'blueprint') { constStroke = true; sw = Math.max(1, u * 0.0035); stroke(190, 78, 78, al); strokeWeight(sw); }\nelse { strokeWeight(sw); }\nfor (let ti = 0; ti < tris.length; ti++) {\n  const T = tris[ti];\n  if (T.a >= M || T.b >= M || T.c >= M) continue;\n  const r = (R[T.a] + R[T.b] + R[T.c]) / 3, g = (G[T.a] + G[T.b] + G[T.c]) / 3, bb = (B[T.a] + B[T.b] + B[T.c]) / 3;\n  const hs = rgb2hsb(r, g, bb);\n  fill(hs[0], hs[1], hs[2], al);\n  if (!constStroke) stroke(hs[0], hs[1], hs[2], al);\n  triangle(XS[T.a] * width, YS[T.a] * height, XS[T.b] * width, YS[T.b] * height, XS[T.c] * width, YS[T.c] * height);\n}\npop();\n\n// ---- faint audio bloom on the color anchor (partial, never full-frame strobe) ----\nif ((A.bass > 0.02 || A.rms > 0.02) && al > 5) {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass * 0.6 + A.rms * 0.35) * P.energy;\n  fill((hb + 20) % 360, 45, 100, glow * 20 * (al / 100));\n  ellipse(P.x * width, P.y * height, u * 1.1, u * 1.1);\n  blendMode(BLEND); pop();\n}\n"
+  "code": "const D = { relief: .55, density: .5, energy: .6, speed: 1, scale: 1, hue: 275, x: .5, y: .45, style: 'gem', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst t = K.t;\nconst spd = P.speed;\n\n// --- mesh topology: rebuild on size / density / seed change ---\nconst gx = Math.max(4, Math.round(6 + P.density * 14));\nconst gy = Math.max(3, Math.round(gx * height / width));\nconst topoKey = width + 'x' + height + ':' + gx + 'x' + gy + ':' + (P.seed | 0);\nif (S.topoKey !== topoKey) {\n  S.topoKey = topoKey;\n  const fr = i => { const s = Math.sin(i * 127.1 + (P.seed | 0) * 311.7) * 43758.5453; return s - Math.floor(s); };\n  const nv = (gx + 1) * (gy + 1);\n  S.gx = gx; S.gy = gy; S.nv = nv;\n  S.ph = new Float32Array(nv);   // per-vertex phase\n  S.pf = new Float32Array(nv);   // per-vertex freq wobble\n  S.hj = new Float32Array(nv);   // per-vertex hue jitter\n  for (let n = 0; n < nv; n++) { S.ph[n] = fr(n + 1) * 6.283; S.pf[n] = 0.7 + fr(n + 77) * 0.9; S.hj[n] = (fr(n + 913) - 0.5); }\n  S.vx = new Float32Array(nv); S.vy = new Float32Array(nv); S.vz = new Float32Array(nv);\n}\nconst GX = S.gx, GY = S.gy;\n\n// --- per-vertex 3D positions (overscan so facets bleed past the frame edges) ---\nconst mx = width / GX, my = height / GY;                 // one-cell overscan\nconst cw = (width + 2 * mx) / GX, ch = (height + 2 * my) / GY;\nconst hAmp = (0.10 + P.relief * 0.9) * u * 0.42 + A.bass * u * 0.10;   // facet height amplitude\nconst jit = cw * (0.10 + P.scale * 0.14);                // xy drift amplitude\nconst ff = 2.4 / u;                                      // spatial feature freq\nconst vx = S.vx, vy = S.vy, vz = S.vz, ph = S.ph, pf = S.pf;\nfor (let j = 0; j <= GY; j++) {\n  for (let i = 0; i <= GX; i++) {\n    const n = j * (GX + 1) + i;\n    const bx = -mx + i * cw, by = -my + j * ch;\n    const p = ph[n], f = pf[n];\n    const jx = jit * Math.sin(t * 0.5 * spd + p + i * 0.7);\n    const jy = jit * Math.cos(t * 0.42 * spd + p * 1.3 + j * 0.6);\n    const z = hAmp * 0.5 * (\n      Math.sin(bx * ff * 1.6 * f + t * 0.7 * spd + p) +\n      Math.cos(by * ff * 1.4 * f - t * 0.6 * spd + p * 0.7) +\n      0.6 * Math.sin((bx + by) * ff * 0.7 - t * 0.35 * spd + p * 0.4)\n    );\n    vx[n] = bx + jx; vy[n] = by + jy; vz[n] = z;\n  }\n}\n\n// --- rotating light + view ---\nconst theta = t * 0.28 * spd + P.x * 6.283 + K.section * 0.4;\nconst lz = 0.35 + P.y * 0.55;\nlet Lx = Math.cos(theta) * 0.85, Ly = Math.sin(theta) * 0.85, Lz = lz;\nlet Ll = Math.hypot(Lx, Ly, Lz); Lx /= Ll; Ly /= Ll; Lz /= Ll;\n// half vector with view (0,0,1)\nlet Hx = Lx, Hy = Ly, Hz = Lz + 1; const Hl = Math.hypot(Hx, Hy, Hz); Hx /= Hl; Hy /= Hl; Hz /= Hl;\n\nconst style = P.style;\nconst expo = 0.55 + P.energy * 0.7 + K.intensity * 0.3;\nconst glintS = (0.6 + P.energy * 1.1) + A.treble * 1.2;\nconst hueBase = (P.hue + K.section * 14 + t * 2.2) % 360;\nconst secBuild = 0.74 + 0.26 * Math.sin(K.section * 0.9 + t * 0.05);\n\n// style shading params\nlet shin, amb, edgeMode; // edgeMode: 0 bright hue edge, 1 white, 2 dark, 3 wire-only\nif (style === 'crystal-ice') { shin = 26; amb = 0.30; edgeMode = 1; }\nelse if (style === 'copper') { shin = 34; amb = 0.10; edgeMode = 2; }\nelse if (style === 'sunset') { shin = 12; amb = 0.16; edgeMode = 0; }\nelse if (style === 'blueprint') { shin = 8; amb = 0.06; edgeMode = 3; }\nelse { shin = 18; amb = 0.16; edgeMode = 0; } // gem\n\npush();\nstrokeJoin(ROUND);\nconst glints = [];\n// draw each quad as two triangles\nfor (let j = 0; j < GY; j++) {\n  for (let i = 0; i < GX; i++) {\n    const a = j * (GX + 1) + i, b = a + 1, c = a + (GX + 1), d = c + 1;\n    shadeTri(a, b, d);\n    shadeTri(a, d, c);\n  }\n}\n// batched specular glint pass (partial, additive \u2014 never full-frame)\nif (glints.length && edgeMode !== 3) {\n  blendMode(ADD); noStroke();\n  const gs = u * 0.022 * (0.6 + P.energy);\n  for (let k = 0; k < glints.length; k++) {\n    const g = glints[k];\n    fill(0, 0, 100, g.a);\n    ellipse(g.x, g.y, gs, gs);\n  }\n  blendMode(BLEND);\n}\npop();\n\nfunction shadeTri(i1, i2, i3) {\n  const ax = vx[i1], ay = vy[i1], az = vz[i1];\n  const bx = vx[i2], by = vy[i2], bz = vz[i2];\n  const cx2 = vx[i3], cy2 = vy[i3], cz2 = vz[i3];\n  // facet normal\n  let e1x = bx - ax, e1y = by - ay, e1z = bz - az;\n  let e2x = cx2 - ax, e2y = cy2 - ay, e2z = cz2 - az;\n  let nx = e1y * e2z - e1z * e2y;\n  let ny = e1z * e2x - e1x * e2z;\n  let nz = e1x * e2y - e1y * e2x;\n  let nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;\n  if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }\n  const diff = Math.max(0, nx * Lx + ny * Ly + nz * Lz);\n  let sp = nx * Hx + ny * Hy + nz * Hz; sp = sp > 0 ? Math.pow(sp, shin) * glintS : 0;\n  const ccx = (ax + bx + cx2) / 3, ccy = (ay + by + cy2) / 3, ccz = (az + bz + cz2) / 3;\n  const gval = 0.5 + 0.42 * (ccz / (hAmp + 1e-3)) + 0.15 * Math.sin(ccx * 0.011 - ccy * 0.009 + K.section);\n  const hj = S.hj[i1] * 22;\n\n  let hh, ss, bb, eh, es, eb, ew = 1;\n  if (style === 'crystal-ice') {\n    hh = (188 + gval * 46 + hj * 0.5) % 360;\n    ss = 22 + Math.max(0, 34 - sp * 30);\n    bb = Math.min(100, (35 + diff * 55) * expo * secBuild + sp * 60);\n    eh = 200; es = 8; eb = 100; ew = 1.1;\n  } else if (style === 'copper') {\n    hh = (18 + gval * 20 + hj * 0.4 + 360) % 360;\n    ss = 58 + diff * 22 - sp * 20;\n    bb = Math.min(100, (14 + diff * 52) * expo * secBuild + sp * 78);\n    eh = (14 - gval * 8 + 360) % 360; es = 80; eb = 22; ew = 1;\n  } else if (style === 'sunset') {\n    hh = (44 + (ccy / height) * 268 + hj + 360) % 360;\n    ss = 66 + diff * 16;\n    bb = Math.min(100, (28 + diff * 52) * expo * secBuild + sp * 42);\n    eh = hh; es = 40; eb = 100; ew = 1;\n  } else if (style === 'blueprint') {\n    hh = 214; ss = 60 + diff * 20;\n    bb = Math.min(40, 7 + diff * 12 * expo);\n    eh = 196; es = 72; eb = Math.min(100, 78 + sp * 30 + diff * 20); ew = 1.2;\n  } else { // gem\n    hh = (hueBase + gval * 92 + hj + 720) % 360;\n    ss = Math.min(100, 74 + 16 * Math.sin(gval * 6.28) - sp * 44);\n    bb = Math.min(100, (20 + diff * 60) * expo * secBuild + sp * 46);\n    eh = (hh + 8) % 360; es = 26; eb = 100; ew = 1.1;\n  }\n\n  const av = P.alpha;\n  if (edgeMode === 3) {\n    noFill();\n    stroke(eh, es, eb, 92 * av / 100); strokeWeight(ew);\n  } else {\n    fill(hh, ss, bb, av);\n    stroke(eh, es, eb, av); strokeWeight(ew);\n  }\n  triangle(ax, ay, bx, by, cx2, cy2);\n  if (sp > 0.55 && edgeMode !== 3) glints.push({ x: ccx, y: ccy, a: Math.min(58, sp * 38) * av / 100 });\n}\n"
 }
