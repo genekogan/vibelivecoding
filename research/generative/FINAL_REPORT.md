@@ -1,6 +1,23 @@
 # Generative Factory — Final Report (Phase 3/4)
 
-**Target: +100–200 new full-screen generative/emergent p5.js-2D visuals. Status: +100 low-end target REACHED.**
+## SESSION 2 UPDATE (2026-07-13): pushed to +132, full-catalog QA polish
+- **Catalog genart: 34 → 166 (+132 net new)**, mean self-score 22.8/30 across 146 accepted (55 assets ≥24; only 2 at the floor).
+- **Full-catalog QA self-critique**: snapshotted all 134→166 genart, metric-flagged (dark <0.06 / washed >0.85 / frozen <0.006 / slow <30fps / strobe >0.33) + eyeballed 6 contact-sheet pages for broken/monotone/wrong-scale.
+- **Defects found & FIXED** (waves 12-16 + hand-fixes):
+  - *Broken*: `watercolor` (frozen + one blob on empty cream → multi-bloom, edge-shimmer), `flow_calligraphy` (2× empty/static → dropped the family).
+  - *Near-black baseline*: `attractor`, `blackhole`, `flowfield`, `metaballs`, `feedback_paint`, `constellations` → all re-authored bright.
+  - *Frozen*: `girih`, `constellations`, `iso_city` unfrozen; `orrery` brightened (still slow orbits).
+  - *Washed/pale*: `reaction_diffusion` (pale → bold coral).
+  - *Monotone/sparse baseline*: `boids` (gradient → real murmuration), `lsystem` (sprig → flowering garden), `diff_growth` (line → brain-coral folds).
+  - *Faint (my early pieces)*: `harmonograph`, `plasma_warp`, `epicycles`, `caustics`, `lightning` brightened.
+  - *Gate-fails*: `aizawa` (params), `spectrogram` (strobe) fixed.
+  - *Bottom-tier polish*: `collatz_river`, `stipple`, `julia_morph`, `lowpoly_mesh` (→faceted gem), `koch_flake`.
+- **+41 new families this session** across attractors (rossler/thomas/chua/aizawa/halvorsen/dadras), RD (brusselator/turing_horn/lorenz96), fractals (burning_ship/mandelbrot_zoom/barnsley_fern/kleinian/gosper/blancmange/bifurcation), aperiodic tilings (wang/rauzy/pinwheel/ammann_beenker/kolam), sims (fireflies/galton_board/faraday_waves), signal (matrix_rain/slit_scan/wave_terrain/spectrogram), geometry (tesseract/times_table/rose_window/spirolateral/maurer_rose), optical (moebius/droste/domain_coloring/hopf_fibration), painterly (marbling), and more.
+- **Remaining known-minor** (valid, pass gates, lower-tier): orrery/biham_middleton (17), times_table/lightning (dim), a few untouched mid-tier baseline (doodle_world, warp_grid, wormhole, mandala, circle_packing) that are OK-but-not-great, not broken. `giant_word`/`word_storm` are intentional text pieces.
+
+---
+
+**Target: +100–200 new full-screen generative/emergent p5.js-2D visuals. Status: +100 REACHED; extended to +132.**
 
 - **Catalog genart: 34 → 134 (+100 net new accepted)**, all validated on the live canvas (schema, clean deploy, /errors-clean, fps≥25, motion 0.004–0.35, luminance 0.02–0.92, param responsiveness) and self-graded on 6 axes (beauty/novelty/texture/temporal/palette/vj).
 - **Mean self-score 22.9 / 30** across 102 graded accepts; distribution skews high (39 assets ≥24, only 2 at the 16-floor).

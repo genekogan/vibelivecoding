@@ -56,7 +56,7 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
-**121 new genart accepted (catalog 155). +100 REACHED; pushing to +200 + QA polish (2026-07-13).** wave-12/13/14 done (+41 incl. baseline near-black fixes attractor/blackhole/flowfield/harmonograph/plasma_warp, girih unfrozen, watercolor+aizawa+spectrogram QA-fixed). wave-15 IN FLIGHT: kleinian/bifurcation/lorenz96/wave_terrain/phase_portrait/halvorsen NEW + constellations/flow_calligraphy/metaballs/feedback_paint/orrery/reaction_diffusion fixes.
+**132 new genart accepted (catalog 166). QA polish + push done. +100 REACHED; pushing to +200 + QA polish (2026-07-13).** wave-12/13/14 done (+41 incl. baseline near-black fixes attractor/blackhole/flowfield/harmonograph/plasma_warp, girih unfrozen, watercolor+aizawa+spectrogram QA-fixed). wave-15 IN FLIGHT: kleinian/bifurcation/lorenz96/wave_terrain/phase_portrait/halvorsen NEW + constellations/flow_calligraphy/metaballs/feedback_paint/orrery/reaction_diffusion fixes.
 Wave-11 done (+9: domain_coloring/moebius_grid/gosper_curve/rauzy/wave_packet STRONG, additive_synth,
 collatz_river, spirograph-fix, ulam_spiral; requeued aizawa=STATIC). PHASE-4 DONE: ranked report +
 3 multi-layer VJ scenes captured (scratchpad/gf/_vj/) + research/generative/FINAL_REPORT.md.
