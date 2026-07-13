@@ -67,7 +67,14 @@ apollonian, drip_paint, guilloche, lorenz, lowpoly_mesh, newton_fractal, spacefi
 → Resume by: `python3 scratchpad/gf/gf_snap.py --outdir scratchpad/gf/_wave3 --glob 'assets/visual/inbox/*.json'`
   then `python3 scratchpad/gf/gf_sheet.py --dir scratchpad/gf/_wave3 --out scratchpad/gf/_wave3/sheet.png --cols 3`,
   READ the sheet (COLOR now), accept good ones via `validate.py`, requeue/hand-author the rest.
-(Wave-3 workflow may also still land venation, maze, rorschach, sandpile — check inbox.)
+(Wave-3's other 4 — venation, maze, rorschach, sandpile — FAILED on the quota limit and are NOT in
+inbox; re-author them in the next wave.)
+
+**PHASE STATUS (honest):** P1 research = partial (39 cards, 184-url manifest, 169 imgs downloaded —
+below the ≥500/≥60-artist gate; corpus was throttled, not a blocker for authoring). P2 compendium =
+partial (11 technique files in research/generative/techniques/; NO recipe files and NO COMPENDIUM.md
+index — the recipe/compendium workflow died on the session limit; optional to finish). P3 generation =
+IN PROGRESS, 24/100-200 accepted. P4 (contact sheet / ranked report / human review) = not started.
 
 **Then keep the loop going:** launch next author wave (~12 uncovered families) via
 `Workflow scriptPath=scratchpad/gf/author_workflow.js args=<[{id,name,family,recipe,kernel,style}]>`.

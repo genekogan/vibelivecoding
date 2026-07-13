@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spacefill",
+  "kind": "genart",
+  "name": "Space-Filling Curve",
+  "desc": "A Hilbert space-filling curve draws itself as one continuous glowing thread with a spectrum gradient running along its arclength, a luminous comet-head sweeping the lattice while the whole figure slowly rotates, breathes and undulates; renders as rainbow gradient-thread, CRT phosphor, cyan blueprint, gold PCB circuitry, or sumi ink on paper.",
+  "tags": [
+    "hilbert",
+    "space-filling",
+    "curve",
+    "fractal",
+    "recursive",
+    "maze",
+    "labyrinth",
+    "lattice",
+    "gradient",
+    "spectrum",
+    "rainbow",
+    "thread",
+    "line-art",
+    "continuous-line",
+    "one-line",
+    "generative",
+    "genart",
+    "abstract",
+    "geometric",
+    "wireframe",
+    "blueprint",
+    "schematic",
+    "phosphor",
+    "circuit",
+    "pcb",
+    "gold",
+    "sumi",
+    "ink",
+    "fullbleed",
+    "background",
+    "bg",
+    "glow",
+    "kinetic",
+    "meditative",
+    "mathematical",
+    "cyberpunk"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 1,
+      "doc": "curve order / lattice fineness (higher = deeper Hilbert order, denser weave)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "figure size vs frame (higher = fills / overspills frame)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow amplitude + comet-tail length/brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "self-draw sweep + rotation rate"
+    },
+    "warp": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "undulation / morph amplitude of the lattice"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue anchor (gradient starts here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "gradient-thread",
+      "options": [
+        "gradient-thread",
+        "phosphor",
+        "blueprint",
+        "gold-circuit",
+        "sumi"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (rotation dir, hue offset, warp phase)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density: .5, scale: 1, energy: .6, speed: 1, warp: .4, hue: 200, x: .5, y: .5, style: 'gradient-thread', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst BW = Math.max(180, Math.floor(width * 0.5)), BH = Math.max(180, Math.floor(height * 0.5));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.colorMode(HSB, 360, 100, 100, 100);\n  S.g.pixelDensity(1); S.g.strokeCap(ROUND); S.bw = BW; S.bh = BH;\n}\n\n// Hilbert path cache — rebuild on order (density) or seed change\nconst order = Math.max(3, Math.min(6, Math.round(4 + P.density * 2)));\nif (S.order !== order || S.seedUsed !== P.seed) {\n  S.order = order; S.seedUsed = P.seed;\n  const side = 1 << order, total = side * side;\n  const hx = new Float32Array(total), hy = new Float32Array(total);\n  for (let dd = 0; dd < total; dd++) {\n    let rx, ry, t = dd, x = 0, y = 0;\n    for (let s = 1; s < side; s *= 2) {\n      rx = 1 & (t >> 1);\n      ry = 1 & (t ^ rx);\n      if (ry === 0) { if (rx === 1) { x = s - 1 - x; y = s - 1 - y; } const tmp = x; x = y; y = tmp; }\n      x += s * rx; y += s * ry; t = t >> 2;\n    }\n    hx[dd] = (x + 0.5) / side - 0.5;\n    hy[dd] = (y + 0.5) / side - 0.5;\n  }\n  S.hx = hx; S.hy = hy; S.total = total; S.side = side;\n  S.tx = new Float32Array(total); S.ty = new Float32Array(total);\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(3) * 60; S.rotDir = fr(7) < 0.5 ? -1 : 1; S.wseed = fr(11) * 10;\n}\n\nconst total = S.total, side = S.side, hxp = S.hx, hyp = S.hy, tx = S.tx, ty = S.ty;\nconst style = P.style;\nconst sec = K.section;\nconst hb = (P.hue + S.hoff + sec * 14) % 360;\n\n// slow rotate + breathe (continuous K.t drift = motion floor, never re-phases)\nconst breathe = 1 + 0.05 * Math.sin(K.t * 0.35) + K.swell * 0.05;\nconst fit = (0.34 + P.scale * 0.5) * breathe;\nconst Rx = BW * fit, Ry = BH * fit;\nconst cx = BW * 0.5 + (P.x - 0.5) * BW * 0.3;\nconst cy = BH * 0.5 + (P.y - 0.5) * BH * 0.3;\nconst rot = S.rotDir * K.t * (0.018 + P.speed * 0.02);\nconst cosr = Math.cos(rot), sinr = Math.sin(rot);\nconst warpAmp = P.warp * 0.055;\nconst wt = K.t * 0.5 + S.wseed;\nfor (let i = 0; i < total; i++) {\n  let nx = hxp[i], ny = hyp[i];\n  if (warpAmp > 0.0001) {\n    nx += warpAmp * Math.sin(hyp[i] * 6.0 + wt);\n    ny += warpAmp * Math.cos(hxp[i] * 6.0 + wt * 1.13);\n  }\n  const rxp = nx * cosr - ny * sinr;\n  const ryp = nx * sinr + ny * cosr;\n  tx[i] = cx + rxp * Rx;\n  ty[i] = cy + ryp * Ry;\n}\n\n// self-drawing comet head sweeping along arclength\nconst rate = 0.05 + P.speed * 0.06;\nconst progress = (K.t * rate) % 1;\nconst tailK = 4.5 - P.energy * 1.5;\nconst baseB = 0.10 + 0.05 * P.energy;\nconst expo = 0.55 + P.energy * 0.7 + K.intensity * 0.3 + A.rms * 0.6;\nconst coreW = Math.max(1.2, ((Rx + Ry) * 0.5 / side) * 0.28);\nconst glowW = coreW * 3.0;\nconst glowStyle = (style === 'gradient-thread' || style === 'phosphor' || style === 'gold-circuit');\n\n// ground fill (never near-black; sumi is light paper)\nlet gh, gs, gb;\nif (style === 'sumi') { gh = 38; gs = 12; gb = 90; }\nelse if (style === 'blueprint') { gh = 212; gs = 68; gb = 20; }\nelse if (style === 'phosphor') { gh = 140; gs = 45; gb = 5; }\nelse if (style === 'gold-circuit') { gh = 150; gs = 35; gb = 6; }\nelse { gh = (hb + 175) % 360; gs = 48; gb = 7; }\n\nconst g = S.g;\ng.push(); g.noStroke(); g.fill(gh, gs, gb); g.rect(0, 0, BW, BH);\ng.strokeCap(ROUND);\nif (glowStyle) g.blendMode(ADD);\nfor (let i = 0; i < total - 1; i++) {\n  const f = i / (total - 1);\n  let d = progress - f; if (d < 0) d += 1;\n  const glow = Math.exp(-d * tailK);\n  const x0 = tx[i], y0 = ty[i], x1 = tx[i + 1], y1 = ty[i + 1];\n  let h, s, b, a, cw = coreW;\n  if (style === 'gradient-thread') {\n    h = (hb + f * 300 + 18 * Math.sin(f * 18 + K.t * 0.15)) % 360;\n    s = 78 + 18 * glow;\n    b = Math.min(100, (baseB + glow * expo) * 100); a = 88;\n  } else if (style === 'phosphor') {\n    const flick = 0.85 + 0.15 * Math.sin(K.t * 7 + f * 40);\n    h = 135; s = 88; b = Math.min(100, (baseB + glow * expo) * flick * 100); a = 86;\n  } else if (style === 'blueprint') {\n    h = 202; s = 55 - glow * 40; b = Math.min(100, (0.30 + glow * 0.65) * 100); a = 92; cw = coreW * 0.85;\n  } else if (style === 'gold-circuit') {\n    h = 42 + glow * 6; s = 90 - glow * 45; b = Math.min(100, (baseB + glow * expo) * 100); a = 88;\n  } else { // sumi\n    const tex = 0.55 + 0.45 * Math.sin(i * 12.9898);\n    const darkness = 0.12 + glow * 0.7;\n    h = 28; s = 18; b = Math.max(15, 90 - darkness * 70);\n    a = (52 + 35 * glow) * tex; cw = coreW * (0.7 + 0.6 * tex);\n  }\n  if (glowStyle && glow > 0.12) {\n    g.strokeWeight(glowW);\n    g.stroke(h, s * 0.6, b, 13);\n    g.line(x0, y0, x1, y1);\n  }\n  g.strokeWeight(cw);\n  g.stroke(h, s, b, a);\n  g.line(x0, y0, x1, y1);\n  if (style === 'gold-circuit' && glow > 0.35) {\n    g.noStroke(); g.fill(48, 55, 100, glow * 85);\n    g.rect(x0 - cw, y0 - cw, cw * 2, cw * 2);\n  }\n}\nif (glowStyle) g.blendMode(BLEND);\ng.pop();\n\n// composite (tint for VJ alpha compositing)\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio bloom at the drawing head (on top of clk baseline; partial, never full-frame)\nconst hi = Math.min(total - 1, Math.floor(progress * total));\nconst hxc = tx[hi] / BW * width, hyc = ty[hi] / BH * height;\nconst pr = (A.bass * 0.6 + A.treble * 0.3 + K.pulse * 0.35) * (0.4 + P.energy);\nif (pr > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  fill((hb + 30) % 360, 55, 100, 22 * Math.min(1, pr));\n  ellipse(hxc, hyc, u * 0.12 * (0.5 + pr));\n  blendMode(BLEND); pop();\n}\n"
+}
