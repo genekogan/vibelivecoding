@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.halvorsen",
+  "kind": "genart",
+  "name": "Halvorsen Attractor",
+  "desc": "The cyclically-symmetric Halvorsen strange attractor integrated at 65k steps a frame and splatted into a slowly self-rotating fading density buffer, its spiralling triple-lobed shell of dense filaments glowing violet-to-cyan-to-gold, or recast as iq-cosine plasma, molten ember, glacial ice, or graphite pencil hatching.",
+  "tags": [
+    "halvorsen",
+    "attractor",
+    "strange-attractor",
+    "chaos",
+    "cyclic-symmetry",
+    "ode",
+    "dynamical-system",
+    "phase-space",
+    "3d",
+    "density",
+    "filament",
+    "glow",
+    "spiral",
+    "shell",
+    "violet",
+    "cyan",
+    "gold",
+    "plasma",
+    "ember",
+    "ice",
+    "pencil",
+    "thermal",
+    "graphite",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "cosmic",
+    "science",
+    "physics",
+    "chaotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "integration steps per frame (more = denser, brighter shell)"
+    },
+    "energy": {
+      "default": 0.68,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude of the density field"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "3D projection rotation rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "projected size of the attractor"
+    },
+    "persist": {
+      "default": 0.9,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "trail persistence (higher = longer-lived glow)"
+    },
+    "hue": {
+      "default": 275,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue rotation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "audio-bloom anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "audio-bloom anchor y"
+    },
+    "style": {
+      "default": "shell",
+      "options": [
+        "shell",
+        "plasma",
+        "ember",
+        "ice",
+        "pencil"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:00:53+00:00",
+    "fps": 59.2,
+    "motion": 0.2286,
+    "lum": 0.348
+  },
+  "code": "const D = { density: .55, energy: .68, speed: 1, scale: 1, persist: .9, hue: 275, x: .5, y: .5, style: 'shell', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 200, BH = Math.max(80, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.dens = new Float32Array(BW * BH); S.chr = new Float32Array(BW * BH);\n  S.bw = BW; S.bh = BH; S.px = -5; S.py = 0; S.pz = 0;\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 2 - 1; S.pj = fr(2) * 2 - 1; S.px = -5 + fr(3) * 0.6; S.py = fr(4) * 0.5; S.pz = fr(5) * 0.5;\n}\n\nconst g = S.g, dens = S.dens, chr = S.chr;\nconst styleI = P.style === 'plasma' ? 1 : P.style === 'ember' ? 2 : P.style === 'ice' ? 3 : P.style === 'pencil' ? 4 : 0;\n\nconst sec = K.section;\n// Halvorsen 'a' breathes so the triple shell inhales/exhales over minutes\nconst a = 1.4 + 0.055 * Math.sin(K.t * 0.023) + (sec - 3.5) * 0.010 + S.pj * 0.02;\nconst dt = 0.005;\n\n// two incommensurate rotation rates (golden-ratio tilt) => perpetual non-repeating motion floor\nconst r1 = 0.075 + P.speed * 0.11;\nconst ay = K.t * r1 + A.rms * 0.30 * Math.sin(K.t * 0.6);\nconst ax = 0.55 + 0.42 * Math.sin(K.t * (r1 * 0.618));\nconst cay = Math.cos(ay), say = Math.sin(ay), cax = Math.cos(ax), sax = Math.sin(ax);\n\nconst fit = 1 / 10, cxo = -2, cyo = -2, czo = -2;\nconst view = Math.min(BW, BH) * 0.42 * P.scale;\nconst hbw = BW * 0.5, hbh = BH * 0.5;\n\nconst decay = 0.78 + P.persist * 0.20;\nfor (let i = 0, n = BW * BH; i < n; i++) { dens[i] *= decay; chr[i] *= decay; }\n\n// integrate the Halvorsen ODE many steps/frame, splat bright into fading density buffer\nlet x = S.px, y = S.py, z = S.pz;\nconst steps = Math.round(20000 + P.density * 45000);\nfor (let s = 0; s < steps; s++) {\n  const dx = -a * x - 4 * y - 4 * z - y * y;\n  const dy = -a * y - 4 * z - 4 * x - z * z;\n  const dz = -a * z - 4 * x - 4 * y - x * x;\n  x += dx * dt; y += dy * dt; z += dz * dt;\n  if (!(x > -1e4 && x < 1e4) || !(y > -1e4 && y < 1e4) || !(z > -1e4 && z < 1e4)) { x = -5; y = 0; z = 0; continue; }\n  const nx = (x - cxo) * fit, ny = (y - cyo) * fit, nz = (z - czo) * fit;\n  const rx = nx * cay - nz * say;\n  const rz0 = nx * say + nz * cay;\n  const ry = ny * cax - rz0 * sax;\n  const rz = ny * sax + rz0 * cax;\n  const bxi = (hbw + rx * view) | 0, byi = (hbh - ry * view) | 0;\n  if (bxi >= 0 && bxi < BW && byi >= 0 && byi < BH) {\n    const bi = byi * BW + bxi;\n    dens[bi] += 1;\n    chr[bi] += (rz * 0.5 + 0.5);\n  }\n}\nS.px = x; S.py = y; S.pz = z;\n\n// violet -> cyan -> gold ramp (the shell identity)\nfunction shellPal(m) {\n  m = m < 0 ? 0 : m > 1 ? 1 : m;\n  if (m < 0.5) { const t = m * 2; return [0.55 + (0.10 - 0.55) * t, 0.12 + (0.80 - 0.12) * t, 0.90 + (0.95 - 0.90) * t]; }\n  const t = (m - 0.5) * 2; return [0.10 + (1.00 - 0.10) * t, 0.80 + (0.80 - 0.80) * t, 0.95 + (0.24 - 0.95) * t];\n}\n// iq cosine palette for plasma\nfunction iq(m) {\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + 0.00)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + 0.33)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + 0.66))];\n}\n// hue rotation (deg) applied to chromatic styles so P.hue is live\nfunction rot(r, gg, b, deg) {\n  if (deg === 0) return [r, gg, b];\n  const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), d = mx - mn;\n  let h = 0;\n  if (d > 1e-6) { if (mx === r) h = ((gg - b) / d) % 6; else if (mx === gg) h = (b - r) / d + 2; else h = (r - gg) / d + 4; h *= 60; if (h < 0) h += 360; }\n  const sv = mx <= 0 ? 0 : d / mx, v = mx;\n  h = (h + deg) % 360; if (h < 0) h += 360;\n  const c = v * sv, hp = h / 60, xx = c * (1 - Math.abs(hp % 2 - 1));\n  let rr = 0, g2 = 0, b2 = 0;\n  if (hp < 1) { rr = c; g2 = xx; } else if (hp < 2) { rr = xx; g2 = c; } else if (hp < 3) { g2 = c; b2 = xx; } else if (hp < 4) { g2 = xx; b2 = c; } else if (hp < 5) { rr = xx; b2 = c; } else { rr = c; b2 = xx; }\n  const mm = v - c; return [rr + mm, g2 + mm, b2 + mm];\n}\n\nconst hueShift = P.hue - 275;\nconst expo = 0.55 + P.energy * 2.0 + K.intensity * 0.4 + A.bass * 1.2;\n\ng.loadPixels();\nconst px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  const cyn = j / BH - 0.5;\n  for (let i = 0; i < BW; i++) {\n    const bi = j * BW + i;\n    const d = dens[bi];\n    const dn = 1 - Math.exp(-d * expo * 0.045);\n    const avgc = d > 0.0001 ? chr[bi] / d : 0.5;\n    const cxn = i / BW - 0.5;\n    const vig = Math.exp(-(cxn * cxn + cyn * cyn) * 2.4);\n    let r, gg, b;\n    if (styleI === 4) { // pencil: graphite hatch on warm paper (abstracted / non-representational)\n      const hatch = 0.82 + 0.22 * Math.sin((i + j) * 0.9 + avgc * 6.0);\n      const grf = Math.pow(dn, 0.8) * hatch;\n      const tone = 1 - Math.min(1, grf) * 0.92;\n      r = 0.93 * tone; gg = 0.915 * tone; b = 0.86 * tone;\n    } else if (styleI === 2) { // ember: black -> deep red -> orange -> pale gold\n      const m = dn;\n      r = Math.min(1, m * 2.1);\n      gg = Math.min(1, Math.max(0, m * 1.9 - 0.55));\n      b = Math.min(1, Math.max(0, m * 2.6 - 1.9));\n      const grd = 0.05 * vig; r = Math.min(1, r + grd); gg += grd * 0.25;\n      [r, gg, b] = rot(r, gg, b, hueShift);\n    } else if (styleI === 3) { // ice: midnight -> glacial cyan -> white\n      const m = dn;\n      r = Math.min(1, Math.max(0, m * 1.5 - 0.35));\n      gg = Math.min(1, m * 1.35 + 0.05);\n      b = Math.min(1, m * 1.15 + 0.22);\n      const grd = 0.04 + 0.05 * vig; r += grd * 0.3; gg += grd * 0.5; b += grd;\n      [r, gg, b] = rot(r, gg, b, hueShift);\n    } else if (styleI === 1) { // plasma: iq cosine ribbon by depth+density\n      const c = iq(avgc * 0.85 + dn * 0.25 + K.t * 0.02);\n      const sh = 0.25 + 0.8 * dn;\n      const grd = 0.16 + 0.22 * vig;\n      r = Math.min(1, 0.34 * grd + c[0] * sh); gg = Math.min(1, 0.14 * grd + c[1] * sh); b = Math.min(1, 0.5 * grd + c[2] * sh);\n      [r, gg, b] = rot(r, gg, b, hueShift);\n    } else { // shell (default): violet -> cyan -> gold, density+depth log-mapped, glowing on dark\n      const c = shellPal(avgc * 0.62 + dn * 0.42);\n      const bright = 0.9 + 0.5 * dn;\n      const dnv = 1 - Math.exp(-d * expo * 0.05);\n      const gl = 0.17 + 0.30 * vig; // ambient violet ground so frame isn't near-black\n      r = Math.min(1, 0.30 * gl + c[0] * dnv * bright);\n      gg = Math.min(1, 0.13 * gl + c[1] * dnv * bright);\n      b = Math.min(1, 0.55 * gl + c[2] * dnv * bright);\n      [r, gg, b] = rot(r, gg, b, hueShift);\n    }\n    const o = 4 * bi;\n    px[o] = r * 255; px[o + 1] = gg * 255; px[o + 2] = b * 255; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio-reactive bloom on the bass -- partial ADD tint, never a full-frame flash (won't strobe)\nif ((A.bass > 0.02 || A.treble > 0.02) && styleI !== 4) {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass * 0.5 + A.treble * 0.35) * (0.4 + P.energy * 0.6);\n  fill((P.hue + 25) % 360, 40, 100, glow * 18);\n  ellipse(P.x * width, P.y * height, width * 0.85, height * 0.85);\n  blendMode(BLEND); pop();\n}\n"
+}

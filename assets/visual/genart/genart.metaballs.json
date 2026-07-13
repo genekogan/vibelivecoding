@@ -2,121 +2,124 @@
   "format": "livecode-visual-v1",
   "id": "genart.metaballs",
   "kind": "genart",
-  "name": "Metaballs",
-  "desc": "Liquid-chrome metaballs on a coarse marching-squares grid, orbiting blobs that merge and split with the bass while a breathing iso-threshold morphs the molten mass.",
+  "name": "Metaball Mercury",
+  "desc": "Luminous liquid-metal metaballs merge and split as seven charges orbit, an implicit field banded into chrome-teal-to-magenta iso-shells with a bright specular highlight so the molten blobs glow against a dim indigo ground.",
   "tags": [
     "metaballs",
+    "metaball",
+    "implicit-surface",
+    "isosurface",
     "blob",
     "liquid",
-    "chrome",
     "mercury",
-    "lava",
-    "organic",
-    "goo",
-    "marching-squares",
-    "isosurface",
-    "fluid",
+    "chrome",
     "molten",
-    "abstract",
-    "generative",
-    "thermal",
-    "oil-slick",
+    "lava",
+    "goo",
+    "fluid",
     "merge",
     "morph",
-    "fullscreen",
-    "background"
+    "orbit",
+    "specular",
+    "iridescent",
+    "oil-slick",
+    "thermal",
+    "x-ray",
+    "ink",
+    "organic",
+    "abstract",
+    "generative",
+    "genart",
+    "field",
+    "fullbleed",
+    "background",
+    "luminous",
+    "bright"
   ],
   "slots": [
     "bg"
   ],
   "budget": "medium",
   "params": {
-    "density": {
-      "default": 0.5,
-      "min": 0,
-      "max": 1,
-      "doc": "blob count 2..9"
-    },
     "scale": {
       "default": 1,
-      "min": 0.3,
-      "max": 2.0,
-      "doc": "blob radius vs design size"
-    },
-    "hue": {
-      "default": 205,
-      "min": 0,
-      "max": 360,
-      "doc": "primary metal/heat hue"
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "blob radius vs design size (higher = fatter merged mass)"
     },
     "energy": {
-      "default": 0.6,
-      "min": 0,
-      "max": 1,
-      "doc": "beat pulse + specular amplitude"
+      "default": 0.65,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow + specular amplitude"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "charge count 3..9"
     },
     "speed": {
       "default": 1,
-      "min": 0,
-      "max": 4,
-      "doc": "orbit/drift rate multiplier"
+      "min": 0.0,
+      "max": 3.5,
+      "doc": "orbit / drift rate"
     },
     "iso": {
       "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "iso threshold (low = fatter merged mass)"
+    },
+    "hue": {
+      "default": 200,
       "min": 0,
-      "max": 1,
-      "doc": "iso threshold (low=fatter merged mass)"
+      "max": 360,
+      "doc": "palette base hue"
     },
     "x": {
       "default": 0.5,
-      "min": 0,
-      "max": 1,
+      "min": 0.0,
+      "max": 1.0,
       "doc": "field center x fraction"
     },
     "y": {
       "default": 0.5,
-      "min": 0,
-      "max": 1,
+      "min": 0.0,
+      "max": 1.0,
       "doc": "field center y fraction"
     },
     "style": {
-      "default": "chrome",
+      "default": "mercury",
       "options": [
-        "chrome",
-        "thermal",
-        "oil",
+        "mercury",
+        "lava",
         "xray",
-        "blueprint"
+        "oil",
+        "ink"
       ],
-      "doc": "render philosophy: metallic banding / heat false-color / iridescent oil / glowing contour lines / schematic wire"
+      "doc": "render philosophy: chrome-teal/magenta + highlight / orange gooey heat / glowing iso-shells / iridescent oil / mono ink"
     },
     "seed": {
       "default": 0,
       "min": 0,
       "max": 9999,
-      "doc": "deterministic blob layout"
+      "doc": "deterministic charge layout"
     },
-    "act": {
-      "default": "orbit",
-      "options": [
-        "orbit",
-        "lava",
-        "swarm"
-      ],
-      "doc": "motion program"
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
     }
   },
-  "acts": [
-    "orbit",
-    "lava",
-    "swarm"
-  ],
+  "acts": null,
   "deps": [],
   "verified": {
-    "at": "2026-07-11T14:31:33+00:00",
-    "fps": 59.9,
-    "motion": 0.057,
-    "lum": 0.104
+    "at": "2026-07-13T15:03:14+00:00",
+    "fps": 56.5,
+    "motion": 0.2074,
+    "lum": 0.303
   },
-  "code": "const D = { density:.5, scale:1, hue:205, energy:.6, speed:1, iso:.5, x:.5, y:.5, style:'chrome', act:'orbit', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H);\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1), sc=clp(P.scale,0,2.4);\nconst style=P.style, hueP=((P.hue%360)+360)%360;\nconst cx=P.x*W, cy=P.y*H, t=K.t*clp(P.speed,0,4);\n\nconst NB=Math.max(2, Math.round(2+dens*7));\nif(S.nb!==NB || S.seedUsed!==P.seed){\n  S.seedUsed=P.seed; S.nb=NB; S.blobs=[];\n  for(let i=0;i<NB;i++) S.blobs.push({\n    ph:fr(i*3.1)*TAU, sp:.16+fr(i*5.7)*.5, orb:.12+fr(i*7.3)*.3,\n    rr:.06+fr(i*9.1)*.075, wob:fr(i*11.7)*TAU, lane:fr(i*13.3) });\n}\n\nlet bgH,bgS,bgB;\nif(style==='thermal'){bgH=245;bgS=55;bgB=6;}\nelse if(style==='blueprint'){bgH=214;bgS=68;bgB=17;}\nelse if(style==='xray'){bgH=205;bgS=35;bgB=8;}\nelse if(style==='oil'){bgH=255;bgS=45;bgB=8;}\nelse {bgH=208;bgS=22;bgB=11;}\nconst bkey=W+'x'+H+'|'+style+'|'+P.seed;\nif(S.bgKey!==bkey){\n  S.bgKey=bkey;\n  const g=createGraphics(W,H); g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  g.fill(bgH,bgS,bgB); g.rect(0,0,W,H);\n  for(let r=0;r<26;r++){ g.fill(bgH,bgS,Math.max(2,bgB-r*0.42),7); g.ellipse(W/2,H/2, W*(1.55-r*0.032), H*(1.55-r*0.032)); }\n  for(let i=0;i<1500;i++){ const gx=fr(i*1.7)*W,gy=fr(i*2.3)*H; g.fill(bgH,bgS*.5,bgB+(fr(i*3.1)-.5)*12,13); g.rect(gx,gy,1.6,1.6); }\n  S.bg=g;\n}\nimage(S.bg,0,0);\n\nconst bass=A.bass||0, treb=A.treble||0, swell=K.swell, pulse=K.pulse;\nconst pos=[];\nfor(let i=0;i<NB;i++){\n  const b=S.blobs[i], wob=Math.sin(t*b.sp*2+b.wob)*.02; let bx,by;\n  if(P.act==='lava'){\n    const yy=frc(t*b.sp*.22+b.lane); by=cy+(yy-.5)*H*.92; bx=cx+Math.sin(t*b.sp+b.ph)*u*b.orb*.5;\n  } else if(P.act==='swarm'){\n    bx=cx+(Math.sin(t*b.sp+b.ph)+Math.sin(t*b.sp*1.7+b.wob)*.6)*u*b.orb;\n    by=cy+(Math.cos(t*b.sp*1.3+b.ph)+Math.cos(t*b.sp*.9+b.wob)*.6)*u*b.orb;\n  } else {\n    const orb=b.orb*(1-bass*.34); bx=cx+Math.cos(t*b.sp+b.ph)*u*orb; by=cy+Math.sin(t*b.sp*1.11+b.ph)*u*orb;\n  }\n  const br=(b.rr+wob)*u*sc*(1+en*.3*pulse+bass*.4);\n  pos.push({x:bx,y:by,r2:br*br});\n}\n\nconst cell=Math.max(14,u/16), cols=Math.ceil(W/cell), rows=Math.ceil(H/cell), nx=cols+1;\nif(!S.val || S.gk!==W+'x'+H+'|'+cols+'|'+rows){ S.gk=W+'x'+H+'|'+cols+'|'+rows; S.val=new Float32Array((cols+1)*(rows+1)); }\nconst val=S.val, dx=W/cols, dy=H/rows;\nfor(let j=0;j<=rows;j++){ const py=j*dy; for(let i=0;i<=cols;i++){ const px=i*dx; let f=0;\n  for(let m=0;m<NB;m++){ const p=pos[m], ex=px-p.x, ey=py-p.y; f+=p.r2/(ex*ex+ey*ey+80); } val[j*nx+i]=f; } }\n\nconst isoT=(0.55+clp(P.iso,0,1)*0.9)*(1-0.18*swell);\nconst lineStyle=(style==='xray'||style==='blueprint');\n\nif(lineStyle){ noFill();\n  if(style==='blueprint'){ stroke(196,78,90,82); strokeWeight(Math.max(1,u*0.0026)); }\n  else { blendMode(ADD); stroke(hueP,45,96,60); strokeWeight(Math.max(1.5,u*0.006)); }\n} else noStroke();\n\nconst shade=(fx,fy,fv)=>{\n  if(style==='thermal'){ const h=clp((fv-isoT)/(isoT*1.5),0,1); return [250-h*250, 100-h*48, 26+h*72]; }\n  if(style==='oil'){ const band=frc(fv*0.05+fy*0.004+t*0.05); return [(hueP+band*360)%360, 55, 44+34*Math.sin(band*TAU)]; }\n  const band=Math.sin(fv*0.05+fy*0.02+t*0.6+fx*0.004); return [hueP, 12+8*Math.abs(band), 44+42*band];\n};\n\nfor(let j=0;j<rows;j++) for(let i=0;i<cols;i++){\n  const x0=i*dx,x1=(i+1)*dx,y0=j*dy,y1=(j+1)*dy;\n  const a=val[j*nx+i], b=val[j*nx+i+1], c=val[(j+1)*nx+i+1], d=val[(j+1)*nx+i];\n  const inA=a>=isoT,inB=b>=isoT,inC=c>=isoT,inD=d>=isoT;\n  const nin=(inA?1:0)+(inB?1:0)+(inC?1:0)+(inD?1:0);\n  if(nin===0) continue;\n  const cxs=[x0,x1,x1,x0], cys=[y0,y0,y1,y1], cvs=[a,b,c,d], cin=[inA,inB,inC,inD];\n  if(lineStyle){ const pts=[];\n    for(let e=0;e<4;e++){ const n=(e+1)%4; if(cin[e]!==cin[n]){ const tI=(isoT-cvs[e])/(cvs[n]-cvs[e]); pts.push([cxs[e]+(cxs[n]-cxs[e])*tI, cys[e]+(cys[n]-cys[e])*tI]); } }\n    if(pts.length>=2) line(pts[0][0],pts[0][1],pts[1][0],pts[1][1]);\n    if(pts.length>=4) line(pts[2][0],pts[2][1],pts[3][0],pts[3][1]);\n    continue;\n  }\n  const poly=[];\n  for(let e=0;e<4;e++){ const n=(e+1)%4; if(cin[e]) poly.push([cxs[e],cys[e]]);\n    if(cin[e]!==cin[n]){ const tI=(isoT-cvs[e])/(cvs[n]-cvs[e]); poly.push([cxs[e]+(cxs[n]-cxs[e])*tI, cys[e]+(cys[n]-cys[e])*tI]); } }\n  if(poly.length>=3){ const col=shade((x0+x1)*.5,(y0+y1)*.5,(a+b+c+d)*.25);\n    fill(col[0],col[1],col[2]); beginShape(); for(let q=0;q<poly.length;q++) vertex(poly[q][0],poly[q][1]); endShape(CLOSE); }\n}\n\nif(!lineStyle && (treb>0.05)){ blendMode(ADD); noStroke();\n  for(let i=0;i<NB;i++){ const p=pos[i]; fill(0,0,100,18*treb); ellipse(p.x-Math.sqrt(p.r2)*.3, p.y-Math.sqrt(p.r2)*.3, u*0.02*sc); } }\n\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+  "code": "const D = { scale:1, energy:.65, density:.55, speed:1, iso:.5, hue:200, x:.5, y:.5, style:'mercury', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, frc=v=>v-Math.floor(v);\nconst ss=(a,b,x)=>{ const t=Math.max(0,Math.min(1,(x-a)/(b-a))); return t*t*(3-2*t); };\n\n// coarse buffer\nconst BW = 176, BH = Math.max(72, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nconst ub = Math.min(BW, BH);\n\n// seed-dependent charge orbits\nif (S.seedUsed !== P.seed) {\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.seedUsed = P.seed; S.hoff = fr(1); S.blobs = [];\n  for (let i = 0; i < 9; i++) S.blobs.push({\n    ph: fr(i*3.1+2)*TAU, sp: .10 + fr(i*5.7+1)*.26, orb: .10 + fr(i*7.3+4)*.26,\n    rr: .11 + fr(i*9.1+3)*.06, wob: fr(i*11.7+5)*TAU });\n}\n\nconst dens = clp(P.density,0,1), en = clp(P.energy,0,1), sc = clp(P.scale,0.25,2.4);\nconst style = P.style, hoff = S.hoff, sec = K.section|0;\nconst t = K.t * clp(P.speed,0,4);\nconst NB = Math.max(3, Math.round(3 + dens*6));\nconst bass = A.bass||0, rms = A.rms||0, treb = A.treble||0;\n\n// live charge positions in buffer space\nconst bcx = clp(P.x,0,1)*BW, bcy = clp(P.y,0,1)*BH, eps = (0.032*ub)*(0.032*ub);\nconst cs = S.blobs;\nconst px_=[], py_=[], pr_=[];\nfor (let i = 0; i < NB; i++) {\n  const b = cs[i];\n  const ang = t*b.sp + b.ph;\n  const orbR = b.orb * (0.82 + 0.28*Math.sin(t*0.13 + b.wob) + K.intensity*0.16);\n  const ox = bcx + Math.cos(ang)*orbR*ub + Math.sin(t*b.sp*1.7 + b.wob)*ub*0.05;\n  const oy = bcy + Math.sin(ang*1.07 + b.ph)*orbR*ub*0.74 + Math.cos(t*b.sp*1.3 + b.wob)*ub*0.05;\n  const rad = b.rr*ub*sc * (1 + 0.12*Math.sin(t*b.sp*2 + b.wob) + bass*0.30);\n  px_.push(ox); py_.push(oy); pr_.push(rad*rad);\n}\n\n// exposure / palette drift\nconst expo = 0.74 + en*0.72 + K.intensity*0.26 + rms*0.6;\nconst isoT = (0.60 + clp(P.iso,0,1)*0.95) * (1 - 0.12*K.swell);\nconst drift = t*0.05 + sec*0.06;\nconst hbase = (((P.hue%360)+360)%360)/360;\n// iq cosine palette\nfunction pal(m, spread, ph) {\n  const r = 0.5 + 0.5*Math.cos(TAU*(spread*m + ph + 0.00));\n  const g = 0.5 + 0.5*Math.cos(TAU*(spread*m + ph + 0.33));\n  const b = 0.5 + 0.5*Math.cos(TAU*(spread*m + ph + 0.66));\n  return [r,g,b];\n}\n// rotating key light\nconst Lx = Math.cos(t*0.18 + 0.6), Ly = Math.sin(t*0.18 + 0.6)*0.5 - 0.62;\nconst Ll = Math.hypot(Lx,Ly)||1, lx = Lx/Ll, ly = Ly/Ll;\n\nconst g = S.g; g.loadPixels(); const pix = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    let f = 0, Gx = 0, Gy = 0;\n    for (let m = 0; m < NB; m++) {\n      const ex = i - px_[m], ey = j - py_[m];\n      const d2 = ex*ex + ey*ey + eps;\n      const inv = pr_[m] / d2;\n      f += inv;\n      const k = -2*inv/d2; Gx += k*ex; Gy += k*ey;\n    }\n    const surf = f / isoT;                       // 1 at the iso shell\n    const gm = Math.hypot(Gx,Gy) || 1e-6;\n    const nx = -Gx/gm, ny = -Gy/gm;              // outward normal\n    let spec = nx*lx + ny*ly; spec = spec>0 ? spec*spec*spec*spec : 0;\n    const interior = ss(0.62, 1.06, surf);\n    const rim = Math.exp(-Math.pow((surf-1.0)*4.2, 2));\n    const ripple = 0.5 + 0.5*Math.sin(surf*7.0 + t*0.5);\n\n    let r, gg, b;\n    if (style === 'lava') {\n      const gr = [0.07, 0.018, 0.006];\n      const s2 = Math.min(1.6, surf);\n      const cr = Math.min(1, 0.35 + s2*0.9);\n      const cg = Math.max(0, s2*0.75 - 0.28);\n      const cb = Math.max(0, s2*0.55 - 0.72);\n      r = gr[0] + interior*(cr - gr[0]) + rim*0.55;\n      gg = gr[1] + interior*(cg - gr[1]) + rim*0.28;\n      b = gr[2] + interior*(cb - gr[2]) + rim*0.05;\n      r += spec*0.35*interior; gg += spec*0.30*interior; b += spec*0.18*interior;\n    } else if (style === 'xray') {\n      const rings = Math.exp(-Math.pow((frc(surf*3.2 - drift*2)-0.5)*3.6, 2));\n      const glow = rings*(0.55+0.45*ripple) + rim*0.9;\n      const wash = interior*0.10;\n      r = 0.02 + wash*0.3 + glow*0.18;\n      gg = 0.03 + wash*0.9 + glow*1.0;\n      b = 0.05 + wash*0.7 + glow*0.72;\n    } else if (style === 'oil') {\n      const ang = Math.atan2(ny, nx)/TAU + 0.5;\n      const c = pal(surf*0.5 + ang*0.9 + drift*1.4, 1.0, hbase);\n      const sh = 0.30 + 0.65*ripple;\n      const gr = 0.05;\n      r = gr + interior*(c[0]*sh - gr) + rim*0.6 + spec*0.5*interior;\n      gg = gr + interior*(c[1]*sh - gr) + rim*0.6 + spec*0.5*interior;\n      b = gr + interior*(c[2]*sh - gr) + rim*0.7 + spec*0.5*interior;\n    } else if (style === 'ink') {\n      const tone = 0.30 + 0.55*ripple;\n      const gr = 0.14 - 0.05*surf*(surf<1?1:0);\n      let v = gr + interior*(tone - gr) + rim*0.5 + spec*0.55*interior;\n      r = v*1.0; gg = v*0.99; b = v*0.96;\n    } else { // mercury (default) \u2014 chrome teal->magenta iso-bands + bright rim/spec\n      const c = pal(surf*0.30 + drift, 0.85, 0.52 + hoff*0.25 + hbase*0.4);\n      const sh = 0.38 + 0.52*ripple;\n      const gr0 = 0.045, gr1 = 0.060, gr2 = 0.085; // dim indigo-teal ground\n      const rc = [0.55, 0.92, 1.0];                // cool chrome rim\n      r  = gr0 + interior*(c[0]*sh - gr0) + rim*rc[0]*0.75 + spec*0.85*interior;\n      gg = gr1 + interior*(c[1]*sh - gr1) + rim*rc[1]*0.75 + spec*0.85*interior;\n      b  = gr2 + interior*(c[2]*sh - gr2) + rim*rc[2]*0.75 + spec*0.85*interior;\n    }\n\n    r *= expo; gg *= expo; b *= expo;\n    // treble sparkle on specular peaks (audio on top, zero-safe)\n    if (treb > 0.02) { const sp = spec*interior*treb*0.6; r += sp; gg += sp; b += sp; }\n\n    const o = 4*(j*BW + i);\n    pix[o]   = Math.max(0, Math.min(255, r*255));\n    pix[o+1] = Math.max(0, Math.min(255, gg*255));\n    pix[o+2] = Math.max(0, Math.min(255, b*255));\n    pix[o+3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
 }
