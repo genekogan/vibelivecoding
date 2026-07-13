@@ -56,7 +56,7 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## >>> RESUME HERE (checkpoint 2026-07-12 ~23:30, opus-4-8 session) <<<
-**82 new genart accepted (catalog 116, baseline 34).** Target +100-200 → 82/100, ~2 waves out; keep going.
+**91 new genart accepted (catalog 125, baseline 34).** Target +100-200 → 91/100, ONE wave from the low end.
 Since the ~22:45 checkpoint: wave-5 reviewed (+8: gray_scott, truchet[refresh], voronoi_cells, cyclic_ca,
 maze, lyapunov, rorschach-fix, sandpile-fix; dropped dup phyllotaxis; requeued dla), hand-authored chladni
 (cymatics) + nbody spiral-galaxy (fixed after 2 subagent fails: TRUE circular-orbit v + short trails).
@@ -64,10 +64,11 @@ Wave-6 done (+4). Wave-7 done (+9: magnetic_pendulum STANDOUT, matrix_rain, fore
 starfield_warp, julia_morph + feedback_tunnel/koch_flake/plasma_globe fixes ALL succeeded; dropped dup marbling).
 Wave-8 done (+9: gumowski_mira STANDOUT, buddhabrot, conway_life, hopalong, ising, percolation, slit_scan,
 wang_tiles, biham; requeued coulomb_lattice). Wave-9 done (+8: karman_vortex, kelvin_helmholtz, kuramoto, lissajous_grid, maurer_rose, snowflake,
-string_art, coulomb-fix; hand-authored fractal_tree after subagent failed motion gate). Wave-10 IN FLIGHT
-(9 new + ferrofluid fix): delaunay_flux, lichtenberg, munching_squares, celtic_knot, droste, wallpaper_group,
-stipple, spirograph, kolam. Hand-authored kernels: +fractal_tree.js (incommensurate-wind motion-floor trick).
-wave4-10.json. Requeue backlog: ferrofluid (in wave-10).
+string_art, coulomb-fix; hand-authored fractal_tree after subagent failed motion gate). Wave-10 done (+9: celtic_knot STANDOUT, droste STANDOUT, delaunay_flux, munching_squares, wallpaper_group,
+ferrofluid-fix, kolam, lichtenberg, stipple; requeued spirograph). Wave-11 IN FLIGHT (9 new + spirograph fix):
+aizawa, ulam_spiral, collatz_river, gosper_curve, wave_packet, additive_synth, rauzy, moebius_grid,
+domain_coloring. This wave should CROSS +100. Then Phase-4: ranked report + multi-layer VJ scene captures.
+wave4-11.json. Requeue backlog: spirograph (in wave-11).
 NOTE: check every wave asset's id vs existing catalog before validating — phyllotaxis & truchet already
 existed (validate silently OVERWRITES same-id). Hand-authored kernels now in scratchpad/gf/ref/:
 plasma/epicycles/caustics/noise_contour/godrays/prism/physarum/harmonograph + pixel_sort/lenia/watercolor/
