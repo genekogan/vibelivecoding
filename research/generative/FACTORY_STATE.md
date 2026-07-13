@@ -55,20 +55,25 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
   don't trust the gate. (My hand-authored assets read P every frame → genuinely responsive.)
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
-## >>> RESUME HERE (checkpoint 2026-07-12 ~21:00, paused on quota) <<<
-**24 new genart accepted (catalog 58, baseline 34).** Accepted list: plasma_warp, epicycles,
-caustics, quasicrystal, datascape, strange_dejong, ripple_tank, noise_contour, moire_weave,
-warp_grid, oil_slick, godrays, prism, boids, mandelbrot, penrose, ifs_flame, kaleidoscope,
-halftone_cmyk, lightning, stable_fluids, elementary_ca, harmonograph, physarum.
-(9 hand-authored in scratchpad/gf/ref/*.js; 15 from subagent waves.)
+## >>> RESUME HERE (checkpoint 2026-07-12 ~22:45, opus-4-8 session) <<<
+**42 new genart accepted (catalog 76, baseline 34).** Since the 24-checkpoint, added:
+- wave-3 review: apollonian, drip_paint, lorenz, lowpoly_mesh, newton_fractal, spacefill, superformula (7).
+- guilloche: hand-fixed pale->'engraved' high-contrast (was requeue), accepted.
+- wave-4 (11 emergent families authored, 9 accepted): diffusion_dye, flow_ribbons, hyperbolic(STANDOUT),
+  bz_spirals, curl_smoke, langton_ant, venation, wireworld + pixel_sort. Requeued: nbody, sandpile, rorschach.
+- hand-authored (subagent-fail families): pixel_sort (Asendorf databend/chromatic/vhs), lenia (continuous-CA alife).
+(Hand-authored kernels now: + pixel_sort.js, lenia.js in scratchpad/gf/ref/.)
 
-**IMMEDIATE NEXT STEP — 8 wave-3 assets sit in assets/visual/inbox/ AUTHORED BUT UNREVIEWED:**
-apollonian, drip_paint, guilloche, lorenz, lowpoly_mesh, newton_fractal, spacefill, superformula.
-→ Resume by: `python3 scratchpad/gf/gf_snap.py --outdir scratchpad/gf/_wave3 --glob 'assets/visual/inbox/*.json'`
-  then `python3 scratchpad/gf/gf_sheet.py --dir scratchpad/gf/_wave3 --out scratchpad/gf/_wave3/sheet.png --cols 3`,
-  READ the sheet (COLOR now), accept good ones via `validate.py`, requeue/hand-author the rest.
-(Wave-3's other 4 — venation, maze, rorschach, sandpile — FAILED on the quota limit and are NOT in
-inbox; re-author them in the next wave.)
+**IN FLIGHT: wave-5 authoring (Workflow, 11 agents) — args=scratchpad/gf/wave5.json:**
+gray_scott, dla, truchet, voronoi_cells, lyapunov, phyllotaxis, maze, cyclic_ca (8 NEW)
++ nbody, sandpile, rorschach (3 targeted FIXES with specific critique baked into the recipe).
+→ When it lands: gf_snap glob inbox -> gf_sheet -> READ -> validate keepers -> requeue duds -> commit.
+  (Batch gf_snap of ~11 assets takes >2min — run it BACKGROUND or in two halves; validate loop also >2min for 8.)
+
+**Still-uncovered toward 100-200 (next waves):** watercolor(HAND-AUTHOR — subagents pale/mono), koch,
+double_pendulum, plasma_globe, smoke, testcard, seven_segment, scanlines, celtic_knot, clifford/gumowski
+attractors, gray-scott variants, hexlife, wave_interference, chladni, reaction spirals variants,
+metaballs2, kaleido variants, halftone variants, feedback-tunnel, slitscan, ascii_rain, mandelbulb-2d-slice.
 
 **PHASE STATUS (honest):** P1 research = partial (39 cards, 184-url manifest, 169 imgs downloaded —
 below the ≥500/≥60-artist gate; corpus was throttled, not a blocker for authoring). P2 compendium =
@@ -110,6 +115,11 @@ cyclic_ca SHELVED (needs radius-2 neighborhood for real spirals — scratchpad/g
 (wave3.json) → repeat toward 100-200. Keep ONE wave always authoring so the loop self-continues.
 
 ## Progress log (newest first)
+- 2026-07-12 22:45 — 42 accepted (catalog 76). Reviewed wave-3 (+7), hand-fixed guilloche, ran wave-4
+  (+9 incl. hyperbolic standout), hand-authored pixel_sort + lenia. Wave-5 (8 new + 3 fixes) authoring.
+  Commits 770cfe0..259d01f. Pace picking up under opus-4-8. pixel_sort took ~5 iters (Asendorf look is
+  hard from synthetic source — key was decoupling hue from the sort key + row-based rainbow). lenia stable
+  (homeostatic reseed prevents die-out; 108-wide grid holds 60fps at ~9.5ms/frame in node).
 - 2026-07-12 09:55 — 9 accepted. Wave-2 (10 new + 3 fixes) authoring. Rhythm established.
 - 2026-07-12 09:35 — Salvaged from throttled workflows: 39 artist cards, 11 technique files,
   MANIFEST.jsonl (184 image URLs / 20 artists), corpus download running. First asset
