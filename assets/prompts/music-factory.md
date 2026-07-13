@@ -134,6 +134,10 @@ roles × up to 3 gestures, plus 1–2 kits per genre and a shared arc library):
    reason; twice-failed → note and move on.
 5. **Kits + arcs**: after each genre's stems verify, author its kits (validate
    fires the whole kit — listen for balance via rms) and wire recommended arcs.
+   Then run `python assets/tools/verify_arcs.py` — kits MUST be audible in every
+   section of every arc they list (validate.py never plays a kit through an arc;
+   this gate does). Arcs' thin sections carry a `"*":"sparse"` floor so any kit
+   stays audible.
 6. **Commit** every batch; one-line progress updates every ~15 min.
 7. **Spot-listen**: every ~40 stems, fire one kit end-to-end with an arc and
    let it run a full arc cycle; confirm the mix doesn't clip (rms sane), the
@@ -144,10 +148,17 @@ learned), tell Gene to relaunch with this prompt — resumable from that file.
 
 ## After the run
 
-Report totals by genre/slot, coverage vs plan, your 10 best, weak spots. Then
-Gene grades: `python assets/tools/review.py music --port 9766` (1–5 grade,
-v cycles sparse/full/peak, space skip, n note, q quit). Second pass later:
-improve/replace ≤2s, variations of 5s, fold notes into new work orders.
+Report totals by genre/slot, coverage vs plan, your 10 best, weak spots.
+
+**Verify before ANY handoff:** every kit must pass BOTH `validate.py` (stem/kit
+gates) AND `verify_arcs.py` (kit×arc section audibility). Never hand off
+silent/too-quiet sound — that's a hard rule now.
+
+**Grading (Gene's taste):** the primary path is the **browser** — open
+`assets/music/browse.html`, grade `1/2/3` = ✗bad/○ok/★good → `assets/music/grades.jsonl`
+(good = reinforce his taste on future work; bad = `prune_graded.py --apply` moves
+it to `graveyard/`). The legacy CLI `review.py music --port 9766` (1–5) still
+works. Fold taste signals into new work orders. Full system: `assets/music/README.md`.
 
 ## Hard rules
 

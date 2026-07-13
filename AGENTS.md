@@ -19,6 +19,19 @@ Don't conflate them — they're different surfaces over the same server.
 (deleted legacy), don't run something from `compositions/` by mistake, don't
 invoke `/schedule` (that's cloud cron, breaks in-session steering).
 
+## Music Catalog System (stems / kits / arcs) — read the README
+
+Beyond live improvisation there is a large **verified, parametric music catalog**
+under `assets/music/` (407 stems · 44 kits · 12 arcs · 41 genres) that the
+performing agent *retrieves and fires* rather than coding from scratch.
+**`assets/music/README.md` is the START-HERE guide** — how to run, use, author,
+verify, and grade it (the music counterpart to `.claude/skills/p5.md` for visuals).
+Key facts: the catalog tooling runs on **port 9766** by convention (so it coexists
+with the visual catalog on 8766); the browser explorer/grader is
+`assets/music/browse.html`; a stem/kit is only "done" once it passes BOTH
+`assets/tools/validate.py` AND `assets/tools/verify_arcs.py` (the kit×arc
+section-audibility gate). Never hand off silent/too-quiet sound.
+
 ## Unified System (preferred)
 
 | Component | Purpose |
@@ -184,7 +197,11 @@ python p5_live.py             # visuals only — open http://localhost:8776/p5.h
 | `assets/prompts/generative-factory.md` | **Generative-art factory pass** — how to run a wave-based +100-asset build (Ralph-loop doctrine) |
 | `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (166 pieces) — coverage by family, ranked self-grades, second-pass brief |
 | `grade.html` | **Browser grader** (`localhost:8766/grade.html`) — live-render + bad/ok/good every genart, exports `visual-grades.jsonl` |
-| `.claude/skills/strudel.md` | **Strudel agent guide** — music syntax + sample packs + patterns |
+| **`assets/music/README.md`** | **Music catalog system — START HERE for music.** Run/use/author/verify/grade the stems+kits+arcs catalog; the map to CONTRACT + BUNDLE + the toolchain |
+| `assets/music/browse.html` | **Music browser + grader** (`localhost:9766/assets/music/browse.html`) — audition the sound space by keyboard, fire kits through arcs, grade bad/ok/good → `assets/music/grades.jsonl` |
+| `assets/music/BUNDLE.md` | Verified Strudel feature matrix + BANNED list + loudness recipe (music authoring) |
+| `assets/prompts/music-factory.md` | **Music factory pass** — how to run a wave-based catalog build |
+| `.claude/skills/strudel.md` | **Strudel CRAFT guide** — music syntax + sample packs + genre recipes (pair with the README for the *system*) |
 | `.claude/skills/livecode-tips.md` | **Manual-mode tips** — starting the server, curl basics, streaming |
 | `.claude/skills/livecode-compose.md` | **Showrunner skill** — author/record/replay shows w/ scenes lib |
 | `.claude/skills/autopilot.md` | **Autopilot skill** — autonomous in-session improv loop |

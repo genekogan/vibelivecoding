@@ -276,6 +276,11 @@ Arcs: `assets/music/arcs/<id>.arc.json` (`livecode-arc-v1`).
   Also emits a grep-friendly `INDEX.md` next to each.
 - `assets/review.jsonl` — append-only grades from `assets/tools/review.py`:
   `{ts, id, grade (1–5), note}`. Latest grade per id wins; folded into the index.
+- **Taste grading (browser, preferred):** the visual grader (`grade.html`) and the
+  music browser (`assets/music/browse.html`) record a simpler `{ts, id, grade}`,
+  grade ∈ {bad, ok, good}, via `POST /music/grade` → `assets/music/grades.jsonl`
+  (latest-per-id wins). `good` = reinforce Gene's taste; `bad` = delete via
+  `assets/tools/prune_graded.py` (soft-moves to `graveyard/`, kept as an RL signal).
 
 ## Validation gates (what `assets/tools/validate.py` enforces)
 
@@ -292,6 +297,13 @@ Arcs: `assets/music/arcs/<id>.arc.json` (`livecode-arc-v1`).
 
 Passing stamps `verified: {at, …metrics}` into the asset file. Unverified
 assets sit in `inbox/` and never reach the index.
+
+**Music kits additionally** must pass `assets/tools/verify_arcs.py`: fired
+through each recommended arc, EVERY section must be audible. `validate.py` only
+fires a kit at all-`full` and never through an arc, so a kit can pass it and
+still go silent in an arc's sparse intro/breakdown/outro. This is a required
+pre-handoff gate; arcs carry a `"*":"sparse"` floor on thin sections so any kit
+stays audible. See `assets/music/README.md`.
 
 ## Authoring checklist for subagents (the short version)
 

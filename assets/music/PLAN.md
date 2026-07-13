@@ -1,5 +1,9 @@
 # Music Catalog Plan — Phase 1 (for Gene's sign-off)
 
+> **Historical.** This is the original Phase-1 sign-off plan; the catalog now
+> exceeds it (**407 stems · 44 kits · 12 arcs · 41 genres**). For the current
+> system and how to use it, start at **[`README.md`](README.md)**.
+
 198 numbered entries: **161 stems** (1–161) + **27 kits** (162–188) + **10 arcs**
 (189–198). Curate by number: strike, swap, or add. `[H]` = harvested from
 stage-proven material (scenes/*.py, full_show.show.json, musicscenes/*.json) —

@@ -1,5 +1,9 @@
 # Music Factory — resumable state (updated 2026-07-13, session-4 arc-audibility fix)
 
+> This file is the build/session **log + resume state** (newest session first).
+> To learn how to **use / author / verify / grade** the music system, start at
+> **[`README.md`](README.md)** — the onboarding hub. This file is history.
+
 ## SESSION 4 (2026-07-13 — KIT×ARC SECTION AUDIBILITY FIX)
 
 Gene reported new kits sounded "broken or too quiet" through `slow_burn`,
