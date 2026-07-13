@@ -1,0 +1,123 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.times_table",
+  "kind": "genart",
+  "name": "Times-Table Cardioid",
+  "desc": "A modular-multiplication string envelope where N points on a circle wire i to i*k, the multiplier creeping forever so the caustic sweeps through cardioid, nephroid and multi-lobed rose envelopes as luminous index-hued chords over dark.",
+  "tags": [
+    "times-table",
+    "modular",
+    "cardioid",
+    "nephroid",
+    "caustic",
+    "string-art",
+    "chords",
+    "envelope",
+    "circle",
+    "geometry",
+    "generative",
+    "genart",
+    "math",
+    "mathart",
+    "curve",
+    "spirograph",
+    "rose",
+    "harmonic",
+    "glow",
+    "neon",
+    "gold",
+    "blueprint",
+    "ink",
+    "abstract",
+    "fullbleed",
+    "background",
+    "hypnotic",
+    "luminous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.12,
+      "max": 1.0,
+      "doc": "chord count (more points = denser envelope)"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / line glow amplitude"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "multiplier sweep rate (envelope morph speed)"
+    },
+    "mult": {
+      "default": 2.0,
+      "min": 1.5,
+      "max": 12.0,
+      "doc": "base multiplier k (2=cardioid, 3=nephroid, higher=more lobes)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 1.5,
+      "doc": "circle radius vs frame"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "circle center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "circle center y"
+    },
+    "style": {
+      "default": "caustic",
+      "options": [
+        "caustic",
+        "gold",
+        "neon",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic hue/phase variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:24:15+00:00",
+    "fps": 59.5,
+    "motion": 0.0276,
+    "lum": 0.089
+  },
+  "code": "const D = { density: .5, energy: .7, speed: 1, mult: 2, scale: 1, hue: 210, x: .5, y: .5, style: 'caustic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// full-canvas additive render buffer, cached on size\nif (!S.g || S.key !== width + 'x' + height) {\n  S.g = createGraphics(width, height);\n  S.g.pixelDensity(1);\n  S.g.colorMode(HSB, 360, 100, 100, 100);\n  S.key = width + 'x' + height;\n}\n// seed-dependent structure (hue offset / gradient span / phase)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 90;\n  S.spread = 110 + fr(2) * 170;\n  S.phase = fr(3) * 6.2831853;\n}\n\nconst TAU = 6.2831853;\nconst u = Math.min(width, height);\nconst R = u * 0.40 * P.scale;\nconst cx = P.x * width, cy = P.y * height;\nconst N = Math.round(40 + P.density * 520);\n// continuous multiplier sweep \u2014 k grows forever on K.t so the envelope never repeats\nconst k = P.mult + K.t * (0.04 + P.speed * 0.12);\nconst rot = S.phase + K.t * 0.025 + K.section * 0.3 + A.mid * 0.3;\nconst expo = 0.4 + P.energy * 0.95 + K.intensity * 0.22 + A.bass * 0.5 + K.pulse * 0.15;\nconst style = P.style;\nconst hueBase = (P.hue + K.section * 17 + S.hoff + 720) % 360;\n\nconst coreA = Math.min(30, 9 + expo * 13 + A.treble * 8);\nconst haloA = Math.min(16, 4 + expo * 7);\nconst coreB = Math.min(100, 55 + expo * 45);\nconst haloB = coreB * 0.55;\nconst haloW = 1.4 + P.scale * 0.9 + A.rms * 1.2;\nconst coreW = 0.8 + P.scale * 0.2;\n\nconst g = S.g;\ng.push();\ng.clear();\ng.blendMode(ADD);\ng.noFill();\nfor (let i = 0; i < N; i++) {\n  const u01 = i / N;\n  const a1 = rot + TAU * u01;\n  const a2 = rot + TAU * ((i * k) / N);\n  const x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);\n  const x2 = cx + R * Math.cos(a2), y2 = cy + R * Math.sin(a2);\n  let h, s;\n  if (style === 'neon') { h = (hueBase + u01 * 300) % 360; s = 100; }\n  else if (style === 'gold') { h = (38 + Math.sin(u01 * TAU + S.phase) * 11 + 360) % 360; s = 70; }\n  else if (style === 'blueprint') { h = 200; s = 14; }\n  else if (style === 'ink') { h = 0; s = 0; }\n  else { h = (hueBase + u01 * S.spread) % 360; s = 84; } // caustic default\n  // halo pass (wide, soft)\n  g.strokeWeight(haloW);\n  g.stroke(h, s * 0.8, haloB, haloA);\n  g.line(x1, y1, x2, y2);\n  // core pass (thin, bright)\n  g.strokeWeight(coreW);\n  g.stroke(h, s, coreB, coreA);\n  g.line(x1, y1, x2, y2);\n}\ng.pop();\n\n// ground tone per style (fills the whole frame for opaque genart bg)\nlet gh, gs, gb;\nif (style === 'blueprint') { gh = 208; gs = 70; gb = 17; }\nelse if (style === 'ink') { gh = 0; gs = 0; gb = 5; }\nelse if (style === 'gold') { gh = 34; gs = 52; gb = 6; }\nelse { gh = hueBase; gs = 45; gb = 7; }\n\npush();\nif (P.alpha >= 100) {\n  background(gh, gs, gb);\n  image(g, 0, 0);\n} else {\n  tint(0, 0, 100, P.alpha);\n  image(g, 0, 0);\n  noTint();\n}\npop();\n"
+}
