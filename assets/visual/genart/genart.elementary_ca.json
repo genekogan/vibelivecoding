@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.elementary_ca",
+  "kind": "genart",
+  "name": "Elementary CA Spacetime",
+  "desc": "A 1D elementary cellular automaton (Wolfram rules 90/30/110/... drifting by section) evolved row-by-row and streamed endlessly upward, its nested triangles and fractal veins age-colored across phosphor terminal, ink-on-paper, amber CRT, spectral, and thermal false-color looks.",
+  "tags": [
+    "elementary-ca",
+    "cellular-automaton",
+    "automata",
+    "wolfram",
+    "rule-30",
+    "rule-90",
+    "rule-110",
+    "spacetime",
+    "sierpinski",
+    "fractal",
+    "triangles",
+    "scrolling",
+    "streaming",
+    "phosphor",
+    "terminal",
+    "crt",
+    "retro",
+    "matrix",
+    "thermal",
+    "ink",
+    "blueprint",
+    "generative",
+    "genart",
+    "abstract",
+    "discrete",
+    "green",
+    "monochrome",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cell fill / structure richness (higher = denser field)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "cell size / zoom (higher = chunkier cells, fewer columns)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / phosphor glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "upward scroll rate (rows streamed per second)"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (phosphor/spectral)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the toroidal field"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical position of the audio growth-edge glow"
+    },
+    "style": {
+      "default": "phosphor",
+      "options": [
+        "phosphor",
+        "ink-on-paper",
+        "amber-crt",
+        "spectral",
+        "thermal"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (init + rule rotation)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T01:02:55+00:00",
+    "fps": 60.2,
+    "motion": 0.1755,
+    "lum": 0.277
+  },
+  "code": "const D = { density: .5, scale: 1, energy: .62, speed: 1, hue: 135, x: .5, y: .5, style: 'phosphor', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- cell grid dimensions (scale -> cell size; smaller scale = finer cells) ----\nconst CW = Math.max(60, Math.min(256, Math.round(200 / P.scale)));\nconst CH = Math.max(40, Math.min(224, Math.round(CW * height / Math.max(1, width))));\nconst seedI = P.seed | 0;\n\n// deterministic uniform hash (no p5 random); Math.imul keeps the 32-bit mix exact\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\n// ---- rule by section (Wolfram elementary rules), seed-rotated ----\nconst RULES = [90, 30, 110, 150, 54, 126, 60, 105, 22, 73, 45, 182];\nconst secI = Math.floor(K.section) % 8;\nconst RULE = RULES[(secI + (seedI % RULES.length)) % RULES.length];\nif (S.ruleUsed !== RULE) {\n  S.ruleUsed = RULE;\n  S.rl = new Uint8Array(8);\n  for (let n = 0; n < 8; n++) S.rl[n] = (RULE >> n) & 1;\n}\nconst rl = S.rl;\n\n// ---- clock -> streaming rate (rows/sec). Continuous K.t motion floor (never re-phases) ----\nconst sps = 4 + P.speed * 6 + K.intensity * 3;\nconst fp = K.t * sps;\nconst target = Math.floor(fp);\nconst frac = fp - target;\n\n// ---- evolve one generation (toroidal), storing alive + birthing-neighborhood code ----\nfunction evolve(prev) {\n  const pa = prev.a, na = new Uint8Array(CW), nc = new Uint8Array(CW);\n  let cnt = 0;\n  for (let i = 0; i < CW; i++) {\n    const l = pa[(i - 1 + CW) % CW], c = pa[i], r = pa[(i + 1) % CW];\n    const n = (l << 2) | (c << 1) | r;\n    const v = rl[n];\n    na[i] = v; nc[i] = n; cnt += v;\n  }\n  // sustain: reseed degenerate rows so the field never blanks or floods\n  if (cnt < CW * 0.03 || cnt > CW * 0.97) {\n    for (let i = 0; i < CW; i++) { na[i] = gh(i, S.stepCount | 0) < (0.16 + P.density * 0.4) ? 1 : 0; nc[i] = na[i] ? ((i * 3 + (S.stepCount | 0)) & 7) : 0; }\n  } else if (((S.stepCount | 0) % 41) === 0) {\n    // occasional single-cell spark -> spawns a fresh triangle\n    const j = ((gh(7, S.stepCount | 0) * CW) | 0) % CW; na[j] = 1;\n  }\n  return { a: na, c: nc };\n}\n\n// ---- (re)build the whole spacetime field on size / seed / density / rule change ----\nconst dBucket = Math.round(P.density * 20);\nconst buildSig = CW + 'x' + CH + '_' + seedI + '_' + dBucket + '_' + RULE;\nif (S.buildSig !== buildSig || !S.rows) {\n  S.buildSig = buildSig;\n  const p = 0.15 + P.density * 0.55;\n  const first = { a: new Uint8Array(CW), c: new Uint8Array(CW) };\n  for (let i = 0; i < CW; i++) { first.a[i] = gh(i, 7777) < p ? 1 : 0; first.c[i] = first.a[i] ? (i & 7) : 0; }\n  S.rows = new Array(CH); S.rows[0] = first;\n  S.head = CH - 1; S.stepCount = target;\n  for (let k = 1; k < CH; k++) S.rows[k] = evolve(S.rows[k - 1]);\n  S.sig = null;\n}\n\n// ---- advance streaming (guard t0 resets, cap catch-up) ----\nif (S.stepCount == null || target < S.stepCount) S.stepCount = target;\nif (target - S.stepCount > CH * 1.5) {\n  S.buildSig = null; // huge jump -> rebuild next check instead of grinding\n} else {\n  let guard = 0;\n  while (S.stepCount < target && guard < 8) {\n    const nr = evolve(S.rows[S.head]);\n    S.head = (S.head + 1) % CH;\n    S.rows[S.head] = nr;\n    S.stepCount++; guard++;\n  }\n}\n\n// ---- coarse buffer ----\nif (!S.g || S.gw !== CW || S.gh !== CH) { S.g = createGraphics(CW, CH); S.g.pixelDensity(1); S.gw = CW; S.gh = CH; }\n\n// ---- color: HSV -> rgb 0..255 into a shared out triple (no per-pixel alloc) ----\nconst OUT = [0, 0, 0];\nfunction setHSV(o, h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; } else if (h < 180) { r = 0; g = c; b = x; }\n  else if (h < 240) { r = 0; g = x; b = c; } else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }\n  o[0] = (r + m) * 255; o[1] = (g + m) * 255; o[2] = (b + m) * 255;\n}\n\nconst style = P.style;\nconst eexp = 0.55 + P.energy * 0.85;\nconst bh = P.hue;\nconst colOff = Math.floor(P.x * CW);\n\n// choose a colorer per style (age 0 = newest/bottom .. 1 = oldest/top)\nlet colorer;\nif (style === 'ink' || style === 'ink-on-paper') {\n  colorer = (alive, code, ageN) => {\n    if (!alive) { setHSV(OUT, 40, 0.09, 0.87); return; }\n    const dark = 0.16 + ageN * 0.30; // fresh ink darkest, dries lighter as it scrolls up\n    setHSV(OUT, 232 + code * 2, 0.24, dark);\n  };\n} else if (style === 'amber' || style === 'amber-crt') {\n  colorer = (alive, code, ageN) => {\n    if (!alive) { setHSV(OUT, 26, 0.55, 0.035); return; }\n    const v = Math.min(1, (0.5 + 0.5 * (1 - ageN)) * eexp);\n    setHSV(OUT, 38 - ageN * 16 + code * 1.2, 0.92, v);\n  };\n} else if (style === 'spectral') {\n  colorer = (alive, code, ageN) => {\n    if (!alive) { setHSV(OUT, bh + 190, 0.6, 0.05); return; }\n    const v = Math.min(1, (0.42 + 0.55 * (1 - ageN * 0.6)) * eexp);\n    setHSV(OUT, bh + code * 42 + ageN * 130 + secI * 14, 0.86, v);\n  };\n} else if (style === 'thermal') {\n  colorer = (alive, code, ageN) => {\n    let heat = alive ? (0.42 + 0.55 * (1 - ageN) + code * 0.02) : (0.04 + (1 - ageN) * 0.03);\n    heat = Math.min(1, heat * eexp);\n    let sat = Math.min(1, 0.55 + heat * 0.55); if (heat > 0.82) sat -= (heat - 0.82) * 3.2;\n    setHSV(OUT, 285 - heat * 285, Math.max(0, sat), Math.min(1, heat * 1.35 + 0.03));\n  };\n} else { // phosphor terminal (default) \u2014 green-on-black, age + neighborhood color\n  colorer = (alive, code, ageN) => {\n    if (!alive) { setHSV(OUT, bh, 0.7, 0.055); return; }\n    const v = Math.min(1, (0.5 + 0.5 * (1 - ageN)) * eexp);\n    setHSV(OUT, bh + (code - 3.5) * 5 + ageN * 26, Math.max(0.35, 0.9 - ageN * 0.35), v);\n  };\n}\n\n// ---- render the buffer only when something visible changed (per step or live poke) ----\nconst sig = style + '|' + Math.round(bh) + '|' + P.energy.toFixed(2) + '|' + (S.stepCount | 0) + '|' + CW + 'x' + CH + '|' + colOff + '|' + secI;\nif (S.sig !== sig) {\n  S.sig = sig;\n  const g = S.g; g.loadPixels(); const px = g.pixels;\n  const denom = Math.max(1, CH - 1);\n  for (let r = 0; r < CH; r++) {\n    const ageN = (CH - 1 - r) / denom; // top (r=0) oldest -> bottom newest\n    const row = S.rows[(S.head + 1 + r) % CH];\n    const ra = row.a, rc = row.c;\n    for (let i = 0; i < CW; i++) {\n      const ci = (i + colOff) % CW;\n      colorer(ra[ci], rc[ci], ageN);\n      const o = 4 * (r * CW + i);\n      px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\n// ---- draw: upscale with continuous sub-row scroll (the motion floor) ----\nconst rowPix = height / CH;\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.g, 0, -frac * rowPix, width, height + rowPix);\npop();\n\n// ---- CRT scanlines for phosphor / amber (static overlay, cached) ----\nif (style === 'phosphor' || style === 'amber' || style === 'amber-crt') {\n  if (!S.scan || S.scanH !== height) {\n    S.scan = createGraphics(4, Math.max(2, height | 0)); S.scan.pixelDensity(1);\n    const s = S.scan; s.loadPixels(); const pp = s.pixels;\n    for (let y = 0; y < s.height; y++) { const a = (y % 3 === 0) ? 60 : 0; for (let xx = 0; xx < 4; xx++) { const o = 4 * (y * 4 + xx); pp[o] = 0; pp[o + 1] = 0; pp[o + 2] = 0; pp[o + 3] = a; } }\n    s.updatePixels(); S.scanH = height;\n  }\n  image(S.scan, 0, 0, width, height);\n}\n\n// ---- audio reactivity ON TOP of the clk baseline (all-zero during validation) ----\nif (A.bass > 0.01 || A.treble > 0.01 || A.rms > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  fill((bh + 18) % 360, 42, 100, A.bass * P.energy * 15);\n  rect(0, 0, width, height);\n  const gy = height * (0.62 + P.y * 0.28);\n  fill((bh + 44) % 360, 34, 100, A.treble * 22);\n  rect(0, gy, width, height - gy);\n  blendMode(BLEND); pop();\n}\n"
+}
