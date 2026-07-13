@@ -208,3 +208,30 @@ flails. Rules:
 - **Param poke sanity**: with the first two numeric params at max, the render
   must OBVIOUSLY differ (e.g. scale max ≥ 1.8 → nearly double size; energy max
   → exaggerated dance). If max just looks like default, the gate fails you.
+
+## Motion re-phasing & luminance — the two silent killers (distilled from 130+ assets)
+
+1. **Re-phasing (the #1 cause of a "STATIC" fail on a piece that clearly moves).**
+   The motion gate compares snapshots **8 s apart**. Two ways to accidentally read
+   as frozen: (a) motion driven **only** by `K.beat/K.pulse/K.cyc` — at cps≈0.5, 8 s
+   ≈ 16 beats, so it's byte-identical 8 s later; (b) a **single-frequency `K.t`**
+   animation whose period lands near 8 s (`sin(K.t*0.8)` has period ~7.85 s → returns
+   to nearly the same pose). **Fix:** always carry a real-time `K.t` motion floor built
+   from **incommensurate frequencies** so the pose never repeats, e.g.
+   `0.9*Math.sin(K.t*0.61) + 0.5*Math.sin(K.t*1.43+1.7) + 0.32*Math.sin(K.t*2.29)`.
+   For rotating/attractor pieces, rotate on **two incommensurate rates**. Verify: is
+   the frame genuinely different 8 s from now (not just re-phased)?
+2. **Dead black space** trips the luminance floor (0.02) and reads as nothing on stage.
+   Accumulation pieces (attractors, particle clouds, DLA, n-body) must splat **enough
+   bright iterates** (40–80k/frame into a log-density buffer) and fill a real fraction
+   of the frame — target frame-mean luminance ~0.15–0.5. A "few faint specks on black"
+   is the classic fail. Symmetric rotators (accretion disks, radial fields) also need a
+   **symmetry-breaking** element (an orbiting hotspot, drifting seeds) or spinning them
+   looks identical frame-to-frame.
+3. **Too-pale** is the mirror failure — pale marks on near-white (lum > ~0.8, low
+   contrast) read as washed/empty. Prefer a mid/dark ground with saturated marks so
+   structure reads; MULTIPLY-blend pigment on near-white makes bright colors vanish.
+
+After authoring, a human grades the catalog in the browser (`grade.html`): **bad**
+(deleted + negative taste signal) / **ok** (kept) / **good** (positive taste signal).
+Author toward "good": distinctive, legible, dynamic, colorful, non-cartoon.
