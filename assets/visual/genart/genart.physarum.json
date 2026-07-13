@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.physarum",
+  "kind": "genart",
+  "name": "Physarum Network",
+  "desc": "Thousands of slime-mold agents deposit and follow chemical trails, self-organizing into a living reticulated vein network that thickens into highways and dissolves back into filigree; renders as bioluminescent neon, warm coral, sumi ink on paper, cyan blueprint, or thermal.",
+  "tags": [
+    "physarum",
+    "slime-mold",
+    "slime",
+    "mold",
+    "agents",
+    "trail",
+    "network",
+    "veins",
+    "reticulation",
+    "emergence",
+    "self-organizing",
+    "transport",
+    "sage-jenson",
+    "biological",
+    "generative",
+    "genart",
+    "abstract",
+    "bioluminescent",
+    "neon",
+    "coral",
+    "ink",
+    "blueprint",
+    "thermal",
+    "organic",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "heavy",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1,
+      "doc": "agent population (network density)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow/exposure"
+    },
+    "turn": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "agent turn sharpness (network character)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "agent move speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "sensor distance (vein scale)"
+    },
+    "hue": {
+      "default": 185,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "bioluminescent",
+      "options": [
+        "bioluminescent",
+        "coral",
+        "ink",
+        "blueprint",
+        "thermal"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "agent init"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T01:08:00+00:00",
+    "fps": 61.0,
+    "motion": 0.0858,
+    "lum": 0.114
+  },
+  "code": "const D = { hue: 185, energy: .6, speed: 1, density: .55, scale: 1, x: .5, y: .5, turn: .5, style: 'bioluminescent', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst GW = 300, GH = Math.max(80, Math.round(GW * height / width));\nconst N = Math.round(3000 + P.density * 6000);\nfunction fr(i){ const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); }\nif (!S.g || S.gw !== GW || S.gh !== GH) { S.g = createGraphics(GW,GH); S.g.pixelDensity(1); S.gw=GW; S.gh=GH; S.trail=null; }\nif (!S.trail || S.seedUsed !== P.seed || S.n !== N) {\n  S.seedUsed = P.seed; S.n = N;\n  S.trail = new Float32Array(GW*GH); S.tmp = new Float32Array(GW*GH);\n  S.ax = new Float32Array(N); S.ay = new Float32Array(N); S.ah = new Float32Array(N);\n  // spread agents UNIFORMLY across the whole field (a central disk collapses into one blob)\n  for (let k=0;k<N;k++){ S.ax[k]=fr(k*2+1)*GW; S.ay[k]=fr(k*2+2)*GH; S.ah[k]=fr(k*3+7)*6.283; }\n}\nconst trail=S.trail, tmp=S.tmp, ax=S.ax, ay=S.ay, ah=S.ah;\nconst SD = 4 + P.scale*4;                // sensor distance (smaller = finer veins)\nconst SA = 0.5;                          // sensor angle\nconst TA = 0.25 + P.turn*0.7;            // turn angle\nconst SP = 0.7 + P.speed*0.9;            // move speed\nconst dep = 5.0;                         // deposit\nconst decay = 0.90;\nfunction sample(x,y){ let ix=Math.floor(x)%GW, iy=Math.floor(y)%GH; if(ix<0)ix+=GW; if(iy<0)iy+=GH; return trail[iy*GW+ix]; }\nconst steps = 1 + (K.fps>45?1:0);\nfor (let s=0;s<steps;s++){\n  for (let k=0;k<S.n;k++){\n    const x=ax[k], y=ay[k], h=ah[k];\n    const c=sample(x+Math.cos(h)*SD, y+Math.sin(h)*SD);\n    const l=sample(x+Math.cos(h-SA)*SD, y+Math.sin(h-SA)*SD);\n    const r=sample(x+Math.cos(h+SA)*SD, y+Math.sin(h+SA)*SD);\n    let nh=h;\n    if (c>l && c>r) {} else if (l>r) nh=h-TA; else if (r>l) nh=h+TA; else nh=h+(fr(k+ (s*0.11))-0.5)*TA;\n    ah[k]=nh;\n    let nx=x+Math.cos(nh)*SP, ny=y+Math.sin(nh)*SP;\n    if(nx<0)nx+=GW; if(nx>=GW)nx-=GW; if(ny<0)ny+=GH; if(ny>=GH)ny-=GH;\n    ax[k]=nx; ay[k]=ny;\n    const idx=(Math.floor(ny)*GW+Math.floor(nx));\n    trail[idx]+=dep;\n  }\n  // diffuse (3x3 box) + decay\n  for (let y=0;y<GH;y++){ const yu=((y-1+GH)%GH)*GW, yd=((y+1)%GH)*GW, yc=y*GW;\n    for (let x=0;x<GW;x++){ const xl=(x-1+GW)%GW, xr=(x+1)%GW;\n      const sum=trail[yc+xl]+trail[yc+x]+trail[yc+xr]+trail[yu+xl]+trail[yu+x]+trail[yu+xr]+trail[yd+xl]+trail[yd+x]+trail[yd+xr];\n      tmp[yc+x]=(sum/9)*decay; } }\n  trail.set(tmp);\n}\n// render\nconst g=S.g; g.loadPixels(); const px=g.pixels;\nconst style=P.style, hb=P.hue, expo=0.7+P.energy*0.9+K.intensity*0.3+A.rms*0.5;\nconst norm=1/(14 + (1-P.density)*10);\nfunction hsv(h,s,v){ h=((h%360)+360)%360/60; const c=v*s,xx=c*(1-Math.abs(h%2-1)),m=v-c; let r,g2,b2; if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx} return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\nfor (let i=0;i<GW*GH;i++){\n  let v=Math.min(1.15, trail[i]*norm*expo); const o=4*i; let r,gg,b;\n  if (style==='coral'){ const c=hsv(18+v*30, 0.85, Math.min(1,0.1+v)); r=c[0];gg=c[1];b=c[2]; }\n  else if (style==='ink'){ const p=0.93-v*0.85; r=p*250;gg=p*244;b=p*232; }\n  else if (style==='blueprint'){ const base=0.05; r=(base*30+v*40); gg=(base*70+v*160); b=(base*150+v*255); if(b>255)b=255; }\n  else if (style==='thermal'){ const m=Math.min(1,v); r=Math.min(255,m*2.4*255); gg=Math.max(0,Math.min(255,(m*2-0.5)*255)); b=Math.max(0,Math.min(255,(m*3.4-2.3)*255)); }\n  else { const c=hsv(hb+v*90, 0.75-v*0.25, Math.min(1,0.06+v*1.05)); r=c[0];gg=c[1];b=c[2]; } // bioluminescent\n  px[o]=r; px[o+1]=gg; px[o+2]=b; px[o+3]=255;\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\npop();\n"
+}
