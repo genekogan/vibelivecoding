@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lightning",
+  "kind": "genart",
+  "name": "Dielectric Lightning",
+  "desc": "A Lichtenberg discharge tree that branches out of a seed toward biased-random points, freshest tips flaring electric-blue before fading to etched veins as bolts re-strike each section, rendered as blue-white plasma, amber acrylic Lichtenberg, cyan wiring schematic, red neural discharge, or false-color thermal.",
+  "tags": [
+    "lightning",
+    "electric",
+    "dielectric breakdown",
+    "lichtenberg",
+    "discharge",
+    "bolt",
+    "plasma",
+    "tesla",
+    "high voltage",
+    "spark",
+    "arc",
+    "branching",
+    "fractal",
+    "growth",
+    "tree",
+    "filament",
+    "storm",
+    "neon",
+    "thermal",
+    "schematic",
+    "nerve",
+    "dendrite",
+    "generative",
+    "genart",
+    "abstract",
+    "dark",
+    "backdrop",
+    "bg",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "attractor cloud + node cap (610..1600) = branch mass filling the frame"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "fresh-tip flare glow + strike bloom amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "growth iterations per frame (discharge propagation rate)"
+    },
+    "branch": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "branchiness: low=long straight whip bolts, high=bushy fine Lichtenberg fractal"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "segment step / channel size (chunkier vs finer filaments)"
+    },
+    "strike": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "re-strike bolt frequency (0=silent creep only, 1=frequent flashes)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "plasma accent hue (electric/schematic/thermal glow)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seed anchor x (clamped 0.1-0.9)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seed anchor y (clamped 0.1-0.9)"
+    },
+    "style": {
+      "default": "electric",
+      "options": [
+        "electric",
+        "lichtenberg",
+        "schematic",
+        "nerve",
+        "thermal"
+      ],
+      "doc": "render philosophy: blue-white plasma / amber acrylic Lichtenberg / cyan wiring diagram / red neural discharge / false-color thermal heat ramp"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic discharge geometry (rebuilds the tree)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg, lower=translucent overlay)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:54:24+00:00",
+    "fps": 65.8,
+    "motion": 0.0275,
+    "lum": 0.135
+  },
+  "code": "const D = { density:.5, energy:.62, speed:1, branch:.5, scale:1, strike:.55, hue:210, x:.5, y:.5, style:'electric', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst ax = clp(P.x,.1,.9)*width, ay = clp(P.y,.1,.9)*height;\n\nfunction grd(buf){\n  const bw=buf.width, bh=buf.height, dc=buf.drawingContext;\n  buf.noStroke();\n  const base = (st==='lichtenberg')?[26,72,9]:(st==='schematic')?[214,58,15]:(st==='nerve')?[328,48,10]:(st==='thermal')?[232,34,11]:[224,60,13];\n  buf.background(base[0],base[1],base[2]);\n  dc.save();\n  const amb = (st==='schematic')?'rgba(120,180,220,':(st==='lichtenberg')?'rgba(220,140,55,':(st==='nerve')?'rgba(225,75,110,':(st==='thermal')?'rgba(215,130,85,':'rgba(95,155,255,';\n  const g = dc.createRadialGradient(ax,ay,u*0.02, ax,ay,u*0.88);\n  g.addColorStop(0, amb+'0.28)');\n  g.addColorStop(0.55, amb+'0.10)');\n  g.addColorStop(1, amb+'0)');\n  dc.fillStyle=g; dc.fillRect(0,0,bw,bh);\n  const g2 = dc.createRadialGradient(bw/2,bh/2,u*0.42, bw/2,bh/2,u*0.98);\n  g2.addColorStop(0,'rgba(0,0,0,0)'); g2.addColorStop(1,'rgba(0,0,0,0.20)');\n  dc.fillStyle=g2; dc.fillRect(0,0,bw,bh);\n  dc.restore();\n}\n\nfunction stampSeg(a,b){\n  const buf=S.buf; const flow=a.flow;\n  const w = Math.min(9.5, 0.8 + Math.pow(flow,0.32)*(st==='schematic'?0.55:(0.95+P.branch*0.6)));\n  buf.push(); buf.strokeCap(ROUND);\n  let h,s,br;\n  if (st==='lichtenberg'){ h=(28+b.gen*0.6)%360; s=86; br=50+Math.min(42,flow*3); }\n  else if (st==='schematic'){ h=190; s=52; br=78; }\n  else if (st==='nerve'){ h=(342+b.gen*1.4)%360; s=80; br=54+Math.min(36,flow*2.5); }\n  else if (st==='thermal'){ const ht=1-Math.min(1,b.gen/(S.maxGen*0.8+1)); h=(210-192*ht); s=84; br=52+ht*44; }\n  else { h=(P.hue+b.gen*1.2)%360; s=40; br=62+Math.min(32,flow*2.2); }\n  buf.stroke(h,s,br, st==='schematic'?85:80);\n  buf.strokeWeight(w);\n  buf.line(a.x,a.y,b.x,b.y);\n  if ((st==='schematic'||st==='nerve') && a.flow>3){ buf.noStroke(); buf.fill(st==='schematic'?200:322, st==='schematic'?15:62, 100, 90); buf.circle(a.x,a.y, w+1.4); }\n  buf.pop();\n}\n\nfunction growIter(burst){\n  const nodes=S.nodes, attr=S.attr, di=S.di, dk=S.dk, seg=S.seg, cs=di;\n  if (nodes.length>=S.cap) return;\n  const map=new Map();\n  for (let i=0;i<nodes.length;i++){ const p=nodes[i]; const k=Math.floor(p.x/cs)+','+Math.floor(p.y/cs); let b=map.get(k); if(!b){b=[];map.set(k,b);} b.push(i); }\n  const pull=new Map();\n  for (let ai=attr.length-1; ai>=0; ai--){ const a=attr[ai];\n    let best=-1, bd=di*di; const bx=Math.floor(a.x/cs), by=Math.floor(a.y/cs);\n    for (let ox=-1;ox<=1;ox++) for (let oy=-1;oy<=1;oy++){ const b=map.get((bx+ox)+','+(by+oy)); if(!b) continue;\n      for (let jj=0;jj<b.length;jj++){ const j=b[jj], p=nodes[j], d2=(p.x-a.x)*(p.x-a.x)+(p.y-a.y)*(p.y-a.y); if(d2<bd){bd=d2;best=j;} } }\n    if (best<0) continue;\n    if (bd < dk*dk){ attr.splice(ai,1); continue; }\n    const p=nodes[best], d=Math.sqrt(bd)||1; let e=pull.get(best)||{dx:0,dy:0};\n    e.dx+=(a.x-p.x)/d; e.dy+=(a.y-p.y)/d; pull.set(best,e);\n  }\n  if (pull.size===0) return;\n  pull.forEach((e,idx)=>{ if (nodes.length>=S.cap) return;\n    const p=nodes[idx];\n    let dx=e.dx, dy=e.dy; const om=Math.hypot(p.x-ax,p.y-ay)||1;\n    dx += (p.x-ax)/om*0.5; dy += (p.y-ay)/om*0.5;\n    const wob=(S.rnd()-0.5)*0.6, cw=Math.cos(wob), sw=Math.sin(wob);\n    const rx=dx*cw-dy*sw, ry=dx*sw+dy*cw, m=Math.hypot(rx,ry)||1;\n    const nx=p.x+rx/m*seg, ny=p.y+ry/m*seg;\n    const gen=p.gen+1; if(gen>S.maxGen)S.maxGen=gen;\n    const ni=nodes.length; nodes.push({x:nx,y:ny,par:idx,gen:gen,flow:1});\n    let k=idx,guard=0; while(k>=0 && guard++<2000){ nodes[k].flow++; k=nodes[k].par; }\n    stampSeg(p, nodes[ni]);\n    if(!burst) S.fresh.push(ni);\n    S.leaf=ni;\n  });\n}\n\nconst epoch = Math.floor((K.section||0)/2);\nconst key = width+'x'+height+'|'+P.seed+'|'+epoch+'|'+st+'|'+P.branch.toFixed(2)+'|'+P.scale.toFixed(2);\nif (S.key !== key){\n  S.key = key;\n  let z = ((P.seed*2654435761) ^ (epoch*40503) ^ 0x1F) >>> 0;\n  S.rnd = ()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  if (!S.buf || S.bufKey!==width+'x'+height){ if (S.buf) S.buf.remove(); S.buf=createGraphics(width,height); S.buf.colorMode(HSB,360,100,100,100); S.bufKey=width+'x'+height; }\n  S.maxGen=1;\n  grd(S.buf);\n  S.di = u*(0.16 - P.branch*0.09);\n  S.seg = u*(0.012 + P.scale*0.006);\n  S.dk = S.seg*1.7;\n  S.cap = Math.floor(500 + P.density*1100);\n  const NA = Math.floor(120 + P.density*520);\n  S.attr = [];\n  for (let i=0;i<NA;i++){\n    if (S.rnd()<0.5){ S.attr.push({x:S.rnd()*width, y:S.rnd()*height}); }\n    else { const a=S.rnd()*6.2832, rr=u*0.52*Math.sqrt(S.rnd()); S.attr.push({x:clp(ax+Math.cos(a)*rr,2,width-2), y:clp(ay+Math.sin(a)*rr,2,height-2)}); }\n  }\n  const spokes = 3 + Math.floor(P.density*7);\n  S.nodes = [{x:ax,y:ay,par:-1,gen:0,flow:1}];\n  for (let s=0;s<spokes;s++){ const a=(s/spokes)*6.2832 + S.rnd()*0.8, r=S.seg*1.5; S.nodes.push({x:ax+Math.cos(a)*r, y:ay+Math.sin(a)*r, par:0, gen:1, flow:1}); }\n  S.fresh=[]; S.flash=0; S.bolt=null; S.leaf=1; S.lastSec=K.section||0;\n  const target = Math.min(S.cap, Math.floor(240 + P.density*280));\n  let guard=0;\n  while (S.nodes.length < target && guard++ < 700){ const before=S.nodes.length; growIter(true); if(S.nodes.length===before){ for(let q=0;q<10;q++){ const pp=S.nodes[(S.rnd()*S.nodes.length)|0], a2=S.rnd()*6.2832, rr=S.di*(0.5+S.rnd()*0.45); S.attr.push({x:clp(pp.x+Math.cos(a2)*rr,2,width-2), y:clp(pp.y+Math.sin(a2)*rr,2,height-2)}); } } }\n  const f0=Math.max(1,S.nodes.length-150); for(let i=f0;i<S.nodes.length;i++) S.fresh.push(i);\n}\n\nif (S.nodes.length < S.cap && S.attr.length < 30){\n  for (let i=0;i<12;i++){ const pp=S.nodes[(S.rnd()*S.nodes.length)|0], a=S.rnd()*6.2832, rr=S.di*(0.5+S.rnd()*0.5); S.attr.push({x:clp(pp.x+Math.cos(a)*rr,2,width-2), y:clp(pp.y+Math.sin(a)*rr,2,height-2)}); }\n}\nconst growN = (S.nodes.length>=S.cap) ? 0 : Math.max(1, Math.round((1+P.speed*2.2)*(0.6+intn) + A.bass*4));\nfor (let i=0;i<growN;i++){ if(S.nodes.length>=S.cap) break; growIter(false); }\n\nconst drx=Math.sin(K.t*0.11)*u*0.012, dry=Math.cos(K.t*0.09)*u*0.010;\npush();\ntranslate(width/2+drx, height/2+dry);\nscale(1.08);\nrotate(Math.sin(K.t*0.05)*0.015);\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(S.buf, -width/2, -height/2, width, height);\nif (P.alpha<100) noTint();\n\nconst fr=S.fresh; if (fr.length>170) fr.splice(0, fr.length-170);\nif (st!=='schematic') blendMode(ADD);\nnoStroke();\nconst eg = 0.5 + P.energy*0.9;\nfor (let i=0;i<fr.length;i++){ const idx=fr[i]; const p=S.nodes[idx]; if(!p) continue;\n  const age=(fr.length-1-i)/Math.max(1,fr.length), flare=1-age;\n  const sh=0.4+0.6*Math.sin(K.t*3.2 - i*0.2), bri=flare*(0.55+0.45*sh);\n  let h,s;\n  if (st==='lichtenberg'){h=(40+p.gen*0.5)%360;s=62;}\n  else if (st==='nerve'){h=(320+(i%2)*42)%360;s=72;}\n  else if (st==='thermal'){h=(28+flare*14);s=82;}\n  else if (st==='schematic'){h=190;s=22;}\n  else {h=(P.hue-18+p.gen*0.8+360)%360;s=clp(30-flare*22,0,100);}\n  const a2 = (10+bri*40)*eg*(st==='schematic'?0.45:1) + A.treble*30*flare;\n  if (i>=fr.length-12 && st!=='schematic'){ drawingContext.shadowBlur=10*eg; drawingContext.shadowColor='hsla('+((h)|0)+',90%,72%,0.9)'; }\n  fill(h, clp(s,0,100), 100, clp(a2,0,90));\n  circle(p.x-width/2, p.y-height/2, u*(0.006+0.012*flare)*(0.7+0.5*sh));\n  drawingContext.shadowBlur=0;\n}\nblendMode(BLEND);\n\nconst sec=K.section||0;\nif (S.lastSec==null || sec<S.lastSec) S.lastSec=sec;\nconst sectionStrike=(sec!==S.lastSec); if(sectionStrike) S.lastSec=sec;\nif (P.strike>0.05 && S.flash<=0){\n  const wantBeat=(K.pulse>0.9) && (S.rnd()<(0.2+P.strike*0.5));\n  const spont=Math.sin(K.t*(0.5+P.strike*0.9))>0.994;\n  if (sectionStrike || wantBeat || spont){\n    const path=[]; let k=(S.leaf!=null?S.leaf:S.nodes.length-1), guard=0;\n    while(k>=0 && guard++<1600){ const p=S.nodes[k]; if(!p)break; path.push([p.x,p.y]); k=p.par; }\n    if (path.length>3){ S.bolt=path; S.flash=7; }\n  }\n}\nif (S.flash>0 && S.bolt){ S.flash--;\n  const b=S.bolt, a=S.flash/7;\n  blendMode(ADD); noFill();\n  const bh=(st==='lichtenberg')?42:(st==='nerve')?325:(st==='schematic')?195:(st==='thermal')?30:(P.hue)%360;\n  if (st!=='schematic'){ drawingContext.shadowBlur=16*(0.4+P.energy); drawingContext.shadowColor='hsla('+(bh|0)+',95%,72%,0.95)'; }\n  stroke(bh, st==='schematic'?40:25, 100, 55*a);\n  strokeWeight(1.2+3.2*P.energy*a);\n  beginShape();\n  for (let i=0;i<b.length;i++){ const j=u*0.006*a*Math.sin(K.t*30+i*2.3); curveVertex(b[i][0]-width/2+j, b[i][1]-height/2+j*0.6); }\n  endShape();\n  drawingContext.shadowBlur=0; blendMode(BLEND);\n}\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}
