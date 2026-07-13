@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.aizawa",
+  "kind": "genart",
+  "name": "Aizawa Attractor",
+  "desc": "A luminous Aizawa strange attractor integrated tens of thousands of steps per frame into a glowing density field, its gold polar spiral threading a slowly-tumbling indigo spherical shell that rotates on two incommensurate axes and never repeats.",
+  "tags": [
+    "aizawa",
+    "strange-attractor",
+    "attractor",
+    "chaos",
+    "chaotic",
+    "ode",
+    "dynamical-system",
+    "phase-space",
+    "strange",
+    "spiral",
+    "shell",
+    "sphere",
+    "orbit",
+    "trajectory",
+    "density-field",
+    "glow",
+    "cosmic",
+    "nebula",
+    "indigo",
+    "gold",
+    "plasma",
+    "ember",
+    "ice",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "mathematical",
+    "chaos-theory",
+    "psychedelic",
+    "tumbling"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "projection zoom (higher = attractor fills more of the frame)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "iterate count per frame (45k-90k) \u2014 higher = denser, brighter form"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "tumble rate of the two incommensurate rotations"
+    },
+    "persist": {
+      "default": 0.82,
+      "min": 0.0,
+      "max": 0.98,
+      "doc": "trail persistence (higher = longer glowing wake)"
+    },
+    "hue": {
+      "default": 250,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "audio-bloom anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "audio-bloom anchor y"
+    },
+    "style": {
+      "default": "cosmic",
+      "options": [
+        "cosmic",
+        "plasma",
+        "ember",
+        "ice",
+        "pencil"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (start point + hue offset)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:46:59+00:00",
+    "fps": 58.8,
+    "motion": 0.1273,
+    "lum": 0.124
+  },
+  "code": "const D = { energy: .6, density: .55, scale: 1, speed: 1, persist: .82, hue: 250, x: .5, y: .5, style: 'cosmic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 200, BH = Math.max(96, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.dens = new Float32Array(BW * BH); S.chr = new Float32Array(BW * BH); S.zdp = new Float32Array(BW * BH);\n  S.bw = BW; S.bh = BH; S.needBurn = true; S.px = 0.1; S.py = 0; S.pz = 0;\n}\n\n// Aizawa ODE constants\nconst aC = 0.95, bC = 0.70, cC = 0.60, dC = 3.5, eC = 0.25, fC = 0.1, dt = 0.01;\n\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1); S.pj = fr(2) * 2 - 1;\n  S.px = 0.05 + fr(3) * 0.2; S.py = fr(4) * 0.15 - 0.075; S.pz = fr(5) * 0.2;\n  S.needBurn = true;\n}\n// burn-in: settle the trajectory onto the attractor before it contributes\nif (S.needBurn) {\n  S.needBurn = false;\n  let bx = S.px, by = S.py, bz = S.pz;\n  for (let s = 0; s < 400; s++) {\n    const dx = (bz - bC) * bx - dC * by;\n    const dy = dC * bx + (bz - bC) * by;\n    const dz = cC + aC * bz - (bz * bz * bz) / 3 - (bx * bx + by * by) * (1 + eC * bz) + fC * bz * bx * bx * bx;\n    bx += dx * dt; by += dy * dt; bz += dz * dt;\n  }\n  S.px = bx; S.py = by; S.pz = bz;\n}\n\nconst g = S.g, dens = S.dens, chr = S.chr, zdp = S.zdp;\nconst styleI = P.style === 'plasma' ? 1 : P.style === 'ember' ? 2 : P.style === 'ice' ? 3 : P.style === 'pencil' ? 4 : 0;\nconst sec = K.section;\n\n// slow dramaturgical morph of a,b -> the shell/spiral geometry evolves over minutes (kept in stable range)\nlet av = aC + 0.03 * Math.sin(K.t * 0.019) + (sec - 3.5) * 0.004 + S.pj * 0.012;\nlet bv = bC + 0.05 * Math.sin(K.t * 0.013 + 1.1) + S.pj * 0.02;\nav = Math.max(0.90, Math.min(1.00, av));\nbv = Math.max(0.60, Math.min(0.78, bv));\n\n// TWO incommensurate continuous rotations = the motion floor (monotonic on K.t -> never re-phases at 8s)\nconst yawR = 0.16 + P.speed * 0.15;\nconst rollR = 0.107 + P.speed * 0.093;\nconst yaw = K.t * yawR + A.rms * 0.35 * Math.sin(K.t * 0.6);\nconst roll = K.t * rollR;\nconst pit = 0.46 + 0.24 * Math.sin(K.t * 0.037);\nconst cY = Math.cos(yaw), sY = Math.sin(yaw), cP = Math.cos(pit), sP = Math.sin(pit), cR = Math.cos(roll), sR = Math.sin(roll);\n\nconst cz = 0.62, fit = 0.60;\nconst view = Math.min(BW, BH) * 0.30 * (0.4 + P.scale * 1.4);\nconst hbw = BW * 0.5, hbh = BH * 0.5;\n\n// fade the density field (trail persistence)\nconst decay = 0.72 + P.persist * 0.24;\nfor (let i = 0, n = BW * BH; i < n; i++) { dens[i] *= decay; chr[i] *= decay; zdp[i] *= decay; }\n\n// integrate the Aizawa ODE 45k-90k steps/frame and splat bright into the fading buffer\nlet x = S.px, y = S.py, z = S.pz;\nconst steps = Math.round(45000 + P.density * 45000);\nfor (let s = 0; s < steps; s++) {\n  const dx = (z - bv) * x - dC * y;\n  const dy = dC * x + (z - bv) * y;\n  const dz = cC + av * z - (z * z * z) / 3 - (x * x + y * y) * (1 + eC * z) + fC * z * x * x * x;\n  x += dx * dt; y += dy * dt; z += dz * dt;\n  if (!(x > -1e4 && x < 1e4) || !(y > -1e4 && y < 1e4) || !(z > -1e4 && z < 1e4)) { x = 0.05; y = 0; z = 0; continue; }\n  const rxy = Math.sqrt(x * x + y * y);\n  const nx = x * fit, ny = y * fit, nz = (z - cz) * fit;\n  // yaw (Y) -> pitch (X) -> roll (Z, screen plane)\n  const px1 = nx * cY - nz * sY, pz1 = nx * sY + nz * cY;\n  const py1 = ny * cP - pz1 * sP, pz2 = ny * sP + pz1 * cP;\n  const sx = px1 * cR - py1 * sR, sy = px1 * sR + py1 * cR;\n  const bxi = (hbw + sx * view) | 0, byi = (hbh - sy * view) | 0;\n  if (bxi >= 0 && bxi < BW && byi >= 0 && byi < BH) {\n    const bi = byi * BW + bxi;\n    dens[bi] += 1;\n    chr[bi] += Math.min(1, rxy * 0.74);        // 0 near polar spiral (gold) -> 1 on equatorial shell (indigo)\n    zdp[bi] += pz2 * 0.5 + 0.5;                 // view depth for shading\n  }\n}\nS.px = x; S.py = y; S.pz = z;\n\nconst hueBase = (P.hue + S.hoff * 40 + sec * 10) % 360;\nconst expo = 0.45 + P.energy * 2.4 + P.density * 0.5 + K.intensity * 0.4 + A.bass * 1.4;\n\ng.loadPixels();\nconst px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  const cyn = j / BH - 0.5;\n  for (let i = 0; i < BW; i++) {\n    const bi = j * BW + i;\n    const d = dens[bi];\n    const dn = 1 - Math.exp(-d * expo * 0.038);      // log-density tone map -> the whole form glows\n    const avgc = d > 0.0001 ? chr[bi] / d : 1;\n    const avgz = d > 0.0001 ? zdp[bi] / d : 0.5;\n    const cxn = i / BW - 0.5;\n    const vig = Math.exp(-(cxn * cxn + cyn * cyn) * 2.5);\n    const shade = 0.55 + 0.5 * avgz;\n    let r, gg, b;\n    if (styleI === 1) { // plasma: magenta polar spiral -> cyan shell\n      const spir = [1.0, 0.12, 0.86], shell = [0.10, 0.92, 1.0];\n      const br = Math.min(1, dn * shade * 1.15);\n      const gnd = 0.05 * vig;\n      r = Math.min(1, gnd * 0.9 + (spir[0] + (shell[0] - spir[0]) * avgc) * br);\n      gg = Math.min(1, gnd * 0.3 + (spir[1] + (shell[1] - spir[1]) * avgc) * br);\n      b = Math.min(1, gnd * 1.1 + (spir[2] + (shell[2] - spir[2]) * avgc) * br);\n    } else if (styleI === 2) { // ember: blackbody heat ramp\n      const m = Math.min(1, dn * shade * 1.2);\n      r = Math.min(1, m * 2.0);\n      gg = Math.min(1, Math.max(0, m * 1.75 - 0.5));\n      b = Math.min(1, Math.max(0, m * 3.1 - 2.35));\n      const lift = 0.05 * vig; r = Math.min(1, r + lift * 0.9); gg = Math.min(1, gg + lift * 0.3); b = Math.min(1, b + lift * 0.05);\n    } else if (styleI === 3) { // ice: deep blue -> white-hot\n      const cold = [0.14, 0.34, 0.85], hot = [0.95, 0.98, 1.0];\n      const t2 = Math.min(1, dn * shade);\n      const gnd = 0.05 * vig;\n      r = Math.min(1, gnd * 0.4 + (cold[0] + (hot[0] - cold[0]) * t2) * (0.15 + 0.9 * t2));\n      gg = Math.min(1, gnd * 0.6 + (cold[1] + (hot[1] - cold[1]) * t2) * (0.2 + 0.9 * t2));\n      b = Math.min(1, gnd * 1.0 + (cold[2] + (hot[2] - cold[2]) * t2) * (0.35 + 0.75 * t2));\n    } else if (styleI === 4) { // pencil: graphite spiral on toned paper (mono, abstracted)\n      const grain = 0.86 + 0.28 * (Math.abs(Math.sin(i * 12.9 + j * 78.2) * 43758.5) % 1);\n      const ink = Math.min(1, Math.pow(dn, 0.82) * grain);\n      const paper = 0.9 - (1 - vig) * 0.08;\n      const tone = paper - ink * 0.84;\n      r = tone * 0.99; gg = tone * 0.965; b = tone * 0.9;\n    } else { // cosmic (default): gold polar spiral -> indigo shell, glowing on deep-space ground\n      const gold = [1.0, 0.80, 0.30], indigo = [0.34, 0.20, 0.9];\n      const br = Math.min(1, dn * shade * 1.15);\n      const gR = 0.04 + 0.05 * vig, gG = 0.03 + 0.035 * vig, gB = 0.09 + 0.12 * vig;\n      r = Math.min(1, gR + (gold[0] + (indigo[0] - gold[0]) * avgc) * br);\n      gg = Math.min(1, gG + (gold[1] + (indigo[1] - gold[1]) * avgc) * br);\n      b = Math.min(1, gB + (gold[2] + (indigo[2] - gold[2]) * avgc) * br);\n    }\n    const o = 4 * bi;\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio-reactive bloom on bass/treble \u2014 partial ADD tint, never full-frame flash (won't strobe)\nif (styleI !== 4 && (A.bass > 0.02 || A.treble > 0.02)) {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass * 0.5 + A.treble * 0.35) * (0.4 + P.energy * 0.6);\n  fill((hueBase + 25) % 360, 45, 100, glow * 20);\n  ellipse(P.x * width, P.y * height, width * 0.85, height * 0.85);\n  blendMode(BLEND); pop();\n}\n"
+}
