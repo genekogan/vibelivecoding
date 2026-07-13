@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.watercolor",
+  "kind": "genart",
+  "name": "Watercolor Bleed",
+  "desc": "Layered watercolor pigment blooms \u2014 recursively deformed organic polygons stacked in translucent multiply layers so overlaps deepen into mottled wet-edged washes that breathe and drift across warm paper; renders as jewel pigment, sunset, botanical, tonal monochrome, or sumi ink.",
+  "tags": [
+    "watercolor",
+    "pigment",
+    "paint",
+    "bleed",
+    "wash",
+    "tyler-hobbs",
+    "organic",
+    "blob",
+    "translucent",
+    "layered",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "painterly",
+    "wet",
+    "paper",
+    "botanical",
+    "sumi",
+    "ink",
+    "soft",
+    "texture",
+    "jewel"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many pigment blooms (more = fuller page)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "layer count + pigment saturation/depth"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.1,
+      "max": 3.0,
+      "doc": "drift + breathing rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "bloom size"
+    },
+    "warp": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "edge irregularity (how ragged/organic the wash edges)"
+    },
+    "hue": {
+      "default": 212,
+      "min": 0,
+      "max": 360,
+      "doc": "pigment base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "(reserved) composition bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "(reserved) composition bias y"
+    },
+    "style": {
+      "default": "pigment",
+      "options": [
+        "pigment",
+        "sunset",
+        "botanical",
+        "monochrome",
+        "sumi"
+      ],
+      "doc": "palette / render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic composition seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:44:18+00:00",
+    "fps": 59.5,
+    "motion": 0.02,
+    "lum": 0.69
+  },
+  "code": "const D = { density:.55, energy:.6, speed:1, scale:1, warp:.55, hue:212, x:.5, y:.5, style:'pigment', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst wh = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst style = P.style;\nlet sr = (P.seed * 2654435761) >>> 0;\nfunction rnd() { sr ^= sr << 13; sr >>>= 0; sr ^= sr >> 17; sr ^= sr << 5; sr >>>= 0; return sr / 4294967295; }\n\n// recursively deform a polygon: subdivide each edge, displacing the midpoint (organic watercolor edge)\nfunction deform(pts, depth, rough) {\n  for (let d = 0; d < depth; d++) {\n    const out = [];\n    const n = pts.length;\n    for (let i = 0; i < n; i++) {\n      const a = pts[i], b = pts[(i + 1) % n];\n      out.push(a);\n      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;\n      const dx = b.x - a.x, dy = b.y - a.y;\n      const len = Math.sqrt(dx*dx + dy*dy);\n      const disp = (rnd() - 0.5) * len * rough;\n      // displace along the edge normal\n      out.push({ x: mx + (-dy/ (len||1)) * disp, y: my + (dx/(len||1)) * disp });\n    }\n    pts = out;\n    rough *= 0.62;   // finer detail each level\n  }\n  return pts;\n}\nfunction baseBlob(cx, cy, rad, nsides, irreg) {\n  const pts = [];\n  for (let i = 0; i < nsides; i++) {\n    const a = (i / nsides) * TAU;\n    const rr = rad * (1 - irreg * 0.5 + rnd() * irreg);\n    pts.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.92 });\n  }\n  return pts;\n}\n\n// palette per style\nfunction pigments() {\n  const hb = P.hue;\n  if (style === 'sumi')       return [[wh(hb),4,14],[wh(hb),6,22],[wh(hb),3,9]];\n  if (style === 'monochrome') return [[wh(hb),60,55],[wh(hb+12),55,45],[wh(hb-12),65,62]];\n  if (style === 'sunset')     return [[wh(hb),82,92],[wh(hb+28),85,88],[wh(hb-30),70,80],[wh(hb+52),80,86]];\n  if (style === 'botanical')  return [[wh(140),70,70],[wh(96),62,66],[wh(38),72,84],[wh(300),55,64]];\n  // pigment (default) \u2014 jewel bleed\n  return [[wh(hb),78,84],[wh(hb+120),70,78],[wh(hb+220),74,82],[wh(hb+300),68,80],[wh(hb+60),72,86]];\n}\n\n// (re)build the layered blob set \u2014 cached; rebuild on seed / section / count change\nconst NB = 4 + Math.round(P.density * 8);\nconst LAYERS = 10 + Math.round(P.energy * 8);\nconst sec = K.section | 0;\nif (!S.blobs || S.nb !== NB || S.secUsed !== sec || S.seedUsed !== P.seed || S.styUsed !== style) {\n  S.nb = NB; S.secUsed = sec; S.seedUsed = P.seed; S.styUsed = style;\n  sr = ((P.seed + sec * 101) * 2654435761) >>> 0;\n  const pal = pigments();\n  S.blobs = [];\n  for (let b = 0; b < NB; b++) {\n    const cx = width * (0.1 + rnd() * 0.8);\n    const cy = height * (0.12 + rnd() * 0.76);\n    const rad = u * (0.10 + rnd() * 0.16) * (0.6 + P.scale * 0.8);\n    const col = pal[(Math.floor(rnd() * pal.length)) % pal.length];\n    // pre-deform LAYERS variants (each a differently-jittered organic polygon)\n    const layers = [];\n    for (let l = 0; l < LAYERS; l++) {\n      const base = baseBlob(cx, cy, rad * (0.72 + l / LAYERS * 0.5), 6 + Math.floor(rnd() * 5), 0.35 + P.warp * 0.5);\n      layers.push(deform(base, 4, 0.28 + P.warp * 0.4));\n    }\n    S.blobs.push({ cx, cy, rad, col, layers, drift: rnd() * TAU, ds: 0.4 + rnd() * 0.9 });\n  }\n}\n\n// ---- render into a buffer (so MULTIPLY blend + alpha compositing behave) ----\nif (!S.buf || S.bkey !== width + 'x' + height) {\n  S.buf = createGraphics(width, height); S.buf.colorMode(HSB, 360, 100, 100, 100); S.buf.pixelDensity(1);\n  S.bkey = width + 'x' + height;\n}\nconst g = S.buf;\n// paper ground\nlet pr, pg, pb;\nif (style === 'sumi') { pr = 236; pg = 232; pb = 220; }\nelse if (style === 'monochrome') { pr = 244; pg = 244; pb = 240; }\nelse { pr = 234; pg = 226; pb = 208; }                        // warm parchment\ng.push();\ng.blendMode(BLEND);\ng.drawingContext.fillStyle = 'rgb(' + pr + ',' + pg + ',' + pb + ')';\ng.drawingContext.fillRect(0, 0, width, height);\ng.noStroke();\n\n// gentle global breathing + per-blob drift on K.t (motion floor \u2014 never re-phases)\nconst tt = K.t;\ng.blendMode(MULTIPLY);   // pigment layers multiply into paper -> darker overlaps, luminous bleed\nconst alphaMul = 0.6 + P.energy * 0.7;\nconst layerA = (style === 'sumi') ? 5 : 7;\nfor (const blob of S.blobs) {\n  const dphase = blob.drift + tt * 0.09 * blob.ds * (0.5 + P.speed);\n  const ox = Math.cos(dphase) * u * 0.022 + Math.sin(tt * 0.05 + blob.drift) * u * 0.014;\n  const oy = Math.sin(dphase * 1.1) * u * 0.022;\n  const breathe = 1 + 0.06 * Math.sin(tt * 0.5 * (0.5 + P.speed) + blob.drift) + A.lowmid * 0.06;\n  const cx0 = blob.cx, cy0 = blob.cy;\n  for (let l = 0; l < blob.layers.length; l++) {\n    const poly = blob.layers[l];\n    const h = wh(blob.col[0] + l * 1.2 + sec * 8);\n    const s = blob.col[1];\n    const v = blob.col[2] * (0.9 + l / blob.layers.length * 0.15);\n    g.fill(h, s, v, layerA * alphaMul);\n    g.beginShape();\n    for (let i = 0; i < poly.length; i++) {\n      const vx = cx0 + (poly[i].x - cx0) * breathe + ox;\n      const vy = cy0 + (poly[i].y - cy0) * breathe + oy;\n      g.vertex(vx, vy);\n    }\n    g.endShape(CLOSE);\n  }\n}\ng.blendMode(BLEND);\ng.pop();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}
