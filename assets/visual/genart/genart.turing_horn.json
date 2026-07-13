@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.turing_horn",
+  "kind": "genart",
+  "name": "Turing Horns",
+  "desc": "An anisotropic Gray-Scott reaction-diffusion field driven into the labyrinth regime, its directional-diffusion tensor rotating continuously so warm coral-bone ridges perpetually reorganize between fingerprint, brain-coral and branching horn morphologies; renders as coral-horn, ink fingerprint on cream, ironbow thermal, pink-grey brain-coral, or teal bio-membrane.",
+  "tags": [
+    "reaction-diffusion",
+    "gray-scott",
+    "turing",
+    "anisotropic",
+    "directional-diffusion",
+    "labyrinth",
+    "maze",
+    "stripes",
+    "fingerprint",
+    "ridges",
+    "coral",
+    "brain-coral",
+    "horn",
+    "morphogenesis",
+    "field",
+    "generative",
+    "abstract",
+    "organic",
+    "full-bleed",
+    "background",
+    "bg",
+    "warm",
+    "coral-pink",
+    "bone",
+    "thermal",
+    "teal",
+    "biological",
+    "texture",
+    "reorganizing"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "contrast/exposure + ridge rim-light amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "display zoom (crop sub-rect, higher = magnified ridges)"
+    },
+    "aniso": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "anisotropy strength \u2014 0 isotropic maze, 1 strongly directional ridged horns"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4.0,
+      "doc": "sim steps/frame + tensor rotation rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pacemaker injection radius / churn"
+    },
+    "feed": {
+      "default": 0.046,
+      "min": 0.02,
+      "max": 0.08,
+      "doc": "Gray-Scott feed rate base (regime; drifts on section)"
+    },
+    "kill": {
+      "default": 0.0612,
+      "min": 0.05,
+      "max": 0.07,
+      "doc": "Gray-Scott kill rate base (regime; drifts on section)"
+    },
+    "hue": {
+      "default": 18,
+      "min": 0,
+      "max": 360,
+      "doc": "palette tint hue (warm coral at default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "injection bias + zoom pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "injection bias + zoom pan y"
+    },
+    "style": {
+      "default": "coral-horn",
+      "options": [
+        "coral-horn",
+        "fingerprint",
+        "thermal",
+        "brain-coral",
+        "bio"
+      ],
+      "doc": "field->color philosophy: coral-horn = warm coral/bone ridges w/ rim-lit horns / fingerprint = dark ink ridges on cream paper (mono, abstract) / thermal = ironbow blackbody heat ramp / brain-coral = pink-grey convoluted cortex / bio = teal bioluminescent membranes on dark"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic init (rebuilds field on change)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:35:43+00:00",
+    "fps": 59.9,
+    "motion": 0.0174,
+    "lum": 0.38
+  },
+  "code": "const D = { energy: .62, scale: 1, aniso: .6, speed: 1, density: .5, feed: .046, kill: .0612, hue: 18, x: .5, y: .5, style: 'coral-horn', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>v<a?a:v>b?b:v, W=width, H=height;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\nconst hsh=i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\n\n// --- coarse grid, size+seed keyed (<=160 wide) ---\nconst LS=150;\nconst GW=clp(Math.round(LS*W/Math.max(W,H)),48,160)|0;\nconst GH=clp(Math.round(LS*H/Math.max(W,H)),28,160)|0;\nconst N=GW*GH, key=GW+'x'+GH+'_'+(P.seed|0);\nif(!S.A||S.key!==key){\n  S.key=key;\n  S.A=new Float32Array(N); S.B=new Float32Array(N);\n  S.A2=new Float32Array(N); S.B2=new Float32Array(N);\n  S.aoff=hsh(7)*6.283;\n  for(let i=0;i<N;i++){ const r=hsh(i*2+1), r2=hsh(i*2+2); S.A[i]=1-0.35*r; S.B[i]=r2<0.16?0.55*hsh(i*3+5):0.02*r2; }\n  if(S.buf&&S.buf.remove)S.buf.remove();\n  S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1);\n  S.burn=140; // develop labyrinth before first visible frame (no uniform/static open)\n}\nlet a=S.A,b=S.B,a2=S.A2,b2=S.B2; const buf=S.buf;\n\n// --- regime dramaturgy: feed/kill wander through fingerprint/maze/horn on section, wobble on K.t ---\nconst pf=[[0.037,0.060],[0.030,0.0575],[0.046,0.0612],[0.054,0.062],[0.058,0.0625],[0.042,0.059],[0.034,0.058],[0.050,0.0615]];\nconst ps=pf[((K.section|0)%8+8)%8];\nconst feed=clp(P.feed*0.4 + ps[0]*0.6 + 0.004*Math.sin(K.t*0.03), 0.018, 0.085);\nconst kill=clp(P.kill*0.4 + ps[1]*0.6 + 0.0022*Math.sin(K.t*0.021+1.3), 0.05, 0.072);\n\n// --- anisotropy tensor, angle drifts continuously on K.t => ridges perpetually reorganize (motion floor) ---\nconst th=K.t*0.02*(0.4+P.speed*0.7) + (K.section|0)*0.85 + S.aoff;\nconst kk=clp(P.aniso,0,1)*0.82;\nconst c2=Math.cos(2*th), s2=Math.sin(2*th);\nconst D0a=0.13, D0b=0.065;\nconst Ax=D0a*(1+kk*c2), Ay=D0a*(1-kk*c2), Axy=D0a*kk*s2;\nconst Bx=D0b*(1+kk*c2), By=D0b*(1-kk*c2), Bxy=D0b*kk*s2;\n\n// --- perpetual micro-injection (safety against die-to-uniform; K baseline carries it, audio only adds) ---\nconst inj=0.10+K.pulse*0.10+A.bass*0.18;\nconst ix=Math.floor((0.5+(P.x-0.5)*0.6+0.34*Math.cos(K.t*0.07))*GW);\nconst iy=Math.floor((0.5+(P.y-0.5)*0.6+0.34*Math.sin(K.t*0.052))*GH);\nconst rr=1+Math.round(P.density*2);\nfor(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n  if(dx*dx+dy*dy>rr*rr)continue;\n  const x=((ix+dx)%GW+GW)%GW, y=((iy+dy)%GH+GH)%GH, i=y*GW+x;\n  b[i]=Math.min(1,b[i]+inj*0.35);\n}\n\n// --- integrate Gray-Scott with anisotropic (tensor) diffusion; >=1 step every frame ---\nconst steps=clp(Math.round((2+P.speed*8)*(0.6+0.6*K.intensity)),1,16)+(S.burn>0?S.burn:0);\nlet sa=a,sb=b,da=a2,db=b2;\nfor(let it=0; it<steps; it++){\n  for(let y=0;y<GH;y++){\n    const ym=(y-1+GH)%GH, yp=(y+1)%GH, r0=ym*GW, r1=y*GW, r2=yp*GW;\n    for(let x=0;x<GW;x++){\n      const xm=(x-1+GW)%GW, xp=(x+1)%GW, i=r1+x;\n      const aC=sa[i], bC=sb[i];\n      const aE=sa[r1+xp],aW=sa[r1+xm],aN=sa[r0+x],aS=sa[r2+x];\n      const aNE=sa[r0+xp],aNW=sa[r0+xm],aSE=sa[r2+xp],aSW=sa[r2+xm];\n      const bE=sb[r1+xp],bW=sb[r1+xm],bN=sb[r0+x],bS=sb[r2+x];\n      const bNE=sb[r0+xp],bNW=sb[r0+xm],bSE=sb[r2+xp],bSW=sb[r2+xm];\n      const lapA=Ax*(aE+aW-2*aC)+Ay*(aN+aS-2*aC)+Axy*0.5*(aNE+aSW-aNW-aSE);\n      const lapB=Bx*(bE+bW-2*bC)+By*(bN+bS-2*bC)+Bxy*0.5*(bNE+bSW-bNW-bSE);\n      const rab=aC*bC*bC;\n      let na=aC+lapA-rab+feed*(1-aC);\n      let nb=bC+lapB+rab-(kill+feed)*bC;\n      da[i]=na<0?0:na>1?1:na; db[i]=nb<0?0:nb>1?1:nb;\n    }\n  }\n  const ta=sa;sa=da;da=ta; const tb=sb;sb=db;db=tb;\n}\nif(sa!==S.A){ S.A.set(sa); S.B.set(sb); }\nS.burn=0;\nconst fA=S.A, fB=S.B;\n\n// --- field -> RGB straight into buffer pixels (RAW RGBA \u2014 HSB does NOT apply here) ---\nconst st=P.style, e=P.energy, gain=0.55+e*1.2;\nconst hr=((P.hue%360)+360)%360/360*6.283;\nconst tR=0.55+0.45*Math.cos(hr), tG=0.55+0.45*Math.cos(hr-2.094), tB=0.55+0.45*Math.cos(hr+2.094);\nfunction ramp(v,s){ const n=s.length-1, ff=clp(v,0,1)*n; let k=ff|0; if(k>n-1)k=n-1; const t=ff-k;\n  return [s[k][0]+(s[k+1][0]-s[k][0])*t, s[k][1]+(s[k+1][1]-s[k][1])*t, s[k][2]+(s[k+1][2]-s[k][2])*t]; }\nconst CORAL=[[30,12,16],[92,38,32],[196,84,52],[238,206,176]];\nconst BRAIN=[[62,54,66],[120,104,116],[214,150,166],[244,214,222]];\nconst IRON=[[6,4,14],[74,10,86],[210,44,30],[248,150,20],[252,238,168]];\nconst BIO=[[4,14,20],[8,52,64],[26,150,150],[150,248,232]];\nbuf.loadPixels(); const px=buf.pixels;\nfor(let y=0;y<GH;y++){\n  const ym=(y-1+GH)%GH, yp=(y+1)%GH, r0=ym*GW, r1=y*GW, r2=yp*GW;\n  for(let x=0;x<GW;x++){\n    const xm=(x-1+GW)%GW, xp=(x+1)%GW, i=r1+x;\n    const bv=fB[i];\n    const gx=fB[r1+xp]-fB[r1+xm], gy=fB[r2+x]-fB[r0+x];\n    const gm=Math.sqrt(gx*gx+gy*gy);\n    const v=clp(bv*2.05*gain-0.21,0,1);\n    const rim=clp(gm*7.2*gain,0,1);\n    let r,g,bl;\n    if(st==='fingerprint'){ // abstract: dark ink ridges on cream paper, mono\n      const ink=clp((v-0.30)*3.4,0,1)*0.92 + rim*0.25;\n      const p=1-clp(ink,0,1);\n      r=30+p*208; g=26+p*204; bl=24+p*188;\n    } else if(st==='thermal'){\n      const c=ramp(v,IRON); r=c[0]; g=c[1]; bl=c[2];\n    } else if(st==='brain-coral'){\n      const c=ramp(v,BRAIN); const lift=rim*0.5;\n      r=c[0]*(1-lift)+248*lift; g=c[1]*(1-lift)+214*lift; bl=c[2]*(1-lift)+222*lift;\n    } else if(st==='bio'){\n      const c=ramp(v,BIO); const lift=rim*0.9;\n      r=c[0]+lift*150; g=c[1]+lift*240; bl=c[2]+lift*224;\n    } else { // coral-horn (default): warm coral/bone ridges w/ rim highlight\n      const c=ramp(v,CORAL); const lift=rim*0.52;\n      r=c[0]*(1-lift)+250*lift; g=c[1]*(1-lift)+232*lift; bl=c[2]*(1-lift)+208*lift;\n    }\n    // gentle hue tint (brightness-preserving-ish)\n    r*=(0.72+0.56*tR); g*=(0.72+0.56*tG); bl*=(0.72+0.56*tB);\n    const j=i*4; px[j]=clp(r,0,255); px[j+1]=clp(g,0,255); px[j+2]=clp(bl,0,255); px[j+3]=255;\n  }\n}\nbuf.updatePixels();\n\n// --- composite: upscale full-frame; P.scale = display zoom on centered sub-rect ---\nconst zoom=clp(P.scale,1,2.6), sw=GW/zoom, sh=GH/zoom;\nconst sx=clp((GW-sw)*(0.15+P.x*0.7),0,GW-sw), sy=clp((GH-sh)*(0.15+P.y*0.7),0,GH-sh);\npush();\nif(P.alpha<100) tint(0,0,100,P.alpha);\nnoStroke(); drawingContext.imageSmoothingEnabled=true;\nimage(buf,0,0,W,H,sx,sy,sw,sh);\npop();\n\n// --- finishing: partial breath/bass glow (alpha<=13 => no strobe) ---\nif(st!=='fingerprint'){\n  push(); blendMode(ADD); noStroke();\n  fill(((P.hue%360)+360)%360, st==='bio'?55:42, 100, clp((5+9*K.swell+A.bass*16)*0.5,0,13));\n  rect(0,0,W,H);\n  blendMode(BLEND); pop();\n}\ndrawingContext.shadowBlur=0; noStroke();\n"
+}

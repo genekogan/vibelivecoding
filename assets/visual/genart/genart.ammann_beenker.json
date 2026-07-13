@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ammann_beenker",
+  "kind": "genart",
+  "name": "Ammann-Beenker",
+  "desc": "An eightfold aperiodic quasicrystal of silver-ratio squares and 45-degree rhombi grown by 4D cut-and-project, slowly rotating beneath a luminous highlight that travels the Ammann-bar grid, rendered as jewel-toned tiles, Escher stained glass, neon lattice, cyan blueprint, or austere sumi ink.",
+  "tags": [
+    "ammann-beenker",
+    "ammann",
+    "beenker",
+    "quasicrystal",
+    "quasiperiodic",
+    "aperiodic",
+    "tiling",
+    "octagonal",
+    "eightfold",
+    "8-fold",
+    "silver-ratio",
+    "penrose-cousin",
+    "rhombus",
+    "square",
+    "lattice",
+    "geometric",
+    "islamic",
+    "girih",
+    "stained-glass",
+    "blueprint",
+    "neon",
+    "ink",
+    "sacred-geometry",
+    "symmetry",
+    "mosaic",
+    "tessellation",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "jewel",
+    "kaleidoscope"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tile fineness (higher = smaller, more numerous tiles). Rebuilds."
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 2.2,
+      "doc": "tile zoom (higher = larger tiles / fewer visible). Rebuilds."
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness of the traveling Ammann-bar highlight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "rotation + highlight-sweep rate (0 still slowly drifts)"
+    },
+    "glow": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "width of the luminous highlight band along the bars"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "primary jewel hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor (composition)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor (composition)"
+    },
+    "style": {
+      "default": "quasi-octagon",
+      "options": [
+        "quasi-octagon",
+        "stained-glass",
+        "neon-lattice",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "act": {
+      "default": "sweep",
+      "options": [
+        "sweep"
+      ],
+      "doc": "dramaturgy program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "phason shift + palette / patch variation (rebuilds)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:34:36+00:00",
+    "fps": 59.5,
+    "motion": 0.0892,
+    "lum": 0.36
+  },
+  "code": "const D = { density: .5, scale: 1, energy: .62, speed: 1, hue: 205, x: .5, y: .5, glow: .55, style: 'quasi-octagon', act: 'sweep', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst st = P.style;\nconst intn = (K.intensity != null ? K.intensity : .6);\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat; S.lastBeat = K.beat;\n\nconst SQ = Math.SQRT1_2, H = (1 + Math.SQRT2) / 2;\nconst BS = Math.ceil(1.5 * Math.max(width, height));\nconst dens = Math.min(1, Math.max(0, P.density));\nlet edgePx = BS * 0.085 * P.scale / (0.55 + dens * 1.4);\nconst minEdge = BS * 0.72 / 22;\nif (edgePx < minEdge) edgePx = minEdge;\nconst genR = BS * 0.75;\nconst Rphys = genR / edgePx;\n\nconst key = [BS, edgePx.toFixed(2), st, P.seed].join('|');\nif (S.key !== key) {\n  S.key = key;\n  const gx = (fr(1) - 0.5) * 0.5, gy = (fr(2) - 0.5) * 0.5;\n  const N = Math.ceil(Rphys) + 3;\n  const cc = BS * 0.5;\n  const map = new Map(), verts = [];\n  const accept = (a, b, c, d) => {\n    const yx = a - SQ * b + SQ * d + gx;\n    const yy = b * SQ - c + d * SQ + gy;\n    if (Math.abs(yx) > H) return false;\n    if (Math.abs(yy) > H) return false;\n    if (Math.abs((yx + yy) * SQ) > H) return false;\n    if (Math.abs((yy - yx) * SQ) > H) return false;\n    return true;\n  };\n  for (let n1 = -N; n1 <= N; n1++) for (let n3 = -N; n3 <= N; n3++) {\n    const c0 = SQ * (n1 - n3) - gx, c2 = SQ * (n1 + n3) + gy;\n    for (let n0 = Math.floor(c0 - H); n0 <= Math.ceil(c0 + H); n0++)\n      for (let n2 = Math.floor(c2 - H); n2 <= Math.ceil(c2 + H); n2++) {\n        if (!accept(n0, n1, n2, n3)) continue;\n        const px = (n0 + n1 * SQ - n3 * SQ) * edgePx;\n        const py = (n1 * SQ + n2 + n3 * SQ) * edgePx;\n        if (px * px + py * py > genR * genR) continue;\n        const kk = n0 + ',' + n1 + ',' + n2 + ',' + n3;\n        if (map.has(kk)) continue;\n        const rec = { n: [n0, n1, n2, n3], x: cc + px, y: cc + py, r: Math.hypot(px, py) / genR };\n        map.set(kk, rec); verts.push(rec);\n      }\n  }\n  const pairs = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];\n  const mk = (nn, inc) => (nn[0] + inc[0]) + ',' + (nn[1] + inc[1]) + ',' + (nn[2] + inc[2]) + ',' + (nn[3] + inc[3]);\n  const tiles = [];\n  for (const rec of verts) {\n    const nn = rec.n;\n    for (const pr of pairs) {\n      const j = pr[0], k = pr[1];\n      const ij = [0, 0, 0, 0]; ij[j] = 1;\n      const ik = [0, 0, 0, 0]; ik[k] = 1;\n      const ijk = [0, 0, 0, 0]; ijk[j] = 1; ijk[k] = 1;\n      const rj = map.get(mk(nn, ij)), rk = map.get(mk(nn, ik)), rjk = map.get(mk(nn, ijk));\n      if (!rj || !rk || !rjk) continue;\n      tiles.push({ x0: rec.x, y0: rec.y, x1: rj.x, y1: rj.y, x2: rjk.x, y2: rjk.y, x3: rk.x, y3: rk.y,\n        type: (Math.abs(j - k) === 2) ? 1 : 0, r: rec.r, jit: ((nn[0] * 7 + nn[1] * 13 + nn[2] * 17 + nn[3] * 23) * 0.61803) % 1 });\n    }\n  }\n\n  // ---- bake tiling into buffer ----\n  if (S.buf) S.buf.remove();\n  const g = createGraphics(BS, BS); S.buf = g; S.BS = BS;\n  g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.push();\n  if (st === 'quasi-octagon') g.background((P.hue + 18) % 360, 42, 9);\n  else if (st === 'stained-glass') g.background(0, 0, 4);\n  else if (st === 'neon-lattice') g.background(232, 60, 5);\n  else if (st === 'blueprint') g.background(220, 72, 13);\n  else g.background(40, 12, 86);\n  const jf = Math.max(0.6, edgePx);\n  for (const t of tiles) {\n    const jit = t.jit < 0 ? t.jit + 1 : t.jit;\n    if (st === 'quasi-octagon') {\n      if (t.type === 1) g.fill(P.hue, 66, 50 + jit * 16 + (1 - t.r) * 10);\n      else g.fill((P.hue + 150) % 360, 58, 46 + jit * 16 + (1 - t.r) * 10);\n      g.stroke((P.hue + 18) % 360, 55, 14); g.strokeWeight(Math.max(1, jf * 0.03));\n    } else if (st === 'stained-glass') {\n      const hh = (P.hue + t.r * 130 + t.type * 46 + jit * 22) % 360;\n      g.fill(hh, 80, 40 + jit * 24 + (t.type ? 6 : 0));\n      g.stroke(0, 0, 3); g.strokeWeight(Math.max(1.4, jf * 0.075));\n    } else if (st === 'neon-lattice') {\n      g.fill(232, 52, 7 + (1 - t.r) * 4);\n      const hh = (P.hue + t.type * 150 + t.r * 70) % 360;\n      g.stroke(hh, 82, 96); g.strokeWeight(Math.max(1, jf * 0.028));\n    } else if (st === 'blueprint') {\n      g.noFill();\n      g.stroke(196, 68, 92); g.strokeWeight(Math.max(1, jf * 0.024));\n    } else { // ink\n      if (t.type === 1 && jit > 0.62) { g.fill(38, 16, 44, 42); } else g.noFill();\n      g.stroke(34, 32, 22, 90); g.strokeWeight(Math.max(1, jf * 0.045 * (0.7 + jit * 0.7)));\n    }\n    g.beginShape();\n    g.vertex(t.x0, t.y0); g.vertex(t.x1, t.y1); g.vertex(t.x2, t.y2); g.vertex(t.x3, t.y3);\n    g.endShape(g.CLOSE);\n  }\n\n  // ---- Ammann bars (quasiperiodic straight-line grid, 4 directions) ----\n  const bars = [];\n  const shortS = edgePx * 0.9, longS = shortS * Math.SQRT2, al = Math.SQRT2 - 1;\n  for (let m = 0; m < 4; m++) {\n    const ang = m * Math.PI / 4, nx = Math.cos(ang), ny = Math.sin(ang), ph = fr(10 + m) * 3.3;\n    let pos = (fr(20 + m) - 0.5) * edgePx, i = 0;\n    while (pos < genR * 1.05) {\n      bars.push({ nx, ny, t: pos, m });\n      const sf = Math.floor((i + 1) * al + ph) - Math.floor(i * al + ph);\n      pos += sf ? longS : shortS; i++;\n    }\n    pos = (fr(20 + m) - 0.5) * edgePx; i = 0;\n    while (pos > -genR * 1.05) {\n      const sf = Math.floor((i + 1) * al + ph) - Math.floor(i * al + ph);\n      pos -= sf ? longS : shortS; i++;\n      bars.push({ nx, ny, t: pos, m });\n    }\n  }\n  // faint baked baseline of the bars so they read even outside the highlight\n  if (st !== 'ink') {\n    const L0 = genR * 1.2;\n    const bc = st === 'blueprint' ? [196, 60, 60] : (st === 'neon-lattice' ? [(P.hue + 30) % 360, 40, 55] : [(P.hue + 40) % 360, 30, 55]);\n    g.strokeWeight(1);\n    for (const b of bars) {\n      const mx = cc + b.nx * b.t, my = cc + b.ny * b.t, dx = -b.ny, dy = b.nx;\n      g.stroke(bc[0], bc[1], bc[2], st === 'blueprint' ? 26 : 15);\n      g.line(mx - dx * L0, my - dy * L0, mx + dx * L0, my + dy * L0);\n    }\n  }\n  g.pop();\n  S.bars = bars; S.genR = genR;\n}\n\n// ================= live frame =================\nconst rot = K.t * (0.006 + 0.02 * P.speed);\npush();\ntranslate(width * 0.5, height * 0.5);\nrotate(rot);\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.buf, -S.BS * 0.5, -S.BS * 0.5);\n\n// traveling luminous highlight along the Ammann bars\nconst range = S.genR;\nconst sweepPos = Math.sin(K.t * (0.03 + 0.10 * P.speed)) * range;\nconst sweepAng = K.t * (0.01 + 0.04 * P.speed);\nconst sdx = Math.cos(sweepAng), sdy = Math.sin(sweepAng);\nconst sigma = range * (0.10 + P.glow * 0.16 + intn * 0.05);\nconst peak = 0.4 + P.energy * 0.9 + intn * 0.3 + A.rms * 0.6;\nconst secDrift = (K.section || 0) * 15; // slow palette rotation across the 8 sections\nconst baseGlow = (st === 'blueprint' || st === 'ink') ? 0.14 : 0.20;\nconst L = range * 1.2;\nblendMode(ADD);\nfor (const b of S.bars) {\n  const mx = b.nx * b.t, my = b.ny * b.t;\n  const proj = mx * sdx + my * sdy;\n  const dd = proj - sweepPos;\n  const band = Math.exp(-(dd * dd) / (2 * sigma * sigma));\n  const bri = baseGlow + band * peak * 0.9;\n  if (bri < 0.03) continue;\n  const dx = -b.ny, dy = b.nx;\n  const hh = (P.hue + b.m * 12 + 34 + secDrift) % 360;\n  strokeWeight(1 + band * 2.6);\n  stroke(hh, 26 + band * 24, 100, Math.min(58, bri * 55));\n  line(mx - dx * L, my - dy * L, mx + dx * L, my + dy * L);\n}\nblendMode(BLEND);\npop();\n\n// partial-frame beat bloom on the central octagonal sun (never full-frame flash)\nconst beatBloom = K.pulse * 0.5 + A.bass * 0.8;\nif (beatBloom > 0.04) {\n  push(); blendMode(ADD); noStroke();\n  fill((P.hue + 40) % 360, 28, 100, beatBloom * 9);\n  circle(width * 0.5, height * 0.5, u * 0.5 * (1 + beatBloom * 0.15));\n  blendMode(BLEND); pop();\n}\n"
+}

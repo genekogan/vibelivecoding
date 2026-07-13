@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.pinwheel_tiling",
+  "kind": "genart",
+  "name": "Pinwheel Tiling",
+  "desc": "A Conway-Radin pinwheel aperiodic tiling where right triangles deflate into five smaller copies and end up at infinitely many angles, hued by orientation and slowly rotating like a hypnotic non-periodic mosaic.",
+  "tags": [
+    "pinwheel",
+    "tiling",
+    "aperiodic",
+    "non-periodic",
+    "conway",
+    "radin",
+    "triangle",
+    "triangles",
+    "subdivision",
+    "deflation",
+    "fractal",
+    "geometric",
+    "tessellation",
+    "mosaic",
+    "symmetry",
+    "stained-glass",
+    "blueprint",
+    "gem",
+    "ink",
+    "facets",
+    "orientation",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "kaleidoscope",
+    "hypnotic",
+    "mathematical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "subdivision depth (higher = finer, more triangles)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "tile size / zoom of the tiling"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / bloom brightness"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rotation & sweep rate"
+    },
+    "edge": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "triangle edge / leading weight"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (orientation hue offset)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "rotation centre x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "rotation centre y (canvas fraction)"
+    },
+    "style": {
+      "default": "orient",
+      "options": [
+        "orient",
+        "stained",
+        "gem",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (seed layout + jitter)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:35:26+00:00",
+    "fps": 59.9,
+    "motion": 0.0931,
+    "lum": 0.476
+  },
+  "code": "const D = { hue: 210, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .5, edge: .5, style: 'orient', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height), maxD = Math.max(width, height);\nconst clamp = (v,a,b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat; S.lastBeat = K.beat;\n\n// pinwheel deflation: split a (1,2,sqrt5) triangle {r,l,s} into 5 congruent copies\nfunction sub(t){\n  const A0 = t.r, B0 = t.l, C0 = t.s;\n  const cbx = C0[0]-B0[0], cby = C0[1]-B0[1];\n  const ax = A0[0]-B0[0], ay = A0[1]-B0[1];\n  const tt = (ax*cbx + ay*cby) / (cbx*cbx + cby*cby);\n  const E = [B0[0]+tt*cbx, B0[1]+tt*cby];\n  const M = (P0,Q0)=>[(P0[0]+Q0[0])*0.5,(P0[1]+Q0[1])*0.5];\n  const Mab=M(A0,B0), Mae=M(A0,E), Meb=M(E,B0);\n  return [\n    {r:E,   l:A0,  s:C0},\n    {r:Mae, l:Mab, s:A0},\n    {r:Meb, l:B0,  s:Mab},\n    {r:E,   l:Meb, s:Mae},\n    {r:Mab, l:Mae, s:Meb}\n  ];\n}\n\nconst section = Math.floor(K.section || 0);\nconst depthDen = 2 + Math.round(clamp(P.density,0,1) * 2);            // 2..4\nconst cols = clamp(Math.round(3 / clamp(P.scale,0.5,2.2)), 1, 7);     // scale -> tile size\nconst seedCount = 4 * cols * cols;\nconst depthCap = Math.max(1, Math.floor(Math.log(6000 / seedCount) / Math.log(5)));\nconst depth = clamp(Math.min(depthDen, depthCap), 1, 4);\nconst hueBucket = Math.floor(((P.hue + section * 18) % 360) / 12);\nconst L = Math.min(Math.round(1.5 * maxD), 1500);\nconst key = [width, height, depth, cols, P.style, P.seed, hueBucket, P.edge.toFixed(2)].join('|');\n\nif (S.key !== key){\n  S.key = key;\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(L, L);\n  S.buf.pixelDensity(1);\n  S.L = L;\n  const g = S.buf;\n  g.colorMode(HSB, 360, 100, 100, 100);\n  const st = P.style;\n  const baseHue = (P.hue + section * 18) % 360;\n  // paper / ground per style\n  if (st === 'blueprint') g.background(212, 68, 16);\n  else if (st === 'ink') g.background(40, 10, 88);\n  else g.background(baseHue, 40, 9);\n  // build seed triangles tiling the LxL square with 2:1 rectangles\n  const rectW = L / cols, rectH = rectW / 2, rows = Math.max(1, Math.round(L / rectH));\n  let tris = [];\n  for (let i = 0; i < cols; i++){\n    for (let j = 0; j < rows; j++){\n      const x0 = i*rectW, y0 = j*rectH;\n      const p00=[x0,y0], p10=[x0+rectW,y0], p11=[x0+rectW,y0+rectH], p01=[x0,y0+rectH];\n      const v = (i + j + (P.seed % 2)) % 2;\n      if (v === 0){ tris.push({r:p00,l:p10,s:p01}); tris.push({r:p11,l:p01,s:p10}); }\n      else { tris.push({r:p10,l:p00,s:p11}); tris.push({r:p01,l:p11,s:p00}); }\n    }\n  }\n  for (let d = 0; d < depth; d++){\n    const nx = [];\n    for (let k = 0; k < tris.length; k++){ const c = sub(tris[k]); nx.push(c[0],c[1],c[2],c[3],c[4]); }\n    tris = nx;\n  }\n  const ew = (0.3 + P.edge * 2.1);\n  const lightA = Math.PI * (0.25 + fr(7) * 0.5);\n  for (let k = 0; k < tris.length; k++){\n    const t = tris[k];\n    const ang = Math.atan2(t.l[1]-t.r[1], t.l[0]-t.r[0]);         // orientation of long leg\n    let deg = ang * 180 / Math.PI; if (deg < 0) deg += 360;\n    const tileHue = (baseHue + deg) % 360;\n    const jit = fr(k * 1.3 + 3);\n    if (st === 'blueprint'){\n      g.noFill();\n      g.stroke(198, 22, 100, 62); g.strokeWeight(ew * 0.7);\n    } else if (st === 'ink'){\n      const shade = 0.15 + 0.6 * (0.5 + 0.5 * Math.cos(ang * 2));\n      g.fill(38, 9, 88 - shade * 34);\n      g.stroke(28, 24, 26, 78); g.strokeWeight(ew * (0.6 + 0.7 * jit));\n    } else if (st === 'gem'){\n      const lit = 0.5 + 0.5 * Math.cos(ang - lightA);\n      g.fill(tileHue, 66, 34 + lit * 52);\n      g.stroke((tileHue + 30) % 360, 18, 100, 70); g.strokeWeight(ew * 0.8);\n    } else if (st === 'stained'){\n      g.fill(tileHue, 78, 44 + jit * 32);\n      g.stroke(baseHue, 30, 4, 92); g.strokeWeight(ew * 1.6);\n    } else { // orient (default)\n      g.fill(tileHue, 60, 52 + jit * 20);\n      g.stroke((tileHue + 45) % 360, 34, 100, 50); g.strokeWeight(ew);\n    }\n    g.beginShape();\n    g.vertex(t.r[0], t.r[1]); g.vertex(t.l[0], t.l[1]); g.vertex(t.s[0], t.s[1]);\n    g.endShape(CLOSE);\n  }\n}\n\n// ---- live: slow continuous rotation (motion floor) + glow ----\nconst cx = P.x * width, cy = P.y * height;\nconst rot = K.t * 0.018 * (0.4 + P.speed) + section * 0.15;\nconst frameDiag = Math.hypot(width, height);\nconst drawScale = Math.max(1, frameDiag / S.L * 1.03);\npush();\ntranslate(cx, cy);\nrotate(rot);\nscale(drawScale);\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.buf, -S.L * 0.5, -S.L * 0.5);\npop();\n\n// additive breathing bloom (clk-driven, non-strobe, audio on top)\nconst baseHue2 = (P.hue + section * 18) % 360;\nconst swell = (K.swell != null ? K.swell : 0.5);\nconst bloom = 0.4 + 0.6 * swell + K.pulse * 0.4 + A.bass * 0.7;\npush();\nblendMode(ADD);\nnoStroke();\nconst gl = (0.04 + P.energy * 0.10) * bloom;\nfill((baseHue2 + 26) % 360, 34, 100, clamp(gl * 100, 0, 15));\ncircle(cx, cy, u * (0.55 + 0.12 * Math.sin(K.t * 0.5)) * (1 + bloom * 0.15));\n// a slow sweeping wedge of light for extra life\nconst nb = 5;\nfor (let i = 0; i < nb; i++){\n  const a = rot * 1.3 + i * (Math.PI * 2 / nb);\n  const rr = u * (0.18 + 0.22 * i / nb);\n  const gx = cx + Math.cos(a) * rr, gy = cy + Math.sin(a) * rr;\n  fill((baseHue2 + 60 + i * 22) % 360, 40, 100, clamp((0.05 + P.energy * 0.08 + A.treble * 0.4) * 100, 0, 10));\n  circle(gx, gy, u * 0.18);\n}\nblendMode(BLEND);\npop();\n"
+}
