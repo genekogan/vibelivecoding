@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.collatz_river",
+  "kind": "genart",
+  "name": "Collatz River",
+  "desc": "Thousands of Collatz (3n+1) hailstone orbits stream out from a shared root as smooth strands that bend gently on even steps and sharply on odd, braiding into a glowing coral river-delta hued violet-young to gold-old on dark water.",
+  "tags": [
+    "collatz",
+    "hailstone",
+    "3n+1",
+    "orbit",
+    "number-theory",
+    "math",
+    "delta",
+    "river",
+    "coral",
+    "branching",
+    "tree",
+    "growth",
+    "strands",
+    "braid",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "violet",
+    "gold",
+    "teal",
+    "autumn",
+    "bioluminescent",
+    "ink",
+    "organic",
+    "flow",
+    "filigree",
+    "glow",
+    "recursive",
+    "stream",
+    "delta-fan"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "strand stream rate + integer pool size (delta richness)"
+    },
+    "curl": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "per-step turn magnitude (0=straight fans, 1=tightly coiled coral)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "strand glow + glint brightness"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "growth + current-flow rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "segment length / strand reach"
+    },
+    "hue": {
+      "default": 275,
+      "min": 0,
+      "max": 360,
+      "doc": "rotates the orbit-length palette ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "root (delta apex) x"
+    },
+    "y": {
+      "default": 0.9,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "root (delta apex) y"
+    },
+    "style": {
+      "default": "delta",
+      "options": [
+        "delta",
+        "coral",
+        "autumn",
+        "bio",
+        "ink"
+      ],
+      "doc": "render philosophy: luminous delta / chunky coral / ember autumn / deep-sea bio / flat sumi ink"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (strand ordering + curl jitter)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:07:05+00:00",
+    "fps": 59.9,
+    "motion": 0.0081,
+    "lum": 0.08
+  },
+  "code": "const D = { density:.55, curl:.5, energy:.62, speed:1, scale:1, hue:275, x:.5, y:.9, style:'delta', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst wh = h => ((h%360)+360)%360;\nconst st = P.style;\nconst sec = K.section|0;\nconst intn = (K.intensity!=null?K.intensity:.6);\n\n// ---- style config: each is a distinct rendering philosophy, not just a palette ----\n// gH,gS,gB=ground \u00b7 add=additive glow vs flat BLEND \u00b7 h0->h1=hue ramp by orbit length \u00b7 sat/bri=stroke\n// blur=bloom weight \u00b7 wmul=stroke mass \u00b7 tip=ember stipple at strand ends \u00b7 glow=bloom css \u00b7 glH=glint hue\nlet cfg;\nif (st==='coral')       cfg={gH:185,gS:60,gB:10, add:true,  h0:180,h1:330, sat:80, blur:2, bri:52, wmul:1.7, tip:false, glow:'rgba(120,230,220,0.7)',  glH:320}; // chunky low-bloom coral mass\nelse if (st==='autumn') cfg={gH:18, gS:66,gB:10, add:true,  h0:6,  h1:48,  sat:90, blur:5, bri:58, wmul:1.0, tip:true,  glow:'rgba(255,150,60,0.85)',  glH:42};  // ember strands w/ glowing tip stipple\nelse if (st==='bio')    cfg={gH:210,gS:74,gB:6,  add:true,  h0:165,h1:290, sat:92, blur:9, bri:66, wmul:0.7, tip:false, glow:'rgba(120,255,220,0.9)',  glH:175}; // thin heavy-bloom electric filaments, deep-sea\nelse if (st==='ink')    cfg={gH:40, gS:10,gB:86, add:false, h0:28, h1:34,  sat:12, blur:0, bri:14, wmul:1.0, tip:false, glow:'rgba(0,0,0,0)',          glH:30};  // flat sumi mono, no glow, dry lines\nelse /* delta */        cfg={gH:268,gS:55,gB:11, add:true,  h0:282,h1:46,  sat:86, blur:4, bri:56, wmul:1.0, tip:false, glow:'rgba(255,205,120,0.85)', glH:50};  // luminous violet->gold delta\n\n// ---- persistent accumulation buffer (keyed on size) ----\nif (!S.buf || S.bufKey !== width+'x'+height){\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(width, height);\n  S.buf.colorMode(HSB,360,100,100,100);\n  S.buf.background(cfg.gH,cfg.gS,cfg.gB);\n  S.bufKey = width+'x'+height; S.gk = st; S.count=0; S.recent=[]; S.ri=0; S.acc=0;\n}\nif (S.gk !== st){ S.gk = st; S.buf.background(cfg.gH,cfg.gS,cfg.gB); S.recent=[]; }\nconst buf = S.buf;\n\n// seed-deterministic hash (no p5 random)\nconst fh = (a,b)=>{ const s=Math.sin(a*127.1 + b*311.7 + P.seed*74.7)*43758.5453; return s-Math.floor(s); };\n\n// ---- continuous soft fade: churn without a hard clear (no strobe) ----\nconst fade = st==='ink' ? 5.5 : (3.0 + (1-intn)*2.4);\nbuf.push(); buf.noStroke(); buf.fill(cfg.gH,cfg.gS,cfg.gB, fade); buf.rect(0,0,width,height); buf.pop();\n\n// ---- geometry ----\nconst rootX = clp(P.x,0.06,0.94)*width, rootY = clp(P.y,0.06,0.98)*height;\nconst seg = u*0.0062*clp(P.scale,0.4,2.4);\nconst cr = clp(P.curl,0.05,1.05)*0.52;\nconst evenA = cr*0.6, oddA = cr;                  // even bends one way (gently), odd the other (sharply)\nconst baseAng = Math.PI/2;                        // grow \"up\" in math coords\nconst fanSpread = 0.5;                            // per-strand apex fan so the delta spreads\nconst hShift = (P.hue - 275);\n\n// ---- how many new strands stream in this frame (accumulator so growth never fully stalls) ----\nS.acc += clp((0.35 + P.density*3.0)*(0.40+intn)*(0.35+P.speed*0.9) + A.bass*3.5, 0.05, 14);\nlet nAdd = Math.floor(S.acc); S.acc -= nAdd; if (nAdd>14) nAdd=14;\nconst Nrange = 200 + Math.round(P.density*1400);  // integer pool 200..1600\nconst nbase = 2 + (((P.seed*53 + sec*89)>>>0) % 997);\n\nbuf.push();\nbuf.blendMode(cfg.add ? ADD : BLEND);\nbuf.noFill(); buf.strokeCap(ROUND); buf.strokeJoin(ROUND);\nfor (let s=0; s<nAdd; s++){\n  const gi = S.count++;\n  const n = 2 + ((nbase + gi) % Nrange);\n  // forward Collatz (hailstone) sequence n .. 1, then reverse to walk out from the shared root(1)\n  const seq=[]; let v=n, guard=0;\n  while (v>1 && guard++<600){ seq.push(v); v = (v%2===0) ? v/2 : 3*v+1; }\n  seq.push(1); seq.reverse();\n  const L = seq.length, norm = clp((L-5)/95, 0, 1);\n  const jit = (fh(gi,1)-0.5)*0.10;\n  const mir = (gi & 1) ? -1 : 1;                  // alternate strands to each side -> two-sided delta fills frame\n  let ang = baseAng + (fh(gi,2)-0.5)*fanSpread;\n  let x=0, y=0;\n  const pts=[[rootX, rootY]];\n  const cap = Math.min(L, 170);\n  for (let k=0;k<cap;k++){\n    const even = (seq[k]%2===0);\n    ang += even ? evenA*(1+jit) : -oddA*(1+jit);\n    x += Math.cos(ang)*seg; y += Math.sin(ang)*seg;\n    pts.push([rootX + x*mir, rootY - y]);\n  }\n  // hue by orbit length: young(short)->violet, old(long)->gold (delta ramp 282->46); slow section drift = palette evolves over minutes\n  const h = wh(cfg.h0 + norm*(cfg.h1-cfg.h0) + hShift*0.6 + sec*5);\n  const sb = clp(cfg.bri + norm*30, 10, 100);\n  const sa = cfg.add ? clp(11 + P.energy*15, 6, 34) : clp(24 + P.energy*22, 12, 60);\n  if (cfg.blur>0){ buf.drawingContext.shadowBlur = cfg.blur*(0.5+P.energy*0.9); buf.drawingContext.shadowColor = cfg.glow; }\n  buf.stroke(h, cfg.sat, sb, sa);\n  buf.strokeWeight((0.8 + (1-norm)*0.7) * (0.7+P.scale*0.35) * cfg.wmul);\n  buf.beginShape();\n  for (let q=0;q<pts.length;q++) buf.vertex(pts[q][0], pts[q][1]);\n  buf.endShape();\n  // ember stipple: a hot glowing mote at the strand end (autumn foliage/ember texture)\n  if (cfg.tip && pts.length>2){ const e=pts[pts.length-1];\n    buf.noStroke(); buf.fill(wh(h+8), cfg.sat-15, 100, clp(28+P.energy*30,10,70));\n    buf.circle(e[0], e[1], u*(0.004+0.006*norm)); buf.noFill(); }\n  if (cfg.blur>0) buf.drawingContext.shadowBlur = 0;\n  if (pts.length>4){ S.recent[S.ri % 30] = { p:pts, ph:fh(gi,3) }; S.ri++; }\n}\nbuf.blendMode(BLEND); buf.pop();\n\n// ---- display the delta with a slow, non-repeating K.t drift (motion floor) ----\nconst dx = Math.sin(K.t*0.13)*u*0.02, dy = Math.cos(K.t*0.10)*u*0.015;\nconst rot = 0.02*Math.sin(K.t*0.05);\nconst scb = 1.14 + 0.02*Math.sin(K.t*0.07);\npush();\ntranslate(dx, dy);\ntranslate(width/2, height/2); scale(scb); rotate(rot); translate(-width/2, -height/2);\nif (P.alpha < 100) tint(0,0,100,P.alpha);\nimage(buf, 0, 0, width, height);\nnoTint();\n\n// ---- live current: glints streaming along the newest strands (continuous, silence-safe) ----\nif (st !== 'ink'){\n  blendMode(ADD); noStroke();\n  const gc = S.recent, R = gc.length, flow = 0.10 + P.speed*0.06;\n  for (let i=0;i<R;i++){ const e=gc[i]; if(!e||!e.p) continue;\n    const p=e.p, np=p.length;\n    const tt = ((K.t*flow + e.ph + i*0.13) % 1 + 1) % 1;\n    const idx = clp(Math.floor(tt*(np-1)), 0, np-1);\n    const q = p[idx];\n    const pulse = 0.5+0.5*Math.sin(K.t*3 + i*0.7);\n    const sz = u*(0.006+0.008*pulse)*(0.7+P.energy) + A.treble*u*0.012;\n    fill(wh(cfg.glH + (i%7-3)*3), 52, 100, (12 + pulse*20)*(0.4+P.energy) + A.rms*40);\n    circle(q[0], q[1], sz);\n  }\n  // root mouth glow \u2014 breathes on the beat, anchors the delta\n  const gpulse = 0.5 + 0.4*Math.sin(K.t*1.3) + K.pulse*0.5 + A.bass*0.6;\n  fill(wh(cfg.glH), 40, 100, 10*(0.5+P.energy)*clp(gpulse,0,1.6));\n  circle(rootX, rootY, u*0.09*(0.7+0.3*gpulse));\n  blendMode(BLEND);\n}\npop();\nblendMode(BLEND);\n"
+}

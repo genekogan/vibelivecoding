@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gosper_curve",
+  "kind": "genart",
+  "name": "Gosper Flowsnake",
+  "desc": "The hexagonal Gosper flowsnake draws itself as one continuous glowing thread with a spectrum gradient running along its arclength, a comet-head sweeping the self-similar snowflake lattice while the whole figure slowly rotates and its recursion depth breathes; renders as spectral snake, electric neon filament, hammered gold-leaf, cyan blueprint schematic, or dry-brush sumi ink.",
+  "tags": [
+    "gosper",
+    "flowsnake",
+    "space-filling",
+    "curve",
+    "fractal",
+    "l-system",
+    "hexagonal",
+    "hex",
+    "recursive",
+    "self-similar",
+    "snowflake",
+    "thread",
+    "continuous-line",
+    "one-line",
+    "line-art",
+    "spectral",
+    "rainbow",
+    "gradient",
+    "spectrum",
+    "glow",
+    "neon",
+    "gold",
+    "blueprint",
+    "schematic",
+    "sumi",
+    "ink",
+    "geometric",
+    "mathematical",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "kinetic",
+    "meditative",
+    "hypnotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 1,
+      "doc": "flowsnake recursion depth / lattice fineness (higher = deeper Gosper order, denser weave)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "figure size vs frame (higher = fills / overspills frame)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "glow amplitude + comet-tail length/brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "self-draw sweep + rotation rate"
+    },
+    "warp": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "undulation / breathing amplitude of the lattice"
+    },
+    "hue": {
+      "default": 195,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue anchor (spectral gradient starts here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "neon",
+        "gold-leaf",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (hue offset, rotation dir, orientation, chirality)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:05:50+00:00",
+    "fps": 62.1,
+    "motion": 0.1349,
+    "lum": 0.312
+  },
+  "code": "const D = { density: .5, scale: 1, energy: .62, speed: 1, warp: .3, hue: 195, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst BW = Math.max(200, Math.floor(width * 0.5)), BH = Math.max(200, Math.floor(height * 0.5));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.colorMode(HSB, 360, 100, 100, 100);\n  S.g.pixelDensity(1); S.g.strokeCap(ROUND); S.g.strokeJoin(ROUND); S.bw = BW; S.bh = BH;\n}\n\n// seed-derived scalars (geometry is seed-independent; seed drives hue/rotation/chirality)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(3) * 80; S.rotDir = fr(7) < 0.5 ? -1 : 1; S.orient = fr(9) * Math.PI * 2;\n  S.chir = fr(13) < 0.5 ? -1 : 1; S.wph = fr(17) * 10;\n}\n\n// Gosper flowsnake depth from density, with a gentle mid-show detail build on section.\nconst secBump = (K.section >= 3 && K.section <= 5) ? 1 : 0;\nlet depth = Math.max(2, Math.min(4, Math.round(2 + P.density * 2) + secBump));\ndepth = Math.min(4, depth);\n\n// vertex-list cache per depth (L-system + turtle) \u2014 rebuild only when a new depth appears\nif (!S.cache) S.cache = {};\nif (!S.cache[depth]) {\n  let s = \"A\";\n  for (let k = 0; k < depth; k++) {\n    let out = \"\";\n    for (let ci = 0; ci < s.length; ci++) {\n      const ch = s[ci];\n      if (ch === 'A') out += \"A-B--B+A++AA+B-\";\n      else if (ch === 'B') out += \"+A-BB--B-A++A+B\";\n      else out += ch;\n    }\n    s = out;\n  }\n  let n = 1;\n  for (let ci = 0; ci < s.length; ci++) { const ch = s[ci]; if (ch === 'A' || ch === 'B') n++; }\n  const xs = new Float32Array(n), ys = new Float32Array(n);\n  let x = 0, y = 0, ang = 0; const turn = Math.PI / 3;\n  let idx = 0; xs[0] = 0; ys[0] = 0;\n  let minx = 0, maxx = 0, miny = 0, maxy = 0;\n  for (let ci = 0; ci < s.length; ci++) {\n    const ch = s[ci];\n    if (ch === 'A' || ch === 'B') {\n      x += Math.cos(ang); y += Math.sin(ang); idx++; xs[idx] = x; ys[idx] = y;\n      if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y;\n    } else if (ch === '+') ang += turn;\n    else if (ch === '-') ang -= turn;\n  }\n  const rx = (maxx - minx) || 1, ry = (maxy - miny) || 1, sc = 1 / Math.max(rx, ry);\n  const ccx = (minx + maxx) * 0.5, ccy = (miny + maxy) * 0.5;\n  const hx = new Float32Array(n), hy = new Float32Array(n);\n  for (let i = 0; i < n; i++) { hx[i] = (xs[i] - ccx) * sc; hy[i] = (ys[i] - ccy) * sc; }\n  S.cache[depth] = { hx, hy, n };\n}\nconst C = S.cache[depth], hx = C.hx, hy = C.hy, total = C.n;\n\nconst style = P.style;\nconst sec = K.section;\nconst hb = (P.hue + S.hoff + sec * 11) % 360;\nconst glowStyle = (style === 'spectral' || style === 'neon' || style === 'gold-leaf');\n\n// slow continuous rotation + breathe + undulation = the K.t motion floor (never re-phases)\nconst breathe = 1 + 0.045 * Math.sin(K.t * 0.3) + K.swell * 0.05;\nconst fit = (0.5 + P.scale * 0.42) * breathe;\nconst R = Math.min(BW, BH);\nconst cx = BW * 0.5 + (P.x - 0.5) * BW * 0.35;\nconst cy = BH * 0.5 + (P.y - 0.5) * BH * 0.35;\nconst rot = S.orient + S.rotDir * K.t * (0.02 + P.speed * 0.025);\nconst cr = Math.cos(rot), sr = Math.sin(rot);\nconst warpAmp = P.warp * 0.05;\nconst wt = K.t * 0.6 + S.wph;\nconst chir = S.chir;\n\nif (!S.tx || S.txn !== total) { S.tx = new Float32Array(total); S.ty = new Float32Array(total); S.txn = total; }\nconst tx = S.tx, ty = S.ty;\nfor (let i = 0; i < total; i++) {\n  let nx = hx[i], ny = hy[i] * chir;\n  if (warpAmp > 0.0001) { nx += warpAmp * Math.sin(ny * 5.0 + wt); ny += warpAmp * Math.cos(nx * 5.0 + wt * 1.11); }\n  const rxp = nx * cr - ny * sr, ryp = nx * sr + ny * cr;\n  tx[i] = cx + rxp * R * fit; ty[i] = cy + ryp * R * fit;\n}\n\n// self-drawing comet head sweeping arclength (progress on K.t) + full spectral baseline\nconst rate = 0.045 + P.speed * 0.05;\nconst progress = (K.t * rate) % 1;\nconst tailK = 5.0 - P.energy * 2.5;\nconst expo = 0.5 + P.energy * 0.7 + K.intensity * 0.3 + A.rms * 0.6;\nconst segLen = (R * fit) / Math.sqrt(total);\nconst coreW = Math.max(1.1, segLen * 0.62);\nconst glowW = coreW * 2.6;\n\n// ground fill per style (never near-black; ink is light paper, blueprint deep blue)\nlet gh, gs, gb;\nif (style === 'ink') { gh = 36; gs = 10; gb = 91; }\nelse if (style === 'blueprint') { gh = 214; gs = 72; gb = 20; }\nelse if (style === 'gold-leaf') { gh = 28; gs = 52; gb = 9; }\nelse if (style === 'neon') { gh = (hb + 200) % 360; gs = 58; gb = 8; }\nelse { gh = (hb + 190) % 360; gs = 52; gb = 12; } // spectral\n\nconst g = S.g;\ng.push();\ng.noStroke(); g.fill(gh, gs, gb); g.rect(0, 0, BW, BH);\n// soft ambient halo lifts luminance for dark styles (partial, never a full-frame flash)\nif (glowStyle) {\n  g.blendMode(ADD); g.noStroke();\n  const hal = (0.6 + K.swell * 0.4 + A.bass * 0.5);\n  g.fill(hb, 48, 100, 9 * hal);\n  g.ellipse(cx, cy, R * fit * 1.7, R * fit * 1.7);\n  g.fill(hb, 32, 100, 7 * hal);\n  g.ellipse(cx, cy, R * fit * 0.95, R * fit * 0.95);\n  g.blendMode(BLEND);\n}\ng.strokeCap(ROUND); g.strokeJoin(ROUND);\nif (glowStyle) g.blendMode(ADD);\nfor (let i = 0; i < total - 1; i++) {\n  const f = i / (total - 1);\n  let d = progress - f; if (d < 0) d += 1;\n  const comet = Math.exp(-d * tailK);\n  const x0 = tx[i], y0 = ty[i], x1 = tx[i + 1], y1 = ty[i + 1];\n  let h, s, b, a, cw = coreW;\n  if (style === 'spectral') {\n    h = (hb + f * 300 + 25 * Math.sin(f * 10 + K.t * 0.2)) % 360;\n    s = 70 + 24 * comet;\n    b = Math.min(100, (0.46 + comet * expo) * 100); a = 92;\n  } else if (style === 'neon') {\n    const flick = 0.9 + 0.1 * Math.sin(K.t * 6 + f * 30);\n    h = (hb + 6 * Math.sin(f * 4)) % 360; s = 96;\n    b = Math.min(100, (0.36 + comet * expo) * flick * 100); a = 92;\n  } else if (style === 'gold-leaf') {\n    h = (42 + comet * 8 + 6 * Math.sin(f * 20 + K.t * 0.3)) % 360;\n    s = Math.max(28, 88 - comet * 45);\n    b = Math.min(100, (0.42 + comet * expo * 0.9) * 100); a = 92;\n  } else if (style === 'blueprint') {\n    h = 205; s = 62 - comet * 40;\n    b = Math.min(100, (0.42 + comet * 0.5) * 100); a = 92; cw = coreW * 0.7;\n  } else { // ink \u2014 sumi on paper, dry-brush weight\n    const tex = 0.5 + 0.5 * Math.sin(i * 12.9898 + f * 3.0);\n    h = 30; s = 14;\n    b = Math.max(12, 88 - (0.4 + comet * 0.6) * 72);\n    a = (55 + 35 * comet) * (0.6 + 0.4 * tex); cw = coreW * (0.55 + 0.6 * tex);\n  }\n  if (glowStyle && comet > 0.1) {\n    g.strokeWeight(glowW);\n    g.stroke(h, s * 0.55, b, 12);\n    g.line(x0, y0, x1, y1);\n  }\n  g.strokeWeight(cw);\n  g.stroke(h, s, b, a);\n  g.line(x0, y0, x1, y1);\n  if (style === 'gold-leaf' && comet > 0.5) {\n    g.noStroke(); g.fill(48, 45, 100, comet * 80);\n    g.ellipse(x0, y0, cw * 1.6, cw * 1.6);\n  }\n}\nif (glowStyle) g.blendMode(BLEND);\ng.pop();\n\n// composite (tint for VJ alpha compositing; opaque at default)\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio bloom at the drawing head (on top of clk baseline; partial, never full-frame)\nconst hi = Math.min(total - 1, Math.floor(progress * total));\nconst hxc = tx[hi] / BW * width, hyc = ty[hi] / BH * height;\nconst pr = (A.bass * 0.6 + A.treble * 0.3 + K.pulse * 0.3) * (0.4 + P.energy);\nif (pr > 0.02 && style !== 'ink' && style !== 'blueprint') {\n  push(); blendMode(ADD); noStroke();\n  fill((hb + 30) % 360, 55, 100, 22 * Math.min(1, pr));\n  ellipse(hxc, hyc, u * 0.11 * (0.5 + pr));\n  blendMode(BLEND); pop();\n}\n"
+}
