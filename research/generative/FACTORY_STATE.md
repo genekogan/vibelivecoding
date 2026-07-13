@@ -56,10 +56,16 @@ genart 34, palettes 10. **New-this-run target: +100–200 genart/post/fx.**
 - Snapshot host + server + __clk metronome all alive; clock advancing 60fps.
 
 ## LIVE PROGRESS SNAPSHOT (recompute from `ls assets/visual/genart` on resume)
-**Accepted new genart (9 as of 09:55):** plasma_warp, epicycles, caustics, quasicrystal,
-datascape, strange_dejong, ripple_tank, noise_contour, moire_weave. (baseline was 34 → catalog 43.)
-**Requeue queue (re-author with COLOR + fuller frame):** watercolor (pale/mono). physarum,
-harmonograph, pixel_sort are being re-authored in wave 2.
+**Accepted new genart (13, catalog 47):** plasma_warp, epicycles, caustics, quasicrystal,
+datascape, strange_dejong, ripple_tank, noise_contour, moire_weave, warp_grid, oil_slick,
+godrays, prism. (baseline 34.) 7 of these hand-authored (reliable templates), 6 from subagents.
+**Wave 2b AUTHORING (12):** boids, mandelbrot, penrose, lightning, elementary_ca, stable_fluids,
+ifs_flame, halftone_cmyk, kaleidoscope + fixes harmonograph, physarum, pixel_sort. (ifs_flame landed.)
+**Wave 3 PREPPED (scratchpad/gf/wave3.json, 12):** venation, guilloche, lorenz, apollonian, maze,
+spacefill, lowpoly_mesh, godrays(SKIP-done), rorschach, drip_paint, newton_fractal, sandpile, superformula.
+**Still to author:** watercolor (requeue-color), lenia (failed twice). cyclic_ca shelved (needs r=2).
+**QUOTA: two session-limit hits from concurrent bursts. Keep waves ≤~12; don't run 2 waves at once.**
+**Requeue queue (re-author with COLOR + fuller frame):** watercolor (pale/mono).
 **Wave cadence that works:** author_workflow.js fans out ~10-13 agents (args = family batch,
 passed as JSON — parses string). Each reads author-brief + genart.plasma_warp.json template.
 ~60-70% accept on-canvas; requeue the rest with specific critique (delete inbox file → re-issue
