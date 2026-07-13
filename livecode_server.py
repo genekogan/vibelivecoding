@@ -3,6 +3,7 @@
 import asyncio
 import http.server
 import json
+import math
 import os
 import re
 import threading
@@ -44,6 +45,8 @@ class LivecodeController:
         # Strudel state
         self._tracks: dict[str, str] = {}
         self._cps: float | None = None
+        self._transport_generation: int = 0
+        self._reconnect_policy = "declared-hard-reset"
 
         # p5 state
         self._layers: OrderedDict[str, str] = OrderedDict()
@@ -107,15 +110,16 @@ class LivecodeController:
         class LivecodeHTTPHandler(http.server.SimpleHTTPRequestHandler):
             # REST API routes
             API_ROUTES = {
-                "GET": {"/status", "/state", "/errors", "/show/steps", "/show/save"},
+                "GET": {"/status", "/state", "/errors", "/transport", "/show/steps", "/show/save"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
-                    "/strudel/cps", "/strudel/send",
+                    "/strudel/cps", "/strudel/reset", "/strudel/send",
                     "/p5/layer", "/p5/remove", "/p5/clear",
                     "/p5/setup", "/p5/send", "/p5/state", "/p5/fps",
                     "/show/next", "/show/prev", "/show/goto",
                     "/show/mark", "/show/recording", "/show/load",
                     "/show/load_file", "/show/save_file",
+                    "/music/grade",
                 },
             }
 
@@ -147,6 +151,8 @@ class LivecodeController:
                         "tracks": list(controller.tracks.keys()),
                         "layers": list(controller.layers.keys()),
                         "cps": controller._cps,
+                        "transportGeneration": controller._transport_generation,
+                        "reconnectPolicy": controller._reconnect_policy,
                         "step": controller._step_index,
                         "totalSteps": len(controller._steps),
                         "recording": controller._recording,
@@ -156,6 +162,8 @@ class LivecodeController:
                     self._reply({
                         "ready": controller._ready.is_set(),
                         "cps": controller._cps,
+                        "transportGeneration": controller._transport_generation,
+                        "reconnectPolicy": controller._reconnect_policy,
                         "setup": controller._setup_code,
                         "tracks": controller.tracks,
                         "layers": controller.layers,
@@ -163,6 +171,11 @@ class LivecodeController:
                 elif self.path == "/errors":
                     # Autopilot: recent browser-side runtime errors
                     self._reply({"errors": list(controller._errors)})
+                elif self.path == "/transport":
+                    try:
+                        self._reply({"ok": True, "transport": controller.transport_snapshot()})
+                    except Exception as e:
+                        self._reply({"ok": False, "error": str(e)}, 503)
                 elif self.path.startswith("/p5/read"):
                     # Read a window.state key from the browser (validation/review tooling)
                     from urllib.parse import urlparse, parse_qs
@@ -212,6 +225,10 @@ class LivecodeController:
                     elif path == "/strudel/cps":
                         controller.set_cps(d["cps"])
                         controller._record_step(path, d)
+                    elif path == "/strudel/reset":
+                        result = controller.reset_transport(d.get("quantumCycles", 1))
+                        controller._record_step(path, d)
+                        return self._reply({"ok": True, "transport": result.get("result")})
                     elif path == "/strudel/send":
                         r = controller.send_strudel(d["code"], d.get("evaluate", False))
                         return self._reply({"ok": True, "response": r})
@@ -263,6 +280,20 @@ class LivecodeController:
                     elif path == "/show/save_file":
                         result = controller.save_show_to_file(d["path"])
                         return self._reply(result)
+
+                    # Music factory: taste grading (bad/ok/good) -> grades.jsonl.
+                    # Append-only; the prune tool does any actual deletion later.
+                    elif path == "/music/grade":
+                        import datetime
+                        gid, grade = d.get("id"), d.get("grade")
+                        if not gid or grade not in ("bad", "ok", "good"):
+                            return self._reply({"ok": False, "error": "need id + grade in {bad,ok,good}"}, 400)
+                        rec = {"ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                               "id": gid, "grade": grade}
+                        gpath = os.path.join(root, "assets", "music", "grades.jsonl")
+                        with open(gpath, "a") as gf:
+                            gf.write(json.dumps(rec) + "\n")
+                        return self._reply({"ok": True, **rec})
                     else:
                         return self._reply({"error": "not found"}, 404)
 
@@ -281,8 +312,6 @@ class LivecodeController:
         """Block until a browser client connects and sends 'ready'."""
         if not self._ready.wait(timeout=timeout):
             raise TimeoutError("No browser connected within timeout")
-        # Clear any leftover Strudel patterns
-        self.send_strudel("hush()")
         print("Browser connected and ready")
 
     def close(self):
@@ -306,7 +335,7 @@ class LivecodeController:
 
     # ── WebSocket handler ────────────────────────────────────────
 
-    EXPECTED_VERSION = 2
+    EXPECTED_VERSION = 3
 
     async def _handler(self, ws):
         self._connections.add(ws)
@@ -323,9 +352,9 @@ class LivecodeController:
                     if diag:
                         for dk, dv in diag.items():
                             print(f"    {dk}: {dv}")
-                    self._ready.set()
                     # Restore state on reconnect
                     await self._restore_all(ws)
+                    self._ready.set()
                 elif msg.get("type") == "execute":
                     for other in self._connections:
                         if other != ws:
@@ -352,6 +381,20 @@ class LivecodeController:
 
     async def _restore_all(self, ws):
         """Re-send all tracks and layers to a reconnected browser."""
+        # Every connection is an explicit new transport epoch. Configure the
+        # owned scheduler first; websocket ordering guarantees the restored
+        # pattern is evaluated after this declared hard reset.
+        self._transport_generation += 1
+        transport_mid = f"msg_{uuid.uuid4().hex[:8]}"
+        await ws.send(json.dumps({
+            "type": "execute", "target": "transport", "mode": "configure",
+            "id": transport_mid,
+            "cps": self._cps if self._cps is not None else 0.5,
+            "serverGeneration": self._transport_generation,
+            "reconnectPolicy": self._reconnect_policy,
+            "reason": "browser-connect-hard-reset",
+        }))
+
         # Restore Strudel tracks
         if self._tracks:
             tracks = list(self._tracks.values())
@@ -360,8 +403,6 @@ class LivecodeController:
             else:
                 combined = ",\n".join(tracks)
                 code = f"stack(\n{combined}\n)"
-            if self._cps is not None:
-                code += f".cps({self._cps})"
             mid = f"msg_{uuid.uuid4().hex[:8]}"
             msg = json.dumps({
                 "type": "execute", "target": "strudel",
@@ -381,26 +422,29 @@ class LivecodeController:
 
     # ── Sending (internal) ───────────────────────────────────────
 
-    def _send_and_wait_sync(self, payload: str, mid: str) -> dict:
+    def _send_and_wait_sync(self, payload: str, mid: str, timeout: float | None = None) -> dict:
         """Send payload to all connections and wait for response."""
         if not self._connections:
             raise ConnectionError("No browser connected")
-        future = asyncio.run_coroutine_threadsafe(self._send_and_wait(payload, mid), self._loop)
+        wait_timeout = float(timeout if timeout is not None else self.timeout)
+        future = asyncio.run_coroutine_threadsafe(
+            self._send_and_wait(payload, mid, wait_timeout), self._loop
+        )
         try:
-            result = future.result(timeout=self.timeout)
+            result = future.result(timeout=wait_timeout + 1)
         except TimeoutError:
             self._pending.pop(mid, None)
-            raise TimeoutError(f"Browser did not respond within {self.timeout}s")
+            raise TimeoutError(f"Browser did not respond within {wait_timeout}s")
         if result.get("type") == "error":
             print(f"Browser error: {result.get('message', '?')}")
         return result
 
-    async def _send_and_wait(self, payload: str, mid: str) -> dict:
+    async def _send_and_wait(self, payload: str, mid: str, timeout: float) -> dict:
         fut = self._loop.create_future()
         self._pending[mid] = fut
         await asyncio.gather(*(ws.send(payload) for ws in self._connections))
         try:
-            return await asyncio.wait_for(fut, timeout=self.timeout)
+            return await asyncio.wait_for(fut, timeout=timeout)
         finally:
             self._pending.pop(mid, None)
 
@@ -413,6 +457,18 @@ class LivecodeController:
         if evaluate:
             msg["evaluate"] = True
         return self._send_and_wait_sync(json.dumps(msg), mid)
+
+    def _send_transport(self, mode: str, timeout: float | None = None, **kwargs) -> dict:
+        """Command the one browser-owned Strudel scheduler."""
+        mid = f"msg_{uuid.uuid4().hex[:8]}"
+        msg = {"type": "execute", "target": "transport", "mode": mode, "id": mid}
+        msg.update(kwargs)
+        return self._send_and_wait_sync(json.dumps(msg), mid, timeout=timeout)
+
+    def transport_snapshot(self) -> dict | None:
+        """Read a fresh transport frame even when p5/rAF is background-throttled."""
+        response = self._send_transport("snapshot", reason="server-snapshot")
+        return response.get("result")
 
     # ── p5 sending ───────────────────────────────────────────────
 
@@ -439,24 +495,47 @@ class LivecodeController:
     def hush(self):
         """Stop all tracks and clear the track dict."""
         self._tracks.clear()
-        self.send_strudel("hush()")
+        self._transport_generation += 1
+        return self._send_transport(
+            "hush",
+            serverGeneration=self._transport_generation,
+            reason="server-hush",
+        )
 
     def set_cps(self, cps: float):
-        """Set cycles per second (tempo). Also pushes tempo into p5 state so the
-        browser clock authority (window.state.clk) stays in sync — visuals derive
-        beat from wall-clock + state.cps, never from frameCount."""
-        self._cps = cps
-        if self._tracks:
-            self._replay_all()
-        try:
-            self.send_p5(f"window.state.cps = {float(cps)};", mode="eval")
-        except Exception:
-            pass  # no browser yet — clk falls back to its default cps
+        """Change the owned scheduler's CPS without replacing its pattern/phase."""
+        value = float(cps)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"cps must be a finite positive number, got {cps!r}")
+        self._cps = value
+        return self._send_transport(
+            "set_cps",
+            cps=value,
+            serverGeneration=self._transport_generation,
+            reason="server-set-cps",
+        )
+
+    def reset_transport(self, quantum_cycles: float = 1):
+        """Hard-reset at the next AudioContext-clocked cycle boundary."""
+        quantum = float(quantum_cycles)
+        if not math.isfinite(quantum) or quantum <= 0 or quantum > 16:
+            raise ValueError("quantumCycles must be finite and within (0, 16]")
+        cps = self._cps if self._cps is not None else 0.5
+        self._transport_generation += 1
+        # Worst case is one full quantum away; allow browser scheduling margin.
+        timeout = max(float(self.timeout), quantum / cps + 3.0)
+        return self._send_transport(
+            "reset",
+            timeout=timeout,
+            quantumCycles=quantum,
+            serverGeneration=self._transport_generation,
+            reason="server-quantized-reset",
+        )
 
     def _replay_all(self):
         """Replay all active tracks via window.evaluate()."""
         if not self._tracks:
-            self.send_strudel("hush()")
+            self.hush()
             return
         tracks = list(self._tracks.values())
         if len(tracks) == 1:
@@ -464,8 +543,6 @@ class LivecodeController:
         else:
             combined = ",\n".join(tracks)
             code = f"stack(\n{combined}\n)"
-        if self._cps is not None:
-            code += f".cps({self._cps})"
         self.send_strudel(code, evaluate=True)
 
     @staticmethod
@@ -738,7 +815,12 @@ class LivecodeController:
         try:
             self._tracks.clear()
             self._cps = None
-            self.send_strudel("hush()")
+            self.hush()
+            self._send_transport(
+                "set_cps", cps=0.5,
+                serverGeneration=self._transport_generation,
+                reason="show-reset-default-cps",
+            )
             self._layers.clear()
             self.send_p5("", mode="clear")
         finally:
@@ -761,7 +843,12 @@ class LivecodeController:
         try:
             self._tracks.clear()
             self._cps = None
-            self.send_strudel("hush()")
+            self.hush()
+            self._send_transport(
+                "set_cps", cps=0.5,
+                serverGeneration=self._transport_generation,
+                reason="show-reset-default-cps",
+            )
             self._layers.clear()
             self.send_p5("", mode="clear")
             for i in range(target + 1):
@@ -781,6 +868,8 @@ class LivecodeController:
             self.hush()
         elif route == "/strudel/cps":
             self.set_cps(d["cps"])
+        elif route == "/strudel/reset":
+            self.reset_transport(d.get("quantumCycles", 1))
         elif route == "/p5/layer":
             self.set_layer(d["name"], d["code"])
         elif route == "/p5/remove":
