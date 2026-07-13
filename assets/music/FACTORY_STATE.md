@@ -1,4 +1,34 @@
-# Music Factory — resumable state (updated 2026-07-13 ~03:05 EDT, session-3 expansion in flight)
+# Music Factory — resumable state (updated 2026-07-13, session-4 arc-audibility fix)
+
+## SESSION 4 (2026-07-13 — KIT×ARC SECTION AUDIBILITY FIX)
+
+Gene reported new kits sounded "broken or too quiet" through `slow_burn`,
+`sparse_bookends`, `waves`. ROOT CAUSE (a real process hole): validate.py fires
+each stem solo and each kit at all-`full`, but NEVER plays a kit THROUGH an arc
+section-by-section. Those arcs' intro/breakdown/outro sections named only 1-2
+slots at `sparse`; any kit lacking those slots played SILENT there (a kit with
+one quiet slot = too quiet ~0.007) for 20-30s. A section verifier found **18
+broken kit×arc combos** (e.g. amapiano_lounge has no pad/texture → dead through
+slow_burn's pad+texture intro).
+
+**FIX (committed):** added `"*":"sparse"` floor to the affected sections of 8
+arcs (build_drop, drop_out, ghost_intro, long_arch, slow_burn, sparse_bookends,
+tide, waves). Every kit slot now plays ≥sparse there; named full/peak accents
+keep the dynamics. `browse.html` (line ~328) and `arc_compile.py` resolve `"*"`
+identically, so BOTH surfaces are fixed by the one data change.
+
+**NEW PERMANENT GATE:** `assets/tools/verify_arcs.py` — fires every kit through
+every arc it lists, section by section, measures live audibility, exits non-zero
+on any silent/too-quiet/errored section. **RUN BEFORE ANY HANDOFF** (stop the
+valloop first; it needs the server exclusively). Definitive run after the fix:
+**88 kit×arc combos, 0 problems** (engine control 0.45, all sections audible).
+
+**This is now part of the process:** a kit is not "done" until it passes both
+validate.py (stem+kit gates) AND verify_arcs.py (section audibility through arcs).
+
+---
+
+# (session-3) Music Factory — resumable state (2026-07-13 ~03:05 EDT, expansion)
 
 ## SESSION 3 (2026-07-13 ~03:00 EDT — post-3hr-pause EXPANSION)
 
