@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.lanterns",
+  "kind": "fx",
+  "name": "Floating Lanterns",
+  "desc": "A drift of warm paper sky-lanterns ascending in parallax, glow breathing on the swell, with one large lantern occasionally crossing the foreground.",
+  "tags": [
+    "lantern",
+    "lanterns",
+    "sky-lantern",
+    "kongming",
+    "paper",
+    "candle",
+    "festival",
+    "diwali",
+    "loi-krathong",
+    "float",
+    "ascend",
+    "rise",
+    "glow",
+    "warm",
+    "embers",
+    "fire",
+    "light",
+    "dusk",
+    "night",
+    "serene",
+    "calm",
+    "romantic",
+    "sacred",
+    "fireflies",
+    "orange",
+    "amber",
+    "fx",
+    "effect",
+    "overlay",
+    "particles"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "number of lanterns in the stream"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "lantern size vs canvas"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sway + glow amplitude"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "paper/flame base hue (32=amber; try 12 red, 200 cold)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "ascent + flame flicker rate"
+    },
+    "glow": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "halo spread around each lantern"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal center of the stream"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved vertical anchor"
+    },
+    "style": {
+      "default": "paper",
+      "options": [
+        "paper",
+        "riso",
+        "ember",
+        "wireframe",
+        "noir"
+      ],
+      "doc": "paper=translucent warm shade w/ ribs / riso=2-ink misregistered print + halftone / ember=hot false-color light blobs / wireframe=glowing schematic ribs, no fill (abstract) / noir=chiaroscuro light-from-dark, no outline"
+    },
+    "act": {
+      "default": "release",
+      "options": [
+        "release",
+        "gust",
+        "vigil"
+      ],
+      "doc": "release=steady rising stream / gust=wind pushes them sideways in slow waves / vigil=few large lanterns, slow sacred ascent"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "lantern positions, sizes, hue jitter"
+    }
+  },
+  "acts": [
+    "release",
+    "gust",
+    "vigil"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:23:26+00:00",
+    "fps": 56.5,
+    "motion": 0.0729,
+    "lum": 0.127
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, hue:32, speed:1, glow:.6, x:.5, y:.5, style:'paper', act:'release', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), lrp=(a,b,t)=>a+(b-a)*t, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360), st=P.style;\nconst paper=st==='paper', riso=st==='riso', ember=st==='ember', wire=st==='wireframe', noir=st==='noir';\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1)*(0.5+0.6*K.intensity), gl=clp(P.glow,0,1), spd=P.speed;\n\n// ---- act dramaturgy (multi-minute) ----\nlet ascA=1, swayA=1, sizeA=1, popA=1;\nif(P.act==='gust'){ swayA=2.4; ascA=1.15; popA=1; }\nelse if(P.act==='vigil'){ ascA=0.45; swayA=0.5; sizeA=1.5; popA=0.55; }\n// gust: slow sideways pushes in waves\nconst gust = P.act==='gust' ? Math.sin(K.t*0.18)*0.5+Math.sin(K.t*0.37+1.3)*0.3 : 0;\n\nconst N = Math.max(3, Math.round(lrp(6,46,dens)*popA));\nif(S.seedUsed!==P.seed || S.N!==N){\n  S.seedUsed=P.seed; S.N=N; S.L=[];\n  for(let i=0;i<N;i++) S.L.push({\n    x0: fr(i*3.1+1), ph: fr(i*5.7+2), sp: 0.55+fr(i*7.3+3)*0.9,\n    sz: 0.6+fr(i*9.1+4)*0.9, sway: 0.5+fr(i*2.2+5), hj: (fr(i*4.4+6)-0.5)*22,\n    fk: fr(i*6.6+7)*TAU, lane: fr(i*8.8+8) });\n}\nconst spreadC = P.x, baseW = 0.9;\n\n// warm lantern color by height (hotter/brighter near flame)\nfunction bodyCol(f, hj){\n  if(ember){ const h=md(H+lrp(38,6,f)+hj*0.3,360); return [h, lrp(55,95,f), lrp(96,72,1-f)]; }\n  return [md(H+hj+lrp(6,-6,f),360), lrp(58,84,f), lrp(96,70,f)];\n}\n\nconst oldOp=drawingContext.globalCompositeOperation;\n\n// draw one lantern at (lx,ly) size ls, alpha mult am, flicker fl\nfunction lantern(lx,ly,ls,am,hj,fl,fgBlur){\n  const bw=ls*0.62, bh=ls*0.92, rim=ls*0.30;\n  // --- soft warm halo (additive) ---\n  if(!wire){\n    blendMode(ADD); noStroke();\n    const hr=ls*(1.1+gl*2.4)*(0.85+0.3*fl);\n    const ha=(noir?26:16)*am*(0.6+en*0.6+K.swell*0.4+A.bass*0.5);\n    const hcol=ember?[md(H+14,360),80,100]:[md(H+6,360),70,100];\n    for(let r=4;r>0;r--){ const tt=r/4; fill(hcol[0],hcol[1],hcol[2], clp(ha*(1-tt)*(1-tt),0,35)); ellipse(lx,ly-bh*0.1,hr*tt*2,hr*tt*2.1); }\n    blendMode(BLEND);\n  }\n  if(noir){\n    // chiaroscuro: form from a warm light core in darkness, no outline\n    blendMode(ADD); noStroke();\n    const cc=bodyCol(0.6,hj);\n    for(let r=6;r>0;r--){ const tt=r/6; fill(cc[0],clp(cc[1]-tt*30,0,100),cc[2], clp(20*am*(1-tt)*(1-tt)*(0.7+0.5*fl),0,34)); ellipse(lx,ly-bh*0.12, bw*1.5*tt, bh*1.7*tt); }\n    // dim shell hint (occlusion shadow lower edge)\n    fill(md(H,360),40,18, 10*am); ellipse(lx,ly+bh*0.42, bw*1.2, bh*0.5);\n    blendMode(BLEND);\n    return;\n  }\n  push(); translate(lx,ly);\n  const top=-bh*0.5, bot=bh*0.5;\n  if(wire){\n    // schematic wireframe lantern \u2014 glowing vector ribs + rims, no fill (abstract)\n    const wc=[md(H+hj,360), 60, 100];\n    stroke(wc[0],wc[1],wc[2], clp((70+30*fl)*am,0,100)); strokeWeight(Math.max(1,ls*0.02)); noFill();\n    drawingContext.shadowBlur=ls*0.35; drawingContext.shadowColor='rgba(255,200,120,0.9)';\n    // rims\n    ellipse(0,top, rim*1.0, rim*0.34);\n    ellipse(0,bot*0.86, rim*1.35, rim*0.42);\n    // vertical ribs (curved)\n    for(let k=-2;k<=2;k++){ const fx=k/2; noFill(); beginShape();\n      vertex(fx*rim*0.5, top);\n      bezierVertex(fx*rim*0.9, top+bh*0.3, fx*rim*0.85, bot*0.4, fx*rim*0.68, bot*0.86);\n      endShape(); }\n    // base cross + hanging flame dot\n    line(-rim*0.5,bot*0.86, rim*0.5,bot*0.86);\n    drawingContext.shadowBlur=ls*0.5; fill(md(H+10,360),70,100, 90*am); noStroke(); circle(0,bot*0.55, ls*0.10*(0.8+0.5*fl));\n    drawingContext.shadowBlur=0;\n    pop(); return;\n  }\n  // ---- paper / riso / ember: soft translucent shade, no hard cartoon outline ----\n  noStroke();\n  const c0=bodyCol(0.85,hj), c1=bodyCol(0.15,hj);\n  const inks = riso ? [[md(H+2,360),82,96],[md(H+34,360),78,98]] : null;\n  const passes = riso?2:1;\n  for(let p=0;p<passes;p++){\n    const ox = riso? (p===0?-ls*0.05:ls*0.05) : 0;\n    const oy = riso? (p===0?-ls*0.03:ls*0.03) : 0;\n    if(riso) blendMode(MULTIPLY);\n    // vertical gradient body via stacked trapezoids\n    const seg=6;\n    for(let s2=0;s2<seg;s2++){\n      const f0=s2/seg, f1=(s2+1)/seg;\n      const y0=lrp(top,bot,f0), y1=lrp(top,bot,f1);\n      const wprof=t=>bw*(0.62+0.44*Math.sin(t*Math.PI)); // barrel bulge\n      const w0=wprof(f0), w1=wprof(f1);\n      const col= riso? inks[p] : bodyCol(1-f0,hj);\n      const a = riso? 62 : (ember? 70 : 82)*am;\n      fill(col[0],col[1],col[2], a);\n      quad(ox-w0,y0+oy, ox+w0,y0+oy, ox+w1,y1+oy, ox-w1,y1+oy);\n    }\n    if(riso) blendMode(BLEND);\n  }\n  // interior glow (flame seen through paper)\n  blendMode(ADD); noStroke();\n  const fc=bodyCol(0.0,hj);\n  fill(fc[0],clp(fc[1]-20,0,100),100, clp(30*am*(0.7+0.6*fl),0,35)); ellipse(0,bh*0.18, bw*1.1, bh*0.7);\n  blendMode(BLEND);\n  // paper ribs / structure (fine texture, not outline)\n  if(paper){\n    stroke(md(H+hj,360),40,40, 22*am); strokeWeight(Math.max(0.6,ls*0.01)); noFill();\n    for(let k=-2;k<=2;k++){ const fx=k/2.2; beginShape();\n      vertex(fx*bw*0.9, top+bh*0.06);\n      bezierVertex(fx*bw*1.05, -bh*0.1, fx*bw*1.05, bh*0.15, fx*bw*0.72, bot*0.9);\n      endShape(); }\n    // top + bottom rims\n    stroke(md(H+hj-8,360),50,52,34*am); strokeWeight(Math.max(0.8,ls*0.016));\n    line(-bw*0.5,top+bh*0.03,bw*0.5,top+bh*0.03);\n    noStroke(); fill(md(H+hj,360),42,58, 40*am); ellipse(0,bot*0.9, bw*1.3, bh*0.14);\n  }\n  if(riso){\n    // halftone dot texture (sparse, cheap) for print grain\n    noStroke(); fill(md(H+18,360),20,20, 30*am);\n    for(let dy=0;dy<5;dy++)for(let dx=0;dx<3;dx++){ const px=(dx-1)*bw*0.5, py=lrp(top,bot,dy/4); if(fr(dx*7+dy*13+1)>0.45) circle(px,py, ls*0.03); }\n  }\n  // tiny flame flicker at base\n  blendMode(ADD); noStroke();\n  const flc=[md(H+8,360),70,100];\n  fill(flc[0],flc[1],flc[2], clp(60*am*(0.6+0.7*fl),0,80)); ellipse(0,bot*0.62, ls*0.09*(0.8+0.4*fl), ls*0.16*(0.9+0.5*fl));\n  blendMode(BLEND);\n  pop();\n}\n\n// ---- background lanterns (rising stream) ----\nconst ascRate=0.05*ascA;\nfor(let i=0;i<N;i++){\n  const L=S.L[i];\n  const life=frc(L.ph + K.t*ascRate*L.sp*spd);        // 0 bottom .. 1 top\n  const depth=0.4+0.6*L.lane;                          // parallax: far small, near big\n  const ly=Hh*1.08 - life*Hh*1.24;\n  const swayX=Math.sin(K.t*0.4*L.sway*spd + L.fk)*u*0.05*swayA*(0.5+en) + gust*u*0.12*depth;\n  const lx=W*(spreadC + (L.x0-0.5)*baseW)+swayX;\n  const ls=u*0.085*P.scale*sizeA*L.sz*depth;\n  const edge=clp(life*6,0,1)*clp((1-life)*4,0,1);      // fade in bottom, out top\n  const fl=0.5+0.5*Math.sin(K.t*(2.4+L.sp*2)*spd+L.fk)*(0.6+0.4*en)+0.2*Math.sin(K.t*5.1+L.fk*2);\n  if(edge<=0.01) continue;\n  lantern(lx,ly,ls,edge*(0.55+0.5*depth), L.hj, clp(fl,0,1.4), false);\n}\n\n// ---- foreground drifter: one big lantern crosses horizontally (occasional) ----\nconst fgPer=42;                                        // ~long period\nconst fgPhase=frc(K.t/fgPer + P.seed*0.37);\nconst fgActive = fgPhase<0.6;                          // present 60% of the cycle, off-screen otherwise\nif(fgActive && !wire){\n  const cross=fgPhase/0.6;                             // 0..1 across screen\n  const dir = (Math.floor(K.t/fgPer + P.seed*0.37)%2===0)?1:-1;\n  const fx = dir>0 ? lrp(-0.15,1.15,cross)*W : lrp(1.15,-0.15,cross)*W;\n  const fy = Hh*(0.28+0.14*Math.sin(cross*Math.PI)) + u*0.03*Math.sin(K.t*0.5);\n  const fs = u*0.22*P.scale*(0.9+0.2*K.swell);\n  const ffl=0.55+0.45*Math.sin(K.t*3.2+P.seed);\n  lantern(fx,fy,fs, clp(Math.sin(cross*Math.PI)*1.2,0,1)*0.9, (fr(9)-0.5)*18, clp(ffl,0,1.3), true);\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.shadowBlur=0; noStroke();\n"
+}

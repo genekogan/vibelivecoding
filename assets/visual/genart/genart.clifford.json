@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.clifford",
+  "kind": "genart",
+  "name": "Clifford Attractor",
+  "desc": "A Clifford strange attractor iterated tens of thousands of points per frame into a silky log-density cloud threaded with delicate moire striations, its four coefficients drifting so the whole filigree form morphs and slowly turns, glowing indigo-to-gold on dark or recast as magenta-cyan plasma, blackbody ember, teal bioluminescence, or graphite pencil on cream.",
+  "tags": [
+    "clifford",
+    "clifford attractor",
+    "strange attractor",
+    "attractor",
+    "chaos",
+    "chaotic",
+    "dynamical system",
+    "dynamical",
+    "density",
+    "log-density",
+    "histogram",
+    "filament",
+    "filaments",
+    "filigree",
+    "moire",
+    "striations",
+    "silk",
+    "silky",
+    "cloud",
+    "nebula",
+    "cosmic",
+    "smoke",
+    "veil",
+    "generative",
+    "genart",
+    "abstract",
+    "non-representational",
+    "math",
+    "fractal",
+    "point cloud",
+    "glow",
+    "additive",
+    "plasma",
+    "ember",
+    "blackbody",
+    "thermal",
+    "bioluminescent",
+    "teal",
+    "graphite",
+    "pencil",
+    "indigo",
+    "gold",
+    "psychedelic",
+    "dark",
+    "moody",
+    "ambient",
+    "meditative",
+    "backdrop",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude + iteration count (primary look control)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "attractor zoom vs frame (higher = bigger filamentary cloud)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "points iterated per frame (cloud fullness / moire richness)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "coefficient-drift + whole-cloud rotation rate"
+    },
+    "gamma": {
+      "default": 2.2,
+      "min": 1.2,
+      "max": 4.5,
+      "doc": "tone-map gamma (higher lifts faint tendrils into view)"
+    },
+    "persist": {
+      "default": 0.4,
+      "min": 0.0,
+      "max": 0.9,
+      "doc": "accumulator smoothing (0 = crisp/live, high = long silky smear)"
+    },
+    "hue": {
+      "default": 255,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue rotation (luminance-preserving; 255 = designed anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.25,
+      "max": 0.75,
+      "doc": "cloud anchor x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.25,
+      "max": 0.75,
+      "doc": "cloud anchor y fraction"
+    },
+    "style": {
+      "default": "silk",
+      "options": [
+        "silk",
+        "plasma",
+        "ember",
+        "bio",
+        "pencil"
+      ],
+      "doc": "render philosophy: indigo->gold silk density / magenta-cyan plasma / blackbody ember / teal bioluminescent / graphite pencil on cream"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "chaotic coefficient basin + palette/phase (deterministic)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg, lower = translucent field)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T03:39:17+00:00",
+    "fps": 61.3,
+    "motion": 0.0994,
+    "lum": 0.255
+  },
+  "code": "const D = { energy:.62, scale:1, density:.55, speed:1, gamma:2.2, persist:.4, hue:255, x:.5, y:.5, style:'silk', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse density grid (long axis 240; keyed on aspect, survives resize) ----\nconst LA = 240;\nlet cw, ch;\nif (width >= height){ cw = LA; ch = Math.max(64, Math.round(LA*height/width)); }\nelse { ch = LA; cw = Math.max(64, Math.round(LA*width/height)); }\nif (S.gridKey !== cw+'x'+ch){\n  S.gridKey = cw+'x'+ch; S.cw = cw; S.ch = ch;\n  S.hist = new Float32Array(cw*ch);\n  S.acc = new Float32Array(cw*ch);\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(cw, ch); S.buf.pixelDensity(1);\n  S.fc = 0;\n}\ncw = S.cw; ch = S.ch; const NG = cw*ch;\n\n// ---- seeded Clifford basin (verified-robust chaotic sets; rebuild on seed change) ----\nif (S.seedUsed !== P.seed){\n  S.seedUsed = P.seed;\n  const fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\n  const SETS = [[-1.402,1.836,1.977,1.978],[1.956,1.864,1.699,-1.952],[1.898,1.599,-1.915,1.895],[1.418,1.749,-1.559,-1.869],[1.504,1.633,1.887,-1.982],[-1.346,-1.924,1.611,1.972],[1.663,-1.792,1.993,-1.573],[-1.945,-1.596,-1.709,-1.739],[1.357,1.837,-1.416,-1.728],[1.836,1.659,-1.817,-1.249],[1.873,-1.529,1.845,-1.655],[1.464,-1.935,-1.914,1.181],[-1.877,-1.953,1.953,0.86],[-1.835,-1.881,-1.797,1.504],[-1.948,-1.001,1.988,1.778],[-1.882,-1.421,-1.736,1.887]];\n  const bs = SETS[Math.floor(fr(9)*SETS.length) % SETS.length];\n  S.ba = bs[0] + (fr(1)*2-1)*0.02;\n  S.bb = bs[1] + (fr(2)*2-1)*0.02;\n  S.bc = bs[2] + (fr(3)*2-1)*0.02;\n  S.bd = bs[3] + (fr(4)*2-1)*0.02;\n  S.hoff = fr(5); S.rot0 = fr(6)*6.283; S.secOff = fr(7)*6.283; S.zph = fr(8)*6.283;\n  if (S.acc) S.acc.fill(0);\n  S.fc = 0;\n  S.palKey = null;\n}\n\n// ---- palette LUT (256x3), rebuilt on style/hue/seed change ----\nif (S.palKey !== P.style+'|'+Math.round(P.hue)+'|'+P.seed){\n  S.palKey = P.style+'|'+Math.round(P.hue)+'|'+P.seed;\n  const pal = S.pal || (S.pal = new Float32Array(768));\n  const st = P.style;\n  let stops;\n  if (st==='plasma') stops = [[0,0.05,0.02,0.13],[0.34,0.55,0.07,0.52],[0.60,0.92,0.20,0.72],[0.80,0.30,0.74,0.96],[1,0.82,1,1]];\n  else if (st==='ember') stops = [[0,0.02,0.006,0.012],[0.26,0.34,0.03,0.01],[0.50,0.82,0.20,0.02],[0.72,1,0.55,0.08],[0.88,1,0.85,0.34],[1,1,0.98,0.86]];\n  else if (st==='bio') stops = [[0,0.005,0.06,0.08],[0.30,0.02,0.33,0.30],[0.55,0.06,0.68,0.46],[0.76,0.32,0.96,0.72],[1,0.84,1,0.95]];\n  else if (st==='pencil') stops = [[0,0.90,0.88,0.82],[1,0.90,0.88,0.82]];\n  else stops = [[0,0.06,0.04,0.17],[0.28,0.25,0.10,0.45],[0.52,0.56,0.20,0.52],[0.72,0.92,0.49,0.32],[0.88,1,0.80,0.44],[1,1,0.96,0.82]];\n  // luminance-preserving hue rotation (identity at default hue=255)\n  const ang = ((P.hue-255)/360)*6.28318;\n  const U = Math.cos(ang), Wv = Math.sin(ang);\n  const m00=.299+.701*U+.168*Wv, m01=.587-.587*U+.330*Wv, m02=.114-.114*U-.497*Wv;\n  const m10=.299-.299*U-.328*Wv, m11=.587+.413*U+.035*Wv, m12=.114-.114*U+.292*Wv;\n  const m20=.299-.300*U+1.250*Wv, m21=.587-.588*U-1.050*Wv, m22=.114+.886*U-.203*Wv;\n  const doRot = Math.abs(ang) > 0.001;\n  for (let i=0;i<256;i++){ const t=i/255;\n    let s0=stops[0], s1=stops[stops.length-1];\n    for (let k=0;k<stops.length-1;k++){ if (t>=stops[k][0] && t<=stops[k+1][0]){ s0=stops[k]; s1=stops[k+1]; break; } }\n    const seg=(s1[0]-s0[0])||1, f=(t-s0[0])/seg;\n    let r=s0[1]+(s1[1]-s0[1])*f, g=s0[2]+(s1[2]-s0[2])*f, b=s0[3]+(s1[3]-s0[3])*f;\n    if (doRot){\n      const nr=m00*r+m01*g+m02*b, ng=m10*r+m11*g+m12*b, nb=m20*r+m21*g+m22*b;\n      r=nr<0?0:(nr>1?1:nr); g=ng<0?0:(ng>1?1:ng); b=nb<0?0:(nb>1?1:nb);\n    }\n    pal[i*3]=r; pal[i*3+1]=g; pal[i*3+2]=b;\n  }\n}\nconst pal = S.pal;\n\n// ---- temporal program: eased section arc + continuous K.t coefficient drift ----\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst sec = (K.section!=null?K.section:0);\nif (S.secSm == null || sec < S.secSm - 4) S.secSm = sec;\nS.secSm += (sec - S.secSm)*0.02;\nconst secSm = S.secSm;\nconst T = K.t*P.speed;\nconst dAmp = 0.10, ssh = Math.sin(secSm*0.8 + S.secOff);\nconst a = S.ba + Math.sin(T*0.041)*dAmp*1.2 + Math.sin(T*0.017+1.3)*dAmp*0.5 + ssh*0.07;\nconst b = S.bb + Math.cos(T*0.037+1.7)*dAmp*1.1 - ssh*0.07;\nconst c = S.bc + Math.sin(T*0.029+3.1)*dAmp*1.0 + Math.cos(secSm*0.6)*0.08;\nconst d = S.bd + Math.cos(T*0.047+4.4)*dAmp*1.1 - Math.sin(secSm*0.5)*0.08;\n\n// ---- iterate Clifford map fresh each frame, splat into density grid (canonical orientation) ----\nlet iters = Math.floor((22000 + P.density*40000)*(0.75+intn*0.4) + A.bass*12000);\nif (iters>70000) iters=70000;\nconst hist = S.hist; hist.fill(0);\nconst uMin = (cw<ch?cw:ch), span = uMin/5.6;\nconst cx = P.x*cw, cy = P.y*ch, sc = span*P.scale;\nlet x=0.1, y=0.0;\nfor (let it=0; it<30; it++){ const nx=Math.sin(a*y)+c*Math.cos(a*x); const ny=Math.sin(b*x)+d*Math.cos(b*y); x=nx; y=ny; }\nlet nMax=0, filled=0;\nfor (let it=0; it<iters; it++){\n  const nx = Math.sin(a*y) + c*Math.cos(a*x);\n  const ny = Math.sin(b*x) + d*Math.cos(b*y);\n  x=nx; y=ny;\n  const ix = (cx + x*sc)|0, iy = (cy + y*sc)|0;\n  if (ix>=0 && ix<cw && iy>=0 && iy<ch){ const bi=iy*cw+ix; const nv=hist[bi]+1; hist[bi]=nv; if(nv===1)filled++; if(nv>nMax)nMax=nv; }\n}\n\n// ---- log-density tone map -> guarded smoothed accumulator (collapse never erases the cloud) ----\nS.fc = (S.fc||0) + 1;\nconst collapsed = (filled/NG < 0.05) && S.fc > 24;   // Clifford can pass through non-chaotic windows -> hold last good cloud\nconst expo = (0.5 + P.energy*2.0 + intn*0.45) + K.pulse*0.15 + A.rms*0.9;\nconst invG = 1/Math.max(0.3, P.gamma);\nconst logMax = Math.log(1 + nMax*expo) + 1e-3;\nconst mix = 1 - Math.min(0.92, P.persist)*0.82;\nconst acc = S.acc, st = P.style, pencil = (st==='pencil');\nconst buf = S.buf; buf.loadPixels(); const q = buf.pixels;\nfor (let i=0;i<NG;i++){\n  if (!collapsed){\n    const n = hist[i];\n    const br = n>0 ? Math.pow(Math.min(1, Math.log(1+n*expo)/logMax), invG) : 0;\n    acc[i] += (br-acc[i])*mix;\n  }\n  const av = acc[i];\n  let R,G,B;\n  if (pencil){\n    R = 255*(0.91 - av*0.80); G = 255*(0.89 - av*0.80); B = 255*(0.83 - av*0.72);\n  } else {\n    let k=(av*255)|0; if(k<0)k=0; if(k>255)k=255;\n    R = pal[k*3]*255; G = pal[k*3+1]*255; B = pal[k*3+2]*255;\n  }\n  const p4=i*4;\n  q[p4]   = R<0?0:(R>255?255:R);\n  q[p4+1] = G<0?0:(G>255?255:G);\n  q[p4+2] = B<0?0:(B>255?255:B);\n  q[p4+3] = 255;\n}\nbuf.updatePixels();\n\n// ---- display: base full-frame fill (ground + corners) + slowly rotating/breathing cloud on top ----\nconst rot = S.rot0 + K.t*0.028*P.speed + Math.sin(K.t*0.05)*0.05;\nconst zoom = 1.0 + 0.035*Math.sin(K.t*0.09 + S.zph) + K.swell*0.02;\npush();\nif (P.alpha < 100){\n  tint(0,0,100,P.alpha);\n  translate(width/2, height/2); rotate(rot); scale(zoom);\n  image(buf, -width/2, -height/2, width, height);\n  noTint();\n} else {\n  image(buf, 0, 0, width, height);                 // base fills frame; corners hold matching ground tone\n  translate(width/2, height/2); rotate(rot); scale(zoom);\n  image(buf, -width/2, -height/2, width, height);  // the turning cloud\n  if (!pencil){ blendMode(ADD); tint(0,0,100,14+P.energy*18); image(buf, -width/2, -height/2, width, height); noTint(); blendMode(BLEND); }\n}\npop();\n"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.collatz_river",
+  "kind": "genart",
+  "name": "Collatz River",
+  "desc": "Hundreds of Collatz (3n+1) hailstone orbits braid out from a shared root into a luminous river-delta of coral strands, hued violet-young through cyan to gold-old with additive glow, swaying on incommensurate currents over deep glowing water.",
+  "tags": [
+    "collatz",
+    "hailstone",
+    "3n+1",
+    "orbit",
+    "number-theory",
+    "math",
+    "delta",
+    "river",
+    "coral",
+    "branching",
+    "tree",
+    "growth",
+    "strands",
+    "braid",
+    "current",
+    "flow",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "violet",
+    "cyan",
+    "gold",
+    "teal",
+    "pink",
+    "autumn",
+    "bioluminescent",
+    "glow",
+    "luminous",
+    "filigree",
+    "organic",
+    "ink",
+    "recursive",
+    "stream"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "strand count in the delta (10..200 braided orbits)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow + core brightness and glint intensity"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "current-flow + sway rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "segment length / strand reach"
+    },
+    "curl": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "per-step turn magnitude (0=open fans, 1=coiled coral)"
+    },
+    "sway": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "amplitude of the delta-wide drift/rotation"
+    },
+    "hue": {
+      "default": 275,
+      "min": 0,
+      "max": 360,
+      "doc": "rotates the orbit-length palette ramp + water"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "root (delta apex) x"
+    },
+    "y": {
+      "default": 0.92,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "root (delta apex) y"
+    },
+    "style": {
+      "default": "delta",
+      "options": [
+        "delta",
+        "coral",
+        "autumn",
+        "bio",
+        "ink"
+      ],
+      "doc": "render philosophy: violet-gold delta / teal-pink coral / ember autumn / deep-sea bioluminescent / flat sumi ink (mono)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic integer pool + strand ordering"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:09:10+00:00",
+    "fps": 59.9,
+    "motion": 0.039,
+    "lum": 0.228
+  },
+  "code": "const D = { density:.6, energy:.62, speed:1, scale:1, curl:.5, sway:.55, hue:275, x:.5, y:.92, style:'delta', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst wh = h => ((h%360)+360)%360;\nconst st = P.style;\nconst sec = K.section|0;\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst aA = clp(P.alpha,0,100)/100;\n\n// ---- style config: distinct rendering philosophies ----\n// topB/botB = ground gradient (HSB) top->bottom(root) ; rootGlow = bloom at delta mouth\n// stops = 3-stop orbit-length hue ramp (young->mid->old) ; add = additive glow vs flat ink\nlet cfg;\nif (st==='coral')       cfg={topB:[196,72,9],  botB:[318,58,17], rootGlow:[330,72,40], stops:[338,302,176], sat:84, add:true,  coreBri:92, glowA:15, coreA:30, glintH:326, blur:true};\nelse if (st==='autumn') cfg={topB:[14,72,9],   botB:[34,82,18],  rootGlow:[42,92,44],  stops:[6,30,50],     sat:90, add:true,  coreBri:96, glowA:16, coreA:32, glintH:44,  blur:true};\nelse if (st==='bio')    cfg={topB:[222,82,7],  botB:[196,82,15], rootGlow:[168,92,40],  stops:[172,150,286], sat:92, add:true,  coreBri:99, glowA:18, coreA:30, glintH:172, blur:true};\nelse if (st==='ink')    cfg={topB:[38,9,90],   botB:[36,12,80],  rootGlow:[34,14,72],  stops:[32,30,28],    sat:14, add:false, coreBri:15, glowA:9,  coreA:44, glintH:30,  blur:false};\nelse /* delta */        cfg={topB:[238,70,15], botB:[276,48,30], rootGlow:[44,66,60],  stops:[283,188,46],  sat:88, add:true,  coreBri:96, glowA:16, coreA:32, glintH:48,  blur:true};\n\nconst rootX = clp(P.x,0.05,0.95)*width, rootY = clp(P.y,0.05,0.99)*height;\n\n// ---- HSB->RGB for the ground buffer ----\nfunction h2r(h,s,b){ h=wh(h); s=clp(s,0,100)/100; b=clp(b,0,100)/100; const c=b*s, x=c*(1-Math.abs((h/60)%2-1)), m=b-c; let r,g,bl;\n  if(h<60){r=c;g=x;bl=0;} else if(h<120){r=x;g=c;bl=0;} else if(h<180){r=0;g=c;bl=x;}\n  else if(h<240){r=0;g=x;bl=c;} else if(h<300){r=x;g=0;bl=c;} else {r=c;g=0;bl=x;}\n  return [(r+m)*255,(g+m)*255,(bl+m)*255]; }\n\n// ---- cached ground gradient (rebuild on size / style / hue / section) ----\nconst gKey = width+'x'+height+':'+st+':'+(P.seed|0)+':'+Math.round(P.hue)+':'+sec;\nif (!S.gb || S.gKey !== gKey){\n  const BW=170, BH=Math.max(48, Math.round(BW*height/width));\n  if (!S.gb || S.gbw!==BW || S.gbh!==BH){ if(S.gb) S.gb.remove(); S.gb=createGraphics(BW,BH); S.gb.pixelDensity(1); S.gbw=BW; S.gbh=BH; }\n  const gb=S.gb; gb.loadPixels(); const px=gb.pixels; const asp=(BW/BH);\n  const rfx=clp(P.x,0.05,0.95), rfy=clp(P.y,0.05,0.99);\n  const hd=(P.hue-275)*0.5, sd=sec*7;\n  for (let j=0;j<BH;j++){\n    const vy=j/(BH-1);\n    for (let i=0;i<BW;i++){\n      const fx=i/(BW-1);\n      const dx=(fx-rfx)*asp, dy=(vy-rfy);\n      const dist=Math.sqrt(dx*dx+dy*dy);\n      let bloom=clp(1-dist*1.15,0,1); bloom=bloom*bloom;\n      const hh = wh(cfg.topB[0]+(cfg.botB[0]-cfg.topB[0])*vy + hd + sd);\n      const ss = cfg.topB[1]+(cfg.botB[1]-cfg.topB[1])*vy;\n      let bb = cfg.topB[2]+(cfg.botB[2]-cfg.topB[2])*vy;\n      const gh = wh(cfg.rootGlow[0]+hd+sd);\n      const c1=h2r(hh,ss,bb), c2=h2r(gh,cfg.rootGlow[1],cfg.rootGlow[2]);\n      const o=4*(j*BW+i);\n      px[o]   = clp(c1[0]*(1-bloom)+c2[0]*bloom,0,255);\n      px[o+1] = clp(c1[1]*(1-bloom)+c2[1]*bloom,0,255);\n      px[o+2] = clp(c1[2]*(1-bloom)+c2[2]*bloom,0,255);\n      px[o+3] = 255;\n    }\n  }\n  gb.updatePixels(); S.gKey=gKey;\n}\n\n// ---- seed-deterministic Collatz strand geometry (rebuild on seed change) ----\nconst NMAX=220, CAP=64;\nif (S.seedUsed!==P.seed || !S.str){\n  S.seedUsed=P.seed;\n  const fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\n  const str=[]; const seedInt=(P.seed|0);\n  for (let gi=0;gi<NMAX;gi++){\n    const n = 3 + (Math.floor(fr(gi+1)*9000) + gi*7 + seedInt*13);\n    let v=n%100000, guard=0; if(v<3)v+=3;\n    const par=[];\n    while (v>1 && guard++<400){ par.push(v%2===0?0:1); v=(v%2===0)?v/2:3*v+1; }\n    const L=par.length;\n    const cap=Math.min(L,CAP);\n    const p8=new Uint8Array(cap);\n    for(let k=0;k<cap;k++) p8[k]=par[k];\n    str.push({ par:p8, cap, norm:clp((L-6)/90,0,1), mir:(gi&1)?-1:1,\n               fan:(fr(gi*2+3)-0.5)*0.95, ph:fr(gi*3+5)*6.283, jit:(fr(gi*5+7)-0.5)*0.14 });\n  }\n  S.str=str;\n}\nconst str=S.str;\n\n// ---- per-frame dynamics (all rhythm from K, audio ON TOP) ----\nconst flow  = K.t*(0.55+P.speed*0.5);\nconst glint = K.t*(0.11+P.speed*0.08);\nconst swayU = u*(0.018+P.sway*0.05);\nconst gsx = Math.sin(K.t*0.11)*swayU + Math.sin(K.t*0.041+1.3)*swayU*0.6 + A.lowmid*u*0.02;\nconst gsy = Math.cos(K.t*0.083)*swayU*0.5 + Math.sin(K.t*0.027)*swayU*0.35;\nconst gsr = 0.035*Math.sin(K.t*0.067) + 0.02*Math.sin(K.t*0.019+0.7);\nconst cosR=Math.cos(gsr), sinR=Math.sin(gsr);\nconst segLen = u*0.011*clp(P.scale,0.4,2.4);\nconst cr = clp(P.curl,0.05,1.05)*0.5;\nconst evenA=cr*0.55, oddA=cr;\nconst baseAng=Math.PI/2;\nconst N = Math.round(clp(28 + P.density*175,10,200));\nconst expo = 0.55 + P.energy*0.85 + intn*0.3 + A.rms*0.6;\nconst ramp = n => { n=clp(n,0,1); return n<0.5 ? cfg.stops[0]+(cfg.stops[1]-cfg.stops[0])*(n/0.5) : cfg.stops[1]+(cfg.stops[2]-cfg.stops[1])*((n-0.5)/0.5); };\nconst hShift=(P.hue-275)*0.6;\n\n// ---- draw ground (fills frame; slow parallax drift on K.t) ----\nconst pdx=Math.sin(K.t*0.05)*u*0.012, pdy=Math.cos(K.t*0.037)*u*0.010;\npush();\nif (aA<1) tint(0,0,100,aA*100);\nimage(S.gb, pdx-u*0.02, pdy-u*0.02, width+u*0.04, height+u*0.04);\nnoTint();\npop();\n\n// ---- draw the braided delta ----\npush();\nblendMode(cfg.add?ADD:BLEND);\nnoFill(); strokeCap(ROUND); strokeJoin(ROUND);\nconst glintDots=[];\nfor (let s=0;s<N;s++){\n  const S1=str[s]; const cap=S1.cap; if(cap<3) continue;\n  const norm=S1.norm, mir=S1.mir, jf=1+S1.jit;\n  let ang=baseAng+S1.fan, lx=0, ly=0;\n  const gi=Math.floor((((glint+S1.ph)%1+1)%1)*(cap-1));\n  let gx=rootX, gy=rootY;\n  const xs=new Array(cap+1), ys=new Array(cap+1);\n  xs[0]=rootX+gsx; ys[0]=rootY+gsy;\n  for (let k=0;k<cap;k++){\n    ang += (S1.par[k]? -oddA:evenA)*jf;\n    lx += Math.cos(ang)*segLen; ly += Math.sin(ang)*segLen;\n    const off=Math.sin(k*0.42 - flow + S1.ph)*segLen*0.55*(k/cap)*(0.5+cr);\n    const pxL=(lx+off)*mir, pyL=ly;\n    const rx=pxL*cosR - pyL*sinR, ry=pxL*sinR + pyL*cosR;\n    const wx=rootX+rx+gsx, wy=rootY-ry+gsy;\n    xs[k+1]=wx; ys[k+1]=wy;\n    if(k===gi){ gx=wx; gy=wy; }\n  }\n  const h=wh(ramp(norm)+hShift+sec*4);\n  const sb=clp(cfg.coreBri*0.6 + norm*38, 12, 100);\n  const eA=clp(cfg.coreA*(0.45+P.energy*0.9), 8, 60)*aA;\n  const gA=clp(cfg.glowA*(0.45+P.energy*0.9), 4, 34)*aA;\n  // glow underlay (fat, translucent)\n  if(cfg.add){ stroke(h,cfg.sat-20,sb,gA); strokeWeight((2.4+norm*2.6)*(0.6+P.scale*0.4));\n    beginShape(); for(let q=0;q<=cap;q++) vertex(xs[q],ys[q]); endShape(); }\n  // core line\n  stroke(h,cfg.sat,sb,eA); strokeWeight((0.7+(1-norm)*0.8)*(0.6+P.scale*0.4)*(cfg.add?1:1.3));\n  beginShape(); for(let q=0;q<=cap;q++) vertex(xs[q],ys[q]); endShape();\n  if(cfg.add && s<170) glintDots.push([gx,gy,h,norm]);\n}\nblendMode(BLEND);\npop();\n\n// ---- streaming current: bright glints flowing along strands (continuous motion, silence-safe) ----\nif(cfg.add){\n  push(); blendMode(ADD); noStroke();\n  const tw=A.treble*u*0.012;\n  for(let i=0;i<glintDots.length;i++){ const g=glintDots[i];\n    const pulse=0.5+0.5*Math.sin(K.t*2.3+i*0.6);\n    const sz=(u*(0.004+0.007*pulse)*(0.6+P.energy)+tw)*(0.7+g[3]);\n    fill(wh(cfg.glintH+(g[3]-0.5)*40),56,100,(10+pulse*22)*(0.45+P.energy)*aA + A.rms*30*aA);\n    circle(g[0],g[1],sz);\n  }\n  // delta mouth bloom \u2014 breathes on beat + bass, anchors the frame bright\n  const gp=clp(0.55+0.35*Math.sin(K.t*1.1)+K.pulse*0.4+A.bass*0.6,0,1.7);\n  fill(wh(cfg.glintH),46,100,14*(0.5+P.energy)*gp*aA);\n  circle(rootX+gsx,rootY+gsy,u*0.13*(0.7+0.35*gp));\n  fill(wh(cfg.glintH+20),36,100,8*(0.5+P.energy)*gp*aA);\n  circle(rootX+gsx,rootY+gsy,u*0.26*(0.6+0.3*gp));\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND);\n"
+}

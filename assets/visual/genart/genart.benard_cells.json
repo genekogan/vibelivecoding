@@ -1,0 +1,160 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.benard_cells",
+  "kind": "genart",
+  "name": "Benard Convection Cells",
+  "desc": "Rayleigh-Benard convection seen from above, integrated as the Swift-Hohenberg equation the real thing reduces to near onset \u2014 a fluid heated from below organizes into a honeycomb of hexagonal convection cells with hot rising cores and cool sinking rims, or into rolls, or into spiral-defect chaos where grain boundaries glide and defects nucleate and annihilate without ever settling; false-colour thermal, planetary magma crust, hammered bronze relief, drafting blueprint, or sumi ink.",
+  "tags": [
+    "rayleigh-benard",
+    "benard",
+    "convection",
+    "convection-cell",
+    "swift-hohenberg",
+    "hexagon",
+    "honeycomb",
+    "rolls",
+    "spiral-defect-chaos",
+    "defect",
+    "grain-boundary",
+    "dislocation",
+    "pattern-formation",
+    "amplitude-equation",
+    "instability",
+    "onset",
+    "buoyancy",
+    "thermal",
+    "heat",
+    "fluid",
+    "fluid-dynamics",
+    "mantle",
+    "magma",
+    "lava",
+    "planetary",
+    "crust",
+    "pde",
+    "simulation",
+    "field",
+    "continuum",
+    "emergent",
+    "self-organizing",
+    "scientific",
+    "laboratory",
+    "false-colour",
+    "ironbow",
+    "bronze",
+    "hammered",
+    "chiaroscuro",
+    "relief",
+    "blueprint",
+    "schematic",
+    "ink",
+    "sumi",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "organic",
+    "cellular",
+    "hypnotic",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness + colour gain across the hot cores and cool rims"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into a sub-region of the convection cell \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "simulation rate \u2014 how fast cells form, glide and reorganize (0.2 still evolves)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "thermal fluctuation + the uneven-heating ramp that nucleates defects and grain boundaries (low = serene lattice, high = restless chaos)"
+    },
+    "rayleigh": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "Rayleigh number above threshold: 0 = quiescent conduction, mid = clean cells, 1 = hard turbulent convection"
+    },
+    "hexa": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "up-down symmetry breaking \u2014 0 selects stripe ROLLS, 1 selects the iconic HEXAGONAL Benard cells"
+    },
+    "relief": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the cells are lit into rounded pseudo-3D convection domes"
+    },
+    "hue": {
+      "default": 26,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue anchoring the hot end of the thermal ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the magnified region"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan of the magnified region"
+    },
+    "style": {
+      "default": "convection",
+      "options": [
+        "convection",
+        "magma",
+        "bronze",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "aesthetic: false-colour thermal cells / dark magma crust with molten inter-cell cracks / hammered bronze relief (light only) / drafting blueprint iso-lines / sumi ink wash"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the initial fluctuation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:44:02+00:00",
+    "fps": 59.9,
+    "motion": 0.2548,
+    "lum": 0.26
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, rayleigh: .55, hexa: .5, relief: .6, hue: 26, x: .5, y: .5, style: 'convection', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Rayleigh-Benard convection, seen from above, via the Swift-Hohenberg equation \u2014 the\n// amplitude equation RB reduces to near onset:\n//        du/dt = r*u - (1 + lap)^2 u + g*u^2 - u^3\n// The quadratic term breaks up/down symmetry and selects HEXAGONS (the iconic Benard cell);\n// without it the pattern is rolls. Between them lies spiral-defect chaos, which never\n// settles \u2014 grain boundaries glide, defects nucleate and annihilate forever. ----\nconst BW = 164, BH = Math.max(72, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.U = new Float32Array(N); S.L1 = new Float32Array(N); S.L2 = new Float32Array(N);\n  S.U2 = new Float32Array(N); S.init = false;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  for (let i = 0; i < N; i++) S.U[i] = (hsh(i % BW, (i / BW) | 0, 1) - 0.5) * 0.5;\n}\n\nconst tt = K.t;\nconst U = S.U, L1 = S.L1, L2 = S.L2;\n// control parameter r ~ (Ra - Ra_c)/Ra_c : how far above the convection threshold we are.\n// It breathes on incommensurate slow sines, so the pattern walks through regimes for minutes.\nconst rBase = -0.06 + P.rayleigh * 0.75;\nconst rWob = 0.11 * Math.sin(tt * 0.0231) + 0.06 * Math.sin(tt * 0.0517 + 1.9) + 0.03 * Math.sin(tt * 0.0894 + 0.6);\nconst r = rBase + rWob + K.swell * 0.02 + A.bass * 0.05;\nconst gq = (P.hexa * 1.5) * (0.85 + 0.15 * Math.sin(tt * 0.0413 + 2.4));   // hexagon selector\n// q0 = the preferred wavenumber. Generalising (1+lap)^2 to (q0^2+lap)^2 lets the cell SIZE\n// breathe, which is what a real Benard layer does as its depth/Rayleigh number changes.\n// It is also the motion floor: a lattice that merely TRANSLATES is periodic, so it looks\n// identical 8s later \u2014 only re-selecting the wavelength forces genuine reorganisation.\nconst q0 = 1 + 0.14 * (0.62 * Math.sin(tt * 0.0193) + 0.26 * Math.sin(tt * 0.0447 + 1.5) + 0.12 * Math.sin(tt * 0.0821 + 0.3));\nconst q02 = q0 * q0, q04 = q02 * q02;\n// Explicit Euler on a 5-point stencil: lap has eigenvalues in [-8,0], so lap^2 reaches 64 and\n// stability needs dt < 2/(64 - 16*q0^2 + q0^4 - r) ~ 0.038. Drive `speed` with step COUNT,\n// never by enlarging dt \u2014 at dt=0.085 the grid-scale checkerboard mode amplifies 3.1x/step.\nconst dt = 0.030;\nconst steps = Math.max(1, Math.min(6, Math.round(1 + P.speed * 2)));\n// a slow spatial ramp in r (a real cell is never heated perfectly evenly) \u2014 this is what\n// nucleates the grain boundaries and keeps the defect dance alive\nconst rgx = 0.55 * Math.sin(tt * 0.0173 + 1.1), rgy = 0.55 * Math.cos(tt * 0.0209);\nconst rAmp = 0.10 * (0.3 + P.density);\nconst nz = (tt * 331.3) | 0;\nconst noiseAmp = 0.0035 + P.density * 0.010;\n\nfor (let st = 0; st < steps; st++) {\n  // lap(u) -> L1  (periodic)\n  for (let j = 0; j < BH; j++) {\n    const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n      L1[jc + i] = U[jc + im] + U[jc + ip] + U[jm + i] + U[jp + i] - 4 * U[jc + i];\n    }\n  }\n  // lap(lap(u)) -> L2\n  for (let j = 0; j < BH; j++) {\n    const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n      L2[jc + i] = L1[jc + im] + L1[jc + ip] + L1[jm + i] + L1[jp + i] - 4 * L1[jc + i];\n    }\n  }\n  // du/dt = r*u - (q0^2 + lap)^2 u + g*u^2 - u^3\n  //       = r*u - q0^4*u - 2*q0^2*lap(u) - lap^2(u) + g*u^2 - u^3\n  for (let j = 0; j < BH; j++) {\n    const jc = j * BW;\n    const ry = (j / BH - 0.5);\n    for (let i = 0; i < BW; i++) {\n      const p = jc + i;\n      const u = U[p];\n      const rloc = r + rAmp * ((i / BW - 0.5) * rgx + ry * rgy) * 2;\n      let v = u + dt * (rloc * u - q04 * u - 2 * q02 * L1[p] - L2[p] + gq * u * u - u * u * u);\n      U[p] = v < -3 ? -3 : (v > 3 ? 3 : v);\n    }\n  }\n}\n// thermal fluctuation once per frame \u2014 keeps defects nucleating so the field never freezes\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  U[j * BW + i] += (hsh(i, j, nz) - 0.5) * noiseAmp * 2;\n}\n\n// ---- large-scale circulation: a real Benard cell always has a mean flow that advects the\n// rolls bodily. Without it Swift-Hohenberg ANNEALS to a near-stationary lattice and reads\n// STATIC on the 8s gate no matter how busy the defects look. Translation + rotation on\n// incommensurate rates, so the frame never repeats. Bilinear resampling costs a little\n// amplitude, which the SH instability immediately regrows \u2014 it self-sharpens. ----\nconst mf = 0.014 * (0.3 + P.speed * 0.7);\nconst mfx = mf * (1.7 * Math.sin(tt * 0.037) + 0.8 * Math.sin(tt * 0.091 + 1.3) + 0.4 * Math.sin(tt * 0.211));\nconst mfy = mf * (1.4 * Math.cos(tt * 0.053) + 0.7 * Math.sin(tt * 0.113 + 0.6) + 0.3 * Math.sin(tt * 0.179 + 2.2));\nconst mrot = 0.00042 * (0.3 + P.speed * 0.7) * (Math.sin(tt * 0.0271 + 0.9) + 0.5 * Math.sin(tt * 0.0673));\nconst U2 = S.U2;\nfor (let j = 0; j < BH; j++) {\n  const ry = j - BH * 0.5;\n  for (let i = 0; i < BW; i++) {\n    const rx = i - BW * 0.5;\n    let bx = i - (mfx - ry * mrot), by = j - (mfy + rx * mrot);\n    bx = ((bx % BW) + BW) % BW; by = ((by % BH) + BH) % BH;\n    const x0 = bx | 0, y0 = by | 0, fx = bx - x0, fy = by - y0;\n    const x1 = (x0 + 1) % BW, y1 = (y0 + 1) % BH;\n    const a = U[y0 * BW + x0], b2 = U[y0 * BW + x1], c = U[y1 * BW + x0], d2 = U[y1 * BW + x1];\n    const top = a + (b2 - a) * fx, bot = c + (d2 - c) * fx;\n    U2[j * BW + i] = top + (bot - top) * fy;\n  }\n}\nU.set(U2);\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 12 + Math.sin(tt * 0.0161) * 15) % 360 + 360) % 360;\nconst gain = 0.5 + P.energy * 1.25 + A.rms * 0.4;\nconst rel = P.relief;\nfunction pal(m, sp, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp * 2))];\n}\nfor (let j = 0; j < BH; j++) {\n  const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n    const p = jc + i;\n    const u = U[p];\n    const gx = U[jc + ip] - U[jc + im], gy = U[jp + i] - U[jm + i];\n    // u > 0 = hot rising core, u < 0 = cool sinking rim\n    const hot = Math.max(0, Math.min(1, 0.5 + u * 0.62));\n    // relief: light the cell tops as rounded convection domes from upper-left\n    const lit = 1 + (gx * 0.62 - gy * 0.36) * 2.0 * rel;\n    let r2, gg, b;\n    if (style === 'magma') {              // planetary mantle: dark crust, molten cracks between cells\n      const crust = Math.max(0, Math.min(1, 0.55 - u * 0.7));\n      const glow = Math.pow(Math.max(0, 1 - crust), 1.5) * gain;\n      const cc = pal(0.02 + glow * 0.14, 0.11, 0.0);\n      const bs = 0.055 + crust * 0.10;\n      r2 = Math.min(1, bs + glow * cc[0] * 1.75 + glow * glow * 0.35);\n      gg = Math.min(1, bs * 0.82 + glow * cc[1] * 1.15);\n      b = Math.min(1, bs * 0.86 + glow * cc[2] * 0.55);\n    } else if (style === 'bronze') {      // chiaroscuro relief only: hammered metal, no colour key\n      const v = Math.max(0, Math.min(1, 0.42 + (gx * 0.66 - gy * 0.38) * 3.0 * (0.5 + rel) + u * 0.06));\n      r2 = Math.min(1, v * 1.02 + 0.05); gg = Math.min(1, v * 0.90 + 0.04); b = Math.min(1, v * 0.66 + 0.05);\n    } else if (style === 'blueprint') {   // schematic: iso-lines of the amplitude on drafting cyan\n      const band = Math.abs(((u * 3.2 + 8) % 1) - 0.5);\n      const ln = band < 0.085 ? 1 : 0;\n      const base = 0.07 + hot * 0.09;\n      r2 = base * 0.42 + ln * 0.34; gg = base * 0.76 + ln * 0.86; b = Math.min(1, base * 1.75 + ln * 1.0);\n    } else if (style === 'ink') {         // sumi tonal wash on cream\n      const ink = Math.max(0, Math.min(1, (0.5 - u * 0.55) * (0.6 + gain * 0.4)));\n      const paper = 0.94 - ink * 0.84;\n      r2 = paper * 0.99; gg = paper * 0.96; b = paper * 0.88;\n    } else {                              // convection (default) \u2014 false-colour thermal cells\n      const cc = pal(0.02 + hot * 0.42, 0.17, 0.0);\n      const sh = (0.16 + hot * 0.80) * (0.6 + gain * 0.42);\n      r2 = Math.min(1, cc[0] * sh * lit + hot * hot * 0.16);\n      gg = Math.min(1, cc[1] * sh * lit + hot * hot * 0.12);\n      b = Math.min(1, cc[2] * sh * lit + hot * hot * 0.10);\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, r2 * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

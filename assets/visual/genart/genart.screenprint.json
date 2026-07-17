@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.screenprint",
+  "kind": "genart",
+  "name": "Screenprint Pull",
+  "desc": "A proof building on the press bed \u2014 the squeegee drags a bead of thick opaque spot ink across the mesh and lays another hard-cut stencil down, flooded ridges and starved bald patches streaking along the pull, pinholes where the ink never got through, the oldest coats sinking into the chipboard as fresh ones go over the top.",
+  "tags": [
+    "screenprint",
+    "silkscreen",
+    "serigraph",
+    "squeegee",
+    "pull",
+    "print",
+    "printmaking",
+    "stencil",
+    "mesh",
+    "ink",
+    "spot-colour",
+    "overprint",
+    "registration",
+    "misregistration",
+    "poster",
+    "zine",
+    "graphic",
+    "bauhaus",
+    "hard-edge",
+    "geometric",
+    "layered",
+    "texture",
+    "streak",
+    "kraft",
+    "chipboard",
+    "workshop",
+    "press",
+    "duotone",
+    "metallic",
+    "saturated"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "press vigour \u2014 stencil size, streak contrast, squeegee bead, pull rate, sheen"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many coats stay on the sheet (3 to 7) and how busy each stencil is"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the pull clock"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "stencil size against the sheet"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "anchor hue \u2014 rotates the whole ink library and the stock together"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the image area, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the image area, y"
+    },
+    "streak": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "squeegee streaking, starvation and pinhole count \u2014 0 is a clean shop"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "act": {
+      "default": "proof",
+      "options": [
+        "proof",
+        "edition",
+        "build"
+      ],
+      "doc": "multi-minute program: steady proofing / a fast edition run / coverage swells and collapses over minutes"
+    },
+    "style": {
+      "default": "screenprint",
+      "options": [
+        "screenprint",
+        "duotone",
+        "puff",
+        "metallic",
+        "negative"
+      ],
+      "doc": "aesthetic: opaque spot inks on chipboard / two transparent inks overprinting to a third on warm stock / raised glossy puff ink with a cast shadow on black / gold and pewter with a raking sheen / figure-ground reversed \u2014 the ink is everything the stencil is not, near-monochrome"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic shop \u2014 ink rotation, stencil archetypes, streaks, stock fibre"
+    }
+  },
+  "acts": [
+    "proof",
+    "edition",
+    "build"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:37+00:00",
+    "fps": 55.6,
+    "motion": 0.0804,
+    "lum": 0.263
+  },
+  "code": "const D = { energy: .6, density: .5, speed: 1, scale: 1, hue: 200, x: .5, y: .5, streak: .55, alpha: 100, act: 'proof', style: 'screenprint', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst rgb = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [Math.round((r + m) * 255), Math.round((g2 + m) * 255), Math.round((b2 + m) * 255)];\n};\nconst css = (h, s, v, a) => { const c = rgb(h, s, v); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; };\n\nconst W = width, H = height, u = Math.min(W, H), diag = Math.sqrt(W * W + H * H), L = diag * 1.14;\nconst en = clp(P.energy, 0, 1), de = clp(P.density, 0, 1), sk = clp(P.streak, 0, 1);\nconst sp = Math.max(.1, P.speed), sc = Math.max(.35, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360;\nconst la = clp(P.alpha, 0, 100) / 100;\nconst dc = drawingContext;\n\n// ---- the ink library: offsets from P.hue, so hue rotates the whole shop -----\nconst INKS = st === 'metallic'\n  ? [[248, 62, 78], [258, 12, 86], [230, 74, 62], [242, 40, 52], [252, 30, 90], [236, 55, 70]]\n  : [[0, 92, 72], [127, 100, 74], [216, 96, 82], [31, 96, 44], [179, 96, 80], [134, 96, 66], [309, 92, 52], [38, 70, 46], [195, 10, 11], [210, 5, 92]];\nconst NI = st === 'duotone' ? 2 : INKS.length;\n\nlet stH = hb + 200, stS = .19, stV = .44;\nif (st === 'duotone') { stH = hb + 205; stS = .11; stV = .70; }\nelse if (st === 'puff') { stH = hb + 40; stS = .40; stV = .08; }\nelse if (st === 'metallic') { stH = hb + 30; stS = .45; stV = .07; }\nelse if (st === 'negative') { stH = hb + 210; stS = .07; stV = .86; }\nconst stock = css(stH, stS, stV, 1);\nconst wipe = st === 'duotone' ? 'rgba(255,255,255,1)' : stock;\n\n// ---- act: multi-minute programs ---------------------------------------------\nlet cov = 1;\nif (P.act === 'edition') cov = .80 + .30 * (.5 + .5 * Math.sin(K.t * .0119 + 1.4));\nelse if (P.act === 'build') cov = .55 + 1.10 * (.5 + .5 * Math.sin(K.t * .0067 + .8 * Math.sin(K.t * .0027 + 2.4)));\nelse cov = .84 + .34 * (.5 + .5 * Math.sin(K.t * .0091 + .5 * Math.sin(K.t * .0033 + 1.1)));\ncov *= (.80 + .40 * K.intensity);\n\n// ---- the press clock: pulls advance in real time, never re-phasing ----------\nconst rate = .165 * sp * (.82 + .48 * en) * (P.act === 'edition' ? 1.5 : 1);\nconst ph = K.t * rate + .03 * Math.sin(K.t * .043) + .02 * Math.sin(K.t * .113 + 1.2);\nconst idx = Math.floor(ph), prog0 = ph - idx;\nconst NL = 3 + Math.round(de * 4);\nconst shp = .7 + de * .9;\nconst sz = (.76 + en * .46) * sc * cov;\nconst jx = u * .005 * (Math.sin(K.t * .31) + .6 * Math.sin(K.t * .73 + 1.1));\nconst jy = u * .004 * (Math.sin(K.t * .41 + 2.2) + .6 * Math.sin(K.t * .97));\n\n// ---- cached stock fibre + screen mesh ---------------------------------------\nconst TW = Math.max(280, Math.min(720, Math.round(W * .48))), TH = Math.max(160, Math.round(TW * H / W));\nif (!S.tile || S.tw !== TW || S.th !== TH || S.tseed !== P.seed || S.tsty !== st) {\n  if (S.tile && S.tile.remove) S.tile.remove();\n  S.tile = createGraphics(TW, TH); S.tile.pixelDensity(1);\n  S.tw = TW; S.th = TH; S.tseed = P.seed; S.tsty = st;\n  const mesh = st === 'puff' ? .35 : 1;\n  S.tile.loadPixels(); const tp = S.tile.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    const g1 = hsh(x * .83 + y * .17, y * .91 + x * .13);\n    const g2 = hsh(x * .29 - y * .37 + 5.1, y * .23 + x * .43 + 9.7);\n    const fibre = Math.pow(clp(g1 * .8 + g2 * .45 - .12, 0, 1), 1.1);\n    const wv = (.5 + .5 * Math.sin(x * 2.094)) * (.5 + .5 * Math.sin(y * 2.094));\n    const v = 255 - 46 * fibre - 26 * wv * mesh;\n    const o = 4 * (y * TW + x); tp[o] = v; tp[o + 1] = v; tp[o + 2] = v; tp[o + 3] = 255;\n  }\n  S.tile.updatePixels();\n}\n\n// ---- stencil vocabulary (poster-shop geometry, hard cut edges) --------------\n// NB: paths are built in device space, so save/transform/restore around the\n// path commands leaves the subpaths correct and the CTM untouched afterwards.\nconst stencil = (arch, sd, cx, cy, R, rot) => {\n  const q = k => { const s = Math.sin(k * 127.1 + sd * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\n  dc.save(); dc.translate(cx, cy); dc.rotate(rot);\n  if (arch === 0) {\n    const m = 2 + Math.round(shp * 3);\n    for (let k = 0; k < m; k++) {\n      const r0 = R * (.20 + .66 * q(k * 4 + 1)), w2 = R * (.07 + .18 * q(k * 4 + 2));\n      const a0 = q(k * 4 + 3) * 6.283, a1 = a0 + .8 + q(k * 4 + 4) * 3.4;\n      dc.moveTo(Math.cos(a0) * (r0 + w2), Math.sin(a0) * (r0 + w2));\n      dc.arc(0, 0, r0 + w2, a0, a1); dc.arc(0, 0, r0, a1, a0, true); dc.closePath();\n    }\n  } else if (arch === 1) {\n    const m = 3 + Math.round(shp * 5);\n    for (let k = 0; k < m; k++) {\n      const yy = (k / m - .5) * R * 2.1, h2 = R * (.05 + .22 * q(k * 3 + 1));\n      const w2 = R * (.9 + 1.5 * q(k * 3 + 2));\n      dc.rect(-w2 * .5 + (q(k * 3 + 3) - .5) * R * .5, yy, w2, h2);\n    }\n  } else if (arch === 2) {\n    const nc = 3 + Math.round(shp * 3), nr = 2 + Math.round(shp * 3);\n    const cw = R * 1.9 / nc, ch = R * 1.6 / nr;\n    for (let a = 0; a < nc; a++) for (let b = 0; b < nr; b++) {\n      if (q(a * 17 + b * 3 + 1) < .28) continue;\n      const gp = .12 + .28 * q(a * 5 + b * 11 + 2);\n      dc.rect(-R * .95 + a * cw + cw * gp * .5, -R * .8 + b * ch + ch * gp * .5, cw * (1 - gp), ch * (1 - gp));\n    }\n  } else if (arch === 3) {\n    const m = 3 + Math.round(shp * 4);\n    for (let k = 0; k < m; k++) {\n      const rr = R * (.16 + .40 * q(k * 4 + 1));\n      const aa = q(k * 4 + 2) * 6.283, dd = R * .78 * Math.sqrt(q(k * 4 + 3));\n      dc.moveTo(Math.cos(aa) * dd + rr, Math.sin(aa) * dd);\n      dc.arc(Math.cos(aa) * dd, Math.sin(aa) * dd, rr, 0, 6.2832);\n    }\n  } else if (arch === 4) {\n    const m = 16 + Math.round(shp * 12);\n    dc.moveTo(-R, -R * .85);\n    for (let k = 0; k <= m; k++) {\n      const tt = k / m;\n      dc.lineTo(-R + tt * R * 2, -R * .85 + (q(k + 1) - .5) * R * .30 + Math.sin(tt * 7.1 + q(9) * 6) * R * .12);\n    }\n    dc.lineTo(R, R * .85);\n    for (let k = m; k >= 0; k--) {\n      const tt = k / m;\n      dc.lineTo(-R + tt * R * 2, R * .85 + (q(k + 41) - .5) * R * .26);\n    }\n    dc.closePath();\n  } else {\n    const nc = 6 + Math.round(shp * 5), nr = 4 + Math.round(shp * 3);\n    const cw = R * 1.9 / nc, ch = R * 1.5 / nr;\n    for (let a = 0; a < nc; a++) for (let b = 0; b < nr; b++) {\n      const t2 = nc > 1 ? a / (nc - 1) : 1;\n      const rr = cw * .5 * (.10 + .92 * t2 * (.5 + .5 * q(a * 7 + b + 1)));\n      if (rr < .4) continue;\n      const px = -R * .95 + (a + .5) * cw, py = -R * .75 + (b + .5) * ch;\n      dc.moveTo(px + rr, py); dc.arc(px, py, rr, 0, 6.2832);\n    }\n  }\n  dc.restore();\n};\n\n// ---- draw --------------------------------------------------------------------\nconst oldA = dc.globalAlpha;\nblendMode(BLEND);\nnoStroke();\ndc.globalAlpha = la;\ndc.fillStyle = stock; dc.fillRect(0, 0, W, H);\nif (st === 'duotone') blendMode(MULTIPLY);\n\nlet bh = hb, bs = .9, bv = .7, bth = 0;\nfor (let j = NL - 1; j >= 0; j--) {\n  const i = idx - j;\n  const prog = j === 0 ? prog0 : 1;\n  const op = (j === NL - 1 && NL > 1) ? (1 - prog0) : 1;\n  if (op < .006 || prog < .002) continue;\n  const r1 = fr(i * 3.1 + 1), r2 = fr(i * 3.1 + 2), r3 = fr(i * 3.1 + 3), r4 = fr(i * 3.1 + 4), r5 = fr(i * 3.1 + 5);\n  const ink = INKS[Math.floor(r1 * NI) % NI];\n  let ih = hb + ink[0], is = ink[1] / 100, iv = ink[2] / 100;\n  if (st === 'negative') { is *= .22; iv = .15 + iv * .11; }\n  const arch = Math.floor(r2 * 6) % 6;\n  const th = (Math.floor(r3 * 4) * 90 + (r4 - .5) * 16) * Math.PI / 180;\n  const reg = u * .012 * (.4 + en) * (r5 - .5);\n  const cx = W * (P.x + (r1 - .5) * .40) + jx + reg;\n  const cy = H * (P.y + (r2 - .5) * .40) + jy + reg * .7;\n  const R = u * (.24 + .30 * r3) * sz;\n  if (j === 0) { bh = ih; bs = is; bv = iv; bth = th; }\n\n  dc.save();\n  // clip to the part of the screen the squeegee has already crossed\n  dc.save(); dc.translate(W * .5, H * .5); dc.rotate(th);\n  dc.beginPath(); dc.rect(-L * .5, -L * .5, L * prog, L);\n  dc.restore();\n  dc.clip();\n  dc.globalAlpha = la * op;\n\n  dc.beginPath();\n  if (st === 'negative') dc.rect(0, 0, W, H);\n  stencil(arch, i * 7.3 + 2, cx, cy, R, (r4 - .5) * 2.2);\n  if (st === 'puff') { dc.shadowColor = 'rgba(0,0,0,0.6)'; dc.shadowBlur = u * .022; dc.shadowOffsetY = u * .009; }\n  dc.fillStyle = css(ih, is, iv, 1);\n  dc.fill(st === 'negative' ? 'evenodd' : 'nonzero');\n  dc.shadowBlur = 0; dc.shadowOffsetY = 0;\n  dc.clip(st === 'negative' ? 'evenodd' : 'nonzero');\n\n  // everything below lands only where this pull actually put ink down\n  dc.save(); dc.translate(W * .5, H * .5); dc.rotate(th);\n  const qq = k => fr(i * 31.7 + k * 1.7 + 11);\n  const nst = 3 + Math.round(sk * 7);\n  for (let k = 0; k < nst; k++) {\n    const w2 = L * (.008 + .055 * qq(k)), yy = (qq(k + 40) - .5) * L;\n    const starve = qq(k + 80) < .45;\n    dc.fillStyle = starve ? wipe : css(ih, Math.min(1, is * 1.15), iv * .60, 1);\n    dc.globalAlpha = la * op * sk * (.16 + .42 * en) * (.35 + .65 * qq(k + 120));\n    dc.fillRect(-L * .5, yy, L, w2);\n  }\n  // off-contact bloom: the mesh floods just behind the blade\n  dc.globalAlpha = la * op * (.10 + .22 * en);\n  dc.fillStyle = css(ih, is * .5, Math.min(1, iv * 1.45), 1);\n  dc.fillRect(-L * .5 + L * prog - L * .05, -L * .5, L * .05, L);\n  dc.restore();\n  // pinholes and blocked mesh: ink simply never made it through\n  dc.globalAlpha = la * op * (.45 + .45 * sk);\n  dc.fillStyle = wipe;\n  const nph = 5 + Math.round(sk * 14);\n  const qp = k => fr(i * 19.3 + k * 2.7 + 47);\n  for (let k = 0; k < nph; k++) {\n    const pr = u * (.002 + .014 * qp(k) * qp(k + 90));\n    dc.beginPath(); dc.arc(qp(k + 30) * W, qp(k + 60) * H, pr, 0, 6.2832); dc.fill();\n  }\n  if (st === 'metallic' || st === 'puff') {\n    const sph = K.t * .21 + .5 * Math.sin(K.t * .083 + 1.3);\n    const c0 = clp(.5 + .42 * Math.sin(sph), .06, .94);\n    const gg = dc.createLinearGradient(0, 0, W, H);\n    gg.addColorStop(Math.max(0, c0 - .22), 'rgba(255,255,255,0)');\n    gg.addColorStop(c0, 'rgba(255,255,255,' + (.28 + .42 * en).toFixed(3) + ')');\n    gg.addColorStop(Math.min(1, c0 + .22), 'rgba(255,255,255,0)');\n    dc.globalAlpha = la * op; dc.fillStyle = gg; dc.fillRect(0, 0, W, H);\n  }\n  dc.restore();\n  dc.globalAlpha = la;\n}\nblendMode(BLEND);\n\n// ---- the squeegee itself, mid-pull ------------------------------------------\ndc.save();\ndc.translate(W * .5, H * .5); dc.rotate(bth);\nconst xb = -L * .5 + L * prog0;\nconst bead = L * .008 * (1 + en * 1.4) * (1 + .3 * K.pulse + .45 * A.bass);\ndc.globalAlpha = la * .85;\ndc.fillStyle = css(bh, bs * .8, Math.min(1, bv * 1.25), 1); dc.fillRect(xb, -L * .5, bead, L);\ndc.globalAlpha = la * .5;\ndc.fillStyle = css(bh, bs, bv * .5, 1); dc.fillRect(xb + bead, -L * .5, bead * 2.2, L);\ndc.globalAlpha = la * .78;\ndc.fillStyle = 'rgba(14,12,16,1)'; dc.fillRect(xb + bead * 3.2, -L * .5, L * .016, L);\nconst sg = dc.createLinearGradient(xb + bead * 3.2 + L * .016, 0, xb + bead * 3.2 + L * .075, 0);\nsg.addColorStop(0, 'rgba(0,0,0,0.45)'); sg.addColorStop(1, 'rgba(0,0,0,0)');\ndc.globalAlpha = la; dc.fillStyle = sg; dc.fillRect(xb + bead * 3.2 + L * .016, -L * .5, L * .075, L);\ndc.restore();\n\n// ---- stock fibre + screen mesh, then the press-bed falloff -------------------\nblendMode(MULTIPLY);\ndc.globalAlpha = la * .95;\ndc.drawImage(S.tile.drawingContext.canvas, 0, 0, W, H);\nblendMode(BLEND);\nconst vg = dc.createRadialGradient(W * .5, H * .5, u * .18, W * .5, H * .5, diag * .62);\nvg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,6,10,0.5)');\ndc.globalAlpha = la; dc.fillStyle = vg; dc.fillRect(0, 0, W, H);\n\ndc.globalAlpha = oldA;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

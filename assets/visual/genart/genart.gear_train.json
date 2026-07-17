@@ -1,0 +1,148 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gear_train",
+  "kind": "genart",
+  "name": "Gear Train",
+  "desc": "A machine-drawing plate of a working epicyclic reduction unit \u2014 sun, orbiting planets and a fixed internal ring whose teeth genuinely mesh, a compound spur chain wandering off through the coupling, dash-dot centrelines and chain-line pitch circles, and a title block whose shaft-speed readout shifts ratio every section.",
+  "tags": [
+    "gear",
+    "gears",
+    "gearbox",
+    "gear-train",
+    "epicyclic",
+    "planetary",
+    "sun-and-planet",
+    "ring-gear",
+    "involute",
+    "teeth",
+    "mesh",
+    "meshing",
+    "spur",
+    "cogs",
+    "cogwheel",
+    "machine",
+    "machinery",
+    "mechanism",
+    "mechanical",
+    "kinematics",
+    "ratio",
+    "reduction",
+    "transmission",
+    "drivetrain",
+    "engineering",
+    "technical",
+    "drawing",
+    "draughting",
+    "drafting",
+    "plate",
+    "schematic",
+    "diagram",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "annotation",
+    "title-block",
+    "centreline",
+    "clockwork",
+    "industrial",
+    "precision",
+    "clinical",
+    "austere",
+    "rigorous",
+    "turning",
+    "rotating"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "drive speed + line weight + inspection-wash glow + plate drift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.2,
+      "doc": "gear module \u2014 2.2 fills the frame with the ring gear"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many gears in the spur chain (3..11)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "input-shaft rate multiplier"
+    },
+    "hue": {
+      "default": 96,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint (film/xray styles); other styles are fixed inks"
+    },
+    "x": {
+      "default": 0.42,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "epicyclic axis, canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "epicyclic axis, canvas fraction"
+    },
+    "teeth": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spur-chain tooth counts \u2014 0 coarse/few teeth, 1 fine/many"
+    },
+    "anno": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: pitch circles, centrelines, callouts, title block"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "xray",
+        "schematic"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / translucent additive x-ray / abstracted pitch-circle-and-vector schematic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "gearset choice + chain layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the plate ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:11+00:00",
+    "fps": 66.2,
+    "motion": 0.0212,
+    "lum": 0.288
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:96, x:.42, y:.5, teeth:.5, anno:.7, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst lp = (a,b,s) => a+(b-a)*s;\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\n\n// ---- palette per style -------------------------------------------------------\nfunction pal(){\n  if (sty==='cyanotype') return { g:[212,72,19], body:[210,60,29], line:[200,6,99], ctr:[196,34,84], pitch:[190,42,76], anno:[200,10,92], hatch:[205,48,60], grain:36, add:false, wash:[196,20,80] };\n  if (sty==='engraving') return { g:[38,17,73],  body:[36,13,60], line:[28,36,12], ctr:[8,64,40],  pitch:[30,32,28], anno:[28,40,15], hatch:[30,30,24], grain:32, add:false, wash:[44,26,96] };\n  if (sty==='xray')      return { g:[228,58,10], body:[H,62,24],  line:[H,26,97], ctr:[12,74,60],  pitch:[168,58,72], anno:[H,14,86], hatch:[H,42,52], grain:18, add:true,  wash:[H,42,66] };\n  if (sty==='schematic') return { g:[196,36,9],  body:[196,44,15], line:[178,64,92], ctr:[10,72,70], pitch:[178,72,86], anno:[52,56,88], hatch:[186,42,42], grain:14, add:false, wash:[184,40,60] };\n  return { g:[H,15,21], body:[H,11,33], line:[H,4,93], ctr:[10,68,64], pitch:[H,24,70], anno:[H,6,88], hatch:[H,9,56], grain:28, add:false, wash:[H,10,80] };\n}\nconst C = pal();\nconst sc = (c,a) => { stroke(c[0], c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(c[0], c[1], c[2], a*AL); };\n\n// ---- real-time drive: monotonic accumulator + section gear-shift --------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst secN = K.section|0;\nlet tgt = fr(secN*3.77 + 11)*1.75 - .62;\nif (Math.abs(tgt) < .38) tgt = tgt < 0 ? -.38 : .38;\ntgt *= (.5 + .8*K.intensity);\nif (S.rate == null) S.rate = tgt;\nS.rate += (tgt - S.rate) * cl(dt*1.1, 0, 1);\nconst wob = 1 + .26*Math.sin(K.t*.131) + .17*Math.sin(K.t*.313+1.1) + .09*Math.sin(K.t*.767+2.3);\nS.th = (S.th||0) + dt * S.rate * wob * P.speed * (1.0 + 1.9*NRG);\nconst ths = S.th;\n\n// ---- incommensurate plate drift + breathe (motion floor, no audio needed) -----\nconst drx = .9*Math.sin(K.t*.137) + .5*Math.sin(K.t*.293+1.7) + .32*Math.sin(K.t*.451);\nconst dry = .8*Math.sin(K.t*.109+2.1) + .45*Math.sin(K.t*.257+.6) + .28*Math.sin(K.t*.617+1.9);\nconst zm = 1 + .045*NRG*(Math.sin(K.t*.089) + .6*Math.sin(K.t*.211+1.3));\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.45 + .55*NRG)*(.55 + .5*K.intensity) + S.bs*.3;\n\n// ---- involute-ish tooth profile, cached per tooth count -----------------------\nS.prof = S.prof || {};\nfunction profile(Z, internal){\n  const kk = Z + (internal ? 'i' : 'e');\n  if (S.prof[kk]) return S.prof[kk];\n  const ht = Math.PI/(2*Z);\n  const ra = internal ? 1 - 2/Z   : 1 + 2/Z;\n  const rf = internal ? 1 + 2.5/Z : 1 - 2.5/Z;\n  const pts = [];\n  for (let k=0;k<Z;k++){\n    const a0 = k*T2/Z;\n    pts.push([rf,a0-ht*1.30],[1,a0-ht*1.00],[ra,a0-ht*.55],[ra,a0+ht*.55],[1,a0+ht*1.00],[rf,a0+ht*1.30]);\n  }\n  S.prof[kk] = pts; return pts;\n}\nfunction toothPath(cx,cy,rp,Z,ang,internal,rev){\n  const pts = profile(Z, internal);\n  if (rev) { for (let i=pts.length-1;i>=0;i--){ const a=pts[i][1]+ang, r=pts[i][0]*rp; vertex(cx+Math.cos(a)*r, cy+Math.sin(a)*r); } }\n  else     { for (let i=0;i<pts.length;i++){ const a=pts[i][1]+ang, r=pts[i][0]*rp; vertex(cx+Math.cos(a)*r, cy+Math.sin(a)*r); } }\n}\n\n// ---- epicyclic sets that actually close: Zr = Zs+2Zp, (Zs+Zr)/np integer ------\nconst COMBOS = [[18,15,48,3],[24,18,60,4],[20,16,52,4],[30,15,60,3],[16,20,56,4],[24,12,48,6],[36,12,60,4]];\nconst cb = COMBOS[Math.floor(fr(7.3)*COMBOS.length) % COMBOS.length];\nconst Zs=cb[0], Zp=cb[1], Zr=cb[2], np=cb[3];\nconst mod = (.54*u*P.scale)/Zr * zm;\nconst rs = mod*Zs/2, rpl = mod*Zp/2, rr = mod*Zr/2;\nconst Rout = rr*(1+2.5/Zr) + mod*1.6;\nconst ex = cl(P.x,.12,.88)*width  + u*.024*NRG*drx;\nconst ey = cl(P.y,.12,.88)*height + u*.020*NRG*dry;\n\n// kinematics: ring fixed, sun input, carrier output\nconst kr = Zs/(Zs+Zr);\nconst thc = ths*kr;\nconst b0 = thc;\nconst thp0 = b0 + Math.PI + Math.PI/Zp - (Zs/Zp)*(ths - b0);\nconst thr = b0 + Math.PI/Zr + (Zp/Zr)*(thp0 - b0);\nconst ratio = 1 + Zr/Zs;\n\n// ---- spur chain: each mesh solved from the previous -> geometrically exact ----\nconst ckey = sd+'|'+cl(P.teeth,0,1).toFixed(3)+'|'+Math.round(P.density*24)+'|'+Math.round(P.scale*80)+'|'+width+'x'+height;\nif (S.ck !== ckey){\n  S.ck = ckey;\n  const Zlo = Math.round(lp(11,17,cl(P.teeth,0,1))), Zhi = Math.round(lp(19,36,cl(P.teeth,0,1)));\n  const nch = Math.round(3 + cl(P.density,0,1)*8);\n  const ch = [];\n  const Z0 = Math.round(lp(Zlo,Zhi,fr(11.7)));\n  let bp = -1e9, sx=0, sy=0, sphi=0;\n  for (let c=0;c<20;c++){\n    const ph = fr(3.1)*T2 + c*T2/20;\n    const dd = Rout + mod*Z0/2 + u*.055;\n    const nx = ex + Math.cos(ph)*dd, ny = ey + Math.sin(ph)*dd;\n    const mg = mod*(Z0/2+1) + u*.03;\n    const s = Math.min(nx-mg, width-mg-nx, ny-mg, height-mg-ny);\n    if (s > bp){ bp = s; sx = nx; sy = ny; sphi = ph; }\n  }\n  ch.push({ x:sx, y:sy, Z:Z0, rp:mod*Z0/2, rt:mod*(Z0/2+1), ph:fr(19.1)*T2, drv:0 });\n  let prevB = sphi;\n  for (let i=1;i<nch;i++){\n    const g0 = ch[i-1];\n    const Zn = Math.round(lp(Zlo,Zhi,fr(i*5.77+2.3)));\n    const rn = mod*Zn/2, rtn = mod*(Zn/2+1);\n    const cd = g0.rp + rn;\n    let bb = null, bs = -1e18;\n    for (let c=0;c<18;c++){\n      const b = prevB + (c/17-.5)*2.6 + (fr(i*9.1+c*.37)-.5)*.5;\n      const nx = g0.x + Math.cos(b)*cd, ny = g0.y + Math.sin(b)*cd;\n      let s = 0;\n      const mg = rtn + u*.028;\n      if (nx<mg || nx>width-mg || ny<mg || ny>height-mg) s -= 1400;\n      s -= 26*Math.abs(((b-prevB+Math.PI)%T2+T2)%T2 - Math.PI);\n      const dr = Math.hypot(nx-ex, ny-ey), needr = rtn + Rout + u*.018;\n      if (dr < needr) s -= (needr-dr)*14;\n      for (let j=0;j<i-1;j++){ const gg=ch[j], dd2=Math.hypot(nx-gg.x, ny-gg.y), need=rtn+gg.rt+u*.014; if (dd2<need) s -= (need-dd2)*11; }\n      if (s > bs){ bs = s; bb = b; }\n    }\n    if (bs < -600) break;\n    ch.push({ x:g0.x+Math.cos(bb)*cd, y:g0.y+Math.sin(bb)*cd, Z:Zn, rp:rn, rt:rtn, b:bb, drv:1 });\n    prevB = bb;\n  }\n  S.chain = ch;\n}\nconst chain = S.chain || [];\n// resolve chain angles by the external-mesh phase law\nchain[0] && (chain[0].ang = thc + chain[0].ph);\nfor (let i=1;i<chain.length;i++){\n  const a=chain[i-1], b=chain[i];\n  b.ang = b.b + Math.PI + Math.PI/b.Z - (a.Z/b.Z)*(a.ang - b.b);\n}\n\n// ---- cached plate texture ----------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh);\n  g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const c1 = fr(Math.floor(x/9)*13.71 + Math.floor(y/9)*7.33 + 3.1);\n    const c2 = fr(Math.floor(x/3)*3.17 + Math.floor(y/3)*11.9 + 8.7);\n    const c3 = fr(x*1.13 + y*3.31 + 1.7);\n    const v = cl(255*(.42 + .34*c1 + .17*c2 + .07*c3), 0, 255);\n    const j = (y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels();\n  S.gr = g; S.gkey = gkey;\n}\n\n// ---- ground + texture + drafting grid ---------------------------------------\nnoStroke(); fill(C.g[0], C.g[1], C.g[2], 100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr, 0,0, width,height); pop();\nblendMode(BLEND); noTint();\nconst gs = u*.055;\nsc(C.hatch, 9*AL + 7*anno); strokeWeight(Math.max(.5,u*.0009));\nfor (let x=(-drx*u*.01)%gs; x<width; x+=gs) line(x,0,x,height);\nfor (let y=(-dry*u*.01)%gs; y<height; y+=gs) line(0,y,width,y);\n\n// ---- wandering inspection wash (big soft light, SCREEN) -----------------------\nconst wx = width*(.5 + .30*Math.sin(K.t*.071) + .13*Math.sin(K.t*.181+2.2));\nconst wy = height*(.5 + .26*Math.sin(K.t*.097+1.1) + .11*Math.sin(K.t*.233+.4));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ const rw = u*(.34+i*.20); fill(C.wash[0], C.wash[1], C.wash[2], (2.2 + 2.0*glow)*AL); ellipse(wx, wy, rw*2, rw*2*.82); }\npop(); blendMode(BLEND);\n\n// ---- helpers -----------------------------------------------------------------\nfunction dashdot(x0,y0,x1,y1,w){\n  const L = Math.hypot(x1-x0,y1-y0); if (L<1) return;\n  const ux=(x1-x0)/L, uy=(y1-y0)/L; const per=w*9;\n  sc(C.ctr, 46+24*anno); strokeWeight(Math.max(.5,w*.34));\n  for (let s=0;s<L;s+=per){\n    const a=s, b=Math.min(L,s+per*.62); line(x0+ux*a,y0+uy*a,x0+ux*b,y0+uy*b);\n    const c=Math.min(L,s+per*.78), d2=Math.min(L,s+per*.86); line(x0+ux*c,y0+uy*c,x0+ux*d2,y0+uy*d2);\n  }\n}\nfunction chainCircle(cx,cy,r){\n  sc(C.pitch, 30+34*anno); strokeWeight(Math.max(.5,u*.0011)); noFill();\n  const n = Math.max(24, Math.round(r*.5));\n  for (let i=0;i<n;i++){ if (i%3===2) continue; const a0=i/n*T2, a1=(i+.72)/n*T2;\n    line(cx+Math.cos(a0)*r, cy+Math.sin(a0)*r, cx+Math.cos(a1)*r, cy+Math.sin(a1)*r); }\n}\nfunction crossMark(cx,cy,r){ sc(C.ctr, 70); strokeWeight(Math.max(.6,u*.0013)); line(cx-r,cy,cx+r,cy); line(cx,cy-r,cx,cy+r); }\nfunction hatchDisc(cx,cy,r0,r1,ang,n){\n  sc(C.hatch, 40+16*anno); strokeWeight(Math.max(.4,u*.0008));\n  const st = (r1-r0)/n;\n  for (let i=0;i<n;i++){ const rr2=r0+st*(i+.5); const a0=ang+i*.11;\n    line(cx+Math.cos(a0)*rr2, cy+Math.sin(a0)*rr2, cx+Math.cos(a0+2.4)*rr2, cy+Math.sin(a0+2.4)*rr2); }\n}\n\n// ---- SCHEMATIC style: gears abstracted to pitch circles + velocity vectors ----\nconst schem = (sty==='schematic');\nif (C.add) blendMode(ADD);\n\nfunction drawGear(cx,cy,rp,Z,ang,spin){\n  if (schem){\n    chainCircle(cx,cy,rp); crossMark(cx,cy,rp*.16);\n    // pitch-point velocity vector \u2014 magnitude ~ omega*r\n    const vv = cl(spin*rp*.30, -rp*.9, rp*.9);\n    sc([340,72,90], 78); strokeWeight(Math.max(.7,u*.0016));\n    const ax=cx+rp, ay=cy; line(ax,ay,ax,ay-vv);\n    const dsn = vv<0?-1:1; line(ax,ay-vv, ax-rp*.05, ay-vv+dsn*rp*.09); line(ax,ay-vv, ax+rp*.05, ay-vv+dsn*rp*.09);\n    return;\n  }\n  noStroke(); fc(C.body, C.add ? 26 : 92);\n  beginShape(); toothPath(cx,cy,rp,Z,ang,false,false); endShape(CLOSE);\n  hatchDisc(cx,cy,rp*.30,rp*.86, ang*.4 + cx*.01, Math.max(3, Math.round(rp/(u*.014))));\n  noFill(); sc(C.line, (C.add ? 62+30*glow : 88)); strokeWeight(Math.max(.6, u*.0016*(.7+.6*NRG)));\n  beginShape(); toothPath(cx,cy,rp,Z,ang,false,false); endShape(CLOSE);\n  // hub + bore + spokes\n  fc(C.g, C.add?18:88); noStroke(); ellipse(cx,cy, rp*.42, rp*.42);\n  sc(C.line, 74); noFill(); strokeWeight(Math.max(.5,u*.0012));\n  ellipse(cx,cy, rp*.42, rp*.42); ellipse(cx,cy, rp*.17, rp*.17);\n  const nsp = rp > u*.055 ? 6 : 3;\n  for (let i=0;i<nsp;i++){ const a=ang*1 + i*T2/nsp; line(cx+Math.cos(a)*rp*.21, cy+Math.sin(a)*rp*.21, cx+Math.cos(a)*rp*.62, cy+Math.sin(a)*rp*.62); }\n  crossMark(cx,cy,rp*.20);\n}\n\n// ---- ring gear (internal) ----------------------------------------------------\nif (!schem){\n  noStroke(); fc(C.body, C.add?22:88);\n  beginShape();\n  for (let i=0;i<72;i++){ const a=i/72*T2; vertex(ex+Math.cos(a)*Rout, ey+Math.sin(a)*Rout); }\n  beginContour(); toothPath(ex,ey,rr,Zr,thr,true,true); endContour();\n  endShape(CLOSE);\n  noFill(); sc(C.line, C.add?58+28*glow:86); strokeWeight(Math.max(.6,u*.0016*(.7+.6*NRG)));\n  ellipse(ex,ey,Rout*2,Rout*2);\n  beginShape(); toothPath(ex,ey,rr,Zr,thr,true,false); endShape(CLOSE);\n  // housing lugs\n  for (let i=0;i<4;i++){ const a=i*T2/4 + .4; const lx=ex+Math.cos(a)*Rout, ly=ey+Math.sin(a)*Rout;\n    noStroke(); fc(C.body, C.add?24:90); ellipse(lx,ly, mod*3.0, mod*3.0);\n    noFill(); sc(C.line,80); strokeWeight(Math.max(.5,u*.0012)); ellipse(lx,ly, mod*3.0, mod*3.0); ellipse(lx,ly, mod*1.1, mod*1.1); }\n} else { chainCircle(ex,ey,rr); chainCircle(ex,ey,Rout); }\nif (anno>.1) chainCircle(ex,ey,rr);\n\n// ---- carrier arms (section-hatched) ------------------------------------------\nif (!schem){\n  for (let i=0;i<np;i++){\n    const bi = thc + i*T2/np;\n    push(); translate(ex,ey); rotate(bi);\n    noStroke(); fc(C.body, C.add?18:74);\n    rect(0, -mod*1.05, rs+rpl, mod*2.1, mod*.8);\n    sc(C.line, 66); noFill(); strokeWeight(Math.max(.5,u*.0011));\n    rect(0, -mod*1.05, rs+rpl, mod*2.1, mod*.8);\n    sc(C.hatch, 44); strokeWeight(Math.max(.4,u*.0007));\n    for (let h=0; h<rs+rpl; h+=mod*.75) line(h, -mod*1.05, h+mod*2.1, mod*1.05);\n    pop();\n  }\n}\n\n// ---- sun + planets -----------------------------------------------------------\nfor (let i=0;i<np;i++){\n  const bi = thc + i*T2/np;\n  const px = ex + Math.cos(bi)*(rs+rpl), py = ey + Math.sin(bi)*(rs+rpl);\n  const thp = bi + Math.PI + Math.PI/Zp - (Zs/Zp)*(ths - bi);\n  drawGear(px,py,rpl,Zp,thp, -S.rate*(Zs/Zp));\n  if (anno>.35) dashdot(ex,ey,px,py, u*.0018);\n}\ndrawGear(ex,ey,rs,Zs,ths, S.rate);\n\n// ---- spur chain --------------------------------------------------------------\nfor (let i=0;i<chain.length;i++){\n  const g = chain[i];\n  drawGear(g.x,g.y,g.rp,g.Z,g.ang, (i%2? -1:1)*S.rate*.7);\n  if (anno>.2) chainCircle(g.x,g.y,g.rp);\n  if (i>0 && anno>.45) dashdot(chain[i-1].x, chain[i-1].y, g.x, g.y, u*.0016);\n}\n// coupling from carrier to chain input\nif (chain.length){\n  const g = chain[0];\n  dashdot(ex,ey,g.x,g.y,u*.0022);\n  const mx=(ex+g.x)/2, my=(ey+g.y)/2, ca=Math.atan2(g.y-ey,g.x-ex);\n  push(); translate(mx,my); rotate(ca);\n  noStroke(); fc(C.body, C.add?26:92); rect(-mod*1.1,-mod*1.5, mod*2.2, mod*3.0);\n  noFill(); sc(C.line,84); strokeWeight(Math.max(.5,u*.0013)); rect(-mod*1.1,-mod*1.5, mod*2.2, mod*3.0);\n  line(0,-mod*1.5,0,mod*1.5);\n  pop();\n}\n\nblendMode(BLEND);\n\n// ---- plate furniture: sheet border, title block, annotations ------------------\nconst mgn = u*.030;\nnoFill(); sc(C.line, 52+22*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.line, 30+18*anno); strokeWeight(Math.max(.5,u*.0010));\nrect(mgn*1.6, mgn*1.6, width-mgn*3.2, height-mgn*3.2);\n\nif (anno > .08){\n  textFont('monospace'); textAlign(LEFT, CENTER);\n  const ts = Math.max(7, u*.0135);\n  textSize(ts); noStroke();\n  fc(C.anno, 66+30*anno);\n  const lab = (s,x,y) => text(s, x, y);\n  lab('Z'+Zr+'  RING (FIXED)', ex - Rout*.72, ey - Rout - u*.016);\n  lab('Z'+Zs+'  SUN / INPUT', ex + rs*.5, ey + rs + u*.026);\n  lab('Z'+Zp+' x'+np+'  PLANET', ex + Rout*.30, ey + Rout*.62);\n  textAlign(RIGHT, CENTER);\n  const bx = width-mgn*1.9, by = height-mgn*1.9;\n  fc(C.body, C.add?30:80); noStroke(); rect(bx-u*.30, by-u*.075, u*.30, u*.075);\n  noFill(); sc(C.line, 66); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.30, by-u*.075, u*.30, u*.075);\n  line(bx-u*.30, by-u*.048, bx, by-u*.048); line(bx-u*.30, by-u*.024, bx, by-u*.024);\n  noStroke(); fc(C.anno, 88);\n  text('EPICYCLIC REDUCTION UNIT', bx-u*.012, by-u*.061);\n  text('i = 1 + Z'+Zr+'/Z'+Zs+' = '+ratio.toFixed(3)+' : 1', bx-u*.012, by-u*.036);\n  text('MODULE m='+(mod/ (u*.006)).toFixed(2)+'   SHT 1/1   SEED '+sd, bx-u*.012, by-u*.012);\n  textAlign(LEFT, CENTER);\n  for (let i=0;i<chain.length;i++){ const g=chain[i];\n    fc(C.anno, 48+34*anno); text('Z'+g.Z, g.x + g.rt*.72, g.y - g.rt*.72); }\n  // live shaft-speed readout \u2014 genuinely changes frame to frame\n  fc(C.anno, 70);\n  textAlign(LEFT, CENTER);\n  text('n1 '+(S.rate*60).toFixed(1)+' rpm', mgn*2.1, mgn*2.4);\n  text('nc '+(S.rate*kr*60).toFixed(2)+' rpm', mgn*2.1, mgn*2.4 + ts*1.5);\n  text('thS '+(((ths*57.2958)%360+360)%360).toFixed(1)+' deg', mgn*2.1, mgn*2.4 + ts*3.0);\n}\n\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

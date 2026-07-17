@@ -1,0 +1,159 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.octopus",
+  "kind": "subject",
+  "name": "Octopus",
+  "desc": "A deep-sea octopus whose 4-to-10 tentacles ripple with a traveling wave and fire a bright curl in sequence on each beat, its gradient skin flushing with color while it drifts, grooves, spins and jets.",
+  "tags": [
+    "octopus",
+    "cephalopod",
+    "squid",
+    "kraken",
+    "tentacle",
+    "sea",
+    "ocean",
+    "deep-sea",
+    "marine",
+    "creature",
+    "animal",
+    "bioluminescent",
+    "glow",
+    "gradient",
+    "neon",
+    "eerie",
+    "aquatic",
+    "abyss",
+    "x-ray",
+    "wireframe",
+    "iridescent",
+    "sumi",
+    "invertebrate",
+    "eight",
+    "limbs",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.0,
+      "doc": "size vs design (span ~0.5u at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude \u2014 wave depth, curl force, lunge"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "skin base hue (190 = cyan-teal)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative undulation/sequence rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved ambient amount"
+    },
+    "sinuous": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.2,
+      "doc": "tentacle wave amplitude (curl sinuosity)"
+    },
+    "taper": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "tentacle tip-taper (fat to whip-thin)"
+    },
+    "mantle": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.6,
+      "doc": "head/mantle size morph"
+    },
+    "limbs": {
+      "default": 8,
+      "min": 4,
+      "max": 10,
+      "doc": "number of tentacles"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0,
+      "max": 1,
+      "doc": "mantle-center y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic rig/chromatophore seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "drift",
+        "groove",
+        "spin",
+        "jet"
+      ],
+      "doc": "pose; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "biolum",
+      "options": [
+        "biolum",
+        "xray",
+        "ink",
+        "iridescent",
+        "wire"
+      ],
+      "doc": "render philosophy: bioluminescent gradient glow / translucent x-ray anatomy / sumi ink brush / oil-slick iridescent bands / parametric wireframe mesh"
+    },
+    "act": {
+      "default": "flow",
+      "options": [
+        "flow",
+        "calm",
+        "frenzy"
+      ],
+      "doc": "multi-minute pose dramaturgy when pose=auto"
+    }
+  },
+  "acts": [
+    "flow",
+    "calm",
+    "frenzy"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:57:32+00:00",
+    "fps": 60.2,
+    "motion": 0.0149,
+    "lum": 0.101
+  },
+  "code": "const D = { scale:1, energy:.6, hue:190, speed:1, density:.5, sinuous:1, taper:.55, mantle:1, limbs:8, x:.5, y:.44, seed:0, pose:'auto', style:'biolum', act:'flow' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0017 * P.scale;\nconst bt = K.beat * P.speed;\nconst am = .82 + .22*Math.sin(K.t*.27 + fr(6)*6);\nconst eAmp = P.energy*(.5 + .6*K.intensity)*am;\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\n\nconst nT = Math.max(4, Math.min(10, Math.round(P.limbs)));\nconst st = ['biolum','xray','ink','iridescent','wire'].includes(P.style) ? P.style : 'biolum';\nconst H = ((P.hue%360)+360)%360;\nconst mantleR = 66*P.mantle;\n\n// seed/count-dependent tentacle rig\nif (S.seedUsed !== P.seed || S.nUsed !== nT || !S.tent){\n  S.seedUsed = P.seed; S.nUsed = nT; S.tent = [];\n  for (let i=0;i<nT;i++){\n    const f = nT>1 ? i/(nT-1) : .5;\n    const rootAng = Math.PI*(0.13 + 0.74*f);\n    S.tent.push({\n      rx: Math.cos(rootAng)*mantleR*0.9,\n      ry: Math.sin(rootAng)*mantleR*0.5 + mantleR*0.32,\n      hang: Math.PI/2 + (rootAng - Math.PI/2)*0.92,\n      dir: (fr(i+3) < .5 ? -1 : 1),\n      ph: fr(i+11)*6.283,\n      freq: 2.2 + fr(i+21)*1.4,\n      chrom: [fr(i+31), fr(i+41), fr(i+51), fr(i+61)]\n    });\n  }\n}\n// glow sprite (built once)\nif (!S.glow){\n  const g = createGraphics(64,64); const c = g.drawingContext;\n  const grd = c.createRadialGradient(32,32,0,32,32,32);\n  grd.addColorStop(0,'rgba(255,255,255,1)'); grd.addColorStop(.35,'rgba(255,255,255,.45)'); grd.addColorStop(1,'rgba(255,255,255,0)');\n  c.fillStyle = grd; c.fillRect(0,0,64,64); S.glow = g;\n}\n\nconst ACTS = {\n  flow:  ['groove','drift','groove','spin','groove','drift','jet','spin'],\n  calm:  ['drift','groove','drift','drift','groove','drift','drift','groove'],\n  frenzy:['spin','groove','jet','spin','groove','jet','spin','groove'] };\nlet pose = P.pose;\nif (pose==='auto') pose = (ACTS[P.act]||ACTS.flow)[((K.section%8)+8)%8];\n\n// \u2500\u2500 pose \u2192 whole-body params \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nlet spinAng=0, tilt=0, dyP=0, squash=1, waveBoost=1, mantlePulse=0, streamBias=0;\nif (pose==='drift'){\n  dyP = Math.sin(K.t*.7)*12; tilt = Math.sin(K.t*.5)*.09;\n  waveBoost = 1; mantlePulse = K.swell*.05*eAmp;\n} else if (pose==='groove'){\n  dyP = -kick*9 + Math.sin(bt*Math.PI)*5*eAmp; tilt = Math.sin(bt*Math.PI/2)*.07*eAmp;\n  waveBoost = 1.25; mantlePulse = kick*.13*eAmp;\n} else if (pose==='spin'){\n  spinAng = bt*Math.PI*0.5*eAmp + K.t*.3; dyP = Math.sin(K.t*1.1)*9;\n  waveBoost = .8; streamBias = .35; mantlePulse = K.swell*.04;\n} else { // jet\n  const je = kick;\n  dyP = -je*48*eAmp + Math.sin(K.t*.8)*6; squash = 1 - je*.17*eAmp;\n  tilt = Math.sin(K.t*.3)*.05; streamBias = .5 + .5*je; mantlePulse = je*.15*eAmp;\n  waveBoost = 1;\n}\n// slow drift \u2014 evolution guarantee\ndyP += Math.sin(K.t*.41 + fr(2)*6)*7;\ntilt += Math.sin(K.t*.19 + fr(8)*6)*.03;\nspinAng += Math.sin(K.t*.13)*.04;\n\nconst ax = P.x*width, ay = P.y*height;\nconst pump = 1 + mantlePulse + S.rms*.2*P.energy;\nconst hueDrift = (H + Math.sin(K.t*.13)*10 + 360)%360;\n\nfunction stamp(x,y,r,h,sa,br,a){ blendMode(ADD); noStroke(); tint(h,sa,br,a); image(S.glow, x-r, y-r, r*2, r*2); noTint(); blendMode(BLEND); }\n\npush();\ntranslate(ax, ay + dyP*s);\nrotate(spinAng*0 + tilt);          // spinAng applied to tentacle field via param, not whole flip, keeps eyes readable\nscale(s*pump, s*pump*squash);\n\n// \u2500\u2500 build + draw tentacles \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst segLenBase = 15.5, segW0 = 12;\nconst tips = [];\nfor (let i=0;i<nT;i++){\n  const p = S.tent[i];\n  const activeIdx = ((Math.floor(bt)%nT)+nT)%nT;\n  const active = activeIdx===i ? K.pulse : 0;\n  const n = 11;\n  let x = p.rx, y = p.ry, ang = p.hang + spinAng*(0.4+0.6*(i/(nT-1)||0));\n  const baseCurl = p.dir*(0.09 + 0.05*Math.sin(K.t*.5 + p.ph))*(1-streamBias*0.8);\n  const actCurl = p.dir*active*0.85*eAmp;\n  const L=[], R=[], C=[];\n  for (let j=0;j<=n;j++){\n    const tt=j/n;\n    const segLen = segLenBase*(1 - tt*0.32*P.taper);\n    x += Math.cos(ang)*segLen; y += Math.sin(ang)*segLen;\n    const w = Math.sin(tt*p.freq - bt*Math.PI*1.3 + p.ph)*(0.20*P.sinuous)*(0.3+tt)*(0.55+.9*eAmp)*waveBoost;\n    ang += baseCurl + actCurl*Math.sin(tt*Math.PI) + w;\n    const wd = segW0*(1 - tt*0.7*P.taper)*(0.9);\n    const px=Math.cos(ang+Math.PI/2), py=Math.sin(ang+Math.PI/2);\n    L.push([x+px*wd, y+py*wd]); R.push([x-px*wd, y-py*wd]); C.push([x,y,wd,tt]);\n  }\n  tips.push([x,y,i,active]);\n  const th = (hueDrift + i/nT*40 + Math.sin(K.t*.3+i)*14 + 360)%360;\n\n  if (st==='wire'){\n    stroke(th, 60, 100, 70); strokeWeight(1.2); noFill();\n    beginShape(); for(const q of L) vertex(q[0],q[1]); endShape();\n    beginShape(); for(const q of R) vertex(q[0],q[1]); endShape();\n    for(let j=0;j<=n;j+=2){ line(L[j][0],L[j][1],R[j][0],R[j][1]); }\n  } else if (st==='iridescent'){\n    noStroke();\n    for(let j=0;j<n;j++){ const bh=(th + j*12 + K.t*18)%360;\n      fill(bh, 55, 95, 88);\n      beginShape(); vertex(L[j][0],L[j][1]); vertex(R[j][0],R[j][1]); vertex(R[j+1][0],R[j+1][1]); vertex(L[j+1][0],L[j+1][1]); endShape(CLOSE); }\n  } else if (st==='ink'){\n    noStroke(); fill(220, 18, 16, 88);\n    beginShape(); for(const q of L) curveVertex(q[0],q[1]); for(let j=R.length-1;j>=0;j--) curveVertex(R[j][0],R[j][1]); endShape(CLOSE);\n    stroke(220,20,6,55); strokeWeight(1); noFill();\n    beginShape(); for(let j=0;j<C.length;j+=2) curveVertex(C[j][0],C[j][1]); endShape();\n  } else if (st==='xray'){\n    noStroke(); fill(th, 45, 60, 22);\n    beginShape(); for(const q of L) curveVertex(q[0],q[1]); for(let j=R.length-1;j>=0;j--) curveVertex(R[j][0],R[j][1]); endShape(CLOSE);\n    stroke(th, 30, 100, 70); strokeWeight(1); noFill();\n    beginShape(); for(const q of C) vertex(q[0],q[1]); endShape();\n    noStroke(); fill((th+40)%360, 20, 100, 60);\n    for(let j=1;j<C.length;j+=2){ const su=1.6+2.2*(1-C[j][3]); circle(C[j][0], C[j][1], su); }\n  } else { // biolum\n    noStroke();\n    for(let lay=0;lay<2;lay++){ fill(th, 70-lay*30, 55+lay*40, lay?22:64);\n      beginShape(); for(const q of L) curveVertex(q[0],q[1]); for(let j=R.length-1;j>=0;j--) curveVertex(R[j][0],R[j][1]); endShape(CLOSE); }\n    for(let j=1;j<C.length;j+=2){ const gl=6+active*22; stamp(C[j][0],C[j][1], (2.5+2.5*(1-C[j][3]))+gl*0.12, (th+30)%360, 45, 100, 26+active*45+C[j][3]*10); }\n  }\n}\n\n// \u2500\u2500 mantle (head) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nconst mh = (hueDrift+360)%360;\nif (st==='biolum'){\n  stamp(0, -mantleR*0.15, mantleR*1.7, mh, 55, 100, 30 + kick*22);\n  noStroke();\n  for(let lay=0;lay<3;lay++){ fill(mh, 78-lay*24, 42+lay*22, lay?26:78);\n    ellipse(0, -mantleR*0.15, (mantleR*2-lay*mantleR*.5), (mantleR*2.2-lay*mantleR*.5)); }\n  // chromatophore dots pulsing\n  blendMode(ADD); noStroke();\n  for(let i=0;i<14;i++){ const a=fr(i+70)*6.283, rr=fr(i+80)*mantleR*.85;\n    const tw=.4+.6*Math.abs(Math.sin(K.t*1.4 + i + fr(i+90)*6));\n    fill((mh+50+i*6)%360, 40, 100, 12 + tw*(14+kick*18));\n    circle(Math.cos(a)*rr, -mantleR*0.15 + Math.sin(a)*rr*.9, 3+tw*4); }\n  blendMode(BLEND);\n} else if (st==='wire'){\n  stroke(mh,55,100,75); strokeWeight(1.2); noFill();\n  ellipse(0,-mantleR*.15, mantleR*2, mantleR*2.2);\n  for(let k=1;k<4;k++) ellipse(0,-mantleR*.15, mantleR*2*(1-k*.24), mantleR*2.2);\n  for(let k=-2;k<=2;k++) ellipse(0,-mantleR*.15, mantleR*2, mantleR*2.2*Math.abs(k/3));\n} else if (st==='ink'){\n  noStroke(); fill(220,20,14,92);\n  beginShape();\n  for(let a=0;a<=24;a++){ const th2=Math.PI*(a/24)*2; const rr=1+(fr(a+120)-.5)*.12;\n    curveVertex(Math.cos(th2)*mantleR*rr, -mantleR*.15+Math.sin(th2)*mantleR*1.1*rr); }\n  endShape(CLOSE);\n  fill(220,10,30,40); ellipse(-mantleR*.3,-mantleR*.5, mantleR*.7, mantleR*.5);\n} else if (st==='xray'){\n  noStroke(); fill(mh,40,70,20); ellipse(0,-mantleR*.15, mantleR*2, mantleR*2.2);\n  stroke(mh,25,100,75); strokeWeight(1.1); noFill(); ellipse(0,-mantleR*.15, mantleR*2, mantleR*2.2);\n  // inner funnel + gill arcs\n  ellipse(0,-mantleR*.15, mantleR*.9, mantleR*1.3);\n  for(let k=0;k<3;k++) arc(0,-mantleR*.1, mantleR*(1.3-k*.3), mantleR*(1.5-k*.3), Math.PI*.15, Math.PI*.85);\n} else { // iridescent\n  noStroke();\n  for(let k=6;k>=0;k--){ fill((mh+k*22+K.t*15)%360, 55, 95, k===0?95:70);\n    ellipse(0,-mantleR*.15, mantleR*2*(k/6), mantleR*2.2*(k/6)); }\n}\n\n// eyes (horizontal-slit pupil) \u2014 glowing\nconst ey = -mantleR*0.28, ex = mantleR*0.42, blink = ((K.t*.19+fr(9))%1)<.045;\nfor (let e=0;e<2;e++){ const sgn = e?1:-1;\n  if (st==='wire' || st==='xray'){ stroke(mh,20,100,85); strokeWeight(1.2); noFill(); ellipse(sgn*ex, ey, mantleR*.5, mantleR*.42);\n    if(!blink){ line(sgn*ex-mantleR*.16, ey, sgn*ex+mantleR*.16, ey); } }\n  else {\n    if (st==='biolum'){ stamp(sgn*ex, ey, mantleR*.5, 52, 30, 100, 40+kick*20); }\n    noStroke(); fill(50,25,100,st==='ink'?90:96); ellipse(sgn*ex, ey, mantleR*.52, mantleR*.44);\n    if (!blink){ noStroke(); fill(0,0,6,95); rectMode(CENTER); rect(sgn*ex, ey, mantleR*.34, mantleR*.11, mantleR*.05);\n      fill(0,0,100,80); circle(sgn*ex - sgn*mantleR*.05, ey-mantleR*.03, mantleR*.05); }\n    else { stroke(0,0,10,90); strokeWeight(2); line(sgn*ex-mantleR*.18, ey, sgn*ex+mantleR*.18, ey); noStroke(); }\n  }\n}\n\npop();\n\n// tip glow flares (biolum) drawn in screen space at scaled positions\nif (st==='biolum'){\n  for(const tp of tips){ const gx=ax+tp[0]*s*pump, gy=ay+dyP*s+tp[1]*s*pump*squash;\n    blendMode(ADD); noStroke(); tint((hueDrift+40)%360, 40, 100, 30 + tp[3]*50 + S.tre*40);\n    const r=(7+tp[3]*16)*s; image(S.glow, gx-r, gy-r, r*2, r*2); noTint(); blendMode(BLEND);\n  }\n}\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.piano",
+  "kind": "set",
+  "name": "Grand Piano",
+  "desc": "Open concert grand in glossy black lacquer; keys ripple to a traveling wave and the mid-band FFT, lid sheen shimmers and an optional candelabra flickers.",
+  "tags": [
+    "piano",
+    "grand piano",
+    "concert",
+    "keys",
+    "keyboard",
+    "music",
+    "instrument",
+    "jazz",
+    "classical",
+    "recital",
+    "lacquer",
+    "black",
+    "candelabra",
+    "candles",
+    "elegant",
+    "stage",
+    "set",
+    "prop",
+    "ivory",
+    "strings",
+    "sophisticated",
+    "lid"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "overall size vs design"
+    },
+    "density": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "key count / ripple richness"
+    },
+    "lid": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "lid open amount"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "spotlight / reflection tint"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "key ripple amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "rhythm rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.66,
+      "min": 0.3,
+      "max": 0.9,
+      "doc": "anchor y fraction"
+    },
+    "shimmer": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lid reflection shimmer intensity"
+    },
+    "candela": {
+      "default": 0,
+      "min": 0,
+      "max": 3,
+      "doc": "candelabra candle count"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look seed"
+    },
+    "style": {
+      "default": "concert",
+      "options": [
+        "concert",
+        "xray",
+        "moonlit",
+        "gilded",
+        "thermal"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "recital",
+      "options": [
+        "recital",
+        "crescendo",
+        "jazz"
+      ],
+      "doc": "dramaturgy"
+    }
+  },
+  "acts": [
+    "recital",
+    "crescendo",
+    "jazz"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:19:04+00:00",
+    "fps": 63.3,
+    "motion": 0.0159,
+    "lum": 0.109
+  },
+  "code": "const D = { scale:1, density:.7, lid:.8, hue:210, energy:.6, speed:1, x:.5, y:.66, shimmer:.5, candela:0, seed:0, style:'concert', act:'recital' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst hue = ((P.hue%360)+360)%360;\nconst cx = P.x*width, cy = P.y*height;\nconst s = u*P.scale;\nconst lidOpen = Math.max(0, Math.min(1, P.lid));\nconst nWhite = Math.max(10, Math.min(30, Math.round(12 + P.density*16)));\nconst nCandle = Math.max(0, Math.min(3, Math.round(P.candela)));\n\nS.mid = (S.mid||0)*.8 + (A.mid||0)*.2;\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\n\nif (S.lt == null || K.t < S.lt) S.lt = K.t;\nlet dt = K.t - S.lt; S.lt = K.t;\nif (dt < 0 || dt > 0.2) dt = 1/60;\n\nfunction pal(){\n  if (st==='xray')     return { body:[hue,60,10], sheen:[hue,50,90], key:[hue,30,70], sharp:[hue,55,40], gold:[hue,60,95], spot:[hue,50,60], wire:true };\n  if (st==='moonlit')  return { body:[220,45,9], sheen:[210,25,90], key:[210,8,90], sharp:[220,40,14], gold:[200,20,80], spot:[210,30,80] };\n  if (st==='gilded')   return { body:[28,30,10], sheen:[40,40,88], key:[40,12,92], sharp:[30,50,14], gold:[45,80,95], spot:[38,45,85], warm:true };\n  if (st==='thermal')  return { body:[250,60,8], sheen:[30,90,95], key:[55,70,90], sharp:[280,55,18], gold:[15,90,90], spot:[40,90,85], therm:true };\n  // concert (default): glossy black lacquer, warm spot\n  return { body:[hue,35,7], sheen:[hue,20,92], key:[hue,5,94], sharp:[hue,30,10], gold:[45,60,88], spot:[hue,30,78] };\n}\nconst C = pal();\n\n// piano silhouette control points (unit, relative to center)\nconst WING = [[-.36,.11],[.30,.11],[.34,.03],[.30,-.10],[.16,-.21],[-.04,-.24],[-.26,-.18],[-.37,-.04]];\nfunction wingShape(g, ox, oy, k){ g.beginShape();\n  const pts = WING; for (let i=-1;i<=pts.length;i++){ const p=pts[(i+pts.length)%pts.length]; g.curveVertex(cx+ox+p[0]*s*k, cy+oy+p[1]*s*k); } g.endShape(CLOSE); }\n\n// keyboard geometry (front straight edge)\nconst kbL = cx - 0.34*s, kbR = cx + 0.28*s, kbY = cy + 0.115*s, kbH = 0.055*s;\nconst kw = (kbR-kbL)/nWhite;\n\n// ---- cached body / lid / keybed ----\nconst bkey = width+'x'+height+':'+st+':'+P.seed+':'+P.scale.toFixed(2)+':'+lidOpen.toFixed(2)+':'+P.x.toFixed(2)+':'+P.y.toFixed(2)+':'+nWhite;\nif (!S.bg || S.bgKey !== bkey){\n  S.bgKey = bkey;\n  const g = (S.bg && S.bg.width===width && S.bg.height===height) ? S.bg : (S.bg = createGraphics(width,height));\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.push();\n\n  if (C.wire){\n    // xray/blueprint: wireframe grand + string harp + key grid\n    g.noFill(); g.stroke(C.sheen[0],C.sheen[1],C.sheen[2],80); g.strokeWeight(Math.max(1,u*0.0014));\n    wingShape(g, 0, 0, 1);\n    wingShape(g, -0.02*s/s*0+ -lidOpen*0.05*s, -lidOpen*0.12*s, 1.0); // raised lid outline\n    // strings radiating (the harp)\n    g.stroke(C.spot[0],C.spot[1],C.spot[2],45);\n    for (let i=0;i<22;i++){ const t=i/21; g.line(cx-0.30*s+t*0.5*s, cy+0.08*s, cx-0.02*s+t*0.36*s, cy-0.20*s); }\n    // key grid\n    g.stroke(C.key[0],C.key[1],C.key[2],70);\n    for (let i=0;i<=nWhite;i++){ const x=kbL+i*kw; g.line(x, kbY, x, kbY+kbH); }\n    g.line(kbL,kbY,kbR,kbY); g.line(kbL,kbY+kbH,kbR,kbY+kbH);\n    g.pop();\n  } else {\n    g.noStroke();\n    // floor contact shadow\n    g.fill(0,0,0,55); g.ellipse(cx, cy+0.15*s, s*0.8, s*0.12);\n    // legs\n    g.fill(C.body[0],C.body[1],C.body[2]*0.7,100);\n    g.rect(kbL+kw*1.5, kbY, s*0.02, s*0.16, s*0.006);\n    g.rect(kbR-kw*1.5, kbY, s*0.02, s*0.16, s*0.006);\n    g.rect(cx+0.24*s, cy-0.02*s, s*0.02, s*0.16, s*0.006);\n    // ---- raised lid (underside, lighter) shifted up-left ----\n    const lox = -lidOpen*0.05*s, loy = -lidOpen*0.20*s;\n    g.fill(C.body[0],C.body[1]*1.2,C.body[2]*1.9+3,100); wingShape(g, lox, loy, 1.0);\n    // lid prop stick\n    g.stroke(C.gold[0],C.gold[1],C.gold[2]*0.7,100); g.strokeWeight(s*0.006);\n    g.line(cx+0.10*s, cy-0.02*s, cx+0.10*s+lox*0.6, cy-0.02*s+loy*0.9); g.noStroke();\n    // ---- main body (glossy black) ----\n    g.fill(C.body[0],C.body[1],C.body[2],100); wingShape(g, 0, 0, 1);\n    // deep inner rim shadow\n    g.fill(C.sharp[0],C.sharp[1],C.sharp[2]*0.5,100); wingShape(g, 0.008*s, 0.006*s, 0.9);\n    // gold trim rim (thin bright edge, hard specular language)\n    g.noFill(); g.stroke(C.gold[0],C.gold[1],C.gold[2], C.warm?90:60); g.strokeWeight(Math.max(1,u*0.0016));\n    wingShape(g, 0, 0, 0.995); g.noStroke();\n    // cast-iron plate hint inside (few gold arcs)\n    g.stroke(C.gold[0],C.gold[1]*0.7,C.gold[2]*0.6,40); g.strokeWeight(Math.max(1,u*0.0011));\n    for (let i=0;i<5;i++){ const t=i/4; g.line(cx-0.24*s+t*0.28*s, cy+0.02*s, cx-0.06*s+t*0.20*s, cy-0.16*s); } g.noStroke();\n    // ---- keybed frame ----\n    g.fill(C.sharp[0],C.sharp[1],C.sharp[2]*0.8,100);\n    g.rect(kbL-kw*0.4, kbY-kbH*0.35, (kbR-kbL)+kw*0.8, kbH*1.5, s*0.004);\n    // white keys\n    for (let i=0;i<nWhite;i++){ const x=kbL+i*kw;\n      g.fill(C.key[0],C.key[1],C.key[2],100); g.rect(x+kw*0.06, kbY, kw*0.88, kbH, kw*0.06);\n      g.fill(C.key[0],C.key[1]*0.5,C.key[2]*0.85,60); g.rect(x+kw*0.06, kbY+kbH*0.8, kw*0.88, kbH*0.2); // key front shadow\n    }\n    // black keys (2-3 pattern)\n    const patt=[1,1,0,1,1,1,0];\n    for (let i=0;i<nWhite-1;i++){ if(patt[i%7]){ const x=kbL+(i+1)*kw;\n      g.fill(C.sharp[0],C.sharp[1],C.sharp[2],100); g.rect(x-kw*0.28, kbY, kw*0.56, kbH*0.62, kw*0.05);\n      g.fill(C.sharp[0],C.sharp[1],C.sharp[2]*2.2,80); g.rect(x-kw*0.28, kbY, kw*0.56, kbH*0.12); } }\n    g.pop();\n  }\n  S.kbL=kbL; S.kw=kw; S.kbY=kbY; S.kbH=kbH;\n}\nimage(S.bg, 0, 0);\n\n// ---- warm spotlight glow over the instrument (real-time breathe) ----\npush(); blendMode(ADD); noStroke();\nconst breathe = 0.7 + 0.3*Math.sin(K.t*0.6) + K.swell*0.15;\nfor (let r=5;r>0;r--){ const t=r/5; fill(C.spot[0],C.spot[1]*0.6,C.spot[2], 7*breathe*(1-t*0.3)); ellipse(cx, cy-0.02*s, s*1.1*t, s*0.7*t); }\npop();\n\n// ---- act shaping ----\nlet waveAmp=1, waveSpd=1;\nif (P.act==='crescendo'){ waveAmp = 0.4 + K.intensity*1.6; }\nelse if (P.act==='jazz'){ waveSpd = 1.6; waveAmp = 0.8+K.pulse*0.8; }\nelse { waveAmp = 0.85 + Math.sin(K.t*0.4)*0.15; } // recital\n\n// ---- animated keys: traveling ripple + fft, always moving ----\npush();\nconst kbL2=S.kbL, kw2=S.kw, kbY2=S.kbY, kbH2=S.kbH;\nconst drive = waveAmp*(0.6 + K.intensity*0.5 + P.energy*0.4);\nfor (let i=0;i<nWhite;i++){\n  // baseline traveling wave (never re-phases: uses K.t continuously)\n  let a = Math.max(0, Math.sin(i*0.55 - K.t*3.0*P.speed*waveSpd));\n  a = a*a; // sharpen\n  // beat accent\n  a += K.pulse * (0.4+0.6*fr(i*3+Math.floor(K.beat))) * 0.7;\n  // audio on top (mid-bins) \u2014 zero-safe\n  const bin = Math.min(31, Math.floor(i/nWhite*32));\n  a += (A.fft && A.fft[bin] ? A.fft[bin] : 0)*0.9 + S.mid*0.3;\n  a = Math.min(1, a*drive);\n  if (a<0.03) continue;\n  const x = kbL2+i*kw2;\n  // depressed key: lit warm overlay + drop\n  push(); blendMode(C.wire?BLEND:ADD); noStroke();\n  fill(C.spot[0], C.spot[1], Math.min(100,C.spot[2]+15), 55*a);\n  rect(x+kw2*0.08, kbY2+kbH2*a*0.25, kw2*0.84, kbH2, kw2*0.06);\n  // little sound bloom rising from struck key\n  fill(C.gold[0],C.gold[1],C.gold[2], 40*a);\n  ellipse(x+kw2*0.5, kbY2-kbH2*0.4*a, kw2*0.7*a, kbH2*0.9*a);\n  pop();\n}\npop();\n\n// ---- lid specular shimmer (real-time sweep) ----\nif (!C.wire && P.shimmer>0.02){\n  push();\n  drawingContext.save();\n  // clip to the raised lid region\n  const lox = -lidOpen*0.05*s, loy = -lidOpen*0.20*s;\n  drawingContext.beginPath();\n  const pts=WING; for (let i=0;i<pts.length;i++){ const p=pts[i]; const X=cx+lox+p[0]*s, Y=cy+loy+p[1]*s; if(i===0)drawingContext.moveTo(X,Y); else drawingContext.lineTo(X,Y);} drawingContext.closePath(); drawingContext.clip();\n  blendMode(ADD); noStroke();\n  const sweep = ((K.t*0.14)%1);\n  const bx = cx-0.4*s + sweep*0.9*s;\n  for (let b=0;b<3;b++){ const off=(b-1)*0.05*s;\n    fill(C.sheen[0],C.sheen[1],C.sheen[2], 22*P.shimmer*(1-Math.abs(b-1)*0.4));\n    quad(bx+off-0.03*s, cy-0.28*s+loy, bx+off+0.03*s, cy-0.28*s+loy, bx+off+0.09*s, cy+0.12*s+loy, bx+off+0.03*s, cy+0.12*s+loy);\n  }\n  drawingContext.restore();\n  pop();\n}\n\n// ---- candelabra (optional) with real-time flame flicker ----\nif (nCandle>0 && !C.wire){\n  push();\n  const bx = cx-0.16*s, by = cy-0.06*s;\n  stroke(C.gold[0],C.gold[1],C.gold[2]*0.8,90); strokeWeight(s*0.006); noFill();\n  line(bx, by, bx, by-0.10*s);\n  for (let c=0;c<nCandle;c++){\n    const cxp = bx + (c-(nCandle-1)/2)*0.05*s;\n    const topY = by-0.10*s;\n    stroke(C.gold[0],C.gold[1],C.gold[2]*0.8,90); line(bx, by-0.10*s, cxp, topY);\n    noStroke(); fill(C.key[0],10,90,100); rect(cxp-s*0.004, topY-0.04*s, s*0.008, 0.04*s); // candle\n    // flame\n    const fl = 0.7+0.3*Math.sin(K.t*9+c*2.1)+0.2*fr(Math.floor(K.t*20)+c);\n    push(); blendMode(ADD);\n    fill(30,80,100, 70); ellipse(cxp+Math.sin(K.t*6+c)*s*0.003, topY-0.05*s, s*0.012*fl, s*0.03*fl);\n    fill(50,60,100, 90); ellipse(cxp, topY-0.052*s, s*0.006*fl, s*0.018*fl);\n    pop();\n  }\n  pop();\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

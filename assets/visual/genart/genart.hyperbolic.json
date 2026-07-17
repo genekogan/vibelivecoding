@@ -1,0 +1,161 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.hyperbolic",
+  "kind": "genart",
+  "name": "Hyperbolic Tiling",
+  "desc": "A Poincare-disk hyperbolic tessellation in the spirit of Escher's Circle Limit, its {p,q} jewel-toned tiles shrinking in infinite regress toward the boundary while a slow Mobius drift and elliptic spin make them stream endlessly outward, rendered as backlit stained glass, carved woodcut, a glowing neon lattice, or two-tone op-art moire.",
+  "tags": [
+    "hyperbolic",
+    "poincare",
+    "poincare-disk",
+    "circle-limit",
+    "escher",
+    "tessellation",
+    "tiling",
+    "tile",
+    "non-euclidean",
+    "mobius",
+    "geodesic",
+    "hyperbolic-geometry",
+    "symmetry",
+    "reflection-group",
+    "jewel",
+    "stained-glass",
+    "leaded-glass",
+    "woodcut",
+    "neon",
+    "op-art",
+    "moire",
+    "geometric",
+    "abstract",
+    "generative",
+    "genart",
+    "mathematical",
+    "infinite-regress",
+    "fractal",
+    "kaleidoscopic",
+    "sacred-geometry",
+    "backdrop",
+    "bg",
+    "indigo",
+    "teal",
+    "violet"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "hyperbolic zoom / disk size (small framed disk .. big tiles filling frame)"
+    },
+    "warp": {
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "doc": "static Mobius push strength (0=centred symmetric .. 1=tiles crammed hard to one side)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / backlight & bloom brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "spin + Mobius drift rate (0 keeps a base spin floor alive)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "regress depth + thinner geodesic leading (chunky .. fine infinite detail)"
+    },
+    "hue": {
+      "default": 262,
+      "min": 0,
+      "max": 360,
+      "doc": "primary palette hue (262=violet-indigo jewel)"
+    },
+    "sides": {
+      "default": 6,
+      "min": 3,
+      "max": 8,
+      "doc": "p in {p,q} - polygon sides"
+    },
+    "valence": {
+      "default": 4,
+      "min": 3,
+      "max": 9,
+      "doc": "q in {p,q} - polygons per vertex (auto-bumped until 1/p+1/q<1/2)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "disk centre x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "disk centre y (canvas fraction)"
+    },
+    "glow": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "central backlight + limit-circle rim glow width"
+    },
+    "style": {
+      "default": "circle-limit",
+      "options": [
+        "circle-limit",
+        "stained-glass",
+        "woodcut",
+        "neon-lattice",
+        "op-art"
+      ],
+      "doc": "render philosophy: matte jewel mass with dark leading / backlit leaded glass / carved black-on-cream woodcut print / edge-only additive neon wireframe / flat two-tone optical moire"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic palette phase + rotation offset"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    },
+    "act": {
+      "default": "stream",
+      "options": [
+        "stream",
+        "spin",
+        "dive"
+      ],
+      "doc": "dramaturgy: streaming Mobius drift+spin / calm pure elliptic spin / deeper pulsing infinite-zoom dive"
+    }
+  },
+  "acts": [
+    "stream",
+    "spin",
+    "dive"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:31:42+00:00",
+    "fps": 60.2,
+    "motion": 0.0455,
+    "lum": 0.139
+  },
+  "code": "const D = { scale:1, warp:0, energy:.6, speed:1, density:.5, hue:262, sides:6, valence:4, x:.5, y:.5, glow:.5, style:'circle-limit', seed:0, alpha:100, act:'stream' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst st = P.style;\nconst u = Math.min(width, height);\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat; S.lastBeat = K.beat;\n\nconst BW = 232, BH = Math.max(112, Math.round(BW*height/width));\nif (!S.g || S.bw!==BW || S.bh!==BH){ if(S.g&&S.g.remove) S.g.remove(); S.g=createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; }\n\nlet p = Math.max(3, Math.min(8, Math.round(P.sides)));\nlet q = Math.max(3, Math.min(9, Math.round(P.valence)));\nwhile (1/p + 1/q >= 0.5) q++;\nconst gkey = p+'|'+q;\nif (S.gkey !== gkey){\n  S.gkey = gkey;\n  const rv = Math.sqrt(Math.cos(Math.PI*(1/p+1/q)) / Math.cos(Math.PI*(1/p-1/q)));\n  const cpn = Math.cos(Math.PI/p);\n  const dc = (rv*rv+1)/(2*rv*cpn);\n  S.rv = rv; S.rc2 = dc*dc-1;\n  const cx=[], cy=[];\n  for(let k=0;k<p;k++){ const a=k*2*Math.PI/p; cx.push(dc*Math.cos(a)); cy.push(dc*Math.sin(a)); }\n  S.cx=cx; S.cy=cy; S.p=p;\n}\nif (S.seedUsed !== P.seed){ S.seedUsed=P.seed; S.hp = fr(3); S.seedPhase = fr(7); }\nconst PN = S.p, RC2 = S.rc2, CX = S.cx, CY = S.cy, RV = S.rv;\nconst RCr = Math.sqrt(RC2), twoRC = 2*RCr;\nconst hp = (P.hue/360 + S.hp*0.12) % 1;\nconst seedPhase = S.seedPhase;\n\nconst spd = P.speed;\nconst theta = K.t*(0.028 + spd*0.05);\nconst cT = Math.cos(theta), sT = Math.sin(theta);\nlet driftMag = 0.15*(0.5+0.5*Math.sin(K.t*(0.05+spd*0.04)));\nif (P.act==='spin') driftMag *= 0.22;\nif (P.act==='dive') driftMag = 0.11 + 0.13*(0.5+0.5*Math.sin(K.t*(0.045+spd*0.03)));\nconst driftDir = K.t*(0.023+spd*0.02);\nconst amag = Math.min(0.8, P.warp*0.62 + driftMag);\nconst ax = amag*Math.cos(driftDir), ay = amag*Math.sin(driftDir);\n\nconst secDrift = (K.section||0)*0.05;\nconst exposure = 0.72 + P.energy*0.7 + intn*0.28 + A.rms*0.5;\nconst leadW = 0.06 - P.density*0.032;\nconst MAXI = 20 + Math.round(P.density*14);\nconst Rb = 0.47 * Math.min(BW,BH) * P.scale;\nconst CXb = BW*0.5 + (P.x-0.5)*BW*0.5;\nconst CYb = BH*0.5 + (P.y-0.5)*BH*0.5;\nconst invRb = 1/Rb;\nconst spark = A.treble*0.6;\n\n// iq cosine jewel palette -> rgb 0..1\nfunction pal(m){\n  const r = 0.48 + 0.52*Math.cos(6.2831853*(m + hp + 0.00));\n  const g = 0.40 + 0.50*Math.cos(6.2831853*(m + hp + 0.30));\n  const b = 0.50 + 0.50*Math.cos(6.2831853*(m + hp + 0.62));\n  return [r,g,b];\n}\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nfor (let j=0;j<BH;j++){\n  for (let i=0;i<BW;i++){\n    const o = 4*(j*BW+i);\n    const zx0 = (i-CXb)*invRb, zy0 = (j-CYb)*invRb;\n    const rr = zx0*zx0+zy0*zy0;\n    if (rr >= 1.0){\n      const dr = Math.sqrt(rr)-1;\n      const vig = Math.max(0, 1 - dr*1.3);\n      let sr,sg,sb;\n      if (st==='woodcut'){ const gn=(fr(i*2.1+j*3.7)-0.5)*0.05; sr=0.90+gn; sg=0.86+gn; sb=0.77+gn; }\n      else if (st==='op-art'){ sr=0.09; sg=0.10; sb=0.15; }\n      else if (st==='neon-lattice'){ sr=0.015+0.02*vig; sg=0.02+0.03*vig; sb=0.04+0.05*vig; }\n      else { sr=0.045*vig+0.012; sg=0.035*vig+0.010; sb=0.10*vig+0.022; }\n      // faint limit-circle rim glow\n      if (dr < 0.06 && st!=='woodcut' && st!=='op-art'){ const rim=(1-dr/0.06); const c=pal(0.3+secDrift); sr+=c[0]*rim*0.25; sg+=c[1]*rim*0.25; sb+=c[2]*rim*0.3; }\n      px[o]=Math.min(255,sr*255); px[o+1]=Math.min(255,sg*255); px[o+2]=Math.min(255,sb*255); px[o+3]=255;\n      continue;\n    }\n    // spin (rotate by -theta)\n    const zx1 = zx0*cT + zy0*sT, zy1 = -zx0*sT + zy0*cT;\n    // inverse Mobius translate by a\n    const numRe = zx1-ax, numIm = zy1-ay;\n    const denRe = 1 - ax*zx1 - ay*zy1, denIm = ay*zx1 - ax*zy1;\n    const dd = denRe*denRe + denIm*denIm + 1e-9;\n    let wx = (numRe*denRe + numIm*denIm)/dd;\n    let wy = (numIm*denRe - numRe*denIm)/dd;\n    // fold into central cell\n    let ring=0, flip=0, code=0, over=false;\n    for (let it=0; it<MAXI; it++){\n      let best=-1, bestd=RC2;\n      for (let k=0;k<PN;k++){ const dx=wx-CX[k], dy=wy-CY[k], d2=dx*dx+dy*dy; if(d2<bestd){bestd=d2;best=k;} }\n      if (best<0) break;\n      const dx=wx-CX[best], dy=wy-CY[best], d2=dx*dx+dy*dy, f=RC2/d2;\n      wx=CX[best]+dx*f; wy=CY[best]+dy*f; ring++; flip^=1; code=(code*31+best)&2047;\n      if (it===MAXI-1) over=true;\n    }\n    // edge distance (approx signed dist to nearest edge circle)\n    let ed=1e9;\n    for (let k=0;k<PN;k++){ const dx=wx-CX[k], dy=wy-CY[k], d2=dx*dx+dy*dy; const e=Math.abs(d2-RC2)/twoRC; if(e<ed) ed=e; }\n    const foldR = Math.sqrt(wx*wx+wy*wy);\n    const rimFade = Math.max(0, Math.min(1, (1-rr)*6)); // dark near |z|=1\n    const overDim = over ? 0.12 : 1.0;\n    const tileM = (0.55 + ring*0.132 + (code/2048)*0.42 + seedPhase + secDrift);\n    const dome = 0.72 + 0.42*Math.max(0, 1 - foldR/RV);\n    const lead = Math.max(0, Math.min(1, ed/leadW));\n    const leadSoft = lead*lead*(3-2*lead);\n\n    let r,gg,b;\n    if (st==='circle-limit'){\n      const c = pal(tileM);\n      const tone = flip ? 1.0 : 0.74;\n      const v = tone*dome*exposure*(0.35+0.65*leadSoft)*rimFade*overDim;\n      r=c[0]*v; gg=c[1]*v; b=c[2]*v;\n    } else if (st==='stained-glass'){\n      const c = pal(tileM);\n      const sat = 1.15;\n      const backlight = 0.55 + 0.65*Math.max(0,1-foldR/RV);\n      const leadHard = Math.max(0, Math.min(1, ed/(leadW*1.7)));\n      const lh = leadHard*leadHard;\n      const v = backlight*exposure*rimFade*overDim;\n      r=Math.min(1.2,c[0]*sat)*v*lh; gg=Math.min(1.2,c[1]*sat)*v*lh; b=Math.min(1.2,c[2]*sat)*v*lh;\n    } else if (st==='woodcut'){\n      const inkTile = ((ring ^ flip ^ (code&1)) & 1)===1;\n      const hatch = 0.5+0.5*Math.sin((wx*40+wy*22)+ring*1.7);\n      let tone;\n      if (ed < leadW*1.2) tone = 0.05; // carved boundary (ink)\n      else if (inkTile) tone = 0.10 + hatch*0.16;\n      else tone = 0.86 + (fr(i*1.7+j*2.3)-0.5)*0.05;\n      tone *= rimFade*0.6+0.4;\n      r=tone*1.0; gg=tone*0.96; b=tone*0.86;\n    } else if (st==='neon-lattice'){\n      const edgeGlow = Math.max(0, 1 - ed/(leadW*2.4));\n      const eg = edgeGlow*edgeGlow;\n      const c = pal(0.15 + ring*0.19 + secDrift);\n      const bright = (1.15+spark)*exposure;\n      const inFill = 0.06 + 0.05*Math.max(0,1-foldR/RV); // dim jewel fill so tiles read (not pure black)\n      const fc = pal(tileM);\n      const baseR=0.03+fc[0]*inFill, baseG=0.04+fc[1]*inFill, baseB=0.07+fc[2]*inFill;\n      r=baseR + c[0]*eg*bright*rimFade;\n      gg=baseG + c[1]*eg*bright*rimFade;\n      b=baseB + c[2]*eg*bright*rimFade;\n    } else { // op-art\n      const par = ((ring ^ flip) & 1)===1;\n      const edgeInk = ed < leadW*0.7;\n      const breathe = 0.8 + 0.2*Math.sin(foldR*9.0 + ring*1.3 + K.t*0.6); // optical shimmer -> continuous motion\n      if (edgeInk){ r=0.03; gg=0.03; b=0.05; }\n      else if (par){ r=0.91; gg=0.88; b=0.77; }\n      else { r=0.06; gg=0.07; b=0.17; }\n      const f2 = (rimFade*0.5+0.5)*breathe;\n      r*=f2; gg*=f2; b*=f2;\n    }\n    // central backlight bloom (adds warm glow near disk center, energy+audio)\n    if (st!=='op-art' && st!=='woodcut'){\n      const cg = Math.max(0, 1-rr*2.2)*(0.10+P.energy*0.16+A.bass*0.3+K.pulse*0.12)*P.glow;\n      const gc = pal(0.08+secDrift);\n      r+=gc[0]*cg; gg+=gc[1]*cg; b+=gc[2]*cg;\n    }\n    px[o]=Math.max(0,Math.min(255,r*255));\n    px[o+1]=Math.max(0,Math.min(255,gg*255));\n    px[o+2]=Math.max(0,Math.min(255,b*255));\n    px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\npop();\n// audio treble sparkle on the disk (partial, additive, never full-frame; skipped when silent)\nif ((A.treble>0.02||A.rms>0.02) && st!=='woodcut' && st!=='op-art'){\n  push(); blendMode(ADD); noStroke();\n  const gl=(A.treble*0.5+A.rms*0.4)*P.glow;\n  fill((P.hue+40)%360, 40, 100, Math.min(24, gl*18));\n  const dR=2*Math.min(width,height)*0.47*P.scale;\n  circle(CXb/BW*width, CYb/BH*height, dR*0.9);\n  blendMode(BLEND); pop();\n}\n"
+}

@@ -1,0 +1,161 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rps_lattice",
+  "kind": "genart",
+  "name": "Rock-Paper-Scissors Lattice",
+  "desc": "Three species locked in a cyclic dominance loop \u2014 each one voids its prey, floods bare ground and simply swaps places with whoever it meets \u2014 so no one can ever win and the plate stays alive as entangled rotating domains, mobility widening the spiral arms until biodiversity nearly crashes and a rescue invasion lands a fresh colony on the dead ground.",
+  "tags": [
+    "rock-paper-scissors",
+    "rps",
+    "cyclic-dominance",
+    "cyclic-competition",
+    "intransitive",
+    "may-leonard",
+    "lotka-volterra",
+    "three-species",
+    "coexistence",
+    "biodiversity",
+    "extinction",
+    "invasion",
+    "ecology",
+    "ecological",
+    "population",
+    "competition",
+    "predation",
+    "swarm",
+    "agents",
+    "individual-based",
+    "stochastic",
+    "monte-carlo",
+    "lattice",
+    "cellular-automata",
+    "spiral",
+    "spiral-waves",
+    "domains",
+    "fronts",
+    "mobility",
+    "petri",
+    "petri-dish",
+    "agar",
+    "plate",
+    "culture",
+    "microbiology",
+    "microscopy",
+    "darkfield",
+    "false-color",
+    "field-data",
+    "survey",
+    "emergence",
+    "self-organizing",
+    "material",
+    "texture",
+    "grain",
+    "clinical",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "mobility": {
+      "default": 0.3,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pair-exchange rate \u2014 sets spiral wavelength; low = tight entangled arms, high = coarse spirals that outgrow the plate and crash into churn"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "lattice coarseness (higher = fewer, chunkier cells)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / pigment brightness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reproduction pressure \u2014 how hard species flood bare ground (low = open plate, high = packed)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "Monte-Carlo step rate (how fast the ecology runs)"
+    },
+    "hue": {
+      "default": 42,
+      "min": 0,
+      "max": 360,
+      "doc": "first pigment hue; the other two sit 120 degrees away"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "plate pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "plate pan y"
+    },
+    "style": {
+      "default": "agar",
+      "options": [
+        "agar",
+        "false-color",
+        "ink",
+        "activity",
+        "darkfield"
+      ],
+      "doc": "aesthetic \u2014 agar pigment plate / saturated biodiversity map / three ink densities on toned paper / abstracted turnover heatmap with species identity dissolved / darkfield washes with burning fronts"
+    },
+    "act": {
+      "default": "coexist",
+      "options": [
+        "coexist",
+        "invade",
+        "collapse"
+      ],
+      "doc": "multi-minute program \u2014 steady coexistence / forced periodic invasions / slow mobility ramp that drives biodiversity to the edge and back over ~5 minutes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the initial sowing and every rescue invasion"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "coexist",
+    "invade",
+    "collapse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:41+00:00",
+    "fps": 64.1,
+    "motion": 0.0906,
+    "lum": 0.401
+  },
+  "code": "const D = { mobility: .3, scale: 1, energy: .6, density: .5, speed: 1, hue: 42, x: .5, y: .5, style: 'agar', act: 'coexist', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ================= May-Leonard rock-paper-scissors on a stochastic lattice ==================\n// Three species in a cyclic dominance loop (1>2>3>1) plus empty ground. Three reactions between\n// a random site and a random neighbour: selection (predator voids its prey), reproduction (a\n// species floods an empty site), and mobility (the pair simply swaps). Mobility sets the spiral\n// wavelength; push it high and the spirals grow past the plate and biodiversity crashes -- so a\n// rescue invasion re-seeds any species that falls below quorum. It therefore never settles.\n\nconst CW = Math.max(56, Math.min(184, Math.round(164 / Math.max(0.4, P.scale))));\nconst CH = Math.max(40, Math.min(184, Math.round(CW * height / Math.max(1, width))));\nconst NC = CW * CH;\nconst seedI = P.seed | 0;\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\nconst sig = CW + 'x' + CH + '_' + seedI;\nif (S.sig !== sig || !S.st) {\n  S.sig = sig;\n  S.st = new Int8Array(NC);\n  for (let k = 0; k < NC; k++) S.st[k] = gh(k, 31) < 0.14 ? 0 : 1 + Math.min(2, (gh(k, 77) * 3) | 0);\n  S.rng = ((seedI * 2654435761) ^ 0x9e3779b9) >>> 0; if (!S.rng) S.rng = 0x1234567;\n  S.done = null; S.chk = 0; S.cnt = [1, 1, 1]; S.g = null;\n}\n\n// ---- acts: multi-minute programs -------------------------------------------------------\nconst act = P.act;\nlet mob = P.mobility;\nif (act === 'collapse') mob = 0.10 + 0.86 * (0.5 + 0.5 * Math.sin(K.t * 0.0205 - 1.2)); // ~5min biodiversity cycle\nelse if (act === 'invade') mob = P.mobility * (0.7 + 0.25 * Math.sin(K.t * 0.043));\nelse mob = P.mobility * (0.85 + 0.3 * Math.sin(K.t * 0.037)) + K.intensity * 0.05;\nmob = Math.max(0, Math.min(1, mob));\n\nconst epsW = mob * mob * 30;                 // exchange weight ~ mobility\nconst repW = 0.5 + P.density * 1.5;          // how hard the species floods empty ground\nconst tot = 1 + repW + epsW, pSel = 1 / tot, pRep = (1 + repW) / tot;\n\n// ---- Monte Carlo steps, gated on continuous K.t (no re-phasing, tolerates t0 reset) -----\nconst rate = NC * (10 + P.speed * 24 + K.intensity * 7);\nconst target = Math.floor(K.t * rate);\nif (S.done == null || target < S.done) S.done = target;\nlet need = target - S.done; if (need > NC * 2) need = NC * 2; if (need < 0) need = 0;\nS.done = target;\n\nlet r = S.rng >>> 0;\nconst st = S.st;\nconst RND = () => { r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0; return r; };\nfor (let a = 0; a < need; a++) {\n  const idx = RND() % NC;\n  const i = idx % CW, j = (idx / CW) | 0;\n  const dir = RND() & 3;\n  let ni = i, nj = j;\n  if (dir === 0) ni = i + 1 < CW ? i + 1 : 0;\n  else if (dir === 1) ni = i ? i - 1 : CW - 1;\n  else if (dir === 2) nj = j + 1 < CH ? j + 1 : 0;\n  else nj = j ? j - 1 : CH - 1;\n  const jdx = nj * CW + ni;\n  const sa = st[idx], sb = st[jdx];\n  const u = RND() / 4294967296;\n  if (u < pSel) {\n    if (sa && sb) { if ((sa % 3) + 1 === sb) st[jdx] = 0; else if ((sb % 3) + 1 === sa) st[idx] = 0; }\n  } else if (u < pRep) {\n    if (sa && !sb) st[jdx] = sa; else if (sb && !sa) st[idx] = sb;\n  } else { st[idx] = sb; st[jdx] = sa; }\n  if ((a & 511) === 0) st[RND() % NC] = 1 + RND() % 3;   // mutation trickle: no absorbing state\n}\nS.rng = r >>> 0;\n\n// ---- census + rescue invasion: the device that forbids convergence ----------------------\nS.chk = (S.chk | 0) + 1;\nconst forceInv = act === 'invade' && (S.chk % 260 === 0);\nif (S.chk % 23 === 0 || forceInv) {\n  const c = [0, 0, 0];\n  for (let k = 0; k < NC; k++) { const v = st[k]; if (v) c[v - 1]++; }\n  S.cnt = c;\n  for (let sp = 0; sp < 3; sp++) {\n    if (c[sp] >= NC * 0.008 && !(forceInv && sp === (S.chk / 260 | 0) % 3)) continue;\n    const cx = (gh(S.chk + sp * 7919, 991) * CW) | 0, cy = (gh(S.chk + sp * 104729, 337) * CH) | 0;\n    const rad = 5 + ((P.density * 7) | 0);\n    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {\n      if (dx * dx + dy * dy > rad * rad) continue;\n      st[(((cy + dy) % CH + CH) % CH) * CW + (((cx + dx) % CW + CW) % CW)] = sp + 1;\n    }\n  }\n}\n\n// ---- render ----------------------------------------------------------------------------\nif (!S.g || S.gw !== CW || S.gh !== CH) { S.g = createGraphics(CW, CH); S.g.pixelDensity(1); S.gw = CW; S.gh = CH; }\nconst OUT = [0, 0, 0];\nfunction setHSV(o, h, s, v) {\n  h = ((h % 360) + 360) % 360; v = v < 0 ? 0 : v > 1 ? 1 : v; s = s < 0 ? 0 : s > 1 ? 1 : s;\n  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let rr, gg, bb;\n  if (h < 60) { rr = c; gg = x; bb = 0; } else if (h < 120) { rr = x; gg = c; bb = 0; } else if (h < 180) { rr = 0; gg = c; bb = x; }\n  else if (h < 240) { rr = 0; gg = x; bb = c; } else if (h < 300) { rr = x; gg = 0; bb = c; } else { rr = c; gg = 0; bb = x; }\n  o[0] = (rr + m) * 255; o[1] = (gg + m) * 255; o[2] = (bb + m) * 255;\n}\nconst style = P.style;\nconst mode = style === 'false-color' ? 1 : style === 'ink' ? 2 : style === 'activity' ? 3 : style === 'darkfield' ? 4 : 0;\nif (mode === 3 && (!S.heat || S.heat.length !== NC)) S.heat = new Float32Array(NC);\nconst ex = Math.min(1.4, 0.62 + P.energy * 0.62 + K.intensity * 0.16 + A.rms * 0.4);\nconst hb = P.hue + K.section * 5 + Math.sin(K.t * 0.031) * 9;\nconst HS = [hb, hb + 118, hb + 236];                     // three pigments\nconst AGAR = [hb + 18, hb + 96, hb + 268];\nconst AGS = [0.72, 0.5, 0.3], AGV = [0.5, 0.44, 0.4], INKV = [0.20, 0.40, 0.55];\nconst rim = 0.34 + P.density * 0.4 + A.treble * 0.2;\n{\n  const g = S.g; g.loadPixels(); const px = g.pixels;\n  for (let j = 0; j < CH; j++) {\n    const jm = (j ? j - 1 : CH - 1) * CW, jp = (j + 1 < CH ? j + 1 : 0) * CW, rj = j * CW;\n    for (let i = 0; i < CW; i++) {\n      const im = i ? i - 1 : CW - 1, ip = i + 1 < CW ? i + 1 : 0;\n      const idx = rj + i, s = st[idx];\n      const n0 = st[rj + im], n1 = st[rj + ip], n2 = st[jm + i], n3 = st[jp + i];\n      const killer = s ? (s % 3) + 1 : 0;                // the species that voids me\n      const under = s ? ((n0 === killer) + (n1 === killer) + (n2 === killer) + (n3 === killer)) : 0;\n      const opened = ((n0 !== s) + (n1 !== s) + (n2 !== s) + (n3 !== s));\n      const grain = (gh(idx, 5) - 0.5) * 0.085;\n      if (mode === 1) {                                  // false-color biodiversity map\n        if (!s) setHSV(OUT, hb + 210, 0.72, (0.06 + opened * 0.012) * ex);\n        else setHSV(OUT, HS[s - 1], 0.86 - under * 0.14, (0.44 + under * 0.16 * rim + grain) * ex);\n      } else if (mode === 2) {                           // ink: three densities on toned paper\n        const paper = 0.60 + grain * 0.6;\n        const v = !s ? paper : INKV[s - 1] + grain;\n        setHSV(OUT, hb - 12, 0.10, (s && under ? v * 0.55 : v) * (0.82 + P.energy * 0.34));\n      } else if (mode === 3) {                           // activity field: identity dissolved into a turnover heatmap\n        const inst = Math.min(1, (opened * 0.24 + (s ? 0 : 0.34) + under * 0.2));\n        const h2 = S.heat[idx] = S.heat[idx] * 0.965 + inst * 0.035;\n        const act2 = Math.max(0, Math.min(1, (h2 - 0.22) * 2.4));\n        setHSV(OUT, 268 - act2 * 252, 0.92 - act2 * 0.45, (0.11 + Math.pow(act2, 1.5) * 0.66 + grain * 0.4) * ex);\n      } else if (mode === 4) {                           // darkfield: dim washes, burning fronts\n        if (!s) { OUT[0] = 4; OUT[1] = 5; OUT[2] = 11; }\n        else setHSV(OUT, HS[s - 1] + under * 10, 0.9, (0.26 + under * 0.5 * rim + grain) * ex);\n      } else {                                           // agar (default): pigment colonies on a dark plate\n        if (!s) setHSV(OUT, hb + 14, 0.5, (0.10 + opened * 0.018 + grain * 0.4) * ex);\n        else setHSV(OUT, AGAR[s - 1], AGS[s - 1], (AGV[s - 1] + under * 0.2 * rim + grain) * ex);\n      }\n      const o = 4 * idx; px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\n// ---- composite: incommensurate drift keeps the plate from ever re-phasing --------------\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2 + (P.x - 0.5) * width * 0.2, height / 2 + (P.y - 0.5) * height * 0.2);\nrotate(Math.sin(K.t * 0.019) * 0.05 + Math.sin(K.t * 0.0071 + 1.7) * 0.045);\nconst zoom = 1.55 + Math.sin(K.t * 0.061) * 0.05 + Math.sin(K.t * 0.143 + 0.9) * 0.02 + A.bass * 0.05;\nimageMode(CENTER);\nimage(S.g, 0, 0, width * zoom, height * zoom);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

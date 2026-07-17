@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.thermal",
+  "kind": "world",
+  "name": "Thermal IR",
+  "desc": "A false-color infrared heat map: warm bodies wander and bloom with the bass through an ironbow ramp of black-blue-magenta-orange-white, watched by a flickering thermal-camera HUD.",
+  "tags": [
+    "thermal",
+    "infrared",
+    "IR",
+    "heat",
+    "heatmap",
+    "heat-map",
+    "false-color",
+    "ironbow",
+    "thermography",
+    "night-vision",
+    "surveillance",
+    "camera",
+    "predator",
+    "sci-fi",
+    "metaball",
+    "blob",
+    "glow",
+    "contour",
+    "isotherm",
+    "xray",
+    "plasma",
+    "clinical",
+    "techno",
+    "world",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of heat sources"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "heat-blob radius"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "grain + HUD motion amplitude"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "rotates the whole false-color ramp"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "blob wander rate"
+    },
+    "heat": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "heat intensity / overall brightness"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "heat-field pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "heat-field pan y + horizon"
+    },
+    "style": {
+      "default": "thermal",
+      "options": [
+        "thermal",
+        "contour",
+        "nightvision",
+        "xray"
+      ],
+      "doc": "render philosophy: smooth false-color / quantized iso-therm contour bands (abstract schematic) / green phosphor scanline night-vision / inverted x-ray negative"
+    },
+    "pal": {
+      "default": "ironbow",
+      "options": [
+        "ironbow",
+        "arctic",
+        "plasma"
+      ],
+      "doc": "color ramp (ignored by nightvision/xray which force their own)"
+    },
+    "act": {
+      "default": "survey",
+      "options": [
+        "survey",
+        "pursuit",
+        "cooldown"
+      ],
+      "doc": "multi-minute program: survey calm drift, pursuit converges + heats, cooldown slowly chills and rewarms"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "heat-source base positions + phases"
+    }
+  },
+  "acts": [
+    "survey",
+    "pursuit",
+    "cooldown"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:15:32+00:00",
+    "fps": 59.9,
+    "motion": 0.0936,
+    "lum": 0.832
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, hue:20, speed:1, heat:.6, x:.5, y:.5, style:'thermal', pal:'ironbow', act:'survey', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style, night=style==='nightvision', contour=style==='contour', xray=style==='xray';\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1)*(.5+.5*K.intensity), heat=clp(P.heat,0,1);\n\n// ---- thermal ramps (RGB stops 0..255) ----\nconst RAMPS={\n  ironbow:[[2,2,10],[18,16,86],[92,20,132],[196,40,58],[240,120,18],[255,205,70],[255,255,255]],\n  arctic:[[3,5,16],[10,32,82],[28,92,150],[120,182,222],[214,238,255],[255,255,255]],\n  plasma:[[12,0,32],[74,10,122],[162,22,150],[228,60,92],[250,150,42],[252,240,122]],\n  night:[[0,7,0],[0,52,10],[12,132,24],[78,214,58],[196,255,176],[255,255,255]],\n  xray:[[248,249,255],[176,188,220],[108,120,162],[58,66,98],[20,24,46],[3,5,14]],\n};\nlet ramp0 = RAMPS[P.pal]||RAMPS.ironbow;\nif(night) ramp0=RAMPS.night; else if(xray) ramp0=RAMPS.xray;\n// hue rotation of the whole false-color ramp (honors P.hue)\nfunction rgb2hsb(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;}return [h, mx?d/mx:0, mx];}\nfunction hsb2rgb(h,s,v){h=((h%360)+360)%360;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const seg=Math.floor(h/60)%6;if(seg===0){r=c;g=x;b=0;}else if(seg===1){r=x;g=c;b=0;}else if(seg===2){r=0;g=c;b=x;}else if(seg===3){r=0;g=x;b=c;}else if(seg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [(r+m)*255,(g+m)*255,(b+m)*255];}\nconst hueOff=P.hue-20;\nconst rkey=P.pal+'|'+style+'|'+Math.round(hueOff/8);\nif(S.rkey!==rkey){ S.rkey=rkey; S.ramp = Math.abs(hueOff)<3? ramp0 : ramp0.map(c=>{const hs=rgb2hsb(c[0],c[1],c[2]); return hsb2rgb(hs[0]+hueOff, hs[1], hs[2]);}); }\nlet ramp = S.ramp;\nconst levels=Math.max(4,Math.round(5+dens*7));\nfunction shade(v){\n  v=clp(v,0,1);\n  let edge=0;\n  if(contour){ const s=v*levels; edge=Math.abs(s-Math.round(s)); v=Math.round(s)/levels; }\n  const n=ramp.length, f=v*(n-1); let i=Math.floor(f); if(i>=n-1)i=n-2; const t=f-i;\n  const a=ramp[i], b=ramp[i+1];\n  let r=a[0]+(b[0]-a[0])*t, g=a[1]+(b[1]-a[1])*t, bl=a[2]+(b[2]-a[2])*t;\n  if(contour && edge<0.055){ r*=0.18; g*=0.18; bl*=0.18; }   // iso-therm lines\n  return [r,g,bl];\n}\n\n// ---- low-res heat buffer, size-keyed ----\nconst LS=96;\nconst GW=Math.max(24,Math.round(LS*W/Math.max(W,Hh)));\nconst GH=Math.max(24,Math.round(LS*Hh/Math.max(W,Hh)));\nif(!S.buf || S.gw!==GW || S.gh!==GH){ if(S.buf)S.buf.remove&&S.buf.remove(); S.buf=createGraphics(GW,GH); S.gw=GW; S.gh=GH; }\nconst buf=S.buf;\n\n// ---- blobs (heat sources) \u2014 seed-deterministic bases, wander in real time ----\nconst nB=Math.max(2,Math.round(3+dens*9));\nif(S.seedUsed!==P.seed || S.nB!==nB){\n  S.seedUsed=P.seed; S.nB=nB; S.blob=[];\n  for(let i=0;i<nB;i++) S.blob.push({ x0:0.12+0.76*fr(i*3.1+1), y0:0.15+0.70*fr(i*5.7+2),\n    rate:0.08+0.22*fr(i*7.3+3), ph:fr(i*9.1)*TAU, amp:0.05+0.10*fr(i*2.2+4),\n    rb:0.08+0.10*fr(i*4.4+5), str:0.5+0.5*fr(i*6.6+6) });\n}\n// act arc \u2014 multi-minute dramaturgy\nlet wanderScale=1, heatArc=1, conv=0;\nif(P.act==='pursuit'){ wanderScale=1.7; heatArc=0.85+0.35*Math.sin(K.t*0.06); conv=0.10*(0.5+0.5*Math.sin(K.t*0.04)); }\nelse if(P.act==='cooldown'){ heatArc=0.35+0.55*(0.5+0.5*Math.sin(K.t*0.028)); wanderScale=0.7; }\nconst heatE=heat*heatArc;\nconst panx=(P.x-0.5), pany=(P.y-0.5);\n// live blob positions + heat\nconst asp=W/Hh;\nconst bl=S.blob.map(b=>{\n  const t=K.t*b.rate*(0.5+P.speed*0.6)*wanderScale;\n  let bx=b.x0 + b.amp*Math.sin(t+b.ph) + 0.03*Math.sin(K.t*0.11+b.ph*2) + panx;\n  let by=b.y0 + b.amp*Math.cos(t*0.8+b.ph*1.3) + pany;\n  bx += (0.5-bx)*conv; by += (0.5-by)*conv;   // pursuit converges toward center\n  const pulse=0.7 + 0.4*K.swell + A.bass*1.3 + K.pulse*0.35;\n  const rb=b.rb*(0.7+P.scale*0.9)*(0.9+0.15*Math.sin(K.t*0.5+b.ph));\n  return {bx,by,rb2:rb*rb, str:b.str*pulse*(0.5+heatE)};\n});\nconst horizon=0.56 + 0.05*Math.sin(K.t*0.05) + pany*0.4;\nconst tide=0.06*Math.sin(K.t*0.09)+0.05*A.rms;\n\nbuf.loadPixels();\nconst px=buf.pixels;\nfor(let cy=0;cy<GH;cy++){\n  const ny=cy/GH;\n  let base;\n  if(ny>horizon) base=0.26+(ny-horizon)*0.6; else base=0.16-(horizon-ny)*0.20;\n  base+=tide;\n  for(let cx=0;cx<GW;cx++){\n    const nx=cx/GW;\n    let v=base + 0.05*Math.sin(nx*TAU*2+K.t*0.2);\n    for(let k=0;k<bl.length;k++){ const b=bl[k]; const dx=(nx-b.bx)*asp, dy=ny-b.by; const d2=dx*dx+dy*dy; v += b.str*b.rb2/(b.rb2+d2*1.4); }\n    const col=shade(v);\n    const idx=(cy*GW+cx)*4;\n    px[idx]=col[0]; px[idx+1]=col[1]; px[idx+2]=col[2]; px[idx+3]=255;\n  }\n}\nbuf.updatePixels();\n\n// ---- composite ----\nnoStroke();\ndrawingContext.imageSmoothingEnabled = !contour;\nimage(buf,0,0,W,Hh);\ndrawingContext.imageSmoothingEnabled = true;\n\nconst oldOp=drawingContext.globalCompositeOperation;\n\n// nightvision: scanlines + travelling scan bar + phosphor grain\nif(night){\n  blendMode(MULTIPLY);\n  stroke(0,0,0,55); strokeWeight(1);\n  for(let y=0;y<Hh;y+=3) line(0,y,W,y);\n  blendMode(SCREEN);\n  const scanY=md(K.t*u*0.35,Hh);\n  noStroke(); fill(120,60,100,14); rect(0,scanY-u*0.02,W,u*0.04);\n  // grain\n  fill(120,40,100,10); const gn=Math.floor(40+40*en);\n  for(let i=0;i<gn;i++){const gx=frc(fr(i+Math.floor(K.t*12))*1.7)*W, gy=frc(fr(i+3+Math.floor(K.t*12))*1.3)*Hh; rect(gx,gy,2,2);}\n  blendMode(BLEND);\n}\n\n// HUD reticle tracking the hottest blob (adds character + motion), skip for contour\nif(!contour){\n  let hot=bl[0]; for(const b of bl) if(b.str>hot.str) hot=b;\n  const rx=hot.bx*W, ry=hot.by*Hh, rs=u*0.05*(1+0.15*K.pulse);\n  stroke(night?140:50, night?70:10, night?100:98, 80); strokeWeight(1.4); noFill();\n  rect(rx-rs,ry-rs,rs*2,rs*2);\n  line(rx-rs*1.5,ry,rx-rs*0.6,ry); line(rx+rs*0.6,ry,rx+rs*1.5,ry);\n  line(rx,ry-rs*1.5,rx,ry-rs*0.6); line(rx,ry+rs*0.6,rx,ry+rs*1.5);\n  // corner brackets + blinking REC dot\n  const m=u*0.04, cl=u*0.03;\n  stroke(night?140:50,night?70:10,98,55); strokeWeight(1.2);\n  [[m,m,1,1],[W-m,m,-1,1],[m,Hh-m,1,-1],[W-m,Hh-m,-1,-1]].forEach(c=>{line(c[0],c[1],c[0]+cl*c[2],c[1]);line(c[0],c[1],c[0],c[1]+cl*c[3]);});\n  if(Math.sin(K.t*3)>0){ noStroke(); fill(2,90,95,90); circle(m+cl*1.4,m,u*0.012); }\n  // scale-bar ticks along bottom (schematic ident, drifts)\n  stroke(night?140:50,night?60:8,90,40); strokeWeight(1);\n  const off=md(K.t*10,u*0.06);\n  for(let x=-off;x<W;x+=u*0.06){ line(x,Hh-m,x,Hh-m-u*0.012); }\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.shadowBlur=0; noStroke();\n"
+}

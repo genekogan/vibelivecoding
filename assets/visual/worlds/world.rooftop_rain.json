@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.rooftop_rain",
+  "kind": "world",
+  "name": "Rooftop City Rain",
+  "desc": "A rain-drenched night skyline where neon signage flickers over lit windows, streaks fall unceasingly and the wet street mirrors the city with a treble-shimmering reflection.",
+  "tags": [
+    "city",
+    "skyline",
+    "rain",
+    "night",
+    "neon",
+    "tokyo",
+    "cyberpunk",
+    "urban",
+    "rooftop",
+    "signage",
+    "noir",
+    "rainy",
+    "reflection",
+    "puddle",
+    "street",
+    "buildings",
+    "downtown",
+    "moody",
+    "wet",
+    "storm",
+    "lightning",
+    "thermal",
+    "dot-matrix",
+    "riso",
+    "atmospheric",
+    "world",
+    "backdrop",
+    "metropolis"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "skyline building count + rain density"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "rain intensity/slant + neon glow + shimmer"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "primary neon hue (320 = magenta)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "reserved rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved scale"
+    },
+    "wind": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rain slant / wind strength"
+    },
+    "glow": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "sign flicker glow amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic skyline, windows, signs, rain"
+    },
+    "style": {
+      "default": "tokyo",
+      "options": [
+        "tokyo",
+        "noir",
+        "riso",
+        "thermal",
+        "dotmatrix"
+      ],
+      "doc": "render philosophy: neon tokyo signage / monochrome noir / 2-ink riso / thermal false-color / LED dot-matrix"
+    },
+    "act": {
+      "default": "downpour",
+      "options": [
+        "downpour",
+        "drizzle",
+        "storm"
+      ],
+      "doc": "multi-minute weather: steady downpour / light drizzle / storm with partial-frame lightning"
+    }
+  },
+  "acts": [
+    "downpour",
+    "drizzle",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:08:20+00:00",
+    "fps": 60.2,
+    "motion": 0.0087,
+    "lum": 0.16
+  },
+  "code": "const D = { density:.55, energy:.6, hue:320, speed:1, scale:1, x:.5, y:.5, wind:.4, glow:1, seed:0, style:'tokyo', act:'downpour' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst lp=(a,b,t)=>a+(b-a)*t;\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=((P.hue%360)+360)%360;\nconst styles=['tokyo','noir','riso','thermal','dotmatrix'];\nconst st = styles.includes(P.style)?P.style:'tokyo';\nconst dens=P.density;\nconst eAmp=P.energy*(.4+.75*K.intensity);\nS.tre=(S.tre||0)*.82+(A.treble||0)*.18; S.bass=(S.bass||0)*.8+(A.bass||0)*.2;\nconst tre=S.tre, bass=S.bass;\nconst waterY=Hh*0.66;\nconst dB=Math.round(dens*4);\n\nfunction pal(){\n  if(st==='noir') return {sky:[0,0,11],skyTop:[0,0,4],bld:[0,0,10],bld2:[0,0,17],win:[0,0,92],winD:[0,0,42],sign:[0,0,82],rain:[0,0,100]};\n  if(st==='thermal') return {sky:[268,60,14],skyTop:[278,70,7],bld:[232,68,30],bld2:[210,58,44],win:[46,92,100],winD:[22,82,72],sign:[8,92,100],rain:[200,45,88]};\n  if(st==='riso') return {sky:[192,58,20],skyTop:[200,62,11],bld:[192,72,40],bld2:[192,78,56],win:[330,72,92],winD:[330,48,58],sign:[332,84,96],rain:[192,26,95]};\n  return {sky:[242,58,12],skyTop:[252,66,6],bld:[250,42,15],bld2:[256,38,24],win:[45,58,96],winD:[35,48,52],sign:[H,82,98],rain:[204,22,96]};\n}\nconst C=pal();\n\n// \u2500\u2500 bake skyline into buffer \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nif(!S.city || S.cKey!==W+'x'+Hh+st+P.seed+dB){\n  const g=createGraphics(W, Math.max(2,Math.round(waterY)));\n  g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  const gw=W, gh=Math.round(waterY);\n  // sky gradient\n  for(let i=0;i<40;i++){ const v=i/40; g.fill(lp(C.skyTop[0],C.sky[0],v), lp(C.skyTop[1],C.sky[1],v), lp(C.skyTop[2],C.sky[2],v)); g.rect(0,v*gh,gw+1,gh/40+1.5); }\n  // horizon glow band\n  g.blendMode(g.ADD); for(let i=0;i<6;i++){ g.fill(st==='thermal'?15:H, st==='noir'?0:40, 100, 5); g.ellipse(gw*0.5, gh, gw*(1.1-i*0.12), gh*(0.5-i*0.05)); } g.blendMode(g.BLEND);\n  const signs=[];\n  const nB=6+dB*7;\n  // buildings sorted back(smaller) to front(taller)\n  const blds=[];\n  for(let i=0;i<nB;i++){ blds.push({x:fr(i*3)*gw, w:gw*(0.05+fr(i*3+1)*0.11), h:gh*(0.28+fr(i*3+2)*0.62), depth:fr(i*3+2)}); }\n  blds.sort((a,b)=>a.h-b.h);\n  for(let bi=0;bi<blds.length;bi++){ const b=blds[bi]; const bx=b.x-b.w/2, by=gh-b.h;\n    const dep=bi/blds.length; g.fill(lp(C.bld[0],C.bld2[0],dep), lp(C.bld[1],C.bld2[1],dep), lp(C.bld[2],C.bld2[2],dep));\n    g.rect(bx,by,b.w,b.h+2);\n    // window grid\n    const cols=Math.max(2,Math.floor(b.w/(u*0.028))), rows=Math.max(3,Math.floor(b.h/(u*0.05)));\n    const cw=b.w/cols, rh=b.h/rows;\n    for(let cx=0;cx<cols;cx++) for(let ry=0;ry<rows;ry++){ const idx=bi*991+cx*37+ry*7; const on=fr(idx)>0.42;\n      const wx=bx+cx*cw+cw*0.22, wy=by+ry*rh+rh*0.2, ww=cw*0.56, wh=rh*0.58;\n      if(on){ g.fill(C.win[0], C.win[1], C.win[2], 92); } else { g.fill(C.winD[0],C.winD[1],C.winD[2],55); }\n      g.rect(wx,wy,ww,wh); }\n    // rooftop neon sign on some tall buildings\n    if(b.h>gh*0.5 && fr(bi*13+5)>0.45){ const sw=b.w*(0.5+fr(bi+2)*0.4), sh=Math.max(6,rh*0.9); const sx=bx+b.w/2-sw/2, sy=by-sh*1.3;\n      signs.push({x:sx,y:sy,w:sw,h:sh, hue:(fr(bi*17)*360), ph:fr(bi*19)*6.283, glyphs:2+Math.floor(fr(bi*23)*4)});\n      g.fill(st==='thermal'?8:(st==='noir'?0:fr(bi*17)*360), st==='noir'?0:80, 30); g.rect(sx-2,sy-2,sw+4,sh+4);\n    }\n  }\n  S.city=g; S.cKey=W+'x'+Hh+st+P.seed+dB; S.signs=signs;\n  // dot-matrix mask\n  if(st==='dotmatrix'){ const m=createGraphics(W,Hh); m.colorMode(m.HSB,360,100,100,100); m.background(0,0,0,100);\n    const cell=Math.max(4,u*0.012); m.noStroke();\n    m.erase(); for(let y=cell/2;y<Hh;y+=cell) for(let x=cell/2;x<W;x+=cell){ m.circle(x,y,cell*0.84);} m.noErase(); S.mask=m; }\n}\n\n// \u2500\u2500 draw skyline \u2500\u2500\nimage(S.city,0,0);\n// reflection\npush(); translate(0, waterY*2); scale(1,-1); tint(0,0,100, st==='noir'?38:46); image(S.city,0,0); noTint(); pop();\n// water veil + shimmer\nnoStroke(); fill(st==='thermal'?265:(st==='noir'?0:230), st==='noir'?0:55, st==='noir'?6:9, 62); rect(0,waterY,W,Hh-waterY);\nblendMode(ADD);\nfor(let i=0;i<12;i++){ const yy=waterY+((i/12)+((K.t*0.06)%(1/12)))*(Hh-waterY); const fl=0.4+0.6*Math.abs(Math.sin(K.t*2.2+i*1.3+fr(i)));\n  fill(st==='noir'?0:H, st==='noir'?0:35, 100, 4*fl+tre*14*fl); rect(0, yy, W, (Hh-waterY)*0.04); }\nblendMode(BLEND);\n\n// \u2500\u2500 sign flicker (live glow) \u2500\u2500\nif(S.signs){ blendMode(ADD); noStroke();\n  for(const s of S.signs){ const fk=0.55+0.45*Math.sin(K.t*7+s.ph) + (fr(Math.floor(K.t*3)+s.ph)>0.85?-0.5:0);\n    const a=Math.max(0, fk)*(18+P.glow*20)+bass*20;\n    const sh=st==='noir'?0:(st==='thermal'?8:(st==='tokyo'?H:s.hue));\n    fill(sh, st==='noir'?0:80, 100, a); rect(s.x-3,s.y-3,s.w+6,s.h+6);\n    // abstract glyph ticks\n    fill(sh, st==='noir'?0:20, 100, a*1.3);\n    for(let gI=0;gI<s.glyphs;gI++){ const gx=s.x+ (gI+0.5)/s.glyphs*s.w; rect(gx-s.w*0.06, s.y+s.h*0.2, s.w*0.12, s.h*0.6); }\n  }\n  blendMode(BLEND);\n}\n\n// \u2500\u2500 RAIN (continuous real-time fall) \u2500\u2500\nconst stormy=P.act==='storm', drizz=P.act==='drizzle';\nconst nR=Math.min(340, Math.round((drizz?30:70)+dens*220+(stormy?90:0)));\nconst slant=(P.wind*1.3+ (stormy?0.5:0))* (0.6+eAmp);\nconst fall=u*(1.1+eAmp*0.9)*(drizz?0.7:1);\nstrokeCap(ROUND);\nfor(let i=0;i<nR;i++){ const sx=fr(i*2)*W*1.2-W*0.1; const spd=0.6+fr(i*2+1)*0.8; const len=u*(0.02+fr(i+3)*0.035)*(drizz?0.6:1);\n  let y=(fr(i+7)*Hh + K.t*fall*spd)%(Hh+len)-len; const x=sx + (y/Hh)*slant*u*0.25 + K.t*slant*u*0.02;\n  const a=st==='noir'?60:44; stroke(C.rain[0],C.rain[1],C.rain[2], a+tre*20); strokeWeight(lp(0.8,1.8,fr(i+11)));\n  line(x,y, x+slant*len*0.5, y+len); }\nnoStroke();\n// splash ripples near water\nblendMode(ADD);\nfor(let i=0;i<Math.round(6+dens*10);i++){ const rx=fr(i*5+50)*W; const ph=(K.t*1.4+fr(i+60)*3)%1; const rr=ph*u*0.03;\n  stroke(C.rain[0],C.rain[1],C.rain[2], (1-ph)*30); strokeWeight(1); noFill(); ellipse(rx, waterY+fr(i+61)*(Hh-waterY)*0.5, rr*2, rr*0.6); }\nnoStroke(); blendMode(BLEND);\n\n// \u2500\u2500 lightning (act storm) \u2014 PARTIAL frame only \u2500\u2500\nif(stormy){ const seg=Math.floor(K.t*0.5); const trig=fr(seg*7+3); const local=(K.t*0.5)%1;\n  if(trig>0.72 && local<0.14){ const fa=(1-local/0.14); blendMode(ADD);\n    noStroke(); fill(st==='thermal'?200:210, st==='noir'?0:15, 100, 22*fa);\n    const bx=fr(seg*11)*W; beginShape(); vertex(bx,0); let lx=bx; for(let y=0;y<waterY;y+=waterY/8){ lx+=(fr(seg+y)-0.5)*u*0.06; vertex(lx,y);} vertex(lx+u*0.03, waterY); vertex(lx-u*0.03,waterY); for(let y=waterY;y>0;y-=waterY/8){ vertex(lx,y);} endShape(CLOSE);\n    // sky glow patch (partial, upper third)\n    fill(210, st==='noir'?0:20, 100, 10*fa); rect(0,0,W,Hh*0.35);\n    blendMode(BLEND); }\n}\n\n// \u2500\u2500 dot-matrix mask overlay \u2500\u2500\nif(st==='dotmatrix' && S.mask){ blendMode(MULTIPLY); image(S.mask,0,0); blendMode(BLEND);\n  // scanline drift\n  blendMode(ADD); noStroke(); fill(H,40,100, 6); const sy=(K.t*u*0.1)%Hh; rect(0,sy,W,u*0.01); blendMode(BLEND); }\n\nblendMode(BLEND); noStroke();\n"
+}

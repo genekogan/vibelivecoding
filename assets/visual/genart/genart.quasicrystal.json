@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.quasicrystal",
+  "kind": "genart",
+  "name": "Quasicrystal Interference",
+  "desc": "A sum of N evenly-angled plane-wave cosine gratings that interfere into a slowly shimmering aperiodic quasicrystal whose N-fold symmetry ratchets up section by section, rendered as spectral iq-cosine bloom, thermal false-color, cyan blueprint contours, sumi ink duotone, or a clustered-dot halftone screen.",
+  "tags": [
+    "quasicrystal",
+    "aperiodic",
+    "interference",
+    "plane-wave",
+    "grating",
+    "moire",
+    "symmetry",
+    "penrose",
+    "crystal",
+    "fivefold",
+    "tenfold",
+    "kaleidoscope",
+    "generative",
+    "genart",
+    "abstract",
+    "field",
+    "pattern",
+    "optical",
+    "op-art",
+    "spectral",
+    "iq-palette",
+    "thermal",
+    "blueprint",
+    "contour",
+    "sumi",
+    "ink",
+    "halftone",
+    "dots",
+    "psychedelic",
+    "shimmer",
+    "hypnotic",
+    "geometric",
+    "diffraction",
+    "physics",
+    "fullbleed",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.1,
+      "doc": "fringe zoom / spatial frequency (more = tighter fringes)"
+    },
+    "symmetry": {
+      "default": 5,
+      "min": 3,
+      "max": 12,
+      "doc": "N-fold order = number of plane waves (odd = aperiodic; section steps it up)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / fringe contrast / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "phase-morph + rotation rate (beats-relative)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sub-fringe / contour-band richness"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (drifts over the section arc)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crystal-center x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crystal-center y fraction"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "thermal",
+        "blueprint",
+        "sumi",
+        "halftone"
+      ],
+      "doc": "rendering philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic phase/angle layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-12T13:56:15+00:00",
+    "fps": 60.6,
+    "motion": 0.1941,
+    "lum": 0.3
+  },
+  "code": "const D = { scale: 1, symmetry: 5, energy: .62, speed: 1, density: .5, hue: 210, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst TAU = 6.28318530718, PI = Math.PI, cl = (v,a,b)=>v<a?a:v>b?b:v;\nconst fr = i=>{ const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nfunction hsv(h,s,v){ h=((h%360)+360)%360/60; const c=v*s, x=c*(1-Math.abs(h%2-1)), m=v-c; let r,g,b;\n  if(h<1){r=c;g=x;b=0;}else if(h<2){r=x;g=c;b=0;}else if(h<3){r=0;g=c;b=x;}else if(h<4){r=0;g=x;b=c;}else if(h<5){r=x;g=0;b=c;}else{r=c;g=0;b=x;}\n  return [r+m,g+m,b+m]; }\n\n// ---- coarse buffer, aspect-bucketed, long side ~200 (upscaled) ----\nconst asp = width/height, LS = 200;\nlet bw, bh;\nif (asp>=1){ bw=LS; bh=Math.max(8, Math.round(LS/asp)); } else { bh=LS; bw=Math.max(8, Math.round(LS*asp)); }\nconst bkey = bw+'x'+bh;\nif (!S.buf || S.bkey!==bkey){ if (S.buf && S.buf.remove) S.buf.remove(); S.buf = createGraphics(bw,bh); S.buf.pixelDensity(1); S.bkey = bkey; }\nconst g = S.buf;\n\n// ---- symmetry order N: param + section step (aperiodic when odd) ----\nlet Nn = Math.round(cl(P.symmetry, 3, 12)) + (K.section % 4);\nNn = cl(Nn, 3, 16) | 0;\n\n// ---- seeded per-wave phase + drift direction, rebuilt on seed/N change ----\nif (S.seedUsed!==P.seed || S.N!==Nn){\n  S.seedUsed = P.seed; S.N = Nn;\n  const ph0 = new Float32Array(Nn), dsp = new Float32Array(Nn);\n  for (let i=0;i<Nn;i++){\n    ph0[i] = fr(i*3.7+1)*TAU;\n    dsp[i] = (0.35 + fr(i*3.7+2)*0.9) * (fr(i*3.7+3)<0.5?-1:1);\n  }\n  S.ph0 = ph0; S.dsp = dsp;\n  S.rot0 = fr(9)*TAU; S.hoff = fr(11)*80;\n}\n\n// ---- per-frame wave table (all rhythm from K, never frameCount) ----\nconst spd = cl(P.speed, .15, 4), en = cl(P.energy, 0, 1);\nconst baseRot = S.rot0 + K.t*0.02*spd;                  // whole crystal slowly rotates (K.t floor)\nconst drift = K.t*0.15*spd;                             // phase morph shimmer (K.t floor)\nconst bassBump = A.bass*0.5;                            // audio ON TOP, never sole motion\nconst ca = new Float32Array(Nn), sa = new Float32Array(Nn), ph = new Float32Array(Nn);\nfor (let i=0;i<Nn;i++){\n  const a = i*PI/Nn + baseRot;\n  ca[i] = Math.cos(a); sa[i] = Math.sin(a);\n  ph[i] = S.ph0[i] + (drift + bassBump)*S.dsp[i];\n}\n\n// ---- frequency (scale, first poke) \u2014 capped so a 200px buffer never aliases ----\nconst F = TAU*16*cl(P.scale, .35, 2.1);                 // ~16 fringe cycles at scale 1\nconst mb = Math.max(bw,bh), cxo = (P.x-0.5), cyo = (P.y-0.5), invN = 1/Nn;\nconst expo = 0.55 + en*0.85 + K.intensity*0.35 + A.rms*0.6 + A.treble*0.3 + K.pulse*0.12*en;\nconst detail = cl(P.density,0,1);\nconst hb = ((P.hue + S.hoff + K.section*18) % 360 + 360) % 360, hr = hb/360;\nconst bands = 3 + detail*9;\nconst ST = P.style==='thermal'?1 : P.style==='blueprint'?2 : P.style==='sumi'?3 : P.style==='halftone'?4 : 0;\nconst HDM = [12,5,6,13, 4,0,1,7, 11,3,2,8, 15,10,9,14];\nconst inkC = hsv(hb, 0.6, 0.24);\n\ng.loadPixels(); const px = g.pixels;\nlet idx = 0;\nfor (let yy=0; yy<bh; yy++){\n  const cy = (yy - bh*0.5)/mb - cyo;\n  for (let xx=0; xx<bw; xx++){\n    const cx = (xx - bw*0.5)/mb - cxo;\n    let s = 0;\n    for (let i=0;i<Nn;i++){ s += Math.cos((cx*ca[i] + cy*sa[i])*F + ph[i]); }\n    const v = s*invN;                                   // [-1,1]\n    let r,gg,b;\n    if (ST===1){                                        // thermal false-color\n      let m = cl((v*0.5+0.5)*expo, 0, 1);\n      m = cl(m + detail*0.16*Math.sin(m*PI*bands), 0, 1);\n      r = Math.min(1, m*2.2);\n      gg = Math.min(1, Math.max(0, m*2.0-0.55));\n      b = Math.min(1, Math.max(0, m*3.2-2.1));\n      b = Math.max(b, 0.09*(1-m));                       // indigo floor, no dead black\n    } else if (ST===2){                                 // blueprint contour lines\n      const f = (v*0.5+0.5)*bands, fp = f - Math.floor(f);\n      const line = Math.pow(1 - Math.abs(fp-0.5)*2, 6);\n      const base = 0.05 + (v*0.5+0.5)*0.06;\n      r = cl(base*0.35 + line*0.20, 0, 1);\n      gg = cl(base*0.80 + line*0.75, 0, 1);\n      b = cl(base*1.50 + line*1.00, 0, 1);\n    } else if (ST===3){                                 // sumi ink duotone (soft washes, dry-brush)\n      let ink = cl((v*0.5+0.5 - 0.40)*(1.15+detail*1.5)*expo, 0, 1);\n      ink = Math.pow(ink, 1.1);\n      const paper = 0.90 - ink*0.80;\n      r = paper*0.99; gg = paper*0.95; b = paper*0.86;\n    } else if (ST===4){                                 // halftone clustered-dot screen\n      const val = cl((v*0.5+0.5)*expo, 0, 1);\n      const thr = (HDM[(yy&3)*4+(xx&3)]+0.5)/16;\n      if (val > thr){ r=0.93; gg=0.90; b=0.82; }        // paper\n      else { r=inkC[0]; gg=inkC[1]; b=inkC[2]; }        // hue-tinted ink dot\n    } else {                                            // spectral iq cosine (anchor)\n      let m = v*0.5+0.5;\n      m = m + detail*0.16*Math.sin(m*PI*bands);\n      const sh = Math.pow(cl(m*expo, 0, 1.2), 1.1);\n      r = (0.5 + 0.5*Math.cos(TAU*(m + hr + 0.00)))*sh;\n      gg = (0.5 + 0.5*Math.cos(TAU*(m + hr + 0.33)))*sh;\n      b = (0.5 + 0.5*Math.cos(TAU*(m + hr + 0.67)))*sh;\n      r = cl(r+0.02,0,1); gg = cl(gg+0.02,0,1); b = cl(b+0.02,0,1);\n    }\n    px[idx]=r*255; px[idx+1]=gg*255; px[idx+2]=b*255; px[idx+3]=255; idx+=4;\n  }\n}\ng.updatePixels();\n\npush();\ndrawingContext.imageSmoothingEnabled = (ST!==4);        // crisp dots for halftone, smooth else\nif (P.alpha < 100) tint(0,0,100,P.alpha);               // translucent VJ compositing (no bg clear)\nimage(g, 0, 0, width, height);\npop();\n\n// audio-reactive bloom ON TOP of the clk baseline (silent during validation -> baseline carries motion)\nif (A.bass>0.02 || A.rms>0.02 || A.treble>0.02){\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass*0.5 + A.rms*0.35)*en;\n  fill(hb, 45, 100, cl(glow*20, 0, 22));                // partial full-frame add, never a strobe flash\n  rect(0,0,width,height);\n  if (A.treble>0.05){\n    const n = Math.min(12, Math.floor(14*A.treble));\n    for (let s=0;s<n;s++){ const a = fr(s*3.3 + Math.floor(K.beat*2))*TAU, rr = (0.15+fr(s*1.7)*0.32)*mb/LS*Math.min(width,height);\n      fill((hb+40)%360, 20, 100, 45*A.treble);\n      circle(width*0.5+Math.cos(a)*rr, height*0.5+Math.sin(a)*rr, Math.min(width,height)*0.006); }\n  }\n  blendMode(BLEND); pop();\n}\n"
+}

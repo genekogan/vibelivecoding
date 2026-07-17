@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.shooting_stars",
+  "kind": "fx",
+  "name": "Shooting Stars",
+  "desc": "A twinkling drifting starfield pierced by rare seeded meteor streaks that decay behind them, radiating from a tunable point in the sky.",
+  "tags": [
+    "shooting-star",
+    "shooting-stars",
+    "meteor",
+    "meteors",
+    "meteor-shower",
+    "comet",
+    "falling-star",
+    "starfield",
+    "stars",
+    "night-sky",
+    "cosmos",
+    "space",
+    "celestial",
+    "perseids",
+    "leonids",
+    "trail",
+    "streak",
+    "twinkle",
+    "radiant",
+    "wish",
+    "astronomy",
+    "blue",
+    "indigo",
+    "fx",
+    "effect",
+    "overlay",
+    "particles",
+    "ambient"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "rate": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "meteor frequency (0=rare, 1=storm)"
+    },
+    "length": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "streak/trail length"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "background starfield count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "trail brightness + glow amplitude"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "star/trail base hue (220=cold blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "drift + twinkle + meteor cadence rate"
+    },
+    "dir": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "meteor travel direction in degrees (0=right, 90=down)"
+    },
+    "x": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "radiant point x"
+    },
+    "y": {
+      "default": 0.22,
+      "min": 0,
+      "max": 1,
+      "doc": "radiant point y"
+    },
+    "style": {
+      "default": "nightsky",
+      "options": [
+        "nightsky",
+        "ink",
+        "blueprint",
+        "retro",
+        "iridescent"
+      ],
+      "doc": "nightsky=glowing additive trails + hot heads / ink=sumi splatter streaks w/ droplets / blueprint=dashed trajectory vectors + arrowheads (abstract schematic) / retro=green CRT phosphor pixels / iridescent=oil-slick hue-cycling trails"
+    },
+    "act": {
+      "default": "shower",
+      "options": [
+        "shower",
+        "sparse",
+        "storm"
+      ],
+      "doc": "shower=steady meteors from radiant / sparse=rare wandering singles / storm=bursts of many in waves"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "starfield layout + meteor sequence"
+    }
+  },
+  "acts": [
+    "shower",
+    "sparse",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:28:55+00:00",
+    "fps": 59.9,
+    "motion": 0.0042,
+    "lum": 0.096
+  },
+  "code": "const D = { rate:.5, length:.5, density:.6, energy:.6, hue:220, speed:1, dir:35, x:.72, y:.22, style:'nightsky', act:'shower', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), lrp=(a,b,t)=>a+(b-a)*t, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360), st=P.style;\nconst sky=st==='nightsky', ink=st==='ink', blue=st==='blueprint', retro=st==='retro', irid=st==='iridescent';\nconst rate=clp(P.rate,0,1), len=clp(P.length,0,1), dens=clp(P.density,0,1), en=clp(P.energy,0,1)*(0.55+0.6*K.intensity), spd=P.speed;\n\n// forced palettes per style\nlet starH=H, twk=1;\nif(retro){ starH=130; } else if(blue){ starH=205; }\n\nconst oldOp=drawingContext.globalCompositeOperation;\n\n// ---- persistent starfield (continuous drift + twinkle carries the motion floor) ----\nconst NS = Math.round(lrp(50,340,dens));\nif(S.seedUsed!==P.seed || S.NS!==NS){\n  S.seedUsed=P.seed; S.NS=NS; S.star=[];\n  for(let i=0;i<NS;i++) S.star.push({ x:fr(i*1.7+1), y:fr(i*3.3+2), b:0.3+fr(i*5.1+3)*0.7,\n    tw:0.4+fr(i*7.9+4)*2.6, ph:fr(i*2.3+5)*TAU, dep:0.3+fr(i*4.4+6)*0.7, hj:(fr(i*6.6+7)-0.5)*40 });\n}\n// slow parallax drift of the whole field \u2014 never re-phases\nconst driftX=K.t*u*0.004*spd, driftY=Math.sin(K.t*0.05)*u*0.01;\nnoStroke();\nif(retro){ blendMode(BLEND); } else { blendMode(ADD); }\nfor(let i=0;i<NS;i++){\n  const s2=S.star[i];\n  const sx=md(s2.x*W - driftX*s2.dep, W);\n  const sy=md(s2.y*Hh + driftY*s2.dep, Hh);\n  const tw=0.45+0.55*Math.sin(K.t*s2.tw*(0.6+spd*0.5)+s2.ph);\n  const sb=s2.b*(0.4+0.6*tw)*(0.7+A.treble*0.9);\n  const sz=u*0.0035*(0.5+s2.b)*(0.7+0.6*tw)*(retro?1.4:1);\n  let col;\n  if(retro) col=[130,70,55+45*tw];\n  else if(ink) col=[md(H,360),8,lrp(60,100,tw)];\n  else if(blue) col=[205,50,lrp(55,100,tw)];\n  else if(irid) col=[md(starH+s2.hj+K.t*8,360),55,100];\n  else col=[md(starH+s2.hj,360),clp(35+s2.hj*0.5,0,60),100];\n  fill(col[0],col[1],col[2], clp((sky?70:60)*sb,0,90));\n  if(retro){ rect(sx,sy,sz*1.2,sz*1.2); } else { circle(sx,sy,sz); }\n}\nblendMode(BLEND);\n\n// faint drifting nebula/aurora band (extra low-freq motion, keeps luminance alive)\nblendMode(ADD); noStroke();\nfor(let b=0;b<3;b++){\n  const by=Hh*(0.3+0.2*b)+u*0.05*Math.sin(K.t*(0.06+0.02*b)+b);\n  const bh=u*(0.18+0.06*b);\n  const ba=(sky||irid?5:3)*(0.6+0.4*Math.sin(K.t*0.07+b))*(0.7+en*0.4);\n  const bc= irid?[md(starH+b*40+K.t*6,360),50,90]: ink?[md(H,360),6,80]: retro?[135,50,70]:[md(starH+b*20,360),40,85];\n  fill(bc[0],bc[1],bc[2], clp(ba,0,10));\n  ellipse(W*(0.3+0.2*b)+u*0.1*Math.sin(K.t*0.03+b), by, W*0.9, bh);\n}\nblendMode(BLEND);\n\n// ---- meteors: time-slotted lanes, seed-deterministic, K.t-driven ----\nconst rad = P.dir*Math.PI/180;              // travel direction (deg from +x, downward positive)\nconst vx=Math.cos(rad), vy=Math.sin(rad);\nconst NL = Math.max(2, Math.round(lrp(2,7,rate)));     // concurrent lanes\nconst interval = lrp(6.5, 1.4, rate) / clp(spd,0.25,4); // seconds between a lane's meteors\nconst streakLen = u*lrp(0.10,0.62,len);\nconst radiantX=P.x*W, radiantY=P.y*Hh;\n\nfunction drawMeteor(hx,hy,life,br,hj,seg){\n  // life 0..1 across its flight; brightness fades near end\n  const fade=clp(life*8,0,1)*clp((1-life)*3.5,0,1);\n  if(fade<=0.01) return;\n  const tlx=hx-vx*streakLen, tly=hy-vy*streakLen;\n  if(blue){\n    // schematic trajectory: dashed vector + radiant tick + arrowhead (abstract)\n    stroke(205,55,100, 70*fade); strokeWeight(Math.max(1,u*0.0016));\n    const dn=10; for(let d=0;d<dn;d++){ if(d%2) continue; const t0=d/dn,t1=(d+1)/dn;\n      line(lrp(tlx,hx,t0),lrp(tly,hy,t0),lrp(tlx,hx,t1),lrp(tly,hy,t1)); }\n    noStroke(); fill(205,60,100,90*fade); circle(hx,hy,u*0.01);\n    // arrow head\n    stroke(205,55,100,80*fade); const a=rad;\n    line(hx,hy, hx-Math.cos(a-0.4)*u*0.02, hy-Math.sin(a-0.4)*u*0.02);\n    line(hx,hy, hx-Math.cos(a+0.4)*u*0.02, hy-Math.sin(a+0.4)*u*0.02);\n    return;\n  }\n  if(ink){\n    // sumi splatter streak \u2014 tapered dry brush, ink droplets\n    noStroke();\n    for(let s2=0;s2<seg;s2++){ const f0=s2/seg; const px=lrp(tlx,hx,f0), py=lrp(tly,hy,f0);\n      const w=u*0.006*(f0*f0)*(0.6+br); fill(md(H,360),10,lrp(30,10,f0), 70*fade*f0);\n      ellipse(px,py,w*2.2,w*2.2); }\n    fill(md(H,360),12,8, 80*fade); circle(hx,hy,u*0.012*(0.7+br));\n    for(let k=0;k<3;k++){ if(fr(k+hj)>0.5){ const sp=fr(k*3+hj+1); fill(md(H,360),10,12,50*fade); circle(hx-vx*sp*u*0.04+ (fr(k)-0.5)*u*0.02, hy-vy*sp*u*0.04+(fr(k+2)-0.5)*u*0.02, u*0.004);} }\n    return;\n  }\n  // nightsky / retro / iridescent: glowing additive trail + hot head\n  blendMode(ADD); noStroke();\n  for(let s2=0;s2<seg;s2++){ const f0=s2/seg;\n    const px=lrp(tlx,hx,f0), py=lrp(tly,hy,f0);\n    const w=u*0.007*(f0*f0*f0)*(0.7+br+0.5*en);\n    let col;\n    if(retro) col=[130,60,100];\n    else if(irid) col=[md(starH+hj+f0*120+K.t*20,360),70,100];\n    else col=[md(starH+hj+lrp(30,-20,f0),360), lrp(30,70,1-f0), 100];\n    fill(col[0],col[1],col[2], clp(75*fade*f0*f0,0,90));\n    ellipse(px,py,w*2,w*2);\n  }\n  // hot head w/ glow\n  drawingContext.shadowBlur=u*0.02*(0.8+br); drawingContext.shadowColor= retro?'rgba(120,255,140,0.9)':'rgba(200,220,255,0.95)';\n  const hc= retro?[125,25,100]: irid?[md(starH+K.t*20,360),40,100]:[md(starH+10,360),18,100];\n  fill(hc[0],hc[1],hc[2], 95*fade); circle(hx,hy,u*0.014*(0.7+br+0.4*K.pulse));\n  drawingContext.shadowBlur=0;\n  blendMode(BLEND);\n}\n\n// act arcs\nlet burst=0, jitterA=1;\nif(P.act==='sparse'){ /* fewer, wandering \u2014 handled by prob gate */ jitterA=1.6; }\nelse if(P.act==='storm'){ burst = (Math.sin(K.t*0.12)>0.6)?1:0; }\n\nfor(let ln=0;ln<NL;ln++){\n  const slotT = K.t/interval + ln*0.618 + P.seed*0.13;\n  const slot = Math.floor(slotT);\n  const local = frc(slotT);                    // 0..1 within this slot\n  const rnd = fr(slot*3.1 + ln*57.2 + 11);\n  // presence probability (sparse act suppresses; storm bursts add)\n  let prob = P.act==='sparse'? 0.35 : 0.72;\n  if(P.act==='storm') prob = burst? 0.95 : 0.4;\n  if(rnd > prob) continue;\n  // meteor flight occupies first ~35% of the slot\n  const flight = 0.35;\n  if(local > flight) continue;\n  const life = local/flight;                    // 0..1\n  const hj=(fr(slot*7+ln*13+2)-0.5)*50;\n  const br=0.5+fr(slot*11+ln*5+3)*0.9;\n  // spawn spread around radiant, offset perpendicular to travel\n  const perpX=-vy, perpY=vx;\n  const spread=(fr(slot*5+ln*9+4)-0.5)*u*0.7*jitterA;\n  const along=(fr(slot*2+ln*3+5)-0.5)*u*0.3;\n  const startX=radiantX+perpX*spread+vx*along - vx*u*0.2;\n  const startY=radiantY+perpY*spread+vy*along - vy*u*0.2;\n  const travel=u*lrp(0.5,1.15,br);\n  const hx=startX+vx*travel*life;\n  const hy=startY+vy*travel*life;\n  drawMeteor(hx,hy,life,br,hj, sky||irid||retro?9:7);\n}\n\n// radiant glow marker for nightsky/iridescent (subtle, breathes)\nif((sky||irid) && P.act!=='sparse'){\n  blendMode(ADD); noStroke();\n  const rg=u*0.05*(0.8+0.3*K.swell);\n  for(let r=3;r>0;r--){ const tt=r/3; fill(md(starH,360),30,100, 6*tt*(0.6+en*0.4)); ellipse(radiantX,radiantY,rg*tt*2,rg*tt*2); }\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.shadowBlur=0; noStroke();\n"
+}

@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dj",
+  "kind": "subject",
+  "name": "Human DJ",
+  "desc": "Duotone screenprint DJ working twin turntables \u2014 beat-locked head-nod, cue-cup press, crossfader scratch flicks and an arms-up drop, rendered as a bold two-ink poster, riso misregistration, hard silhouette, blueprint schematic or chiaroscuro light-study.",
+  "tags": [
+    "dj",
+    "human",
+    "person",
+    "turntable",
+    "decks",
+    "vinyl",
+    "record",
+    "mixer",
+    "scratch",
+    "drop",
+    "headphones",
+    "club",
+    "rave",
+    "music",
+    "nightlife",
+    "performer",
+    "duotone",
+    "poster",
+    "screenprint",
+    "riso",
+    "silhouette",
+    "blueprint",
+    "chiaroscuro",
+    "halftone",
+    "graphic",
+    "character",
+    "party",
+    "edgy"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "figure size vs design (600px min-dim)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bounce, nod snap, arm violence, ray intensity"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "primary ink hue; second ink offset per style"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "halftone/ray count, confetti amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (canvas fraction)"
+    },
+    "bop": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.4,
+      "doc": "head-nod + body-bob depth"
+    },
+    "lean": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.2,
+      "doc": "sway + torso-lean amount"
+    },
+    "pose": {
+      "default": "mix",
+      "options": [
+        "mix",
+        "cue",
+        "scratch",
+        "drop",
+        "idle"
+      ],
+      "doc": "performance pose (mix auto-hypes to drop at peak sections)"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "riso",
+        "silhouette",
+        "blueprint",
+        "chiaroscuro"
+      ],
+      "doc": "render discipline"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout/grain seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:01:45+00:00",
+    "fps": 59.2,
+    "motion": 0.0107,
+    "lum": 0.402
+  },
+  "code": "const D = { scale:1, energy:.6, hue:8, speed:1, density:.5, x:.5, y:.82, pose:'mix', style:'poster', seed:0, bop:.7, lean:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------- frame + rhythm ----------\nconst u = Math.min(width, height);\nconst sc = (u/600) * P.scale;\nconst ax = P.x*width, ay = P.y*height;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst rot2 = (x,y,a)=>[x*Math.cos(a)-y*Math.sin(a), x*Math.sin(a)+y*Math.cos(a)];\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\nif (S.seedUsed !== P.seed){ S.seedUsed = P.seed; S.conf=[]; for(let i=0;i<18;i++) S.conf.push({x:fr(i*3+10)*2-1,w:fr(i*3+11),r:fr(i*3+12)*6.283}); }\n\nconst H = ((P.hue%360)+360)%360;\nconst e = P.energy;\nconst bt = K.beat * P.speed;\nconst ph = K.phase;\nconst liftArc = Math.sin(ph*Math.PI);\nconst kick = Math.min(1, K.pulse*(0.55+0.45*K.intensity) + A.bass*0.6);\n\n// dramaturgy: mixer hypes into a drop at peak sections; the \"record side\" plays out over ~80s\nlet mode = P.pose;\nif (mode === 'mix' && K.intensity > 0.85) mode = 'drop';\nconst songT = ((K.t*0.0125 + fr(101)) % 1 + 1) % 1;\n\n// ---------- style discipline ----------\nlet paperC, inkC, accC, faceC, lineC, lw;\nlet mis=false, grain=false, silo=false, blue=false, chiar=false, poster=false;\nif (P.style === 'riso')            { paperC=[(H+35)%360,10,96]; inkC=[H,74,80]; accC=[(H+165)%360,64,74]; faceC=[H,40,90]; lineC=inkC; lw=0; mis=true; grain=true; }\nelse if (P.style === 'silhouette') { paperC=[H,58,58]; inkC=[H,80,8];  accC=[(H+28)%360,88,98]; faceC=[H,80,8];  lineC=[H,80,8]; lw=0; silo=true; }\nelse if (P.style === 'blueprint')  { paperC=[H,58,13]; inkC=[H,28,88]; accC=[(H+18)%360,72,98]; faceC=[H,28,88]; lineC=[H,40,98]; lw=1.6; blue=true; }\nelse if (P.style === 'chiaroscuro'){ paperC=[H,26,9];  inkC=[H,30,42]; accC=[H,10,98];          faceC=[H,26,58]; lineC=inkC;      lw=0; chiar=true; }\nelse                               { paperC=[(H+38)%360,15,95]; inkC=[H,80,20]; accC=[(H+9)%360,86,92]; faceC=[(H+30)%360,22,90]; lineC=[H,80,20]; lw=0; poster=true; }\nconst F  = c => fill(c[0], c[1], c[2]);\nconst Fa = (c,a) => fill(c[0], c[1], c[2], a);\nconst SK = (c,w) => { if (w>0){ stroke(c[0],c[1],c[2]); strokeWeight(w);} else noStroke(); };\n\n// tapered limb capsule\nfunction capsule(x1,y1,x2,y2,w1,w2,c){\n  const dx=x2-x1, dy=y2-y1, d=Math.max(0.001,Math.sqrt(dx*dx+dy*dy));\n  const nx=-dy/d, ny=dx/d;\n  F(c); noStroke();\n  beginShape();\n  vertex(x1+nx*w1, y1+ny*w1); vertex(x2+nx*w2, y2+ny*w2);\n  vertex(x2-nx*w2, y2-ny*w2); vertex(x1-nx*w1, y1-ny*w1);\n  endShape(CLOSE);\n  if (lw>0){ SK(lineC,lw); noFill();\n    beginShape(); vertex(x1+nx*w1,y1+ny*w1); vertex(x2+nx*w2,y2+ny*w2); vertex(x2-nx*w2,y2-ny*w2); vertex(x1-nx*w1,y1-ny*w1); endShape(CLOSE);\n  }\n}\n\n// ---------- cached poster backdrop (rays + halftone + banner) ----------\nconst bKey = width+'x'+height+'|'+P.style+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*10)+'|'+Math.round(P.scale*20);\nif (!S.bg || S.bgKey !== bKey){\n  S.bgKey = bKey;\n  const side = Math.max(64, Math.min(1100, Math.round(560*sc)));\n  if (S.bg && S.bg.remove) S.bg.remove();\n  S.bg = createGraphics(side, side);\n  const g = S.bg; g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const c0 = side/2, R = side*0.5;\n  const rays = 20 + Math.round(P.density*16);\n  if (silo){\n    g.fill(paperC[0],paperC[1],paperC[2],100); g.rect(0,0,side,side);\n    g.fill(accC[0],accC[1],accC[2],100); g.circle(c0, c0*0.86, R*1.15);\n    g.fill(paperC[0],paperC[1],paperC[2],26); g.circle(c0, c0*0.86, R*1.15);\n  } else if (blue){\n    g.fill(paperC[0],paperC[1],paperC[2],100); g.rect(0,0,side,side);\n    g.stroke(inkC[0],inkC[1],inkC[2],22); g.strokeWeight(1); g.noFill();\n    const grid = side/16;\n    for (let i=0;i<=16;i++){ g.line(i*grid,0,i*grid,side); g.line(0,i*grid,side,i*grid); }\n    g.stroke(lineC[0],lineC[1],lineC[2],55); g.strokeWeight(side*0.004);\n    g.noFill(); g.circle(c0,c0,R*1.2); g.circle(c0,c0,R*0.7);\n  } else if (chiar){\n    for (let y=0;y<side;y+=2){ const t=y/side; g.fill(paperC[0],paperC[1],paperC[2]+t*10,100); g.rect(0,y,side,2); }\n    g.fill(accC[0],10,90,10); g.circle(c0, c0*0.8, R*0.9);\n  } else {\n    g.fill(paperC[0],paperC[1],paperC[2],100); g.rect(0,0,side,side);\n    g.push(); g.translate(c0,c0*0.94);\n    for (let i=0;i<rays;i++){ if (i%2) continue;\n      g.fill(inkC[0],inkC[1],inkC[2], poster?9:(mis?14:9));\n      g.beginShape(); g.vertex(0,0);\n      const a0=i*Math.PI*2/rays, a1=(i+1)*Math.PI*2/rays;\n      g.vertex(Math.cos(a0)*side, Math.sin(a0)*side); g.vertex(Math.cos(a1)*side, Math.sin(a1)*side);\n      g.endShape(g.CLOSE);\n    }\n    g.pop();\n    const dn = 18 + Math.round(P.density*14);\n    for (let iy=0; iy<dn; iy++) for (let ix=0; ix<dn; ix++){\n      const px=(ix+0.5)/dn*side, py=(iy+0.5)/dn*side;\n      const t = py/side; const rr=(t*t)* (side/dn)*0.62;\n      if (rr<0.4) continue;\n      g.fill(inkC[0],inkC[1],inkC[2], 30);\n      g.circle(px + (mis?2.2:0), py, rr);\n    }\n    if (mis){\n      g.push(); g.translate(-side*0.012, side*0.012);\n      for (let iy=0; iy<dn; iy++) for (let ix=0; ix<dn; ix++){\n        const px=(ix+0.5)/dn*side, py=side-(iy+0.5)/dn*side;\n        const t=py/side; const rr=(t*t)*(side/dn)*0.5; if(rr<0.4) continue;\n        g.fill(accC[0],accC[1],accC[2],26); g.circle(px,py,rr);\n      }\n      g.pop();\n    }\n  }\n  if (grain){ for (let i=0;i<420;i++){ g.fill(lineC[0],lineC[1],lineC[2], 8+fr(i*2)*10); g.circle(fr(i*7)*side, fr(i*7+3)*side, 1+fr(i*7+5)*1.6); } }\n}\n\n// =============== DRAW ===============\npush();\ntranslate(ax, ay);\nscale(sc);\n\npush(); translate(0,-150); rotate(Math.sin(K.t*0.05)*0.03);\nimageMode(CENTER); image(S.bg, 0, 0, 560, 560); imageMode(CORNER); pop();\n\nnoStroke(); Fa([0,0,0], silo?0:20); ellipse(0, 6, 340, 26);\n\n// ---------- body geometry ----------\nconst bob = liftArc*(9 + 16*e)*P.bop + Math.sin(bt*Math.PI*2/2)*3;\nconst swayX = Math.sin(bt*Math.PI*2/4)*(6+6*e)*P.lean + Math.sin(K.t*0.3+P.seed)*4;\nconst leanA = Math.sin(bt*Math.PI*2/8)*0.07*P.lean + Math.sin(K.t*0.24)*0.03;\nconst nodPrep = Math.pow(Math.max(0,(ph-0.55))/0.45,2);\nconst nodY = (kick*(4+5*e) - nodPrep*3)*P.bop;\n\nconst hipY = -66;\nconst shY = -176;\nconst shW = 46;\nconst tCx = swayX, tCy = -60 - bob;\n\npush(); translate(tCx, tCy); rotate(leanA);\n\nif (!silo && !blue){ Fa([0,0,0], chiar?0:16); beginShape(); vertex(-30,6); vertex(34,6); vertex(shW+8,shY-hipY); vertex(-shW-8,shY-hipY); endShape(CLOSE); }\nF(silo?inkC:(blue?paperC:inkC)); SK(lineC, lw);\nbeginShape(); vertex(-32,8); vertex(32,8); vertex(shW+6,shY-hipY+4); vertex(-shW-6,shY-hipY+4); endShape(CLOSE);\nif (blue){ SK(lineC,lw); noFill(); line(0,8,0,shY-hipY); line(-shW-6,shY-hipY+4,shW+6,shY-hipY+4); }\nif (poster||mis){ noStroke(); F(accC); beginShape(); vertex(-6,shY-hipY+6); vertex(6,shY-hipY+6); vertex(2,-40); vertex(-2,-40); endShape(CLOSE);\n  Fa(accC,70); triangle(-shW-4,shY-hipY+4, -shW+18,shY-hipY+4, -8,-30); }\nif (chiar){ Fa(accC,22); beginShape(); vertex(6,8); vertex(32,8); vertex(shW+6,shY-hipY+4); vertex(10,shY-hipY+4); endShape(CLOSE); }\n\n// head\npush();\nconst headA = Math.sin(bt*Math.PI*2/8)*0.06*P.lean + (mode==='cue'?-0.15:0) + (mode==='drop'?-0.06:0);\ntranslate(0, shY-hipY-30 + nodY); rotate(headA);\nF(silo?inkC:faceC); SK(lineC,lw); rect(-9,-6,18,16,3);\nF(silo?inkC:faceC); SK(lineC,lw); ellipse(0,-26,54,60);\nif (!silo){ noStroke(); Fa(inkC, chiar?45:(blue?0:26));\n  beginShape(); vertex(6,-52); vertex(28,-30); vertex(24,4); vertex(6,4); endShape(CLOSE); }\nif (chiar){ Fa(accC,30); ellipse(-10,-34,20,26); }\nif (!silo){ F(poster?[H,82,28]:(blue?paperC:(mis?accC:lineC))); noStroke();\n  arc(0,-34,58,50,Math.PI,Math.PI*2); rect(-29,-38,10,22,3); }\nSK(accC,7); noFill(); arc(0,-30,66,64,Math.PI+0.1,Math.PI*2-0.1);\nF(accC); noStroke(); rect(-36,-24,13,26,6); rect(23,-24,13,26,6);\npush(); blendMode(ADD); Fa(accC, 18+kick*46+A.treble*30); circle(29,-11,6+kick*3); circle(-29,-11,6+kick*3); blendMode(BLEND); pop();\nif (poster||mis){ noStroke(); Fa(inkC,88); rect(-16,-30,32,6,3); }\npop();\npop();\n\n// ---------- booth + decks ----------\nconst boothTop = -44;\nF(silo?inkC:(blue?paperC:inkC)); SK(lineC, blue?lw:0);\nrect(-186,boothTop,372,54,4);\nF(silo?[H,80,8]:(poster?accC:(blue?paperC:[H,40,14]))); SK(lineC, blue?lw:0);\nrect(-186,boothTop-9,372,10,3);\nif (blue){ SK(lineC,lw); noFill(); rect(-186,boothTop,372,54,4); for(let i=-3;i<=3;i++) line(i*52,boothTop,i*52,boothTop+54); }\nif (poster||mis){ noStroke(); Fa(accC,mis?45:100); quad(-120,boothTop,-84,boothTop,-140,boothTop+54,-176,boothTop+54); }\nif (grain){ noStroke(); for(let i=0;i<40;i++){ Fa(lineC,14); circle((fr(i*3+9)*2-1)*180, boothTop+6+fr(i*3+11)*44, 2+fr(i*3+13)*3); } }\n\nconst recA = K.beat*P.speed*0.9;\nconst scrW = mode==='scratch' ? Math.sin(bt*Math.PI*2)*(0.9+0.5*e) : 0;\nfor (let sd=-1; sd<=1; sd+=2){\n  const tx=sd*100, ty=boothTop-14;\n  const ra = recA + (sd>0?scrW*1.5:0);\n  F(silo?inkC:(blue?paperC:[H,30,silo?8:16])); SK(lineC, blue?lw:0);\n  ellipse(tx,ty,108,32);\n  F(silo?[H,80,8]:(blue?paperC:[H,20,silo?6:11])); SK(lineC, blue?lw:0);\n  ellipse(tx,ty,92,27);\n  noFill(); SK(silo?inkC:accC,1); ellipse(tx,ty,66,20); ellipse(tx,ty,46,14);\n  noStroke(); F(accC); ellipse(tx,ty,24,7.5);\n  Fa([0,0,silo?90:20],100); circle(tx,ty,3);\n  Fa([0,0,silo?100:96],92); circle(tx+Math.cos(ra)*34, ty+Math.sin(ra)*9.5, 5);\n  const nr = 36 - songT*22;\n  SK(silo?inkC:accC, 3); line(tx+46,ty-16, tx+nr*0.55, ty-3-songT*2);\n  noStroke(); F(accC); circle(tx+46,ty-16,7);\n}\nF(silo?inkC:(blue?paperC:[H,60,silo?8:16])); SK(lineC, blue?lw:0); rect(-30,boothTop-16,60,26,4);\nconst cfX = mode==='scratch' ? Math.tanh(Math.sin(bt*Math.PI*2)*3)*11 : Math.sin(bt*Math.PI*2/8+K.t*0.16)*11;\nSK(silo?[H,60,40]:paperC,2.5); line(-14,boothTop-4,14,boothTop-4);\nnoStroke(); F(accC); rect(cfX-3.5,boothTop-8,7,9,2);\nconst vuL = constrain(0.2+K.swell*0.35+K.intensity*0.22+Math.sin(K.t*0.9)*0.13+A.rms*1.2,0,1);\nconst vuR = constrain(0.15+(1-ph)*0.4*K.intensity+Math.sin(K.t*1.13+2)*0.13+A.bass*0.9,0,1);\nfor (let s2=0;s2<2;s2++){ const vx=s2?150:130, vv=s2?vuR:vuL, lit=Math.round(vv*6);\n  for (let i=0;i<6;i++){ const on=i<lit;\n    if (silo) Fa(on?accC:inkC, on?95:22);\n    else { const c = i>3?accC:inkC; Fa(c, on?96:16); }\n    noStroke(); rect(vx,boothTop-2-i*7.5,14,5.5,1.5);\n  }\n}\n\n// ---------- arms (IK over booth) ----------\nfunction arm2(sx,sy,hx,hy,sign){\n  const L1=44, L2=46;\n  let dx=hx-sx, dy=hy-sy; const d0=Math.max(0.001,Math.sqrt(dx*dx+dy*dy));\n  const d=constrain(d0,10,L1+L2-4); const ux=dx/d0, uy=dy/d0;\n  const hx2=sx+ux*d, hy2=sy+uy*d;\n  const base=Math.atan2(hy2-sy,hx2-sx);\n  const q=Math.acos(constrain((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1))*sign;\n  const ex=sx+Math.cos(base+q)*L1, ey=sy+Math.sin(base+q)*L1;\n  capsule(sx,sy,ex,ey,15,11, blue?paperC:inkC);\n  capsule(ex,ey,hx2,hy2,11,8, blue?paperC:inkC);\n  noStroke(); F(silo?inkC:faceC); circle(hx2,hy2,15); if(lw>0){SK(lineC,lw);noFill();circle(hx2,hy2,15);}\n  return [hx2,hy2];\n}\nconst wshL = rot2(-shW, shY-hipY, leanA), wshR = rot2(shW, shY-hipY, leanA);\nconst SLx=tCx+wshL[0], SLy=tCy+wshL[1], SRx=tCx+wshR[0], SRy=tCy+wshR[1];\nconst earLw = rot2(-30, shY-hipY-52, leanA);\nconst earL = [tCx+earLw[0], tCy+earLw[1]+nodY*0.6];\nlet hL,hR;\nif (mode==='cue'){ hL=earL; hR=[100+Math.cos(recA+scrW*1.5)*24, boothTop-14+Math.sin(recA)*6.5]; }\nelse if (mode==='scratch'){ hR=[100+Math.cos(-0.9+scrW*0.5)*30, boothTop-16+Math.sin(-0.9+scrW*0.5)*9]; hL=[cfX, boothTop-6]; }\nelse if (mode==='drop'){ hL=[-78,-250-kick*14]; hR=[78,-256-kick*14]; }\nelse if (mode==='idle'){ hL=[-46+Math.sin(bt*Math.PI*2/4)*4, -70+liftArc*3]; hR=[46+Math.sin(bt*Math.PI*2/4+1)*4, -70+liftArc*3]; }\nelse { hL=[-100+Math.sin(bt*Math.PI*2/2)*6, boothTop-14+Math.sin(bt*Math.PI*2)*3]; hR=[10+Math.sin(bt*Math.PI*2)*8+Math.sin(K.t*0.33)*5, boothTop-16]; }\nconst hLd=arm2(SLx,SLy,hL[0],hL[1],1), hRd=arm2(SRx,SRy,hR[0],hR[1],-1);\nif (mode==='drop'){ SK(faceC,3.5); for(let i=-1;i<=1;i++){ line(hLd[0],hLd[1]-4,hLd[0]+i*6,hLd[1]-13); line(hRd[0],hRd[1]-4,hRd[0]+i*6,hRd[1]-13);} }\n\nif (mode==='drop'){ noStroke(); const cn=Math.round(5+P.density*12);\n  for (let i=0;i<cn;i++){ const cf=S.conf[i%S.conf.length]; const p=((bt*0.24+cf.w)%1+1)%1;\n    Fa(i%2?accC:inkC,(1-p)*72); push(); translate(cf.x*250+Math.sin(K.t*2+cf.r)*14, -330+p*280); rotate(cf.r+K.t*3); rect(-4,-1.5,8,3,1); pop(); }\n}\n\npop();\nblendMode(BLEND);\n"
+}

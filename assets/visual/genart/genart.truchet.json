@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.truchet",
+  "kind": "genart",
+  "name": "Truchet Flow Tiles",
+  "desc": "An infinite grid of quarter-arc Truchet tiles wired into glowing maze-like loops that scroll and slowly re-roll so the labyrinth perpetually rewrites itself, rendered as multi-hue neon weave, copper circuit traces, leaded stained glass, black-and-white op-art, or braided rope.",
+  "tags": [
+    "truchet",
+    "tiles",
+    "tiling",
+    "tiling_symmetry",
+    "maze",
+    "labyrinth",
+    "weave",
+    "interlace",
+    "arcs",
+    "quarter-arc",
+    "loops",
+    "grid",
+    "pattern",
+    "flow",
+    "scroll",
+    "generative",
+    "genart",
+    "geometric",
+    "abstract",
+    "procedural",
+    "neon",
+    "circuit",
+    "pcb",
+    "copper",
+    "stained-glass",
+    "op-art",
+    "opart",
+    "rope",
+    "knot",
+    "celtic",
+    "monochrome",
+    "hypnotic",
+    "kinetic",
+    "background",
+    "bg",
+    "rainbow",
+    "multi-hue",
+    "fullbleed",
+    "psychedelic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tile fineness \u2014 higher packs smaller tiles (finer maze)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "arc glow brightness + tile re-roll activity"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "field scroll + re-roll + flow-front rate (beats-relative)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "stroke weight / weave thickness vs design size"
+    },
+    "flow": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "strength of the traveling luminance flow-front sweeping the labyrinth"
+    },
+    "hue": {
+      "default": 195,
+      "min": 0,
+      "max": 360,
+      "doc": "base ink hue (gradient fans out from here by position)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flow-front source x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flow-front source y (canvas fraction)"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "circuit",
+        "glass",
+        "opart",
+        "rope"
+      ],
+      "doc": "render philosophy \u2014 neon-weave / copper circuit / stained glass / op-art B&W / braided rope"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "tiling orientation + scroll-direction seed (hash-deterministic)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg; lower leaves trails)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:58:01+00:00",
+    "fps": 61.3,
+    "motion": 0.1856,
+    "lum": 0.175
+  },
+  "code": "const D = { density:.55, energy:.6, speed:1, scale:1, flow:.6, hue:195, x:.5, y:.5, style:'neon', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU=Math.PI*2, HP=Math.PI/2, PIc=Math.PI;\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n;\nconst seed=P.seed|0;\nconst h2=(gx,gy)=>{const s=Math.sin(gx*127.1+gy*311.7+seed*74.13)*43758.5453;return s-Math.floor(s);};\nconst fr=i=>{const s=Math.sin(i*97.3+seed*57.7)*24634.6345;return s-Math.floor(s);};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst style=P.style;\nconst neon = style==='neon';\nconst circuit = style==='circuit';\nconst glass = style==='glass';\nconst opart = style==='opart';\nconst rope = style==='rope';\n\nconst av=clp(P.alpha,0,100)/100;\nconst dens=clp(P.density,0,1);\nconst en=clp(P.energy,0,1);\nconst intn=(K.intensity!=null?K.intensity:.6);\nconst sec=K.section||0;\nconst glow=en*(0.5+0.7*intn);\nconst flow=clp(P.flow,0,1);\n\nconst ts=Math.max(u*0.055, u*(0.17-dens*0.11));\nconst half=ts*0.5;\nconst swb=ts*(neon?0.11:glass?0.12:opart?0.14:rope?0.05:0.08)*clp(P.scale,0.4,2.4);\n\nconst sv=u*0.005*P.speed;\nconst dirA=0.55+fr(3)*1.2;\nconst ox=K.t*sv*Math.cos(dirA);\nconst oy=K.t*sv*Math.sin(dirA);\n\nconst hueDrift=K.t*3.0+sec*22;\nconst ax=P.x*W, ay=P.y*Hh;\nconst wl=ts*3.2;\n\nlet bgH,bgS,bgB;\nif(opart){ bgH=md(P.hue+20,360); bgS=6; bgB=82; }\nelse if(circuit){ bgH=135; bgS=48; bgB=11; }\nelse if(glass){ bgH=md(P.hue+200,360); bgS=45; bgB=8; }\nelse if(rope){ bgH=28; bgS=45; bgB=9; }\nelse { bgH=md(P.hue,360); bgS=58; bgB=6; }\n\nblendMode(BLEND); noStroke();\nfill(bgH,bgS,bgB,100*av); rect(0,0,W,Hh);\nif(!opart){\n  const gh=md(P.hue+(neon?45:glass?190:rope?12:120),360);\n  for(let r=0;r<3;r++){ fill(gh, neon?55:35, neon?26:20, 7*av); ellipse(ax,ay, u*(1.5-r*0.35), u*(1.1-r*0.3)); }\n}\n\nif(neon) blendMode(ADD); else blendMode(BLEND);\nstrokeCap(ROUND); noFill();\nconst gx0=Math.floor((ox-ts)/ts), gx1=Math.floor((ox+W+ts)/ts);\nconst gy0=Math.floor((oy-ts)/ts), gy1=Math.floor((oy+Hh+ts)/ts);\nlet drawn=0;\nfor(let gy=gy0; gy<=gy1; gy++){\n  for(let gx=gx0; gx<=gx1; gx++){\n    if(drawn++>4200) break;\n    const cxp=gx*ts-ox+half, cyp=gy*ts-oy+half;\n    const base=h2(gx,gy)>0.5?1:0;\n    const ph=h2(gx*1.7+5.3, gy*0.7+9.1);\n    const rt=0.3+0.7*h2(gx*2.3+1.1, gy*2.9+4.4);\n    const spin=K.t*P.speed*0.026*(0.4+1.4*en)*rt + ph*4;\n    const st4=Math.floor(spin); let frc=spin-st4;\n    let fe=frc<0.78?0:(frc-0.78)/0.22; fe=fe*fe*(3-2*fe);\n    const ang=(base+st4+fe)*HP;\n    const posH=md(P.hue + (gx*10 + gy*14) + hueDrift, 360);\n    const dsx=cxp-ax, dsy=cyp-ay, dist=Math.hypot(dsx,dsy);\n    const rip=0.5+0.5*Math.sin(dist/wl*TAU - K.t*1.4*P.speed);\n    const briBoost=flow*0.5*rip + K.pulse*0.22*en + A.bass*0.5*en;\n    push(); translate(cxp,cyp); rotate(ang); noFill(); strokeCap(ROUND);\n    if(neon){\n      const b=clp(48+glow*38+briBoost*45,0,100);\n      stroke(posH,72,b*0.9,(14+glow*9)*av); strokeWeight(swb*2.6);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(posH,42,clp(b+22,0,100),(48+glow*30)*av); strokeWeight(swb);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n    } else if(circuit){\n      const cu=md(30+(gx*2+gy)*1.3,360), b=clp(60+briBoost*30,0,100);\n      stroke(md(cu-6,360),60,20,100*av); strokeWeight(swb*1.8);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(cu,82,b,100*av); strokeWeight(swb);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(cu,26,clp(b+28,0,100),75*av); strokeWeight(swb*0.32);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      if(h2(gx*3.1,gy*5.7)>0.72){ noStroke(); fill(cu,68,clp(b+8,0,100),100*av); circle(0,0,swb*2.4); fill(135,48,9,100*av); circle(0,0,swb*1.0); }\n    } else if(glass){\n      const b=clp(58+briBoost*30+glow*10,30,95);\n      stroke(md(P.hue+200,360),25,5,100*av); strokeWeight(swb*1.45);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(posH,80,b,100*av); strokeWeight(swb*0.85);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(posH,38,clp(b+24,0,100),58*av); strokeWeight(swb*0.24);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n    } else if(opart){\n      stroke(0,0,7,100*av); strokeWeight(swb);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n    } else {\n      const rh=md(30+(h2(gx,gy)-0.5)*34,360), b=clp(56+briBoost*24,0,100);\n      stroke(md(rh-6,360),58,18,100*av); strokeWeight(swb*3.4);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(rh,54,b,100*av); strokeWeight(swb*2.5);\n      arc(-half,-half,ts,ts,0,HP); arc(half,half,ts,ts,PIc,PIc+HP);\n      stroke(rh,24,clp(b+30,0,100),90*av); strokeWeight(swb*0.8);\n      arc(-half,-half,ts*0.86,ts*0.86,0,HP); arc(half,half,ts*0.86,ts*0.86,PIc,PIc+HP);\n    }\n    pop();\n  }\n  if(drawn>4200) break;\n}\n\nif(A.treble>0.05){\n  blendMode(ADD); noStroke();\n  const nsp=Math.floor(16*A.treble);\n  for(let i=0;i<nsp;i++){ const gsx=fr(i*2.1+Math.floor(K.beat*2))*W, gsy=fr(i*3.3+9+Math.floor(K.beat*2))*Hh; fill(md(P.hue+80,360),40,100,50*A.treble*av); circle(gsx,gsy,u*0.007); }\n}\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

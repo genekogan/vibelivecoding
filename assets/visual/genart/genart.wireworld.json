@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wireworld",
+  "kind": "genart",
+  "name": "Wireworld Circuits",
+  "desc": "A living luminous circuit board where electron heads trail glowing comet-tails as they race forever around auto-generated beveled conductor loops, a self-sustaining Wireworld cellular automaton rendered as cyan traces, copper PCB, green phosphor CRT, magenta neon, or gold leadframe.",
+  "tags": [
+    "wireworld",
+    "cellular-automaton",
+    "ca",
+    "circuit",
+    "pcb",
+    "electronics",
+    "electron",
+    "conductor",
+    "wire",
+    "circuitboard",
+    "trace",
+    "current",
+    "pulse",
+    "spark",
+    "comet",
+    "grid",
+    "generative",
+    "genart",
+    "abstract",
+    "cyan",
+    "copper",
+    "phosphor",
+    "neon",
+    "gold",
+    "schematic",
+    "tech",
+    "cyberpunk",
+    "fullbleed",
+    "background",
+    "bg",
+    "glow",
+    "luminous",
+    "loop",
+    "automaton",
+    "retro",
+    "crt"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how densely the board fills with wire loops + electrons"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "spark/trail glow exposure amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "electron travel / CA step rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "trace zoom (higher = bigger loops, fewer tiles)"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue rotation offset"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "substrate glow anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "substrate glow anchor y"
+    },
+    "style": {
+      "default": "circuit-cyan",
+      "options": [
+        "circuit-cyan",
+        "copper-pcb",
+        "phosphor",
+        "neon-tube",
+        "gold-leadframe"
+      ],
+      "doc": "render philosophy / material"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic circuit layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:33:18+00:00",
+    "fps": 60.2,
+    "motion": 0.0327,
+    "lum": 0.192
+  },
+  "code": "const D = { density: .6, energy: .62, speed: 1, scale: 1, hue: 190, x: .5, y: .5, style: 'circuit-cyan', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse grid sizing (square-ish cells, buffer <= 180^2) ----\nlet CW, CH;\nif (width >= height) { CW = 180; CH = Math.max(60, Math.min(180, Math.round(180 * height / width))); }\nelse { CH = 180; CW = Math.max(60, Math.min(180, Math.round(180 * width / height))); }\n\nif (!S.g || S.gw !== CW || S.gh !== CH) {\n  S.g = createGraphics(CW, CH); S.g.pixelDensity(1);\n  S.gw = CW; S.gh = CH;\n  S.cur = new Int8Array(CW * CH); S.nxt = new Int8Array(CW * CH); S.heat = new Float32Array(CW * CH);\n  S.genKey = null;\n}\n\n// ---- deterministic circuit generation (rebuild on seed / density / scale / size) ----\nconst dq = Math.round(P.density * 20), sq = Math.round(P.scale * 10);\nconst key = P.seed + '|' + dq + '|' + sq + '|' + CW + 'x' + CH;\nif (S.genKey !== key) {\n  S.genKey = key;\n  const cur = S.cur, heat = S.heat;\n  cur.fill(0); heat.fill(0);\n  let sc = (P.seed + 0x9e3779b9) >>> 0;                 // mulberry32 (robust for seed 0)\n  const rnd = () => { sc = (sc + 0x6d2b79f5) >>> 0; let t = Math.imul(sc ^ (sc >>> 15), 1 | sc); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };\n  const at = (x, y) => x + y * CW;\n\n  // draw one beveled conductor ring + seed its electrons.\n  // Corners are OMITTED (edges connect via a diagonal step) -> diagonal-safe:\n  // no corner cross-talk, so electrons stay DISCRETE (never saturate the wire).\n  const ring = (x0, y0, w, h, dir, nElec, ph) => {\n    if (w < 6 || h < 6) return;\n    const path = [];\n    const X1 = x0 + w - 1, Y1 = y0 + h - 1;\n    for (let x = x0 + 1; x <= X1 - 1; x++) path.push(at(x, y0));       // top  L->R\n    for (let y = y0 + 1; y <= Y1 - 1; y++) path.push(at(X1, y));       // right T->B\n    for (let x = X1 - 1; x >= x0 + 1; x--) path.push(at(x, Y1));       // bottom R->L\n    for (let y = Y1 - 1; y >= y0 + 1; y--) path.push(at(x0, y));       // left  B->T\n    const L = path.length;\n    if (L < 12) return;\n    if (dir < 0) path.reverse();\n    for (let i = 0; i < L; i++) if (cur[path[i]] === 0) cur[path[i]] = 1; // conductor\n    const ne = Math.max(1, Math.min(4, nElec));\n    for (let e = 0; e < ne; e++) {\n      const k = (Math.floor((e / ne) * L) + ph) % L;\n      cur[path[k]] = 2;                 // head\n      cur[path[(k - 1 + L) % L]] = 3;   // tail (behind -> travels toward +index)\n    }\n  };\n\n  // tile the board; each tile may hold a beveled ring (+ a nested inner ring)\n  const targetTile = Math.max(13, Math.min(48, Math.round(22 * (0.55 + P.scale * 0.45))));\n  const cols = Math.max(2, Math.round(CW / targetTile));\n  const rows = Math.max(2, Math.round(CH / targetTile));\n  const fillProb = 0.30 + P.density * 0.65;\n  for (let r = 0; r < rows; r++) {\n    for (let c = 0; c < cols; c++) {\n      if (rnd() > fillProb) continue;\n      const tx0 = Math.round(c * CW / cols), tx1 = Math.round((c + 1) * CW / cols);\n      const ty0 = Math.round(r * CH / rows), ty1 = Math.round((r + 1) * CH / rows);\n      const inset = 2 + Math.floor(rnd() * 3);          // >=2 keeps >=4 gap between tiles\n      let x0 = tx0 + inset, y0 = ty0 + inset;\n      let w = (tx1 - tx0) - inset * 2, h = (ty1 - ty0) - inset * 2;\n      // occasionally squash one axis for aspect variety\n      if (rnd() < 0.4) { if (rnd() < 0.5) { const s = Math.floor(rnd() * (w - 6)); w -= s; x0 += (s >> 1); } else { const s = Math.floor(rnd() * (h - 6)); h -= s; y0 += (s >> 1); } }\n      if (w < 6 || h < 6) continue;\n      const dir = rnd() < 0.5 ? 1 : -1;\n      const ne = 1 + Math.floor(rnd() * (1 + P.density * 3));\n      ring(x0, y0, w, h, dir, ne, Math.floor(rnd() * 97));\n      // nested inner ring when there's room (>=2 empty cells between rings)\n      if (w >= 15 && h >= 15 && rnd() < 0.4 + P.density * 0.35) {\n        ring(x0 + 3, y0 + 3, w - 6, h - 6, -dir, 1 + Math.floor(rnd() * (1 + P.density * 2)), Math.floor(rnd() * 61));\n      }\n    }\n  }\n  S.acc = 0; S.lastT = null; S.gen = 0;\n}\n\n// ---- advance the automaton, rate gated by K.t (never re-phases) ----\nconst rate = (6 + P.speed * 5) * (0.75 + K.intensity * 0.55) * (1 + K.pulse * 0.35 + A.bass * 0.45);\nif (S.lastT == null) S.lastT = K.t;\nlet dt = K.t - S.lastT;\nif (dt < 0 || dt > 0.5) dt = 0;       // tolerate t0 resets / stalls\nS.lastT = K.t;\nS.acc += dt * rate;\nlet steps = Math.floor(S.acc); S.acc -= steps;\nif (steps > 3) { steps = 3; S.acc = 0; }\n\nconst decay = 0.85;\nfunction stepCA() {\n  const cur = S.cur, nxt = S.nxt, heat = S.heat, w = CW, h = CH;\n  for (let y = 0; y < h; y++) {\n    const row = y * w;\n    for (let x = 0; x < w; x++) {\n      const i = row + x, s = cur[i];\n      let ns;\n      if (s === 0) ns = 0;\n      else if (s === 2) ns = 3;\n      else if (s === 3) ns = 1;\n      else {\n        let hc = 0;\n        const xm = x > 0, xp = x < w - 1, ym = y > 0, yp = y < h - 1;\n        if (ym) { if (xm && cur[i - w - 1] === 2) hc++; if (cur[i - w] === 2) hc++; if (xp && cur[i - w + 1] === 2) hc++; }\n        if (xm && cur[i - 1] === 2) hc++; if (xp && cur[i + 1] === 2) hc++;\n        if (yp) { if (xm && cur[i + w - 1] === 2) hc++; if (cur[i + w] === 2) hc++; if (xp && cur[i + w + 1] === 2) hc++; }\n        ns = (hc === 1 || hc === 2) ? 2 : 1;\n      }\n      nxt[i] = ns;\n      let hv = heat[i] * decay;\n      if (ns === 2) hv = 1;\n      heat[i] = hv;\n    }\n  }\n  S.cur = nxt; S.nxt = cur;\n}\nfor (let n = 0; n < steps; n++) stepCA();\n\n// ---- palette (HSB by style) with P.hue as a rotation offset ----\nfunction hsb2rgb(H, Sa, B) {\n  H = ((H % 360) + 360) % 360; Sa /= 100; B /= 100;\n  const c = B * Sa, xx = c * (1 - Math.abs(((H / 60) % 2) - 1)), m = B - c;\n  let r, g, b;\n  if (H < 60) { r = c; g = xx; b = 0; } else if (H < 120) { r = xx; g = c; b = 0; }\n  else if (H < 180) { r = 0; g = c; b = xx; } else if (H < 240) { r = 0; g = xx; b = c; }\n  else if (H < 300) { r = xx; g = 0; b = c; } else { r = c; g = 0; b = xx; }\n  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];\n}\nconst sty = P.style;\nlet bd, wr, gw;\nif (sty === 'copper-pcb') { bd = [138, 62, 18]; wr = [26, 80, 62]; gw = [40, 45, 100]; }\nelse if (sty === 'phosphor') { bd = [132, 78, 10]; wr = [128, 88, 50]; gw = [120, 22, 100]; }\nelse if (sty === 'neon-tube') { bd = [252, 66, 17]; wr = [222, 88, 64]; gw = [305, 55, 100]; }\nelse if (sty === 'gold-leadframe') { bd = [238, 45, 11]; wr = [44, 86, 60]; gw = [48, 22, 100]; }\nelse { bd = [196, 66, 16]; wr = [187, 86, 64]; gw = [185, 22, 100]; } // circuit-cyan\n// dramaturgy: palette slowly walks across sections (30s-5min arc) + gentle continuous drift\nconst hoff = (P.hue - 190) + K.section * 7 + Math.sin(K.t * 0.045) * 6;\nconst boardC = hsb2rgb(bd[0] + hoff * 0.4, bd[1], bd[2]);\nconst wireC = hsb2rgb(wr[0] + hoff, wr[1], wr[2]);\nconst glowC = hsb2rgb(gw[0] + hoff, gw[1], gw[2]);\n\nconst expo = (0.5 + P.energy * 0.85 + K.intensity * 0.32 + K.swell * 0.12 + A.rms * 0.5 + A.treble * 0.35);\nconst wireBoost = 0.85 + K.swell * 0.15 + A.lowmid * 0.25;\n\n// ---- render states + heat trails into the coarse buffer ----\nconst g = S.g; g.loadPixels(); const px = g.pixels, cur = S.cur, heat = S.heat;\nconst cx = P.x, cy = P.y;\nconst b0r = boardC[0], b0g = boardC[1], b0b = boardC[2];\nconst wRr = wireC[0] * wireBoost, wGg = wireC[1] * wireBoost, wBb = wireC[2] * wireBoost;\nconst gRr = glowC[0], gGg = glowC[1], gBb = glowC[2];\nfor (let y = 0; y < CH; y++) {\n  const fy = y / CH - cy;\n  for (let x = 0; x < CW; x++) {\n    const i = y * CW + x, s = cur[i], o = i * 4;\n    const fx = x / CW - cx;\n    let r, gg, b;\n    if (s === 0) {\n      // PCB substrate: kept-present tone (never dead black) + gentle center lift + fiber mottle\n      const vig = 0.62 + 0.38 * Math.max(0, 1 - (fx * fx + fy * fy) * 1.05);\n      const tex = 0.82 + 0.13 * (((x * 5 + y * 3) & 7) / 7) + 0.05 * (((x >> 2) ^ (y >> 2)) & 1);\n      const bb = vig * tex;\n      r = b0r * bb; gg = b0g * bb; b = b0b * bb;\n    } else {\n      r = wRr; gg = wGg; b = wBb;\n    }\n    const ht = heat[i];\n    if (ht > 0.001) {\n      const gl = ht * expo;\n      r += gRr * gl; gg += gGg * gl; b += gBb * gl;\n    }\n    px[o] = r > 255 ? 255 : r; px[o + 1] = gg > 255 ? 255 : gg; px[o + 2] = b > 255 ? 255 : b; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- composite: base image + additive bloom halo ----\nconst W = width, H = height;\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha); else noTint();\nimage(g, 0, 0, W, H);\nconst ba = P.alpha / 100, bl = ba * (0.55 + P.energy * 0.6);\nblendMode(ADD);\ntint(0, 0, 100, 26 * bl);\nimage(g, -W * 0.02, -H * 0.02, W * 1.04, H * 1.04);\ntint(0, 0, 100, 13 * bl);\nimage(g, -W * 0.055, -H * 0.055, W * 1.11, H * 1.11);\nblendMode(BLEND);\nnoTint();\npop();\n"
+}

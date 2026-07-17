@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.bicycle",
+  "kind": "subject",
+  "name": "Bicycle Rider",
+  "desc": "A cyclist drawn in one continuous sketched line, legs pumping the cranks on every beat, wheels rolling, popping wheelies and standing sprints.",
+  "tags": [
+    "bicycle",
+    "bike",
+    "cyclist",
+    "rider",
+    "cycling",
+    "wheelie",
+    "sprint",
+    "pedal",
+    "wheels",
+    "single-line",
+    "sketch",
+    "line art",
+    "contour",
+    "transport",
+    "athletic",
+    "character",
+    "subject"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 1.9,
+      "doc": "size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "cadence swing + bob/rock amplitude"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "ink/line hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative pedal cadence multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wheel spoke count + sketch redundancy"
+    },
+    "lean": {
+      "default": 1,
+      "min": 0,
+      "max": 1.6,
+      "doc": "rider lean morph"
+    },
+    "frame": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.5,
+      "doc": "wheelbase / frame length morph"
+    },
+    "style": {
+      "default": "line",
+      "options": [
+        "line",
+        "ink",
+        "blueprint",
+        "neon",
+        "chalk"
+      ],
+      "doc": "aesthetic: single continuous contour line / brushed sumi ink / cyan schematic blueprint / glowing neon tube / broken chalk"
+    },
+    "pose": {
+      "default": "cruise",
+      "options": [
+        "cruise",
+        "sprint",
+        "wheelie",
+        "coast",
+        "trackstand"
+      ],
+      "doc": "seated cruise / standing sprint (action) / wheelie (action) / legs-still coast (idle) / balancing trackstand (idle)"
+    },
+    "act": {
+      "default": "ride",
+      "options": [
+        "ride",
+        "tricks",
+        "tour"
+      ],
+      "doc": "multi-minute program: steady ride / wheelie tricks per section / long tour that speeds with intensity"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic hand-jitter variation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (ground) as canvas fraction"
+    }
+  },
+  "acts": [
+    "ride",
+    "tricks",
+    "tour"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { scale:1, energy:.6, hue:45, speed:1, density:.5, lean:1, frame:1, style:'line', pose:'cruise', act:'ride', seed:0, x:.5, y:.82 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst u = Math.min(width,height), TAU=Math.PI*2, PI=Math.PI;\nconst H = ((P.hue%360)+360)%360;\nconst en=P.energy, spd=P.speed;\nlet bt=K.beat*spd;\nif (S.lb==null || bt<S.lb) S.lb=bt; S.lb=bt;\nconst puls=Math.max(0,K.pulse||0), swell=Math.max(0,K.swell||0);\nconst sect=K.section||0, inten=(K.intensity!=null?K.intensity:.6);\nconst rms=Math.min(1,(A.rms||0)*2.4), bassv=Math.min(1,A.bass||0), air=Math.min(1,A.treble||0);\nconst gt=K.t||0;\nconst st=P.style;\n\n// ---- act / dramaturgy ----\nlet cadMul=1, popTrick=0, driftMul=1;\nif (P.act==='tricks'){ cadMul=1+inten*0.6; popTrick=(sect%2===1)?1:0; }\nelse if (P.act==='tour'){ cadMul=0.7+inten*0.9; driftMul=1.4; }\nelse { cadMul=1; } // ride\nconst eM=0.45+en;\n\n// ---- pose ----\nlet seated=1, standRock=0, wheelie=0, pedalOn=1, bobK=1, forwardLean=0, cadK=1, travel=1;\nconst pose=P.pose;\nif (pose==='sprint'){ seated=0; standRock=1; bobK=1.5; forwardLean=0.35; cadK=1.35; travel=1.6; }\nelse if (pose==='wheelie'){ wheelie=1; forwardLean=-0.2; bobK=0.9; travel=1.1; }\nelse if (pose==='coast'){ pedalOn=0; bobK=0.5; cadK=0; travel=0.7; }\nelse if (pose==='trackstand'){ pedalOn=0; cadK=0; bobK=0.25; driftMul=0.15; travel=0.05; }\n// 'cruise' defaults (travel=1)\nforwardLean = (forwardLean + 0.12) * P.lean; // rider lean into the bars\n\n// ---- geometry ----\nconst sc=u*0.11*P.scale;\nconst wR=sc, wbase=sc*3.0*(0.8+P.frame*0.4);\nconst ax=P.x*width, ay=P.y*height - wR; // ay = wheel-center height (ground = ay+wR)\n// horizontal ride drift (displaces whole silhouette; incommensurate real-time freqs on gt\n// so t vs t+8s always differ even when the beat phase realigns at cps=0.5)\nconst driftFloor=0.55+driftMul*0.55;\nconst driftX=(Math.sin(gt*0.47)*0.6+Math.sin(gt*0.223)*0.4)*wbase*0.85*driftFloor;\nconst glideY=Math.sin(gt*0.31+1.3)*wR*0.14*driftFloor;\n// cadence: beat-locked swing + a continuous real-time roll floor (never re-phases at cps=0.5)\nconst realRoll=(0.42+en*0.5)*cadMul;\nconst cad=(bt*PI*cadMul + gt*realRoll)*cadK;\nconst bob=glideY+(Math.sin(cad*2)*0.5 + swell*0.4 + puls*0.3 + bassv*0.3)*wR*0.16*eM*bobK;\nconst rock=standRock*Math.sin(cad)*0.14*eM*(0.6+en);\n\n// wheelie rotation about rear contact\nconst wpop = wheelie*( 0.34 + puls*0.18*eM + popTrick*0.15 + Math.sin(gt*0.5)*0.05 );\n\n// ================= STYLE SETUP =================\nconst isLine=(st==='line'), ink=(st==='ink'), blue=(st==='blueprint'), neon=(st==='neon'), chalk=(st==='chalk');\nlet inkC, w0, jit;\nif (blue){ inkC=[(H+120)%360,55,100]; w0=Math.max(1.4,sc*0.024); jit=0; }\nelse if (neon){ inkC=[H,95,100]; w0=Math.max(1.8,sc*0.04); jit=0; }\nelse if (ink){ inkC=[H,30,14]; w0=Math.max(2.4,sc*0.06); jit=sc*0.05; }\nelse if (chalk){ inkC=[H,10,96]; w0=Math.max(1.8,sc*0.034); jit=sc*0.06; }\nelse { inkC=[H,40,22]; w0=Math.max(1.7,sc*0.032); jit=sc*0.045; } // line\n\nlet GI=1000;\nfunction jp(x,y){ if(jit<=0) return [x,y]; const g=GI++; return [x+(fr(g)-0.5)*jit, y+(fr(g+41)-0.5)*jit]; }\nfunction stroke2(pts, wMul){\n  const wv=w0*(wMul||1);\n  if (neon){ drawingContext.shadowBlur=sc*0.28; drawingContext.shadowColor='hsla('+inkC[0]+',100%,60%,0.9)'; }\n  stroke(inkC[0],inkC[1],inkC[2], chalk?88:100); strokeWeight(wv); noFill();\n  const passes= ink?2:1;\n  for(let p=0;p<passes;p++){\n    beginShape();\n    for(let i=0;i<pts.length;i++){ const q=jp(pts[i][0]+(p?jit*0.4:0), pts[i][1]+(p?jit*0.4:0)); curveVertex(q[0],q[1]); if(i===0||i===pts.length-1){ curveVertex(q[0],q[1]); } }\n    endShape();\n  }\n  drawingContext.shadowBlur=0;\n}\n\n// ================= MOTION FLOOR: full-frame scrolling speed-lines =================\n// Line-art \"rushing air\" streaks that traverse the whole frame leftward on gt.\n// Position = base - (gt*rate) % span -> continuous, never re-phases (carries the\n// motion gate with real, wide-area displacement even at cps=0.5 with zero audio).\n(function(){\n  const trav = 0.15 + travel*(0.7+en*0.6);\n  const nS = Math.round((16 + P.density*22) * (0.45 + travel*0.9));\n  push(); strokeCap(ROUND);\n  for(let i=0;i<nS;i++){\n    const yb = fr(i*3.71)*0.94 + 0.03;      // spread across full height\n    const sy = yb*height;\n    const len = (0.10 + fr(i*2.13)*0.30)*width;\n    const rate = (0.10 + fr(i*1.37)*0.20)*width*(0.7+en)*trav; // px/sec, per-streak\n    const span = width + len + 4;\n    const x = width + len - ( (gt*rate + fr(i*5.9)*span) % span );\n    const a = 8 + fr(i*9.1)*26 + (Math.abs(sy - (ay+bob)) < wR*2 ? 10 : 0);\n    const wv = (0.4 + fr(i*4.4)*1.1) * Math.max(1, w0*0.7);\n    if (neon){ drawingContext.shadowBlur=sc*0.18; drawingContext.shadowColor='hsla('+inkC[0]+',100%,60%,0.7)'; }\n    stroke(inkC[0], inkC[1]*(blue?1:0.6), inkC[2], a);\n    strokeWeight(wv);\n    line(x, sy, x+len, sy);\n    drawingContext.shadowBlur=0;\n  }\n  pop();\n})();\n\npush();\ntranslate(ax+driftX, ay+bob);\nrotate(rock*0.3);\n\n// pivot for wheelie = rear contact\nconst rearX=-wbase*0.5, frontX=wbase*0.5;\npush();\ntranslate(rearX, wR); rotate(-wpop); translate(-rearX, -wR);\n\n// ---- key points (local) ----\nconst bbX=rearX+wbase*0.46, bbY=-wR*0.12;\nconst saddleX=rearX+wbase*0.30, saddleY=-wR*1.72;\nconst headTubeX=frontX-wbase*0.16;\nconst steerY=-wR*1.42;\nconst barX=frontX-wbase*0.02, barY=-wR*1.58;\nconst hipX=saddleX+(seated?0:wR*0.15), hipY=saddleY+(seated?-wR*0.05:-wR*0.55);\nconst leanMix=0.55+forwardLean*0.3;\nconst shX=hipX*(1-leanMix)+barX*leanMix, shY=hipY-wR*1.05*(1-forwardLean*0.35);\nconst headX=shX-Math.sin(forwardLean)*wR*0.3, headY=shY-wR*0.72;\n\nconst crankR=wR*0.44;\nfunction foot(ph){ return [bbX+Math.cos(cad+ph)*crankR, bbY+Math.sin(cad+ph)*crankR]; }\nconst footR=pedalOn?foot(0):[bbX+crankR*0.9,bbY+crankR*0.3];\nconst footL=pedalOn?foot(PI):[bbX-crankR*0.9,bbY-crankR*0.3];\nconst thigh=wR*1.0, shin=wR*1.05;\nfunction knee(fx,fy,front){\n  const dx=fx-hipX, dy=fy-hipY, d=Math.min(thigh+shin-0.01,Math.max(0.01,Math.hypot(dx,dy)));\n  const a=Math.atan2(dy,dx);\n  const cosk=Math.max(-1,Math.min(1,(d*d+thigh*thigh-shin*shin)/(2*d*thigh)));\n  const ka=Math.acos(cosk)*(front?1:1);\n  const ang=a-ka;\n  return [hipX+Math.cos(ang)*thigh, hipY+Math.sin(ang)*thigh];\n}\nconst kneeR=knee(footR[0],footR[1],1), kneeL=knee(footL[0],footL[1],0);\n\nfunction wheel(cxw){\n  const spokes=Math.round(6+P.density*6);\n  const wa=bt*2.6*(pedalOn?1:0.6)*(0.7+en*0.6)+gt*0.3;\n  if (neon){ drawingContext.shadowBlur=sc*0.28; drawingContext.shadowColor='hsla('+inkC[0]+',100%,60%,0.9)'; }\n  stroke(inkC[0],inkC[1],inkC[2],100); strokeWeight(w0*1.15); noFill();\n  ellipse(cxw,0,wR*2,wR*2);\n  if (ink||isLine){ strokeWeight(w0*0.7); ellipse(cxw,0,wR*1.86,wR*1.86); }\n  strokeWeight(w0); ellipse(cxw,0,wR*0.22,wR*0.22);\n  strokeWeight(Math.max(0.6,w0*0.4)); stroke(inkC[0],inkC[1],inkC[2], blue?50:(chalk?45:62));\n  for(let i=0;i<spokes;i++){ const an=wa+i/spokes*PI; line(cxw+Math.cos(an)*wR*0.9, Math.sin(an)*wR*0.9, cxw-Math.cos(an)*wR*0.9, -Math.sin(an)*wR*0.9); }\n  drawingContext.shadowBlur=0;\n}\n\n// ================= DRAW =================\n// blueprint ground + guides\nif (blue){\n  stroke((H+120)%360,55,100,35); strokeWeight(1);\n  const gy=wR*1.02;\n  for(let i=-6;i<=6;i++){ line(i*sc*0.5, gy, i*sc*0.5, gy+sc*0.12); }\n  line(-wbase*0.9,gy,wbase*0.9,gy);\n  stroke((H+120)%360,55,100,50); line(rearX,gy+sc*0.3,frontX,gy+sc*0.3);\n}\n\n// wheels\nwheel(rearX); wheel(frontX);\n\n// frame (diamond)\nstroke2([[rearX,0],[bbX,bbY]],1.05);\nstroke2([[bbX,bbY],[saddleX,saddleY]],1.05);\nstroke2([[saddleX,saddleY],[rearX,0]],1.0);\nstroke2([[bbX,bbY],[headTubeX,steerY]],1.1);\nstroke2([[saddleX,saddleY],[headTubeX,steerY]],1.05);\nstroke2([[headTubeX,steerY],[frontX,0]],1.1);\nstroke2([[headTubeX,steerY],[barX,barY]],0.9);\n// crank arms + pedals\nstroke2([[bbX,bbY],footR],0.8); stroke2([[bbX,bbY],footL],0.8);\npush(); stroke(inkC[0],inkC[1],inkC[2],100); strokeWeight(w0*1.6); strokeCap(ROUND);\nline(footR[0]-wR*0.14,footR[1],footR[0]+wR*0.14,footR[1]);\nline(footL[0]-wR*0.14,footL[1],footL[0]+wR*0.14,footL[1]); pop();\n\n// ---- rider (single sketch) ----\nstroke2([footL,kneeL,[hipX,hipY]],1.0);\nstroke2([[hipX,hipY],[shX,shY]],1.15);\nstroke2([[shX,shY],[(shX+barX)/2, (shY+barY)/2 - wR*0.05],[barX,barY]],0.95);\n// head\npush();\nif (neon){ drawingContext.shadowBlur=sc*0.28; drawingContext.shadowColor='hsla('+inkC[0]+',100%,60%,0.9)'; }\nstroke(inkC[0],inkC[1],inkC[2],100); strokeWeight(w0);\nif (ink){ fill(inkC[0],inkC[1],inkC[2],90); } else noFill();\nconst hp=jp(headX,headY);\nellipse(hp[0],hp[1],wR*0.62,wR*0.66);\nnoFill(); arc(hp[0],hp[1]-wR*0.05,wR*0.66,wR*0.6,PI+0.2,TAU-0.2);\ndrawingContext.shadowBlur=0; pop();\n// right leg (front, drawn last)\nstroke2([[hipX,hipY],kneeR,footR],1.05);\n\npop(); // wheelie\npop(); // main\nblendMode(BLEND);\n",
+  "last_fail": {
+    "at": "2026-07-11T18:44:25+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0032 <= 0.004"
+  }
+}

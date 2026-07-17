@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.guilloche",
+  "kind": "genart",
+  "name": "Guilloche",
+  "desc": "Rose-engine guilloche: interlacing epitrochoid rings + a nested rosette engraved as bright metallic filigree on deep petrol \u2014 precessing security-print lattice, edge to edge.",
+  "tags": [
+    "guilloche",
+    "rose-engine",
+    "spirograph",
+    "epitrochoid",
+    "rosette",
+    "banknote",
+    "security-print",
+    "currency",
+    "engraving",
+    "intaglio",
+    "lattice",
+    "parametric",
+    "curve",
+    "line-art",
+    "precession",
+    "interweave",
+    "moire",
+    "ornament",
+    "filigree",
+    "geometric",
+    "generative",
+    "genart",
+    "abstract",
+    "blueprint",
+    "neon",
+    "iridescent",
+    "foil",
+    "etching",
+    "fullbleed",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "pattern zoom / curve radius"
+    },
+    "density": {
+      "default": 0.7,
+      "min": 0.1,
+      "max": 1,
+      "doc": "ring count + rosette line complexity"
+    },
+    "energy": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "line brightness / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "precession + phase-crawl rate"
+    },
+    "warp": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "interweave amplitude (how woven the rings are)"
+    },
+    "hue": {
+      "default": 172,
+      "min": 0,
+      "max": 360,
+      "doc": "ink / line base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rosette center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rosette center y"
+    },
+    "style": {
+      "default": "engraved",
+      "options": [
+        "engraved",
+        "currency",
+        "blueprint",
+        "neon",
+        "iridescent",
+        "etch"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "petal counts + rosette coefficients"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:12:41+00:00",
+    "fps": 59.9,
+    "motion": 0.0258,
+    "lum": 0.147
+  },
+  "code": "const D = { scale:1, density:.7, energy:.72, speed:1, warp:.55, hue:172, x:.5, y:.5, style:'engraved', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst wh = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst style = P.style;\nconst cx = width * P.x, cy = height * P.y;\n\n// full-canvas buffer (crisp fine lines + clean alpha compositing) keyed on size\nif (!S.buf || S.bkey !== width + 'x' + height) {\n  S.buf = createGraphics(width, height);\n  S.buf.colorMode(HSB, 360, 100, 100, 100);\n  S.buf.pixelDensity(1);\n  S.bkey = width + 'x' + height;\n}\nconst g = S.buf;\n\n// seed + density deterministic ring family (rebuild on seed OR ring-count change)\nconst M = Math.max(3, Math.round(4 + P.density * 8));\nif (S.seedUsed !== P.seed || S.M !== M) {\n  S.seedUsed = P.seed; S.M = M;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ring = [];\n  for (let k = 0; k < M; k++) {\n    S.ring.push({\n      petals: 5 + Math.round(fr(k * 5 + 1) * 15),   // 5..20 lobes\n      phase0: fr(k * 5 + 2) * TAU,\n      ampMul: 0.6 + fr(k * 5 + 3) * 0.95,\n      hoff: (fr(k * 5 + 4) - 0.5) * 60,\n      dir: fr(k * 5 + 5) < 0.5 ? 1 : -1\n    });\n  }\n  S.rm = 5 + Math.round(fr(900) * 8);               // central rosette harmonic 5..13\n  S.rc = 0.34 + fr(901) * 0.46;                     // secondary amplitude ratio\n  S.hoff2 = (fr(902) - 0.5) * 30;\n}\n\n// continuous motion \u2014 linear in K.t so it NEVER re-phases (guilloche precession)\nconst prec  = K.t * (0.014 + P.speed * 0.030) + 0.12 * Math.sin(K.t * 0.045);\nconst drift = K.t * (0.05 + P.speed * 0.07);\nconst rosPhi = K.t * (0.09 + P.speed * 0.09);\nconst sec = K.section;\nconst inten = 0.4 + K.intensity * 0.6;\nconst hb = wh(P.hue + S.hoff2 + sec * 14);\nconst eg = 0.6 + P.energy * 0.7;\nconst additive = (style === 'engraved' || style === 'neon' || style === 'iridescent');\n\ng.clear();\ng.blendMode(BLEND);\ng.noFill();\n\n// ground \u2014 native radial gradient (one GPU op, toned so the frame is never near-black)\nlet cin, cout;\nif (style === 'engraved') { cin = '#123c50'; cout = '#03101c'; }     // deep petrol -> near-black\nelse if (style === 'currency') { cin = '#1d2a14'; cout = '#060a04'; } // dark security-print (reinterpreted bold)\nelse if (style === 'etch') { cin = '#f3efe5'; cout = '#d6d0c1'; }     // classic pale intaglio\nelse if (style === 'blueprint') { cin = '#12365f'; cout = '#071224'; }\nelse if (style === 'neon') { cin = '#0d0d24'; cout = '#040410'; }\nelse { cin = '#171129'; cout = '#05030c'; } // iridescent\nconst dc = g.drawingContext;\nconst grd = dc.createRadialGradient(cx, cy, u * 0.02, cx, cy, Math.hypot(width, height) * 0.62);\ngrd.addColorStop(0, cin); grd.addColorStop(1, cout);\ndc.fillStyle = grd; dc.fillRect(0, 0, width, height);\n\n// radii \u2014 outer reaches the corners so the lattice bleeds edge to edge\nconst half = Math.hypot(width, height) / 2;\nconst R0 = u * 0.05 * (0.5 + P.scale * 0.9);\nconst Rmax = half * (0.62 + P.scale * 0.5);\nconst spacing = (Rmax - R0) / M;\nconst waveBase = spacing * (0.3 + P.warp * 1.4);\n\nif (additive) g.blendMode(ADD);\n\n// ---- concentric guilloche rings (the security-print lattice) ----\nconst rpts = Math.max(90, Math.round(140 + P.density * 140));\nfor (let k = 0; k < M; k++) {\n  const rg = S.ring[k];\n  const base = R0 + spacing * k;\n  let amp = waveBase * rg.ampMul * (0.72 + 0.42 * Math.sin(drift * rg.dir + k * 0.7));\n  amp += A.lowmid * waveBase * 0.35;   // audio on top of the baseline\n  amp *= inten;\n  const ph = rg.phase0 + drift * rg.dir * (1 + 0.12 * k);\n  const kfrac = k / (M - 1 || 1);\n  if (style === 'engraved') { g.stroke(wh(hb + rg.hoff * 0.5 + k * 6), 80, 100, 46 * eg); g.strokeWeight(1.15); }\n  else if (style === 'currency') { g.stroke(wh(hb + rg.hoff + 60), 74, 96, 60); g.strokeWeight(1.0); }\n  else if (style === 'etch') { g.stroke(34, 10, 12, 88); g.strokeWeight(0.95); }\n  else if (style === 'blueprint') { g.stroke(wh(200 + rg.hoff * 0.2), 55, 100, 56 + kfrac * 24); g.strokeWeight(1.05); }\n  else if (style === 'neon') { g.stroke(wh(hb + k * 22 + prec * 30), 92, 100, 34 * eg); g.strokeWeight(1.25); }\n  else { g.stroke(wh(hb + k * 36 + prec * 46), 72, 100, 32 * eg); g.strokeWeight(1.3); }\n  g.beginShape();\n  for (let i = 0; i <= rpts; i++) {\n    const th = (i / rpts) * TAU;\n    const r = base + amp * Math.sin(rg.petals * th + ph);\n    const a = th + prec;\n    g.vertex(cx + r * Math.cos(a), cy + r * Math.sin(a));\n  }\n  g.endShape();\n}\n\n// ---- central rosette (epitrochoid), nested copies \u2014 complementary interlace ----\nconst Rr = u * 0.24 * (0.4 + P.scale * 0.9);\nconst nCopies = 2 + Math.round(P.density * 2);\nconst cpts = Math.max(200, Math.round(300 + P.density * 260));\nconst b0 = S.rc * (1 + 0.16 * Math.sin(K.t * 0.3) + A.bass * 0.3);\nfor (let c = 0; c < nCopies; c++) {\n  const scl = 1 - c * 0.12;\n  const phiC = rosPhi + c * 0.5;\n  const b = b0;\n  if (style === 'engraved') { g.stroke(wh(hb + 172 + c * 26 + rosPhi * 24), 86, 100, 60 * eg); g.strokeWeight(1.4); }\n  else if (style === 'currency') { g.stroke(wh(hb + S.hoff2 + 30), 80, 100, 80); g.strokeWeight(1.25); }\n  else if (style === 'etch') { g.stroke(30, 12, 8, 92); g.strokeWeight(1.2); }\n  else if (style === 'blueprint') { g.stroke(196, 32, 100, 88); g.strokeWeight(1.3); }\n  else if (style === 'neon') { g.stroke(wh(hb + 44 + c * 20), 88, 100, 52 * eg); g.strokeWeight(1.4); }\n  else { g.stroke(wh(hb + c * 44 + rosPhi * 40), 66, 100, 48 * eg); g.strokeWeight(1.4); }\n  g.beginShape();\n  for (let i = 0; i <= cpts; i++) {\n    const th = (i / cpts) * TAU;\n    const x = Rr * scl * (Math.cos(th) + b * Math.cos(S.rm * th + phiC)) / (1 + b);\n    const y = Rr * scl * (Math.sin(th) - b * Math.sin(S.rm * th + phiC)) / (1 + b);\n    const rx = x * Math.cos(prec) - y * Math.sin(prec);\n    const ry = x * Math.sin(prec) + y * Math.cos(prec);\n    g.vertex(cx + rx, cy + ry);\n  }\n  g.endShape();\n}\n\ng.blendMode(BLEND);\n\n// ---- center ornament + pulsing rose-engine head ----\nif (additive) g.blendMode(ADD);\ng.noFill();\ng.stroke(wh(hb + 30), (style === 'etch') ? 10 : 60, 100, 74);\ng.strokeWeight(1.1);\ng.ellipse(cx, cy, u * 0.028); g.ellipse(cx, cy, u * 0.05);\nconst hd = 3 + K.pulse * 4 + A.treble * 10;\ng.noStroke();\nif (style === 'etch') g.fill(28, 12, 12, 95);\nelse if (style === 'blueprint') g.fill(196, 22, 100, 95);\nelse g.fill(wh(hb + 20), 74, 100, 95);\nif (style === 'engraved' || style === 'neon' || style === 'iridescent' || style === 'blueprint') {\n  g.drawingContext.shadowBlur = 9 + A.rms * 22 + K.pulse * 6;\n  g.drawingContext.shadowColor = 'rgba(180,235,255,0.75)';\n}\ng.ellipse(cx, cy, hd + 2);\ng.drawingContext.shadowBlur = 0;\ng.blendMode(BLEND);\n\n// composite to main canvas (tint carries the alpha for VJ compositing; no bg clear)\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();"
+}

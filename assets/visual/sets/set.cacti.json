@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.cacti",
+  "kind": "set",
+  "name": "Cactus Cluster",
+  "desc": "A cluster of saguaro cacti posed against a dusk desert sky with twinkling stars, heat-shimmer haze, and an owl that occasionally lands on an arm.",
+  "tags": [
+    "cactus",
+    "cacti",
+    "saguaro",
+    "desert",
+    "dusk",
+    "sunset",
+    "southwest",
+    "arizona",
+    "owl",
+    "stars",
+    "night",
+    "silhouette",
+    "western",
+    "succulent",
+    "sonoran",
+    "wildlife"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "n": {
+      "default": 3,
+      "min": 1,
+      "max": 5,
+      "doc": "number of cacti"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "arm & star richness"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sway amplitude"
+    },
+    "glow": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "eye / neon glow"
+    },
+    "hue": {
+      "default": 16,
+      "min": 0,
+      "max": 360,
+      "doc": "dusk & cactus hue"
+    },
+    "stars": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "stars on (>0.5) / off"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "motion rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.6,
+      "doc": "cactus scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cluster center x"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.6,
+      "max": 0.95,
+      "doc": "horizon / ground line y"
+    },
+    "style": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "linocut",
+        "thermal",
+        "xray",
+        "neon"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "windstorm",
+        "night"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variant seed"
+    }
+  },
+  "acts": [
+    "dusk",
+    "windstorm",
+    "night"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:26:04+00:00",
+    "fps": 57.5,
+    "motion": 0.0056,
+    "lum": 0.219
+  },
+  "code": "const D = { n:3, density:.55, energy:.5, glow:.65, hue:16, stars:1, speed:1, scale:1, x:.5, y:.82, style:'dusk', act:'dusk', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI*2;\nconst u = Math.min(width,height);\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h%360)+360)%360;\nconst clamp = (v,a,b) => v<a?a:(v>b?b:v);\n\nconst N = clamp(Math.round(P.n),1,5);\nconst scl = P.scale;\nconst cx = P.x*width, groundY = P.y*height;\nconst showStars = P.stars > 0.5;\n\n// ---- style ----\nconst H = hw(P.hue);\nconst STY = {\n  dusk:    { mode:'silhouette', body:[135,42,16], rim:[H,72,90], rib:[135,30,30], sky:true, skyTop:[262,55,10], skyMid:[H+8,78,42], skyLow:[H+18,86,60], star:[44,20,98], ground:[H,40,8] },\n  linocut: { mode:'lino', body:[0,0,6], rim:[0,0,98], rib:[0,0,98], sky:false, skyTop:[42,10,90], skyMid:[40,14,86], skyLow:[38,16,82], star:[0,0,10], ground:[0,0,6] },\n  thermal: { mode:'thermal', body:[240,80,30], rim:[0,90,100], rib:[60,90,100], sky:true, skyTop:[250,70,6], skyMid:[250,60,10], skyLow:[280,50,14], star:[180,60,90], ground:[250,70,6] },\n  xray:    { mode:'xray', body:[190,60,50], rim:[190,30,96], rib:[190,50,96], sky:true, skyTop:[205,80,6], skyMid:[200,70,10], skyLow:[195,60,14], star:[190,30,90], ground:[205,70,6] },\n  neon:    { mode:'neon', body:[H,90,80], rim:[hw(H+180),90,90], rib:[H,60,90], sky:true, skyTop:[280,80,6], skyMid:[300,70,9], skyLow:[320,70,12], star:[180,80,90], ground:[290,70,6] }\n};\nconst sty = STY[P.style] || STY.dusk;\n\n// ---- cached sky + ground buffer ----\nconst key = width+'x'+height+':'+scl.toFixed(3)+':'+Math.round(P.hue)+':'+P.style+':'+P.seed+':'+(showStars?1:0)+':'+P.density.toFixed(2);\nif (!S.gfx || S.key !== key) {\n  const g = S.gfx || (S.gfx = createGraphics(width, height));\n  g.colorMode(HSB,360,100,100,100);\n  g.clear(); g.push();\n  const horizon = groundY;\n  if (sty.mode==='lino') {\n    // flat cream sky bands (relief-print), hard horizon\n    const bands=[0.85,0.9,0.95];\n    for (let i=0;i<3;i++){ g.noStroke(); g.fill(sty.skyTop[0], sty.skyTop[1], sty.skyTop[2]-i*4); g.rect(0, i/3*horizon, width, horizon/3+1); }\n    g.noStroke(); g.fill(sty.ground[0],sty.ground[1],sty.ground[2]); g.rect(0, horizon, width, height-horizon);\n    // carved sun rays\n    g.stroke(0,0,10); g.strokeWeight(Math.max(1,u*0.004));\n    for (let i=0;i<10;i++){ const a=-Math.PI+ i/9*Math.PI; g.line(width*0.5, horizon*0.55, width*0.5+Math.cos(a)*u*0.6, horizon*0.55+Math.sin(a)*u*0.6); }\n    g.noStroke(); g.fill(sty.skyTop[0],sty.skyTop[1],sty.skyTop[2]); g.circle(width*0.5, horizon*0.55, u*0.18);\n    g.noFill(); g.stroke(0,0,10); g.strokeWeight(Math.max(1.5,u*0.005)); g.circle(width*0.5, horizon*0.55, u*0.18);\n  } else {\n    // dusk vertical gradient (dark top -> warm horizon glow)\n    const bands=54;\n    for (let i=0;i<bands;i++){\n      const f=i/(bands-1); const y=f*horizon;\n      let c;\n      if (f<0.6){ const g2=f/0.6; c=[ lerpA(sty.skyTop[0],sty.skyMid[0],g2), lerpA(sty.skyTop[1],sty.skyMid[1],g2), lerpA(sty.skyTop[2],sty.skyMid[2],g2)]; }\n      else { const g2=(f-0.6)/0.4; c=[ lerpA(sty.skyMid[0],sty.skyLow[0],g2), lerpA(sty.skyMid[1],sty.skyLow[1],g2), lerpA(sty.skyMid[2],sty.skyLow[2],g2)]; }\n      g.noStroke(); g.fill(hw(c[0]),clamp(c[1],0,100),clamp(c[2],0,100)); g.rect(0,y,width,horizon/bands+1);\n    }\n    // horizon sun bloom\n    g.noStroke();\n    for (let i=0;i<5;i++){ g.fill(sty.skyLow[0], sty.skyLow[1]*0.7, sty.skyLow[2]+10, 14-i*2); g.ellipse(cx, horizon, u*(0.5+i*0.35), u*(0.18+i*0.12)); }\n    // ground\n    g.fill(sty.ground[0],sty.ground[1],sty.ground[2]); g.rect(0,horizon,width,height-horizon);\n    g.fill(hw(sty.ground[0]),sty.ground[1],sty.ground[2]+6,50); g.rect(0,horizon,width,u*0.01);\n    if (sty.mode==='neon'){ // perspective grid on ground (vaporwave)\n      g.stroke(hw(H+180),80,90,50); g.strokeWeight(Math.max(1,u*0.003)); g.noFill();\n      for (let i=0;i<10;i++){ const yy=horizon+ (i*i)/81*(height-horizon); g.line(0,yy,width,yy); }\n      for (let i=-6;i<=6;i++){ g.line(cx+i*u*0.05, horizon, cx+i*u*0.5, height); }\n    }\n  }\n  // stars baked positions (twinkle applied live), stored\n  S.stars = [];\n  if (showStars && sty.mode!=='lino'){\n    const ns = Math.round(24 + P.density*70);\n    for (let i=0;i<ns;i++){ S.stars.push([fr(i*1.7)*width, fr(i*2.9)*horizon*0.72, 0.4+fr(i*3.3)*1.1, fr(i*4.4)]); }\n  }\n  g.pop();\n  S.key = key;\n  S.horizon = horizon;\n}\nfunction lerpA(a,b,f){ return a+(b-a)*f; }\n\nimage(S.gfx, 0, 0);\n\n// ---- act ----\nlet swayMul=1, owlPeriod=26, shimMul=1;\nif (P.act==='windstorm'){ swayMul=2.4; owlPeriod=40; shimMul=1.6; }\nelse if (P.act==='night'){ swayMul=0.7; owlPeriod=18; shimMul=0.6; }\n\nconst horizon = S.horizon!=null?S.horizon:groundY;\nconst gust = K.pulse*0.5 + A.lowmid*0.6;\n\n// ---- stars twinkle (live, K.t continuous) ----\nif (S.stars && S.stars.length){\n  push(); blendMode(SCREEN); noStroke();\n  for (let i=0;i<S.stars.length;i++){\n    const st=S.stars[i];\n    const tw = 0.4+0.6*Math.pow(Math.max(0,Math.sin(K.t*(0.8+st[3]*1.6)+st[3]*TAU)),2);\n    const spk = i%9===0 ? A.treble*0.6 : 0;\n    fill(sty.star[0], sty.star[1], sty.star[2], clamp((30+40*tw+spk*40),0,90));\n    circle(st[0], st[1], st[2]*(1+tw*0.6));\n  }\n  blendMode(BLEND); pop();\n}\n\n// ---- heat shimmer band above horizon (continuous drift) ----\nif (sty.mode!=='lino'){\n  push(); blendMode(SCREEN); noStroke();\n  const bandH = u*0.09*shimMul;\n  for (let i=0;i<26;i++){\n    const f=i/25; const xx=f*width;\n    const off = Math.sin(xx*0.03 + K.t*2.0*P.speed)*u*0.006*shimMul + Math.sin(xx*0.011 - K.t*1.3)*u*0.004;\n    fill(sty.skyLow[0], sty.skyLow[1]*0.5, sty.skyLow[2]+14, 9);\n    ellipse(xx, horizon-bandH*0.3+off, width/22, bandH*0.5);\n  }\n  blendMode(BLEND); pop();\n}\n\n// ---- drifting desert haze/dust (large area, always moving \u2014 motion floor) ----\nif (sty.mode!=='lino'){\n  push(); blendMode(SCREEN); noStroke();\n  const NH = 5;\n  for (let i=0;i<NH;i++){\n    const spd = (0.015+fr(i*6.3)*0.035)*P.speed*shimMul;\n    const bx = (fr(i*8.1) + K.t*spd) % 1.4 - 0.2;\n    const hx = bx*width*1.2 - width*0.1;\n    const hy = horizon - u*(0.02+fr(i*2.7)*0.10) + Math.sin(K.t*0.35+i*1.3)*u*0.015;\n    const hwd = u*(0.35+fr(i*4.1)*0.4), hht = u*(0.05+fr(i*3.3)*0.06);\n    fill(sty.skyLow[0], sty.skyLow[1]*0.6, sty.skyLow[2]+12, 8);\n    ellipse(hx, hy, hwd, hht);\n  }\n  blendMode(BLEND); pop();\n}\n\n// ---- build cactus layout (with sway) ----\nconst spacing = Math.min(u*0.24*scl, (width*0.9)/Math.max(1,N));\nconst layout=[];\nfor (let i=0;i<N;i++){\n  const gi = fr(i*11.3+3);\n  const xc = cx + (i-(N-1)/2)*spacing + (gi-0.5)*u*0.02;\n  const h = u*(0.30+fr(i*5.1)*0.14)*scl;\n  const sway = (Math.sin(K.t*0.6*P.speed+i*1.7)*0.6 + Math.sin(K.t*1.4+i)*0.3) * u*0.02*P.energy*swayMul*(1+gust);\n  const topx = xc+sway, topy = groundY-h;\n  // arm poses: 0-2 arms, seeded personality\n  const na = clamp(1 + Math.floor(fr(i*7.7)*(1 + P.density*2.8)), 1, 4); // density -> arm richness\n  const arms=[];\n  for (let a=0;a<na;a++){\n    const side = fr(i*3+a*9)<0.5?-1:1;\n    const upH = h*(0.30+fr(i*2+a*4)*0.22);      // height on trunk where arm starts\n    const armLen = h*(0.20+fr(i*6+a)*0.16);\n    const spread = u*(0.05+fr(i+a*5)*0.05)*scl;\n    const bx = xc + sway*(upH/h);               // trunk x at that height\n    const by2 = groundY-upH;\n    const ex = bx + side*spread;                // elbow\n    const ey = by2;\n    const tx = ex + sway*0.4;                    // tip (arm rises)\n    const ty = ey - armLen;\n    arms.push({bx,by2,ex,ey,tx,ty,side});\n  }\n  layout.push({xc,h,topx,topy,arms});\n}\n\n// ---- draw one cactus ----\nfunction limb(x0,y0,x1,y1,x2,y2,tw,fillCol,rimCol){\n  // capsule elbow via two round-cap segments + bend\n  if (sty.mode==='neon'){\n    drawingContext.shadowBlur = 12+P.glow*20; drawingContext.shadowColor='hsla('+Math.round(fillCol[0])+',90%,60%,0.9)';\n    noFill(); stroke(fillCol[0],fillCol[1],fillCol[2],90); strokeWeight(tw*0.5); strokeCap(ROUND); strokeJoin(ROUND);\n    beginShape(); vertex(x0,y0); vertex(x1,y1); vertex(x2,y2); endShape();\n    drawingContext.shadowBlur=0; return;\n  }\n  strokeCap(ROUND); strokeJoin(ROUND); noFill();\n  if (sty.mode==='thermal'){\n    const ramp=[[240,85,26],[200,80,44],[130,80,60],[55,90,92],[10,90,100],[0,0,100]];\n    for (let r=0;r<ramp.length;r++){ const w=tw*(1-r/ramp.length); stroke(ramp[r][0],ramp[r][1],ramp[r][2],92); strokeWeight(Math.max(1,w));\n      beginShape(); vertex(x0,y0); vertex(x1,y1); vertex(x2,y2); endShape(); }\n    return;\n  }\n  if (sty.mode==='xray'){\n    stroke(fillCol[0],fillCol[1],fillCol[2],26); strokeWeight(tw);\n    beginShape(); vertex(x0,y0); vertex(x1,y1); vertex(x2,y2); endShape();\n    stroke(rimCol[0],rimCol[1],rimCol[2],70); strokeWeight(Math.max(1,u*0.0025));\n    // internal skeleton line\n    beginShape(); vertex(x0,y0); vertex(x1,y1); vertex(x2,y2); endShape();\n    return;\n  }\n  // silhouette / lino: solid body + rim light\n  stroke(fillCol[0],fillCol[1],fillCol[2]); strokeWeight(tw);\n  beginShape(); vertex(x0,y0); vertex(x1,y1); vertex(x2,y2); endShape();\n  // rim light on lit side\n  stroke(rimCol[0],rimCol[1],rimCol[2], sty.mode==='lino'?100:80); strokeWeight(Math.max(1.2, tw*(sty.mode==='lino'?0.14:0.2)));\n  const ox = tw*0.32*(rimCol===sty.rim?1:1);\n  beginShape(); vertex(x0-ox,y0); vertex(x1-ox,y1); vertex(x2-ox,y2); endShape();\n}\n\nfor (let i=0;i<N;i++){\n  const L=layout[i];\n  const tw = u*0.045*scl*(0.85+fr(i*13)*0.3);\n  push();\n  // trunk (slightly bent)\n  const midx = (L.xc+L.topx)/2, midy = (groundY+L.topy)/2;\n  limb(L.xc, groundY, midx, midy, L.topx, L.topy, tw, sty.body, sty.rim);\n  // rounded tip cap\n  if (sty.mode!=='neon' && sty.mode!=='xray' && sty.mode!=='thermal'){ noStroke(); fill(sty.body[0],sty.body[1],sty.body[2]); circle(L.topx,L.topy,tw); }\n  // arms\n  for (let a=0;a<L.arms.length;a++){ const ar=L.arms[a]; limb(ar.bx,ar.by2, ar.ex,ar.ey, ar.tx,ar.ty, tw*0.72, sty.body, sty.rim);\n    if (sty.mode!=='neon' && sty.mode!=='xray' && sty.mode!=='thermal'){ noStroke(); fill(sty.body[0],sty.body[1],sty.body[2]); circle(ar.tx,ar.ty,tw*0.72); } }\n  // ribs / hatching\n  if (sty.mode==='silhouette' || sty.mode==='xray'){\n    stroke(sty.rib[0],sty.rib[1],sty.rib[2], sty.mode==='xray'?55:40); strokeWeight(Math.max(1,u*0.0022)); noFill();\n    for (let rp=-1;rp<=1;rp++){ line(L.xc+rp*tw*0.28, groundY-tw*0.2, L.topx+rp*tw*0.28, L.topy); }\n  }\n  if (sty.mode==='xray'){ // water bands\n    stroke(sty.rim[0],40,100,50); strokeWeight(Math.max(1,u*0.003));\n    for (let b=1;b<6;b++){ const f=b/6; line(L.xc-tw*0.35, groundY-L.h*f, L.topx-tw*0.35, groundY-L.h*f); }\n  }\n  if (sty.mode==='lino'){ // white carved hatch\n    stroke(0,0,98); strokeWeight(Math.max(1,u*0.0022));\n    for (let b=0;b<7;b++){ const f=b/7; const yy=groundY-L.h*f; line(L.xc+tw*0.05, yy, L.xc+tw*0.30, yy-tw*0.2); }\n  }\n  pop();\n}\n\n// ---- owl that lands occasionally ----\npush();\nconst oc = (K.t/owlPeriod);\nconst cyc = oc % 1;\nconst owlIdx = Math.floor(oc) % Math.max(1,N);\nconst perchC = layout[owlIdx] || layout[0];\nconst perch = (perchC.arms.length? perchC.arms[Math.floor(fr(Math.floor(oc)*3.1)*perchC.arms.length)] : null);\nconst px = perch? perch.tx : perchC.topx;\nconst py = perch? perch.ty : perchC.topy;\n// approach 0..0.18, perched 0.18..0.82, leave 0.82..1\nlet ox2, oy2, vis=1, wingF=0;\nif (cyc<0.18){ const f=cyc/0.18; const side=(fr(Math.floor(oc)*5)<0.5?-1:1); ox2=px+side*(1-f)*width*0.5; oy2=py-(1-f)*u*0.25 - Math.sin(f*Math.PI)*u*0.1; wingF=1-f; vis=clamp(f*3,0,1); }\nelse if (cyc<0.82){ ox2=px; oy2=py; wingF=Math.max(0, K.pulse*0.3); vis=1; }\nelse { const f=(cyc-0.82)/0.18; const side=(fr(Math.floor(oc)*8)<0.5?-1:1); ox2=px+side*f*width*0.5; oy2=py-f*u*0.28 - Math.sin(f*Math.PI)*u*0.12; wingF=f; vis=clamp((1-f)*3,0,1); }\nconst os = u*0.045*scl;\ntranslate(ox2, oy2-os*0.6);\nconst owlBody = sty.mode==='thermal'?[10,90,100]: sty.mode==='neon'?[hw(H+180),90,95]: sty.mode==='xray'?[190,40,92]:[28,30,26];\nconst owlEdge = sty.mode==='neon'?[hw(H+120),90,95]:[H,60,80];\nnoStroke();\n// wings (flap on approach/leave)\nconst wa = wingF*0.9;\nfill(owlBody[0],owlBody[1],owlBody[2]*0.9, 90*vis);\npush(); rotate(-0.5-wa); ellipse(-os*0.4, 0, os*0.9, os*0.4); pop();\npush(); rotate(0.5+wa); ellipse(os*0.4, 0, os*0.9, os*0.4); pop();\n// body\nfill(owlBody[0],owlBody[1],owlBody[2], 95*vis); ellipse(0, 0, os*0.95, os*1.15);\n// ear tufts\ntriangle(-os*0.32,-os*0.5,-os*0.12,-os*0.5,-os*0.26,-os*0.8);\ntriangle(os*0.32,-os*0.5,os*0.12,-os*0.5,os*0.26,-os*0.8);\n// face disc\nfill(owlEdge[0],owlEdge[1]*0.5,owlBody[2]+18,70*vis); ellipse(0,-os*0.12,os*0.7,os*0.6);\n// glowing eyes (blink)\nconst blink = (fr(Math.floor(K.t*1.7))>0.9)?0.15:1;\nblendMode(SCREEN);\nfill(48,80,100, (60+A.treble*40)*vis);\nellipse(-os*0.2,-os*0.12,os*0.28*blink+os*0.06, os*0.28); ellipse(os*0.2,-os*0.12,os*0.28*blink+os*0.06,os*0.28);\nblendMode(BLEND);\nfill(0,0,8,95*vis); ellipse(-os*0.2,-os*0.12,os*0.12*blink, os*0.14); ellipse(os*0.2,-os*0.12,os*0.12*blink,os*0.14);\n// beak\nfill(40,80,80,90*vis); triangle(-os*0.06,-os*0.02, os*0.06,-os*0.02, 0, os*0.12);\npop();\n\nblendMode(BLEND);\n"
+}

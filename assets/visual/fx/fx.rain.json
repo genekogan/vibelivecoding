@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.rain",
+  "kind": "fx",
+  "name": "Rain",
+  "desc": "Wind-tilted rainfall in desaturated grey-blue with depth parallax, continuous ground splash rings and a shimmering puddle sheen.",
+  "tags": [
+    "rain",
+    "rainfall",
+    "storm",
+    "downpour",
+    "weather",
+    "precipitation",
+    "drops",
+    "droplets",
+    "streaks",
+    "wet",
+    "puddle",
+    "splash",
+    "grey",
+    "blue",
+    "overcast",
+    "moody",
+    "melancholy",
+    "cyberpunk",
+    "matrix",
+    "noir",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "drop / column count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "streak length + splash strength + glow"
+    },
+    "wind": {
+      "default": 0.35,
+      "min": -1,
+      "max": 1,
+      "doc": "wind tilt (neg=left, pos=right)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "fall + splash rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "rain hue (210 grey-blue; 120 green for matrix)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "drop size / streak thickness"
+    },
+    "y": {
+      "default": 0.9,
+      "min": 0.5,
+      "max": 1,
+      "doc": "ground / puddle line fraction"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field x anchor"
+    },
+    "style": {
+      "default": "streak",
+      "options": [
+        "streak",
+        "sumi",
+        "neon",
+        "matrix"
+      ],
+      "doc": "streak=grey-blue depth rain / sumi=soft grey ink brush streaks with bleed / neon=additive glowing cyber-rain / matrix=abstracted dot-matrix digital-rain columns"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "drop + splash layout seed"
+    },
+    "act": {
+      "default": "steady",
+      "options": [
+        "steady",
+        "drizzle",
+        "storm"
+      ],
+      "doc": "multi-minute weather program"
+    }
+  },
+  "acts": [
+    "steady",
+    "drizzle",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:24:49+00:00",
+    "fps": 59.2,
+    "motion": 0.0051,
+    "lum": 0.09
+  },
+  "code": "const D = { density:.6, energy:.6, wind:.35, speed:1, hue:210, scale:1, y:.9, x:.5, style:'streak', seed:0, act:'steady' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst isSumi=st==='sumi', isNeon=st==='neon', isMatrix=st==='matrix';\nconst act=P.act||'steady';\n\nlet envD=1, envW=1;\nif(act==='drizzle'){ envD=0.45; envW=0.7; }\nelse if(act==='storm'){ envD=1.3; envW=1.6; }\nconst arc=0.55+0.6*K.intensity;\nconst dens=clp(P.density*envD,0,1.4);\nconst en=clp(P.energy*arc,0,1.3);\nconst gust=(P.wind + 0.32*Math.sin(K.t*0.23) + 0.12*Math.sin(K.t*0.71))*envW + A.bass*0.45;\nconst grY=P.y*Hh;\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nif(isMatrix){\n  // ---- digital rain columns (abstracted dot-matrix) ----\n  noStroke();\n  const cols=Math.round(lrp(14,64,dens));\n  const cellH=u*0.03*P.scale;\n  const tail=Math.round(lrp(6,17,dens));\n  for(let c=0;c<cols;c++){\n    const cx=(c+0.5)/cols*W;\n    const spd=(0.5+fr(c*3+1)*0.9)*P.speed;\n    const span=Hh/cellH+tail+4;\n    const head=frc(fr(c*3+2)+K.t*spd*0.45)*span-tail-2;\n    for(let k=0;k<tail;k++){\n      const idx=Math.floor(head)-k;\n      const y=idx*cellH;\n      if(y<-cellH||y>Hh+cellH) continue;\n      const f=k/tail;\n      const jitter=fr(c*17+idx)>0.5?0.22:0;\n      if(k===0){ fill(md(H,360),12,100,100); }\n      else { fill(md(H+lrp(-4,12,f),360), clp(70-f*24,10,90), lrp(88,16,f), lrp(96,8,f)); }\n      const wsz=cellH*0.5*(1+jitter);\n      rect(cx-wsz/2, y, wsz, cellH*0.72, 1);\n    }\n  }\n} else {\n  // ---- falling drops with wind tilt + depth parallax ----\n  const nD=Math.round(lrp(30,220,dens));\n  for(let i=0;i<nD;i++){\n    const depth=fr(i*3+2);\n    const fallSp=lrp(0.35,0.9,depth)*P.speed;\n    const life=frc(fr(i*3+1)+K.t*fallSp*0.5);\n    const baseX=fr(i*3+3)*1.2-0.1;\n    const x=baseX*W + gust*life*u*0.6;\n    const y=-0.08*Hh + life*(grY+0.16*Hh);\n    const len=u*0.04*P.scale*(0.4+en)*lrp(0.45,1.5,depth);\n    const slopeX=gust*len*1.1;\n    const sw=lrp(0.6,2.4,depth)*P.scale;\n    if(isNeon){\n      blendMode(ADD);\n      stroke(md(H+lrp(-6,12,depth),360),55,100,lrp(10,34,depth)); strokeWeight(sw*2.4);\n      line(x,y,x-slopeX,y-len);\n      stroke(md(H+lrp(-6,12,depth),360),22,100,lrp(38,88,depth)); strokeWeight(Math.max(0.5,sw*0.7));\n      line(x,y,x-slopeX,y-len);\n      blendMode(BLEND);\n    } else if(isSumi){\n      for(let o=0;o<3;o++){ const ox=(o-1)*sw*0.9;\n        stroke(md(H,360),lrp(4,15,depth),lrp(58,90,depth),lrp(6,20,depth));\n        strokeWeight(Math.max(0.6,sw*(2.2-o*0.5)));\n        line(x+ox,y,x-slopeX+ox,y-len); }\n    } else {\n      stroke(md(H+lrp(-8,10,depth),360),lrp(8,26,depth),lrp(52,90,depth),lrp(22,82,depth)*(0.5+en*0.6));\n      strokeWeight(sw);\n      line(x,y,x-slopeX,y-len);\n    }\n  }\n  // ---- ground splash rings (continuous, seeded) ----\n  if(P.energy>0.02){\n    const nS=Math.round(lrp(6,40,dens));\n    if(S.spSeed!==P.seed||S.spN!==nS){ S.spSeed=P.seed; S.spN=nS; S.sp=[];\n      for(let i=0;i<nS;i++) S.sp.push({x:fr(i+100),ph:fr(i+200),sp:0.6+fr(i+300)*0.8}); }\n    noFill();\n    for(let i=0;i<nS;i++){ const s2=S.sp[i];\n      const life2=frc(s2.ph+K.t*(0.7+s2.sp)*P.speed*0.6);\n      const r=life2*u*0.05*P.scale*(0.5+en);\n      const a=(1-life2)*(1-life2)*46*en;\n      stroke(md(H+6,360),isNeon?45:16,isNeon?100:88,a);\n      strokeWeight(Math.max(0.6,u*0.0018));\n      ellipse(s2.x*W, grY-u*0.005, r*2, r*0.7); }\n  }\n  // ---- puddle sheen band (K.t shimmer) ----\n  noStroke();\n  for(let b2=0;b2<4;b2++){ const yy=grY+(b2/4)*(Hh-grY)*0.9;\n    const sh=0.5+0.5*Math.sin(K.t*1.3+b2*1.7+A.bass*3);\n    fill(md(H+4,360),22,lrp(28,54,b2/3)*(0.66+0.34*sh),16);\n    ellipse(W*0.5, yy, W*1.12, (Hh-grY)*0.5); }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

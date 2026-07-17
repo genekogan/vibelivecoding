@@ -1,0 +1,148 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.condensation",
+  "kind": "fx",
+  "name": "Condensation",
+  "desc": "A fogged pane of glass drops in between the audience and the scene: droplets bead, swell until they break loose, run and carve clear trails that slowly fog over again, each bead lensing an inverted scrap of whatever is behind it with a hard little glint on its shoulder.",
+  "tags": [
+    "condensation",
+    "fog",
+    "fogged",
+    "glass",
+    "pane",
+    "window",
+    "misted",
+    "steam",
+    "droplet",
+    "drop",
+    "drops",
+    "bead",
+    "beading",
+    "run",
+    "trail",
+    "dew",
+    "moisture",
+    "wet",
+    "water",
+    "rain",
+    "rain-glass",
+    "frost",
+    "ice",
+    "crystal",
+    "mercury",
+    "lens",
+    "refraction",
+    "glint",
+    "specular",
+    "meniscus",
+    "overlay",
+    "veil",
+    "atmosphere",
+    "material",
+    "surface",
+    "texture",
+    "intimate",
+    "melancholy",
+    "noir",
+    "cold"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "wetness": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1.4,
+      "doc": "droplet size + how thick the fog film sits"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "how many droplets are on the pane"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "glint + fog-breath amplitude"
+    },
+    "alpha": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity of the pane"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "droplet + breath-patch scale"
+    },
+    "hue": {
+      "default": 204,
+      "min": 0,
+      "max": 360,
+      "doc": "fog hue (204 = cold window glass)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "run + growth rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "the warm patch behind the glass, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "the warm patch behind the glass, y"
+    },
+    "style": {
+      "default": "condensation",
+      "options": [
+        "condensation",
+        "rain_glass",
+        "frost",
+        "mercury"
+      ],
+      "doc": "condensation: warm-room fog, small beads, slow runs \u00b7 rain_glass: a night car window \u2014 barely any fog, fat drops running fast in streaks \u00b7 frost: the film freezes, beads become six-armed crystals that grow and sublimate \u00b7 mercury: liquid-metal beads with chrome speculars on a dark film \u2014 no fog, no water"
+    },
+    "act": {
+      "default": "bead",
+      "options": [
+        "bead",
+        "clear",
+        "steam"
+      ],
+      "doc": "bead: steady \u00b7 clear: the pane is drying \u2014 the fog barely returns \u00b7 steam: it keeps re-fogging faster than the drops can clear it"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "bead",
+    "clear",
+    "steam"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:16:06+00:00",
+    "fps": 59.9,
+    "motion": 0.0339,
+    "lum": 0.312
+  },
+  "code": "const D = { wetness: .55, density: .5, energy: .55, alpha: .9, scale: 1, hue: 204, speed: 1, x: .5, y: .5, style: 'condensation', act: 'bead', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst wetP=cl(P.wetness,0,1.4), dens=cl(P.density,.02,1), al=cl(P.alpha,0,1);\nconst sc=cl(P.scale,.35,2.4), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.55+.55*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1);\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\nconst kick=Math.min(1,K.pulse*.4+S.bass*.6);\n\nconst rain=(sty==='rain_glass'), frost=(sty==='frost'), merc=(sty==='mercury');\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// ---- 1. read the scene BEHIND the pane (before we fog it) ----\nconst SW=cl(Math.round(88*(W>=Hh?1:W/Math.max(1,Hh))),24,88), SH=cl(Math.round(SW*Hh/Math.max(1,W)),16,88);\nif(!S.samp||S.sw!==SW||S.sh!==SH){ if(S.samp&&S.samp.remove)S.samp.remove(); S.samp=createGraphics(SW,SH); S.sw=SW; S.sh=SH; }\nconst samp=S.samp; samp.clear(); samp.drawingContext.imageSmoothingEnabled=true;\ntry{ samp.drawingContext.drawImage(dc.canvas,0,0,SW,SH); }catch(e){}\nsamp.loadPixels();\nconst sp=samp.pixels, hasP=(sp&&sp.length>=SW*SH*4);\nlet _r=40,_g=48,_b=58;\nconst smp=(x,y)=>{ if(!hasP) return; const i=cl(Math.floor(x*SW),0,SW-1), j=cl(Math.floor(y*SH),0,SH-1);\n  const o=(j*SW+i)*4; _r=sp[o]; _g=sp[o+1]; _b=sp[o+2]; };\n\n// ---- 2. the fog film: erode + regrow to a stable veil, drop trails cut it clear ----\nconst fw=cl(Math.round(W/3),120,560), fh=cl(Math.round(fw*Hh/Math.max(1,W)),80,400);\nif(!S.fog||S.fw!==fw||S.fh!==fh){ if(S.fog&&S.fog.remove)S.fog.remove();\n  S.fog=createGraphics(fw,fh); S.fog.colorMode(HSB,360,100,100,100); S.fw=fw; S.fh=fh; }\nconst fg=S.fog, fc=fg.drawingContext;\nlet regrow=(0.006+0.015*wetP)*(rain?.22:frost?1.35:merc?.55:1);\nif(act==='clear') regrow*=.45; else if(act==='steam') regrow*=1.6+.5*Math.sin(T*.031);\nconst erode=0.022;\nconst fogH=merc?md(H+200,360):frost?md(H+8,360):H, fogS=merc?26:frost?10:14;\nconst fogB=merc?16:frost?96:92;\nfg.noStroke();\nfc.globalCompositeOperation='destination-out'; fg.fill(0,0,0,erode*100); fg.rect(0,0,fw,fh);\nfc.globalCompositeOperation='source-over'; fg.fill(fogH,fogS,fogB,regrow*100); fg.rect(0,0,fw,fh);\n// breathing patch of extra condensation (a warm body near the glass) \u2014 slow, drifting\nif(!rain&&!merc){ const px2=(ax+.28*Math.sin(T*.037)+.11*Math.sin(T*.089))*fw, py2=(ay+.22*Math.cos(T*.029)+.09*Math.sin(T*.071))*fh;\n  const rr=fw*(.20+.07*Math.sin(T*.053))*sc;\n  const rg=fc.createRadialGradient(px2,py2,0,px2,py2,rr);\n  rg.addColorStop(0,'rgba(255,255,255,'+(0.035*(0.4+0.9*en)).toFixed(4)+')');\n  rg.addColorStop(1,'rgba(255,255,255,0)');\n  fc.fillStyle=rg; fc.fillRect(px2-rr,py2-rr,rr*2,rr*2); }\n\n// ---- 3. droplets: bead, swell, break loose, run, carve a clear trail ----\nconst ND=Math.round((frost?36:22)+dens*(frost?70:118));\nif(!S.dr||S.dn!==ND||S.dSeed!==P.seed){ S.dn=ND; S.dSeed=P.seed; S.dr=[];\n  for(let i=0;i<ND;i++) S.dr.push({ x:fr(i*3), y:fr(i*3+1), r:.2+fr(i*3+2)*.7, v:0, id:i, g:.3+fr(i*5)*1.4 }); }\nconst dr=S.dr;\nif(S.pt==null||K.t<S.pt) S.pt=K.t;\nconst dt=cl(K.t-S.pt,0,.08); S.pt=K.t;\nconst rBase=u*(rain?.016:merc?.014:frost?.020:.010)*sc*(.5+.75*wetP);\nconst grow=dt*spd*(frost?.16:.30)*(.6+.7*K.intensity)*(act==='steam'?1.5:1);\nconst gravS=dt*spd*(rain?.62:merc?.5:.26)*(1+.5*kick*en);\n\nfc.globalCompositeOperation='destination-out'; fg.fill(0,0,0,100);\nfor(let i=0;i<ND;i++){\n  const d=dr[i];\n  d.r+=grow*(.5+fr(d.id*7)*1.1)*(1-cl(d.r/2.6,0,.9));\n  if(!frost){\n    const brk=1.05+fr(d.id*11)*.8;\n    if(d.v>0||d.r>brk){ d.v+=gravS*d.g*(.4+d.r*.55); d.v*=.985;\n      d.y+=d.v*dt*spd*(rain?7.5:merc?5:1.8);\n      d.x+=Math.sin(T*1.3+d.id)*dt*.004*spd + (fr(d.id*13)-.5)*dt*.02;\n      d.r*=1-dt*(rain?.30:merc?.16:.24)*spd;\n      // the run wipes the fog clear behind it\n      const rr2=d.r*rBase*fw/Math.max(1,W);\n      fg.circle(d.x*fw,d.y*fh,rr2*2*1.25);\n      fg.circle(d.x*fw,(d.y-d.v*dt*spd*2)*fh,rr2*2*1.05);\n      if(d.y>1.05||d.r<.14){ d.x=fr(d.id*17+Math.floor(K.t*.31)*7); d.y=-.04-fr(d.id*19)*.1; d.r=.2+fr(d.id*23)*.6; d.v=0; }\n    } else { const rr2=d.r*rBase*fw/Math.max(1,W); fg.circle(d.x*fw,d.y*fh,rr2*2*1.1); }\n  } else {\n    if(d.r>2.2+fr(d.id*11)){ d.x=fr(d.id*17+Math.floor(K.t*.21)*11); d.y=fr(d.id*19+Math.floor(K.t*.21)*13); d.r=.18; }\n    const rr2=d.r*rBase*fw/Math.max(1,W)*.55; fg.circle(d.x*fw,d.y*fh,rr2*2);\n  }\n}\nfc.globalCompositeOperation='source-over';\n\ndrawingContext.imageSmoothingEnabled=true;\ndc.globalAlpha=al; image(fg,0,0,W,Hh); dc.globalAlpha=1;\n\n// ---- 4. the drops themselves: each one a little lens on the scene behind ----\nnoStroke();\nfor(let i=0;i<ND;i++){\n  const d=dr[i], R=d.r*rBase;\n  if(R<1.2) continue;\n  const px2=d.x*W, py2=d.y*Hh;\n  if(px2<-R*3||px2>W+R*3||py2<-R*3||py2>Hh+R*3) continue;\n  if(frost){\n    // ice: a six-armed crystal with feathering needles, no runs\n    const na=6, ph=fr(d.id*29)*TAU, gl=(6+26*en)*al;\n    stroke(md(H+6,360),8,100,gl*1.5); strokeWeight(Math.max(.7,R*.10));\n    for(let k=0;k<na;k++){ const a2=ph+k*TAU/na+.10*Math.sin(T*.13+d.id);\n      const ex=px2+Math.cos(a2)*R*2.1, ey=py2+Math.sin(a2)*R*2.1;\n      line(px2,py2,ex,ey);\n      for(let m=1;m<=3;m++){ const t=m/4, bx=px2+(ex-px2)*t, by=py2+(ey-py2)*t, bl=R*.75*(1-t);\n        line(bx,by,bx+Math.cos(a2+.9)*bl,by+Math.sin(a2+.9)*bl);\n        line(bx,by,bx+Math.cos(a2-.9)*bl,by+Math.sin(a2-.9)*bl); } }\n    noStroke(); fill(md(H+10,360),6,100,gl*.8); circle(px2,py2,R*.7);\n    continue;\n  }\n  // the drop inverts and magnifies what lies below it\n  smp(cl(d.x+Math.sin(T*.4+d.id)*.004,0,.999), cl(d.y+R*2.4/Hh,0,.999));\n  let r2=_r,g2=_g,b2=_b;\n  if(merc){ const L=(r2*.3+g2*.59+b2*.11); r2=cl(38+L*.42,0,255); g2=cl(42+L*.44,0,255); b2=cl(50+L*.48,0,255); }\n  else { r2=cl(r2*1.14+10,0,255); g2=cl(g2*1.14+10,0,255); b2=cl(b2*1.16+12,0,255); }\n  dc.fillStyle='rgba('+(r2|0)+','+(g2|0)+','+(b2|0)+','+(0.92*al).toFixed(3)+')';\n  dc.beginPath(); dc.ellipse(px2,py2,R,R*(d.v>0?1.35:1.02),0,0,TAU); dc.fill();\n  // dark meniscus rim + the trail the run left behind it\n  dc.strokeStyle='rgba(0,0,0,'+(0.30*al).toFixed(3)+')'; dc.lineWidth=Math.max(.7,R*.14);\n  dc.stroke();\n  if(d.v>0.02&&!merc){\n    dc.fillStyle='rgba('+(r2|0)+','+(g2|0)+','+(b2|0)+','+(0.20*al).toFixed(3)+')';\n    dc.beginPath(); dc.ellipse(px2,py2-R*2.2,R*.5,R*2.2,0,0,TAU); dc.fill();\n  }\n  // specular glint \u2014 where the room light hits the bead\n  const gx=px2-R*.36, gy=py2-R*.42;\n  dc.globalCompositeOperation='lighter';\n  dc.fillStyle=merc?'rgba(255,255,255,'+(0.85*al).toFixed(3)+')':'rgba(255,255,255,'+(0.52*al*(0.5+0.8*en)).toFixed(3)+')';\n  dc.beginPath(); dc.ellipse(gx,gy,R*(merc?.30:.22),R*(merc?.20:.16),-.6,0,TAU); dc.fill();\n  if(merc){ dc.fillStyle='rgba(255,255,255,'+(0.22*al).toFixed(3)+')';\n    dc.beginPath(); dc.ellipse(px2+R*.4,py2+R*.44,R*.34,R*.14,.5,0,TAU); dc.fill(); }\n  dc.globalCompositeOperation=oldOp;\n}\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

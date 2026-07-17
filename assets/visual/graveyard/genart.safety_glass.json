@@ -1,0 +1,146 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "genart.safety_glass",
+ "kind": "genart",
+ "name": "Safety Glass",
+ "desc": "A pane failing over and over: impacts nucleate one at a time, radial cracks run outward at finite speed and arrest ragged, Hertzian rings bow in behind the tips, a crumb zone blooms at the strike and glints crawl the fractures — while the oldest damage anneals quietly away so the sheet is never done breaking; laminated glass, dicing tempered crumble, radiographic negative, sumi ink or feathered frost.",
+ "tags": [
+  "safety-glass",
+  "tempered-glass",
+  "laminated",
+  "windscreen",
+  "windshield",
+  "shatter",
+  "shattered",
+  "smash",
+  "impact",
+  "fracture",
+  "crack",
+  "cracks",
+  "cracked",
+  "crazing",
+  "spiderweb",
+  "spider-web",
+  "radial",
+  "concentric",
+  "hertzian",
+  "cone-crack",
+  "crumb-zone",
+  "dicing",
+  "pane",
+  "window",
+  "glass",
+  "glazing",
+  "shard",
+  "splinter",
+  "brittle",
+  "fracture-mechanics",
+  "materials",
+  "failure",
+  "forensic",
+  "forensics",
+  "evidence",
+  "crack-propagation",
+  "specular",
+  "glint",
+  "annealing",
+  "radiograph",
+  "xray",
+  "negative",
+  "frost",
+  "ink",
+  "sumi",
+  "austere",
+  "clinical",
+  "cold",
+  "menacing",
+  "decayed",
+  "abstract",
+  "generative",
+  "genart",
+  "fullbleed",
+  "background",
+  "texture"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "crack weight, specular gain and backdrop contrast — max hits hard, thick bright fractures over a lit pane"
+  },
+  "scale": {
+   "default": 1,
+   "min": 1,
+   "max": 2.6,
+   "doc": "magnification of the fracture field about the x/y anchor — max nearly triples the crack geometry"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.2,
+   "max": 3,
+   "doc": "crack-tip velocity and how often a fresh impact nucleates (0.2 still visibly propagates)"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "how many impact sites live at once (2-10) and how many radials each throws"
+  },
+  "anneal": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "how fast old damage heals away — low leaves the pane accumulating wreckage, high keeps it nearly clear"
+  },
+  "hue": {
+   "default": 205,
+   "min": 0,
+   "max": 360,
+   "doc": "tint of the glass and the scene dimly visible behind it"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "horizontal anchor of the magnified region"
+  },
+  "y": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "vertical anchor of the magnified region"
+  },
+  "style": {
+   "default": "pane",
+   "options": [
+    "pane",
+    "tempered",
+    "xray",
+    "ink",
+    "frost"
+   ],
+   "doc": "aesthetic: cool laminated pane with specular crack lips / tempered glass dicing into crumb rather than spidering / radiographic negative with fractures glowing white / sumi ink on cream / feathered cyan frost crazing"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "deterministic seed for impact placement, radial count and tip wander"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "layer opacity"
+  }
+ },
+ "acts": null,
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, anneal: .5, hue: 205, x: .5, y: .5, style: 'pane', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Safety-glass shatter. Impact sites live on STAGGERED lifecycles:\n//   nucleate -> radials creep out at finite speed -> Hertzian concentric rings fill in\n//   behind the running tips -> the whole site slowly anneals away.\n// Several sites overlap in time, so something is always growing and something always\n// fading: no instant full-frame snap (anti-strobe) and no converged end state.\nconst u = Math.min(width, height);\nconst sd = P.seed | 0;\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- the pane's backdrop: a soft out-of-focus scene so this reads as GLASS, not lines on\n// black. Coarse buffer + upscale = free bokeh. Also carries the luminance floor. ----\nconst BW = 96, BH = Math.max(54, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nconst tt = K.t;\nconst style = P.style;\n// incommensurate drift — the backdrop alone can never re-phase over 8s\nconst dr1 = Math.sin(tt * 0.061), dr2 = Math.sin(tt * 0.143 + 1.7), dr3 = Math.sin(tt * 0.229 + 0.4);\nconst hb = ((P.hue % 360) + 360) % 360;\n{\n  const g = S.g; g.loadPixels(); const px = g.pixels;\n  // 5 seeded bokeh blooms drifting behind the pane\n  const NB = 5;\n  const bx = [], by = [], br = [], bi = [];\n  for (let k = 0; k < NB; k++) {\n    bx[k] = (0.5 + 0.42 * Math.sin(tt * (0.037 + k * 0.011) + fr(k * 7 + 1) * 6.28)) * BW;\n    by[k] = (0.5 + 0.40 * Math.cos(tt * (0.029 + k * 0.013) + fr(k * 7 + 2) * 6.28)) * BH;\n    br[k] = (0.16 + 0.22 * fr(k * 7 + 3)) * BH;\n    bi[k] = 0.30 + 0.55 * fr(k * 7 + 4);\n  }\n  for (let j = 0; j < BH; j++) {\n    for (let i = 0; i < BW; i++) {\n      let v = 0.10 + 0.16 * (1 - j / BH);                 // a dim ground gradient\n      for (let k = 0; k < NB; k++) {\n        const dx = i - bx[k], dy = j - by[k];\n        const d = Math.sqrt(dx * dx + dy * dy) / br[k];\n        if (d < 1) { const f = 1 - d * d; v += bi[k] * f * f * 0.9; }\n      }\n      v *= 0.62 + 0.5 * P.energy;\n      const gr = (fr(i * 3.1 + j * 7.7 + 11) - 0.5) * 0.05;   // plate grain\n      v = Math.max(0, Math.min(1, v + gr));\n      let r, gg, b;\n      if (style === 'ink') { const p2 = 0.87 - v * 0.46; r = p2 * 0.99; gg = p2 * 0.96; b = p2 * 0.88; }\n      else if (style === 'xray') { r = 0.10 + v * 0.22; gg = 0.11 + v * 0.23; b = 0.13 + v * 0.26; }\n      else if (style === 'frost') { r = 0.05 + v * 0.22; gg = 0.09 + v * 0.42; b = 0.20 + v * 0.62; }\n      else if (style === 'tempered') { r = 0.09 + v * 0.52; gg = 0.12 + v * 0.60; b = 0.16 + v * 0.68; }\n      else { // pane — cool laminated glass over a dim scene\n        const hh = hb / 360;\n        r = (0.06 + v * 0.55) * (0.55 + 0.45 * Math.cos(6.2831 * (hh + 0.02)));\n        gg = (0.08 + v * 0.60) * (0.60 + 0.40 * Math.cos(6.2831 * (hh + 0.14)));\n        b = (0.12 + v * 0.66) * (0.65 + 0.35 * Math.cos(6.2831 * (hh + 0.28)));\n        r += 0.05; gg += 0.07; b += 0.11;\n      }\n      const o = 4 * (j * BW + i);\n      px[o] = Math.max(0, Math.min(255, r * 255)); px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n      px[o + 2] = Math.max(0, Math.min(255, b * 255)); px[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\n// ---- site bookkeeping: tolerate t0 resets (K.t can jump backwards at any time) ----\nif (!S.sites || S.seedUsed !== P.seed || S.lastT == null || tt < S.lastT - 0.5) {\n  S.seedUsed = P.seed; S.sites = []; S.next = tt; S.ctr = 0;\n}\nS.lastT = tt;\nconst LIFE = 26 + (1 - P.anneal) * 54;            // seconds from nucleation to fully annealed\nconst GAP = (2.6 + (1 - P.density) * 7.0) / Math.max(0.2, P.speed);\nconst MAXS = Math.round(2 + P.density * 8);\nwhile (S.next <= tt && S.sites.length < MAXS + 3) {\n  const c = S.ctr++;\n  S.sites.push({\n    t0: S.next, c: c,\n    x: 0.12 + 0.76 * fr(c * 13.3 + 1), y: 0.12 + 0.76 * fr(c * 13.3 + 2),\n    n: 7 + Math.floor(fr(c * 13.3 + 3) * 13),      // radial count\n    r: 0.20 + 0.34 * fr(c * 13.3 + 4),             // final reach (fraction of u)\n    sp: 0.55 + 0.9 * fr(c * 13.3 + 5)              // crack-tip speed\n  });\n  S.next += GAP * (0.55 + 0.9 * fr(c * 13.3 + 6));\n}\nS.sites = S.sites.filter(s => tt - s.t0 < LIFE);\nif (S.next > tt + GAP * 4) S.next = tt;            // guard after a long tab-stall\n\n// ---- draw ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.g, 0, 0, width, height);\npop();\n\nconst ctx = drawingContext;\nconst zoom = Math.max(1, P.scale);\nconst ax = P.x * width, ay = P.y * height;\nctx.save();\nctx.translate(ax, ay); ctx.scale(zoom, zoom); ctx.translate(-ax, -ay);\nctx.lineCap = 'round'; ctx.lineJoin = 'round';\nconst aa = Math.max(0, Math.min(100, P.alpha)) / 100;\n// crack ink / specular colours per style\nlet INK, SPEC;\nif (style === 'ink') { INK = [30, 24, 18]; SPEC = [250, 246, 232]; }\nelse if (style === 'xray') { INK = [232, 238, 248]; SPEC = [255, 255, 255]; }\nelse if (style === 'frost') { INK = [180, 232, 252]; SPEC = [236, 252, 255]; }\nelse if (style === 'tempered') { INK = [26, 34, 44]; SPEC = [226, 244, 255]; }\nelse { INK = [10, 14, 20]; SPEC = [214, 236, 255]; }\n\n// jittered polyline from the impact centre outward — the crack tip wanders\nfunction radial(sx, sy, ang, len, c, j, out) {\n  const SEG = 7;\n  let px2 = sx, py2 = sy, a = ang;\n  out.push(sx, sy);\n  for (let k = 1; k <= SEG; k++) {\n    a += (fr(c * 91.7 + j * 17.3 + k * 3.1) - 0.5) * 0.30;\n    const step = len / SEG;\n    px2 += Math.cos(a) * step; py2 += Math.sin(a) * step;\n    out.push(px2, py2);\n  }\n  return out;\n}\n\nfor (const s of S.sites) {\n  const age = tt - s.t0;\n  if (age < 0) continue;\n  const cx = s.x * width, cy = s.y * height;\n  const reach = s.r * u;\n  // crack tips run out over ~1.6-3s, NOT instantly. Ease so the tip decelerates (it arrests).\n  const grow = Math.min(1, Math.pow(age * s.sp * P.speed * 0.42, 0.62));\n  const L = reach * grow;\n  if (L < u * 0.01) continue;\n  // fade in over 0.9s, then anneal out over the tail of LIFE — no snap at either end\n  const fin = Math.min(1, age / 0.9);\n  const fout = Math.min(1, Math.max(0, (LIFE - age) / (LIFE * 0.55)));\n  const op = fin * fout * (0.45 + 0.55 * P.energy) * aa;\n  if (op < 0.012) continue;\n  const nr = Math.max(4, Math.round(s.n * (0.45 + 0.55 * P.density)));\n\n  // ---- radials ----\n  const paths = [];\n  for (let j = 0; j < nr; j++) {\n    const ang = (j / nr) * 6.2831 + fr(s.c * 5.1 + j) * 0.5;\n    // tips arrest at different lengths -> the ragged natural look\n    const ll = L * (0.55 + 0.45 * fr(s.c * 3.7 + j * 2.3));\n    paths.push(radial(cx, cy, ang, ll, s.c, j, []));\n  }\n  // shadow/ink pass\n  ctx.beginPath();\n  for (const p of paths) { ctx.moveTo(p[0], p[1]); for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]); }\n  ctx.strokeStyle = 'rgba(' + INK[0] + ',' + INK[1] + ',' + INK[2] + ',' + (op * 0.85).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.7, u * 0.0026 * (0.6 + P.energy * 0.8)) / zoom;\n  ctx.stroke();\n  // specular edge pass — the bright lip that makes a crack read as glass\n  ctx.beginPath();\n  const off = u * 0.0016 / zoom;\n  for (const p of paths) { ctx.moveTo(p[0] + off, p[1] - off); for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k] + off, p[k + 1] - off); }\n  ctx.strokeStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + (op * 0.5).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.4, u * 0.0011) / zoom;\n  ctx.stroke();\n\n  // ---- concentric Hertzian rings: only appear BEHIND the running tips ----\n  if (style !== 'tempered') {\n    const rings = 5;\n    ctx.beginPath();\n    let any = false;\n    for (let q = 1; q <= rings; q++) {\n      const rr = reach * (q / (rings + 0.6)) * (0.5 + 0.5 * fr(s.c + q * 9.1));\n      if (rr > L * 0.86) continue;                 // the ring lags the radial tips\n      any = true;\n      for (let j = 0; j < nr; j++) {\n        const a0 = (j / nr) * 6.2831 + fr(s.c * 5.1 + j) * 0.5;\n        const a1 = ((j + 1) / nr) * 6.2831 + fr(s.c * 5.1 + j + 1) * 0.5;\n        const x0 = cx + Math.cos(a0) * rr, y0 = cy + Math.sin(a0) * rr;\n        const x1 = cx + Math.cos(a1) * rr, y1 = cy + Math.sin(a1) * rr;\n        const am = (a0 + a1) * 0.5, bow = rr * (1.10 + 0.16 * fr(s.c + j * 3.3 + q));\n        ctx.moveTo(x0, y0);\n        ctx.quadraticCurveTo(cx + Math.cos(am) * bow, cy + Math.sin(am) * bow, x1, y1);\n      }\n    }\n    if (any) {\n      ctx.strokeStyle = 'rgba(' + INK[0] + ',' + INK[1] + ',' + INK[2] + ',' + (op * 0.6).toFixed(3) + ')';\n      ctx.lineWidth = Math.max(0.5, u * 0.0016) / zoom; ctx.stroke();\n    }\n  } else {\n    // tempered glass does not spider — it DICES into thousands of cubes. Fill the disc\n    // with a stipple whose density rises as the dicing front sweeps out.\n    ctx.beginPath();\n    const nd = Math.round(260 * P.density + 90);\n    for (let j = 0; j < nd; j++) {\n      const a = fr(s.c * 2.7 + j * 1.7) * 6.2831;\n      const rr = Math.sqrt(fr(s.c * 2.7 + j * 1.7 + 0.5)) * L;\n      const dx = cx + Math.cos(a) * rr, dy = cy + Math.sin(a) * rr;\n      const w = u * 0.005 * (0.5 + fr(j * 5.3 + s.c));\n      ctx.moveTo(dx, dy); ctx.lineTo(dx + w, dy + w * 0.6);\n    }\n    ctx.strokeStyle = 'rgba(' + INK[0] + ',' + INK[1] + ',' + INK[2] + ',' + (op * 0.75).toFixed(3) + ')';\n    ctx.lineWidth = Math.max(0.6, u * 0.0022) / zoom; ctx.stroke();\n  }\n\n  // ---- the crumb zone at the impact point: pulverised glass, brightest thing in frame ----\n  const cz = u * 0.012 * (0.7 + 0.6 * fr(s.c + 3)) * Math.min(1, age * 1.4);\n  ctx.beginPath(); ctx.arc(cx, cy, cz, 0, 6.2831);\n  ctx.fillStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + (op * 0.55).toFixed(3) + ')';\n  ctx.fill();\n  // a slow travelling glint: rides one radial, keeps the site alive to the eye\n  const gi = (tt * 0.5 + s.c * 0.37) % 1;\n  const ga = (Math.floor(tt * 0.21 + s.c) % nr) / nr * 6.2831;\n  const gx = cx + Math.cos(ga) * L * gi, gy = cy + Math.sin(ga) * L * gi;\n  ctx.beginPath(); ctx.arc(gx, gy, u * 0.006 * (1 - gi), 0, 6.2831);\n  ctx.fillStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + (op * 0.5 * (1 - gi)).toFixed(3) + ')';\n  ctx.fill();\n}\nctx.restore();\n\n// ---- a wandering gallery reflection on the pane surface: ties the sites together,\n// carries a guaranteed real-time motion floor, and lifts the mid-tone. ----\n{\n  const rx = (0.5 + 0.30 * dr1 + 0.12 * dr3) * width;\n  const ry = (0.5 + 0.26 * dr2 + 0.10 * dr1) * height;\n  const rr = u * (0.42 + 0.10 * dr3);\n  const gd = ctx.createRadialGradient(rx, ry, 0, rx, ry, rr);\n  const gi2 = (0.05 + 0.07 * P.energy) * aa;\n  gd.addColorStop(0, 'rgba(255,255,255,' + gi2.toFixed(3) + ')');\n  gd.addColorStop(1, 'rgba(255,255,255,0)');\n  ctx.save(); ctx.fillStyle = gd; ctx.fillRect(0, 0, width, height); ctx.restore();\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.desert_building",
+  "kind": "set",
+  "name": "Desert Building",
+  "desc": "A sun-baked pallet-rack and plywood desert structure with a patchwork facade, flickering window lights, a rising smoke plume and a drifting day-to-night tint.",
+  "tags": [
+    "desert",
+    "building",
+    "structure",
+    "adobe",
+    "playa",
+    "shack",
+    "warehouse",
+    "plywood",
+    "pallet-rack",
+    "architecture",
+    "burning-man",
+    "window-light",
+    "dusk",
+    "night",
+    "smoke",
+    "chimney",
+    "blueprint",
+    "riso",
+    "noir",
+    "thermal",
+    "facade",
+    "mural",
+    "set",
+    "prop",
+    "southwest"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "building size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "window-light + smoke intensity"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "facade earth-tone hue base"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "flicker + smoke rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1,
+      "doc": "smoke + heat-dust count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "building x anchor"
+    },
+    "y": {
+      "default": 0.84,
+      "min": 0.4,
+      "max": 1,
+      "doc": "building base y (ground line)"
+    },
+    "tod": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "time of day (0=night, 1=full day)"
+    },
+    "decay": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dust + smoke haze amount"
+    },
+    "style": {
+      "default": "adobe",
+      "options": [
+        "adobe",
+        "blueprint",
+        "riso",
+        "noir",
+        "thermal"
+      ],
+      "doc": "adobe=sun-baked patchwork facade with grain + raking shadow / blueprint=schematic white-on-blue line drawing (abstract) / riso=two-ink misregistered halftone / noir=chiaroscuro monochrome / thermal=false-color heat map (abstract)"
+    },
+    "act": {
+      "default": "static",
+      "options": [
+        "static",
+        "cycle"
+      ],
+      "doc": "static=fixed time of day / cycle=dusk-to-night sweep across sections"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "panel colors + window layout seed"
+    }
+  },
+  "acts": [
+    "static",
+    "cycle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:40:27+00:00",
+    "fps": 60.2,
+    "motion": 0.033,
+    "lum": 0.229
+  },
+  "code": "const D = { scale:1, energy:.6, hue:30, speed:1, density:.55, x:.5, y:.84, tod:.25, decay:.5, style:'adobe', act:'static', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsh=(i,j)=>{let h=(i*374761393+j*668265263+P.seed*2246822519)|0; h=((h^(h>>>13))*1274126177)|0; return (h^(h>>>16))>>>0;};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst adobe=st==='adobe', blueprint=st==='blueprint', riso=st==='riso', noir=st==='noir', thermal=st==='thermal';\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nlet tod=clp(P.tod,0,1);\nif(P.act==='cycle'){ tod=clp(0.65-K.section/7*0.6+0.05*Math.sin(K.t*0.05),0,1); }\nconst night=1-tod;\n\nconst bw=Math.round(u*1.15*P.scale), bh=Math.round(u*0.62*P.scale);\nconst bx0=P.x*W-bw*0.5, by0=P.y*Hh-bh;\n\nconst key=bw+'x'+bh+':'+st+':'+P.seed;\nif(!S.base||S.key!==key){\n  S.key=key; S.win=[];\n  const g=createGraphics(bw,bh); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const peakX=bw*0.60, peakY=bh*0.06, leftTopY=bh*0.34, rightTopY=bh*0.52, base=bh;\n  const roofY=x=> x<=peakX? lrp(leftTopY,peakY,clp(x/peakX,0,1)) : lrp(peakY,rightTopY,clp((x-peakX)/(bw-peakX),0,1));\n  const earth=[[30,32,56],[25,22,70],[35,14,82],[40,28,84],[10,58,58],[15,68,70],[350,50,50],[280,30,46],[42,30,88],[120,24,44],[25,46,34],[0,0,30]];\n  function panelCol(idx,brt){\n    if(noir){ const v=lrp(24,86,brt); return [220,6,v]; }\n    if(thermal){ const h=md(H+lrp(250,40,brt),360); return [h,lrp(85,20,brt),lrp(60,100,brt)]; }\n    const c=earth[idx%earth.length]; return [md(c[0]+(H-30),360),c[1],c[2]];\n  }\n  if(blueprint){ g.background(220,70,26); }\n  else{ g.fill(24,20,18); g.beginShape(); for(let x=0;x<=bw;x+=6)g.vertex(x,roofY(x)); g.vertex(bw,base); g.vertex(0,base); g.endShape(g.CLOSE); }\n  const cols=16, rows=6, cellW=bw/cols, cellH=(base-leftTopY)/rows;\n  for(let i=0;i<cols;i++)for(let j=0;j<rows;j++){\n    const px=i*cellW, py=leftTopY+j*cellH, mx=px+cellW*0.5, top=roofY(mx);\n    if(py+cellH<top) continue; const dt=Math.max(py,top), hh=(py+cellH)-dt; if(hh<4) continue;\n    const hk=hsh(i,j), brt=(hk%100)/100, inset=((hk>>4)&3)*0.5;\n    const c=panelCol(hk%earth.length,brt);\n    if(blueprint){ g.noFill(); g.stroke(190,50,100,70); g.strokeWeight(Math.max(0.6,bw*0.0009)); g.rect(px+inset,dt,cellW-inset*2,hh-inset); g.noStroke(); continue; }\n    if(riso){\n      g.fill(200,70,72,55); g.rect(px+inset-1.5,dt-1.5,cellW-inset*2,hh-inset);\n      g.fill(8,72,80,55); g.rect(px+inset+1.5,dt+1.5,cellW-inset*2,hh-inset);\n      if((hk&3)===0){ g.fill(0,0,100,22); for(let d=0;d<6;d++){ g.ellipse(px+cellW*fr(hk+d),dt+hh*fr(hk*2+d),1.6,1.6);} }\n      continue;\n    }\n    g.fill(c[0],c[1],c[2]); g.rect(px+inset,dt,cellW-inset*2,hh-inset);\n    if(adobe){\n      g.fill(0,0,0,18); g.rect(px+inset+(cellW-inset*2)*0.6,dt,(cellW-inset*2)*0.4,hh-inset);\n      if(c[0]>=25&&c[0]<=45&&(hk&7)<3){ g.stroke(c[0],c[1]+10,Math.max(0,c[2]-18),50); g.strokeWeight(0.5); for(let gg=1;gg<3;gg++){const gy=dt+gg*(hh/3); g.line(px+inset+3,gy,px+cellW-inset-3,gy);} g.noStroke(); }\n    }\n    if(noir){ g.fill(0,0,0,lrp(6,40,i/cols)); g.rect(px+inset,dt,cellW-inset*2,hh-inset); }\n  }\n  const doorX=bw*0.50, doorY=leftTopY+cellH*0.7, dW=cellW*0.7, dH=cellH*1.5;\n  if(!blueprint){ g.fill(48,74,88); g.rect(doorX,doorY,dW,dH); g.fill(45,88,66); g.rect(doorX+3,doorY+3,dW-6,dH-6); }\n  else{ g.noFill(); g.stroke(190,50,100,70); g.rect(doorX,doorY,dW,dH); g.noStroke(); }\n  const mx=bw*0.40, my=leftTopY+cellH*0.9, mr=cellH*0.55;\n  g.push(); g.translate(mx,my); g.noFill(); g.stroke(blueprint?190:195,60,blueprint?100:78,blueprint?70:100); g.strokeWeight(1.5);\n  for(let k=0;k<8;k++){ g.push(); g.rotate(k*Math.PI/4); g.ellipse(0,mr*0.55,mr*0.45,mr*0.95); g.pop(); }\n  g.noStroke(); if(!blueprint){ g.fill(48,72,88); g.circle(0,0,mr*0.35); g.fill(15,68,72); g.circle(0,0,mr*0.18);} g.pop();\n  const wy=leftTopY+cellH*3.1, wH=cellH*0.95, nW=7;\n  for(let k=0;k<nW;k++){ const wx=cellW*(1.2+k*1.9), wW=cellW*0.95; if(wy+wH<roofY(wx+wW*0.5))continue;\n    if(blueprint){ g.noFill(); g.stroke(190,50,100,70); g.rect(wx,wy,wW,wH);} else { g.fill(30,30,14); g.rect(wx,wy,wW,wH); g.fill(30,20,8); g.rect(wx+2,wy+2,wW-4,wH-4);} g.noStroke();\n    S.win.push({x:wx+wW*0.5,y:wy+wH*0.5,w:wW-4,h:wH-4,lit:fr(k*3+2)<0.72,ph:fr(k*3+3)*6.2832,fk:0.3+fr(k*3+4)});\n  }\n  if(!blueprint){ for(let i=0;i<Math.round(bw*bh*0.0022);i++){ const px=fr(i*3+9)*bw,py=fr(i*3+8)*bh; if(py<roofY(px))continue; g.fill(0,0,fr(i*3+7)<0.5?100:0,4); g.rect(px,py,1.3,1.3);} }\n  S.base=g;\n  S.chim={x:bw*0.74,y:roofY(bw*0.74)};\n}\n// --- drifting cloud band: real-time (K.t) motion floor, never re-phases at 8s ---\nif(S.cloudSeed!==P.seed){ S.cloudSeed=P.seed; S.cl=[];\n  for(let i=0;i<8;i++) S.cl.push({ y:0.03+fr(i*13+1)*0.42, sp:0.45+fr(i*13+2)*1.0, sz:0.55+fr(i*13+3)*1.1, ph:fr(i*13+4), pf:fr(i*13+5) }); }\nnoStroke(); blendMode(BLEND);\n{ const cloudBr=lrp(44,90,tod), cloudSat=lrp(32,8,tod);\n  const cloudHue=blueprint?205:thermal?md(H+200,360):lrp(255,42,tod);\n  for(let i=0;i<S.cl.length;i++){ const c=S.cl[i];\n    const cw2=u*(0.34+c.sz*0.55), span=W+cw2*2.2;\n    const cx=md(c.ph*span + K.t*u*0.032*c.sp*P.speed, span)-cw2*1.1;\n    const cy=c.y*Hh, drift=Math.sin(K.t*0.15*c.sp + c.pf*6.2832)*u*0.02;\n    for(let pp=0;pp<5;pp++){ const fx=fr(i*17+pp*3), fy=fr(i*17+pp*3+1), fs=fr(i*17+pp*3+2);\n      fill(cloudHue,cloudSat,cloudBr, 5+fs*7);\n      ellipse(cx+(fx-0.5)*cw2*0.95, cy+(fy-0.5)*u*0.10+drift, cw2*(0.5+fs*0.55), cw2*(0.32+fs*0.35)); } } }\nimage(S.base,bx0,by0,bw,bh);\n\nnoStroke();\nif(night>0.02){ fill(232,55,14, night*58); rect(bx0,by0,bw,bh); }\nif(tod>0.5){ blendMode(ADD); fill(md(H+8,360),40,90, (tod-0.5)*22); rect(bx0,by0,bw,bh); blendMode(BLEND); }\n\nconst lightAmt=(0.4+night*0.9)*(0.6+P.energy)+A.lowmid*0.3;\nblendMode(ADD); noStroke();\nfor(let i=0;i<S.win.length;i++){ const wn=S.win[i]; if(!wn.lit)continue;\n  const tog=0.5+0.5*Math.sin(K.t*0.35*wn.fk+wn.ph*2);\n  const fk=0.6+0.4*Math.sin(K.t*(4+wn.fk*3)*P.speed+wn.ph)+0.15*Math.sin(K.t*11+wn.ph);\n  const br=clp(tog*fk,0,1.3)*lightAmt;\n  if(br<0.05)continue;\n  const wc=blueprint?[190,60,100]:noir?[45,10,100]:thermal?[md(H+30,360),70,100]:[42,80,100];\n  const gx=bx0+wn.x, gy=by0+wn.y;\n  fill(wc[0],wc[1],wc[2], 55*br); rect(gx-wn.w/2,gy-wn.h/2,wn.w,wn.h);\n  fill(wc[0],clp(wc[1]-20,0,100),100, 30*br); ellipse(gx,gy,wn.w*2.4,wn.h*2.4);\n}\nblendMode(BLEND);\n\nif(S.smokeSeed!==P.seed){ S.smokeSeed=P.seed; S.sm=[]; for(let i=0;i<46;i++)S.sm.push({o:fr(i+5)-0.5,sp:0.4+fr(i+6)*0.8,ph:fr(i+7),sw:0.3+fr(i+8)}); }\nconst cxp=bx0+S.chim.x, cyp=by0+S.chim.y;\nconst nS=Math.round(46*clp(P.density,0.15,1));\nconst plumeH=u*0.4*P.scale*(0.5+P.energy);\nnoStroke();\nfor(let i=0;i<nS;i++){ const s2=S.sm[i];\n  const life=frc(s2.ph+K.t*0.06*s2.sp*P.speed);\n  const sx=cxp+s2.o*u*0.02+Math.sin(K.t*0.7*s2.sw+i)*u*0.04*life;\n  const sy=cyp-life*plumeH;\n  const sz=u*0.01*(0.5+life*1.6)*(0.5+s2.sw);\n  const a=(1-life)*(0.12+night*0.14)*(thermal?2.2:1)*(0.4+P.decay);\n  const sc2= thermal?[md(H+lrp(30,240,life),360),60,90] : blueprint?[200,20,80] : [30,10,lrp(60,88,tod)];\n  fill(sc2[0],sc2[1],sc2[2], a*100); ellipse(sx,sy,sz,sz*1.1);\n}\n\nblendMode(ADD); noStroke();\nconst nd=Math.round(26*clp(P.density,0.2,1));\nfor(let i=0;i<nd;i++){ const dx=frc(fr(i+50)+K.t*0.02*(0.5+fr(i+51)))*bw, dy=fr(i+52)*bh*0.4+bh*0.55;\n  const tw=0.5+0.5*Math.sin(K.t*(1.5+fr(i+53))+i);\n  fill(md(H+10,360),25,100, (0.06+tod*0.06)*tw*100*P.decay); ellipse(bx0+dx,by0+dy+Math.sin(K.t*0.9+i)*u*0.01,u*0.003,u*0.003);\n}\nblendMode(BLEND);\n"
+}

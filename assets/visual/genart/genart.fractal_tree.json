@@ -1,0 +1,118 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.fractal_tree",
+  "kind": "genart",
+  "name": "Windblown Tree",
+  "desc": "A recursive L-system tree grows a full canopy and sways in an ever-changing wind \u2014 branches forking to luminous blossom/leaf tips that flicker, the whole crown bending under incommensurate gusts so it never repeats; renders as pink blossom, autumn fire, bioluminescent night-tree, bare winter frost, or sumi ink on paper.",
+  "tags": [
+    "tree",
+    "fractal",
+    "l-system",
+    "recursive",
+    "branching",
+    "botanical",
+    "wind",
+    "sway",
+    "canopy",
+    "blossom",
+    "organic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "nature",
+    "growth",
+    "leaves",
+    "autumn",
+    "bonsai",
+    "sumi"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "canopy depth / fullness (more branches + leaves)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "branch/leaf brightness"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.1,
+      "max": 3.0,
+      "doc": "(reserved) animation rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "tree size / trunk length"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wind sway amplitude + branch spread"
+    },
+    "hue": {
+      "default": 330,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage/tip base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "trunk base x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "(reserved)"
+    },
+    "style": {
+      "default": "blossom",
+      "options": [
+        "blossom",
+        "autumn",
+        "bio",
+        "winter",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic tree seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:21:47+00:00",
+    "fps": 58.8,
+    "motion": 0.0626,
+    "lum": 0.268
+  },
+  "code": "const D = { density:.55, energy:.6, speed:1, scale:1, wind:.5, hue:330, x:.5, y:.5, style:'blossom', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst wh = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst style = P.style;\nconst sec = K.section | 0;\n\n// per-frame deterministic PRNG (reset each frame so the tree STRUCTURE is stable; wind is added separately)\nlet sr;\nfunction rreset(){ sr = ((P.seed + 1 + sec*777) * 2654435761) >>> 0; }\nfunction rnd(){ sr ^= sr<<13; sr>>>=0; sr ^= sr>>17; sr ^= sr<<5; sr>>>=0; return sr/4294967295; }\n\n// wind: SUM of incommensurate sinusoids so the pose NEVER re-phases at the 8s validation window\nconst wt = K.t;\nconst gust = 0.9*Math.sin(wt*0.61) + 0.5*Math.sin(wt*1.43 + 1.7) + 0.32*Math.sin(wt*2.29 + 0.4);\nconst windAmp = (0.05 + P.wind*0.16) * (1 + A.lowmid*0.5);\nconst maxDepth = 9 + Math.round(P.density*2);           // 9..11\nconst ratio = 0.70 + P.scale*0.06;\nconst spread = 0.34 + P.wind*0.10;\nconst len0 = height * (0.16 + P.scale*0.07);\nconst hb = P.hue;\n\n// ---- sky/ground ground so it's never near-black and fills frame ----\nlet sky0, sky1, grd0;\nif (style === 'blossom')      { sky0='#101a2e'; sky1='#26304e'; grd0='#0b0d16'; }\nelse if (style === 'autumn')  { sky0='#241426'; sky1='#3a2030'; grd0='#120a10'; }\nelse if (style === 'bio')     { sky0='#02060a'; sky1='#04121a'; grd0='#010406'; }\nelse if (style === 'winter')  { sky0='#0c1420'; sky1='#1c2c3e'; grd0='#0a0e14'; }\nelse                          { sky0='#efe9dc'; sky1='#dcd2c0'; grd0='#cfc4ae'; } // ink (paper)\nconst dc = drawingContext;\nconst gg = dc.createLinearGradient(0,0,0,height);\ngg.addColorStop(0, sky0); gg.addColorStop(0.62, sky1); gg.addColorStop(1, grd0);\ndc.save(); dc.fillStyle = gg; dc.fillRect(0,0,width,height); dc.restore();\n\nconst inkMode = (style === 'ink');\nconst rootX = width * P.x, rootY = height * (0.995);\npush();\nif (inkMode) blendMode(BLEND); else blendMode(ADD);\nstrokeCap(ROUND);\n\nfunction branch(x, y, ang, len, depth) {\n  const df = maxDepth - depth;                          // 0 at root -> maxDepth at tips\n  const tf = df / maxDepth;\n  // sway grows toward the tips (cumulative feel) + a per-node phase for organic variation\n  const nodePhase = rnd() * 6.28;\n  const sway = windAmp * (0.15 + tf*tf*1.6) * (gust + 0.4*Math.sin(wt*1.9 + nodePhase));\n  const a = ang + sway;\n  const ex = x + Math.cos(a) * len, ey = y - Math.sin(a) * len;\n\n  const w = Math.max(0.5, (maxDepth - df) * 0.9 * (0.6 + P.scale*0.5));\n  // trunk brown -> tip hue\n  let sh, ss, sv, sa;\n  if (inkMode) { sh = 30; ss = 8; sv = 12; sa = 90; }\n  else if (style === 'bio') { sh = wh(hb + 70 + tf*60); ss = 70; sv = 40 + tf*60; sa = 30 + tf*30; }\n  else { const trunk = 26; sh = wh(trunk + (hb - trunk)*tf); ss = 30 + tf*45; sv = 22 + tf*55; sa = 26 + tf*34; }\n  stroke(sh, ss, sv, sa * (0.6 + P.energy*0.6));\n  strokeWeight(w);\n  line(x, y, ex, ey);\n\n  if (depth <= 0 || len < u*0.012) {\n    // foliage tip: blossom / leaf dot\n    const bs = u * (0.006 + rnd()*0.012) * (0.7 + P.density*0.9);\n    noStroke();\n    let fh, fs, fv, fa;\n    if (inkMode)              { fh=30; fs=6; fv=20; fa=40; }\n    else if (style==='autumn'){ fh=wh(18 + rnd()*36); fs=85; fv=95; fa=55; }\n    else if (style==='bio')   { fh=wh(hb+120+rnd()*80); fs=80; fv=100; fa=60; }\n    else if (style==='winter'){ fh=wh(200+rnd()*30); fs=20; fv=100; fa=55; }\n    else                      { fh=wh(hb + (rnd()-0.5)*40); fs=60+rnd()*30; fv=95; fa=55; } // blossom\n    const tw = fa + A.treble*30 + K.pulse*10;\n    fill(fh, fs, fv, Math.min(90, tw));\n    circle(ex + (rnd()-0.5)*bs, ey + (rnd()-0.5)*bs, bs*2);\n    return;\n  }\n  const nb = (rnd() < 0.30 && df < maxDepth-2) ? 3 : 2;  // occasional trifurcation\n  const nl = len * (ratio + (rnd()-0.5)*0.06);\n  const sp = spread * (0.7 + rnd()*0.6);\n  branch(ex, ey, a + sp, nl, depth-1);\n  branch(ex, ey, a - sp*(0.8+rnd()*0.4), nl, depth-1);\n  if (nb === 3) branch(ex, ey, a + (rnd()-0.5)*0.3, nl*0.9, depth-1);\n}\n\nrreset();\nbranch(rootX, rootY, Math.PI/2 + 0.10*Math.sin(wt*0.37), len0, maxDepth);\nblendMode(BLEND);\npop();\n"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.scaffold",
+  "kind": "set",
+  "name": "Scaffold",
+  "desc": "A tube-and-clamp scaffold standing in perspective \u2014 standards, ledgers, transoms and facade braces lacing an open steel lattice across two rows, boards decking each lift, torn debris netting breathing on the outer face and a hoist load creeping the elevation.",
+  "tags": [
+    "scaffold",
+    "scaffolding",
+    "tube-and-clamp",
+    "standards",
+    "ledger",
+    "transom",
+    "brace",
+    "lattice",
+    "frame",
+    "boards",
+    "planks",
+    "netting",
+    "hoist",
+    "construction",
+    "site",
+    "building",
+    "facade",
+    "renovation",
+    "steel",
+    "galvanised",
+    "rust",
+    "industrial",
+    "perspective",
+    "vanishing-point",
+    "depth",
+    "recession",
+    "layers",
+    "see-through",
+    "architecture",
+    "architectural",
+    "scenery",
+    "structure",
+    "built",
+    "geometry",
+    "blueprint",
+    "engraving",
+    "chiaroscuro",
+    "austere",
+    "decayed",
+    "liminal",
+    "workmanlike"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sun catch on the tubes, netting breath and camera parallax"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "lift height, tube girth and row spacing (2.2 = a heavy rig that crowds the frame; the bay width stays fixed so this is never a no-op)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bays across and lifts up (3x2 to 6x5)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "rate the sun crawls the facade and the hoist creeps; the camera keeps breathing regardless so it never goes static"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "sun/netting hue; the steel takes its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point across frame"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0.25,
+      "max": 0.85,
+      "doc": "eye line height"
+    },
+    "netting": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "how much debris netting is hung \u2014 it is translucent, so 1 veils the bg rather than hiding it"
+    },
+    "style": {
+      "default": "galvanised",
+      "options": [
+        "galvanised",
+        "rust",
+        "chiaroscuro",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "aesthetic: cold galvanised steel / oxidised decay / form from light alone / cyan schematic linework / hatched paper plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "which bays are braced and netted, board wear, tube weathering"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark, so it dissolves into the background instead of veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:38+00:00",
+    "fps": 60.2,
+    "motion": 0.0941,
+    "lum": 0.213
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:44, x:.5, y:.55, netting:.45, style:'galvanised', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, HU = ((P.hue%360)+360)%360;\nconst wire = (sty === 'blueprint'), paper = (sty === 'engraving'), rust = (sty === 'rust'), dk = (sty === 'chiaroscuro');\n// a SET composites OVER a bg: alpha scales every mark. Never paint a black veil.\nconst AL = cl(P.alpha, 0, 100);\nif (AL > 0.5) {\n\nconst bsm = (S.bm = (S.bm||0)*.84 + (A.bass||0)*.16);\nconst gl = (.44 + .56*P.energy) * (.55 + .5*K.intensity) + bsm*.24;\n\nconst dA = .55*Math.sin(K.t*.41) + .30*Math.sin(K.t*.97+1.7) + .17*Math.sin(K.t*1.63+.4);\nconst dB = .50*Math.sin(K.t*.53+2.1) + .32*Math.sin(K.t*1.19+.9) + .20*Math.sin(K.t*2.29+2.6);\nconst dC = .60*Math.sin(K.t*.089) + .40*Math.sin(K.t*.211+1.1);\n\nconst BAY = u*.46;                                  // standard bay, FIXED\nconst LIFT = u*.34*P.scale;                         // lift (storey) height\nconst TUB = u*.011*P.scale;                         // tube radius\nconst NX = 3 + Math.round(cl(P.density,0,1)*3);     // bays across\nconst NY = 2 + Math.round(cl(P.density,0,1)*3);     // lifts up\nconst NZ = 2;                                       // rows of standards (inner + outer)\nconst DZ = u*.30*P.scale;                           // distance between the two rows\n\n// the scaffold stands still; the CAMERA breathes \u2014 real parallax, no beat flash\nconst camX = (NX-1)*BAY*.5 + u*.075*dA*P.energy;\nconst camY = -(NY*LIFT*.42) + u*.05*dB*P.energy;\nconst camZ = -u*(1.30 + .10*P.scale) + u*.085*dC*P.energy;\nconst yaw = .10 + .035*dA*P.energy + .022*Math.sin(K.t*.113+1.7);\nconst ca = Math.cos(yaw), sa = Math.sin(yaw);\nconst f = u*1.05, NEAR = u*.06;\nconst vcx = cl(P.x,.1,.9)*width, vcy = cl(P.y,.25,.85)*height;\n\n// the sun crawls the facade; a hoist creeps up and down its own slow clock\nconst sunA = .90*Math.sin(K.t*.041*P.speed) + .36*Math.sin(K.t*.101*P.speed+2.0);\nconst hoistY = -(NY*LIFT)*(.16 + .40*(.5 + .5*Math.sin(K.t*.083*P.speed + 1.2)))\n             - (NY*LIFT)*.10*Math.sin(K.t*.191*P.speed);\n\nconst AXa = new Float64Array(12), AYa = new Float64Array(12), AZa = new Float64Array(12);\nconst BXa = new Float64Array(18), BYa = new Float64Array(18);\nfunction poly(v){\n  const n = v.length/3;\n  for (let i=0;i<n;i++){\n    const X = v[i*3]-camX, Y = v[i*3+1]-camY, Z = v[i*3+2]-camZ;\n    AXa[i] = X*ca - Z*sa; AYa[i] = Y; AZa[i] = X*sa + Z*ca;\n  }\n  let m = 0;\n  for (let i=0;i<n;i++){\n    const j = (i+1)%n, az = AZa[i], bz = AZa[j], ai = az>NEAR, bi2 = bz>NEAR;\n    if (ai){ BXa[m] = vcx + f*AXa[i]/az; BYa[m] = vcy + f*AYa[i]/az; m++; }\n    if (ai !== bi2){\n      const tt = (NEAR-az)/(bz-az);\n      BXa[m] = vcx + f*(AXa[i]+(AXa[j]-AXa[i])*tt)/NEAR;\n      BYa[m] = vcy + f*(AYa[i]+(AYa[j]-AYa[i])*tt)/NEAR; m++;\n    }\n  }\n  if (m < 3) return false;\n  beginShape(); for (let i=0;i<m;i++) vertex(BXa[i], BYa[i]); endShape(CLOSE);\n  return true;\n}\nfunction pt2(X,Y,Z){\n  const dx = X-camX, dy = Y-camY, dz = Z-camZ;\n  const rz = dx*sa + dz*ca;\n  if (rz <= NEAR) return null;\n  return [vcx + f*(dx*ca - dz*sa)/rz, vcy + f*dy/rz, rz];\n}\n\nfunction mixc(c,d,t){ const dh = ((d[0]-c[0])%360+540)%360-180;\n  return [c[0]+dh*t, c[1]+(d[1]-c[1])*t, c[2]+(d[2]-c[2])*t]; }\nconst HAZE = paper ? [40, 6, 90] : wire ? [212, 58, 22] : dk ? [HU, 12, 8]\n           : rust ? [18, 40, 26] : [(HU+180)%360, 12, 34];\nconst fogA = (paper||wire) ? .24 : .50;\nfunction tone(v, tv){\n  if (paper) return [40, 5 + 4*tv, cl(96 - 56*(1-v), 34, 96)];\n  if (wire)  return [212, 60, cl(12 + 12*v, 8, 34)];\n  if (dk)    return [HU, cl(22 - 12*v, 0, 26), cl(2 + 90*Math.pow(v,1.9), 1, 96)];\n  if (rust)  return [cl(15 + 18*tv - 4*v, 2, 40), cl(32 + 32*tv - 12*v, 5, 66), cl(7 + 74*v, 4, 92)];\n  return [(HU + 170 - 8*v + 8*tv + 360)%360, cl(9 - 5*v + 6*tv, 0, 16), cl(12 + 76*v, 5, 95)];\n}\nfunction ink(a){\n  if (wire) stroke(190, 30, 100, a*AL/100);\n  else if (paper) stroke(30, 20, 14, a*AL/100);\n  else stroke((HU+170)%360, 8, 78, a*.26*AL/100);\n}\nfunction fl2(c, a){ fill(c[0], c[1], c[2], (a===undefined?100:a)*AL/100); }\n\n// a tube: an axis-aligned run drawn as a shaded bar. Verticals stay vertical under\n// pure yaw, so standards are exact rects; ledgers/transoms go through poly().\nfunction tubeV(X, Z, y0, y1, tv, lam){\n  const p = pt2(X, (y0+y1)*.5, Z);\n  if (!p) return;\n  const rw = f*TUB/p[2];\n  if (rw < .35) return;\n  const ya = vcy + f*(y0 - camY)/p[2], yb = vcy + f*(y1 - camY)/p[2];\n  const hz = cl((p[2] - NEAR)/(u*3.2), 0, 1);\n  const NS = cl(Math.round(rw/1.6), 1, 4);\n  for (let s2=0; s2<NS; s2++){\n    const q0 = -1 + 2*s2/NS, q1 = -1 + 2*(s2+1)/NS, qm = (q0+q1)*.5;\n    const v = cl((.18 + .82*Math.cos((qm - lam*.7)*1.35)) * (.42+.5*gl) * (.9+.2*tv), 0, 1);\n    const c = mixc(tone(v, tv), HAZE, hz*fogA);\n    if (wire){ noFill(); ink(46); } else { noStroke(); fl2(c); }\n    rect(p[0] + q0*rw, Math.min(ya,yb), (q1-q0)*rw + .9, Math.abs(yb-ya));\n  }\n}\nfunction tubeH(x0,y0,z0, x1,y1,z1, tv, lam){\n  const v = cl((.20 + .74*Math.cos((lam - .25)*1.1)) * (.42+.5*gl) * (.9+.2*tv), 0, 1);\n  const pm = pt2((x0+x1)*.5, (y0+y1)*.5, (z0+z1)*.5);\n  const hz = pm ? cl((pm[2] - NEAR)/(u*3.2), 0, 1) : .5;\n  const c = mixc(tone(v, tv), HAZE, hz*fogA);\n  if (wire){ noFill(); ink(46); } else { noStroke(); fl2(c); }\n  poly([x0, y0-TUB, z0, x1, y1-TUB, z1, x1, y1+TUB, z1, x0, y0+TUB, z0]);\n}\n\nstrokeWeight(Math.max(1, u*.0013));\nconst lamF = cl(.5 + .5*sunA, 0, 1);\n\n// ---- the frame: standards (vertical), ledgers (horizontal), transoms, braces -------\nfor (let zi=NZ-1; zi>=0; zi--){                        // far row first\n  const Z = zi ? 0 : -DZ;                              // inner row at 0, outer at -DZ\n  for (let bx2=0; bx2<NX; bx2++){\n    const X = bx2*BAY;\n    const tv = fr(bx2*31.7 + zi*13.3);\n    // standard, full height\n    tubeV(X, Z, -NY*LIFT - LIFT*.22, 0, tv, lamF*2-1);\n    // ledgers + transoms + guardrails at every lift\n    for (let ly=0; ly<=NY; ly++){\n      const Y = -ly*LIFT;\n      if (bx2 < NX-1) tubeH(X, Y, Z, X+BAY, Y, Z, fr(bx2*7.1+ly*3.3), lamF);\n      if (zi === 0 && bx2 < NX-1 && ly < NY) tubeH(X, Y-LIFT*.47, Z, X+BAY, Y-LIFT*.47, Z, fr(bx2*5.9+ly*2.1), lamF);\n      if (zi === 0) tubeH(X, Y, -DZ, X, Y, 0, fr(bx2*11.3+ly*4.7), lamF*.6);   // transom, ties the rows\n    }\n    // a facade brace on some bays \u2014 the diagonal that makes it read as scaffold\n    if (zi === 0 && bx2 < NX-1 && fr(bx2*23.1) < .55){\n      const ly = Math.floor(fr(bx2*29.3)*NY);\n      const up = fr(bx2*3.7) < .5;\n      tubeH(X, -ly*LIFT - (up?0:LIFT), Z, X+BAY, -ly*LIFT - (up?LIFT:0), Z, .5, lamF*.8);\n    }\n  }\n  // ---- boards: the working platform on each lift, seen edge-on and from below\n  if (zi === 0){\n    for (let ly=1; ly<=NY; ly++){\n      const Y = -ly*LIFT;\n      const below = (Y > camY);\n      const pv = (below ? .30 : .10) * (.5+.55*gl) + .05;\n      for (let bd=0; bd<4; bd++){\n        const zz = -DZ + (DZ)*(bd+.5)/4;\n        const c = mixc(tone(cl(pv*(.86 + .26*fr(ly*7.7 + bd*3.1)), 0, 1), fr(ly*2.3+bd)), HAZE, .34*fogA);\n        if (wire){ noFill(); ink(38); } else { noStroke(); fl2(c); }\n        poly([-BAY*.10, Y, zz, (NX-1)*BAY + BAY*.10, Y, zz,\n              (NX-1)*BAY + BAY*.10, Y, zz + DZ*.21, -BAY*.10, Y, zz + DZ*.21]);\n      }\n      // toe board\n      const c2 = mixc(tone(cl(.16*(.5+.55*gl)+.05, 0, 1), .5), HAZE, .34*fogA);\n      if (!wire){ noStroke(); fl2(c2); }\n      poly([-BAY*.10, Y, -DZ, (NX-1)*BAY + BAY*.10, Y, -DZ,\n            (NX-1)*BAY + BAY*.10, Y - LIFT*.09, -DZ, -BAY*.10, Y - LIFT*.09, -DZ]);\n    }\n  }\n}\n\n// ---- debris netting on the OUTER row: translucent, so the bg still reads through --\nconst NET = cl(P.netting, 0, 1);\nif (NET > .02 && !wire){\n  for (let bx2=0; bx2<NX-1; bx2++){\n    for (let ly=0; ly<NY; ly++){\n      if (fr(bx2*17.7 + ly*5.3) > NET) continue;\n      const x0 = bx2*BAY, x1 = (bx2+1)*BAY;\n      const y0 = -(ly+1)*LIFT, y1 = -ly*LIFT;\n      const sag = LIFT*.06*Math.sin(K.t*(.5 + fr(bx2*3.1+ly)*.5) + bx2*1.7 + ly*.9);\n      const nv = cl((.30 + .34*lamF) * (.5+.5*gl), 0, 1);\n      const c = mixc(tone(nv, fr(bx2*2.3+ly*7.1)), HAZE, .3*fogA);\n      noStroke();\n      fl2(paper ? [40, 8, 84] : dk ? [HU, 16, 30] : [(HU+2)%360, cl(38 + 16*fr(bx2*11.3), 0, 70), c[2]], 34);\n      poly([x0, y0 + sag, -DZ*1.14, x1, y0 - sag, -DZ*1.14, x1, y1 - sag*.6, -DZ*1.14, x0, y1 + sag*.6, -DZ*1.14]);\n    }\n  }\n}\n\n// ---- the hoist: a gin wheel and a load creeping the face on its own slow clock -----\nif (!wire){\n  const hx = (NX-1)*BAY*.72;\n  const p = pt2(hx, hoistY, -DZ*1.25);\n  const pTop = pt2(hx, -NY*LIFT - LIFT*.18, -DZ*1.25);\n  if (p && pTop){\n    ink(paper ? 46 : 40); strokeWeight(Math.max(1, u*.0016));\n    line(pTop[0], pTop[1], p[0], p[1]);\n    const rw = Math.max(1.5, f*(u*.028*P.scale)/p[2]);\n    const c = mixc(tone(cl(.34*(.5+.55*gl)+.06, 0, 1), .4), HAZE, .3*fogA);\n    noStroke(); fl2(c);\n    rect(p[0] - rw, p[1], rw*2, rw*1.5);\n  }\n}\n\n// ---- sun catching the tube tops (partial frame, ADD, low alpha) ---------------------\nif (!paper && !wire && AL > 8){\n  push(); blendMode(ADD); noStroke();\n  for (let ly=0; ly<=NY; ly++){\n    const Y = -ly*LIFT;\n    const lz = cl(.2 + .8*Math.exp(-Math.pow(ly - (NY*(.5+.45*Math.sin(K.t*.067*P.speed))), 2)*.5), 0, 1);\n    fill(dk?HU:(HU+2)%360, dk?10:24, 100, cl((1.6 + 3.6*gl*lz*lamF)*AL/100, 0, 12));\n    poly([-BAY*.10, Y - TUB*3, -DZ, (NX-1)*BAY + BAY*.10, Y - TUB*3, -DZ,\n          (NX-1)*BAY + BAY*.10, Y + TUB*3, -DZ, -BAY*.10, Y + TUB*3, -DZ]);\n  }\n  pop(); blendMode(BLEND);\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n}\n"
+}

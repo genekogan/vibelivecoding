@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.karst",
+  "kind": "genart",
+  "name": "Karst",
+  "desc": "A cave system dissolves itself into limestone in cross-section \u2014 water sinks through a fabric of vertical joints and bedding planes, and because a wider fissure takes more flow it widens faster and captures its neighbours, so a few conduits win and open into passages; the water table falls over minutes, strands the tube it cut, and starts a new one below it, while the drained tiers above grow dripstone.",
+  "tags": [
+    "karst",
+    "cave",
+    "cavern",
+    "speleology",
+    "spelunking",
+    "limestone",
+    "carbonate",
+    "dissolution",
+    "solution",
+    "conduit",
+    "phreatic",
+    "vadose",
+    "water-table",
+    "epikarst",
+    "sinkhole",
+    "doline",
+    "speleothem",
+    "dripstone",
+    "stalactite",
+    "flowstone",
+    "joint",
+    "fracture",
+    "bedding",
+    "aperture",
+    "cross-section",
+    "subsurface",
+    "underground",
+    "geology",
+    "geomorphology",
+    "hydrology",
+    "groundwater",
+    "erosion",
+    "base-level",
+    "mammoth-cave",
+    "survey",
+    "plate",
+    "cave-survey",
+    "xray",
+    "negative",
+    "thermal",
+    "ink",
+    "sumi",
+    "buff",
+    "ochre",
+    "simulation",
+    "emergent",
+    "self-organizing",
+    "positive-feedback",
+    "slow",
+    "dramaturgy",
+    "process",
+    "scientific",
+    "eerie",
+    "austere",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dissolution vigour (how fast conduits open) + colour/contrast gain"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the section around x/y \u2014 1 shows the whole massif, 2.6 crops to a single passage"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate of cave genesis and base-level cycling"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "recharge \u2014 number of water parcels, i.e. how densely the network is explored"
+    },
+    "joints": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fracture fabric: 0 = near-massive rock, few slow conduits; 1 = a heavily jointed and bedded massif that opens into a maze"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "limestone hue anchor; rotates the plate with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "survey",
+      "options": [
+        "survey",
+        "xray",
+        "thermal",
+        "ink"
+      ],
+      "doc": "aesthetic: survey = cave-survey plate, buff bedded limestone, blue phreatic water, cream dripstone; xray = abstracted negative, the rock vanishes and only the void network glows; thermal = false-colour; ink = sumi tonal wash"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "fracture fabric seed (rebuilds the massif)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:05:20+00:00",
+    "fps": 60.2,
+    "motion": 0.0196,
+    "lum": 0.606
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, joints: .5, hue: 40, x: .5, y: .5, style: 'survey', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Karst: a cave system dissolving itself, in vertical section -----------\n// Limestone carries a seeded fracture fabric \u2014 near-vertical joints crossed by\n// horizontal bedding planes. Water sinks from the epikarst, routes through the\n// widest apertures, and dissolves what it touches while its aggressiveness is\n// consumed. That is a POSITIVE FEEDBACK: a slightly wider fissure takes more\n// flow, so it widens faster and captures its neighbours \u2014 conduit competition,\n// the actual mechanism of cave genesis. At the water table the flow turns and\n// runs laterally to a spring, cutting a phreatic tube.\n// Anti-convergence: base level falls and rises on incommensurate cycles, so the\n// active tube is abandoned and a NEW level starts below it \u2014 stacked tiers, the\n// way Mammoth Cave is built. Abandoned tubes drain and grow speleothem.\nconst BW = 180, BH = 101, N = BW * BH;\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\n\nif (!S.g) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.ap = new Float32Array(N);      // fracture aperture / voidness 0..1\n  S.tex = new Float32Array(N);     // static bedding texture, cached (pow/sin per pixel per frame was ~2ms)\n  S.dep = new Float32Array(N);     // speleothem deposited in air-filled voids\n  S.seedUsed = null;\n}\nif (S.seedUsed !== P.seed || S.jUsed !== P.joints) {\n  S.seedUsed = P.seed; S.jUsed = P.joints;\n  const jt = 0.3 + P.joints * 0.7;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    // near-vertical joint sets + horizontal bedding planes = the real fabric\n    const jset = Math.pow(Math.abs(Math.sin((i * 0.42 + vn(i * 0.03, j * 0.012) * 5.5) )), 12);\n    const bed = Math.pow(Math.abs(Math.sin(j * 0.55 + vn(i * 0.015, j * 0.02) * 1.6)), 16);\n    S.ap[j * BW + i] = 0.006 + jset * 0.055 * jt + bed * 0.035 * jt + hsh(i, j) * 0.006;\n    S.dep[j * BW + i] = 0;\n    const bs = Math.abs(Math.sin(j * 0.55));\n    const bs3 = bs * bs * bs;\n    S.tex[j * BW + i] = 0.86 + 0.28 * bs3 * bs3 + hsh(i * 2, j * 2) * 0.12;\n  }\n  S.rng = (Math.imul(sd, 2654435761) + 999) >>> 0;\n  S.warm = 900;\n}\nconst rnd = () => { S.rng = (Math.imul(S.rng, 1664525) + 1013904223) >>> 0; return S.rng / 4294967296; };\n\nconst spd = 0.3 + P.speed * 0.95;\n// base level: incommensurate cycles -> the water table falls, abandons a tube,\n// and a new level starts below; then it rises and drowns them again\nconst wt = BH * (0.50 + 0.26 * (0.55 * Math.sin(K.t * 0.031) + 0.31 * Math.sin(K.t * 0.0712 + 2.3) + 0.14 * Math.sin(K.t * 0.129 + 0.8)));\nconst recharge = 0.5 + 0.5 * (0.6 * Math.sin(K.t * 0.058 + 1.1) + 0.4 * Math.sin(K.t * 0.111 + 0.2));\nconst rech = Math.max(0.08, recharge * (0.55 + K.intensity * 0.5) + A.bass * 0.2);\n\n// ---- route water parcels: sink -> phreatic tube -> spring ------------------\nconst passes = S.warm > 0 ? 10 : 1;\nconst NP = Math.round((14 + P.density * 40) * (0.5 + rech * 0.7));\nconst diss = 0.00075 * (0.35 + P.energy * 1.1) * spd;\nfor (let q = 0; q < passes; q++) {\n  for (let p = 0; p < NP; p++) {\n    let x = 2 + rnd() * (BW - 4), y = 1;\n    let agg = 1;                                    // aggressiveness (undersaturation)\n    for (let s2 = 0; s2 < 210; s2++) {\n      const xi = x | 0, yi = y | 0;\n      if (xi < 1 || xi >= BW - 1 || yi < 1 || yi >= BH - 1) break;\n      const k = yi * BW + xi;\n      // dissolve: widen the aperture in proportion to flow x aggressiveness\n      const d2 = diss * agg * (0.4 + S.ap[k] * 6);\n      S.ap[k] += d2; if (S.ap[k] > 1) S.ap[k] = 1;\n      S.dep[k] *= 0.985;                            // active flow strips speleothem\n      agg *= 0.988;                                 // and the water saturates\n      if (agg < 0.05) break;\n      // route: above the water table sink down the widest aperture (vadose);\n      // below it, run laterally along the table to the spring (phreatic)\n      let bx = 0, by = 0, bw = -1e9;\n      const phre = y > wt;\n      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {\n        if (!a && !b) continue;\n        if (!phre && b < 0) continue;               // vadose water does not climb\n        if (phre && b > 0 && y > wt + 2) continue;  // phreatic water does not sink far below the table\n        const ap2 = S.ap[(yi + b) * BW + (xi + a)];\n        const grav = phre ? (a > 0 ? 0.55 : -0.15) : b * 0.5;   // to the spring / downward\n        const w = ap2 * 9 + grav + rnd() * 0.35;\n        if (w > bw) { bw = w; bx = a; by = b; }\n      }\n      x += bx; y += by;\n    }\n  }\n  if (S.warm > 0) S.warm--;\n}\n\n// ---- speleothem in abandoned (air-filled) voids -----------------------------\n// A drained tube is no longer being dissolved, so it would freeze. Dripstone\n// keeps filling it instead: the record above the water table is never static.\nconst drip = 0.00042 * spd * (0.3 + P.energy * 0.9);\nfor (let j = 1; j < BH - 1; j++) {\n  if (j >= wt) continue;                            // only above the water table\n  for (let i = 1; i < BW - 1; i++) {\n    const k = j * BW + i;\n    if (S.ap[k] > 0.30) {\n      const roof = S.ap[k - BW] < 0.22 ? 1 : 0;     // hangs from a roof / builds on a floor\n      const flr = S.ap[k + BW] < 0.22 ? 1 : 0;\n      S.dep[k] += drip * (0.25 + roof * 0.9 + flr * 0.8) * (0.5 + hsh(i * 5, j * 5));\n      if (S.dep[k] > 1) S.dep[k] = 1;\n      S.ap[k] -= drip * 0.5 * (roof + flr);         // dripstone occludes the void\n      if (S.ap[k] < 0) S.ap[k] = 0;\n    }\n  }\n}\n\n// ---- render ----------------------------------------------------------------\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 40)) % 360) + 360) % 360;\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c;\n  let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; }\n  else if (h < 3) { r = 0; g2 = c; b2 = xx; } else if (h < 4) { r = 0; g2 = xx; b2 = c; }\n  else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n}\nconst gain = 0.76 + P.energy * 0.46 + K.intensity * 0.14 + A.rms * 0.26;\nconst shim = 0.03 * Math.sin(K.t * 1.3) + 0.02 * Math.sin(K.t * 2.17 + 1.0);   // the water table breathes\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  const a = S.ap[k], dp = S.dep[k];\n  const void_ = Math.min(1, a * 1.9);               // 0 = solid rock, 1 = open passage\n  const flooded = j > wt ? 1 : 0;\n  const bedTex = S.tex[k];\n  let r, g2, b;\n  if (st === 'xray') {\n    // abstracted: the void network as a negative \u2014 rock vanishes, passages glow\n    const c = hsv(rot(184) - void_ * 40, 0.55 - void_ * 0.4, (0.07 + void_ * 0.86 + dp * 0.2) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (st === 'thermal') {\n    const m = Math.min(1, void_ * 0.9 + flooded * 0.22 + dp * 0.3);\n    const c = hsv(rot(250 - m * 250), 0.82 - m * 0.5, (0.18 + m * 0.74) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (st === 'ink') {\n    const v = 0.82 - void_ * 0.68 + dp * 0.16;\n    const c = hsv(rot(38), 0.08, Math.max(0, v) * bedTex * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else {\n    // survey (default): buff limestone w/ bedding, blue phreatic water,\n    // dark air-filled passage, cream speleothem\n    if (void_ < 0.30) {\n      const c = hsv(rot(41), 0.24 + bedTex * 0.06, (0.50 + bedTex * 0.16 - void_ * 0.4) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    } else if (flooded) {\n      const c = hsv(rot(199), 0.62, (0.20 + void_ * 0.34 + shim) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    } else {\n      const c = hsv(rot(34), 0.16 + dp * 0.30, (0.10 + (1 - void_) * 0.18 + dp * 0.62) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    }\n  }\n  const o = k * 4; px[o] = r; px[o + 1] = g2; px[o + 2] = b; px[o + 3] = 255;\n}\ng.updatePixels();\n\nconst z2 = Math.max(1, P.scale), hw = 0.5 / z2;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BH, 2 * hw * BW, 2 * hw * BH);\npop();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

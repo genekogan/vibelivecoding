@@ -1,0 +1,173 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.print_through",
+  "kind": "post",
+  "name": "Print-Through",
+  "desc": "What the next wrap of the reel remembers \u2014 an image from seconds ago bleeds back into this one as a warm latent stain, drifting and slowly turning against the live frame, printed unevenly wherever the film was pressed hardest so the transfer comes through in patches rather than as a clean second exposure.",
+  "tags": [
+    "print-through",
+    "print through",
+    "latent image",
+    "latent",
+    "double exposure",
+    "multiple exposure",
+    "superimposition",
+    "superimpose",
+    "ghost",
+    "ghosting",
+    "echo",
+    "reel",
+    "wrap",
+    "spool",
+    "transfer",
+    "bleed",
+    "bleed-through",
+    "stain",
+    "staining",
+    "emulsion",
+    "film",
+    "celluloid",
+    "archival",
+    "decay",
+    "aged",
+    "memory",
+    "remnant",
+    "afterimage",
+    "persistence",
+    "delay",
+    "time",
+    "temporal",
+    "offset",
+    "registration",
+    "solarize",
+    "solarization",
+    "sabattier",
+    "exclusion",
+    "inverted",
+    "abstract",
+    "amber",
+    "warm",
+    "mottled",
+    "uneven",
+    "density",
+    "fog",
+    "eerie",
+    "melancholy",
+    "dreamlike",
+    "analogue",
+    "analog",
+    "overlay",
+    "post",
+    "finish"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "transfer strength and how hard the uneven pressure mottles it"
+    },
+    "offset": {
+      "default": 0.32,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the ghost drifts, turns and swells off register"
+    },
+    "alpha": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "overall opacity of the pass"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of stacked ghosts and mottle patches"
+    },
+    "tint": {
+      "default": 0.58,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the transfer stains toward the base colour rather than staying a plain copy (this is what makes it read over a dark scene)"
+    },
+    "delay": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far back in time the ghost is drawn from"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "drift + mottle rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size of the mottle patches"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "stain / base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ghost register bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ghost register bias y"
+    },
+    "style": {
+      "default": "latent",
+      "options": [
+        "latent",
+        "multiple",
+        "solarize",
+        "bleed"
+      ],
+      "doc": "aesthetic: soft warm latent stain off the reel / crisper deliberate in-camera multiple exposure at wide register / abstract Sabattier tonal inversion where the ghost lands / heavy chemical bleed, swollen and soft"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "wind",
+        "expose"
+      ],
+      "doc": "multi-minute program: drift holds a steady transfer / wind slowly winds the register in and out over ~a minute / expose lets the transfer swell with the arc and the music"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "mottle + register layout"
+    }
+  },
+  "acts": [
+    "drift",
+    "wind",
+    "expose"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:31+00:00",
+    "fps": 62.1,
+    "motion": 0.0172,
+    "lum": 0.177
+  },
+  "code": "const D = { energy:.62, offset:.32, alpha:.8, density:.5, tint:.58, delay:.5, speed:1, scale:1, hue:28, x:.5, y:.5, style:'latent', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const sg=Math.floor(h/60)%6;if(sg===0){r=c;g=x;b=0;}else if(sg===1){r=x;g=c;b=0;}else if(sg===2){r=0;g=c;b=x;}else if(sg===3){r=0;g=x;b=c;}else if(sg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [((r+m)*255)|0,((g+m)*255)|0,((b+m)*255)|0];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H),t=K.t,key=W+'x'+H,dc=drawingContext;\n\n// ---- ring of past frames + a half-res staging plate\nif(!S.ring||S.key!==key){\n  let rw,rh;\n  if(W>=H){ rw=320; rh=Math.max(24,Math.round(320*H/W)); } else { rh=320; rw=Math.max(24,Math.round(320*W/H)); }\n  if(S.ring) for(const q of S.ring) if(q&&q.remove) q.remove();\n  if(S.tmp&&S.tmp.remove) S.tmp.remove();\n  S.ring=[]; S.ringEl=[];\n  for(let i=0;i<3;i++){ const q=createGraphics(rw,rh); q.pixelDensity(1); S.ring.push(q); S.ringEl.push(q.elt||q.canvas); }\n  S.tmp=createGraphics(Math.max(64,Math.round(W*0.5)), Math.max(36,Math.round(H*0.5)));\n  S.tmp.pixelDensity(1); S.tmpEl=S.tmp.elt||S.tmp.canvas;\n  S.wr=0; S.tick=0; S.filled=0; S.key=key;\n}\nconst tmp=S.tmp, tg=tmp.drawingContext, tw=tmp.width, th=tmp.height, uu=Math.min(tw,th);\n\nconst en=clp(P.energy,0,1);\nconst sp=0.45+clp(P.speed,.15,4)*0.55;\nconst style=P.style, hue=((P.hue%360)+360)%360, alpha=clp(P.alpha,0,1);\n\n// ---- capture the scene BEFORE we lay anything down; ghosts never re-enter the ring\nS.tick=(S.tick|0)+1;\nconst stride=Math.max(2,Math.round(3+clp(P.delay,0,1)*24));\nif(S.filled<3 || (S.tick%stride)===0){\n  const wq=S.ring[S.wr];\n  wq.clear(); wq.drawingContext.drawImage(dc.canvas,0,0,wq.width,wq.height);\n  S.wr=(S.wr+1)%3; if(S.filled<3) S.filled++;\n}\n\n// ---- act: multi-minute programs\nlet ofsMul=1, gMul=1, mottMul=1;\nif(P.act==='wind'){ ofsMul = 0.55+0.85*(0.5+0.5*Math.sin(t*0.017*sp)); mottMul=1.25; }\nelse if(P.act==='expose'){ gMul = 0.72+0.5*K.swell+0.35*K.intensity+0.25*A.rms; }\n\nlet nG, tA, gBase, ofsScale, mottBase;\nif(style==='multiple'){      nG=2+Math.round(clp(P.density,0,1)*1); tA=clp(P.tint,0,1)*0.5; gBase=0.46; ofsScale=1.9; mottBase=0.62; }\nelse if(style==='solarize'){ nG=1+Math.round(clp(P.density,0,1));   tA=clp(P.tint,0,1)*0.4; gBase=0.55; ofsScale=1.2; mottBase=0.72; }\nelse if(style==='bleed'){    nG=1+Math.round(clp(P.density,0,1));   tA=clp(P.tint,0,1)*1.15; gBase=0.40; ofsScale=0.7; mottBase=1.0; }\nelse {                       nG=1+Math.round(clp(P.density,0,1)*2); tA=clp(P.tint,0,1); gBase=0.46; ofsScale=1.0; mottBase=1.0; }\nnG=Math.max(1,Math.min(3,nG));\ntA=clp(tA,0,1);\nconst ofs=clp(P.offset,0,1)*ofsScale;\nconst gA=clp(alpha*(0.25+0.75*en)*gBase*gMul, 0, 0.85);\n\n// ---- lay the delayed ghosts down on the staging plate (additive, as light on film is)\ntmp.clear();\ntg.globalCompositeOperation='lighter';\nfor(let k=0;k<nG;k++){\n  const src=S.ringEl[(((S.wr-1-k)%3)+3)%3];\n  const ph=k*2.1+fr(k*7+1)*6.2832;\n  const orb=t*0.021*sp*(k%2?-1:1)+ph;\n  const dx=ofs*uu*(0.42*Math.sin(t*0.053*sp+ph)+0.26*Math.sin(t*0.131*sp+ph*1.7)+0.30*Math.cos(orb))*ofsMul;\n  const dy=ofs*uu*(0.38*Math.cos(t*0.061*sp+ph*1.3)+0.22*Math.sin(t*0.113*sp+ph*0.9)+0.28*Math.sin(orb))*ofsMul;\n  const rot=ofs*(0.030*Math.sin(t*0.037*sp+ph)+0.016*Math.sin(t*0.097*sp+ph*2.2));\n  const scl=1+ofs*(0.05+0.035*Math.sin(t*0.071*sp+ph*1.1))+(style==='bleed'?0.09:0);\n  tg.globalAlpha=Math.pow(0.62,k);\n  tg.save();\n  tg.translate(tw*0.5+dx+(P.x-0.5)*tw*0.12, th*0.5+dy+(P.y-0.5)*th*0.12);\n  tg.rotate(rot); tg.scale(scl,scl);\n  tg.drawImage(src,-tw*0.5,-th*0.5,tw,th);\n  tg.restore();\n}\ntg.globalAlpha=1;\n\n// ---- the transfer is a stain, not a copy: tint the ghost where it exists.\n// This is also what makes the pass legible over a dark scene, where a plain\n// additive ghost of a dark frame would add nothing at all and read STATIC.\nif(tA>0.004){\n  const tc=hsb2rgb(hue,style==='solarize'?38:62,style==='bleed'?76:88);\n  tg.globalCompositeOperation='source-atop';\n  tg.fillStyle=`rgba(${tc[0]},${tc[1]},${tc[2]},${tA.toFixed(4)})`;\n  tg.fillRect(0,0,tw,th);\n}\n\n// ---- uneven pressure: carve drifting soft holes so the bleed-through is mottled.\n// These translate continuously and wrap -> a motion floor no 8s window can cancel.\n{\n  const nm=5+Math.round(clp(P.density,0,1)*6);\n  const mott=clp((0.45+0.55*en)*mottBase*mottMul,0,0.98);\n  tg.globalCompositeOperation='destination-out';\n  for(let i=0;i<nm;i++){\n    const rr=tw*(0.15+0.20*fr(i*3.7+2))*Math.max(0.35,P.scale);\n    const vx=(0.032+0.038*fr(i*5+3))*(fr(i*13)<0.5?-1:1)*sp;\n    const vy=(0.014+0.022*fr(i*9+4))*(fr(i*17)<0.5?-1:1)*sp;\n    const mx=((((fr(i*11+5)+t*vx)%1)+1)%1)*(tw+2*rr)-rr;\n    const my=((((fr(i*19+6)+t*vy)%1)+1)%1)*(th+2*rr)-rr;\n    const ma=clp((0.55+0.45*fr(i*23+7))*mott,0,1);\n    const rg=tg.createRadialGradient(mx,my,0,mx,my,rr);\n    rg.addColorStop(0,`rgba(0,0,0,${ma.toFixed(4)})`);\n    rg.addColorStop(0.6,`rgba(0,0,0,${(ma*0.45).toFixed(4)})`);\n    rg.addColorStop(1,'rgba(0,0,0,0)');\n    tg.fillStyle=rg; tg.fillRect(mx-rr,my-rr,rr*2,rr*2);\n  }\n  tg.globalCompositeOperation='source-over';\n}\n\n// ---- print it through\ndc.globalCompositeOperation = style==='solarize' ? 'exclusion' : 'lighter';\ndc.globalAlpha=gA;\ndc.drawImage(S.tmpEl,0,0,W,H);\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\nblendMode(BLEND); dc.shadowBlur=0; noStroke();\n"
+}

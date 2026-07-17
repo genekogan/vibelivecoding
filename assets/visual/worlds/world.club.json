@@ -1,0 +1,118 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.club",
+  "kind": "world",
+  "name": "Neon Club Interior",
+  "desc": "Dark nightclub room: sweeping moving-head light beams, drifting haze, mirror-ball speckle and a bobbing crowd silhouette, color stepping per section.",
+  "tags": [
+    "club",
+    "nightclub",
+    "disco",
+    "rave",
+    "dancefloor",
+    "interior",
+    "lights",
+    "beams",
+    "moving-head",
+    "laser",
+    "mirror-ball",
+    "crowd",
+    "haze",
+    "neon",
+    "party",
+    "dark",
+    "night",
+    "uv",
+    "blacklight",
+    "noir",
+    "world",
+    "background",
+    "venue",
+    "dj"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "beam + crowd + speckle count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light brightness/flash amplitude"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "lighting primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "beam sweep + crowd bob rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "beam/crowd size vs design"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mirror-ball x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "glow": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "haze + speckle glow"
+    },
+    "haze": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "atmospheric haze density"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "noir",
+        "laser",
+        "uv"
+      ],
+      "doc": "aesthetic: saturated neon, monochrome chiaroscuro noir, vector laser beams, blacklight two-ink UV"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:05:34+00:00",
+    "fps": 61.0,
+    "motion": 0.0343,
+    "lum": 0.095
+  },
+  "code": "const D = { density:.55, energy:.6, hue:300, speed:1, scale:1, x:.5, y:.5, glow:.6, haze:.6, style:'neon', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst mono = st==='noir';\nconst laser = st==='laser';\nconst uv = st==='uv';\nconst h = P.hue;\nconst lightCol = (i)=>{ // returns [hue,sat,bri]\n  if (mono) return [0,0,100];\n  if (uv) return (i%2===0)?[282,80,100]:[186,85,100];\n  if (laser) return [(h+i*47)%360,95,100];\n  return [(h+K.section*38+i*31)%360,90,100];\n};\nconst key = width+'x'+height+'|'+P.seed+'|'+st;\nif (S.key !== key) {\n  S.key = key;\n  const g = createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100);\n  g.noStroke();\n  const floorY = height*0.72;\n  // back wall gradient (dark)\n  for (let i=0;i<80;i++){ const t=i/80, y=t*floorY;\n    if (mono) g.fill(0,0,5+t*7);\n    else if (uv) g.fill(270,40,4+t*8);\n    else g.fill(h-30, 45, 4+t*9);\n    g.rect(0,y,width,floorY/80+1);\n  }\n  // floor\n  for (let i=0;i<40;i++){ const t=i/40, y=floorY+t*(height-floorY);\n    if (mono) g.fill(0,0,8-t*5);\n    else g.fill(h-20,35,10-t*7);\n    g.rect(0,y,width,(height-floorY)/40+1);\n  }\n  // floor perspective lines\n  g.stroke(mono?0:h, mono?0:30, mono?18:16, 40); g.strokeWeight(1);\n  const vx=width*0.5;\n  for(let i=-6;i<=6;i++){ const fxp=vx+i*width*0.14; g.line(vx,floorY,fxp,height); }\n  for(let r=1;r<=4;r++){ const yy=floorY+(height-floorY)*(r/4)*(r/4); g.line(0,yy,width,yy); }\n  g.noStroke();\n  // truss bar\n  g.fill(0,0,mono?14:10); g.rect(0,height*0.10,width,u*0.02);\n  S.buf=g; S.floorY=floorY;\n  // beams anchored on truss\n  const nB=Math.floor(3+P.density*7);\n  S.beam=[]; for(let i=0;i<nB;i++) S.beam.push({ax:(0.12+0.76*(i/(nB-1||1)))*1,base:(fr(i)*6.28),swing:0.5+fr(i+3)*0.8,rate:0.4+fr(i+5)*0.7,ph:fr(i+7)*6.28});\n  // crowd heads\n  const nC=Math.floor(12+P.density*34);\n  S.crowd=[]; for(let i=0;i<nC;i++) S.crowd.push({x:fr(i+20)*width,z:fr(i+21),ph:fr(i+22)*6.28,w:0.7+fr(i+23)*0.6});\n  S.crowd.sort((a,b)=>a.z-b.z);\n  // mirror-ball speckles\n  const nS=Math.floor(30+P.density*70);\n  S.spk=[]; for(let i=0;i<nS;i++) S.spk.push({a:fr(i+50)*6.28,rad:fr(i+51),y:fr(i+52)*0.6,r:1+fr(i+53)*2.5,ph:fr(i+54)*6.28});\n  // haze blobs\n  S.haze=[]; for(let i=0;i<3;i++) S.haze.push({x:fr(i+70)*width,y:height*(0.2+fr(i+71)*0.3),r:u*(0.3+fr(i+72)*0.25),spd:0.2+fr(i+73)*0.3,ph:fr(i+74)*6.28});\n}\nimage(S.buf,0,0);\nconst sc=P.scale, T=K.t, glow=P.glow*(0.6+A.rms), en=P.energy, floorY=S.floorY;\nconst trussY=height*0.11;\n// haze drift (real-time floor)\npush(); blendMode(ADD);\nfor(const z of S.haze){ const xx=((z.x+T*z.spd*40)%(width+z.r*2))-z.r, yy=z.y+Math.sin(T*0.25+z.ph)*u*0.05;\n  fill(mono?0:h-10, mono?0:30, mono?30:40, (6+P.haze*10)*(0.7+glow*0.5));\n  ellipse(xx,yy,z.r*(1.4+K.swell*0.2),z.r*0.8);\n}\nblendMode(BLEND); pop();\n// light beams (cones) \u2014 sweep continuous + step target per beat\npush(); blendMode(ADD);\nfor(let i=0;i<S.beam.length;i++){ const b=S.beam[i], ax=b.ax*width,\n  stepTarget=((Math.floor(K.beat*P.speed)+i*3)%7-3)/3,\n  ang=Math.sin(T*b.rate*0.6+b.ph)*b.swing*0.5 + stepTarget*0.5,\n  len=height*0.95, spread=u*0.05*sc*(1+en*0.6),\n  col=lightCol(i), a=(mono?14:11)*(0.5+en)*(0.7+glow*0.6)+K.pulse*en*8;\n  const tx=ax+Math.sin(ang)*width*0.5, ty=trussY+len;\n  if (laser){ stroke(col[0],col[1],col[2],40+en*40+K.pulse*30); strokeWeight(1.5+en*1.5);\n    line(ax,trussY,tx,ty); noStroke();\n  } else {\n    fill(col[0],col[1]*0.9,col[2],a);\n    triangle(ax-spread*0.2,trussY,tx-spread,ty,tx+spread,ty);\n    fill(col[0],col[1],col[2],60+glow*30); ellipse(ax,trussY,u*0.02,u*0.02);\n  }\n}\nblendMode(BLEND); pop();\n// mirror-ball speckles rotating\npush(); blendMode(ADD);\nconst mbx=P.x*width, mby=height*0.16;\nfor(const s of S.spk){ const ang=s.a+T*0.3, xx=mbx+Math.cos(ang)*width*0.5*s.rad, yy=mby+s.y*height*0.7+Math.sin(ang*1.3+s.ph)*u*0.02,\n  tw=0.5+0.5*Math.sin(T*2+s.ph), col=lightCol((s.a*3)|0);\n  fill(mono?0:col[0],mono?0:60,100,(20+40*tw)*(0.5+en)+K.pulse*20);\n  const rr=s.r*sc*(0.6+tw); ellipse(xx,yy,rr,rr);\n}\nblendMode(BLEND); pop();\n// crowd silhouettes bobbing (real-time + swell)\nfor(const c of S.crowd){ const depth=c.z, cy=floorY+ (1-depth)*(height-floorY)*0.15,\n  bob=Math.sin(T*2.2*P.speed+c.ph)*u*0.012*(1+A.lowmid)+K.swell*u*0.01,\n  hh=u*(0.08+depth*0.10)*c.w*sc, hw=hh*0.5,\n  bri=mono?0:8+depth*6;\n  noStroke(); fill(mono?0:h-20, mono?0:40, bri);\n  const hx=c.x, hy=cy-bob;\n  // shoulders\n  ellipse(hx,hy+hh*0.5,hw*1.8,hh*0.7);\n  // head\n  ellipse(hx,hy,hw*0.7,hw*0.8);\n  // arm hint up on strong beats\n  if (K.pulse>0.5 && fr((c.x|0)+3)>0.5){ stroke(mono?0:h-20,mono?0:40,bri); strokeWeight(hw*0.25); noFill();\n    line(hx,hy+hh*0.2,hx-hw*0.6,hy-hh*0.3); line(hx,hy+hh*0.2,hx+hw*0.6,hy-hh*0.3); noStroke(); }\n}\n// partial beat flash (bounded \u2014 never full-frame white)\nconst flash=K.pulse*en*(0.4+A.bass*0.6);\nif (flash>0.02){ push(); blendMode(ADD);\n  const col=lightCol(K.section|0);\n  fill(mono?0:col[0], mono?0:40, mono?100:90, Math.min(26, flash*30));\n  rect(0,0,width,height*0.5);\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND);\n"
+}

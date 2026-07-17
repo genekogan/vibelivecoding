@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.risograph",
+  "kind": "genart",
+  "name": "Risograph Press",
+  "desc": "A two-ink risograph press caught mid-run: each drum prints its own artwork through its own rotated halftone screen, the registration drifting a hair out and back while roller banding crawls down the sheet and the paper shows through everywhere the ink is not.",
+  "tags": [
+    "riso",
+    "risograph",
+    "print",
+    "press",
+    "halftone",
+    "screen",
+    "duotone",
+    "two-ink",
+    "misregistration",
+    "registration",
+    "overprint",
+    "fluoro",
+    "fluorescent",
+    "pink",
+    "blue",
+    "ink",
+    "paper",
+    "stock",
+    "zine",
+    "poster",
+    "screenprint",
+    "offset",
+    "mimeograph",
+    "graphic",
+    "print-shop",
+    "dots",
+    "rosette",
+    "roller",
+    "banding",
+    "spot-colour",
+    "material",
+    "texture",
+    "analogue",
+    "craft",
+    "punk",
+    "xerox"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "ink": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1.6,
+      "doc": "ink laydown \u2014 dot coverage from ghosted to over-inked"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.2,
+      "doc": "halftone dot pitch + artwork scale"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "press judder, roller variance, sheen amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many shapes the separations carry"
+    },
+    "hue": {
+      "default": 340,
+      "min": 0,
+      "max": 360,
+      "doc": "first drum's ink hue (340 = fluoro pink; the second drum sits opposite)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "press rate \u2014 registration drift + band scroll"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "composition centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "composition centre y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "overall ink opacity"
+    },
+    "style": {
+      "default": "duotone",
+      "options": [
+        "duotone",
+        "trio",
+        "mono_key",
+        "wet",
+        "negative"
+      ],
+      "doc": "duotone fluoro pink+blue / trio three-drum overprint / mono_key single ink, dot size carries every value / wet over-inked and puddling out of register / negative fluoro knocked out of a black sheet"
+    },
+    "act": {
+      "default": "press",
+      "options": [
+        "press",
+        "registration",
+        "run"
+      ],
+      "doc": "press: steady run \u00b7 registration: the press wanders badly out of register \u00b7 run: ink density fades and re-inks in long cycles"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "press",
+    "registration",
+    "run"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:14:43+00:00",
+    "fps": 58.5,
+    "motion": 0.1492,
+    "lum": 0.556
+  },
+  "code": "const D = { ink: .9, scale: 1, energy: .6, density: .5, hue: 340, speed: 1, x: .5, y: .5, alpha: 1, style: 'duotone', act: 'press', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst inkP=cl(P.ink,0,1.6), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1);\n\nS.bass=(S.bass||0)*.85+(A.bass||0)*.15;\nS.tre=(S.tre||0)*.85+(A.treble||0)*.15;\nconst kick=Math.min(1, K.pulse*.5 + S.bass*.6);\n\n// ---- misregistration: real-time drift at incommensurate rates (never re-phases)\nlet regAmp = u*0.0048*(0.55+en) * (1 + 0.55*kick*en);\nif(act==='registration') regAmp*=3.4;\nif(sty==='wet') regAmp*=2.1;\nconst regOf = i => [ regAmp*(Math.sin(T*0.19+i*2.1)+0.6*Math.sin(T*0.437+i*3.7)),\n                     regAmp*(Math.cos(T*0.163+i*1.3)+0.6*Math.sin(T*0.311+i*5.1)) ];\n\n// ---- separation artwork: each ink drum prints its OWN field ----\nconst NB = 3+Math.round(dens*4);\nif(S.bSeed!==P.seed || S.bN!==NB){ S.bSeed=P.seed; S.bN=NB; S.b0=[];\n  for(let i=0;i<NB;i++) S.b0.push({a:fr(i*3)*TAU, r:.10+fr(i*3+1)*.30, s:.11+fr(i*3+2)*.17,\n    w1:.031+fr(i*7)*.05, w2:.017+fr(i*11)*.031, ph:fr(i*13)*TAU}); }\nconst BB=S.b0, bx=new Array(NB), by=new Array(NB), bs=new Array(NB);\nfor(let i=0;i<NB;i++){ const q=BB[i];\n  bx[i]=ax + Math.cos(q.a+T*q.w1)*q.r*.92 + .06*Math.sin(T*q.w2*2.7+q.ph);\n  by[i]=ay + Math.sin(q.a+T*q.w1*1.31)*q.r*.64 + .05*Math.cos(T*q.w2*1.9+q.ph);\n  bs[i]=q.s*sc*(0.85+0.28*Math.sin(T*0.23+q.ph)); }\nconst covA=(x,y)=>{ let v=0; for(let i=0;i<NB;i++){ const dx=(x-bx[i])*1.5, dy=y-by[i];\n  v+=Math.exp(-(dx*dx+dy*dy)/(bs[i]*bs[i]*1.5)); } return cl(v*1.2-0.06,0,1); };\nconst covB=(x,y)=>{\n  const wx = x + .13*Math.sin(y*5.3/sc + T*.071) + .06*Math.sin(y*11.1/sc - T*.041);\n  const wy = y + .10*Math.sin(x*4.1/sc - T*.053) + .05*Math.cos(x*8.7/sc + T*.089);\n  let v=.5+.5*Math.sin((wx*7.4+wy*3.6)/sc + T*.11);\n  v*= .58+.42*Math.sin((wy*4.2-wx*1.9)/sc - T*.067);\n  return cl(Math.pow(cl(v,0,1),1.25),0,1); };\nconst covC=(x,y)=>{ let v=0,amp=.5,f=3.1/sc;\n  for(let o=0;o<3;o++){ v+=amp*Math.sin(x*f*1.7+y*f*1.1+T*.05*(o+1)+o*2.3)*Math.cos(y*f*1.3-x*f*.7-T*.037*(o+1)); amp*=.5; f*=2.05; }\n  return cl(.5+v*.95,0,1); };\n\n// ---- ink drums per style ----\nconst negative=(sty==='negative'), wet=(sty==='wet');\nlet inks, paperH=42, paperS=7, paperB=91;\nif(sty==='trio') inks=[{h:H,s:88,b:98,ang:15,f:0},{h:md(H+232,360),s:82,b:84,ang:75,f:1},{h:md(H+78,360),s:86,b:96,ang:45,f:2}];\nelse if(sty==='mono_key'){ paperB=93; inks=[{h:md(H+250,360),s:46,b:14,ang:22,f:3}]; }\nelse if(negative){ paperH=md(H+255,360); paperS=52; paperB=12; inks=[{h:H,s:78,b:100,ang:15,f:0},{h:md(H+225,360),s:60,b:100,ang:75,f:1}]; }\nelse inks=[{h:H,s:88,b:98,ang:15,f:0},{h:md(H+232,360),s:82,b:84,ang:75,f:1}];\n\n// ---- paper stock (cached) ----\nconst pkey=W+'x'+Hh+'|'+sty+'|'+P.seed+'|'+Math.round(paperH);\nif(!S.paper||S.pkey!==pkey){\n  const g=(S.paper&&S.paper.width===W&&S.paper.height===Hh)?S.paper:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.noStroke(); g.background(paperH,paperS,paperB);\n  g.strokeWeight(1);\n  for(let i=0;i<520;i++){ const x=fr(i*17)*W, y=fr(i*17+1)*Hh, a=fr(i*17+2)*TAU, L=3+fr(i*17+3)*17;\n    g.stroke(paperH, paperS+8, negative? paperB+18 : paperB-16, 8+fr(i*17+4)*14);\n    g.line(x,y,x+Math.cos(a)*L,y+Math.sin(a)*L); }\n  g.noStroke();\n  for(let i=0;i<800;i++){ const x=fr(i*29)*W, y=fr(i*29+1)*Hh;\n    g.fill(paperH, paperS+11, negative? paperB+22 : paperB-12, 5+fr(i*29+2)*11);\n    g.circle(x,y,.8+fr(i*29+3)*2.2); }\n  S.paper=g; S.pkey=pkey; }\nimage(S.paper,0,0);\n\n// ---- screen the separations through rotated halftones, overprint ----\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nnoStroke();\ndc.globalCompositeOperation = negative? 'lighter' : 'multiply';\nlet inkGain = inkP*(0.80+0.30*en)*al;\nif(act==='run') inkGain *= 0.72+0.42*(0.5+0.5*Math.sin(T*0.047));\nconst cX=W/2, cY=Hh/2;\nfor(let n=0;n<inks.length;n++){\n  const ik=inks[n];\n  const ang=(ik.ang + (act==='registration'? Math.sin(T*0.09+n)*8 : 0))*TAU/360;\n  const c1=Math.cos(ang), s1=Math.sin(ang);\n  const bw=Math.abs(W*c1)+Math.abs(Hh*s1), bh=Math.abs(W*s1)+Math.abs(Hh*c1);\n  let pitch=Math.max(u*0.012, u*0.026*sc);\n  if((bw*bh)/(pitch*pitch)>2600) pitch=Math.sqrt(bw*bh/2600);\n  const nx=Math.ceil(bw/pitch/2)+1, ny=Math.ceil(bh/pitch/2)+1;\n  const off=regOf(n), sgn=(n%2)?-1:1;\n  const fld = ik.f===0? covA : ik.f===1? covB : ik.f===2? covC : (x,y)=>Math.max(covA(x,y),covB(x,y)*0.92);\n  const maxR=pitch*(wet?0.86:0.62);\n  fill(ik.h, ik.s, ik.b, (negative?76:92)*al);\n  for(let j=-ny;j<=ny;j++){\n    const gy=j*pitch;\n    for(let i=-nx;i<=nx;i++){\n      const gx=i*pitch;\n      const px=cX+gx*c1-gy*s1, py=cY+gx*s1+gy*c1;\n      if(px<-pitch||px>W+pitch||py<-pitch||py>Hh+pitch) continue;\n      const cov=cl(fld(px/W,py/Hh)*inkGain,0,1.2);\n      if(cov<0.035) continue;\n      circle(px+off[0]*sgn, py+off[1]*sgn, maxR*2*Math.sqrt(cov));\n    }\n  }\n}\n\n// ---- over-inked puddles (wet press) ----\nif(wet){ dc.globalCompositeOperation='multiply';\n  for(let i=0;i<7;i++){ const x=((fr(i*31)+0.13*Math.sin(T*0.05+i))%1)*W, y=((fr(i*31+1)+0.09*Math.cos(T*0.037+i*2))%1)*Hh;\n    const ik=inks[i%inks.length]; fill(ik.h, 72, 68, 13*al); circle(x,y,u*(0.10+fr(i*31+2)*0.22)); } }\n\n// ---- roller banding: uneven ink laydown scrolling down the sheet ----\ndc.globalCompositeOperation = negative? 'lighter':'multiply';\nconst bandScroll=T*(act==='run'? 0.058 : 0.022);\nfor(let i=0;i<16;i++){\n  const t=((i/16)+bandScroll)%1, y=t*Hh, h2=Hh*(0.02+fr(i*23)*0.055);\n  const a=(negative?4.5:5.5)*(0.4+fr(i*23+1))*(0.5+en*0.8)*al;\n  fill(negative? md(H+180,360): md(H+250,360), negative?42:30, negative?100:28, a);\n  rect(0,y-h2/2,W,h2); }\n\n// ---- squeegee sheen: slow diagonal pass, the second motion floor ----\ndc.globalCompositeOperation='lighter';\nconst sang=(sty==='trio'?0.55:0.32)+0.10*Math.sin(T*0.031);\nconst ux=Math.cos(sang), uy=Math.sin(sang);\nconst L=Math.abs(W*ux)+Math.abs(Hh*uy)+1;\nconst cpos=(((T*0.028)%1)+1)%1*L, bwid=u*0.16;\nconst ox=W/2-(L/2-cpos)*ux, oy=Hh/2-(L/2-cpos)*uy;\nconst lg=dc.createLinearGradient(ox-bwid*ux,oy-bwid*uy,ox+bwid*ux,oy+bwid*uy);\nlg.addColorStop(0,'rgba(255,255,255,0)');\nlg.addColorStop(0.5,'rgba(255,255,255,'+(0.03+0.06*en*al).toFixed(3)+')');\nlg.addColorStop(1,'rgba(255,255,255,0)');\ndc.fillStyle=lg; dc.fillRect(0,0,W,Hh);\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke();\n"
+}

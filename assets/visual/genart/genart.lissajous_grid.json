@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lissajous_grid",
+  "kind": "genart",
+  "name": "Lissajous Grid",
+  "desc": "A full-bleed oscilloscope wall of Lissajous figures \u2014 one glowing curve per cell at an integer frequency ratio (column = x-freq, row = y-freq) \u2014 the whole matrix precessing on a drifting phase term so every cell morphs open to closed forever; renders as a spectral-scope rainbow, green phosphor CRT, amber terminal, white-on-blue blueprint, or electric neon.",
+  "tags": [
+    "lissajous",
+    "oscilloscope",
+    "scope",
+    "curve",
+    "grid",
+    "matrix",
+    "harmonograph",
+    "phase",
+    "waveform",
+    "xy-plot",
+    "geometry",
+    "spectral",
+    "rainbow",
+    "phosphor",
+    "crt",
+    "amber",
+    "blueprint",
+    "neon",
+    "glow",
+    "hypnotic",
+    "precession",
+    "frequency-ratio",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "retro",
+    "vector",
+    "scientific",
+    "hypno"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "grid size (cells = gridN^2, ~4x4 to 11x11)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / exposure amplitude of the curves"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "phase precession rate (morph speed)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "curve size within each cell (>1 overflows into neighbors)"
+    },
+    "harmon": {
+      "default": 1,
+      "min": 1.0,
+      "max": 3.0,
+      "doc": "harmonic multiplier on every frequency (busier figures)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue / spectrum origin"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "traveling-wave phase origin x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "amplitude breathe bias"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "phosphor",
+        "amber",
+        "blueprint",
+        "neon"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic per-cell phase/hue variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:13:57+00:00",
+    "fps": 55.2,
+    "motion": 0.1771,
+    "lum": 0.218
+  },
+  "code": "const D = { density: .55, energy: .6, speed: 1, scale: 1, harmon: 1, hue: 210, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst gridN = Math.max(4, Math.min(11, Math.round(4 + P.density * 7)));\nconst cells = gridN * gridN;\n\n// coarse-ish full buffer so alpha compositing + its own HSB colormode are clean\nif (!S.g || S.gkey !== width + 'x' + height) {\n  S.g = createGraphics(width, height); S.g.pixelDensity(1);\n  S.g.colorMode(HSB, 360, 100, 100, 100);\n  S.gkey = width + 'x' + height;\n}\nconst g = S.g;\n\n// seed-dependent per-cell caches (rebuild on seed or grid change)\nif (S.seedUsed !== P.seed || S.gN !== gridN) {\n  S.seedUsed = P.seed; S.gN = gridN;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.pOff = new Float32Array(cells); S.dMul = new Float32Array(cells);\n  S.hJit = new Float32Array(cells); S.lit = new Float32Array(cells);\n  for (let c = 0; c < cells; c++) {\n    S.pOff[c] = fr(c + 1) * TAU;\n    S.dMul[c] = 0.65 + fr(c + 101) * 0.7;\n    S.hJit[c] = (fr(c + 201) - 0.5) * 26;\n    S.lit[c] = 0.72 + fr(c + 301) * 0.28;\n  }\n}\n\nconst style = P.style;\nconst hMul = P.harmon;\nconst drift = K.t * 0.06 * (0.4 + P.speed * 0.9);          // continuous phase precession (never re-phases)\nconst colorDrift = (K.t * 5) % 360;                        // slow spectral rotation (motion floor, speed-independent)\nconst wave = 0.16 * Math.sin(K.t * 0.045 + K.section * 0.7) + 0.10 + (P.x - 0.5) * 0.15; // traveling morph across the wall\nconst expo = 0.5 + P.energy * 0.95 + K.intensity * 0.22 + A.rms * 0.55 + A.bass * 0.5 + K.pulse * 0.28;\nconst swell = 0.85 + (K.swell || 0) * 0.3 + A.lowmid * 0.4 + (P.y - 0.5) * 0.1;\n\nconst cw = width / gridN, ch = height / gridN;\nconst fillf = 0.86 * P.scale;\nconst u = Math.min(width, height);\n\n// ground tone per style (keeps luminance off the black floor)\nlet gH, gS, gV;\nif (style === 'phosphor') { gH = 132; gS = 70; gV = 9; }\nelse if (style === 'amber') { gH = 32; gS = 78; gV = 9; }\nelse if (style === 'blueprint') { gH = 212; gS = 82; gV = 30; }\nelse if (style === 'neon') { gH = (P.hue + 300) % 360; gS = 62; gV = 10; }\nelse { gH = (P.hue + 20) % 360; gS = 52; gV = 15; }\ng.background(gH, gS, gV);\n\n// graticule for CRT / schematic looks\nif (style === 'phosphor' || style === 'amber' || style === 'blueprint') {\n  g.push();\n  const glV = style === 'blueprint' ? 55 : 26;\n  const glH = style === 'amber' ? 34 : (style === 'blueprint' ? 205 : 130);\n  const glS = style === 'blueprint' ? 40 : 60;\n  g.stroke(glH, glS, glV, style === 'blueprint' ? 32 : 15); g.strokeWeight(1);\n  for (let i = 0; i <= gridN; i++) { g.line(i * cw, 0, i * cw, height); g.line(0, i * ch, width, i * ch); }\n  g.pop();\n}\n\nfunction fig(cx, cy, ax, ay, mm, nn, ph, samples) {\n  g.beginShape();\n  for (let k = 0; k <= samples; k++) {\n    const tt = k / samples * TAU;\n    g.vertex(cx + ax * Math.sin(mm * tt + ph), cy + ay * Math.sin(nn * tt));\n  }\n  g.endShape();\n}\n\ng.push();\ng.noFill();\nconst useAdd = style !== 'blueprint';\nif (useAdd) g.blendMode(ADD);\nconst doMid = cells <= 81;\nconst coreW = Math.max(1, u * 0.0016 * P.scale);\nfor (let row = 0; row < gridN; row++) {\n  for (let col = 0; col < gridN; col++) {\n    const c = row * gridN + col;\n    const m = (1 + col) * hMul, n = (1 + row) * hMul;\n    const maxf = Math.max(m, n);\n    let samples = Math.round(22 + 13 * maxf);\n    if (samples > 150) samples = 150;\n    const budget = Math.floor(7500 / cells);\n    if (budget >= 30 && samples > budget) samples = budget;\n    if (samples < 36) samples = 36;\n    const cx = col * cw + cw * 0.5, cy = row * ch + ch * 0.5;\n    const ax = cw * 0.5 * fillf * swell, ay = ch * 0.5 * fillf * swell;\n    const ph = drift * S.dMul[c] + S.pOff[c] + wave * (col + row);\n    const lit = S.lit[c];\n\n    let hh, ss;\n    if (style === 'phosphor') { hh = 128 + S.hJit[c] * 0.3; ss = 90; }\n    else if (style === 'amber') { hh = 36 + S.hJit[c] * 0.25; ss = 92; }\n    else if (style === 'blueprint') { hh = 200; ss = 12; }\n    else if (style === 'neon') { hh = (P.hue + (col - row) * 16 + S.hJit[c] + colorDrift * 0.4) % 360; ss = 96; }\n    else { hh = (P.hue + (col + row) / (2 * (gridN - 1)) * 285 + colorDrift + S.hJit[c]) % 360; ss = 88; }\n    if (hh < 0) hh += 360;\n\n    if (style === 'blueprint') {\n      g.stroke(198, 22, 96, 62 + lit * 24); g.strokeWeight(Math.max(1, u * 0.0015 * P.scale));\n      fig(cx, cy, ax, ay, m, n, ph, samples);\n    } else {\n      const halo = (14 + expo * 22) * lit;\n      // soft halo\n      g.stroke(hh, ss - 18, 100, Math.min(46, halo * 0.6));\n      g.strokeWeight(Math.max(2, ch * 0.11 * (0.35 + P.energy)));\n      fig(cx, cy, ax, ay, m, n, ph, samples);\n      // mid body (skip on very dense grids for perf)\n      if (doMid) {\n        g.stroke(hh, ss - 6, 100, Math.min(60, halo));\n        g.strokeWeight(Math.max(1.4, ch * 0.045 * (0.4 + P.energy * 0.8)));\n        fig(cx, cy, ax, ay, m, n, ph, samples);\n      }\n      // bright core\n      g.stroke((hh + 4) % 360, ss - 30, 100, 62 + P.energy * 28 + K.pulse * 20);\n      g.strokeWeight(coreW);\n      fig(cx, cy, ax, ay, m, n, ph, samples);\n    }\n  }\n}\ng.blendMode(BLEND);\ng.pop();\n\n// audio treble shimmer (partial, additive, never full-frame flash)\nif (A.treble > 0.02 && style !== 'blueprint') {\n  g.push(); g.blendMode(ADD); g.noStroke();\n  g.fill((P.hue + colorDrift + 40) % 360, 25, 100, Math.min(20, A.treble * P.energy * 20));\n  g.rect(0, 0, width, height);\n  g.blendMode(BLEND); g.pop();\n}\n\n// composite (alpha < 100 = translucent for VJ layering, no main-canvas clear)\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

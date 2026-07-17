@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.delaunay_flux",
+  "kind": "genart",
+  "name": "Delaunay Flux",
+  "desc": "A living low-poly web whose Delaunay triangulation is rebuilt every frame from a cloud of drifting points, so triangles flex, edges flip and cells breathe while centroid-position hue paints the mesh from an iq cosine palette under bright glowing edges.",
+  "tags": [
+    "delaunay",
+    "triangulation",
+    "flux",
+    "mesh",
+    "lowpoly",
+    "low-poly",
+    "web",
+    "wireframe",
+    "voronoi",
+    "tiling",
+    "geometric",
+    "facets",
+    "triangles",
+    "polygon",
+    "crystalline",
+    "network",
+    "bowyer-watson",
+    "stained-glass",
+    "gem",
+    "faceted",
+    "blueprint",
+    "ink",
+    "iq",
+    "cosine-palette",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "flow",
+    "flowing",
+    "kinetic",
+    "tessellation",
+    "iridescent",
+    "jewel",
+    "schematic",
+    "structure",
+    "field"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "point count / mesh fineness (40..120 drifting points)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "drift amplitude + edge glow + exposure"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "point-drift + surface-undulation rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "reserved zoom (kept for slot compatibility)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (spatial rainbow rotates around it)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "gem light direction x / sparkle anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "gem light direction y / sparkle anchor"
+    },
+    "style": {
+      "default": "stained",
+      "options": [
+        "stained",
+        "wireframe",
+        "gem",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic point cloud layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:40:12+00:00",
+    "fps": 59.2,
+    "motion": 0.1845,
+    "lum": 0.48
+  },
+  "code": "const D = { density: .5, energy: .6, speed: 1, scale: 1, hue: 210, x: .5, y: .5, style: 'stained', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- drifting point cloud: rebuild base only on seed or count change ----\nconst N = Math.round(40 + clp(P.density, 0, 1) * 80); // 40..120 interior points\nif (S.seedUsed !== P.seed || S.nUsed !== N) {\n  S.seedUsed = P.seed; S.nUsed = N;\n  S.hoff = fr(5) * 60;\n  S.pts = [];\n  for (let i = 0; i < N; i++) {\n    const a1 = fr(i * 4 + 11), a2 = fr(i * 4 + 12), a3 = fr(i * 4 + 13), a4 = fr(i * 4 + 14);\n    S.pts.push({\n      hx: -0.1 + a1 * 1.2, hy: -0.1 + a2 * 1.2,        // home in extended domain\n      vx: fr(i * 4 + 15) - 0.5, vy: fr(i * 4 + 16) - 0.5, // net drift direction\n      f1: a3 * TAU, f2: a4 * TAU, ds: 0.5 + fr(i * 4 + 17) * 1.3\n    });\n  }\n  // fixed border ring guarantees full-frame coverage (outside the wrap band)\n  S.bord = [];\n  const lo = -0.18, hi = 1.18, st = 4;\n  for (let s = 0; s < st; s++) { const f = s / (st - 1); S.bord.push([lo + f * (hi - lo), lo]); S.bord.push([lo + f * (hi - lo), hi]); }\n  for (let s = 1; s < st - 1; s++) { const f = s / (st - 1); S.bord.push([lo, lo + f * (hi - lo)]); S.bord.push([hi, lo + f * (hi - lo)]); }\n}\n\nconst style = P.style;\nconst tp = K.t * (0.06 + P.speed * 0.16);          // drift clock\nconst tflow = K.t * (0.10 + P.speed * 0.15);        // gem surface undulation\nconst amp = 0.018 + clp(P.energy, 0, 1) * 0.05 + A.rms * 0.05;\nconst netv = 0.02 + clp(P.energy, 0, 1) * 0.05;     // net drift speed\nconst hb = (P.hue + K.section * 20 + S.hoff) % 360;\nconst expo = 0.75 + clp(P.energy, 0, 1) * 0.5 + K.intensity * 0.3 + A.bass * 0.4;\nconst edgeGlow = 0.5 + K.intensity * 0.5 + A.bass * 0.6 + K.pulse * 0.3; // edge brightness driver\n\n// wrap into [-0.12, 1.12), period 1.24\nconst wr = v => { let x = (v + 0.12) % 1.24; if (x < 0) x += 1.24; return x - 0.12; };\n\n// iq cosine palette (rgb 0..1), rotated by base hue\nconst pal = m => { const hr = hb / 360; return [\n  0.5 + 0.5 * Math.cos(TAU * (m + hr)),\n  0.5 + 0.5 * Math.cos(TAU * (m + hr + 0.33)),\n  0.5 + 0.5 * Math.cos(TAU * (m + hr + 0.66)) ]; };\nfunction rgb2hsb(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; let h = 0;\n  if (d > 1e-6) { if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }\n  return [h, mx <= 0 ? 0 : d / mx * 100, Math.min(1, mx) * 100]; }\nfunction hgt(x, y) { return Math.sin(x * 5.5 + tflow) + Math.cos(y * 4.7 - tflow * 0.8) + 0.6 * Math.sin((x + y) * 3.3 + tflow * 0.5); }\n\n// ---- assemble current point positions ----\nconst XS = [], YS = [];\nfor (let i = 0; i < N; i++) {\n  const pt = S.pts[i];\n  const ox = amp * (Math.sin(tp * pt.ds + pt.f1) + 0.5 * Math.sin(tp * pt.ds * 1.7 + pt.f2)) + pt.vx * netv * tp;\n  const oy = amp * (Math.cos(tp * pt.ds * 0.9 + pt.f2) + 0.5 * Math.cos(tp * pt.ds * 1.3 + pt.f1)) + pt.vy * netv * tp;\n  XS.push(wr(pt.hx + ox)); YS.push(wr(pt.hy + oy));\n}\nfor (let i = 0; i < S.bord.length; i++) { XS.push(S.bord[i][0]); YS.push(S.bord[i][1]); }\nconst M = XS.length;\nXS.push(-8, 8, 0); YS.push(-8, -8, 8); // super-triangle\n\n// ---- Bowyer-Watson Delaunay (small N, per frame) ----\nfunction circum(ax, ay, bx, by, cx, cy) { const dd = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));\n  if (Math.abs(dd) < 1e-12) return [0, 0, -1];\n  const a2 = ax * ax + ay * ay, b2 = bx * bx + by * by, c2 = cx * cx + cy * cy;\n  const ux = (a2 * (by - cy) + b2 * (cy - ay) + c2 * (ay - by)) / dd, uy = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / dd;\n  return [ux, uy, (ax - ux) * (ax - ux) + (ay - uy) * (ay - uy)]; }\nfunction mk(a, b, c) { return { a: a, b: b, c: c, cc: circum(XS[a], YS[a], XS[b], YS[b], XS[c], YS[c]) }; }\nlet tris = [mk(M, M + 1, M + 2)];\nfor (let p = 0; p < M; p++) {\n  const pxx = XS[p], pyy = YS[p], edges = [], keep = [];\n  for (let ti = 0; ti < tris.length; ti++) { const T = tris[ti], cc = T.cc; let bad = false;\n    if (cc[2] >= 0) { const dx = pxx - cc[0], dy = pyy - cc[1]; if (dx * dx + dy * dy < cc[2] - 1e-12) bad = true; }\n    if (bad) { edges.push(T.a, T.b, T.b, T.c, T.c, T.a); } else keep.push(T); }\n  const ne = edges.length / 2;\n  for (let e = 0; e < ne; e++) { const a = edges[2 * e], b = edges[2 * e + 1]; let cnt = 0;\n    for (let f = 0; f < ne; f++) { const c2 = edges[2 * f], d2 = edges[2 * f + 1]; if ((a === c2 && b === d2) || (a === d2 && b === c2)) cnt++; }\n    if (cnt === 1) keep.push(mk(a, b, p)); }\n  tris = keep;\n}\n\n// ---- render facets + edges ----\npush();\nconst al = P.alpha;\nnoStroke();\nif (style === 'wireframe') { fill((hb + 210) % 360, 45, 7, al); rect(0, 0, width, height); }\nelse if (style === 'blueprint') { fill(212, 70, 12, al); rect(0, 0, width, height); }\nelse if (style === 'ink') { fill(36, 10, 84, al); rect(0, 0, width, height); }\nconst swBase = Math.max(1, u * 0.0016);\nconst lx = P.x - 0.5, ly = P.y - 0.5, lz = 0.8, lm = Math.hypot(lx, ly, lz) || 1; // gem light dir\nconst Lx = lx / lm, Ly = ly / lm, Lz = lz / lm;\nlet addOn = false;\nif (style === 'wireframe') { blendMode(ADD); addOn = true; }\n\nfor (let ti = 0; ti < tris.length; ti++) {\n  const T = tris[ti];\n  if (T.a >= M || T.b >= M || T.c >= M) continue;\n  const ax = XS[T.a], ay = YS[T.a], bx = XS[T.b], by = YS[T.b], cx2 = XS[T.c], cy2 = YS[T.c];\n  const mx = (ax + bx + cx2) / 3, my = (ay + by + cy2) / 3;   // centroid (fraction coords)\n  const msc = mx * 0.55 + my * 0.4 + K.t * 0.012;             // centroid-position color scalar + drift\n  const cc = pal(msc), hs = rgb2hsb(cc[0], cc[1], cc[2]);\n  const X1 = ax * width, Y1 = ay * height, X2 = bx * width, Y2 = by * height, X3 = cx2 * width, Y3 = cy2 * height;\n\n  if (style === 'wireframe') {\n    noStroke(); fill(hs[0], clp(hs[1] * 0.8, 0, 100), 6 + hs[2] * 0.06, al * 0.5);\n    triangle(X1, Y1, X2, Y2, X3, Y3);\n    noFill(); stroke(hs[0], clp(50 + hs[1] * 0.4, 0, 100), clp(55 * edgeGlow + 30, 0, 100), al * 0.9);\n    strokeWeight(swBase * 1.1); triangle(X1, Y1, X2, Y2, X3, Y3);\n  } else if (style === 'gem') {\n    const ha = hgt(ax, ay), hbv = hgt(bx, by), hc = hgt(cx2, cy2);\n    const ux = bx - ax, uy = by - ay, uz = (hbv - ha) * 0.12, vx2 = cx2 - ax, vy2 = cy2 - ay, vz = (hc - ha) * 0.12;\n    let nx = uy * vz - uz * vy2, ny = uz * vx2 - ux * vz, nz = ux * vy2 - uy * vx2;\n    const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;\n    let ndl = nx * Lx + ny * Ly + nz * Lz; if (ndl < 0) ndl = -ndl * 0.4;\n    const lit = clp(22 + ndl * 70 * expo, 8, 96), spec = ndl > 0.86 ? (ndl - 0.86) * 260 * expo : 0;\n    noStroke(); fill(hs[0], clp(hs[1] * 0.9 + 18, 25, 95), clp(lit + spec, 6, 100), al);\n    triangle(X1, Y1, X2, Y2, X3, Y3);\n  } else if (style === 'blueprint') {\n    const val = 0.5 + 0.5 * Math.cos(TAU * msc);\n    noStroke(); fill(212, clp(60 - val * 20, 0, 100), clp(9 + val * 10, 0, 100), al);\n    triangle(X1, Y1, X2, Y2, X3, Y3);\n    noFill(); stroke(196, 26, clp(70 * edgeGlow + 22, 0, 100), al * 0.92);\n    strokeWeight(swBase * 0.9); triangle(X1, Y1, X2, Y2, X3, Y3);\n  } else if (style === 'ink') {\n    const val = 0.5 + 0.5 * Math.cos(TAU * msc), paper = clp(88 - val * 46, 20, 92);\n    noStroke(); fill(34, clp(10 + val * 8, 0, 40), paper, al);\n    triangle(X1, Y1, X2, Y2, X3, Y3);\n    noFill(); stroke(28, 22, clp(26 - val * 10, 8, 40), al * 0.85);\n    strokeWeight(swBase * (0.8 + val * 0.9)); triangle(X1, Y1, X2, Y2, X3, Y3);\n  } else { // stained-poly (default): centroid-hue jewel fill + BRIGHT edges (the living web)\n    const fillB = clp(38 + hs[2] * 0.45 * expo, 14, 82);\n    noStroke(); fill(hs[0], clp(hs[1] * 0.95 + 18, 30, 96), fillB, al);\n    triangle(X1, Y1, X2, Y2, X3, Y3);\n    noFill(); stroke((hs[0] + 8) % 360, clp(hs[1] * 0.5 + 10, 0, 70), clp(70 * edgeGlow + 26, 0, 100), al * 0.95);\n    strokeWeight(swBase * 1.15); triangle(X1, Y1, X2, Y2, X3, Y3);\n  }\n}\nif (addOn) blendMode(BLEND);\npop();\n\n// ---- audio sparkle on vertices (treble) \u2014 partial, never full-frame strobe ----\nif ((A.treble > 0.02 || A.rms > 0.02) && al > 5) {\n  push(); blendMode(ADD); noStroke();\n  const spk = (A.treble * 0.7 + A.rms * 0.3) * clp(P.energy, 0, 1), hh = (hb + 40) % 360;\n  const nn = Math.min(N, 40);\n  for (let i = 0; i < nn; i++) { fill(hh, 30, 100, spk * 38 * (al / 100)); circle(XS[i] * width, YS[i] * height, u * 0.02 * (1 + spk)); }\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND);\n"
+}

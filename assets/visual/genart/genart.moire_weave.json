@@ -1,0 +1,165 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.moire_weave",
+  "kind": "genart",
+  "name": "Moir\u00e9 Weave",
+  "desc": "Two-to-four families of thin parallel threads \u2014 straight razor gratings or watered-silk waves \u2014 rotate at slightly different rates and slide out of register, blooming shimmering moir\u00e9 interference bands that breathe and sweep across the frame, rendered as Bridget-Riley black-and-white op-art, neon duotone, thermal false-color, cyan blueprint, or warm risograph misprint.",
+  "tags": [
+    "moire",
+    "moir\u00e9",
+    "op-art",
+    "opart",
+    "optical",
+    "optical-illusion",
+    "interference",
+    "bridget-riley",
+    "soto",
+    "vasarely",
+    "kinetic",
+    "line",
+    "lines",
+    "grating",
+    "weave",
+    "woven",
+    "watered-silk",
+    "shimmer",
+    "vibration",
+    "stripes",
+    "geometric",
+    "abstract",
+    "generative",
+    "genart",
+    "background",
+    "bg",
+    "black-and-white",
+    "monochrome",
+    "neon",
+    "duotone",
+    "thermal",
+    "blueprint",
+    "cyan",
+    "riso",
+    "risograph",
+    "hypnotic",
+    "psychedelic",
+    "minimal",
+    "vector"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "line count per family \u2014 grating fineness (1st poke)"
+    },
+    "weave": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "waviness \u2014 0 straight razor op-art, 1 watered-silk curves (2nd poke)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ink duty + fringe contrast amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "doc": "rotation / phase-slide / breathe rate (real-time drift)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 3,
+      "doc": "grating zoom \u2014 line spacing vs design size"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "ink / glow base hue (ignored by opart b&w)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pattern anchor x (pulled toward center)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pattern anchor y (pulled toward center)"
+    },
+    "families": {
+      "default": 3,
+      "min": 2,
+      "max": 4,
+      "doc": "number of superposed line families (2\u20134)"
+    },
+    "tilt": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "base grating orientation (0..2\u03c0)"
+    },
+    "mismatch": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "per-family period detune \u2192 vernier fringe travel (0.5=matched)"
+    },
+    "style": {
+      "default": "opart",
+      "options": [
+        "opart",
+        "neon",
+        "thermal",
+        "blueprint",
+        "riso"
+      ],
+      "doc": "render philosophy"
+    },
+    "act": {
+      "default": "rotate",
+      "options": [
+        "rotate",
+        "breathe",
+        "slide"
+      ],
+      "doc": "multi-minute dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic per-family layout (rebuilds on change)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg, lower=translucent overlay)"
+    }
+  },
+  "acts": [
+    "rotate",
+    "breathe",
+    "slide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-12T14:10:02+00:00",
+    "fps": 55.6,
+    "motion": 0.2258,
+    "lum": 0.364
+  },
+  "code": "const D = { density:.5, weave:.4, energy:.6, speed:1, scale:1, hue:210, x:.5, y:.5, families:3, tilt:.5, mismatch:.5, style:'opart', act:'rotate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W=width, H=height, u=Math.min(W,H), TAU=Math.PI*2;\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat) S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst st=P.style, act=P.act;\nconst F=Math.max(2,Math.min(4,Math.round(P.families)));\n\n// seeded per-family layout (rebuild on seed or family-count change)\nif(S.seedUsed!==P.seed || S.F!==F){\n  S.seedUsed=P.seed; S.F=F;\n  const fam=[];\n  for(let k=0;k<F;k++){\n    fam.push({\n      base:(fr(k*5+1)-0.5)*0.30,\n      rate:(0.5+fr(k*5+2)*1.1)*(fr(k*5+5)<.5?-1:1),\n      pr:0.86+fr(k*5+3)*0.28,\n      wph:fr(k*5+4)*TAU,\n      wf:1.3+fr(k*5+6)*1.9,\n      slide:(fr(k*5+7)-0.5)*2,\n      mx:(fr(k*5+8)-0.5)*0.022,\n      my:(fr(k*5+9)-0.5)*0.022\n    });\n  }\n  S.fam=fam;\n}\nconst fam=S.fam;\n\nconst dens=cl(P.density,0,1), wv=cl(P.weave,0,1), en=cl(P.energy,0,1);\nconst spd=cl(P.speed,0,4), sc=cl(P.scale,.4,3), hue=md(P.hue,360);\nconst AL=cl(P.alpha,0,100), alF=AL/100;\nconst sec=K.section||0, intens=0.55+0.6*(K.intensity!=null?K.intensity:.6);\nconst dr=0.30+spd;\n\n// anchor pulled toward center so the rotating rig always covers the whole frame\nconst cx=(0.5+(cl(P.x,0,1)-0.5)*0.4)*W, cy=(0.5+(cl(P.y,0,1)-0.5)*0.4)*H;\nconst R=Math.hypot(W,H)*0.72;\n\n// 1st poke = line count (density) ; 2nd poke = waviness (weave)\nconst nAcross=14+dens*70;\nlet period=(u/nAcross)/sc;\nconst SEG=1+Math.round(wv*13);\nconst segV=SEG+1;\nconst BUD=1700;                                 // total-vertex budget (worst case stays < 2000 cap)\nconst periodFloor=(2*R*F*segV)/BUD;             // coarsen if fine+wavy+many families would blow budget\nperiod=Math.max(period, periodFloor);\nconst waveAmp=wv*period*3.0;                     // curvature amplitude, proportional to spacing\nconst waveK=TAU/u;\nconst nL=Math.min(260, Math.ceil(R/period));\n\n// motion floor \u2014 everything on K.t (never re-phases); dr floor keeps it alive at speed 0.\n// A big frame turns any tiny rotation into a large tangential line-shift at mid-radius, and\n// high-contrast gratings strobe on a half-period shift, so total 8s shift is budgeted small.\n// The moire FRINGE is far more angle-sensitive than the lines, so it still sweeps visibly.\n// mot: straight+fine gratings strobe hardest, so slow them; wavy fields may drift a little faster.\nconst mot=0.5+0.7*wv;\nconst baseRot=md(P.tilt*TAU + K.t*0.0016*dr*mot, TAU);\nlet breathAmp=0.03, rateAmp=0.0016*mot, slideAmp=0.05*mot;\nif(act==='breathe'){ breathAmp=0.08; rateAmp=0.0013*mot; }\nelse if(act==='slide'){ breathAmp=0.02; rateAmp=0.0011*mot; slideAmp=0.18*mot; }\nconst breath=0.5+0.5*Math.sin(K.t*0.045*dr + sec*0.6);\nconst aBloom=(A.lowmid||0)*0.35+(A.rms||0)*0.25, aCon=(A.bass||0)*0.5;\n\nconst dutyBase=cl(0.16+en*0.24, .12, .48);\nconst contrast=cl(intens*(0.5+0.7*en)+aCon, 0, 1.4);\nconst hueDrift=sec*15;\n\n// palette / ground per style \u2014 ground alone holds luminance safely in-gate\nconst dark=(st==='neon'||st==='thermal'||st==='blueprint');\nconst gH = st==='opart'?0 : st==='riso'?38 : st==='blueprint'?212 : st==='neon'?258 : 250;\nconst gS = st==='opart'?0 : st==='riso'?12 : st==='blueprint'?78 : st==='neon'?40 : 40;\nconst gV = st==='opart'?88 : st==='riso'?90 : st==='blueprint'?15 : st==='neon'?10 : 10;\n\nblendMode(BLEND);\nif(AL>=99) background(gH,gS,gV);\nelse { noStroke(); fill(gH,gS,gV,AL); rect(0,0,W,H); }\n\nconst addA=cl(0.60/F*(0.6+contrast*0.6), .05, .45);   // per-family ADD alpha; /F bounds the overlap sum\nfunction heat(m){ return [md(282-262*m,360), 88-34*m, 52+46*m]; }\n\npush();\ntranslate(cx,cy);\nstrokeCap(ROUND);\nnoFill();\n// ADD glow on dark grounds; opaque BLEND ink on light grounds (Riley-authentic + luminance-floored)\nif(dark) blendMode(ADD); else blendMode(BLEND);\n\nfor(let k=0;k<F;k++){\n  const f=fam[k];\n  const spread=cl((0.045+breathAmp*breath+aBloom*0.12), 0.03, 0.5);\n  const ang=baseRot + f.base + f.rate*(K.t*rateAmp*dr) + spread*(k-(F-1)/2);\n  const pk=period*(1+(f.pr-1)*cl(P.mismatch,0,1)*0.9);\n  const off=(K.t*dr*slideAmp*f.slide)%pk;\n  const wPh=f.wph + K.t*dr*(0.011+0.016*wv)*(0.6+f.slide*0.5);   // waves undulate gently; scales with weave so wavy many-family fields keep clear motion\n  const lw=Math.max(0.65, pk*dutyBase*(dark?0.85:1.0));\n\n  if(st==='opart') stroke(0,0,12, 100*alF);\n  else if(st==='riso'){ const rh=md(hue+(k%2)*150+hueDrift,360); stroke(rh,66,54, 90*alF); }\n  else if(st==='blueprint') stroke(md(198+hueDrift*0.3,360),52,94, (24+en*24)*alF*(0.7+contrast*0.5));\n  else if(st==='neon'){ const nh=md(hue+(k%2)*162+(k>>1)*46+hueDrift,360); stroke(nh,92,96, addA*100*alF); }\n  else { const c=heat((k+0.5)/F); stroke(md(c[0]+hueDrift,360),c[1],c[2], addA*100*alF); }\n\n  strokeWeight(lw);\n  push();\n  if(st==='riso') translate(f.mx*u*breath, f.my*u*breath);   // print misregistration\n  rotate(ang);\n  for(let i=-nL;i<=nL;i++){\n    const x0=i*pk+off;\n    if(SEG<=1){ line(x0,-R,x0,R); }\n    else {\n      beginShape();\n      for(let s=0;s<=SEG;s++){\n        const yy=-R+(2*R)*s/SEG;\n        const x=x0 + waveAmp*Math.sin(yy*waveK*f.wf + wPh);\n        vertex(x,yy);\n      }\n      endShape();\n    }\n  }\n  pop();\n}\nblendMode(BLEND);\npop();\n\n// audio sparkle on top \u2014 few ADD dots, silent during validation\nif((A.treble||0)>0.06 && AL>10){\n  push(); blendMode(ADD); noStroke();\n  const n=Math.min(12, Math.floor(12*A.treble));\n  const jb=Math.floor(K.beat*2);\n  for(let s=0;s<n;s++){\n    const a=fr(s*3.3+jb)*TAU, rr=fr(s*1.7+jb)*u*0.42;\n    fill(dark?md(hue+40,360):0, dark?70:0, 100, 46*A.treble*alF);\n    circle(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr, u*0.006);\n  }\n  blendMode(BLEND); pop();\n}\n"
+}

@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.pixelate",
+  "kind": "post",
+  "name": "Pixelate Mosaic",
+  "desc": "Blocky re-render of the live frame from a cached downsample, block size pumping with the musical intensity, offered as square mosaic, RGB-subpixel CRT triads, dot-matrix ASCII, Bayer dither or rotated diamonds.",
+  "tags": [
+    "pixelate",
+    "pixel",
+    "mosaic",
+    "blocks",
+    "blocky",
+    "lowres",
+    "8bit",
+    "retro",
+    "downsample",
+    "quantize",
+    "crt",
+    "subpixel",
+    "ascii",
+    "dotmatrix",
+    "dither",
+    "bayer",
+    "diamond",
+    "posterize",
+    "grid",
+    "tile",
+    "post",
+    "overlay",
+    "fx",
+    "abstract",
+    "lofi"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "block": {
+      "default": 0.5,
+      "min": 0.04,
+      "max": 1,
+      "doc": "block SIZE (bigger = chunkier mosaic)"
+    },
+    "shimmer": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "per-block dither/shimmer strength"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "beat-pump amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "shimmer + seam-crawl rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved detail level"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "tint/shimmer hue"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved overall scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "style": {
+      "default": "mosaic",
+      "options": [
+        "mosaic",
+        "crt",
+        "ascii",
+        "dither",
+        "diamond"
+      ],
+      "doc": "mosaic=solid square blocks of the real frame / crt=RGB subpixel triads (aperture grille) / ascii=dot-matrix, block brightness -> dot size (abstract) / dither=3-level Bayer-quantized posterization (abstract) / diamond=rotated-square mosaic"
+    },
+    "act": {
+      "default": "pump",
+      "options": [
+        "pump",
+        "dissolve",
+        "drift"
+      ],
+      "doc": "pump=block size swells on low intensity + beat / dissolve=huge blocks resolve to fine across each section then reset / drift=slow continuous block-size breathing"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "shimmer pattern seed"
+    }
+  },
+  "acts": [
+    "pump",
+    "dissolve",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:41:17+00:00",
+    "fps": 59.9,
+    "motion": 0.0448,
+    "lum": 0.155
+  },
+  "code": "const D = { block:.5, shimmer:.5, energy:.6, speed:1, density:.5, hue:210, scale:1, x:.5, y:.5, style:'mosaic', act:'pump', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), lrp=(a,b,t)=>a+(b-a)*t, md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst st=P.style, act=P.act, HUE=md(P.hue,360);\nconst cnv=drawingContext.canvas;\nconst oldOp=drawingContext.globalCompositeOperation;\nconst perBlock=(st==='crt'||st==='ascii'||st==='dither'||st==='diamond');\n\n// fixed small sampling buffer\nconst BW=248,BH=160;\nif(!S.buf){ S.buf=createGraphics(BW,BH); S.buf.pixelDensity(1); }\n\n// ---- block size: base param + dramaturgy pump (big=low intensity) + real-time breathe ----\nlet pump=1;\nif(act==='pump'){ pump=1 + (1-clp(K.intensity+A.bass*0.4,0,1))*0.7 + K.pulse*0.25*P.energy + 0.18*Math.sin(K.t*0.6*P.speed); }\nelse if(act==='dissolve'){ const ph=md(K.section,4)/4 + K.cyc*0.25; pump=lrp(2.4,0.5,clp(ph,0,1)); }\nelse { pump=1 + 0.5*(0.5+0.5*Math.sin(K.t*0.35*P.speed)); } // drift (real-time breathing)\nconst blockPx=clp(lrp(u*0.02,u*0.19,clp(P.block,0,1))*pump, u*0.012, u*0.5);\nlet bx=Math.max(4,Math.round(W/blockPx)), by=Math.max(3,Math.round(Hh/blockPx));\nif(perBlock){ const capX=44, capY=30; bx=Math.min(bx,capX); by=Math.min(by,capY); }\nelse{ bx=Math.min(bx,BW); by=Math.min(by,BH); }\nconst cw=W/bx, ch=Hh/by;\n\n// ---- downsample the composited frame (averaging), crawl the sample origin so real content mosaics move ----\nconst dxo=Math.sin(K.t*0.11)*cw*0.4, dyo=Math.cos(K.t*0.083)*ch*0.4;\nS.buf.drawingContext.imageSmoothingEnabled=true;\ntry{ S.buf.drawingContext.clearRect(0,0,BW,BH); S.buf.drawingContext.drawImage(cnv, dxo,dyo,W,Hh, 0,0,bx,by); }catch(e){}\n\nconst sh=clp(P.shimmer,0,1);\n\nif(!perBlock){\n  // ---- fast path: blocky upscale of the real frame ----\n  drawingContext.imageSmoothingEnabled=false;\n  try{ drawingContext.drawImage(S.buf, 0,0,bx,by, 0,0,W,Hh); }catch(e){}\n  drawingContext.imageSmoothingEnabled=true;\n  // faint seam grid (crawls) + coarse shimmer overlay (motion floor on flat frames)\n  blendMode(MULTIPLY); stroke(0,0,0,18); strokeWeight(1); noFill();\n  const gx=md(K.t*8,cw); for(let x=gx;x<W;x+=cw) line(x,0,x,Hh);\n  const gy=md(K.t*6,ch); for(let y=gy;y<Hh;y+=ch) line(0,y,W,y);\n  blendMode(BLEND);\n}else{\n  // ---- per-block artistic re-render ----\n  let px; try{ px=S.buf.drawingContext.getImageData(0,0,bx,by).data; }catch(e){ px=null; }\n  const val=(i,j)=>{ if(!px) return 40; const k=(j*bx+i)*4; return (px[k]*0.3+px[k+1]*0.59+px[k+2]*0.11)/255*100; };\n  const hueAt=(i,j)=>{ if(!px) return HUE; const k=(j*bx+i)*4, r=px[k]/255,g=px[k+1]/255,b=px[k+2]/255; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(d<0.02) return HUE; let h=0; if(mx===r)h=((g-b)/d)%6; else if(mx===g)h=(b-r)/d+2; else h=(r-g)/d+4; return md(h*60,360); };\n  noStroke();\n  for(let j=0;j<by;j++)for(let i=0;i<bx;i++){\n    const sm=(Math.sin((i*1.3+j*2.1)+K.t*(0.8+P.speed))*0.5+0.5);\n    let v=clp(val(i,j)/100 + (sm-0.5)*sh*0.55 + K.pulse*0.12*P.energy, 0.04, 1)*100;\n    const cx=i*cw, cy=j*ch, hh=(st==='crt')?hueAt(i,j):HUE;\n    if(st==='ascii'){\n      const g=v/100; fill(HUE, 30+40*g, 40+55*g, 90);\n      const r=Math.max(1,(cw*0.92)*g);\n      ellipse(cx+cw*0.5, cy+ch*0.5, r, r);\n    }else if(st==='crt'){\n      const bw3=cw/3;\n      fill(0,90,100, v*0.9); rect(cx,cy,bw3,ch*0.92);\n      fill(120,90,100, v*0.9); rect(cx+bw3,cy,bw3,ch*0.92);\n      fill(240,90,100, v*0.9); rect(cx+bw3*2,cy,bw3,ch*0.92);\n    }else if(st==='dither'){\n      const lv=Math.round(v/100*3)/3; const bay=((i&1)^(j&1)); const th=bay?0.12:-0.12;\n      const on=(lv+th)>0.4;\n      fill(HUE, 55, on?85:18, 95); rect(cx,cy,cw*0.96,ch*0.96);\n    }else{ // diamond\n      push(); translate(cx+cw*0.5, cy+ch*0.5); rotate(Math.PI/4);\n      fill(hh, 55, v, 92); const s=cw*0.62*(0.5+v/100*0.7); rect(-s/2,-s/2,s,s); pop();\n    }\n  }\n}\n\n// ---- traveling luma wave: bold real-time motion floor (scrolls, never re-phases at 8s) ----\n{\n  blendMode(SCREEN); noStroke();\n  const nbnd=8, ph=K.t*(0.55+0.45*P.speed), bandH=Hh*0.16;\n  for(let b=0;b<nbnd;b++){\n    const yy=md(b/nbnd + ph*0.12, 1)*(Hh+bandH)-bandH*0.5;\n    const a=(7+9*Math.sin(ph*1.3+b*1.7))*(0.6+0.6*sh);\n    if(a<0.5) continue;\n    fill(md(HUE + b*22 + K.t*11, 360), 34, 100, a);\n    rect(0, yy, W, bandH);\n  }\n  blendMode(BLEND);\n}\n\n// ---- coarse shimmer cells: always-moving self-generated motion (carries gate on flat beds) ----\n{\n  const CX=26, CY=15, cwc=W/CX, chc=Hh/CY;\n  blendMode(SCREEN); noStroke();\n  for(let j=0;j<CY;j++)for(let i=0;i<CX;i++){\n    const f=fr(i*5.3+j*9.1);\n    const s=Math.sin((i*0.9+j*1.7)+K.t*(1.3+P.speed)+f*6.28)*0.5+0.5;\n    const a=(5+14*sh)*s;\n    if(a<0.6) continue;\n    fill(md(HUE+f*70,360), 42, 100, a);\n    rect(i*cwc, j*chc, cwc, chc);\n  }\n  blendMode(BLEND);\n}\n\n// ---- rolling scanline band for extra life ----\n{\n  blendMode(MULTIPLY); noStroke();\n  const by2=md(K.t*u*0.2,Hh*1.2)-Hh*0.1;\n  fill(0,0,0,24); rect(0,by2,W,u*0.06);\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.imageSmoothingEnabled=true; drawingContext.shadowBlur=0; noStroke(); noFill();\n"
+}

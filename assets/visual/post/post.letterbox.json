@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.letterbox",
+  "kind": "post",
+  "name": "Letterbox Cinema",
+  "desc": "Anamorphic black bars with flickering warm burn glow at the frame edges, animated film grain, film-stock tinting and reel-change cue marks.",
+  "tags": [
+    "letterbox",
+    "cinema",
+    "cinematic",
+    "widescreen",
+    "anamorphic",
+    "bars",
+    "film",
+    "grain",
+    "burn",
+    "light-leak",
+    "sepia",
+    "noir",
+    "technicolor",
+    "bleach-bypass",
+    "infrared",
+    "vignette",
+    "flicker",
+    "reel",
+    "scratches",
+    "analog",
+    "vintage",
+    "post",
+    "overlay",
+    "movie"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "bars": {
+      "default": 0.12,
+      "min": 0,
+      "max": 0.32,
+      "doc": "letterbox bar height (fraction each)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "grain / burn / leak intensity"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "warm tint & glow hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "grain & flicker rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grain amount & scratch count"
+    },
+    "tint": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "film-stock colour wash strength"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved uniform scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "sepia",
+      "options": [
+        "sepia",
+        "noir",
+        "technicolor",
+        "bleach",
+        "infrared"
+      ],
+      "doc": "aesthetic (film stock)"
+    },
+    "act": {
+      "default": "reel",
+      "options": [
+        "reel",
+        "leak",
+        "decay"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "reel",
+    "leak",
+    "decay"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:34:48+00:00",
+    "fps": 60.2,
+    "motion": 0.0082,
+    "lum": 0.084
+  },
+  "code": "const D = { bars:.12, energy:.6, hue:30, speed:1, density:.5, scale:1, x:.5, y:.5, style:'sepia', act:'reel', seed:0, tint:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst nz=x=>{const i=Math.floor(x),f=x-i,a=fr(i),b=fr(i+1);const t=f*f*(3-2*f);return a+(b-a)*t;};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst style=P.style, act=P.act;\nconst spd=Math.max(0.05,P.speed);\nconst t=K.t*spd;\nconst en=clp(P.energy,0,1)*(0.6+0.4*K.intensity);\nconst tn=clp(P.tint,0,1);\nconst dens=clp(P.density,0,1);\n\n// ---- cached grain tiles (seed-keyed) ----\nconst gw=200, gh=120;\nif(!S.grain || S.gk!==P.seed){\n  if(S.grain){ for(const g of S.grain){ try{g.remove();}catch(e){} } }\n  S.gk=P.seed; S.grain=[];\n  for(let ti=0;ti<4;ti++){ const gb=createGraphics(gw,gh); gb.colorMode(HSB,360,100,100,100); gb.loadPixels(); const pp=gb.pixels;\n    for(let i=0;i<gw*gh;i++){ const n=fr(i*1.71+ti*911.3+7); const v=128+(n-0.5)*235; pp[4*i]=v;pp[4*i+1]=v;pp[4*i+2]=v;pp[4*i+3]=255; }\n    gb.updatePixels(); S.grain.push(gb); }\n}\n// ---- cached warm burn glow sprite + vignette (size-keyed) ----\nif(!S.glow || S.vk!==W+'x'+Hh){\n  if(S.glow){try{S.glow.remove();}catch(e){}} if(S.vig){try{S.vig.remove();}catch(e){}}\n  S.vk=W+'x'+Hh;\n  const gh2=Math.round(u*0.17);\n  const gl=createGraphics(W,gh2); gl.colorMode(HSB,360,100,100,100); gl.noStroke();\n  const gc=gl.drawingContext, lg=gc.createLinearGradient(0,0,0,gh2);\n  lg.addColorStop(0,'rgba(255,150,40,0.9)'); lg.addColorStop(0.5,'rgba(255,110,20,0.28)'); lg.addColorStop(1,'rgba(255,90,10,0)');\n  gc.fillStyle=lg; gc.fillRect(0,0,W,gh2); S.glow=gl; S.glowH=gh2;\n  const vg=createGraphics(W,Hh); vg.colorMode(HSB,360,100,100,100);\n  const vc=vg.drawingContext, rg=vc.createRadialGradient(W/2,Hh/2,u*0.28,W/2,Hh/2,u*0.8);\n  rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,'rgba(0,0,0,0.5)');\n  vc.fillStyle=rg; vc.fillRect(0,0,W,Hh); S.vig=vg;\n}\n\nnoStroke();\n// ---- 1. film-stock tint wash (bars will cover the edges) ----\nif(style==='sepia'){\n  blendMode(MULTIPLY); fill(md(H,360),40,88, 26*tn+8); rect(0,0,W,Hh);\n  blendMode(ADD); fill(md(H+6,360),55,100, 8*tn); rect(0,0,W,Hh);\n} else if(style==='noir'){\n  blendMode(MULTIPLY); fill(0,0,58, 40*tn+10); rect(0,0,W,Hh);\n  blendMode(MULTIPLY); fill(220,10,40, 14*tn); rect(0,0,W,Hh);\n} else if(style==='technicolor'){\n  blendMode(SCREEN); fill(200,70,60, 12*tn); rect(0,0,W,Hh*0.55);\n  fill(md(H,360),75,66, 14*tn); rect(0,Hh*0.45,W,Hh*0.55);\n} else if(style==='bleach'){\n  blendMode(SCREEN); fill(40,8,90, 20*tn); rect(0,0,W,Hh);\n  blendMode(MULTIPLY); fill(0,0,70, 16*tn); rect(0,0,W,Hh);\n} else if(style==='infrared'){\n  blendMode(MULTIPLY); fill(320,60,80, 22*tn); rect(0,0,W,Hh*0.5);\n  fill(180,70,80, 22*tn); rect(0,Hh*0.5,W,Hh*0.5);\n  blendMode(ADD); fill(300,80,100, 6*tn); rect(0,0,W,Hh);\n}\nblendMode(BLEND);\n\n// ---- 2. animated film grain (carries motion even on flat input) ----\nconst gi=Math.floor(t*22)%4;\nconst gmul=(style==='noir'||style==='bleach')?1.5:1;\nconst ga=clp(lrp(6,60,en)*(0.45+0.55*dens)*gmul, 0, 75);\npush(); blendMode(OVERLAY); tint(0,0,100, ga);\nconst jx=(nz(t*6)-0.5)*u*0.03, jy=(nz(t*6+40)-0.5)*u*0.03;\nimage(S.grain[gi], jx, jy, W+Math.abs(jx)*2, Hh+Math.abs(jy)*2);\npop(); noTint();\n\n// ---- 3. letterbox bars (clean black, subtle weave) ----\nconst barH=clp(P.bars,0,0.32)*Hh + Math.sin(t*6.3)*u*0.0018;\nblendMode(BLEND); fill(0,0,0);\nrect(0,0,W,Math.max(0,barH)); rect(0,Hh-Math.max(0,barH),W,Math.max(0,barH)+1);\n\n// ---- 4. warm burn glow flickering at inner bar edges ----\nconst flick=0.35+0.65*nz(t*9)+0.4*A.bass;\npush(); blendMode(ADD); tint(0,0,100, clp(flick*lrp(20,80,en),0,90));\nimage(S.glow, 0, barH, W, S.glowH);\npush(); scale(1,-1); image(S.glow, 0, -(Hh-barH), W, S.glowH); pop();\npop(); noTint();\n\n// ---- 5. light leak (act:leak) \u2014 warm blob sweeping across, partial ----\nif(act==='leak'){\n  const lx=md(t*0.13,1)*W*1.3-W*0.15, ly=Hh*(0.3+0.4*nz(t*0.2));\n  push(); blendMode(ADD); noStroke();\n  drawingContext.shadowBlur=u*0.12; drawingContext.shadowColor='rgba(255,140,40,0.9)';\n  fill(md(H+4,360),70,100, clp(28*en*(0.6+0.4*nz(t*0.5)),0,40)); circle(lx,ly,u*0.3);\n  drawingContext.shadowBlur=0; pop();\n}\n// ---- 5b. cigarette-burn reel cue marks (act:reel) top-right ----\nif(act==='reel'){\n  const cue=md(t,8);\n  if(cue<0.28){ const a=Math.sin(cue/0.28*Math.PI); push(); blendMode(ADD); noFill();\n    stroke(40,25,100, a*70); strokeWeight(Math.max(1.5,u*0.005));\n    const cx=W*0.86,cy=barH+u*0.09; circle(cx,cy,u*0.055); circle(cx,cy,u*0.028); pop(); }\n}\n// ---- 5c. scratches accumulating (act:decay) ----\nif(act==='decay'){\n  const ns=Math.round(1+K.section*0.9*(0.4+dens)*3);\n  push(); blendMode(SCREEN);\n  for(let i=0;i<ns;i++){ const seedi=i*7+Math.floor(t*1.4)*13; const x=fr(seedi)*W + Math.sin(t*3+i)*u*0.004;\n    stroke(30,12,100, lrp(12,34,fr(seedi+1))); strokeWeight(Math.max(1,u*0.0016)); line(x,barH,x,Hh-barH); }\n  pop();\n}\n\n// ---- 6. vignette + subtle exposure breathe ----\nblendMode(MULTIPLY); image(S.vig,0,0);\nblendMode(BLEND);\nconst expo=(0.5-0.5*nz(t*4))*lrp(0,10,en);\nfill(0,0,0, expo); rect(0,barH,W,Hh-2*barH);\n\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0;\n"
+}

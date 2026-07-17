@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.led_grid",
+  "kind": "floor",
+  "name": "LED Disco Floor",
+  "desc": "Perspective grid of LED tiles firing in chase/ripple/FFT patterns beneath a glowing vanishing-point horizon.",
+  "tags": [
+    "led",
+    "grid",
+    "disco",
+    "dancefloor",
+    "floor",
+    "perspective",
+    "neon",
+    "matrix",
+    "tron",
+    "synthwave",
+    "club",
+    "chase",
+    "pixel",
+    "stage",
+    "rave",
+    "glow",
+    "cells",
+    "tiles"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "grid resolution (rows x columns of LED cells)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "cell glow amplitude + beat bloom"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "primary LED hue (190 = cyan)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "chase/pattern travel rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "cell size / perspective spread"
+    },
+    "warp": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "perspective spread of converging columns"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.25,
+      "max": 0.7,
+      "doc": "horizon y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random-pattern seed"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "blueprint",
+        "halftone",
+        "sodium"
+      ],
+      "doc": "aesthetic: neon LED / drafting blueprint schematic / halftone dot-matrix / sodium-vapor monochrome"
+    },
+    "pattern": {
+      "default": "chase",
+      "options": [
+        "chase",
+        "ripple",
+        "columns",
+        "fft",
+        "random"
+      ],
+      "doc": "cell-firing pattern: diagonal chase / radial ripple / column sweep / FFT spectrum rows / seeded random"
+    },
+    "act": {
+      "default": "sweep",
+      "options": [
+        "sweep",
+        "pulse",
+        "build"
+      ],
+      "doc": "dramaturgy: steady sweep / beat-surging pulse / slow section build"
+    }
+  },
+  "acts": [
+    "sweep",
+    "pulse",
+    "build"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:12:50+00:00",
+    "fps": 59.9,
+    "motion": 0.1439,
+    "lum": 0.267
+  },
+  "code": "const D = { density:.55, energy:.6, hue:190, speed:1, scale:1, warp:.35, x:.5, y:.42, seed:0, style:'neon', pattern:'chase', act:'sweep' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return q - Math.floor(q); };\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst TAU = 6.28318530718;\nconst sty = P.style, H = P.hue;\nconst hz = cl(P.y, .25, .7) * height;\nconst cx = cl(P.x, .1, .9) * width;\nconst groundH = Math.max(24, height - hz);\nconst yOf = t => hz + Math.pow(cl(t,0,1), 1.8) * groundH;\nconst hwOf = t => width * (.028 + t*1.05) * .5 * P.scale * (1 + P.warp*.5);\nconst NR = Math.round(7 + P.density*9);\nconst NC = Math.round(5 + P.density*8);\nconst FFT = (A.fft && A.fft.length) ? A.fft : null;\n\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nS.tre  = (S.tre||0)*.8 + (A.treble||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.5 + .6*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5 + .5*K.intensity) + S.bass*.6);\n\n// real-time chase phase (integrates seconds \u2014 never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.55 + .9*K.intensity);\nif (P.act === 'pulse') sp *= .45 + 1.3*kick;\nif (P.act === 'build') sp *= .3 + 1.5*(.5 + .5*Math.sin(K.t*.05 + K.section*.8));\nS.chase = (S.chase||0) + dt*sp*.5;\nconst chase = S.chase;\n\n// cached dark floor backdrop (keyed on size/style/hue/geometry)\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.y*20)+'|'+Math.round(P.scale*8)+'|'+Math.round(P.warp*10);\nif (!S.base || S.key !== key) {\n  const g = (S.base && S.base.width===width && S.base.height===height) ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 46;\n  for (let i=0;i<STR;i++){ const f=i/STR, y=hz + f*groundH;\n    let h,s,b;\n    if (sty==='blueprint'){ h=H; s=68; b=14 + 10*f; }\n    else if (sty==='sodium'){ h=32; s=42-24*f; b=6 + 9*f; }\n    else if (sty==='halftone'){ h=H; s=8; b=7 + 8*f; }\n    else { h=H; s=55-20*f; b=3 + 7*f; }   // neon: near-black with faint hue\n    g.fill(h, cl(s,4,90), b, 100); g.rect(0, y, width, groundH/STR + 1);\n  }\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// cell brightness field\nconst bright = (r,c) => {\n  const tc = (r+.5)/NR;\n  const fv = FFT ? (FFT[Math.floor((r/NR)*FFT.length)]||0) : 0;\n  let br;\n  if (P.pattern==='ripple'){ const dd = Math.hypot((c-(NC-1)/2)*.9, (NR-r)*.7); br = .5 + .5*Math.sin(dd*.8 - chase*TAU); }\n  else if (P.pattern==='columns'){ br = .5 + .5*Math.sin(c*.95 - chase*TAU*1.2); }\n  else if (P.pattern==='fft'){ br = .12 + .88*fv; }\n  else if (P.pattern==='random'){ const step = Math.floor(chase*3); br = .15 + .85*fr(r*NC + c + step*57.3); }\n  else { br = .5 + .5*Math.sin(r*.62 + c*.34 - chase*TAU); }  // chase (default)\n  br = cl(br + kick*.28*Math.sin(r*.5 + c*1.3) + S.tre*.35*fv, 0, 1);\n  return br;\n};\n\n// filled perspective cells\nnoStroke();\nfor (let r=0;r<NR;r++){\n  const t0=r/NR, t1=(r+1)/NR;\n  const y0=yOf(t0), y1=yOf(t1), hw0=hwOf(t0), hw1=hwOf(t1);\n  const near=(r+.5)/NR;\n  for (let c=0;c<NC;c++){\n    const u0=c/NC, u1=(c+1)/NC, br=bright(r,c);\n    const xa=cx-hw0+u0*2*hw0, xb=cx-hw0+u1*2*hw0;\n    const xc=cx-hw1+u1*2*hw1, xd=cx-hw1+u0*2*hw1;\n    if (sty==='halftone'){\n      const mx=(xa+xb+xc+xd)/4, my=(y0+y1)/2;\n      const cw=Math.min(Math.abs(xb-xa), Math.abs(y1-y0));\n      const rad=cw*(.15+.72*br);\n      fill(H, 6, 4 + 92*br, 100); ellipse(mx, my, rad, rad*.7);\n      continue;\n    }\n    let h,s,b;\n    if (sty==='blueprint'){ h=(H + (P.pattern==='fft'?r*3:0))%360; s=60; b=16 + 34*br; }\n    else if (sty==='sodium'){ h=34 - 6*br; s=95 - 55*br; b=8 + 90*br; }\n    else { h=(H + (P.pattern==='fft'? r*4 : 0) + (br>.7? -12:0))%360; s=95 - 45*br; b=6 + 92*br; } // neon\n    fill(h, cl(s,0,100), cl(b,2,100), 100);\n    quad(xa,y0, xb,y0, xc,y1, xd,y1);\n  }\n}\n\n// additive bloom on the brightest cells only\npush(); blendMode(ADD); noStroke();\nfor (let r=0;r<NR;r++){\n  const t0=r/NR, t1=(r+1)/NR;\n  const y0=yOf(t0), y1=yOf(t1), hw0=hwOf(t0), hw1=hwOf(t1);\n  for (let c=0;c<NC;c++){\n    const br=bright(r,c); if (br < .62) continue;\n    const u0=c/NC, u1=(c+1)/NC;\n    const xa=cx-hw0+u0*2*hw0, xb=cx-hw0+u1*2*hw0;\n    const xc=cx-hw1+u1*2*hw1, xd=cx-hw1+u0*2*hw1;\n    const h = sty==='sodium'?36 : sty==='blueprint'?(H+10)%360 : sty==='halftone'?H : (H+6)%360;\n    fill(h, sty==='sodium'?70:(sty==='halftone'?10:80), 100, cl((br-.62)*70*glow, 0, 32));\n    quad(xa,y0, xb,y0, xc,y1, xd,y1);\n  }\n}\npop();\n\n// glowing perspective grid lines on top (structure)\nnoFill();\nconst gh = sty==='sodium'?38 : sty==='halftone'?H : (H+ (sty==='blueprint'?30:20))%360;\nfor (let r=0;r<=NR;r++){\n  const t=r/NR, y=yOf(t), hw=hwOf(t), near=t;\n  stroke(gh, sty==='halftone'?10:70, 100, (10 + 42*near)*(.5 + .6*glow));\n  strokeWeight(.5 + near*1.4);\n  line(cx-hw, y, cx+hw, y);\n}\nfor (let c=0;c<=NC;c++){\n  const u=c/NC, d=u-.5;\n  const xT=cx + d*2*hwOf(0), xB=cx + d*2*hwOf(1);\n  stroke(gh, sty==='halftone'?10:70, 100, (14 + 30)*(.5 + .55*glow));\n  strokeWeight(.7);\n  line(xT, hz, xB, height);\n}\n\n// horizon glow bar (partial, safe)\npush(); blendMode(ADD); noStroke();\nconst flare = (kick*.6 + K.swell*.3)*glow;\nfor (let i=0;i<4;i++){ const rr=(4-i)*groundH*.05*(1+flare);\n  fill(gh, sty==='sodium'?60:55, 96, 3 + 8*flare); rect(0, hz-rr*.35, width, rr*.7); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.balloons",
+  "kind": "fx",
+  "name": "Balloons",
+  "desc": "A field of party balloons drifting upward with lazy sway and knotted strings, from softly-modelled matte latex to abstract latitude-longitude wireframe globes and misregistered riso prints.",
+  "tags": [
+    "balloons",
+    "balloon",
+    "party",
+    "float",
+    "rise",
+    "helium",
+    "celebration",
+    "birthday",
+    "festive",
+    "latex",
+    "foil",
+    "mylar",
+    "drift",
+    "buoyant",
+    "colorful",
+    "riso",
+    "wireframe",
+    "sumi",
+    "ink",
+    "decor",
+    "overlay",
+    "fx",
+    "ascension",
+    "cheerful"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "balloon count (6..34)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "balloon size vs design"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base balloon hue (spread per balloon)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "buoyancy + beat lift amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "rise + sway rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal drift bias"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "sway": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "horizontal wander amplitude"
+    },
+    "spread": {
+      "default": 0.85,
+      "min": 0.1,
+      "max": 1,
+      "doc": "horizontal spread across frame"
+    },
+    "style": {
+      "default": "matte",
+      "options": [
+        "matte",
+        "riso",
+        "foil",
+        "wire",
+        "ink"
+      ],
+      "doc": "matte=soft-modelled latex (no outline) / riso=2-ink halftone misregistration / foil=iridescent mylar specular / wire=abstract lat-long wireframe globe / ink=sumi tonal wash"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "updraft",
+        "bob"
+      ],
+      "doc": "drift=steady rise / updraft=rise pumps with section intensity+bass / bob=heavier sway"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "balloon layout seed"
+    }
+  },
+  "acts": [
+    "drift",
+    "updraft",
+    "bob"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:20:32+00:00",
+    "fps": 59.9,
+    "motion": 0.0254,
+    "lum": 0.101
+  },
+  "code": "const D = { density:.55, scale:1, hue:200, energy:.6, speed:1, x:.5, y:.8, sway:.6, spread:.85, style:'matte', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst matte=st==='matte',riso=st==='riso',foil=st==='foil',wire=st==='wire',ink=st==='ink';\nconst en=P.energy*(0.55+0.6*K.intensity);\nconst spanY=Hh*1.35;\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\n// ---- build unit balloon sprite (once per size-bucket + style + seed) ----\nconst bucket=Math.round(u*0.16);\nconst key=bucket+'|'+st;\nif((matte||foil||riso)&&(S.sprKey!==key)){\n  S.sprKey=key;\n  const sg=Math.max(24,bucket);\n  const g=createGraphics(sg,sg*1.28);\n  g.colorMode(HSB,360,100,100,100);\n  g.clear();\n  const cxs=sg*0.5, cys=sg*0.5, r=sg*0.46;\n  const ctx=g.drawingContext;\n  const grd=ctx.createRadialGradient(cxs-r*0.32,cys-r*0.42,r*0.08, cxs,cys+r*0.05,r*1.05);\n  if(foil){ grd.addColorStop(0,'#ffffff'); grd.addColorStop(0.28,'#f2f2f2'); grd.addColorStop(0.55,'#8a8a8a'); grd.addColorStop(0.8,'#e8e8e8'); grd.addColorStop(1,'#4a4a4a'); }\n  else if(riso){ grd.addColorStop(0,'#ffffff'); grd.addColorStop(1,'#ffffff'); }\n  else { grd.addColorStop(0,'#ffffff'); grd.addColorStop(0.55,'#cfcfcf'); grd.addColorStop(1,'#6f6f6f'); }\n  ctx.fillStyle=grd;\n  g.push(); g.translate(cxs,cys); g.beginShape();\n  for(let a=0;a<=32;a++){ const th=a/32*Math.PI*2; const rr=r*(1+0.07*Math.cos(th*1)-0.04); const px=Math.cos(th-Math.PI/2)*rr*1.0; const py=Math.sin(th-Math.PI/2)*rr*1.16; g.vertex(px,py); }\n  g.endShape(CLOSE); g.pop();\n  // knot\n  g.noStroke(); g.fill(0,0,60,100); g.triangle(cxs-sg*0.03,cys+r*1.06,cxs+sg*0.03,cys+r*1.06,cxs,cys+r*1.16);\n  if(riso){\n    // halftone dot texture baked (2-ink misregistration look): dark dots on lower-right\n    g.noStroke();\n    for(let yy=0;yy<sg*1.28;yy+=Math.max(3,sg*0.09)){\n      for(let xx=0;xx<sg;xx+=Math.max(3,sg*0.09)){\n        const dx=(xx-cxs), dy=(yy-cys*1.02); const dd=Math.sqrt(dx*dx+dy*dy)/(r*1.2);\n        if(dd<1){ const shade=clp((dd-0.15)*1.3,0,1); const rad=(sg*0.045)*shade; if(rad>0.4){ g.fill(0,0,20,60); g.ellipse(xx+sg*0.02,yy+sg*0.02,rad,rad); } }\n      }\n    }\n  } else {\n    // specular highlight\n    g.noStroke(); g.fill(0,0,100,foil?90:70); g.ellipse(cxs-r*0.34,cys-r*0.4,r*0.34,r*0.5);\n    if(foil){ g.fill(0,0,100,80); g.push(); g.translate(cxs+r*0.12,cys-r*0.1); g.rotate(-0.5); g.rect(-r*0.04,-r*0.55,r*0.08,r*1.0,r*0.04); g.pop(); }\n  }\n  S.spr=g;\n}\n\n// ---- balloon field (rebuild on seed) ----\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.bl=[]; for(let i=0;i<48;i++){ S.bl.push({bx:fr(i*3+1),ho:(fr(i*3+2)-0.5)*70,ph:fr(i*3+3),sp:0.5+fr(i*3+4)*0.9,sw:0.4+fr(i*3+5),sz:0.6+fr(i*3+6)*0.7,tw:fr(i*3+7)*6.28}); } }\n\nconst nB=Math.round(lrp(6,34,clp(P.density,0,1)));\nconst swAmp=W*0.06*P.sway*(0.6+en);\nconst buoy=1+K.pulse*0.18*en+A.bass*0.5;                 // beat lift + bass\nconst actUpdraft=P.act==='updraft', actBob=P.act==='bob';\nconst riseRate=0.055*P.speed*(actUpdraft?(0.7+K.intensity*0.9+A.bass*0.6):1);\n\npush();\nif(foil||riso) blendMode(BLEND);\nfor(let i=0;i<nB;i++){\n  const b=S.bl[i];\n  const life=frc(b.ph + K.t*riseRate*b.sp);\n  const bx=(lrp(0.5-0.5*P.spread,0.5+0.5*P.spread,b.bx))*W + b.ho*(u/900) + Math.sin(K.t*b.sw*(actBob?1.7:1)*P.speed + b.tw)*swAmp;\n  const by=Hh*1.18 - life*spanY*buoy;\n  const bs=u*0.13*P.scale*b.sz*(0.9+0.1*Math.sin(K.t*3+b.tw));\n  const fade=clp(life*6,0,1)*clp((1-life)*5,0,1);\n  const hh=md(H + b.ho*0.6, 360);\n  if(fade<=0.02) continue;\n  // string\n  const sx2=bx+Math.sin(K.t*1.2+b.tw)*bs*0.25;\n  stroke(hh, ink?12:35, ink?30:80, 22*fade); strokeWeight(Math.max(1,u*0.0015)); noFill();\n  line(bx, by+bs*0.62, sx2, by+bs*1.5);\n  if(wire){\n    // abstract latitude/longitude wireframe globe \u2014 non-representational\n    noFill(); push(); translate(bx,by);\n    const sat=lrp(60,95,fade);\n    for(let m=0;m<5;m++){ const rr=bs*0.5*(1-Math.abs(m-2)/2.6); const yo=(m-2)/2.4*bs*0.5; stroke(hh,sat,95,60*fade); strokeWeight(Math.max(0.8,u*0.0012)); ellipse(0,yo,rr*2,rr*0.5); }\n    for(let m=0;m<6;m++){ const a=m/6*Math.PI; stroke(md(hh+20,360),sat,90,50*fade); ellipse(0,0,bs*Math.abs(Math.cos(a))*1.0+2,bs*1.16); }\n    stroke(hh,40,100,90*fade); point(-bs*0.18,-bs*0.2);\n    pop();\n    noStroke(); fill(hh,60,80,15*fade); ellipse(bx,by,bs*0.9,bs*1.05);\n  } else if(ink){\n    // sumi wash \u2014 soft tonal blob with bleed, no hard outline\n    noStroke(); const ic=lrp(18,42,1-fade);\n    for(let r=3;r>0;r--){ const t=r/3; fill(hh,10,ic,(r===3?10:22)*fade); ellipse(bx+Math.sin(b.tw+r)*bs*0.05, by, bs*0.92*(1+ (3-r)*0.06)*t*3/3*1, bs*1.14*(1+(3-r)*0.05)); }\n    fill(hh,6,clp(ic+18,0,80),30*fade); ellipse(bx-bs*0.15,by-bs*0.18,bs*0.28,bs*0.36);\n    fill(0,0,18,40*fade); triangle(bx-bs*0.05,by+bs*0.55,bx+bs*0.05,by+bs*0.55,bx,by+bs*0.66);\n  } else if(S.spr){\n    // matte / foil / riso sprite with hue tint\n    const sat=riso?78:foil?42:70, br=foil?100:90;\n    push(); translate(bx,by);\n    tint(hh,sat,br,clp(fade,0,1)*100);\n    imageMode(CENTER);\n    image(S.spr, 0, bs*0.08, bs, bs*1.28);\n    if(riso){ // misregistration ghost (2nd ink offset)\n      tint(md(hh+150,360),70,95,clp(fade,0,1)*38);\n      image(S.spr, u*0.006, bs*0.08+u*0.004, bs, bs*1.28);\n    }\n    noTint(); pop();\n  }\n}\npop();\nblendMode(BLEND);\nnoTint();\n"
+}

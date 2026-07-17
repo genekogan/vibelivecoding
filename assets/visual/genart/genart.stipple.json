@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.stipple",
+  "kind": "genart",
+  "name": "Living Stipple",
+  "desc": "Thousands of luminous stipple dots swarm and re-cluster across a bold high-contrast fBm density field, streaming along its drifting contours like a breathing pointillist engraving that fills the frame in spectral, ink, gold-dust, blueprint or neon inks.",
+  "tags": [
+    "stipple",
+    "stippling",
+    "pointillism",
+    "pointillist",
+    "dots",
+    "voronoi",
+    "weighted-voronoi",
+    "lloyd",
+    "relaxation",
+    "engraving",
+    "etching",
+    "halftone",
+    "dithering",
+    "dot-matrix",
+    "ink",
+    "density-field",
+    "fbm",
+    "noise",
+    "particles",
+    "swarm",
+    "migration",
+    "flow",
+    "contour",
+    "generative",
+    "genart",
+    "abstract",
+    "textural",
+    "print",
+    "spectral",
+    "gold",
+    "blueprint",
+    "neon",
+    "fullbleed",
+    "background",
+    "bg",
+    "organic",
+    "colorful"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.62,
+      "min": 0.2,
+      "max": 1.0,
+      "doc": "stipple dot count (~1400..4000)"
+    },
+    "grain": {
+      "default": 0.55,
+      "min": 0.22,
+      "max": 1.0,
+      "doc": "dot size (bigger, bolder marks at max)"
+    },
+    "clustering": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "density contrast: how hard dots pile into bright basins"
+    },
+    "flow": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "perpetual contour circulation speed of the dots"
+    },
+    "warp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "domain-warp turbulence of the underlying field"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / dot glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "field morph + flow rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (spectral/ground)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "field feature zoom (bigger blobs at max)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "focal density lobe x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "focal density lobe y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "ink",
+        "gold",
+        "blueprint",
+        "neon"
+      ],
+      "doc": "render philosophy: field-hued bright dots / bold black ink on cream / warm gold-dust on dark / white schematic on blueprint / additive neon duotone"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic field + point scatter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:09:27+00:00",
+    "fps": 60.2,
+    "motion": 0.0852,
+    "lum": 0.25
+  },
+  "code": "const D = { density: .62, grain: .55, clustering: .5, flow: .5, warp: .5, energy: .6, speed: 1, hue: 210, scale: 1, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst ar = width / height;\nconst u = Math.min(width, height);\n\n// ---- coarse density-field buffer (drifts on K.t) ----\nconst DW = 184, DH = Math.max(60, Math.round(DW / ar));\nif (!S.g || S.dw !== DW || S.dh !== DH) {\n  if (S.g) S.g.remove && S.g.remove();\n  S.g = createGraphics(DW, DH); S.g.pixelDensity(1);\n  S.dw = DW; S.dh = DH; S.dens = new Float32Array(DW * DH);\n}\n\n// ---- seed-dependent noise offsets + reseat trigger ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.o1 = fr(1) * 30; S.o2 = fr(2) * 30; S.hoff = fr(7);\n  S.reseat = true;\n}\nconst sd = (P.seed | 0);\nfunction hsh(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + sd * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const su = fx*fx*(3-2*fx), sv = fy*fy*(3-2*fy); const a = hsh(ix,iy), b = hsh(ix+1,iy), c = hsh(ix,iy+1), d2 = hsh(ix+1,iy+1); return a + (b-a)*su + (c-a)*sv + (a-b-c+d2)*su*sv; }\nfunction fbm(x, y) { return .55*vn(x,y) + .28*vn(x*2.03+3.1, y*2.03-1.7) + .17*vn(x*4.1-2.3, y*4.1+5.5); }\n\n// ---- clock-driven parameters ----\nconst spd = P.speed;\nconst t = K.t * (.07 + spd * .09);\nconst zoom = 1.6 / (.4 + P.scale * 1.1);\nconst warp = .3 + P.warp * 2.6;\nconst clus = .35 + P.clustering * 2.2;\nconst sec = K.section;\nconst hb = ((P.hue + S.hoff * 50 + sec * 12) % 360 + 360) % 360;\nconst hph = hb / 360;\nconst expo = .5 + P.energy * .8 + K.intensity * .3 + A.rms * .6;\nconst style = P.style;\nconst fx0 = P.x, fy0 = P.y;\n\nfunction pal(m, ph) { const r = .5+.5*Math.cos(6.2831*(m+ph)); const gg = .5+.5*Math.cos(6.2831*(m+ph+.33)); const b = .5+.5*Math.cos(6.2831*(m+ph+.66)); return [r,gg,b]; }\n\n// ---- render field + ground buffer ----\nconst g = S.g; g.loadPixels(); const gp = g.pixels; const dens = S.dens;\nfor (let j = 0; j < DH; j++) {\n  for (let i = 0; i < DW; i++) {\n    const nx = (i/DW - 0.5) * zoom * ar + S.o1 + t * 0.15;\n    const ny = (j/DH - 0.5) * zoom + S.o2 - t * 0.10;\n    const qx = fbm(nx + t * 0.42, ny + 1.7);\n    const qy = fbm(nx + 5.2, ny - t * 0.34 + 2.3);\n    let v = fbm(nx + warp * qx, ny + warp * qy + t * 0.30);\n    const ddx = (i/DW - fx0) * ar, ddy = (j/DH - fy0);\n    const rr = Math.sqrt(ddx*ddx + ddy*ddy);\n    v = v * 0.76 + (1 - Math.min(1, rr * 1.35)) * 0.32;\n    // high-contrast remap for a bold field\n    let d = (v - 0.41) * clus + 0.5; if (d < 0) d = 0; else if (d > 1) d = 1;\n    d = d*d*(3 - 2*d);\n    dens[j*DW + i] = d;\n    let r, gg, b;\n    if (style === 'ink') { const paper = 1 - d*0.16; r = 0.97*paper; gg = 0.94*paper; b = 0.85*paper; }\n    else if (style === 'blueprint') { const bl = 0.22 + d*0.24; r = bl*0.30; gg = bl*0.58 + 0.03; b = bl*1.05 + 0.16; }\n    else if (style === 'gold') { const gl = 0.06 + d*0.11; r = gl*1.5; gg = gl*0.9; b = gl*0.4 + 0.02; }\n    else if (style === 'neon') { const c = pal(d*0.5 + 0.55, 0); const nl = 0.10 + d*0.14; r = c[0]*nl + 0.02; gg = c[1]*nl*0.5; b = c[2]*nl + 0.05; }\n    else { const c = pal(d*0.85 + 0.06, hph); const sh = 0.33 + d*0.46; r = c[0]*sh; gg = c[1]*sh; b = c[2]*sh; }\n    const o = 4 * (j*DW + i);\n    gp[o] = Math.max(0, Math.min(255, r*255)); gp[o+1] = Math.max(0, Math.min(255, gg*255)); gp[o+2] = Math.max(0, Math.min(255, b*255)); gp[o+3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- draw ground ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// ---- stipple points (weighted Lloyd relaxation + contour advection) ----\nconst N = Math.round(1400 + P.density * 2600); // 1400..4000\nif (S.reseat || S.nUsed !== N || !S.px) {\n  S.nUsed = N; S.reseat = false;\n  S.px = new Float32Array(N); S.py = new Float32Array(N); S.vx = new Float32Array(N); S.vy = new Float32Array(N);\n  S.sp = new Float32Array(N); S.di = new Float32Array(N); S.gx = new Float32Array(N); S.gy = new Float32Array(N);\n  for (let i = 0; i < N; i++) { S.px[i] = hsh(i+11, 7)*0.998 + 0.001; S.py[i] = hsh(3, i+29)*0.998 + 0.001; }\n}\nconst px = S.px, py = S.py, vx = S.vx, vy = S.vy, sp = S.sp, dip = S.di, gxa = S.gx, gya = S.gy;\n\nconst base = Math.sqrt(ar / N);\nconst cellS = base * 1.7;\nconst gw = Math.max(1, Math.ceil(ar / cellS)), gh = Math.max(1, Math.ceil(1 / cellS));\nif (!S.head || S.head.length !== gw*gh) S.head = new Int32Array(gw*gh);\nif (!S.nxt || S.nxt.length !== N) S.nxt = new Int32Array(N);\nconst head = S.head, nxt = S.nxt;\n\n// pass A: sample field, gradient, desired spacing\nfor (let i = 0; i < N; i++) {\n  let bx = (px[i]*DW) | 0, by = (py[i]*DH) | 0;\n  if (bx < 1) bx = 1; else if (bx > DW-2) bx = DW-2;\n  if (by < 1) by = 1; else if (by > DH-2) by = DH-2;\n  const di = dens[by*DW + bx];\n  dip[i] = di;\n  gxa[i] = dens[by*DW + bx + 1] - dens[by*DW + bx - 1];\n  gya[i] = dens[(by+1)*DW + bx] - dens[(by-1)*DW + bx];\n  let s = base * 0.82 / Math.sqrt(0.16 + clus * di);\n  if (s > cellS) s = cellS; else if (s < base*0.26) s = base*0.26;\n  sp[i] = s;\n}\n\n// build spatial grid on current positions\nhead.fill(-1);\nfor (let i = 0; i < N; i++) {\n  let cx = (px[i]*ar / cellS) | 0, cy = (py[i] / cellS) | 0;\n  if (cx < 0) cx = 0; else if (cx >= gw) cx = gw-1;\n  if (cy < 0) cy = 0; else if (cy >= gh) cy = gh-1;\n  const ci = cy*gw + cx; nxt[i] = head[ci]; head[ci] = i;\n}\n\n// pass B: attraction up the density gradient + repulsion + perpetual contour flow\nconst ga = 0.0030, krep = 0.44, inertia = 0.52, maxStep = 0.024;\nconst flowAmt = (0.0016 + P.flow * 0.0060) * (0.6 + spd);\nfor (let i = 0; i < N; i++) {\n  const xi = px[i], yi = py[i];\n  // gradient climb + circulation along contours (perpendicular to gradient) -> never settles\n  let dispx = ga * gxa[i] * ar - flowAmt * gya[i] * ar;\n  let dispy = ga * gya[i] + flowAmt * gxa[i];\n  const si = sp[i];\n  let cx = (xi*ar / cellS) | 0, cy = (yi / cellS) | 0;\n  if (cx < 0) cx = 0; else if (cx >= gw) cx = gw-1;\n  if (cy < 0) cy = 0; else if (cy >= gh) cy = gh-1;\n  let seen = 0;\n  for (let oy = -1; oy <= 1; oy++) {\n    const ny2 = cy + oy; if (ny2 < 0 || ny2 >= gh) continue;\n    for (let ox = -1; ox <= 1; ox++) {\n      const nx2 = cx + ox; if (nx2 < 0 || nx2 >= gw) continue;\n      let jp = head[ny2*gw + nx2];\n      while (jp !== -1) {\n        if (jp !== i) {\n          const dxr = (xi - px[jp]) * ar, dyr = (yi - py[jp]);\n          const r2 = dxr*dxr + dyr*dyr;\n          const s = (si + sp[jp]) * 0.5;\n          if (r2 < s*s && r2 > 1e-9) {\n            const r = Math.sqrt(r2);\n            const f = krep * (s - r) / s;\n            dispx += (dxr / r) * f / ar;\n            dispy += (dyr / r) * f;\n          }\n        }\n        jp = nxt[jp];\n        if (++seen > 60) break;\n      }\n      if (seen > 60) break;\n    }\n    if (seen > 60) break;\n  }\n  let m = Math.sqrt(dispx*dispx + dispy*dispy);\n  if (m > maxStep) { dispx = dispx/m*maxStep; dispy = dispy/m*maxStep; }\n  vx[i] = vx[i]*inertia + dispx*(1 - inertia);\n  vy[i] = vy[i]*inertia + dispy*(1 - inertia);\n  let nxp = xi + vx[i], nyp = yi + vy[i];\n  if (nxp < 0.001) { nxp = 0.001; vx[i] *= -0.3; } else if (nxp > 0.999) { nxp = 0.999; vx[i] *= -0.3; }\n  if (nyp < 0.001) { nyp = 0.001; vy[i] *= -0.3; } else if (nyp > 0.999) { nyp = 0.999; vy[i] *= -0.3; }\n  px[i] = nxp; py[i] = nyp;\n}\n\n// ---- draw dots (bright, sized + hued by local density) ----\npush();\nnoStroke();\nconst addStyle = (style === 'neon' || style === 'gold');\nif (addStyle) blendMode(ADD);\nconst rBase = P.grain * u * 0.0135;\nconst aMul = P.alpha / 100;\nconst spark = A.treble;\nfor (let i = 0; i < N; i++) {\n  const di = dip[i];\n  let rd = rBase * (0.6 + 1.0*di); if (rd < 0.8) rd = 0.8;\n  const X = px[i]*width, Y = py[i]*height;\n  const bump = spark * 20 * hsh(i, 5) + A.bass * 10 * di;\n  let h, s, b, al;\n  if (style === 'ink') { h = 30; s = 12 + 12*di; b = 12 - 6*di + bump*0.2; al = 92*aMul; }\n  else if (style === 'blueprint') { h = 200; s = 8 + 14*di; b = 88 + 12*di + bump*0.3; al = 90*aMul; }\n  else if (style === 'gold') { h = 38 + 14*di; s = 60 + 28*di; b = 60 + 40*di + bump; al = 52*aMul; }\n  else if (style === 'neon') { h = di < 0.5 ? 315 : 186; s = 90 - 22*di; b = 70 + 30*di + bump; al = 50*aMul; }\n  else { h = (hb + di*160 + sec*8) % 360; s = 52 + 42*di; b = 58 + 42*di*(0.7 + 0.5*expo) + bump; al = 94*aMul; }\n  if (b > 100) b = 100;\n  fill(h, s, b, al);\n  circle(X, Y, rd*2);\n}\nblendMode(BLEND);\npop();\n"
+}

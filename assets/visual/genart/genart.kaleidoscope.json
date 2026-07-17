@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.kaleidoscope",
+  "kind": "genart",
+  "name": "Kaleidoscope",
+  "desc": "A live kaleidoscope where a wandering ink emitter is folded into N-fold dihedral symmetry every frame over a slowly spinning, zooming feedback buffer, blooming an endlessly evolving symmetric mandala-in-motion whose fold count steps by section.",
+  "tags": [
+    "kaleidoscope",
+    "mirror",
+    "symmetry",
+    "radial",
+    "dihedral",
+    "fold",
+    "mandala",
+    "feedback",
+    "video feedback",
+    "bloom",
+    "rosette",
+    "rose window",
+    "jewel",
+    "gem",
+    "stained glass",
+    "neon",
+    "sumi",
+    "ink",
+    "pastel",
+    "psychedelic",
+    "hypnotic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "kaleido",
+    "prismatic",
+    "ornament",
+    "sacred geometry",
+    "trippy",
+    "spiral",
+    "tunnel",
+    "saturated"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "fold": {
+      "default": 6,
+      "min": 3,
+      "max": 16,
+      "doc": "N-fold mirror symmetry order (steps by section)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "emitter brush count + deposit size"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "deposit brightness / bloom intensity"
+    },
+    "bloom": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "feedback zoom strength (tunnel bloom rate)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "spin + zoom + emitter travel rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "overall pattern scale / dab size"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue anchor (jewel magenta by default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "kaleidoscope center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "kaleidoscope center y"
+    },
+    "style": {
+      "default": "jewel",
+      "options": [
+        "jewel",
+        "sumi-ink",
+        "neon",
+        "stained-glass",
+        "pastel-dream"
+      ],
+      "doc": "render philosophy: saturated additive gem glow / subtractive dark ink on paper / electric neon cores / leaded flat color cells / soft misty pastels"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "emitter phase + motif seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    },
+    "act": {
+      "default": "bloom",
+      "options": [
+        "bloom",
+        "implode",
+        "churn"
+      ],
+      "doc": "dramaturgy: bloom (outward tunnel) / implode (inward suck) / churn (spin-heavy vortex)"
+    }
+  },
+  "acts": [
+    "bloom",
+    "implode",
+    "churn"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:50:16+00:00",
+    "fps": 63.7,
+    "motion": 0.2521,
+    "lum": 0.207
+  },
+  "code": "const D = { fold: 6, density: .55, energy: .62, bloom: .5, speed: 1, scale: 1, hue: 300, x: .5, y: .5, style: 'jewel', seed: 0, alpha: 100, act: 'bloom' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = 6.283185307;\nconst clp = (v,a,b) => Math.max(a, Math.min(b, v));\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst st = P.style, ink = (st === 'sumi-ink');\nfunction groundFor(s, hue){\n  const h = ((hue%360)+360)%360;\n  if (s === 'sumi-ink')       return [36, 10, 90];\n  if (s === 'pastel-dream')   return [(h+22)%360, 20, 32];\n  if (s === 'neon')           return [(h+200)%360, 72, 5];\n  if (s === 'stained-glass')  return [(h+180)%360, 48, 7];\n  return [h, 56, 18]; // jewel \u2014 deep gem ground\n}\n\n// ---- ping-pong feedback buffers (size-keyed) ----\nconst BW = Math.max(200, Math.min(720, Math.round(width*0.5)));\nconst BH = Math.max(120, Math.round(BW*height/width));\nconst fkey = BW+'x'+BH;\nif (!S.a || S.fkey !== fkey){\n  if (S.a && S.a.remove) S.a.remove(); if (S.b && S.b.remove) S.b.remove();\n  S.a = createGraphics(BW, BH); S.a.colorMode(HSB,360,100,100,100);\n  S.b = createGraphics(BW, BH); S.b.colorMode(HSB,360,100,100,100);\n  S.fkey = fkey; S.seedUsed = null; S.styleUsed = null;\n}\n// ---- (re)seed emitter brushes + clear buffers on seed/style change ----\nif (S.seedUsed !== P.seed || S.styleUsed !== st){\n  S.seedUsed = P.seed; S.styleUsed = st;\n  S.bp = [];\n  for (let i=0;i<8;i++){ S.bp[i] = { pa:fr(i*3+1)*TAU, ra:fr(i*3+2)*TAU, rr1:0.7+fr(i*3+3)*1.6, rr2:0.6+fr(i*7+5)*1.5, hu:fr(i*11+2), sw:0.6+fr(i*13+4) }; }\n  const gc0 = groundFor(st, P.hue);\n  S.a.push(); S.a.background(gc0[0],gc0[1],gc0[2]); S.a.pop();\n  S.b.push(); S.b.background(gc0[0],gc0[1],gc0[2]); S.b.pop();\n}\n\nconst src = S.a, dst = S.b;\ndst.blendMode(BLEND); dst.noStroke();\n\n// ---- N-fold symmetry steps by section (kaleidoscope evolves its order) ----\nconst secFold = [0, 2, -1, 3, -2, 2, 1, 4];\nlet N = Math.round(clp(P.fold,3,16)) + secFold[K.section & 7];\nN = Math.max(3, Math.min(16, N));\nconst wedge = TAU / N;\nconst Ne = Math.min(N, 12); // deposited fold copies (perf cap; visually identical at high N)\n\nconst spd = clp(P.speed, 0.2, 3), bl = clp(P.bloom, 0, 1);\nconst kick = K.pulse*0.5 + A.bass*0.7;\nlet zoom;\nif (P.act === 'implode')     zoom = 1 - (0.003 + bl*0.012)*spd - kick*0.008*bl;\nelse if (P.act === 'churn')  zoom = 1 + (0.001 + bl*0.004)*spd;\nelse                         zoom = 1 + (0.004 + bl*0.018)*spd + kick*0.008*bl; // bloom (outward tunnel)\nconst spin = (0.002 + 0.008*Math.sin(K.t*0.08))*spd + (P.act === 'churn' ? 0.012*spd : 0) + A.lowmid*0.01;\nconst fade = ink ? 100 : (st === 'neon' ? 91 : st === 'stained-glass' ? 96 : 94);\n\nconst cbx = clp(P.x,0,1)*BW, cby = clp(P.y,0,1)*BH;\n\n// ---- feedback pass: spin + zoom + fade the prior frame ----\ndst.push();\ndst.translate(cbx, cby); dst.rotate(spin); dst.scale(zoom); dst.translate(-cbx, -cby);\nif (ink){ dst.image(src, 0, 0, BW, BH); }\nelse { dst.tint(0,0,fade); dst.image(src, 0, 0, BW, BH); dst.noTint(); }\ndst.pop();\n// ambient floor / paper dry (keeps luminance up + fills edges on implode)\nconst gc = groundFor(st, P.hue);\ndst.noStroke(); dst.fill(gc[0], gc[1], gc[2], ink ? 6 : 8);\ndst.rect(0, 0, BW, BH);\n\n// ---- live emitter: brushes wander a Lissajous inside ONE wedge, folded N ways ----\nconst ub = Math.min(BW, BH), maxR = Math.max(BW, BH)*0.6;\nconst nB = 2 + Math.round(clp(P.density,0.1,1)*3);\nconst hb = (((P.hue + K.section*22 + K.t*1.4) % 360) + 360) % 360;\nconst dep = 0.55 + P.energy*0.7 + (K.intensity!=null?K.intensity:.6)*0.3 + A.rms*0.5 + kick*0.15;\nconst dsz = ub*(0.028 + 0.03*P.density)*clp(P.scale,0.5,2)*(0.8 + 0.4*K.swell);\n\nif (ink) dst.blendMode(BLEND);\nelse if (st === 'stained-glass') dst.blendMode(BLEND);\nelse if (st === 'pastel-dream') dst.blendMode(SCREEN);\nelse dst.blendMode(ADD);\n\nfor (let b=0;b<nB;b++){\n  const bp = S.bp[b];\n  const a0 = wedge*(0.5 + 0.5*Math.sin(K.t*(0.10+0.05*spd)*bp.rr1 + bp.pa + b));\n  const rn = 0.14 + 0.78*(0.5 + 0.5*Math.sin(K.t*(0.08+0.04*spd)*bp.rr2 + bp.ra));\n  const rr = maxR*rn;\n  let h = (hb + Math.sin((bp.hu + rn*0.6 + K.t*0.03)*TAU)*70 + rn*40) % 360; h = (h+360)%360;\n  let s, v, aOut, aCore;\n  if (ink){ h = (26 + bp.hu*22) % 360; s = 12 + rn*18; v = 8 + rn*20; aOut = 10 + P.energy*16; aCore = aOut*0.8; }\n  else if (st === 'stained-glass'){ s = 82; v = 52 + rn*32; aOut = Math.min(34, 26 + P.energy*26); aCore = aOut; }\n  else if (st === 'pastel-dream'){ s = 26 + rn*22; v = 88 + rn*12; aOut = 16 + P.energy*16; aCore = 22; }\n  else if (st === 'neon'){ s = 92 + rn*8; v = 100; aOut = Math.min(30, 9 + dep*10); aCore = 30 + dep*16; }\n  else { s = 78 + rn*20; v = 88 + rn*12; aOut = Math.min(30, 12 + dep*10); aCore = 26 + dep*16; } // jewel\n  const rBig = dsz*(1.6 + rn*1.1), rCore = dsz*(0.5 + rn*0.3);\n  for (let k=0;k<Ne;k++){\n    const ab = k*wedge;\n    for (let mir=0;mir<2;mir++){\n      const ang = mir ? ab - a0 : ab + a0;\n      const x = cbx + Math.cos(ang)*rr, y = cby + Math.sin(ang)*rr;\n      if (ink){\n        dst.fill(h, s, v, aOut); dst.ellipse(x, y, rBig*0.7, rBig*0.5);\n        dst.fill(h, s+12, v*0.65, aCore); dst.ellipse(x + (bp.hu-0.5)*rBig*0.25, y + (bp.sw-0.6)*rBig*0.2, rCore, rCore*0.8);\n      } else if (st === 'stained-glass'){\n        dst.stroke(h, 34, 8, 72); dst.strokeWeight(Math.max(1, ub*0.006));\n        dst.fill(h, s, v, aOut); dst.ellipse(x, y, rBig, rBig*0.82); dst.noStroke();\n      } else {\n        dst.fill(h, s*0.7, v, aOut); dst.ellipse(x, y, rBig, rBig);\n        dst.fill(h, s, v, aCore); dst.ellipse(x, y, rCore, rCore);\n      }\n    }\n  }\n}\ndst.blendMode(BLEND); dst.noStroke();\n\n// ---- composite to screen (upscaled), alpha for VJ compositing ----\npush();\nif (P.alpha < 100) tint(0,0,100, P.alpha);\nimage(dst, 0, 0, width, height);\nnoTint();\npop();\n\n// swap ping-pong\nS.a = dst; S.b = src;\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

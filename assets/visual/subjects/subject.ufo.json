@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.ufo",
+  "kind": "subject",
+  "name": "UFO",
+  "desc": "Retro pulp flying saucer hovering with a wobble, sweeping a tractor beam that lifts spinning abductees while its dome glows to the music.",
+  "tags": [
+    "ufo",
+    "flying saucer",
+    "spaceship",
+    "alien",
+    "abduction",
+    "tractor beam",
+    "sci-fi",
+    "pulp",
+    "retro",
+    "1950s",
+    "spacecraft",
+    "extraterrestrial",
+    "hover",
+    "invasion",
+    "mystery",
+    "eerie",
+    "character",
+    "subject"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hover/beam motion + glow amplitude"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "hull hue (150=teal)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rim-light count + tractor sparkle count"
+    },
+    "dome": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "dome size morph"
+    },
+    "hull": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "hull bulk morph"
+    },
+    "beam": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "beam spread morph"
+    },
+    "style": {
+      "default": "pulp",
+      "options": [
+        "pulp",
+        "blueprint",
+        "chrome",
+        "thermal",
+        "noir"
+      ],
+      "doc": "aesthetic: halftone pulp print / schematic wireframe / iridescent chrome / thermal false-color / chiaroscuro form-from-light"
+    },
+    "pose": {
+      "default": "hover",
+      "options": [
+        "hover",
+        "bob",
+        "bank",
+        "spin",
+        "park"
+      ],
+      "doc": "attitude: gentle hover / vertical bob / banking tilt / disco spin (dance) / near-still park (idle)"
+    },
+    "act": {
+      "default": "abduct",
+      "options": [
+        "abduct",
+        "scan",
+        "cruise"
+      ],
+      "doc": "multi-minute program: steady abduction beam / searching sweep / beamless cruise"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "saucer-center y as canvas fraction"
+    }
+  },
+  "acts": [
+    "abduct",
+    "scan",
+    "cruise"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:03:41+00:00",
+    "fps": 59.9,
+    "motion": 0.0283,
+    "lum": 0.136
+  },
+  "code": "const D = { scale:1, energy:.6, hue:150, speed:1, density:.5, dome:1, hull:1, beam:1, style:'pulp', pose:'hover', act:'abduct', seed:0, x:.5, y:.4 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst u = Math.min(width,height), TAU=Math.PI*2, PI=Math.PI;\nconst H = ((P.hue%360)+360)%360;\nconst en=P.energy, spd=P.speed;\nlet bt=K.beat*spd;\nif (S.lb==null || bt<S.lb) S.lb=bt; S.lb=bt;\nconst puls=Math.max(0,K.pulse||0), swell=Math.max(0,K.swell||0);\nconst sect=K.section||0, inten=(K.intensity!=null?K.intensity:.6);\nconst rms=Math.min(1,(A.rms||0)*2.4), bassv=Math.min(1,A.bass||0), air=Math.min(1,A.treble||0);\nconst gt=K.t||0;\nconst st=P.style;\nconst seedShift=(fr(1)-0.5);\n\n// ---- act / dramaturgy (multi-minute) ----\nlet beamOn, beamSweep, domeDrive, driftScale, tiltBias;\nif (P.act==='scan'){ beamOn=0.9; beamSweep=1; domeDrive=0.7+inten*0.4; driftScale=0.9; tiltBias=0; }\nelse if (P.act==='cruise'){ beamOn=0.0; beamSweep=0; domeDrive=0.55+inten*0.5; driftScale=1.25; tiltBias=0.35; }\nelse { beamOn=1; beamSweep=0.28; domeDrive=1+inten*0.3; driftScale=0.55; tiltBias=0; } // abduct\n// section can escalate abduction over minutes\nconst escal = 0.6 + inten*0.6;\n\n// ---- pose (immediate attitude) ----\nconst pose=P.pose;\nlet bobK=1, bankK=1, spin=0, wobK=1;\nif (pose==='bob'){ bobK=2.2; bankK=0.6; }\nelse if (pose==='bank'){ bobK=0.7; bankK=2.4; }\nelse if (pose==='spin'){ bobK=1.1; bankK=1.4; spin=1; wobK=1.6; }\nelse if (pose==='park'){ bobK=0.35; bankK=0.3; wobK=0.4; }\n// 'hover' = defaults\n\nconst eM=(0.45+en);\nconst R=u*0.24*P.scale*(0.85+P.hull*0.15);\nconst discH=R*0.34*(0.8+P.hull*0.3);\nconst ax=P.x*width, ay=P.y*height;\n\n// hover motion \u2014 displaces whole silhouette\nconst bob=( swell*0.55 + Math.sin(gt*0.9+seedShift)*0.55 + puls*0.35 + bassv*0.4 )*R*0.17*eM*bobK;\nconst sway=( Math.sin(gt*0.6+seedShift*2)*0.7 + Math.sin(gt*0.31)*0.3 )*R*0.42*eM*driftScale*wobK;\nconst bank=( Math.sin(gt*0.5)*0.11*eM*bankK + Math.sin(bt*PI)*0.028*eM + tiltBias*Math.sin(gt*0.2)*0.14 );\nconst cx=ax+sway, cy=ay+bob;\nconst bottomY=cy+discH*0.62;\n\n// ============ BEAM (behind hull) ============\nconst floorY=height*1.03;\nconst bx=cx + Math.sin(gt*0.85)*beamSweep*R*0.55 + (P.act==='scan'?Math.sin(gt*0.4)*R*0.25:0);\nconst topW=R*0.40, botW=R*1.28*P.beam;\nif (beamOn>0.02){\n  const bh=(st==='thermal')?28:(st==='noir'?H:(H+22)%360);\n  const bsat=(st==='noir')?14:58;\n  push(); blendMode(ADD); noStroke();\n  for (let s=0;s<3;s++){\n    const a=beamOn*(8-s*2)*(0.7+domeDrive*0.4)*(0.85+rms*0.5);\n    const tw=topW*(1+s*0.18), bw=botW*(1+s*0.34);\n    fill(bh, bsat, 100, a);\n    beginShape();\n    vertex(cx-tw, bottomY); vertex(cx+tw, bottomY);\n    vertex(bx+bw, floorY); vertex(bx-bw, floorY);\n    endShape(CLOSE);\n  }\n  // horizontal scan bands to make beam read as energy\n  for (let i=0;i<5;i++){\n    const ph=((gt*(0.5+beamSweep*0.6)+i/5)%1);\n    const yy=floorY-ph*(floorY-bottomY);\n    const axisX=bx+(cx-bx)*ph, wdt=botW+(topW-botW)*ph;\n    fill(bh, bsat*0.6, 100, beamOn*10*(1-ph));\n    ellipse(axisX, yy, wdt*2, discH*0.28);\n  }\n  blendMode(BLEND); pop();\n}\n\n// ============ TRACTOR SPARKLES + ABDUCTEE ============\nif (beamOn>0.02){\n  const N=Math.round(12+P.density*30);\n  push(); blendMode(ADD); noStroke();\n  for (let i=0;i<N;i++){\n    const spd2=0.28*(0.55+fr(i)*1.0)*(0.7+beamOn*0.6);\n    const ph=(gt*spd2 + fr(i+9))%1; // 0 bottom -> 1 top (rising)\n    const yy=floorY-ph*(floorY-bottomY);\n    const axisX=bx+(cx-bx)*ph, wdt=(botW+(topW-botW)*ph);\n    const off=(fr(i+3)-0.5)*wdt*1.5 + Math.sin(gt*2.2+i)*R*0.05;\n    const br=(1-ph)*(0.6+air*0.6);\n    const sz=(1.4+fr(i+5)*3)*(R/60)*(0.6+br);\n    fill((st==='thermal')?40:(H+40)%360, 30, 100, 65*br);\n    ellipse(axisX+off, yy, sz, sz);\n  }\n  blendMode(BLEND); pop();\n  // abductee \u2014 a small silhouette spinning as it rises (abduct act only)\n  if (P.act==='abduct'){\n    const ph=(gt*0.11)%1, yy=floorY-ph*(floorY-(bottomY+discH));\n    const axisX=bx+(cx-bx)*ph, sc=(0.45+ph*0.6)*R*0.17;\n    push(); translate(axisX,yy); rotate(Math.sin(gt*1.3)*0.5+gt*0.3);\n    fill(0,0,st==='noir'?4:8, 78); noStroke();\n    // cow-ish silhouette\n    ellipse(0,0,sc*2.1,sc*1.15); ellipse(-sc*0.9,-sc*0.2,sc*0.9,sc*0.8);\n    rect(-sc*0.8,sc*0.3,sc*0.28,sc*0.7,2); rect(sc*0.55,sc*0.3,sc*0.28,sc*0.7,2);\n    pop();\n  }\n}\n\n// ============ SAUCER HULL ============\npush(); translate(cx,cy); rotate(bank);\nnoStroke();\nconst blueprint=(st==='blueprint'), noir=(st==='noir'), chrome=(st==='chrome'), thermal=(st==='thermal'), pulp=(st==='pulp');\n\nif (blueprint){\n  // schematic wireframe \u2014 cyan lines, no fill\n  const cH=(H+120)%360;\n  stroke(cH,60,100,90); strokeWeight(Math.max(1,R*0.012)); noFill();\n  ellipse(0,0,R*2,discH*2);                       // hull equator\n  ellipse(0,-discH*0.2,R*1.15,discH*1.1);         // upper hull\n  ellipse(0,discH*0.35,R*1.4,discH*1.0);          // lower hull\n  arc(0,-discH*0.1,R*P.dome,R*P.dome*1.1,PI,TAU);  // dome\n  // section lines\n  for(let i=-3;i<=3;i++){ const xx=i/3*R*0.92; const hh=discH*Math.sqrt(Math.max(0,1-(xx/R)*(xx/R))); line(xx,-hh,xx,hh); }\n  // tick marks + crosshair\n  stroke(cH,60,100,55); strokeWeight(1);\n  for(let i=0;i<24;i++){ const an=i/24*TAU; const c=Math.cos(an),s2=Math.sin(an); line(c*R,s2*discH,c*R*1.08,s2*discH*1.08); }\n  stroke(cH,40,100,40); line(-R*1.25,0,R*1.25,0); line(0,-R*0.8,0,discH*1.6);\n  noStroke();\n} else {\n  // ---- solid hull (pulp / chrome / thermal / noir) ----\n  // lower belly\n  let belly, mid, top, rimC;\n  if (noir){ belly=[H,20,10]; mid=[H,16,20]; top=[H,10,34]; rimC=[H,8,96]; }\n  else if (chrome){ belly=[H,14,32]; mid=[H,8,66]; top=[H,6,96]; rimC=[(H+30)%360,30,100]; }\n  else if (thermal){ belly=[250,80,60]; mid=[10,85,95]; top=[45,90,100]; rimC=[55,95,100]; }\n  else { belly=[(H+8)%360,55,40]; mid=[H,42,66]; top=[H,30,90]; rimC=[(H+30)%360,85,100]; } // pulp teal-ish\n\n  // pulp misregistration ghost\n  if (pulp){ fill((H+330)%360,70,90,45); ellipse(R*0.05,discH*0.12+2,R*2,discH*1.7); }\n  // belly (lower dome)\n  fill(belly[0],belly[1],belly[2]); ellipse(0,discH*0.32,R*1.5,discH*1.9);\n  // main hull disc with vertical shading bands\n  const bands=chrome?9:(thermal?7:5);\n  for(let i=0;i<bands;i++){\n    const f=i/(bands-1);\n    let cc;\n    if (thermal){ const hh=[250,210,10,45,55][Math.min(4,Math.floor(f*4.999))]; cc=[hh,85,60+f*40]; }\n    else { cc=[mid[0], mid[1]*(1-f*0.5), mid[2]+(top[2]-mid[2])*(1-f)]; }\n    fill(cc[0],cc[1],cc[2]);\n    const yy=-discH + f*discH*2, hh=discH*2/bands+1;\n    // clip band to hull ellipse via width from ellipse eq\n    const rel=(yy)/discH; const wf=Math.sqrt(Math.max(0,1-rel*rel*0.6));\n    ellipse(0,yy+hh*0.5, R*2*wf, hh*1.6);\n  }\n  // rim band (equator) \u2014 bright accent stripe\n  fill(rimC[0],rimC[1],rimC[2], noir?60:100);\n  ellipse(0,0,R*2,discH*0.6);\n  fill((H+8)%360, chrome?6:40, noir?12:24, 70);\n  ellipse(0,discH*0.02,R*2,discH*0.34);\n\n  // pulp halftone dots over hull (hue-independent ink)\n  if (pulp){\n    push(); drawingContext.save();\n    drawingContext.beginPath();\n    drawingContext.ellipse(0,0,R,discH,0,0,TAU); drawingContext.clip();\n    blendMode(MULTIPLY); noStroke(); fill(0,0,0,32);\n    const cols=13, rows=6;\n    for(let cxi=0;cxi<cols;cxi++) for(let ry=0;ry<rows;ry++){\n      const xx=(cxi/(cols-1)-0.5)*R*2, yy=(ry/(rows-1)-0.5)*discH*2;\n      const d=1-(yy+discH)/(discH*2); const ds=(0.6+d*1.6)*(R/34);\n      ellipse(xx,yy,ds,ds);\n    }\n    drawingContext.restore(); blendMode(BLEND); pop();\n  }\n  // outline\n  if (!chrome){ noFill(); stroke(0,0, noir?70:8, noir?55:80); strokeWeight(Math.max(1.2,R*0.02)); ellipse(0,0,R*2,discH*2); noStroke(); }\n}\n\n// ---- rim lights / portholes (chase) \u2014 all styles ----\nconst nL=Math.round(9+P.density*10);\npush(); if(!blueprint&&!noir) blendMode(ADD);\nfor(let i=0;i<nL;i++){\n  const an=i/nL*TAU + (spin?gt*1.4:0) + gt*0.05;\n  const lx=Math.cos(an)*R*0.92, ly=Math.sin(an)*discH*0.9;\n  if (ly<-discH*0.15) continue; // hide top-back lights behind dome-ish\n  const chase=Math.pow(Math.max(0,Math.sin(an - bt*PI*1.0 + gt*0.3)),4);\n  const on=0.25+chase*0.75;\n  const br=(50+on*50)*(0.7+puls*0.4+air*0.4);\n  const lh=(thermal)?(40- i*3):((H+ i*20 + (chrome?0:60))%360);\n  fill(lh, blueprint?50:(chrome?40:90), Math.min(100,br), blueprint?70:100);\n  const ls=R*0.11*(0.7+chase*0.6);\n  drawingContext.shadowBlur = (on>0.6&&!blueprint)? R*0.18:0; drawingContext.shadowColor='rgba(255,255,255,0.5)';\n  ellipse(lx,ly,ls,ls);\n}\ndrawingContext.shadowBlur=0; blendMode(BLEND); pop();\n\n// ---- DOME (glassy, glows with rms) ----\nconst domeR=R*0.5*P.dome, domeH=domeR*1.05;\nconst dGlow=Math.min(100, 42 + rms*45*domeDrive + puls*22 + swell*10);\nif (blueprint){\n  noFill(); stroke((H+120)%360,60,100,90); strokeWeight(Math.max(1,R*0.012));\n  arc(0,-discH*0.1,domeR*2,domeH*2,PI,TAU);\n} else {\n  // dome body\n  push(); if(!noir) drawingContext.shadowBlur=domeR*0.4, drawingContext.shadowColor='rgba(180,255,220,0.6)';\n  fill((thermal)?50:(H+40)%360, chrome?24:(noir?40:70), dGlow, 92);\n  arc(0,-discH*0.1,domeR*2,domeH*2,PI,TAU,CHORD);\n  drawingContext.shadowBlur=0;\n  // inner core light\n  fill((thermal)?55:(H+50)%360, 20, Math.min(100,dGlow+25), 90);\n  ellipse(-domeR*0.12,-discH*0.1-domeH*0.35, domeR*0.9, domeH*0.7);\n  // rim highlight\n  noFill(); stroke(0,0,100,noir?40:70); strokeWeight(Math.max(1,R*0.014));\n  arc(0,-discH*0.1,domeR*2,domeH*2,PI+0.15,TAU-0.15);\n  noStroke(); pop();\n  // little alien silhouette in dome (peeks) \u2014 non-noir\n  if (!blueprint){\n    fill(0,0, noir?6:10, 55);\n    ellipse(domeR*0.18,-discH*0.1-domeH*0.28, domeR*0.34, domeR*0.42);\n  }\n}\npop(); // hull transform\n\n// ---- ambient glow halo under saucer on the bed ----\nif (!blueprint){\n  push(); blendMode(ADD); noStroke();\n  fill((H+30)%360, 40, 100, 6+rms*10+puls*6);\n  ellipse(cx, cy, R*3.0, discH*3.2);\n  blendMode(BLEND); pop();\n}\n"
+}

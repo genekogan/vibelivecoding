@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lichen",
+  "kind": "genart",
+  "name": "Lichen",
+  "desc": "Crustose lichen colonies creep across dark granite \u2014 sulphur-yellow, rust-orange, sage and near-black species each stopping dead where they touch a neighbour, so a hard seam opens between them and the raised living margins glow around every territory, laying zonation rings as they age and dying out from the necrotic centre to free the stone for fresh propagules, the whole mosaic swelling and saturating as moisture cycles.",
+  "tags": [
+    "lichen",
+    "crustose",
+    "thallus",
+    "thalli",
+    "colony",
+    "colonies",
+    "rock",
+    "stone",
+    "granite",
+    "moss",
+    "symbiosis",
+    "zonation",
+    "rings",
+    "competition",
+    "contact inhibition",
+    "territory",
+    "seam",
+    "boundary",
+    "margin",
+    "mosaic",
+    "tessellation",
+    "specimen",
+    "botanical",
+    "plate",
+    "geological map",
+    "fluorescence",
+    "uv",
+    "nocturne",
+    "sulphur",
+    "sage",
+    "ochre",
+    "rust",
+    "orange",
+    "yellow",
+    "austere",
+    "clinical",
+    "growth",
+    "process",
+    "emergence",
+    "decay",
+    "texture",
+    "material"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "growth rate, thallus swell and colour saturation"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many colonies contend for the rock (6-22) and the weight of the margins/seams"
+    },
+    "hue": {
+      "default": 74,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue \u2014 the four species are offsets from it, so this rotates the whole mosaic while keeping them distinct"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate of growth, ageing and the moisture cycle"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "maximum colony radius \u2014 from a fine crust to a few huge contending plates"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where propagules preferentially settle, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where propagules preferentially settle, y"
+    },
+    "wobble": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how ragged the thallus outline is \u2014 clean discs to lobed crusts"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "flush",
+        "desiccate"
+      ],
+      "doc": "cycle: moisture comes and goes \u00b7 flush: permanently wet, swollen and saturated \u00b7 desiccate: dried out, shrunken and dull"
+    },
+    "style": {
+      "default": "specimen",
+      "options": [
+        "specimen",
+        "plate",
+        "map",
+        "nocturne"
+      ],
+      "doc": "specimen: saturated species colour on dark granite \u00b7 plate: botanical engraving, form from radial hatching \u00b7 map: flat coded lithology, hard boundaries, no modelling at all \u00b7 nocturne: UV fluorescence \u2014 the colonies glow off a near-black rock"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "flush",
+    "desiccate"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:01+00:00",
+    "fps": 54.6,
+    "motion": 0.1147,
+    "lum": 0.385
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 74, speed: 1, scale: 1, x: .5, y: .5, wobble: .5, act: 'cycle', style: 'specimen', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 read as grey indistinct mush. The growth sim was fine \u2014 the\n// problem was pure VALUE COLLISION: thalli at b=42..74 on rock at b=46, and\n// saturation stuck at s=16..56. Subject and substrate at the same brightness\n// is mush no matter how good the model underneath is. The rock is now dark\n// granite (b=32) and the four species carry real lichen colour \u2014 sulphur-\n// yellow, rust-orange, sage, near-black slate. The contact seams between\n// colonies are the image, so each thallus now draws BOTH a raised lit margin\n// and a dark contact seam.\nconst MAXC = 26, NR = 44, TAU = Math.PI * 2;\nconst TW = Math.max(300, Math.min(900, Math.round(width * .5))), TH = Math.max(180, Math.round(TW * height / width));\nconst AW = 128, AH = Math.max(48, Math.round(AW * height / width));\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);\n  const a = hsh2(xi, yi), b = hsh2(xi + 1, yi), c = hsh2(xi, yi + 1), d = hsh2(xi + 1, yi + 1);\n  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;\n};\nconst st = P.style;\n\nif (!S.rk || S.tw !== TW || S.styleUsed !== st || S.seedUsed !== P.seed) {\n  if (S.rk && S.rk.remove) S.rk.remove();\n  if (S.ar && S.ar.remove) S.ar.remove();\n  S.rk = createGraphics(TW, TH); S.rk.pixelDensity(1);\n  S.ar = createGraphics(AW, AH); S.ar.pixelDensity(1);\n  S.tw = TW; S.styleUsed = st; S.seedUsed = P.seed; S.tick = 0;\n  // ---- substrate ----------------------------------------------------------\n  const g = S.rk; g.colorMode(HSB, 360, 100, 100, 100); g.noStroke();\n  const rH = st === 'nocturne' ? 250 : st === 'plate' ? 38 : st === 'map' ? 44 : 24;\n  const rS = st === 'nocturne' ? 30 : st === 'plate' ? 12 : st === 'map' ? 8 : 10;\n  const rB = st === 'nocturne' ? 9 : st === 'plate' ? 64 : st === 'map' ? 72 : 32;\n  g.background(rH, rS, rB);\n  if (st !== 'map') {\n    for (let i = 0; i < 900; i++) {         // rock mottle / paper tooth\n      const dv = (fr(i * 4 + 1) - .5) * (st === 'plate' ? 8 : 26);\n      g.fill(rH + (fr(i * 4 + 2) - .5) * 22, rS, Math.max(2, Math.min(97, rB + dv)), 20);\n      const sz = (4 + fr(i * 4 + 3) * (st === 'plate' ? 12 : 90)) * (TW / 700);\n      g.ellipse(fr(i * 4 + 4) * TW, fr(i * 6 + 1) * TH, sz, sz * (.6 + fr(i * 6 + 2) * .8));\n    }\n    if (st === 'specimen' || st === 'nocturne') {\n      for (let i = 0; i < 340; i++) {        // mica flecks\n        g.fill(rH + 20, rS * .4, Math.min(98, rB + 34 + fr(i * 3 + 1) * 30), 40);\n        g.ellipse(fr(i * 3 + 2) * TW, fr(i * 3 + 3) * TH, 1.6 * (TW / 700), 1.6 * (TW / 700));\n      }\n      g.stroke(rH, rS, Math.max(2, rB - 22), 40); g.strokeWeight(TW / 700);\n      for (let i = 0; i < 11; i++) {         // fractures\n        let x = fr(i * 5 + 1) * TW, y = fr(i * 5 + 2) * TH, a = fr(i * 5 + 3) * 6.283;\n        for (let s2 = 0; s2 < 22; s2++) { const nx2 = x + Math.cos(a) * TW * .035, ny2 = y + Math.sin(a) * TW * .035; g.line(x, y, nx2, ny2); x = nx2; y = ny2; a += (fr(i * 40 + s2) - .5) * .7; }\n      }\n      g.noStroke();\n    }\n  }\n  // ---- areolate crackle overlay -------------------------------------------\n  const a2 = S.ar; a2.loadPixels(); const ap = a2.pixels;\n  for (let y = 0; y < AH; y++) for (let x = 0; x < AW; x++) {\n    const n1 = vn(x * .16, y * .16), n2 = vn(x * .38 + 30, y * .38 + 30);\n    const cr2 = Math.abs(n1 - .5) + Math.abs(n2 - .5) * .5;\n    const v = 255 - Math.max(0, (.22 - cr2) * 5) * 150;\n    const o = 4 * (y * AW + x); ap[o] = v; ap[o + 1] = v * .995; ap[o + 2] = v * .985; ap[o + 3] = 255;\n  }\n  a2.updatePixels();\n  S.r = new Float32Array(MAXC * NR); S.wob = new Float32Array(MAXC * NR);\n  S.ccx = new Float32Array(MAXC); S.ccy = new Float32Array(MAXC); S.age = new Float32Array(MAXC);\n  S.life = new Float32Array(MAXC); S.cin = new Float32Array(MAXC); S.mx = new Float32Array(MAXC);\n  S.sp = new Uint8Array(MAXC); S.cal = new Uint8Array(MAXC);\n  S.ring = new Float32Array(MAXC * 4); S.nring = new Uint8Array(MAXC);\n}\n\nconst rk = S.rk, ar = S.ar, R = S.r, wob = S.wob, ccx = S.ccx, ccy = S.ccy;\nconst age = S.age, life = S.life, cin = S.cin, mx = S.mx, sp = S.sp, cal = S.cal, ring = S.ring, nring = S.nring;\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst u = Math.min(width, height);\nconst RMAX = u * (.09 + P.scale * .13);\n\n// ---- moisture: lichens swell and saturate when wet (the motion floor) -----\nlet clim;\nif (P.act === 'flush') clim = 1.7;\nelse if (P.act === 'desiccate') clim = .38;\nelse clim = .45 + 1.3 * (.5 + .5 * Math.sin(K.t * .0113 + .8 * Math.sin(K.t * .0037 + .9)));\nconst wet = (.5 + .5 * Math.sin(K.t * .061 + .7 * Math.sin(K.t * .0233 + 1.4))) * (.35 + .65 * clim);\nconst swell = 1 + wet * (.02 + P.energy * .05);\n\n// ---- radius lookup on another colony (for contact inhibition) -------------\nconst radAt = (m, angle) => {\n  let j = Math.round(((angle % TAU) + TAU) % TAU / TAU * NR) % NR;\n  return R[m * NR + j] * wob[m * NR + j];\n};\n\n// ---- grow ------------------------------------------------------------------\nconst aging = (.35 + P.speed * .85) * (.5 + P.energy * .9);\nconst gRate = u * .00028 * (.3 + P.energy * 1.5) * (.4 + P.speed * .9);\nlet nAlive = 0;\nfor (let k = 0; k < MAXC; k++) {\n  if (!cal[k]) continue;\n  nAlive++;\n  age[k] += aging;\n  if (nring[k] < 4 && age[k] > (nring[k] + 1) * 620) { ring[k * 4 + nring[k]] = mx[k] * .96; nring[k]++; }\n  if (age[k] > life[k]) cin[k] += u * .00012 * (.4 + P.speed * .9) * (.4 + P.energy * 1.1);\n  let m2 = 0;\n  const slow = Math.max(.08, 1 - age[k] / (life[k] * 1.7));\n  for (let j = 0; j < NR; j++) {\n    const idx = k * NR + j, a = j / NR * TAU;\n    const r0 = R[idx];\n    const tipx = ccx[k] + Math.cos(a) * (r0 + gRate * 2.5) * wob[idx];\n    const tipy = ccy[k] + Math.sin(a) * (r0 + gRate * 2.5) * wob[idx];\n    let blocked = r0 > RMAX;\n    if (!blocked) for (let o = 0; o < MAXC; o++) {\n      if (o === k || !cal[o]) continue;\n      const dx = tipx - ccx[o], dy = tipy - ccy[o], d2 = dx * dx + dy * dy;\n      if (d2 > mx[o] * mx[o]) continue;                       // cheap circle reject\n      if (Math.sqrt(d2) < radAt(o, Math.atan2(dy, dx))) { blocked = true; break; }\n    }\n    if (!blocked) R[idx] = r0 + gRate * slow * (.35 + wet * .9);\n    if (R[idx] > m2) m2 = R[idx];\n  }\n  mx[k] = m2 * 1.06;\n  if (cin[k] > m2) cal[k] = 0;\n}\n\n// ---- propagules land in freed rock -----------------------------------------\nconst want = 6 + Math.round(P.density * 16);\nif (nAlive < want) {\n  for (let k = 0; k < MAXC; k++) if (!cal[k]) {\n    let bx = width * .5, by = height * .5, best = -1e9, clear = -1e9;\n    for (let q = 0; q < 10; q++) {\n      const px2 = rnd(k * 17 + q * 3 + 1) * width, py2 = rnd(k * 17 + q * 3 + 2) * height;\n      let mn = 1e9;\n      for (let o = 0; o < MAXC; o++) if (cal[o]) mn = Math.min(mn, Math.hypot(px2 - ccx[o], py2 - ccy[o]) - mx[o]);\n      // propagules settle preferentially around the anchor\n      const sc = mn - Math.hypot(px2 / width - P.x, py2 / height - P.y) * u * .5;\n      if (sc > best) { best = sc; clear = mn; bx = px2; by = py2; }\n    }\n    if (clear < -RMAX * .3) break;\n    cal[k] = 1; ccx[k] = bx; ccy[k] = by; age[k] = 0; cin[k] = 0; nring[k] = 0;\n    life[k] = 2400 + rnd(k * 23 + 5) * 3000; sp[k] = Math.floor(rnd(k * 29 + 7) * 4) % 4; mx[k] = u * .006;\n    for (let j = 0; j < NR; j++) {\n      R[k * NR + j] = u * .004;\n      wob[k * NR + j] = 1 + (vn(Math.cos(j / NR * TAU) * 2.4 + k * 9.1, Math.sin(j / NR * TAU) * 2.4 + k * 4.7) - .5) * (.14 + P.wobble * .5);\n    }\n    break;\n  }\n}\n\n// ---- render ----------------------------------------------------------------\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(rk, 0, 0, width, height);\npop();\n\n// four crustose species, as offsets from P.hue so `hue` still steers the whole\n// mosaic: sulphur-yellow map lichen, rust-orange Caloplaca, sage Lecanora,\n// near-black Verrucaria. These are the colours lichens actually are.\nconst spH = [-8, -48, 22, 136], spS = [.86, .92, .30, .34], spB = [.92, .90, .70, .22];\nconst rockB = st === 'nocturne' ? 9 : st === 'plate' ? 64 : st === 'map' ? 72 : 32;\nconst rockH = st === 'nocturne' ? 250 : st === 'plate' ? 38 : st === 'map' ? 44 : 24;\npush();\nif (st === 'nocturne') { drawingContext.shadowBlur = u * .022; }\nfor (let k = 0; k < MAXC; k++) {\n  if (!cal[k]) continue;\n  const spk = sp[k];\n  const hh = P.hue + spH[spk];\n  let ss, bb;\n  if (st === 'map') { ss = 78 * spS[spk] + 22; bb = 82 * spB[spk] + 12; }\n  else if (st === 'plate') { ss = (22 + wet * 10) * (.5 + spS[spk] * .6); bb = 30 + spB[spk] * 26 - wet * 6; }\n  else if (st === 'nocturne') { ss = (74 + wet * 20) * (.5 + spS[spk] * .6); bb = (52 + wet * 40 + P.energy * 14) * (.4 + spB[spk] * .7); }\n  else { const base = 58 + wet * 26 + P.energy * 12; ss = base * spS[spk]; bb = (62 + wet * 20 + P.energy * 10) * spB[spk]; }\n  if (st === 'nocturne') drawingContext.shadowColor = color(hh, ss, bb, 60);\n  // thallus\n  noStroke(); fill(hh, Math.min(100, ss), Math.min(100, bb), st === 'plate' ? 44 : 92);\n  beginShape();\n  for (let j = 0; j < NR; j++) { const a = j / NR * TAU, r2 = R[k * NR + j] * wob[k * NR + j] * swell; vertex(ccx[k] + Math.cos(a) * r2, ccy[k] + Math.sin(a) * r2); }\n  endShape(CLOSE);\n  drawingContext.shadowBlur = st === 'nocturne' ? u * .022 : 0;\n  // zonation rings \u2014 laid down at past growth stages, now overgrown\n  noFill(); strokeWeight(Math.max(.8, u * .0012 * (.5 + P.density * 1.4)));\n  for (let n = 0; n < nring[k]; n++) {\n    stroke(hh, Math.min(100, ss * (st === 'map' ? .5 : 1.2)), Math.min(100, bb * (n % 2 ? 1.24 : .74)), st === 'map' ? 80 : 62);\n    beginShape();\n    for (let j = 0; j < NR; j++) {\n      const a = j / NR * TAU, lim = R[k * NR + j] * .96, r2 = Math.min(ring[k * 4 + n], lim) * wob[k * NR + j] * swell;\n      vertex(ccx[k] + Math.cos(a) * r2, ccy[k] + Math.sin(a) * r2);\n    }\n    endShape(CLOSE);\n  }\n  // the raised margin: a lit rim just inside the edge. A crustose thallus grows\n  // from its margin, so this is the live tissue and it catches the light.\n  strokeWeight(Math.max(1.2, u * .0026 * (.5 + P.density * 1.3)));\n  stroke(hh + 4, Math.min(100, ss * .55), Math.min(100, bb * 1.55 + 20), st === 'plate' ? 92 : 90);\n  beginShape();\n  for (let j = 0; j < NR; j++) { const a = j / NR * TAU, r2 = R[k * NR + j] * wob[k * NR + j] * swell * .955; vertex(ccx[k] + Math.cos(a) * r2, ccy[k] + Math.sin(a) * r2); }\n  endShape(CLOSE);\n  // the contact seam: where two colonies meet they stop dead, and the hard black\n  // line between them is the whole point of the image\n  strokeWeight(Math.max(1, u * .0016 * (.5 + P.density * 1.2)));\n  stroke(hh, Math.min(100, ss * .6), st === 'nocturne' ? Math.min(100, bb + 30) : Math.max(3, bb * .16), 94);\n  beginShape();\n  for (let j = 0; j < NR; j++) { const a = j / NR * TAU, r2 = R[k * NR + j] * wob[k * NR + j] * swell; vertex(ccx[k] + Math.cos(a) * r2, ccy[k] + Math.sin(a) * r2); }\n  endShape(CLOSE);\n  if (st === 'plate') {   // engraved radial hatching\n    strokeWeight(Math.max(.6, u * .0009));\n    stroke(hh, ss + 14, Math.max(6, bb * .5), 46);\n    for (let j = 0; j < NR; j += 3) {\n      const a = j / NR * TAU, r2 = R[k * NR + j] * wob[k * NR + j] * swell;\n      line(ccx[k] + Math.cos(a) * r2 * .32, ccy[k] + Math.sin(a) * r2 * .32, ccx[k] + Math.cos(a) * r2 * .93, ccy[k] + Math.sin(a) * r2 * .93);\n    }\n  }\n  // necrotic centre \u2014 the rock shows through again\n  if (cin[k] > 0) {\n    noStroke(); fill(rockH, st === 'map' ? 6 : 10, rockB, 96);\n    beginShape();\n    for (let j = 0; j < NR; j++) { const a = j / NR * TAU, r2 = Math.min(cin[k], R[k * NR + j] * .97) * wob[k * NR + j]; vertex(ccx[k] + Math.cos(a) * r2, ccy[k] + Math.sin(a) * r2); }\n    endShape(CLOSE);\n  }\n}\ndrawingContext.shadowBlur = 0;\npop();\n\n// ---- areolate texture over everything --------------------------------------\npush();\nblendMode(MULTIPLY);\ntint(0, 0, 100, Math.min(100, (28 + P.density * 62) * (P.alpha / 100)));\nimage(ar, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

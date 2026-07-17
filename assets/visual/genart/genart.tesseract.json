@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.tesseract",
+  "kind": "genart",
+  "name": "Tesseract",
+  "desc": "A rotating 4D hypercube whose 32 glowing struts turn the inner cube inside-out through the outer one, stereographically projected and hued by 4D depth as w-shifted rainbow glow, neon wire, gold chrome, technical blueprint, or crystalline ice.",
+  "tags": [
+    "tesseract",
+    "hypercube",
+    "4d",
+    "fourth-dimension",
+    "wireframe",
+    "geometry",
+    "polytope",
+    "cube",
+    "rotation",
+    "stereographic",
+    "projection",
+    "math",
+    "glow",
+    "neon",
+    "blueprint",
+    "chrome",
+    "gold",
+    "ice",
+    "struts",
+    "edges",
+    "vertices",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "sci-fi",
+    "hyperspace",
+    "kaleidoscopic",
+    "luminous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "overall size of the hypercube"
+    },
+    "energy": {
+      "default": 0.8,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow amplitude + strut thickness"
+    },
+    "depth": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "4D perspective (higher = more dramatic inside-out turn)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "4D rotation rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "nested concentric tesseract count (1-3)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor y"
+    },
+    "style": {
+      "default": "depth-glow",
+      "options": [
+        "depth-glow",
+        "neon-wire",
+        "gold-chrome",
+        "blueprint",
+        "ice"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic rotation phase + hue variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:23:58+00:00",
+    "fps": 61.3,
+    "motion": 0.0753,
+    "lum": 0.326
+  },
+  "code": "const D = { scale: 1, energy: .8, depth: .5, speed: 1, density: .5, hue: 210, x: .5, y: .5, style: 'depth-glow', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- static geometry: 16 vertices of the 4-cube, 32 edges ----\nif (!S.verts) {\n  const V = [];\n  for (let m = 0; m < 16; m++) V.push([ (m&1)?1:-1, (m&2)?1:-1, (m&4)?1:-1, (m&8)?1:-1 ]);\n  const E = [];\n  for (let i = 0; i < 16; i++) for (let d = 0; d < 4; d++) { const j = i ^ (1 << d); if (j > i) E.push([i, j]); }\n  S.verts = V; S.edges = E;\n}\n// ---- seed: rotation phase offsets + hue jitter (inline hash, no p5 random) ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph1 = fr(1) * 6.283; S.ph2 = fr(2) * 6.283; S.ph3 = fr(3) * 6.283; S.hoff = (fr(4) - .5) * 40;\n}\n\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * 0.85 * P.scale;\nconst style = P.style;\nconst sec = K.section, hdrift = sec * 17;\nconst spd = P.speed;\n// two independent incommensurate 4D rotation planes (+ a slow third tumble); audio on top of the clk floor\nconst a1 = K.t * 0.31 * spd + S.ph1 + A.bass * 0.6;\nconst a2 = K.t * 0.23 * spd + S.ph2 + A.lowmid * 0.5;\nconst a3 = K.t * 0.17 * spd + S.ph3;\nconst c1 = Math.cos(a1), s1 = Math.sin(a1), c2 = Math.cos(a2), s2 = Math.sin(a2), c3 = Math.cos(a3), s3 = Math.sin(a3);\nconst distW = 3.0 - P.depth * 1.3;   // 4D eye distance (smaller = more dramatic inside-out turn)\nconst distZ = 3.2;                    // 3D eye distance\nconst glow = 0.35 + P.energy * 1.0 + K.intensity * 0.25 + A.rms * 0.6;\n\nfunction proj(v, sc) {\n  let x = v[0] * sc, y = v[1] * sc, z = v[2] * sc, w = v[3] * sc;\n  // rotate in (x,w) plane\n  let nx = x * c1 - w * s1, nw = x * s1 + w * c1; x = nx; w = nw;\n  // rotate in (y,z) plane\n  let ny = y * c2 - z * s2, nz = y * s2 + z * c2; y = ny; z = nz;\n  // slow tumble in (x,y) plane\n  nx = x * c3 - y * s3; ny = x * s3 + y * c3; x = nx; y = ny;\n  const k1 = 1 / (distW - w);        // 4D -> 3D perspective\n  x *= k1; y *= k1; z *= k1;\n  const k2 = 1 / (distZ - z);        // 3D -> 2D perspective\n  return { X: cx + x * k2 * R, Y: cy + y * k2 * R, w: w, k: k2 };\n}\n\n// ---- background: toned ground so the frame carries luminance (not pure black) ----\nlet bgH, bgS, bgB;\nif (style === 'blueprint') { bgH = 218; bgS = 78; bgB = 38 + Math.sin(K.t * 0.2) * 3; }\nelse if (style === 'ice')  { bgH = 205; bgS = 30; bgB = 15; }\nelse if (style === 'gold-chrome') { bgH = 28; bgS = 60; bgB = 12; }\nelse if (style === 'neon-wire') { bgH = (P.hue + 180) % 360; bgS = 55; bgB = 10; }\nelse { bgH = (P.hue + hdrift) % 360; bgS = 55; bgB = 13 + K.swell * 3; } // depth-glow\n// opaque bg at default; lower alpha => translucent ground for VJ compositing (no hard clear)\nif (P.alpha >= 100) background(bgH, bgS, bgB);\nelse { push(); noStroke(); fill(bgH, bgS, bgB, P.alpha); rect(0, 0, width, height); pop(); }\n\nconst additive = style !== 'blueprint';\nif (additive) { push(); blendMode(ADD); }\n// ambient central bloom lifts luminance + gives volumetric depth (partial, alpha<=35)\nif (additive) {\n  noStroke();\n  const bh = style === 'gold-chrome' ? 42 : style === 'ice' ? 195 : (P.hue + hdrift) % 360;\n  fill(bh, style === 'ice' ? 25 : 60, 100, (10 + glow * 8));\n  ellipse(cx, cy, R * 1.7, R * 1.7);\n  fill(bh, style === 'ice' ? 15 : 45, 100, (6 + glow * 5));\n  ellipse(cx, cy, R * 2.8, R * 2.8);\n}\n\nconst nest = 1 + Math.round(P.density * 2);   // 1..3 concentric tesseracts\nconst V = S.verts, E = S.edges;\nconst nodeR = u * 0.011 * (0.7 + P.energy);\n\nfor (let c = 0; c < nest; c++) {\n  const sc = Math.pow(0.6, c);\n  const pts = [];\n  for (let i = 0; i < 16; i++) pts.push(proj(V[i], sc));\n  const cd = 1 - c * 0.22;   // inner copies slightly dimmer\n  // edges as two-pass glowing struts, hued by 4D depth (w)\n  for (let e = 0; e < E.length; e++) {\n    const p = pts[E[e][0]], q = pts[E[e][1]];\n    const wAvg = (p.w + q.w) * 0.5;          // -~1.4..1.4\n    const wn = (wAvg + 1.42) / 2.84;          // 0..1 depth\n    let h, sa, br;\n    if (style === 'neon-wire') { h = (P.hue + wn * 18) % 360; sa = 95; br = 100; }\n    else if (style === 'gold-chrome') { h = 30 + wn * 22; sa = 55 + wn * 35; br = 55 + wn * 45; }\n    else if (style === 'blueprint') { h = 205; sa = 22 + wn * 18; br = 92; }\n    else if (style === 'ice') { h = 190 + wn * 24; sa = 22 + wn * 30; br = 78 + wn * 22; }\n    else { h = (P.hue + S.hoff + wn * 150 + hdrift) % 360; sa = 78; br = 92 + wn * 8; } // depth-glow rainbow\n    const near = 0.5 + Math.max(0, Math.min(1, (wn))) * 0.9; // nearer struts brighter/thicker\n    if (style === 'blueprint') {\n      stroke(h, sa, br, 62 * cd); strokeWeight(u * 0.0022);\n      line(p.X, p.Y, q.X, q.Y);\n    } else {\n      // halo pass\n      stroke(h, sa * 0.7, br, (10 + glow * 10) * cd);\n      strokeWeight(u * (0.010 + 0.010 * near) * (0.6 + P.energy));\n      line(p.X, p.Y, q.X, q.Y);\n      // core pass\n      stroke(h, sa * 0.5, 100, (40 + glow * 30) * cd);\n      strokeWeight(u * (0.0018 + 0.0016 * near));\n      line(p.X, p.Y, q.X, q.Y);\n    }\n  }\n  // glowing nodes\n  noStroke();\n  for (let i = 0; i < 16; i++) {\n    const pt = pts[i]; const wn = (pt.w + 1.42) / 2.84;\n    let h;\n    if (style === 'neon-wire') h = P.hue;\n    else if (style === 'gold-chrome') h = 40 + wn * 15;\n    else if (style === 'blueprint') h = 205;\n    else if (style === 'ice') h = 195;\n    else h = (P.hue + S.hoff + wn * 150 + hdrift) % 360;\n    if (style === 'blueprint') { fill(h, 30, 96, 70 * cd); ellipse(pt.X, pt.Y, nodeR * 1.4, nodeR * 1.4); }\n    else {\n      fill(h, 30, 100, (30 + glow * 25) * cd); ellipse(pt.X, pt.Y, nodeR * (2.4 + wn * 2), nodeR * (2.4 + wn * 2));\n      fill(h, 10, 100, (60 + glow * 30) * cd); ellipse(pt.X, pt.Y, nodeR * (0.9 + wn * 0.6), nodeR * (0.9 + wn * 0.6));\n    }\n  }\n}\n\nif (additive) { blendMode(BLEND); pop(); }\n// audio treble sparkle on top (partial, never full-frame invert)\nif (A.treble > 0.03) {\n  push(); blendMode(ADD); noStroke();\n  fill((P.hue + hdrift + 40) % 360, 20, 100, A.treble * 18);\n  ellipse(cx, cy, R * 1.2, R * 1.2);\n  blendMode(BLEND); pop();\n}\n"
+}

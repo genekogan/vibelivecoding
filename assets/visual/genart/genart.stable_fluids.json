@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.stable_fluids",
+  "kind": "genart",
+  "name": "Ink Fluid",
+  "desc": "Jos Stam stable-fluids dye advection on a coarse curl-noise velocity grid: saturated pigment blooms billow, curl and shear through water, rendering as colorful ink-in-water, luminous neon smoke, ironbow thermal schlieren, velocity-mapped spectral iridescence, or a blueprint vector-field schematic.",
+  "tags": [
+    "fluid",
+    "stable-fluids",
+    "stam",
+    "navier-stokes",
+    "semi-lagrangian",
+    "advection",
+    "curl-noise",
+    "ink",
+    "ink-in-water",
+    "dye",
+    "pigment",
+    "smoke",
+    "billow",
+    "plume",
+    "marbling",
+    "thermal",
+    "schlieren",
+    "spectral",
+    "iridescent",
+    "blueprint",
+    "vector-field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "colorful",
+    "water",
+    "bloom",
+    "nebula",
+    "psychedelic",
+    "flow",
+    "organic",
+    "simulation"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pigment saturation / coverage & injection force"
+    },
+    "swirl": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 2.0,
+      "doc": "curl vorticity \u2014 how tightly the fluid spins"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "grid resolution + injector count/size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "advection strength + noise-drift rate"
+    },
+    "dissipate": {
+      "default": 0.38,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "dye fade per frame (trail persistence)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "vortex size (bigger = broader, slower eddies)"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "base pigment hue (CMY-style triad spreads from here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "plume / injector anchor x"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "plume / injector anchor y"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "smoke",
+        "thermal",
+        "spectral",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "act": {
+      "default": "billow",
+      "options": [
+        "billow",
+        "vortex",
+        "bloom"
+      ],
+      "doc": "multi-minute dramaturgy program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic noise offset + seed blob layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": [
+    "billow",
+    "vortex",
+    "bloom"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:55:38+00:00",
+    "fps": 59.9,
+    "motion": 0.046,
+    "lum": 0.698
+  },
+  "code": "const D = { energy: .6, swirl: .6, density: .55, speed: 1, dissipate: .38, scale: 1, hue: 300, x: .5, y: .6, style: 'ink', act: 'billow', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst hsh = i=>{const s=Math.sin(i*127.1+(P.seed|0)*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb = (h,s,v)=>{h=((h%360)+360)%360;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,xx=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const k=Math.floor(h/60)%6;if(k===0){r=c;g=xx;b=0;}else if(k===1){r=xx;g=c;b=0;}else if(k===2){r=0;g=c;b=xx;}else if(k===3){r=0;g=xx;b=c;}else if(k===4){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;}return[r+m,g+m,b+m];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, H=height, md=Math.min(W,H);\n\n// ---- coarse grid (long axis 72..132), size + seed keyed ----\nconst LA=Math.min(132, Math.round(82 + clp(P.density,0,1)*50));\nconst AR=W/H;\nconst GW=AR>=1?LA:Math.max(28,Math.round(LA*AR));\nconst GH=AR>=1?Math.max(28,Math.round(LA/AR)):LA;\nif(!S.c0 || S.gw!==GW || S.gh!==GH || S.seedUsed!==(P.seed|0)){\n  S.gw=GW; S.gh=GH; S.seedUsed=(P.seed|0);\n  const N=GW*GH;\n  S.c0=new Float32Array(N); S.c1=new Float32Array(N); S.c2=new Float32Array(N);\n  S.t0=new Float32Array(N); S.t1=new Float32Array(N); S.t2=new Float32Array(N);\n  S.vx=new Float32Array(N); S.vy=new Float32Array(N); S.psi=new Float32Array(N);\n  S.noff=hsh(7)*1000;\n  if(S.buf&&S.buf.remove)S.buf.remove();\n  S.buf=createGraphics(GW,GH); S.buf.pixelDensity(1);\n  // three soft offset colored blobs so frame 0 is never blank / mono\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const dx=x/GW-0.5, dy=y/GH-0.5, i=y*GW+x;\n    S.c0[i]=Math.max(0, 0.5-2.6*((dx+0.13)*(dx+0.13)+(dy+0.02)*(dy+0.02)));\n    S.c1[i]=Math.max(0, 0.5-2.6*((dx-0.13)*(dx-0.13)+(dy-0.06)*(dy-0.06)));\n    S.c2[i]=Math.max(0, 0.5-2.6*(dx*dx+(dy+0.15)*(dy+0.15)));\n  }\n  S.pbeat=Math.floor(K.beat);\n}\nconst GN=GW*GH, c0=S.c0,c1=S.c1,c2=S.c2, t0=S.t0,t1=S.t1,t2=S.t2, vx=S.vx,vy=S.vy,psi=S.psi, buf=S.buf;\n\n// dt guard (tolerate t0 resets / backward jumps)\nlet dt=K.t-(S.lastT!=null?S.lastT:K.t); if(!(dt>0)||dt>0.4)dt=0.016; S.lastT=K.t;\n\n// ---- 1. velocity = curl of a noise stream-function (divergence-free) ----\nconst zt=K.t*(0.05+P.speed*0.06)+S.noff;              // REAL-TIME evolution -> motion floor\nconst nsc=2.6/Math.max(0.4,P.scale);                  // vortex size\nconst vg=(7+clp(P.swirl,0,2)*22)*(0.75+K.intensity*0.55); // curl gain, breathes with section arc\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++)\n  psi[y*GW+x]=noise(x/GW*nsc+S.noff, y/GH*nsc, zt);\nfor(let y=0;y<GH;y++){\n  const yp=Math.min(GH-1,y+1), ym=Math.max(0,y-1);\n  for(let x=0;x<GW;x++){\n    const xp=Math.min(GW-1,x+1), xm=Math.max(0,x-1), i=y*GW+x;\n    vx[i]=(psi[yp*GW+x]-psi[ym*GW+x])*vg;             //  d(psi)/dy\n    vy[i]=-(psi[y*GW+xp]-psi[y*GW+xm])*vg;            // -d(psi)/dx\n  }\n}\n// act 'vortex': add solid-body rotation about the anchor (whirlpool)\nif(P.act==='vortex'){\n  const cx=P.x*GW, cy=P.y*GH, om=1.5+P.swirl*1.4;\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const i=y*GW+x, rx=x-cx, ry=y-cy, r=Math.hypot(rx,ry)+1e-3;\n    vx[i]+=-ry/r*om; vy[i]+=rx/r*om;\n  }\n}\n\n// ---- beat impulse: local velocity kick on downbeats (curl-noise + beat impulses) ----\nconst bf=Math.floor(K.beat);\nconst newBeat = bf!==S.pbeat;\nif(newBeat) S.pbeat=bf;\nconst kick=K.pulse*0.6+A.bass*0.8;\nif(newBeat && kick>0.05){\n  const bx=Math.round((0.5+(P.x-0.5)*0.7)*GW), by=Math.round((0.5+(P.y-0.5)*0.7)*GH);\n  const rr=2+Math.round(clp(P.density,0,1)*2);\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    const gx=bx+dx, gy=by+dy; if(gx<0||gx>=GW||gy<0||gy>=GH)continue;\n    const dd=dx*dx+dy*dy, fall=Math.max(0,1-dd/((rr+0.8)*(rr+0.8))), len=Math.sqrt(dd)+1e-3, i=gy*GW+gx;\n    vx[i]+=dx/len*kick*2.8*fall; vy[i]+=(dy/len-0.5)*kick*2.8*fall;   // outward + slight lift\n  }\n}\n\n// ---- 2. inject colorful pigment (perpetual -> coverage + luminance + motion floor) ----\nconst isBloom=(P.act==='bloom');\nconst bloomHit = isBloom && newBeat && (bf%2===0);\nconst nInj=Math.min(6, 3+Math.round(clp(P.density,0,1)*3));\nconst injF=0.5+A.bass*0.7+K.pulse*0.4;                // audio ON TOP of a clk baseline\nconst inten=0.75+K.intensity*0.5;\nfor(let q=0;q<nInj;q++){\n  let amt;\n  if(isBloom){ amt = bloomHit ? 0.95*inten*(0.6+P.energy*0.7) : (q===0?0.09*inten:0); }\n  else { amt = 0.46*inten*(0.6+P.energy*0.7); }\n  if(amt<=0) continue;\n  const ang=K.t*(0.24+q*0.11)+q*2.399, rad=(P.act==='vortex'?0.06:0.26)+0.16*Math.sin(K.t*0.08+q*1.7);\n  const ix=Math.round((0.5+(P.x-0.5)*0.65+Math.cos(ang)*rad)*GW);\n  const iy=Math.round((0.5+(P.y-0.5)*0.65+Math.sin(ang)*rad)*GH);\n  const rr=(bloomHit?4:1)+Math.round(clp(P.density,0,1)*2);\n  const chan=q%3;\n  for(let dy=-rr;dy<=rr;dy++)for(let dx=-rr;dx<=rr;dx++){\n    const gx=ix+dx, gy=iy+dy; if(gx<0||gx>=GW||gy<0||gy>=GH)continue;\n    const fall=Math.max(0,1-(dx*dx+dy*dy)/((rr+0.7)*(rr+0.7)));\n    const i=gy*GW+gx, add=fall*injF*amt;\n    if(chan===0)c0[i]=Math.min(1.35,c0[i]+add);\n    else if(chan===1)c1[i]=Math.min(1.35,c1[i]+add);\n    else c2[i]=Math.min(1.35,c2[i]+add);\n    vy[i]-=1.0*injF*fall;                             // buoyant lift (plume rises)\n    vx[i]+=dx*0.11;                                   // slight lateral spread\n  }\n}\n\n// ---- 3. semi-Lagrangian advect all 3 channels (one backtrace, 3 samples) + dissipate ----\nconst flow=(0.55+P.speed*1.1);\nconst dissip=1-(0.006+clp(P.dissipate,0,1)*0.03);\nfor(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n  const i=y*GW+x;\n  let sx=x-vx[i]*flow, sy=y-vy[i]*flow;\n  if(sx<0)sx=0; else if(sx>GW-1.001)sx=GW-1.001;\n  if(sy<0)sy=0; else if(sy>GH-1.001)sy=GH-1.001;\n  const x0=sx|0, y0=sy|0, fx=sx-x0, fy=sy-y0;\n  const i00=y0*GW+x0, i10=i00+1, i01=i00+GW, i11=i01+1;\n  const w00=(1-fx)*(1-fy), w10=fx*(1-fy), w01=(1-fx)*fy, w11=fx*fy;\n  t0[i]=(c0[i00]*w00+c0[i10]*w10+c0[i01]*w01+c0[i11]*w11)*dissip;\n  t1[i]=(c1[i00]*w00+c1[i10]*w10+c1[i01]*w01+c1[i11]*w11)*dissip;\n  t2[i]=(c2[i00]*w00+c2[i10]*w10+c2[i01]*w01+c2[i11]*w11)*dissip;\n}\n// ---- 4. diffuse = one blur pass (implicit diffusion stand-in) -> back into c ----\nconst dif=0.13;\nfor(let y=0;y<GH;y++){\n  const yp=Math.min(GH-1,y+1), ym=Math.max(0,y-1);\n  for(let x=0;x<GW;x++){\n    const xp=Math.min(GW-1,x+1), xm=Math.max(0,x-1), i=y*GW+x;\n    const n0=(t0[ym*GW+x]+t0[yp*GW+x]+t0[y*GW+xm]+t0[y*GW+xp])*0.25;\n    const n1=(t1[ym*GW+x]+t1[yp*GW+x]+t1[y*GW+xm]+t1[y*GW+xp])*0.25;\n    const n2=(t2[ym*GW+x]+t2[yp*GW+x]+t2[y*GW+xm]+t2[y*GW+xp])*0.25;\n    c0[i]=t0[i]*(1-dif)+n0*dif;\n    c1[i]=t1[i]*(1-dif)+n1*dif;\n    c2[i]=t2[i]*(1-dif)+n2*dif;\n  }\n}\n\n// ---- 5. map pigment field -> colour -> coarse buffer -> upscale ----\nconst style=P.style, en=clp(P.energy,0,1);\nconst drift=K.section*14 + K.t*0.8;                    // palette drift across the arc\nconst hbase=((P.hue%360)+360)%360;\nconst pc0=hsb2rgb(hbase+drift, 0.92, 1.0);             // pigment triad (default -> magenta/yellow/cyan = CMY)\nconst pc1=hsb2rgb(hbase+120+drift, 0.92, 1.0);\nconst pc2=hsb2rgb(hbase+240+drift, 0.92, 1.0);\nconst iron=[[6,5,24],[64,14,120],[176,36,68],[240,120,22],[255,238,150]]; // thermal ironbow (0..255)\n\nif(style==='blueprint'){\n  // schematic: velocity vector grid + density iso-contour dots on dark navy (non-representational)\n  const aMul=clp(P.alpha,0,100)/100;\n  noStroke(); fill((hbase*0.15+215)%360, 55, 15, 100*aMul); rect(0,0,W,H); // dark navy ground\n  const cw=W/GW, ch=H/GH, step=Math.max(4, Math.round(GW/28));\n  // velocity vectors (sparse grid; bright cyan on navy)\n  stroke(188, 55, 96, 65*aMul); strokeWeight(Math.max(1, md/950));\n  for(let y=1;y<GH-1;y+=step)for(let x=1;x<GW-1;x+=step){\n    const i=y*GW+x, px=(x+0.5)*cw, py=(y+0.5)*ch;\n    const vl=Math.hypot(vx[i],vy[i])+1e-4, L=clp(vl*0.62,0.25,step*0.92)*cw;\n    line(px,py, px+vx[i]/vl*L, py+vy[i]/vl*L);\n  }\n  // density iso-contour highlights (where total dye crosses a level band)\n  noStroke();\n  for(let y=0;y<GH;y+=3)for(let x=0;x<GW;x+=3){\n    const i=y*GW+x, f=c0[i]+c1[i]+c2[i];\n    if(f<0.14) continue;\n    const band=Math.abs(((f*3)%1)-0.5);\n    if(band<0.09){ fill(52, 78, 100, (55+K.swell*25)*aMul); circle((x+0.5)*cw,(y+0.5)*ch, md*0.004+1.5); }\n  }\n  drawingContext.shadowBlur=0; blendMode(BLEND);\n} else {\n  buf.loadPixels(); const pix=buf.pixels;\n  for(let y=0;y<GH;y++)for(let x=0;x<GW;x++){\n    const i=y*GW+x;\n    const dxc=x/GW-0.5, dyc=y/GH-0.5, rc=dxc*dxc+dyc*dyc; // radial for gentle vignette/glow\n    let r,g,b;\n    if(style==='ink'){\n      // saturated pigment blooming in water on a light ground \u2014 layered translucent inks (stays COLOURFUL, no CMY browning)\n      const gcov=0.92+en*1.15;\n      const a0=clp(c0[i]*gcov,0,0.96), a1=clp(c1[i]*gcov,0,0.96), a2=clp(c2[i]*gcov,0,0.96);\n      const vig=1-0.14*rc*4;                            // soft vignette\n      let rr0=0.86*vig, gg0=0.83*vig, bb0=0.80*vig;     // light paper-water ground (~0.82 lum)\n      rr0=rr0*(1-a0)+pc0[0]*a0; gg0=gg0*(1-a0)+pc0[1]*a0; bb0=bb0*(1-a0)+pc0[2]*a0; // dye 0 over paper\n      rr0=rr0*(1-a1)+pc1[0]*a1; gg0=gg0*(1-a1)+pc1[1]*a1; bb0=bb0*(1-a1)+pc1[2]*a1; // dye 1 over\n      rr0=rr0*(1-a2)+pc2[0]*a2; gg0=gg0*(1-a2)+pc2[1]*a2; bb0=bb0*(1-a2)+pc2[2]*a2; // dye 2 over\n      const pool=clp((a0+a1+a2)*0.5,0,0.55);            // ink pools deepen tonally (keeps colour)\n      r=rr0*(1-pool*0.28); g=gg0*(1-pool*0.28); b=bb0*(1-pool*0.28);\n    } else if(style==='smoke'){\n      // luminous colored volumetric smoke on near-black (dark-key, additive)\n      const gain=0.85+en*1.5, fl=0.045+0.05*Math.max(0,0.12-rc)*4;\n      r=fl+(c0[i]*pc0[0]+c1[i]*pc1[0]+c2[i]*pc2[0])*gain;\n      g=fl+(c0[i]*pc0[1]+c1[i]*pc1[1]+c2[i]*pc2[1])*gain;\n      b=fl+(c0[i]*pc0[2]+c1[i]*pc1[2]+c2[i]*pc2[2])*gain;\n    } else if(style==='thermal'){\n      // ironbow schlieren false-colour of total density (non-representational)\n      const f=clp((c0[i]+c1[i]+c2[i])*(0.5+en*0.95),0,1), ff=f*(iron.length-1);\n      let si=Math.min(iron.length-2,ff|0); const tt=ff-si, a=iron[si], c=iron[si+1];\n      r=(a[0]+(c[0]-a[0])*tt)/255; g=(a[1]+(c[1]-a[1])*tt)/255; b=(a[2]+(c[2]-a[2])*tt)/255;\n    } else { // 'spectral' \u2014 hue from velocity direction, brightness from density (iridescent)\n      const f=clp((c0[i]+c1[i]+c2[i])*(0.6+en*1.0),0,1);\n      const dir=Math.atan2(vy[i],vx[i])/TAU*360;\n      const cc=hsb2rgb(dir+hbase+drift*2, 0.82, clp(0.12+f*1.25,0,1));\n      r=cc[0]; g=cc[1]; b=cc[2];\n    }\n    const p=i*4; pix[p]=clp(r,0,1)*255; pix[p+1]=clp(g,0,1)*255; pix[p+2]=clp(b,0,1)*255; pix[p+3]=255;\n  }\n  buf.updatePixels();\n  drawingContext.imageSmoothingEnabled=true;            // bilinear upscale = smooth smoke\n  noStroke();\n  push();\n  if(P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\n  image(buf,0,0,W,H);\n  pop();\n  // gentle partial-frame beat breathe on dark styles (well under strobe cap; never on light ink)\n  if(style!=='ink'){\n    blendMode(ADD); noStroke();\n    const bh=(style==='thermal')?32:(hbase+18);\n    fill(bh, 45, 100, clp(5+7*K.swell+A.bass*9+A.treble*4, 0, 15)); rect(0,0,W,H);\n    blendMode(BLEND);\n  }\n  drawingContext.shadowBlur=0; blendMode(BLEND);\n}\n"
+}

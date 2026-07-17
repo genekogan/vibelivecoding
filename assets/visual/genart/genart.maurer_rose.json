@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.maurer_rose",
+  "kind": "genart",
+  "name": "Maurer Rose",
+  "desc": "A Maurer rose weaves 360 straight chords across a drifting r=sin(n\u03b8) rose into a perpetually morphing star-lattice / celtic-knot filigree, hue-gradient neon threads glowing over a faint filled bloom; renders as spectral lattice, gold-leaf foil, electric neon, cyan blueprint schematic, or dry sumi ink.",
+  "tags": [
+    "maurer",
+    "maurer-rose",
+    "rose-curve",
+    "rhodonea",
+    "rose",
+    "petal",
+    "polar",
+    "parametric",
+    "curve",
+    "line-art",
+    "polyline",
+    "lattice",
+    "star",
+    "celtic-knot",
+    "knot",
+    "weave",
+    "mesh",
+    "geometry",
+    "geometric",
+    "mathart",
+    "spirograph",
+    "harmonic",
+    "symmetry",
+    "radial",
+    "mandala",
+    "filigree",
+    "ornament",
+    "glow",
+    "neon",
+    "spectral",
+    "rainbow",
+    "gold",
+    "foil",
+    "blueprint",
+    "schematic",
+    "ink",
+    "sumi",
+    "hypnotic",
+    "meditative",
+    "psychedelic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "petals": {
+      "default": 6,
+      "min": 2,
+      "max": 12,
+      "doc": "rose petal frequency n (base; drifts on K.t)"
+    },
+    "step": {
+      "default": 71,
+      "min": 6,
+      "max": 160,
+      "doc": "Maurer degree step d (base; drifts on K.t) \u2014 the lattice identity"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "line brightness / glow bloom amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "figure radius / how much of the frame the rose fills"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "chord count + gradient-band richness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "drift + rotation rate"
+    },
+    "hue": {
+      "default": 285,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (start of the spectral gradient)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "gold",
+        "neon",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic phase / petal / step variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:14:13+00:00",
+    "fps": 57.1,
+    "motion": 0.0557,
+    "lum": 0.466
+  },
+  "code": "const D = { petals:6, step:71, energy:.7, scale:1, density:.6, speed:1, hue:285, x:.5, y:.5, style:'spectral', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst DEG = Math.PI / 180;\nconst u = Math.min(width, height);\nconst style = P.style;\nconst wh = h => ((h % 360) + 360) % 360;\nfunction hcss(h, s, b, a) {\n  h = wh(h); s = s / 100; b = b / 100;\n  const c = b * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), mm = b - c;\n  let r, g2, bl;\n  if (h < 60) { r = c; g2 = x; bl = 0; } else if (h < 120) { r = x; g2 = c; bl = 0; }\n  else if (h < 180) { r = 0; g2 = c; bl = x; } else if (h < 240) { r = 0; g2 = x; bl = c; }\n  else if (h < 300) { r = x; g2 = 0; bl = c; } else { r = c; g2 = 0; bl = x; }\n  return 'rgba(' + ((r + mm) * 255 | 0) + ',' + ((g2 + mm) * 255 | 0) + ',' + ((bl + mm) * 255 | 0) + ',' + a + ')';\n}\n\n// seed-dependent variation (inline hash, not p5 random)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 60;\n  S.spin = fr(2) < .5 ? -1 : 1;\n  S.dph1 = fr(3) * TAU; S.dph2 = fr(4) * TAU;\n  S.nph = fr(5) * TAU;\n  S.dEx = (fr(6) - .5) * 6;\n  S.nEx = (fr(7) - .5) * 1.2;\n  S.hueSpread = 210 + fr(8) * 130;\n}\n\n// radial glow sprite (grayscale, built once, size-independent)\nif (!S.rg) {\n  const RG = 200; S.rg = createGraphics(RG, RG); S.rg.noStroke();\n  const gc = S.rg.drawingContext;\n  const grd = gc.createRadialGradient(RG / 2, RG / 2, RG * 0.02, RG / 2, RG / 2, RG * 0.5);\n  grd.addColorStop(0, 'rgba(255,255,255,1)');\n  grd.addColorStop(0.35, 'rgba(150,150,150,1)');\n  grd.addColorStop(1, 'rgba(6,6,6,1)');\n  gc.fillStyle = grd; gc.fillRect(0, 0, RG, RG);\n}\n\n// full-canvas render buffer (cached on size)\nif (!S.fb || S.fbKey !== width + 'x' + height) {\n  S.fb = createGraphics(width, height); S.fb.pixelDensity(1);\n  S.fb.colorMode(HSB, 360, 100, 100, 100); S.fbKey = width + 'x' + height;\n}\nconst g = S.fb;\n\n// ---- live parameters (drift on K.t; never re-phases) ----\nconst sec = K.section;\nconst isec = 0.4 + 0.6 * K.intensity;\nconst hb = wh(P.hue + S.hoff + sec * 16);\nconst eg = 0.45 + P.energy * 0.9;\nconst cx = width * P.x, cy = height * P.y;\nconst pump = 1 + A.bass * 0.12 + K.pulse * 0.05 * P.energy + K.swell * 0.03;\nconst R = u * (0.14 + 0.34 * P.scale) * pump;\n\nconst tt = K.t * (0.5 + P.speed * 0.5);\nconst nLive = P.petals + S.nEx + (0.5 + 0.6 * isec) * Math.sin(tt * 0.041 + S.nph) + 0.25 * Math.sin(tt * 0.017 + 1.3);\nlet dLive = P.step + S.dEx\n  + (2.2 + 1.6 * P.speed + 3.4 * isec) * Math.sin(tt * 0.037 + S.dph1)\n  + (1.4 + 2.0 * isec) * Math.sin(tt * 0.023 + S.dph2)\n  + A.mid * 4;\nif (dLive < 1.2 && dLive > -1.2) dLive = dLive < 0 ? -1.2 : 1.2;\n\n// continuous whole-figure rotation (linear in K.t -> guaranteed non-re-phasing motion floor)\nconst rot = K.t * (0.05 + P.speed * 0.06) * S.spin + 0.15 * Math.sin(K.t * 0.05);\n\n// ---- sample Maurer points (unit radius) ----\nconst N = Math.round(180 + P.density * 300);\nconst PX = (S.PX && S.PX.length > N) ? S.PX : (S.PX = new Float32Array(620));\nconst PY = (S.PY && S.PY.length > N) ? S.PY : (S.PY = new Float32Array(620));\nfor (let k = 0; k <= N; k++) {\n  const th = k * dLive * DEG;\n  const rr = Math.sin(nLive * th);\n  PX[k] = rr * Math.cos(th);\n  PY[k] = rr * Math.sin(th);\n}\n\nconst bands = Math.min(30, Math.max(10, Math.round(N / 14)));\nconst glowStyle = (style === 'spectral' || style === 'gold' || style === 'neon');\nfunction bandHue(b) {\n  const f = b / bands;\n  if (style === 'gold') return wh(36 + f * 30 + 6 * Math.sin(K.t * 0.25 + f * 6));\n  if (style === 'neon') return wh(hb + ((Math.floor(f * 3) % 2 === 0) ? 0 : 155) + K.t * 7 * S.spin);\n  return wh(hb + f * S.hueSpread + K.t * 6 * S.spin);\n}\n\n// ================= GROUND =================\ng.push();\nif (style === 'ink') g.background(38, 14, 90);\nelse if (style === 'blueprint') g.background(214, 78, 20);\nelse if (style === 'gold') g.background(32, 58, 8);\nelse if (style === 'neon') g.background(250, 42, 5);\nelse g.background(hb, 55, 9);\ng.pop();\n\n// ambient aura / vignette\nconst cov = Math.max(width, height) * 1.5;\ng.push(); g.imageMode(CENTER);\nif (style === 'ink') {\n  g.blendMode(MULTIPLY); g.tint(36, 18, 100); g.image(S.rg, width / 2, height / 2, cov, cov); g.blendMode(BLEND);\n} else if (style === 'blueprint') {\n  g.blendMode(ADD); g.tint(205, 55, 24); g.image(S.rg, cx, cy, cov * 0.95, cov * 0.95); g.blendMode(BLEND);\n} else {\n  g.blendMode(ADD);\n  const ah = style === 'gold' ? 42 : (style === 'neon' ? wh(hb + 8) : wh(hb));\n  const asat = style === 'gold' ? 70 : (style === 'neon' ? 68 : 60);\n  g.tint(ah, asat, 36 * (0.7 + 0.5 * isec) + A.rms * 24);\n  g.image(S.rg, cx, cy, cov, cov);\n  g.blendMode(BLEND);\n}\ng.pop();\n\n// ================= FIGURE (rotated) =================\ng.push();\ng.translate(cx, cy);\ng.rotate(rot);\n\n// faint smooth rose beneath\nconst M = 220;\nif (style === 'ink') { g.noStroke(); g.fill(32, 16, 32, 11); }\nelse if (style === 'blueprint') { g.noStroke(); g.fill(200, 45, 100, 6); }\nelse { g.blendMode(ADD); g.noStroke(); g.fill(wh(hb + 20), 72, 62, 7 + 6 * eg); }\ng.beginShape();\nfor (let i = 0; i <= M; i++) {\n  const th = (i / M) * TAU;\n  const rr = Math.sin(nLive * th);\n  g.vertex(rr * Math.cos(th) * R, rr * Math.sin(th) * R);\n}\ng.endShape(CLOSE);\ng.blendMode(BLEND);\n\n// glow underlay (translucent thick, ADD) for glow styles\nif (glowStyle) {\n  g.blendMode(ADD); g.noFill();\n  const wG = (style === 'neon' ? 6.5 : 4.5) * (0.6 + eg * 0.7);\n  for (let pass = 0; pass < 2; pass++) {\n    const pw = pass === 0 ? wG : wG * 0.5;\n    const pa = pass === 0 ? (style === 'neon' ? 7 : 5) : 11;\n    for (let b = 0; b < bands; b++) {\n      const si = Math.round(b * N / bands), ei = Math.round((b + 1) * N / bands);\n      g.stroke(bandHue(b), style === 'gold' ? 66 : 84, 100, pa);\n      g.strokeWeight(pw);\n      g.beginShape();\n      for (let k = si; k <= ei; k++) g.vertex(PX[k] * R, PY[k] * R);\n      g.endShape();\n    }\n  }\n}\n\n// sharp Maurer polyline (per-band hue gradient along the walk)\ng.blendMode(glowStyle ? ADD : BLEND);\ng.noFill();\nfor (let b = 0; b < bands; b++) {\n  const si = Math.round(b * N / bands), ei = Math.round((b + 1) * N / bands);\n  const bh = bandHue(b);\n  let sw;\n  if (style === 'blueprint') { g.stroke(wh(198 + 8 * Math.sin(b)), 30, 100, 62); sw = 1.05; }\n  else if (style === 'ink') {\n    const dry = 0.5 + 0.5 * Math.sin(b * 1.7 + S.nph);\n    g.stroke(30, 20, 10, 52 + 36 * dry); sw = 0.8 + 2.3 * dry;\n  } else if (style === 'gold') { g.stroke(bh, 74, 100, 55 + A.treble * 30); sw = 1.1 + 0.9 * eg; }\n  else if (style === 'neon') { g.stroke(bh, 92, 100, 60 + A.treble * 30); sw = 1.3 + 1.1 * eg; }\n  else { g.stroke(bh, 78, 100, 55 + A.treble * 30); sw = 1.1 + 0.9 * eg; }\n  if (glowStyle) {\n    g.drawingContext.shadowBlur = (style === 'neon' ? 16 : 11) * (0.5 + eg);\n    g.drawingContext.shadowColor = hcss(bh, style === 'gold' ? 60 : 72, 100, 0.85);\n  }\n  g.strokeWeight(sw);\n  g.beginShape();\n  for (let k = si; k <= ei; k++) g.vertex(PX[k] * R, PY[k] * R);\n  g.endShape();\n}\ng.drawingContext.shadowBlur = 0;\n\n// blueprint schematic furniture\nif (style === 'blueprint') {\n  g.blendMode(BLEND); g.noFill();\n  g.stroke(200, 40, 100, 22); g.strokeWeight(0.7);\n  const spokes = 12;\n  for (let sp = 0; sp < spokes; sp++) { const a = sp / spokes * TAU; g.line(0, 0, R * 1.18 * Math.cos(a), R * 1.18 * Math.sin(a)); }\n  g.stroke(200, 34, 100, 30); g.ellipse(0, 0, R * 2.35, R * 2.35);\n  g.stroke(200, 30, 100, 20); g.ellipse(0, 0, R * 1.3, R * 1.3);\n}\n\ng.blendMode(BLEND);\ng.pop();\n\n// ================= CORE GLOW =================\nif (glowStyle) {\n  g.push(); g.blendMode(ADD); g.imageMode(CENTER);\n  g.tint(wh(hb + (style === 'gold' ? 10 : 24)), style === 'gold' ? 55 : 50, 46 + A.rms * 30 + K.pulse * 10 * P.energy);\n  const cc = u * (0.10 + 0.06 * P.scale) * (1 + K.pulse * 0.15 + A.bass * 0.25);\n  g.image(S.rg, cx, cy, cc, cc);\n  g.blendMode(BLEND); g.pop();\n}\n\n// ================= COMPOSITE =================\ng.blendMode(BLEND);\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

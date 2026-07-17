@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.breakdancer",
+  "kind": "subject",
+  "name": "Breakdancer",
+  "desc": "B-boy cycling toprock, six-step footwork, spinning windmills and locked freezes on the beat, flung paint splats and motion-smear arcs, rendered as aerosol wildstyle, Banksy stencil, chrome burner, RGB glitch or neon-rim.",
+  "tags": [
+    "breakdancer",
+    "bboy",
+    "b-boy",
+    "dancer",
+    "breakdance",
+    "breaking",
+    "windmill",
+    "freeze",
+    "toprock",
+    "footwork",
+    "hiphop",
+    "hip-hop",
+    "street",
+    "graffiti",
+    "wildstyle",
+    "aerosol",
+    "spraypaint",
+    "stencil",
+    "chrome",
+    "glitch",
+    "neon",
+    "urban",
+    "battle",
+    "cypher",
+    "character",
+    "dance",
+    "energetic",
+    "edgy"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "figure size vs design (600px min-dim)"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "spin speed, smear length, limb amplitude"
+    },
+    "hue": {
+      "default": 315,
+      "min": 0,
+      "max": 360,
+      "doc": "primary spray hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "paint splat + smear-copy count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "top",
+        "foot",
+        "mill",
+        "freeze"
+      ],
+      "doc": "move (cycle rotates a setlist each bar)"
+    },
+    "style": {
+      "default": "wildstyle",
+      "options": [
+        "wildstyle",
+        "stencil",
+        "chrome",
+        "glitch",
+        "neon"
+      ],
+      "doc": "render discipline"
+    },
+    "act": {
+      "default": "battle",
+      "options": [
+        "battle",
+        "cypher"
+      ],
+      "doc": "multi-minute setlist/feel"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic splat/wall seed"
+    }
+  },
+  "acts": [
+    "battle",
+    "cypher"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:00:59+00:00",
+    "fps": 59.9,
+    "motion": 0.0133,
+    "lum": 0.107
+  },
+  "code": "const D = { scale:1, energy:.7, hue:315, speed:1, density:.5, x:.5, y:.72, pose:'cycle', style:'wildstyle', seed:0, act:'battle' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------- frame + rhythm ----------\nconst u = Math.min(width, height);\nconst BS = 1.28;\nconst sc = (u/600) * P.scale * BS;\nconst ax = P.x*width, ay = P.y*height;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\nconst H = ((P.hue%360)+360)%360;\nconst e = P.energy;\nconst bt = K.beat * P.speed;\nconst ph = K.phase;\nconst bounce = Math.sin(ph*Math.PI);\nconst kick = Math.min(1, K.pulse*(0.55+0.45*K.intensity) + A.bass*0.6);\n\n// seed-keyed splats\nif (S.seedUsed !== P.seed){ S.seedUsed=P.seed; S.splat=[]; for(let i=0;i<26;i++) S.splat.push({a:fr(i*5+1)*6.283, r:fr(i*5+2), s:fr(i*5+3), h:fr(i*5+4), w:fr(i*5+5)}); }\n\n// ---------- act / choreography ----------\n// pose cycle: each pose holds ~4 beats (one bar). act tweaks the setlist + feel.\nconst setBattle = ['top','foot','mill','freeze','top','mill','foot','freeze'];\nconst setCypher = ['top','foot','top','mill','foot','top','freeze','foot'];\nconst setlist = P.act==='cypher' ? setCypher : setBattle;\nconst phrase = Math.floor(bt/4);\nlet poseName = P.pose;\nif (P.pose==='cycle') poseName = setlist[((phrase%setlist.length)+setlist.length)%setlist.length];\nconst inBeat = ((bt%4)+4)%4;           // 0..4 within the pose window\nconst settle = Math.min(1, inBeat*1.6); // ease into a new move\n\n// ---------- style discipline ----------\nlet inkC, fillC, hiC, accC, paperC, lw, drip, spray, chrome=false, stencil=false, glitch=false, wild=false;\nif (P.style==='stencil'){ paperC=[H,20,92]; inkC=[H,15,10]; fillC=[H,15,10]; hiC=[H,15,10]; accC=[(H+40)%360,70,90]; lw=0; drip=0; spray=1; stencil=true; }\nelse if (P.style==='chrome'){ paperC=[(H+200)%360,40,12]; inkC=[H,80,6]; fillC=[H,8,80]; hiC=[H,5,100]; accC=[(H+30)%360,90,96]; lw=4; drip=.4; spray=.5; chrome=true; }\nelse if (P.style==='glitch'){ paperC=[H,50,10]; inkC=[(H+180)%360,90,100]; fillC=[H,85,88]; hiC=[(H+150)%360,80,100]; accC=[(H+90)%360,85,96]; lw=2; drip=0; spray=.3; glitch=true; }\nelse if (P.style==='neon'){ paperC=[H,60,7]; inkC=[H,90,100]; fillC=[H,80,18]; hiC=[(H+40)%360,90,100]; accC=[(H+140)%360,85,100]; lw=3.4; drip=.2; spray=.4; }\nelse { paperC=[(H+18)%360,30,14]; inkC=[H,85,10]; fillC=[H,88,90]; hiC=[(H+22)%360,90,100]; accC=[(H+160)%360,80,92]; lw=5; drip=1; spray=1; wild=true; }\nconst F=c=>fill(c[0],c[1],c[2]);\nconst Fa=(c,a)=>fill(c[0],c[1],c[2],a);\nconst SK=(c,w)=>{ if(w>0){stroke(c[0],c[1],c[2]);strokeWeight(w);} else noStroke(); };\n\n// ---------- cached graffiti wall ----------\nconst bKey = width+'x'+height+'|'+P.style+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*10)+'|'+Math.round(P.scale*20);\nif (!S.wall || S.wallKey!==bKey){\n  S.wallKey=bKey;\n  const side=Math.max(64,Math.min(1100,Math.round(560*sc)));\n  if (S.wall&&S.wall.remove) S.wall.remove();\n  S.wall=createGraphics(side,side);\n  const g=S.wall; g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.fill(paperC[0],paperC[1],paperC[2],100); g.rect(0,0,side,side);\n  if (stencil){\n    for(let i=0;i<420;i++){ const d=fr(i*3)*side, dy=fr(i*3+1)*side, rr=fr(i*3+2); g.fill(inkC[0],inkC[1],inkC[2], rr*rr*20); g.circle(d,dy,1+rr*3); }\n  } else if (glitch){\n    for(let i=0;i<60;i++){ const yy=fr(i*2)*side, hh=2+fr(i*2+1)*10; g.fill((H+fr(i)*160)%360,80,90,8+fr(i*3)*14); g.rect(0,yy,side,hh); }\n  } else {\n    // spray-fog blobs + tag scrawls\n    for(let i=0;i<14;i++){ const cx=fr(i*4)*side, cy=fr(i*4+1)*side, rad=side*(0.1+fr(i*4+2)*0.28);\n      const cc = i%3===0?accC:(i%3===1?fillC:hiC);\n      for(let j=0;j<26;j++){ const a=fr(i*40+j)*6.283, r=fr(i*40+j+7)*rad; g.fill(cc[0],cc[1],cc[2], 3+fr(i*40+j+3)*7); g.circle(cx+Math.cos(a)*r, cy+Math.sin(a)*r, 2+fr(i*40+j+5)*5); } }\n    g.stroke(inkC[0],inkC[1],inkC[2],55); g.noFill();\n    for(let i=0;i<8;i++){ g.strokeWeight(2+fr(i*9)*5); g.beginShape();\n      for(let k=0;k<5;k++) g.vertex(fr(i*13+k)*side, side*0.2+fr(i*13+k+40)*side*0.6); g.endShape(); }\n  }\n  // grain\n  for(let i=0;i<300;i++){ g.fill(0,0,0,6+fr(i*2)*10); g.circle(fr(i*7)*side,fr(i*7+3)*side,1+fr(i*7+5)*1.5); }\n}\n\n// ---------- geometry helpers ----------\nconst P2=(a,l)=>[Math.cos(a)*l, Math.sin(a)*l];\nfunction capsule(x1,y1,x2,y2,w1,w2,c,outline){\n  const dx=x2-x1,dy=y2-y1,d=Math.max(0.001,Math.sqrt(dx*dx+dy*dy)),nx=-dy/d,ny=dx/d;\n  if (outline && lw>0){ SK(inkC,w1*2+lw*1.6); strokeCap(ROUND); line(x1,y1,x2,y2); }\n  F(c); noStroke();\n  beginShape(); vertex(x1+nx*w1,y1+ny*w1); vertex(x2+nx*w2,y2+ny*w2); vertex(x2-nx*w2,y2-ny*w2); vertex(x1-nx*w1,y1-ny*w1); endShape(CLOSE);\n  noStroke();\n}\n\n// ---------- pose builder: joints in a frame whose origin is the pivot ----------\nconst UP=42,FO=38,TH=50,SH=48;         // limb lengths\nfunction poseJoints(name){\n  const b=inBeat, sw=Math.sin(bt*Math.PI*2/2), sw2=Math.sin(bt*Math.PI*2);\n  let tilt=0, spin=0, lift=0, smear=0;\n  let pv,nk,hd, sL,sR, hipL,hipR, aUL,aEL, aUR,aER, lUL,lEL, lUR,lER;\n  if (name==='foot'){\n    // six-step footwork: crouched, one hand plants, legs sweep in a circle\n    lift=0; tilt=0.12*Math.sin(bt*Math.PI*2/4);\n    const swp = bt*Math.PI*2*0.5;                 // legs orbit\n    pv=[0,-58]; nk=[-6,-104]; hd=[-10,-128];\n    sL=[-30,-98]; sR=[18,-100]; hipL=[-14,-54]; hipR=[14,-54];\n    aUL=Math.PI*0.62; aEL=0.3;                    // left arm plants to floor\n    aUR=Math.PI*0.2+sw*0.3; aER=0.5;\n    lUL=Math.PI*0.06+Math.sin(swp)*0.5; lEL=0.7;  // sweeping legs\n    lUR=Math.PI*0.9+Math.sin(swp+2.2)*0.5; lER=-0.6;\n    smear=0.5;\n  } else if (name==='mill'){\n    // windmill: legs in a wide V, whole body spins around the low back\n    lift=-40; spin = bt*Math.PI*(1.7+e*1.3);      // continuous spin (fast)\n    smear=1;\n    pv=[0,4]; nk=[2,-30]; hd=[6,-52];\n    sL=[-24,-24]; sR=[24,-18]; hipL=[-12,20]; hipR=[12,20];\n    aUL=Math.PI*0.9; aEL=0.4; aUR=Math.PI*0.1; aER=-0.4;\n    lUL=-0.55; lEL=0.12;                          // legs kick out straight, wide V\n    lUR=Math.PI-0.55; lER=-0.12;\n  } else if (name==='freeze'){\n    // baby/air freeze: planted on one hand, body angled, legs locked angular\n    const trem=Math.sin(bt*Math.PI*2*3)*0.02*(1-settle*0.6)+Math.sin(bt*Math.PI*2)*0.015;\n    tilt=-0.62+trem; lift=-6; smear=0.1;\n    pv=[0,-40]; nk=[-30,-58]; hd=[-52,-64];\n    sL=[-44,-46]; sR=[-10,-64]; hipL=[10,-26]; hipR=[18,-40];\n    aUL=Math.PI*0.52; aEL=0.15;                   // support arm straight to floor\n    aUR=Math.PI*0.85; aER=1.0;                    // other elbow braces hip\n    lUL=-0.35; lEL=1.1;                           // bent knee tucked\n    lUR=-0.9; lER=0.2;                            // top leg locked out\n  } else {\n    // toprock: upright, bouncing, cross-step, arms swinging\n    const step=Math.sin(bt*Math.PI*2/2);\n    lift=-bounce*(6+9*e)-Math.abs(sw2)*3; tilt=step*0.08; smear=0.2;\n    pv=[step*6,-92]; nk=[step*4,-150]; hd=[step*3,-180];\n    sL=[-28,-146]; sR=[28,-146]; hipL=[-16,-88]; hipR=[16,-88];\n    aUL=Math.PI*0.62+step*0.5; aEL=-0.7+step*0.4;   // arms swing across body\n    aUR=Math.PI*0.38-step*0.5; aER=0.7-step*0.4;\n    lUL=Math.PI*0.5-0.14+step*0.22; lEL=0.26;        // stepping legs\n    lUR=Math.PI*0.5+0.14+step*0.22; lER=-0.26;\n  }\n  // forward kinematics\n  const eL=[sL[0]+P2(aUL,UP)[0], sL[1]+P2(aUL,UP)[1]];\n  const wL=[eL[0]+P2(aUL+aEL,FO)[0], eL[1]+P2(aUL+aEL,FO)[1]];\n  const eR=[sR[0]+P2(aUR,UP)[0], sR[1]+P2(aUR,UP)[1]];\n  const wR=[eR[0]+P2(aUR+aER,FO)[0], eR[1]+P2(aUR+aER,FO)[1]];\n  const kL=[hipL[0]+P2(lUL,TH)[0], hipL[1]+P2(lUL,TH)[1]];\n  const fL=[kL[0]+P2(lUL+lEL,SH)[0], kL[1]+P2(lUL+lEL,SH)[1]];\n  const kR=[hipR[0]+P2(lUR,TH)[0], hipR[1]+P2(lUR,TH)[1]];\n  const fR=[kR[0]+P2(lUR+lER,SH)[0], kR[1]+P2(lUR+lER,SH)[1]];\n  return {pv,nk,hd,sL,sR,hipL,hipR,eL,wL,eR,wR,kL,fL,kR,fR,tilt,spin,lift,smear};\n}\n\nfunction drawFigure(J, alpha, ghost){\n  push();\n  translate(0, J.lift);\n  rotate(J.tilt + J.spin);\n  const fc = ghost ? accC : fillC;\n  const skC = ghost ? accC : hiC;\n  // back leg + arm first\n  capsule(J.hipR[0],J.hipR[1],J.kR[0],J.kR[1],15,12,fc,!ghost);\n  capsule(J.kR[0],J.kR[1],J.fR[0],J.fR[1],12,7,fc,!ghost);\n  capsule(J.sR[0],J.sR[1],J.eR[0],J.eR[1],11,9,fc,!ghost);\n  capsule(J.eR[0],J.eR[1],J.wR[0],J.wR[1],9,6,fc,!ghost);\n  if(!ghost){ F(skC); noStroke(); circle(J.fR[0],J.fR[1],17); circle(J.wR[0],J.wR[1],12); }\n  // torso mass\n  if (lw>0 && !ghost){ SK(inkC, lw*1.6); }\n  F(fc); if(lw>0&&!ghost){stroke(inkC[0],inkC[1],inkC[2]);strokeWeight(lw);}else noStroke();\n  beginShape(); vertex(J.sL[0],J.sL[1]); vertex(J.sR[0],J.sR[1]); vertex(J.hipR[0]+6,J.hipR[1]); vertex(J.hipL[0]-6,J.hipL[1]); endShape(CLOSE);\n  if (chrome && !ghost){ noStroke(); Fa(hiC,60); beginShape(); vertex(J.sL[0],J.sL[1]); vertex((J.sL[0]+J.sR[0])/2,J.sR[1]); vertex((J.hipL[0]+J.hipR[0])/2,J.hipR[1]); vertex(J.hipL[0]-6,J.hipL[1]); endShape(CLOSE); }\n  if (glitch && !ghost){ noStroke(); Fa(hiC,60); rect(J.sL[0],J.nk[1],Math.abs(J.sR[0]-J.sL[0]),6); }\n  // head\n  push(); translate(J.hd[0],J.hd[1]);\n  if(lw>0&&!ghost){SK(inkC,lw);}else noStroke();\n  F(ghost?accC:fillC); ellipse(0,0,50,54);\n  if(!ghost){\n    F(hiC); noStroke(); arc(0,-4,50,54,Math.PI*1.15,Math.PI*1.95);   // cap / hair mass\n    if(!stencil){ Fa(inkC,90); rect(-16,-4,32,7,3); }                // brow-bar (no cartoon eyes)\n    F(skC); ellipse(-9,4,9,6);                                       // cheek highlight\n  }\n  pop();\n  // front leg + arm\n  capsule(J.hipL[0],J.hipL[1],J.kL[0],J.kL[1],15,12,fc,!ghost);\n  capsule(J.kL[0],J.kL[1],J.fL[0],J.fL[1],12,7,fc,!ghost);\n  capsule(J.sL[0],J.sL[1],J.eL[0],J.eL[1],11,9,fc,!ghost);\n  capsule(J.eL[0],J.eL[1],J.wL[0],J.wL[1],9,6,fc,!ghost);\n  if(!ghost){ F(skC); noStroke(); circle(J.fL[0],J.fL[1],17); circle(J.wL[0],J.wL[1],12); }\n  pop();\n}\n\n// =============== DRAW ===============\npush();\ntranslate(ax, ay);\nscale(sc);\n\n// wall backdrop\npush(); translate(0,-150); rotate(Math.sin(K.t*0.04)*0.02);\nimageMode(CENTER); image(S.wall,0,0,560,560); imageMode(CORNER); pop();\n// floor shadow (breathes)\nnoStroke(); Fa([0,0,0],26); ellipse(0,4,300+kick*30,30);\n\nconst J = poseJoints(poseName);\n\n// motion-smear arcs \u2014 ghost copies of a spinning/sweeping body\nconst smearN = Math.round((2+P.density*4) * J.smear * (0.5+e*0.5));\nif (smearN>0){\n  blendMode(ADD);\n  for(let i=1;i<=smearN;i++){\n    const back = i*0.16*(1+e);\n    const G = {...J, spin: J.spin - back*(J.spin!==0?1:0), tilt: J.tilt - (J.spin===0?back*0.4:0)};\n    // ghost draws only limbs, translucent accent\n    push(); translate(0,J.lift); rotate(G.tilt + G.spin);\n    Fa(accC, 30*(1-i/(smearN+1)));\n    // sweep limbs as accent streaks\n    const seg=(a,b,w)=>{ SK(false,0); F(accC); const dx=b[0]-a[0],dy=b[1]-a[1],d=Math.max(0.01,Math.sqrt(dx*dx+dy*dy)),nx=-dy/d,ny=dx/d; Fa(accC,30*(1-i/(smearN+1))); beginShape(); vertex(a[0]+nx*w,a[1]+ny*w); vertex(b[0]+nx*w*0.6,b[1]+ny*w*0.6); vertex(b[0]-nx*w*0.6,b[1]-ny*w*0.6); vertex(a[0]-nx*w,a[1]-ny*w); endShape(CLOSE); };\n    seg(J.hipR,J.fR,11); seg(J.hipL,J.fL,11); seg(J.sR,J.wR,8); seg(J.sL,J.wL,8);\n    pop();\n  }\n  blendMode(BLEND);\n}\n\n// paint splats flung on strong beats\nif (spray>0){ noStroke(); const sn=Math.round((4+P.density*14)*spray);\n  for(let i=0;i<sn;i++){ const sp=S.splat[i%S.splat.length]; const life=((bt*0.3+sp.s)%1+1)%1;\n    const rad=(120+sp.r*160); const cx=Math.cos(sp.a)*rad*(0.4+life*0.9), cy=Math.sin(sp.a)*rad*(0.4+life*0.9)-60;\n    const cc= sp.h<0.5?accC:hiC; Fa(cc,(1-life)*70); circle(cx,cy, (2+sp.w*8)*(1-life*0.5));\n    if(drip>0 && sp.w>0.6){ Fa(cc,(1-life)*50); rect(cx-1.2, cy, 2.4, 6+sp.w*16*drip, 2); }\n  }\n}\n\n// the dancer\ndrawFigure(J, 1, false);\n\n// glitch RGB-split overlay pass\nif (glitch){ blendMode(ADD);\n  push(); translate(3+Math.sin(K.t*7)*2, 0); Fa([0,90,90],14);\n  drawFigure(poseJoints(poseName), 1, true); pop();\n  blendMode(BLEND);\n}\n\n// neon rim on dark styles\nif (P.style==='neon'){ blendMode(ADD);\n  drawingContext.shadowBlur=18; drawingContext.shadowColor='rgba(255,80,220,0.7)';\n  SK(inkC,2.4); noFill();\n  beginShape(); vertex(J.sL[0],J.sL[1]); vertex(J.sR[0],J.sR[1]); vertex(J.hipR[0]+6,J.hipR[1]); vertex(J.hipL[0]-6,J.hipL[1]); endShape(CLOSE);\n  drawingContext.shadowBlur=0; blendMode(BLEND);\n}\n\npop();\nblendMode(BLEND);\n"
+}

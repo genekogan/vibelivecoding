@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.bamboo",
+  "kind": "world",
+  "name": "Bamboo Grove",
+  "desc": "A vertical sumi ink-wash bamboo grove: tall culms with segmented nodes sway on the breeze with the lowmid, soft light shafts drift through, leaves fall rarely, and ground mist rolls beneath.",
+  "tags": [
+    "bamboo",
+    "grove",
+    "forest",
+    "zen",
+    "japan",
+    "japanese",
+    "sumi",
+    "ink-wash",
+    "ink",
+    "woodblock",
+    "ukiyo-e",
+    "vertical",
+    "green",
+    "nature",
+    "botanical",
+    "serene",
+    "calm",
+    "meditative",
+    "sacred",
+    "mist",
+    "fog",
+    "leaves",
+    "breeze",
+    "gold-leaf",
+    "byobu",
+    "thermal",
+    "blueprint",
+    "world",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bamboo stalk count"
+    },
+    "shafts": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "light-shaft brightness/count"
+    },
+    "hue": {
+      "default": 110,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage hue (110 green)"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sway amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative sway/drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "leaf/mist element scale vs design"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "anchor y (canvas fraction)"
+    },
+    "mist": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ground-mist amount"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic stalk/leaf layout seed"
+    },
+    "style": {
+      "default": "sumi",
+      "options": [
+        "sumi",
+        "woodblock",
+        "blueprint",
+        "gold",
+        "thermal"
+      ],
+      "doc": "render philosophy: sumi ink-wash / ukiyo-e woodblock flat / cyan schematic wireframe / gold-leaf byobu screen / thermal false-color"
+    },
+    "act": {
+      "default": "breeze",
+      "options": [
+        "breeze",
+        "storm",
+        "calm"
+      ],
+      "doc": "multi-minute program: steady breeze / building gusts / near-still calm"
+    }
+  },
+  "acts": [
+    "breeze",
+    "storm",
+    "calm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:09:22+00:00",
+    "fps": 59.9,
+    "motion": 0.0363,
+    "lum": 0.628
+  },
+  "code": "const D = { density:.5, shafts:.5, hue:110, energy:.5, speed:1, scale:1, x:.5, y:.5, mist:.5, seed:0, style:'sumi', act:'breeze' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst hue = ((P.hue%360)+360)%360;\nS.low = (S.low||0)*.8 + (A.lowmid||0)*.2;\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\n\n// ---- palette per style ----\nfunction pal(){\n  if (st==='blueprint') return { paper:[210,55,10], culm:[195,60,70], node:[195,70,85], leaf:[195,55,75], shaft:[190,50,80], mode:'line' };\n  if (st==='woodblock') return { paper:[42,20,90], culm:[hue,55,45], node:[hue,60,30], leaf:[hue,60,40], shaft:[48,25,96], mode:'flat' };\n  if (st==='gold')      return { paper:[45,55,72], culm:[hue,30,28], node:[hue,35,18], leaf:[hue,35,34], shaft:[48,40,100], mode:'flat' };\n  if (st==='thermal')   return { paper:[235,75,10], culm:[150,70,55], node:[60,90,95], leaf:[95,70,65], shaft:[55,90,100], mode:'flat' };\n  return { paper:[hue,10,90], culm:[hue,22,32], node:[hue,26,22], leaf:[hue,28,40], shaft:[hue,8,98], mode:'wash' }; // sumi ink-wash\n}\nconst C = pal();\n\n// ---- cached vertical bamboo grove ----\nconst bkey = width+'x'+height+':'+st+':'+P.seed+':'+P.density.toFixed(2);\nif (!S.bg || S.bgKey !== bkey){\n  S.bgKey = bkey;\n  const g = S.bg && S.bg.width===width && S.bg.height===height ? S.bg : (S.bg = createGraphics(width,height));\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.push(); g.noStroke();\n  // paper / atmosphere wash (top brighter)\n  for (let i=0;i<30;i++){ const t=i/29; g.fill(C.paper[0], C.paper[1]*(0.7+0.5*t), C.paper[2]*(1-0.28*t), 100); g.rect(0, t*height, width, height/30+1); }\n  if (st==='sumi'){ // faint horizontal mist bands baked\n    g.blendMode(SCREEN); for(let i=0;i<6;i++){ const yy=fr(i*11)*height; g.fill(C.paper[0],4,100,6); g.rect(0,yy,width,u*0.06);} g.blendMode(BLEND);\n  }\n  // build seeded stalks in FRONT-to-back layers\n  const nStalk = Math.round(7 + 26*P.density);\n  S.stalks = [];\n  for (let s=0;s<nStalk;s++){\n    const depth = fr(s*5);                       // 0 far .. 1 near\n    const bx = fr(s*5+1);\n    const tw = u*(0.006+0.02*depth);             // culm width\n    const bright = 0.5+0.5*depth;\n    const lean = (fr(s*5+2)-0.5)*0.12;\n    S.stalks.push({depth,bx,tw,bright,lean,phase:fr(s*5+3)*6.28, amp:0.4+0.8*depth, seed:s});\n  }\n  S.stalks.sort((a,b)=>a.depth-b.depth);\n  // bake the FAR culms (depth<0.4) static; near ones drawn live (they sway)\n  for (const k of S.stalks){ if (k.depth>=0.4) continue; drawCulm(g,k, 0); }\n  g.pop();\n  function drawCulm(g,k,sway){\n    const x0 = k.bx*width;\n    const segs = 8;\n    const H = height*1.05;\n    let px=x0, py=height+u*0.02;\n    const cb = C.culm[2]*(0.4+0.7*k.bright);\n    for (let i=0;i<segs;i++){\n      const t0=i/segs, t1=(i+1)/segs;\n      const yy0=height - t0*H, yy1=height - t1*H;\n      const bendA = (k.lean + sway) ;\n      const xx0 = x0 + Math.sin(t0*1.4+k.phase)*u*0.02*k.amp + bendA*t0*u*0.2;\n      const xx1 = x0 + Math.sin(t1*1.4+k.phase)*u*0.02*k.amp + bendA*t1*u*0.2;\n      if (st==='blueprint'){ g.stroke(C.culm[0],C.culm[1],C.culm[2],42); g.strokeWeight(Math.max(1,k.tw*0.5)); g.noFill(); g.line(xx0,yy0,xx1,yy1); }\n      else {\n        g.noStroke(); g.fill(C.culm[0], C.culm[1], cb*(1-0.15*Math.sin(t0*3)), st==='sumi'?90:100);\n        const w0=k.tw*(1-t0*0.35), w1=k.tw*(1-t1*0.35);\n        g.quad(xx0-w0,yy0, xx0+w0,yy0, xx1+w1,yy1, xx1-w1,yy1);\n        if (st==='sumi'){ g.fill(C.culm[0],C.culm[1]*0.5,Math.min(100,cb+30),24); g.rect(xx0-w0*0.4,yy1,w0*0.5,yy0-yy1); } // dry-brush highlight edge\n        // node ring\n        g.fill(C.node[0],C.node[1],C.node[2]*(0.5+0.6*k.bright),100); g.ellipse(xx1, yy1, w1*2.4, w1*1.0);\n      }\n      px=xx1; py=yy1;\n    }\n    // a few leaves near top\n    const nl = 3+Math.round(3*k.bright);\n    for (let l=0;l<nl;l++){ const t=0.55+0.4*fr(k.seed*7+l);\n      const yy=height - t*height*1.05; const xx=x0 + (k.lean+sway)*t*u*0.2 + (fr(k.seed*3+l)-0.5)*u*0.02;\n      const la=(fr(k.seed*9+l)-0.5)*2.2; const ll=u*(0.04+0.05*k.bright);\n      g.push(); g.translate(xx,yy); g.rotate(la);\n      if (st==='blueprint'){ g.noFill(); g.stroke(C.leaf[0],C.leaf[1],C.leaf[2],40); g.strokeWeight(1); g.line(0,0,ll,0);}\n      else { g.noStroke(); g.fill(C.leaf[0],C.leaf[1],C.leaf[2]*(0.5+0.6*k.bright), st==='sumi'?82:100);\n        g.beginShape(); g.vertex(0,0); g.bezierVertex(ll*0.4,-ll*0.12, ll*0.8,-ll*0.08, ll,0); g.bezierVertex(ll*0.8,ll*0.08, ll*0.4,ll*0.12, 0,0); g.endShape(); }\n      g.pop();\n    }\n  }\n  S.drawCulmSrc = 1;\n}\nimage(S.bg,0,0);\n\n// helper to draw a live swaying culm on the main canvas\nfunction liveCulm(k, sway){\n  const x0 = k.bx*width; const segs=8; const H=height*1.05;\n  const cb = C.culm[2]*(0.4+0.7*k.bright);\n  for (let i=0;i<segs;i++){\n    const t0=i/segs,t1=(i+1)/segs; const yy0=height-t0*H, yy1=height-t1*H;\n    const bendA=k.lean+sway;\n    const xx0=x0+Math.sin(t0*1.4+k.phase)*u*0.02*k.amp + bendA*t0*u*0.2;\n    const xx1=x0+Math.sin(t1*1.4+k.phase)*u*0.02*k.amp + bendA*t1*u*0.2;\n    if (st==='blueprint'){ stroke(C.culm[0],C.culm[1],C.culm[2],55); strokeWeight(Math.max(1,k.tw*0.5)); noFill(); line(xx0,yy0,xx1,yy1); }\n    else { noStroke(); fill(C.culm[0],C.culm[1],cb*(1-0.15*Math.sin(t0*3)),st==='sumi'?92:100);\n      const w0=k.tw*(1-t0*0.35), w1=k.tw*(1-t1*0.35);\n      quad(xx0-w0,yy0,xx0+w0,yy0,xx1+w1,yy1,xx1-w1,yy1);\n      fill(C.node[0],C.node[1],C.node[2]*(0.5+0.6*k.bright),100); ellipse(xx1,yy1,w1*2.4,w1*1.0); }\n  }\n  const nl=3+Math.round(3*k.bright);\n  for (let l=0;l<nl;l++){ const t=0.55+0.4*fr(k.seed*7+l); const yy=height-t*height*1.05;\n    const xx=x0+(k.lean+sway)*t*u*0.2+(fr(k.seed*3+l)-0.5)*u*0.02;\n    const la=(fr(k.seed*9+l)-0.5)*2.2 + sway*0.5; const ll=u*(0.04+0.05*k.bright);\n    push(); translate(xx,yy); rotate(la);\n    if (st==='blueprint'){ noFill(); stroke(C.leaf[0],C.leaf[1],C.leaf[2],50); strokeWeight(1); line(0,0,ll,0); }\n    else { noStroke(); fill(C.leaf[0],C.leaf[1],C.leaf[2]*(0.5+0.6*k.bright),st==='sumi'?84:100);\n      beginShape(); vertex(0,0); bezierVertex(ll*0.4,-ll*0.12,ll*0.8,-ll*0.08,ll,0); bezierVertex(ll*0.8,ll*0.08,ll*0.4,ll*0.12,0,0); endShape(); }\n    pop();\n  }\n}\n\n// ---- breeze sway (continuous K.t + lowmid) ----\nconst breezeBase = Math.sin(K.t*0.6)*0.5 + Math.sin(K.t*1.37)*0.25;\nlet gust = 0.5+0.6*P.energy;\nif (P.act==='storm') gust = 0.5 + 1.6*K.intensity;\nelse if (P.act==='calm') gust = 0.25;\nconst sway0 = (breezeBase*0.09 + Math.sin(K.t*2.1)*0.02) * gust * (1+1.2*S.low);\nif (S.stalks){ for (const k of S.stalks){ if (k.depth<0.4) continue; liveCulm(k, sway0*(0.4+k.amp) + Math.sin(K.t*0.9+k.phase)*0.01*k.amp); } }\n\n// ---- light shafts (drift continuously) ----\nconst shN = Math.round(2+3*P.shafts);\nif (P.shafts>0.01){ push(); blendMode(SCREEN); noStroke();\n  for (let i=0;i<shN;i++){\n    const sx = ((fr(i*7)+K.t*0.01*P.speed)%1)*width;\n    const drift = Math.sin(K.t*0.4+i)*u*0.03;\n    const a = (4+9*P.shafts)*(0.6+0.5*Math.sin(K.t*0.7+i)) + S.tre*8;\n    fill(C.shaft[0], C.shaft[1], C.shaft[2], a);\n    quad(sx-u*0.015+drift,0, sx+u*0.03+drift,0, sx+u*0.12-drift,height, sx-u*0.06-drift,height);\n  }\n  blendMode(BLEND); pop();\n}\n\n// ---- rare falling leaves (seed-det, continuous) ----\nconst lvN = Math.round(2+6*P.density);\npush(); noStroke();\nfor (let i=0;i<lvN;i++){\n  const sp=0.03+0.05*fr(i*3+1);\n  const ph=(fr(i*3)+K.t*sp*(0.5+0.5*P.speed))%1;\n  const yy=ph*(height+u*0.1)-u*0.05;\n  const xx=(fr(i*3)+0.05)*width*0.95 + Math.sin(K.t*1.1+i)*u*0.06;\n  const rot=K.t*1.5+i;\n  push(); translate(xx,yy); rotate(rot);\n  fill(C.leaf[0],C.leaf[1],C.leaf[2],55);\n  const ll=u*0.03*P.scale; beginShape(); vertex(0,0); bezierVertex(ll*0.4,-ll*0.15,ll*0.8,-ll*0.1,ll,0); bezierVertex(ll*0.8,ll*0.1,ll*0.4,ll*0.15,0,0); endShape();\n  pop();\n}\npop();\n\n// ---- mist floor (continuous drift) ----\nif (P.mist>0.01){ push(); blendMode(SCREEN); noStroke();\n  const mn=Math.round(4+5*P.mist);\n  for (let i=0;i<mn;i++){ const spd=0.005+0.015*fr(i*4+1); const dir=fr(i*4+2)<0.5?1:-1;\n    const bx=((fr(i*4)+dir*K.t*spd*P.speed)%1.2+1.2)%1.2-0.1;\n    const by=0.72+0.28*fr(i*4+3)+Math.sin(K.t*0.2+i)*0.02;\n    fill(C.paper[0], 6, 100, (6+10*P.mist));\n    ellipse(bx*width, by*height, u*P.scale*(0.5+0.7*fr(i*4)), u*P.scale*0.16);\n  }\n  blendMode(BLEND); pop();\n}\n\nblendMode(BLEND);\n"
+}

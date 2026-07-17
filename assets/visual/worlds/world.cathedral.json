@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.cathedral",
+  "kind": "world",
+  "name": "Cathedral Interior",
+  "desc": "Gothic columns lost in gloom while colored god-rays fan down from a glowing rose window, swinging slowly through drifting dust as the light strengthens toward the climax.",
+  "tags": [
+    "cathedral",
+    "gothic",
+    "church",
+    "stained-glass",
+    "rose-window",
+    "god-rays",
+    "light-shafts",
+    "columns",
+    "gloom",
+    "sacred",
+    "dust",
+    "interior",
+    "architecture",
+    "holy",
+    "jewel-tones",
+    "dramatic",
+    "world",
+    "background",
+    "chiaroscuro",
+    "reverent",
+    "atmosphere",
+    "volumetric",
+    "wireframe",
+    "thermal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "god-ray + dust-mote count"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "ray swing + glow amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "glass/light base hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "ray-swing rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "rose window size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rose window x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rose window height (0.5 = high)"
+    },
+    "gloom": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "darkness of the interior"
+    },
+    "sway": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ray-swing angular range"
+    },
+    "style": {
+      "default": "stained_glass",
+      "options": [
+        "stained_glass",
+        "chiaroscuro",
+        "ink",
+        "wireframe",
+        "thermal"
+      ],
+      "doc": "jewel-tone stained-glass rays / monochrome form-from-light chiaroscuro / sumi ink tonal wash / glowing gothic wireframe (abstract) / thermal false-color heat rays (abstract)"
+    },
+    "act": {
+      "default": "vespers",
+      "options": [
+        "vespers",
+        "matins"
+      ],
+      "doc": "vespers = light climbs from gloom across sections / matins = steady bright morning service"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "column/dust layout seed"
+    }
+  },
+  "acts": [
+    "vespers",
+    "matins"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:07:13+00:00",
+    "fps": 59.5,
+    "motion": 0.0759,
+    "lum": 0.229
+  },
+  "code": "const D = { density:.5, energy:.55, hue:210, speed:1, scale:1, x:.5, y:.5, style:'stained_glass', act:'vespers', seed:0, gloom:.6, sway:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst lrp=(a,b,t)=>a+(b-a)*t;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst style=P.style;\nconst glass=style==='stained_glass', chi=style==='chiaroscuro', ink=style==='ink', wire=style==='wireframe', therm=style==='thermal';\nconst en=P.energy*(.5+.5*K.intensity);\n// act: vespers = light climbs with section; matins = steady bright, dawn service\nconst act=P.act;\nconst lumClimb = act==='matins' ? 0.7 : clp(0.25+K.section/7*0.75, 0, 1);\n\n// t0 guard\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\n// rose window anchor\nconst rx=P.x*W, ry=Hh*(0.15+ (P.y-0.5)*0.1);\nconst rR=u*0.11*(0.8+P.scale*0.5);\n\n// heat/jewel color for a ray index\nfunction rayCol(i,n){\n  const f=i/Math.max(1,n-1);\n  if(therm){ const h=lrp(280,20,f); return [md(h,360),85,100]; }         // magenta->red heat ramp\n  if(chi) return [md(H,360),6,100];\n  if(ink) return [md(H,360),10,86];\n  if(wire) return [md(H+f*60,360),70,100];\n  return [md(H + (f-0.5)*140 + Math.sin(i*2.4)*30,360), 74, 100];        // jewel spread\n}\n\n// ---- static interior buffer (keyed size+style+seed+hue+gloom) ----\nconst key=W+'x'+Hh+':'+style+':'+P.seed+':'+Math.round(H/8)+':'+Math.round(P.gloom*4)+':'+Math.round(P.scale*3);\nif(!S.base||S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Hh); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const baseB=lrp(24,6,clp(P.gloom,0,1));\n  // vault gradient (dark top, faint floor light)\n  for(let i=0;i<90;i++){const f=i/89; g.fill(md(H,360),chi||therm?8:34, lrp(baseB*0.4, baseB+8, f<0.7?f/0.7*0.5: 0.5+(f-0.7)/0.3*0.9)); g.rect(0,i*Hh/90-1,W,Hh/90+2);}\n  // floor\n  const fy=0.82*Hh;\n  g.fill(md(H,360),chi?4:18, baseB+10); g.rect(0,fy,W,Hh-fy);\n  // reflection strip\n  g.fill(md(H+20,360),20,baseB+18,30); g.rect(0,fy,W,u*0.02);\n\n  // columns (arcade) \u2014 draw pairs receding\n  const nCol=5;\n  for(let i=0;i<nCol;i++){\n    const side=i/(nCol-1); // 0..1 left->right\n    const cx=lrp(W*0.06,W*0.94,side);\n    const cw=u*0.05*(0.8+Math.abs(side-0.5)*0.9);\n    const top=Hh*0.06, bot=fy;\n    if(wire){\n      g.noFill(); g.stroke(md(H+30,360),60,100,70); g.strokeWeight(Math.max(1,u*0.0015));\n      g.rect(cx-cw/2,top,cw,bot-top);\n      // gothic pointed arch\n      g.line(cx-cw/2,top,cx,top-u*0.05); g.line(cx+cw/2,top,cx,top-u*0.05);\n      g.noStroke();\n    } else {\n      const cB=chi?lrp(4,30,side):lrp(baseB*0.5,baseB*1.4,fr(i+1));\n      g.fill(md(H,360),ink?12:22,cB); g.rect(cx-cw/2,top,cw,bot-top);\n      g.fill(0,0,0,30); g.rect(cx+cw*0.18,top,cw*0.32,bot-top); // shaded flute\n      g.fill(0,0,100,ink?8:16); g.rect(cx-cw*0.5,top,cw*0.14,bot-top); // lit edge\n      // capital\n      g.fill(md(H,360),20,cB*1.1); g.rect(cx-cw*0.62,top,cw*1.24,u*0.02);\n    }\n  }\n\n  // rose window tracery (baked, dim; live glow added on top)\n  g.push(); g.translate(rx,ry);\n  const petals=12;\n  for(let p=0;p<petals;p++){\n    const a=p/petals*6.2832;\n    const col=rayCol(p%6,6);\n    g.fill(col[0], wire?70:(chi?8:66), wire?100:(chi?60:64), wire?40:55);\n    if(wire){g.noFill(); g.stroke(col[0],70,100,60); g.strokeWeight(1);}\n    g.push(); g.rotate(a);\n    g.ellipse(rR*0.55,0,rR*0.5,rR*0.28);\n    g.pop();\n  }\n  g.noStroke();\n  g.fill(chi?0:md(H,360),chi?0:40,chi?90:70,60); g.ellipse(0,0,rR*0.5,rR*0.5);\n  g.noFill(); g.stroke(0,0,10,80); g.strokeWeight(Math.max(1.5,u*0.003)); g.ellipse(0,0,rR*2,rR*2); g.noStroke();\n  g.pop();\n\n  // grain\n  const gn=Math.round(2600*(0.4+P.gloom));\n  for(let i=0;i<gn;i++){const px=fr(i*3+700)*W,py=fr(i*3+701)*Hh,aa=fr(i*3+702); g.fill(0,0,aa<0.5?100:0, 3.5*(0.4+P.gloom)); g.rect(px,py,1.4,1.4);}\n  S.base=g;\n  S.dustSeed=P.seed; S.dust=null;\n}\nimage(S.base,0,0,W,Hh);\n\n// ---- seed dust motes ----\nif(S.dust==null||S.dustSeed!==P.seed){\n  S.dustSeed=P.seed; S.dust=[];\n  for(let i=0;i<110;i++) S.dust.push({x:fr(i*4+1),y:fr(i*4+2),s:0.3+fr(i*4+3)*0.9,ph:fr(i*4+4)*6.2832,sp:0.3+fr(i*4+5)});\n}\n\n// ---- god-rays (swing via K.t = real-time motion floor) ----\nconst nRay=Math.max(3,Math.round(lrp(4,12,clp(P.density,0,1))));\nconst swingAmp=(0.10+P.sway*0.35)*(0.5+en);\nconst globalSwing=Math.sin(K.t*0.22*P.speed)*swingAmp;\nconst bright=lumClimb*(0.55+en*0.6) + K.swell*0.18 + A.bass*0.4 + A.lowmid*0.2;\nconst fy=0.82*Hh;\nblendMode(ADD); noStroke();\nfor(let i=0;i<nRay;i++){\n  const spread=1.1;\n  const cen=Math.PI/2; // straight down\n  const baseAng=cen + lrp(-spread,spread,i/Math.max(1,nRay-1))*0.6;\n  const ang=baseAng + globalSwing + Math.sin(K.t*0.4+i*1.7)*0.03*(0.5+en);\n  const col=rayCol(i,nRay);\n  const len=Hh*1.05;\n  const hw=(u*0.018)*(0.6+P.scale*0.5); // half-width at apex\n  const flare=len*0.14; // widening at far end\n  const dx=Math.cos(ang), dy=Math.sin(ang);\n  const px=-dy, py=dx; // perpendicular\n  const a1=(bright*22)*(wire?0.5:1);\n  // layered translucent quads for soft beam\n  for(let L=0;L<3;L++){\n    const w=hw*(1+L*0.8), fl=flare*(1+L*0.7);\n    fill(col[0], chi?4:(ink?14:col[1]*0.9), col[2], a1*(1-L*0.28));\n    beginShape();\n    vertex(rx+px*w, ry+py*w);\n    vertex(rx-px*w, ry-py*w);\n    vertex(rx+dx*len-px*fl, ry+dy*len-py*fl);\n    vertex(rx+dx*len+px*fl, ry+dy*len+py*fl);\n    endShape(CLOSE);\n  }\n}\n\n// ---- rose window live glow (breathe on beat/bass) ----\nconst rg=bright*(0.7+K.pulse*0.4+A.bass*0.5);\nfor(let r=0;r<4;r++){\n  const col=rayCol(r*2%6,6);\n  fill(col[0], chi?6:60, chi?90:100, (10+rg*22)*(1-r*0.2));\n  ellipse(rx,ry,rR*(0.8+r*0.6)*(1+rg*0.2),rR*(0.8+r*0.6)*(1+rg*0.2));\n}\n// treble sparkle in rose tracery\nif(A.treble>0.05){for(let i=0;i<8;i++){const a=i/8*6.2832; fill(md(H+i*30,360),40,100,A.treble*50); ellipse(rx+Math.cos(a)*rR*0.6,ry+Math.sin(a)*rR*0.6,u*0.006,u*0.006);}}\n\n// ---- dust motes drifting in the light (real-time via K.t) ----\nconst nD=Math.round(S.dust.length*clp(P.density,0.15,1));\nfor(let i=0;i<nD;i++){\n  const d=S.dust[i];\n  const dx2=frc(d.x + Math.sin(K.t*0.05*d.sp+d.ph)*0.04 + K.t*0.004*d.sp)*W;\n  const dy2=frc(d.y - K.t*0.006*d.sp + Math.sin(K.t*0.08+d.ph)*0.02)*Hh;\n  // brighter near rose column of light\n  const near=clp(1-Math.abs(dx2-rx)/(W*0.5),0,1);\n  const tw=0.5+0.5*Math.sin(K.t*(1+d.s)+d.ph);\n  fill(md(H+30,360),20,100, bright*near*tw*30*d.s);\n  ellipse(dx2,dy2,u*0.0035*d.s,u*0.0035*d.s);\n}\nblendMode(BLEND);\n"
+}

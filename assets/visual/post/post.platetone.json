@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.platetone",
+  "kind": "post",
+  "name": "Plate Tone",
+  "desc": "Turns the frame into a hand-pulled intaglio print \u2014 the film of ink the rag never quite wiped off, dragged in one direction across the plate, foul bite creeping in patches, laid and chain lines pressed through from the damp rag paper, and the debossed plate mark biting a bevel into the margin as a gallery lamp rakes across it.",
+  "tags": [
+    "plate-tone",
+    "intaglio",
+    "etching",
+    "aquatint",
+    "drypoint",
+    "retroussage",
+    "engraving",
+    "print",
+    "printmaking",
+    "press",
+    "wipe",
+    "ink",
+    "foul-bite",
+    "plate-mark",
+    "deboss",
+    "bevel",
+    "paper",
+    "rag",
+    "laid",
+    "chain-lines",
+    "margin",
+    "post",
+    "overlay",
+    "finish",
+    "texture",
+    "grain",
+    "sepia",
+    "monochrome",
+    "gallery",
+    "archival",
+    "antique",
+    "austere",
+    "melancholy"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "tone": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much ink the rag left behind \u2014 density of the residual film over the whole frame"
+    },
+    "wipe": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hand-wipe streaking: how many drag marks and how hard they read"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "raking gallery lamp \u2014 sheen amplitude and how deep the plate bevel reads"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the re-wipe drift, the wipe angle and the lamp"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue \u2014 30 is a warm intaglio brown-black; carries the paper with it"
+    },
+    "plate": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "plate-mark inset \u2014 0 prints full bleed, higher leaves a wider bare-paper margin"
+    },
+    "grain": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much rag fibre, laid and chain line press through"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "feature size of the tone mottle and the laid lines"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the lamp rakes from, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the lamp rakes from, y"
+    },
+    "alpha": {
+      "default": 78,
+      "min": 0,
+      "max": 100,
+      "doc": "overall strength of the pass"
+    },
+    "act": {
+      "default": "wipe",
+      "options": [
+        "wipe",
+        "proof",
+        "edition"
+      ],
+      "doc": "multi-minute program: the wipe breathes / clean proofs, barely any tone / a long edition, the plate holding more and more ink"
+    },
+    "style": {
+      "default": "intaglio",
+      "options": [
+        "intaglio",
+        "aquatint",
+        "retroussage",
+        "drypoint",
+        "bleached"
+      ],
+      "doc": "aesthetic: warm brown-black plate tone on cream / cool granular rosin bite / soft dragged veils, smoky and directional / velvety burr with a heavy plate edge / inverted \u2014 the pass lightens instead of darkening, a washed-out ghost proof"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic plate and sheet \u2014 mottle, foul bite, wipe marks, plate-mark placement"
+    }
+  },
+  "acts": [
+    "wipe",
+    "proof",
+    "edition"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:09+00:00",
+    "fps": 59.9,
+    "motion": 0.0247,
+    "lum": 0.139
+  },
+  "code": "const D = { tone: .5, wipe: .5, energy: .5, speed: 1, hue: 30, plate: .35, grain: .5, scale: 1, x: .5, y: .5, alpha: 78, act: 'wipe', style: 'intaglio', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u2 = xf * xf * (3 - 2 * xf), v2 = yf * yf * (3 - 2 * yf);\n  const a = hsh(xi, yi), b = hsh(xi + 1, yi), c = hsh(xi, yi + 1), d = hsh(xi + 1, yi + 1);\n  return (a * (1 - u2) + b * u2) * (1 - v2) + (c * (1 - u2) + d * u2) * v2;\n};\nconst fbm = (x, y, o) => { let s = 0, am = .5, f = 1; for (let i = 0; i < o; i++) { s += am * vn(x * f, y * f); am *= .5; f *= 2.03; } return s; };\nconst rgbv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\nconst css = (h, s, v, a) => { const c = rgbv(h, s, v); return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + a + ')'; };\n\nconst W = width, H = height, u = Math.min(W, H), dc = drawingContext;\nconst tn = clp(P.tone, 0, 1), wp = clp(P.wipe, 0, 1), en = clp(P.energy, 0, 1);\nconst gr = clp(P.grain, 0, 1), pl = clp(P.plate, 0, 1);\nconst sp = Math.max(.1, P.speed), sc = Math.max(.3, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360, la = clp(P.alpha, 0, 100) / 100;\nconst bleach = st === 'bleached';\n\nlet inkH = hb, inkS = .42, inkV = .10, paH = hb + 14, paS = .11, paV = .93, foul = 1, veil = 1;\nif (st === 'aquatint') { inkH = hb + 186; inkS = .22; inkV = .13; paH = hb + 20; paS = .06; paV = .94; foul = 1.9; }\nelse if (st === 'retroussage') { inkH = hb - 4; inkS = .34; inkV = .08; paH = hb + 16; paS = .13; paV = .92; foul = .5; veil = 2.3; }\nelse if (st === 'drypoint') { inkH = hb + 6; inkS = .30; inkV = .05; paH = hb + 12; paS = .10; paV = .93; foul = .8; veil = 1.5; }\nelse if (bleach) { inkH = hb + 18; inkS = .10; inkV = .96; paH = hb + 18; paS = .05; paV = .97; foul = .6; }\n\n// ---- act ---------------------------------------------------------------------\nlet filmM = 1;\nif (P.act === 'proof') filmM = .55 + .35 * (.5 + .5 * Math.sin(K.t * .0127 + 1.7));\nelse if (P.act === 'edition') filmM = .85 + .95 * (.5 + .5 * Math.sin(K.t * .0059 + .7 * Math.sin(K.t * .0023 + 2.5)));\nelse filmM = .78 + .5 * (.5 + .5 * Math.sin(K.t * .0089 + .6 * Math.sin(K.t * .0031 + 1.2)));\nfilmM *= (.8 + .4 * K.intensity);\n\nconst sq = Math.round(sc * 6), hq = Math.round(hb / 8);\n// ---- the plate: residual ink film + foul bite (drifts \u2014 every pull is re-wiped)\nconst TW = Math.max(220, Math.min(560, Math.round(W * .34))), TH = Math.max(130, Math.round(TW * H / W));\nif (!S.tn || S.tw !== TW || S.th !== TH || S.tseed !== P.seed || S.tsty !== st || S.tsq !== sq || S.thq !== hq) {\n  if (S.tn && S.tn.remove) S.tn.remove();\n  S.tn = createGraphics(TW, TH); S.tn.pixelDensity(1);\n  S.tw = TW; S.th = TH; S.tseed = P.seed; S.tsty = st; S.tsq = sq; S.thq = hq;\n  const ic = rgbv(inkH, inkS, inkV), pc = rgbv(paH, paS, paV);\n  const f = .022 / sc;\n  S.tn.loadPixels(); const tp = S.tn.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    let m = .30 + .62 * fbm(x * f, y * f, 4) + .18 * (fbm(x * f * 5.1 + 11, y * f * 5.1 + 7, 3) - .5);\n    // foul bite: the acid crept under the ground in patches\n    const fb = fbm(x * f * 2.7 + 31, y * f * 2.7 + 17, 3);\n    if (fb > .60) m += (fb - .60) * 2.4 * foul;\n    m += (hsh(x * .77 + y * .19, y * .83 + x * .27) - .5) * .10;\n    m = clp(m, 0, 1);\n    const o = 4 * (y * TW + x);\n    if (bleach) { tp[o] = pc[0] * m; tp[o + 1] = pc[1] * m; tp[o + 2] = pc[2] * m; }\n    else { tp[o] = 255 + (ic[0] - 255) * m; tp[o + 1] = 255 + (ic[1] - 255) * m; tp[o + 2] = 255 + (ic[2] - 255) * m; }\n    tp[o + 3] = 255;\n  }\n  S.tn.updatePixels();\n}\n// ---- the paper: laid lines, chain lines, rag fibre (registered, does not drift)\nconst PW = Math.max(280, Math.min(720, Math.round(W * .44))), PH = Math.max(160, Math.round(PW * H / W));\nif (!S.pap || S.pw !== PW || S.ph !== PH || S.pseed !== P.seed || S.psq !== sq) {\n  if (S.pap && S.pap.remove) S.pap.remove();\n  S.pap = createGraphics(PW, PH); S.pap.pixelDensity(1);\n  S.pw = PW; S.ph = PH; S.pseed = P.seed; S.psq = sq;\n  const lf = .62 / sc, cf = 7 / sc;\n  S.pap.loadPixels(); const pp = S.pap.pixels;\n  for (let y = 0; y < PH; y++) for (let x = 0; x < PW; x++) {\n    const f1 = hsh(x * .89 + y * .21, y * .93 + x * .13);\n    const f2 = hsh(x * .29 - y * .41 + 4.7, y * .33 + x * .49 + 9.1);\n    const fib = Math.pow(clp(f1 * .78 + f2 * .5 - .13, 0, 1), 1.2);\n    const laid = .5 + .5 * Math.sin(y * lf + vn(x * .015, y * .015) * 2.6);\n    const ch = (Math.abs(((x / PW * cf) % 1) - .5) < .028) ? 1 : 0;\n    const v = 255 - 46 * fib - 15 * laid - 14 * ch;\n    const o = 4 * (y * PW + x); pp[o] = v; pp[o + 1] = v; pp[o + 2] = v; pp[o + 3] = 255;\n  }\n  S.pap.updatePixels();\n}\n\n// ---- lay the pass down -------------------------------------------------------\nconst oldA = dc.globalAlpha, oldOp = dc.globalCompositeOperation;\nnoStroke();\n// residual ink film \u2014 the drift is the plate being wiped again for the next pull\nconst ox = u * .03 * (Math.sin(K.t * .073 * sp) + .55 * Math.sin(K.t * .169 * sp + 1.2));\nconst oy = u * .026 * (Math.sin(K.t * .097 * sp + 2.1) + .55 * Math.sin(K.t * .211 * sp));\nconst zm = u * .04 * (1 + .3 * Math.sin(K.t * .053 + .8));\nblendMode(bleach ? SCREEN : MULTIPLY);\ndc.globalAlpha = la * clp(tn * 1.15 * filmM, 0, 1);\ndc.drawImage(S.tn.drawingContext.canvas, ox - zm, oy - zm, W + zm * 2, H + zm * 2);\n// rag paper, pressed into the ink\nblendMode(MULTIPLY);\ndc.globalAlpha = la * gr * .9;\ndc.drawImage(S.pap.drawingContext.canvas, 0, 0, W, H);\nblendMode(BLEND);\n\n// hand-wiped streaks, dragged across the plate in one direction\nconst wang = .5 + .55 * Math.sin(K.t * .019 * sp + .7 * Math.sin(K.t * .0071 + 1.4));\nconst L = Math.sqrt(W * W + H * H) * 1.12;\nconst nst = 4 + Math.round(wp * 6);\ndc.save();\ndc.translate(W * .5, H * .5); dc.rotate(wang);\nfor (let k = 0; k < nst; k++) {\n  const q = j => fr(k * 7.3 + j * 1.7 + 5);\n  const th = L * (.012 + .075 * q(1)) * veil;\n  const yy = ((q(2) + .06 * Math.sin(K.t * .041 * sp + k * 2.1)) - .5) * L;\n  const dark = q(3) < .55;\n  const ch2 = dark ? inkH : paH, cs2 = dark ? inkS : paS, cv2 = dark ? inkV : paV;\n  const a2 = la * wp * (.06 + .30 * q(4)) * (dark ? filmM : 1) * (bleach ? .6 : 1);\n  const g2 = dc.createLinearGradient(0, yy, 0, yy + th);\n  g2.addColorStop(0, css(ch2, cs2, cv2, 0));\n  g2.addColorStop(.5, css(ch2, cs2, cv2, clp(a2, 0, 1)));\n  g2.addColorStop(1, css(ch2, cs2, cv2, 0));\n  dc.globalAlpha = 1; dc.fillStyle = g2;\n  dc.fillRect(-L * .5, yy, L, th);\n}\ndc.restore();\n\n// ---- the plate mark: an inked slab pressed into a bigger sheet ---------------\nif (pl > .02) {\n  const ins = u * (.008 + pl * .105);\n  const ix = ins * (.92 + .16 * fr(11)), iy = ins * (.9 + .2 * fr(12));\n  const bx = W - ins * (.92 + .16 * fr(13)), by = H - ins * (.9 + .2 * fr(14));\n  const jx = u * .0022 * Math.sin(K.t * .057 + .5), jy = u * .0018 * Math.sin(K.t * .081 + 2.3);\n  const x0 = ix + jx, y0 = iy + jy, x1 = bx + jx, y1 = by + jy;\n  // the margin is bare paper\n  dc.globalAlpha = la * clp(.55 + pl * .45, 0, 1);\n  dc.fillStyle = css(paH, paS, paV * (bleach ? 1 : .97), 1);\n  dc.beginPath(); dc.rect(0, 0, W, H); dc.rect(x0, y0, x1 - x0, y1 - y0); dc.fill('evenodd');\n  // ink piles up against the bevel and prints as a dark line\n  dc.globalAlpha = la * clp(.35 + tn * .55, 0, 1) * (st === 'drypoint' ? 1.3 : 1);\n  dc.strokeStyle = css(inkH, inkS, inkV, 1); dc.lineWidth = Math.max(1, u * .0035 * (.6 + tn));\n  dc.strokeRect(x0, y0, x1 - x0, y1 - y0);\n  // the bevel deboss, read by the same raking lamp\n  const ba = K.t * .11 * sp + .8 * Math.sin(K.t * .043 + .6) + .3 * Math.sin(K.t * .107 + 2.2);\n  const bdx = Math.cos(ba) * u * .0035 * (.5 + en), bdy = Math.sin(ba) * u * .0035 * (.5 + en);\n  dc.lineWidth = Math.max(1, u * .0045);\n  dc.globalAlpha = la * (.30 + .45 * en);\n  dc.strokeStyle = 'rgba(255,252,244,1)';\n  dc.strokeRect(x0 - bdx * 1.6, y0 - bdy * 1.6, x1 - x0, y1 - y0);\n  dc.globalAlpha = la * (.34 + .5 * en);\n  dc.strokeStyle = 'rgba(24,18,12,1)';\n  dc.strokeRect(x0 + bdx * 1.6, y0 + bdy * 1.6, x1 - x0, y1 - y0);\n}\n\n// ---- damp paper catching the gallery light -----------------------------------\nconst shp = K.t * .09 * sp + .7 * Math.sin(K.t * .037 + 1.1) + .28 * Math.sin(K.t * .083);\nconst c0 = clp(.5 + .46 * Math.sin(shp), .04, .96);\nconst sga = dc.createLinearGradient(W * (P.x - .6), H * (P.y - .6), W * (P.x + .6), H * (P.y + .6));\nsga.addColorStop(Math.max(0, c0 - .34), 'rgba(255,250,236,0)');\nsga.addColorStop(c0, 'rgba(255,250,236,' + (.03 + .16 * en * (1 + .3 * K.swell + .4 * A.rms)).toFixed(3) + ')');\nsga.addColorStop(Math.min(1, c0 + .34), 'rgba(255,250,236,0)');\ndc.globalAlpha = la; dc.fillStyle = sga; dc.fillRect(0, 0, W, H);\n\ndc.globalAlpha = oldA; dc.globalCompositeOperation = oldOp;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

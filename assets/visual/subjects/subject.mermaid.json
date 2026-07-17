@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.mermaid",
+  "kind": "subject",
+  "name": "Mermaid",
+  "desc": "Antique copper-engraving mermaid, tail swishing on the beat, hair streaming underwater as she sways and undulates.",
+  "tags": [
+    "mermaid",
+    "siren",
+    "mythic",
+    "fantasy",
+    "aquatic",
+    "underwater",
+    "ocean",
+    "sea",
+    "fish",
+    "tail",
+    "fairytale",
+    "folklore",
+    "engraving",
+    "etching",
+    "nautical",
+    "teal",
+    "character",
+    "subject",
+    "waterfolk",
+    "legend"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.4,
+      "doc": "motion/sway amplitude"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "tail/accent hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "beats-relative rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rising bubble count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x fraction"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y fraction"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body/tail girth"
+    },
+    "tailLen": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tail length morph"
+    },
+    "hairFlow": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hair length & drift"
+    },
+    "style": {
+      "default": "engraving",
+      "options": [
+        "engraving",
+        "iridescent",
+        "wash",
+        "silhouette"
+      ],
+      "doc": "aesthetic: cross-hatched etching / oil-slick scales / sumi ink-wash / pure silhouette"
+    },
+    "pose": {
+      "default": "idle",
+      "options": [
+        "idle",
+        "swim",
+        "dance",
+        "wave"
+      ],
+      "doc": "beat-synced pose"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic texture seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:51:48+00:00",
+    "fps": 59.9,
+    "motion": 0.0078,
+    "lum": 0.096
+  },
+  "code": "const D = { scale:1, energy:.6, hue:190, speed:1, density:.5, x:.5, y:.62, chub:.5, tailLen:.5, hairFlow:.5, style:'engraving', pose:'idle', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height);\nconst s = u*0.0030*P.scale;\nconst cx = P.x*width, cy = P.y*height;\nconst E = P.energy, spd = P.speed, sty = P.style;\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\n\n// ---- style texture buffer (seed+style keyed) ----\nif (S.texKey !== sty+'|'+P.seed) {\n  S.texKey = sty+'|'+P.seed;\n  const R = 300; const g = createGraphics(R,R); g.colorMode(HSB,360,100,100,100); g.clear();\n  if (sty==='engraving') {\n    g.stroke(32,18,10,50); g.strokeWeight(1.5);\n    for (let i=0;i<74;i++){ const o=i*4.3-50+fr(i)*2; g.line(o-70,-30,o+150,330); }\n    g.strokeWeight(0.9); g.stroke(32,18,10,32);\n    for (let i=0;i<44;i++){ const o=i*7.1-20; g.line(o+150,-30,o-70,330); }\n  } else if (sty==='wash') {\n    g.noStroke();\n    for (let i=0;i<440;i++){ const x=fr(i*2+1)*R,y=fr(i*2+2)*R,r=2+fr(i+9)*6; g.fill(0,0,0,3+fr(i+3)*7); g.ellipse(x,y,r,r); }\n  }\n  S.tex = g;\n}\nconst hasTex = (sty==='engraving'||sty==='wash') && S.tex;\n\n// ---- rhythm (all from K, audio layered on top) ----\nconst bt = K.beat*spd;\nconst swish = Math.sin(bt*Math.PI);\nconst bob = K.pulse*0.5 + K.swell*0.5;\nconst sway = Math.sin(bt*Math.PI*0.5);\nconst kick = Math.min(1.2, K.pulse*0.6 + A.bass*0.7);\nconst air = A.treble||0;\n\n// ---- pose config ----\nlet armBase, tailAmp, twist, armSwing, waveArm;\nif (P.pose==='swim'){ armBase=2.5; tailAmp=0.9; twist=swish*0.14; armSwing=swish*0.2; waveArm=0; }\nelse if (P.pose==='dance'){ armBase=1.6; tailAmp=0.62; twist=sway*0.26; armSwing=Math.sin(bt*Math.PI)*0.55; waveArm=0; }\nelse if (P.pose==='wave'){ armBase=0.34; tailAmp=0.4; twist=sway*0.1; armSwing=swish*0.15; waveArm=Math.sin(bt*Math.PI*2)*0.7; }\nelse { armBase=0.34; tailAmp=0.38; twist=sway*0.09; armSwing=swish*0.16; waveArm=0; }\ntailAmp *= (0.7+E*0.6);\n\n// ---- colors by style ----\nconst H=P.hue;\nlet skinH,skinS,skinB, shH,shS,shB, hiB, tailH,tailS,tailB, hairH,hairS,hairB, rim;\nif (sty==='iridescent'){ skinH=(H+30)%360;skinS=45;skinB=88; shH=(H+50)%360;shS=60;shB=55; hiB=100; tailH=H;tailS=80;tailB=90; hairH=(H+300)%360;hairS=70;hairB=85; rim=0; }\nelse if (sty==='silhouette'){ skinH=H;skinS=30;skinB=10; shH=H;shS=30;shB=6; hiB=14; tailH=H;tailS=35;tailB=12; hairH=H;hairS=30;hairB=8; rim=1; }\nelse if (sty==='wash'){ skinH=H;skinS=8;skinB=90; shH=H;shS=22;shB=52; hiB=98; tailH=H;tailS=30;tailB=70; hairH=H;hairS=35;hairB=30; rim=0; }\nelse { skinH=34;skinS=14;skinB=86; shH=32;shS=26;shB=52; hiB=95; tailH=H;tailS=24;tailB=70; hairH=28;hairS=30;hairB=40; rim=0; }\n\n// ---- figure transform ----\nconst bobY = -bob*11*s*E - kick*6*s*E + Math.sin(K.t*0.6)*4*s;\nconst swayX = sway*15*s*E;\npush();\ntranslate(cx + swayX, cy + bobY);\nrotate(sway*0.05*E);\nnoStroke();\n\nconst cw = 0.7 + P.chub*0.7;\nconst tl = 0.75 + P.tailLen*0.7;\n\n// ---------- TAIL ----------\npush();\ntranslate(0, 34*s);\nrotate(tailAmp*swish*0.5 + twist);\nconst drawTail = () => {\n  beginShape();\n  vertex(-20*s*cw, 0);\n  bezierVertex(-30*s*cw, 55*s*tl, -18*s*cw, 92*s*tl, 0, 100*s*tl);\n  bezierVertex(18*s*cw, 92*s*tl, 30*s*cw, 55*s*tl, 20*s*cw, 0);\n  endShape(CLOSE);\n};\nfill(tailH,tailS,tailB); drawTail();\nif (sty!=='silhouette'){ fill(tailH,Math.min(100,tailS+15),tailB*0.6, 55); push(); translate(-4*s,4*s); scale(0.9); drawTail(); pop(); }\npush();\ntranslate(0,100*s*tl);\nrotate(tailAmp*swish*0.7);\nfill(tailH,tailS,tailB*(sty==='silhouette'?1:1.02));\nbeginShape(); vertex(0,-8*s); bezierVertex(-46*s*cw,4*s,-40*s*cw,34*s,-6*s,22*s); bezierVertex(-2*s,26*s,2*s,26*s,6*s,22*s); bezierVertex(40*s*cw,34*s,46*s*cw,4*s,0,-8*s); endShape(CLOSE);\npop();\nif (sty==='iridescent'){ blendMode(ADD); for(let r=0;r<5;r++){ const yy=12*s+r*17*s*tl; fill((H+r*22)%360,70,60,30); ellipse(0,yy,34*s*cw-r*3*s,12*s);} blendMode(BLEND); }\nelse if (sty!=='silhouette'){ noFill(); stroke(tailH,tailS,tailB*0.5,60); strokeWeight(1.2*s); for(let r=0;r<4;r++){ const yy=18*s+r*20*s*tl; arc(0,yy,30*s*cw,16*s,PI+0.3,TWO_PI-0.3);} noStroke(); }\npop();\n\n// ---------- ARMS (behind, drawn first for depth) ----------\nconst drawArm = (sx, sign, ang) => {\n  push();\n  translate(sx, -18*s);\n  rotate(sign*ang);\n  fill(skinH,skinS,skinB*(sty==='silhouette'?1:0.98));\n  ellipse(0, 20*s, 12*s*(0.8+P.chub*0.4), 42*s);\n  fill(skinH,skinS,skinB); ellipse(0,40*s,10*s,12*s);\n  if (sty!=='silhouette'){ fill(shH,shS,shB,50); ellipse(2*s,22*s,7*s,30*s); }\n  pop();\n};\nlet aR, aL;\nif (P.pose==='wave'){ aR = 2.4 - waveArm; aL = armBase - armSwing; }\nelse { aR = armBase + armSwing; aL = armBase - armSwing; }\ndrawArm(15*s, 1, aR);\ndrawArm(-15*s, -1, aL);\n\n// ---------- TORSO ----------\npush();\nrotate(twist*0.5);\nconst bw = 26*s*cw, bh = 40*s;\nfill(skinH,skinS,skinB); ellipse(0,0,bw*2,bh*2);\nif (sty!=='silhouette'){ fill(shH,shS,shB,70); ellipse(6*s,6*s,bw*1.4,bh*1.5); fill(skinH,Math.max(0,skinS-6),hiB,60); ellipse(-7*s,-8*s,bw*0.9,bh*1.0); }\nelse { fill(H,60,rim?22:10); ellipse(-bw*0.7,-bh*0.5,bw*0.5,bh*1.2); }\nfill(tailH,Math.min(100,tailS+10),tailB*(sty==='silhouette'?0.9:1.02));\nellipse(-13*s,-4*s,17*s,20*s); ellipse(13*s,-4*s,17*s,20*s);\npop();\n\n// ---------- HEAD ----------\npush();\ntranslate(0,-46*s);\nrotate(twist*0.6 + Math.sin(bt*Math.PI*0.5)*0.04*E);\nconst hairLen = 0.7+P.hairFlow*0.8;\nconst flow = Math.sin(bt*Math.PI + K.t)*0.3*E + swish*0.2;\nfill(hairH,hairS,hairB);\nbeginShape(); vertex(-20*s,-14*s); bezierVertex(-40*s,10*s*hairLen,-34*s+flow*20*s,60*s*hairLen,-14*s+flow*24*s,70*s*hairLen); bezierVertex(-8*s,40*s,-8*s,10*s,-18*s,-6*s); endShape(CLOSE);\nbeginShape(); vertex(20*s,-14*s); bezierVertex(40*s,10*s*hairLen,34*s-flow*20*s,60*s*hairLen,14*s-flow*24*s,70*s*hairLen); bezierVertex(8*s,40*s,8*s,10*s,18*s,-6*s); endShape(CLOSE);\nfill(skinH,skinS,skinB); ellipse(0,0,40*s,46*s);\nif (sty!=='silhouette'){ fill(shH,shS,shB,55); ellipse(7*s,4*s,26*s,34*s); }\nfill(hairH,hairS,hairB); arc(0,-6*s,44*s,40*s,PI,TWO_PI); rect(-22*s,-8*s,44*s,6*s);\nif (sty!=='silhouette'){\n  fill(0,0,sty==='engraving'?18:15); ellipse(-8*s,0,5*s,7*s); ellipse(8*s,0,5*s,7*s);\n  if (sty!=='wash'){ fill(0,0,100,80); ellipse(-9*s,-1*s,2*s,2*s); ellipse(7*s,-1*s,2*s,2*s); }\n  fill((H+330)%360,55,sty==='engraving'?70:90); arc(0,10*s,13*s,8*s,0,PI);\n} else {\n  noFill(); stroke(H,50,60,80); strokeWeight(1.6*s); arc(0,0,40*s,46*s,PI*0.9,PI*1.6); noStroke();\n}\npop();\n\n// ---------- BUBBLES (density + treble) ----------\nif (sty!=='silhouette'){\n  const nb = Math.floor(3 + P.density*9);\n  blendMode(sty==='iridescent'?ADD:BLEND);\n  for (let i=0;i<nb;i++){\n    const ph = (K.t*0.25 + fr(i*3)) % 1;\n    const bx = (fr(i*3+1)-0.5)*80*s + Math.sin(K.t+i)*6*s;\n    const byb = 40*s - ph*180*s;\n    const br = (2+fr(i*3+2)*5)*s*(1+air*0.6);\n    fill(H, 30, sty==='iridescent'?70:95, 30*(1-ph));\n    ellipse(bx, byb, br, br);\n  }\n  blendMode(BLEND);\n}\n\n// ---------- STYLE TEXTURE STAMP ----------\nif (hasTex){\n  blendMode(MULTIPLY);\n  const c = drawingContext; c.save();\n  c.beginPath(); c.ellipse(0, 22*s, 80*s, 130*s, 0, 0, Math.PI*2); c.clip();\n  image(S.tex, -95*s, -110*s, 190*s, 260*s);\n  c.restore();\n  blendMode(BLEND);\n}\n\npop();\nblendMode(BLEND);\n"
+}

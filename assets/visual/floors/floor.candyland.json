@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.candyland",
+  "kind": "floor",
+  "name": "Candyland Floor",
+  "desc": "Glossy candy checkerboard scrolling in perspective with a wet specular sheen sweep; CMYK-halftone, op-art liquorice and neon edge-lit variants.",
+  "tags": [
+    "candyland",
+    "candy",
+    "checker",
+    "checkerboard",
+    "sweet",
+    "pastel",
+    "gloss",
+    "enamel",
+    "perspective",
+    "grid",
+    "floor",
+    "stage",
+    "pink",
+    "mint",
+    "purple",
+    "playful",
+    "halftone",
+    "riso",
+    "liquorice",
+    "opart",
+    "neon",
+    "bubblegum",
+    "dessert"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "checker cell resolution + sparkle count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen/glow amplitude + beat flare"
+    },
+    "hue": {
+      "default": 335,
+      "min": 0,
+      "max": 360,
+      "doc": "lead candy hue (335 = bubblegum pink)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "checker cell size / perspective spread"
+    },
+    "warp": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel curvature of the checker columns"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic sparkle seed"
+    },
+    "style": {
+      "default": "gloss",
+      "options": [
+        "gloss",
+        "halftone",
+        "liquorice",
+        "neon"
+      ],
+      "doc": "aesthetic: glossy enamel candy / CMYK halftone print / op-art liquorice mono / neon edge-lit"
+    },
+    "act": {
+      "default": "cruise",
+      "options": [
+        "cruise",
+        "pulse",
+        "tide"
+      ],
+      "doc": "dramaturgy: steady cruise / beat-surging pulse / slow-breathing tide"
+    }
+  },
+  "acts": [
+    "cruise",
+    "pulse",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:06:40+00:00",
+    "fps": 63.7,
+    "motion": 0.0345,
+    "lum": 0.642
+  },
+  "code": "const D = { density: .55, energy: .6, hue: 335, speed: 1, scale: 1, warp: .25, x: .5, y: .46, seed: 0, style: 'gloss', act: 'cruise' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst hz = cl(P.y, .28, .72) * height;\nconst cx = cl(P.x, .05, .95) * width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t, 1.7) * groundH;\nconst hwOf = t => width * (.045 + t * .95) * .5 * P.scale;\nconst NR = Math.round(8 + P.density * 20);\nconst NC = Math.round(5 + P.density * 13);\nconst H = P.hue;\n// three candy hues rotating around the wheel from base hue\nconst CH = [H, (H+175)%360, (H+265)%360];\n\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.6);\n\n// real-time scroll (integrate seconds)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.5 + .8*K.intensity);\nif (P.act === 'pulse') sp *= 1 + 1.0*kick;\nif (P.act === 'tide')  sp *= .35 + .95*(.5 + .5*Math.sin(K.t*.055 + K.section*.9));\nS.scroll = (S.scroll||0) + dt*sp*.55;\nconst scroll = S.scroll;\n\n// ---- cached plane base (sky + ground wash + vignette) ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 54;\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz;\n    let h,s,b;\n    if (sty==='liquorice'){ h=0; s=0; b=90-40*f; }\n    else if (sty==='neon'){ h=H; s=45; b=5+7*f; }\n    else if (sty==='halftone'){ h=H; s=8; b=92-6*f; }\n    else { h=(H+30*f)%360; s=30-16*f; b=70+18*f; }   // gloss pastel sky\n    g.fill(h,cl(s,0,90),cl(b,3,90),100); g.rect(0,y,width,hz/STR+1);\n  }\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR);\n    let h,s,b;\n    if (sty==='liquorice'){ h=0; s=0; b=cl(88-70*Math.pow(t,.7),12,90); }\n    else if (sty==='neon'){ h=H; s=40; b=5+10*t; }\n    else if (sty==='halftone'){ h=H; s=6; b=cl(94-26*t,60,94); }\n    else { h=(H+18*t)%360; s=22+10*t; b=cl(86-40*Math.pow(t,.8),30,90); }\n    g.fill(h,cl(s,0,90),b,100); g.rect(0,y,width,(y2-y)+1);\n  }\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- live scrolling checker cells ----\nconst warp = P.warp;\nconst xAt = (u, hw) => { const d=(u-.5); return cx + d*2*hw*(1 + warp*.9*d*d*4); };\npush(); noStroke();\nfor (let r=0; r<NR; r++){\n  const t0=r/NR, t1=(r+1)/NR;\n  const y0=yOf(t0), y1=yOf(t1), hw0=hwOf(t0), hw1=hwOf(t1);\n  const rr = Math.floor(r + scroll);\n  const near = (t0+t1)*.5;\n  for (let c=0; c<NC; c++){\n    const u0=c/NC, u1=(c+1)/NC;\n    const p = ((rr + c) % 2 + 2) % 2;\n    const p3 = ((rr + c) % 3 + 3) % 3;\n    const x0a=xAt(u0,hw0), x0b=xAt(u1,hw0), x1a=xAt(u0,hw1), x1b=xAt(u1,hw1);\n    if (sty==='liquorice'){\n      const b = p===0 ? 6 : 96;\n      fill(0,0,b,100);\n      quad(x0a,y0,x0b,y0,x1b,y1,x1a,y1);\n    } else if (sty==='halftone'){\n      const on = p===0;\n      const ch = CH[p3];\n      const cxm=(x0a+x0b+x1a+x1b)/4, cym=(y0+y1)/2;\n      const cellW=Math.abs(x0b-x0a);\n      const rad = (on ? .46 : .16) * cellW * (1 + .3*near);\n      fill(ch, on?68:60, on?96:88, 100);\n      ellipse(cxm, cym, rad*2, rad*2);\n    } else if (sty==='neon'){\n      if (p===0){ const ch=CH[p3];\n        noFill(); stroke(ch,85,100, (30+55*near)*(.6+.5*glow)); strokeWeight(.7+near*2);\n        quad(x0a,y0,x0b,y0,x1b,y1,x1a,y1); noStroke(); }\n    } else { // gloss candy\n      const ch = CH[p3];\n      const shade = p===0 ? 1 : .82;\n      fill(ch, (34+8*near), cl((92-26*near)*shade,20,96), 100);\n      quad(x0a,y0,x0b,y0,x1b,y1,x1a,y1);\n    }\n  }\n}\npop();\n\n// ---- specular sheen sweep (real-time, all styles) ----\npush(); blendMode(ADD); noStroke();\nconst sweep = (Math.sin(K.t*.35) * .5 + .5);            // 0..1 continuous\nfor (let r=0;r<NR;r++){ const t0=r/NR, near=t0;\n  const y0=yOf(t0), y1=yOf((r+1)/NR), hw0=hwOf(t0), hw1=hwOf((r+1)/NR);\n  const band = Math.exp(-Math.pow((near - sweep)*3.4, 2));   // gaussian highlight\n  if (band < .04) continue;\n  const b = sty==='liquorice' ? 45 : 95;\n  fill(sty==='neon'?H:0, 0, b, cl(band*30*(.5+.9*glow),0,34));\n  quad(cx-hw0,y0,cx+hw0,y0,cx+hw1,y1,cx-hw1,y1);\n}\npop();\n\n// ---- horizon candy glow pulse (partial-frame, safe) ----\npush(); blendMode(ADD); noStroke();\nconst flare=(kick*.6+K.swell*.35)*glow;\nfor(let i=0;i<5;i++){ const rr=(5-i)*groundH*.045*(1+flare);\n  fill(CH[Math.floor(K.section)%3], sty==='liquorice'?0:55, sty==='liquorice'?90:98, 4+9*flare);\n  rect(0, hz-rr*.4, width, rr); }\npop();\n\n// ---- sparkles rising (continuous) ----\nconst NP = Math.round(P.density * 46);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane=fr(i*4), spd=.4+fr(i*4+1)*1.0;\n  let prog=(fr(i*4+2)+scroll*.12*spd)%1;\n  const t=1-prog; if(t<=.02) continue;\n  const y=yOf(t), hw=hwOf(t);\n  const x=cx+(lane*2-1)*hw*.96;\n  const sz=(1.4+4.5*t)*(1+.5*S.tre);\n  fill(sty==='liquorice'?0:CH[i%3], sty==='liquorice'?0:50, 100, Math.min(40,(9+30*t)*(.5+.9*glow)));\n  ellipse(x,y,sz,sz);\n}\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

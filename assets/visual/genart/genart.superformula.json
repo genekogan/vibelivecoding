@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.superformula",
+  "kind": "genart",
+  "name": "Superformula Bloom",
+  "desc": "Nested Gielis superformula supershapes bloom and morph through flowers, stars, gears and sea-anemone blobs as glowing concentric contours that slowly drift and counter-rotate; renders as neon bloom, sumi ink-botanical, oil-slick iridescence, a cyan schematic blueprint, or brushed chrome.",
+  "tags": [
+    "superformula",
+    "gielis",
+    "supershape",
+    "parametric",
+    "polar",
+    "radial",
+    "flower",
+    "bloom",
+    "rosette",
+    "mandala",
+    "star",
+    "gear",
+    "anemone",
+    "symmetry",
+    "morph",
+    "contour",
+    "concentric",
+    "glow",
+    "neon",
+    "ink",
+    "botanical",
+    "iridescent",
+    "oil-slick",
+    "blueprint",
+    "chrome",
+    "hypnotic",
+    "kaleidoscopic",
+    "meditative",
+    "psychedelic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "bloom size / how much of the frame the supershapes fill"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "number of nested concentric contours (curve richness)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / edge bloom amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "rotation and morph drift rate"
+    },
+    "morph": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "shape-morph amplitude (flower<->star<->gear<->blob range)"
+    },
+    "sym": {
+      "default": 6,
+      "min": 2,
+      "max": 16,
+      "doc": "rotational symmetry / petal count (superformula m)"
+    },
+    "hue": {
+      "default": 315,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bloom anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bloom anchor y"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "ink",
+        "iridescent",
+        "blueprint",
+        "chrome"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic coefficient / phase variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:04:42+00:00",
+    "fps": 59.2,
+    "motion": 0.0795,
+    "lum": 0.303
+  },
+  "code": "const D = { scale:1, density:.55, energy:.62, speed:1, morph:.6, sym:6, hue:315, x:.5, y:.5, style:'neon', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst style = P.style;\n\nfunction hcss(h, s, b, a) {\n  h = ((h % 360) + 360) % 360; s = s / 100; b = b / 100;\n  const c = b * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), mm = b - c;\n  let r, gg, bl;\n  if (h < 60) { r = c; gg = x; bl = 0; } else if (h < 120) { r = x; gg = c; bl = 0; }\n  else if (h < 180) { r = 0; gg = c; bl = x; } else if (h < 240) { r = 0; gg = x; bl = c; }\n  else if (h < 300) { r = x; gg = 0; bl = c; } else { r = c; gg = 0; bl = x; }\n  return 'rgba(' + ((r + mm) * 255 | 0) + ',' + ((gg + mm) * 255 | 0) + ',' + ((bl + mm) * 255 | 0) + ',' + a + ')';\n}\n\n// seed-dependent variation (inline hash, not p5 random)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(1) * 50;\n  S.pspin = fr(2) < .5 ? -1 : 1;\n  S.mjit = (fr(3) - .5) * 1.4;\n  S.roff = fr(4) * TAU;\n  S.pha = [];\n  for (let k = 0; k < 24; k++) S.pha.push(fr(10 + k) * TAU);\n}\n\n// radial gradient stamp (grayscale, built once, size-independent)\nif (!S.rg) {\n  const RG = 180; S.rg = createGraphics(RG, RG); S.rg.noStroke();\n  const gc = S.rg.drawingContext;\n  const grd = gc.createRadialGradient(RG / 2, RG / 2, RG * 0.02, RG / 2, RG / 2, RG * 0.6);\n  grd.addColorStop(0, 'rgba(255,255,255,1)');\n  grd.addColorStop(0.4, 'rgba(140,140,140,1)');\n  grd.addColorStop(1, 'rgba(12,12,12,1)');\n  gc.fillStyle = grd; gc.fillRect(0, 0, RG, RG);\n}\n\n// full-canvas render buffer (cached on size) so alpha composites cleanly\nif (!S.fb || S.fbKey !== width + 'x' + height) {\n  S.fb = createGraphics(width, height); S.fb.pixelDensity(1);\n  S.fb.colorMode(HSB, 360, 100, 100, 100); S.fbKey = width + 'x' + height;\n}\nconst g = S.fb;\n\nfunction superR(phi, m, n1, n2, n3) {\n  const t1 = Math.pow(Math.abs(Math.cos(m * phi * 0.25)), n2);\n  const t2 = Math.pow(Math.abs(Math.sin(m * phi * 0.25)), n3);\n  let r = Math.pow(t1 + t2, -1 / n1);\n  if (!(r < 1.7)) r = (r >= 1.7 ? 1.7 : 0);\n  return r;\n}\n\nconst td = K.t;\nconst isec = 0.45 + 0.55 * K.intensity;\nconst morph = P.morph;\nconst pump = 1 + A.bass * 0.13 + K.pulse * 0.05 * P.energy + K.swell * 0.03;\nconst Rout = u * (0.12 + 0.40 * P.scale) * pump;\nconst N = Math.round(3 + P.density * 9);\nconst SAMP = 148;\nconst rotBase = K.t * (0.03 + P.speed * 0.05) * S.pspin + S.roff;\nconst eg = 0.5 + P.energy * 0.85;\nconst hb = (P.hue + S.hoff + K.section * 14) % 360;\n\n// ---- background fill (whole frame) ----\ng.push();\nif (style === 'ink') g.background(38, 15, 88);\nelse if (style === 'blueprint') g.background(218, 72, 15);\nelse if (style === 'chrome') g.background(hb, 5, 7);\nelse g.background(hb, 62, 6);\ng.pop();\n\nconst cov = Math.max(width, height) * 1.7;\nif (style === 'ink') {\n  // aged-paper vignette: multiply a bright-center stamp so corners darken\n  g.push(); g.blendMode(MULTIPLY); g.imageMode(CENTER); g.tint(35, 20, 100);\n  g.image(S.rg, width / 2, height / 2, cov, cov); g.blendMode(BLEND); g.pop();\n} else {\n  // ambient tinted glow ground so the frame carries color/tone edge-to-edge\n  g.push(); g.imageMode(CENTER);\n  if (style === 'blueprint') g.tint(205, 60, 28);\n  else if (style === 'chrome') g.tint(hb, 8, 40);\n  else g.tint(hb, 60, 44);\n  g.image(S.rg, width / 2, height / 2, cov, cov); g.pop();\n}\n\n// ---- nested superformula contours ----\ng.push();\ng.translate(width * P.x, height * P.y);\n\nfor (let k = N - 1; k >= 0; k--) {\n  const frac = (k + 1) / N;\n  const R = Rout * frac;\n  const tk = td * 0.6 + k * 0.6 + S.pha[k % 24];\n  const m = Math.max(1.5, P.sym + S.mjit + morph * isec * (3.6 * Math.sin(tk * 0.13) + 2.3 * Math.sin(tk * 0.052 + 1.7)));\n  let n1 = 0.72 + morph * 0.85 * Math.sin(tk * 0.091 + 0.5); if (n1 < 0.18) n1 = 0.18;\n  const n2 = 1 + morph * isec * (5 + 4.4 * Math.sin(tk * 0.067 + 2.1));\n  const n3 = 1 + morph * isec * (5 + 4.4 * Math.cos(tk * 0.074 + 0.4));\n  const dir = (k % 2 === 0) ? 1 : -1;\n  const rot = rotBase * dir * (1 + k * 0.05) + k * 0.16;\n  const rh = (hb + k * (12 + morph * 20) + td * 5) % 360;\n\n  const VX = [], VY = [];\n  for (let s = 0; s <= SAMP; s++) {\n    const a = (s / SAMP) * TAU;\n    const rr = R * superR(a, m, n1, n2, n3);\n    VX.push(rr * Math.cos(a + rot)); VY.push(rr * Math.sin(a + rot));\n  }\n\n  if (style === 'neon') {\n    g.noStroke();\n    g.fill(rh, 80, 40 + 34 * frac, 8 + 13 * frac * eg);\n    g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE);\n    g.blendMode(ADD);\n    g.drawingContext.shadowBlur = 8 + 20 * eg + A.rms * 40;\n    g.drawingContext.shadowColor = hcss(rh, 70, 100, 0.9);\n    g.noFill(); g.stroke(rh, 62, 100, 45 + 30 * frac + A.treble * 40);\n    g.strokeWeight(1.1 + 1.7 * eg * frac);\n    g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE);\n    g.drawingContext.shadowBlur = 0; g.blendMode(BLEND);\n  } else if (style === 'iridescent') {\n    g.noStroke(); g.fill(rh, 55, 30 + 20 * frac, 7 + 9 * frac);\n    g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE);\n    g.blendMode(ADD); g.strokeWeight(1.3 + 1.2 * frac); g.noFill();\n    for (let s = 0; s < SAMP; s++) {\n      const a = (s / SAMP) * TAU;\n      const ih = (rh + a * 91 + frac * 120 + td * 12) % 360;\n      g.stroke(ih, 72, 100, 58);\n      g.line(VX[s], VY[s], VX[s + 1], VY[s + 1]);\n    }\n    g.blendMode(BLEND);\n  } else if (style === 'blueprint') {\n    g.noFill(); g.strokeWeight(k === N - 1 ? 1.4 : 0.9);\n    g.stroke(200, 55, 100, 40 + 40 * frac);\n    g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE);\n    if (k === N - 1 || k === 0) {\n      g.stroke(200, 45, 90, 20); g.strokeWeight(0.6);\n      const spokes = Math.min(16, Math.max(6, Math.round(m)));\n      for (let sp = 0; sp < spokes; sp++) {\n        const a = sp / spokes * TAU + rot;\n        g.line(0, 0, R * 1.02 * Math.cos(a), R * 1.02 * Math.sin(a));\n      }\n    }\n  } else if (style === 'chrome') {\n    g.noStroke(); g.fill(0, 0, 14, 12 + 10 * frac);\n    g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE);\n    const la = td * 0.4 + 0.7;\n    g.strokeWeight(1.1 + 1.4 * frac); g.noFill();\n    for (let s = 0; s < SAMP; s++) {\n      const a = (s / SAMP) * TAU + rot;\n      const spec = Math.max(0, Math.cos(a - la));\n      const br = 22 + 70 * spec * spec;\n      g.stroke(hb, 6, br, 55);\n      g.line(VX[s], VY[s], VX[s + 1], VY[s + 1]);\n    }\n  } else { // ink-botanical (sumi)\n    if (frac > 0.5) { g.noStroke(); g.fill(30, 22, 30, 6); g.beginShape(); for (let s = 0; s <= SAMP; s++) g.vertex(VX[s], VY[s]); g.endShape(CLOSE); }\n    g.noFill();\n    const ja = S.pha[k % 24];\n    for (let s = 0; s < SAMP; s++) {\n      const a = (s / SAMP) * TAU;\n      const dry = 0.5 + 0.5 * Math.sin(a * 7 + ja);\n      const w = (0.5 + 2.4 * frac) * (0.5 + 0.9 * dry);\n      const al = 60 + 30 * dry;\n      g.stroke(28, 30, 12, al);\n      g.strokeWeight(w);\n      g.line(VX[s], VY[s], VX[s + 1], VY[s + 1]);\n    }\n  }\n}\ng.pop();\ng.blendMode(BLEND);\n\n// bright morphing core for the glowing styles (lifts luminance, hypnotic center)\nif (style === 'neon' || style === 'iridescent') {\n  g.push(); g.blendMode(ADD); g.imageMode(CENTER);\n  g.tint((hb + 20) % 360, 50, 46 + A.rms * 30);\n  const cc = u * (0.20 + 0.12 * P.scale) * (1 + K.pulse * 0.1 + A.bass * 0.2);\n  g.image(S.rg, width * P.x, height * P.y, cc, cc);\n  g.blendMode(BLEND); g.pop();\n}\n\n// composite to main canvas (alpha for VJ translucency)\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

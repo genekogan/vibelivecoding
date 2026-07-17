@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.voronoi",
+  "kind": "genart",
+  "name": "Voronoi Cells",
+  "desc": "A living mosaic of drifting Voronoi cells that bounce, gather and scatter to the beat, rendered as leaded stained glass, crystalline shards, translucent biological membranes, a thermal false-color heat field, or a bare glowing edge network.",
+  "tags": [
+    "voronoi",
+    "cells",
+    "cellular",
+    "mosaic",
+    "tessellation",
+    "tiling",
+    "organic",
+    "microscopy",
+    "membrane",
+    "stained-glass",
+    "glass",
+    "shard",
+    "crystal",
+    "crystalline",
+    "facet",
+    "thermal",
+    "heatmap",
+    "false-color",
+    "edges",
+    "network",
+    "drift",
+    "generative",
+    "procedural",
+    "abstract",
+    "geometry",
+    "pattern",
+    "biology",
+    "genart",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of cell sites (6..60)"
+    },
+    "warp": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "organic wander/jitter of cell boundaries"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "drift + edge-glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "site drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "grid coarseness (bigger = chunkier pixel cells)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue anchor"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "beat-push / gather center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "beat-push / gather center y"
+    },
+    "style": {
+      "default": "stained",
+      "options": [
+        "stained",
+        "shard",
+        "membrane",
+        "thermal",
+        "contour"
+      ],
+      "doc": "aesthetic: leaded luminous glass / hard faceted crystal / translucent biological membranes / thermal false-color heat field / bare glowing edge network (abstract)"
+    },
+    "pal": {
+      "default": "spectrum",
+      "options": [
+        "spectrum",
+        "duo",
+        "warm",
+        "cool",
+        "mono"
+      ],
+      "doc": "cell colorway"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "swarm",
+        "breathe"
+      ],
+      "doc": "multi-minute program: drift free-floats, swarm gathers and scatters each section, breathe slowly inhales and exhales the field"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "site positions, velocities and hue jitter"
+    }
+  },
+  "acts": [
+    "drift",
+    "swarm",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:32:39+00:00",
+    "fps": 60.2,
+    "motion": 0.1918,
+    "lum": 0.243
+  },
+  "code": "const D = { density:.5, warp:.25, energy:.6, speed:1, scale:1, hue:210, x:.5, y:.5, style:'stained', pal:'spectrum', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style, pal=P.pal;\nconst dens=clp(P.density,0,1), warp=clp(P.warp,0,1), en=clp(P.energy,0,1)*(.45+.7*K.intensity);\nconst NS=Math.max(4,Math.round(6+dens*54));                 // 6..60 sites\nconst gN=Math.max(14,Math.round(16+ (1-clp(P.scale,0.4,2.2)/2.2)*22 )); // coarseness by scale (bigger scale -> chunkier)\n\n// ---- seed-deterministic site field (normalized coords) ----\nif(S.seedUsed!==P.seed || !S.sx || S.nUsed!==NS){\n  S.seedUsed=P.seed; S.nUsed=NS;\n  S.sx=[]; S.sy=[]; S.vx=[]; S.vy=[]; S.sh=[]; S.sk=[];\n  for(let i=0;i<NS;i++){\n    S.sx[i]=fr(i*1.3+3.1); S.sy[i]=fr(i*2.7+7.7);\n    const ang=fr(i*5.1)*TAU, sp=0.02+0.05*fr(i*9.2);\n    S.vx[i]=Math.cos(ang)*sp; S.vy[i]=Math.sin(ang)*sp;\n    S.sh[i]=fr(i*3.9); S.sk[i]=fr(i*11.3);               // hue jitter, warp phase\n  }\n  S.lastT=null;\n}\n// integrate drift by real seconds (never re-phases; tolerate t0 reset)\nif(S.lastT==null || K.t<S.lastT) S.lastT=K.t;\nlet dt=clp(K.t-S.lastT,0,0.05); S.lastT=K.t;\nconst rate=(0.25+0.9*en)*clp(P.speed,0.2,4);\n// act dramaturgy: drift=free, swarm=gather-then-scatter each section, breathe=in/out pulse\nlet radial=(K.pulse*0.12+A.bass*0.20)*en;                 // +out on the beat\nif(P.act==='swarm'){ radial += (K.section%2? 0.09 : -0.09)*en; }        // alternate gather/scatter\nelse if(P.act==='breathe'){ radial += Math.sin(K.t*0.12)*0.10*en; }     // slow inhale/exhale\nfor(let i=0;i<NS;i++){\n  S.sx[i]+=S.vx[i]*dt*rate + (S.sx[i]-P.x)*radial*dt*3;\n  S.sy[i]+=S.vy[i]*dt*rate + (S.sy[i]-P.y)*radial*dt*3;\n  if(S.sx[i]<0.02){S.sx[i]=0.02;S.vx[i]=Math.abs(S.vx[i]);} else if(S.sx[i]>0.98){S.sx[i]=0.98;S.vx[i]=-Math.abs(S.vx[i]);}\n  if(S.sy[i]<0.02){S.sy[i]=0.02;S.vy[i]=Math.abs(S.vy[i]);} else if(S.sy[i]>0.98){S.sy[i]=0.98;S.vy[i]=-Math.abs(S.vy[i]);}\n}\n// warp wander of boundaries (per-site slow offset, real-time)\nconst wa=warp*0.06;\nconst px=[],py=[];\nfor(let i=0;i<NS;i++){\n  px[i]=(S.sx[i]+wa*Math.sin(K.t*(0.3+S.sk[i]*0.6)+S.sk[i]*TAU))*W;\n  py[i]=(S.sy[i]+wa*Math.cos(K.t*(0.25+S.sh[i]*0.5)+S.sh[i]*TAU))*Hh;\n}\n\n// ---- palette ----\nfunction cellHue(i){\n  const base=md(P.hue + (pal==='spectrum'? S.sh[i]*300 : pal==='duo'? (i%2)*160 : pal==='warm'? S.sh[i]*70 : pal==='cool'? 140+S.sh[i]*120 : S.sh[i]*40),360);\n  return base;\n}\nconst dark = style==='contour'||style==='thermal'||pal==='mono';\n// background base\nif(style==='contour'){ background(md(P.hue+200,360),40,7); }\nelse if(style==='thermal'){ background(255,60,4); }\nelse if(pal==='mono'){ background(md(P.hue,360),8,10); }\nelse { background(md(P.hue+180,360),20,8); }\n\nconst cw=W/gN, ch=Hh/gN;\nnoStroke();\n// section drives global saturation/brightness breathing\nconst secB=0.85+0.3*Math.sin(K.t*0.05+K.section);\nconst glow=(0.3+0.7*en)*(0.6+0.6*K.swell+0.8*A.treble);\n\nfor(let gx=0;gx<gN;gx++){\n  const cx=gx*cw+cw*0.5;\n  for(let gy=0;gy<gN;gy++){\n    const cy=gy*ch+ch*0.5;\n    let best=1e18,b2=1e18,bi=0;\n    for(let k=0;k<NS;k++){\n      const dx=px[k]-cx, dy=py[k]-cy, d=dx*dx+dy*dy;\n      if(d<best){b2=best;best=d;bi=k;} else if(d<b2){b2=d;}\n    }\n    const edge=clp((Math.sqrt(b2)-Math.sqrt(best))/(u*0.10),0,1); // 0 near boundary, 1 deep interior\n    const h=cellHue(bi);\n    if(style==='contour'){\n      if(edge<0.14){ const g2=clp((0.14-edge)/0.14,0,1); fill(h,55,25+70*g2*(0.5+glow*0.5),100); rect(gx*cw,gy*ch,cw+1,ch+1); }\n      continue;\n    }\n    if(style==='thermal'){\n      // false-color heat ramp from interior(hot) to edge(cold)\n      const v=clp(best/(u*u*0.10),0,1);           // normalized dist to site\n      const hv=md(20 - v*230 + P.hue-210,360);    // red->blue ramp\n      const b=clp(90-v*55+ (1-edge)*20*glow,10,100);\n      fill(hv, 80, b, 100); rect(gx*cw,gy*ch,cw+1,ch+1); continue;\n    }\n    if(style==='shard'){\n      const b=clp((26+58*edge)*secB,8,96);\n      fill(h,70, b,100); rect(gx*cw,gy*ch,cw+1,ch+1);\n      if(edge<0.05){ fill(0,0,4,100); rect(gx*cw,gy*ch,cw+1,ch+1); }  // thin hard facet break\n      continue;\n    }\n    if(style==='membrane'){\n      // organic: bright rim near boundary, translucent nucleus dark center\n      const b=clp((24+50*(1-edge))*secB,8,92);\n      const s2=clp(38+40*edge,20,90);\n      fill(h,s2,b,100); rect(gx*cw,gy*ch,cw+1,ch+1);\n      if(edge<0.10){ fill(md(h+20,360),30,96,60*glow); rect(gx*cw,gy*ch,cw+1,ch+1); }\n      continue;\n    }\n    // stained (default): luminous glass fill + dark leading at boundaries\n    const b=clp((34+52*edge)*secB,10,96);\n    fill(h,62, b,100); rect(gx*cw,gy*ch,cw+1,ch+1);\n    if(edge<0.06){ fill(md(P.hue+200,360),50,4,100); rect(gx*cw,gy*ch,cw+1,ch+1); } // leading\n    else if(edge<0.16){ fill(h,20,96,45*glow); rect(gx*cw,gy*ch,cw+1,ch+1); }        // rim highlight\n  }\n}\n\n// audio/beat sparkle at site nuclei (real-time-independent accent on top)\nif(style!=='contour'){\n  noStroke();\n  for(let i=0;i<NS;i++){\n    const r=u*0.008*(1+2*K.pulse+3*A.treble)*clp(P.scale,0.4,2.2);\n    fill(md(cellHue(i)+40,360),20,100, 40+50*glow);\n    circle(px[i],py[i], r);\n  }\n}\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

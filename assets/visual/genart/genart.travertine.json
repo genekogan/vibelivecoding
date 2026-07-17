@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.travertine",
+  "kind": "genart",
+  "name": "Travertine",
+  "desc": "Warm banded stone the water is still building \u2014 folded calcite bedding runs cream through buff and ochre to rust, vug cavities open along the porous layers where the dissolution front passes, hard beds stand proud of soft ones under a slow raking light, and thin films of spring water creep down the face, darkening the stone and igniting the wet facets.",
+  "tags": [
+    "travertine",
+    "stone",
+    "rock",
+    "limestone",
+    "calcite",
+    "onyx",
+    "alabaster",
+    "marble",
+    "banded",
+    "banding",
+    "bedding",
+    "strata",
+    "stratigraphy",
+    "layering",
+    "dissolution",
+    "vug",
+    "cavity",
+    "pore",
+    "porous",
+    "karst",
+    "rimstone",
+    "hot spring",
+    "geothermal",
+    "deposition",
+    "accretion",
+    "mineral",
+    "pamukkale",
+    "geology",
+    "survey",
+    "section",
+    "lithology",
+    "cream",
+    "ochre",
+    "rust",
+    "oxide",
+    "iron",
+    "warm",
+    "sublime",
+    "austere",
+    "clinical",
+    "material",
+    "texture",
+    "surface",
+    "raking light",
+    "wet",
+    "slab"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "relief depth of the bedding and the vugs under the raking light, plus wet-facet sheen"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of beds (9-25) and how freely the vug cavities open"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "base stone hue \u2014 34 is the warm cream/ochre travertine; the cream-to-rust ramp is offset from it"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate of the water films and the wet/dry cycle"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "size of the fold structure and the vugs \u2014 from a hand sample to a quarry face"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor, kept for the universal seven"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor, kept for the universal seven"
+    },
+    "tilt": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "structural dip of the bedding across the frame \u2014 0.5 is horizontal, either extreme tilts the strata"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "flood",
+        "dry"
+      ],
+      "doc": "cycle: the water films come and go \u00b7 flood: the face runs wet and saturated \u00b7 dry: bone dry, chalky, maximum relief contrast"
+    },
+    "style": {
+      "default": "travertine",
+      "options": [
+        "travertine",
+        "onyx",
+        "survey",
+        "rust"
+      ],
+      "doc": "travertine: warm porous banded stone under a raking lamp \u00b7 onyx: translucent alabaster lit by TRANSMISSION through the bedding rather than by surface normal \u00b7 survey: the schematic \u2014 lithological ornament ruled per layer on buff paper \u00b7 rust: iron-oxide saturated, oxblood and dark ochre"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same stone"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "flood",
+    "dry"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:24+00:00",
+    "fps": 68.0,
+    "motion": 0.0329,
+    "lum": 0.314
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 34, speed: 1, scale: 1, x: .5, y: .5, tilt: .62, act: 'cycle', style: 'travertine', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 simulated rimstone terraces and rendered them as a near-white\n// rock (s=.06, v=.9) with cyan pools \u2014 it read as \"a white field with a green\n// blob\" at lum .807 and never read as STONE. Re-conceived as the material\n// itself: warped calcite stratigraphy, cream->buff->ochre->rust bedding, vug\n// cavities clustered in the porous layers, differential relief under a raking\n// light, and the thin water films that are still depositing it.\n\nconst GW = 190, GH = Math.max(80, Math.round(GW * height / width)), NP = GW * GH;\nconst cl = (v, a, b) => v < a ? a : v > b ? b : v;\nconst h1 = k => { const s = Math.sin(k * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const a = xf * xf * (3 - 2 * xf), b = yf * yf * (3 - 2 * yf);\n  const p = hsh(xi, yi), q = hsh(xi + 1, yi), r = hsh(xi, yi + 1), s = hsh(xi + 1, yi + 1);\n  return (p * (1 - a) + q * a) * (1 - b) + (r * (1 - a) + s * a) * b;\n};\nconst fbm = (x, y, o) => { let s = 0, am = .5, f = 1; for (let i = 0; i < o; i++) { s += am * vn(x * f, y * f); am *= .5; f *= 2.03; } return s; };\nconst hsv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\n\nif (!S.g || S.gw !== GW || S.gh !== GH) {\n  if (S.g && S.g.remove) S.g.remove();\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1); S.gw = GW; S.gh = GH; S.nw = null;\n}\n// static noise fields \u2014 built once, then only cheap arithmetic per frame\nif (!S.nw || S.seedUsed !== P.seed || S.scUsed !== Math.round(P.scale * 20)) {\n  S.seedUsed = P.seed; S.scUsed = Math.round(P.scale * 20);\n  S.nw = new Float32Array(NP); S.nv = new Float32Array(NP); S.ng = new Float32Array(NP); S.nr = new Float32Array(NP);\n  S.hh = new Float32Array(NP); S.lt = new Float32Array(NP); S.vg = new Float32Array(NP); S.wt = new Float32Array(NP);\n  const f1 = .028 / Math.max(.35, P.scale), f2 = .085 / Math.max(.35, P.scale);\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n    const i = y * GW + x;\n    S.nw[i] = fbm(x * f1, y * f1 * 1.7, 5) - .5;              // strata folding\n    S.nv[i] = fbm(x * f2 + 40, y * f2 * .55 + 40, 4);          // vugs, stretched along bedding\n    S.ng[i] = hsh(x * 3.1 + 9, y * 5.7 + 3);                   // grain\n    S.nr[i] = fbm(x * .021 + 90, y * .021 + 90, 3) - .5;       // water-film warp\n  }\n}\nconst NW = S.nw, NV = S.nv, NG = S.ng, NR = S.nr, HH = S.hh, LT = S.lt, VG = S.vg, WT = S.wt;\n\n// ---- act: what the water is doing -------------------------------------------\nlet wetAmt, wetLine;\nconst T = K.t * (.35 + P.speed * .8);\nif (P.act === 'flood') { wetAmt = 1; wetLine = .55 + .45 * Math.sin(T * .019) + .12 * Math.sin(T * .057); }\nelse if (P.act === 'dry') { wetAmt = .06; wetLine = -.4; }\nelse { wetAmt = .45 + .55 * (.5 + .5 * Math.sin(K.t * .0093 + .9 * Math.sin(K.t * .0035 + 2.1)));\n       wetLine = .30 + .72 * (.5 + .5 * Math.sin(T * .0247 + .7 * Math.sin(T * .0091 + 1.3))); }\n\n// ---- pass 1: stratigraphy, porosity, vugs, relief ---------------------------\nconst BANDS = 9 + Math.round(P.density * 16);\nconst WARP = 1.5 + P.scale * 1.2;\nconst dip = (cl(P.tilt, 0, 1) - .5) * .9;\nconst drift = K.t * .007 + .6 * Math.sin(K.t * .0041);        // accretion: bedding creeps\nconst vshift = .5 + .5 * Math.sin(K.t * .0061 + .8 * Math.sin(K.t * .0023));  // dissolution front\nconst st = P.style, HB = P.hue;\nfor (let y = 0; y < GH; y++) {\n  const fy = y / GH;\n  for (let x = 0; x < GW; x++) {\n    const i = y * GW + x;\n    const sv = (fy + (x / GW - .5) * dip) * BANDS + NW[i] * WARP + drift;\n    const li = Math.floor(sv), bp = sv - li;\n    const lt = h1(li), lpor = h1(li * 7 + 3);\n    LT[i] = lt;\n    // vugs: cavities open where a porous layer meets the passing dissolution front\n    const vth = .60 - lpor * .30 + (1 - P.density) * .12 - .06 * Math.sin(vshift * 6.283 + li * .9);\n    const vq = NV[i] > vth ? Math.min(1, (NV[i] - vth) / Math.max(.06, 1 - vth) * 1.6) : 0;\n    const vv = vq * vq * (3 - 2 * vq);\n    VG[i] = vv;\n    // differential weathering: hard layers stand proud, soft ones recess\n    HH[i] = (1 - lpor) * .40 + Math.sin(bp * Math.PI) * .14 - vv * .38 + (NG[i] - .5) * .05;\n    // the water film still depositing the stone\n    WT[i] = wetAmt * cl((wetLine - (fy + NR[i] * .55)) * 5.5, 0, 1);\n  }\n}\n\n// ---- pass 2: raking light + palette -----------------------------------------\nconst g = S.g; g.loadPixels(); const pix = g.pixels;\nconst az = K.t * .011 + .42 * Math.sin(K.t * .021 + .5) + .18 * Math.sin(K.t * .0111);\nconst lx = Math.cos(az), ly = Math.sin(az), lz = .72 - .10 * Math.sin(K.t * .023);\nconst ex = (4 + P.energy * 8) * (.6 + P.scale * .5);   // gentle: see the strobe note above\nconst shim = (.4 + P.energy * .9) * (.7 + K.intensity * .4 + A.rms * .5);\n// cream -> buff -> ochre -> rust, as hue/sat/val offsets from P.hue\nconst RH = [10, 4, -2, -16], RS = [10, 26, 50, 64], RB = [72, 62, 50, 36];\nfor (let y = 0; y < GH; y++) {\n  const yu = Math.max(0, y - 1) * GW, yd = Math.min(GH - 1, y + 1) * GW, yc = y * GW;\n  for (let x = 0; x < GW; x++) {\n    const i = yc + x, xl = Math.max(0, x - 1), xr = Math.min(GW - 1, x + 1);\n    const dzdx = (HH[yc + xr] - HH[yc + xl]) * ex, dzdy = (HH[yd + x] - HH[yu + x]) * ex;\n    const nl = (-dzdx * lx - dzdy * ly + lz) / Math.sqrt(dzdx * dzdx + dzdy * dzdy + 1);\n    const sh = cl(.56 + nl * .42, .20, 1.12);\n    const vv = VG[i], ao = 1 - vv * .72, wet = WT[i], gn = NG[i];\n    const f = cl(LT[i], 0, .999) * 3, k = Math.min(2, Math.floor(f)), m = f - k;\n    const hh2 = HB + RH[k] + (RH[k + 1] - RH[k]) * m;\n    const ss = (RS[k] + (RS[k + 1] - RS[k]) * m) / 100;\n    const bb = (RB[k] + (RB[k + 1] - RB[k]) * m) / 100;\n    const o = 4 * i; let r, g2, b;\n    if (st === 'onyx') {\n      // translucent alabaster: brightness from TRANSMISSION through the bedding,\n      // not from the surface normal \u2014 a different rendering philosophy entirely\n      const tr = cl(1 - (1 - bb) * 1.5 - vv * .5, .06, 1);\n      const c0 = hsv(hh2 + 8, ss * .8 + wet * .1, tr * (.62 + .5 * tr) * (.8 + sh * .3));\n      r = c0[0]; g2 = c0[1]; b = c0[2];\n      const rim = Math.min(1, Math.sqrt(dzdx * dzdx + dzdy * dzdy) * .06);\n      r += rim * 34; g2 += rim * 26; b += rim * 12;\n    } else if (st === 'survey') {\n      // the schematic: lithological ornament ruled per layer on buff paper\n      const pat = Math.min(3, Math.floor(LT[i] * 4));\n      let ink = 0;\n      if (pat === 0) ink = (y % 5 < 1) ? .8 : 0;\n      else if (pat === 1) ink = ((x + y) % 6 < 1) ? .85 : 0;\n      else if (pat === 2) ink = (x % 5 < 1 && y % 5 < 1) ? .9 : 0;\n      else ink = (((x - y + 600) % 7 < 1) || ((x + y) % 7 < 1)) ? .9 : 0;\n      ink = Math.min(1, ink + (vv > .25 ? .75 : 0));\n      if (Math.abs(dzdy) > 1.2) ink = Math.min(1, ink + .5);   // bedding-plane rule\n      const pv = (.80 - ink * .70) * (1 - gn * .05);\n      const c0 = hsv(HB + 8, .13 + ink * .12, pv);\n      r = c0[0]; g2 = c0[1]; b = c0[2];\n    } else {\n      const rust = st === 'rust';\n      const c0 = hsv(hh2 - (rust ? 14 : 0), Math.min(1, (ss + (rust ? .28 : 0) + wet * .34) * (1 - vv * .2)),\n                     cl(bb * (rust ? .78 : 1) * sh * ao * (1 - wet * .26) * (1 - gn * .07), .03, 1));\n      r = c0[0]; g2 = c0[1]; b = c0[2];\n      // specular sheen only where a WET facet turns into the light\n      const sp = wet > .02 ? Math.max(0, nl - .62) * 2.6 * wet * shim : 0;\n      r += sp * 190; g2 += sp * 205; b += sp * 215;\n      // dark mouth of each cavity\n      if (vv > .5) { const d2 = (vv - .5) * .5; r *= 1 - d2; g2 *= 1 - d2; b *= 1 - d2 * .8; }\n    }\n    pix[o] = r < 0 ? 0 : r > 255 ? 255 : r;\n    pix[o + 1] = g2 < 0 ? 0 : g2 > 255 ? 255 : g2;\n    pix[o + 2] = b < 0 ? 0 : b > 255 ? 255 : b;\n    pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

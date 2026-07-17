@@ -1,0 +1,166 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.disco_dancers",
+  "kind": "crowd",
+  "name": "Disco Dancer Line",
+  "desc": "A chorus line of bell-bottomed disco dancers running a 16-beat Travolta phrase in mirrored pairs \u2014 pointing, strutting, cross-body points and arm-sweeps under swaying spotlights, rendered as shaded white suits, pure backlit silhouettes, neon wireframes or noir chiaroscuro.",
+  "tags": [
+    "disco",
+    "dancers",
+    "dance",
+    "chorus line",
+    "70s",
+    "seventies",
+    "travolta",
+    "saturday night fever",
+    "funk",
+    "boogie",
+    "nightclub",
+    "groove",
+    "bell-bottoms",
+    "afro",
+    "crowd",
+    "people",
+    "choreography",
+    "silhouette",
+    "neon",
+    "noir",
+    "party",
+    "retro",
+    "strut",
+    "character",
+    "mirrored"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "dancer size (hero ~0.5u tall at 1)"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "dance / motion amplitude"
+    },
+    "n": {
+      "default": 5,
+      "min": 2,
+      "max": 9,
+      "doc": "dancers in the line"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "floor-light / spotlight intensity"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "accent + satin-outfit hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "choreography rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "line centre x"
+    },
+    "y": {
+      "default": 0.78,
+      "min": 0.4,
+      "max": 0.95,
+      "doc": "floor line y"
+    },
+    "spread": {
+      "default": 0.82,
+      "min": 0.3,
+      "max": 1.3,
+      "doc": "horizontal spread of the line"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body-width morph"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "limb-swing amplitude morph"
+    },
+    "style": {
+      "default": "suit",
+      "options": [
+        "suit",
+        "silhouette",
+        "neon",
+        "noir"
+      ],
+      "doc": "render look"
+    },
+    "outfit": {
+      "default": "white",
+      "options": [
+        "white",
+        "satin",
+        "gold",
+        "denim",
+        "mono"
+      ],
+      "doc": "costume palette"
+    },
+    "pal": {
+      "default": "warm",
+      "options": [
+        "warm",
+        "cool",
+        "rainbow",
+        "mono",
+        "gold"
+      ],
+      "doc": "lighting accent palette"
+    },
+    "act": {
+      "default": "phrase",
+      "options": [
+        "phrase",
+        "strut",
+        "freeze"
+      ],
+      "doc": "choreography program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout / variation seed"
+    }
+  },
+  "acts": [
+    "phrase",
+    "strut",
+    "freeze"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:04:14+00:00",
+    "fps": 59.9,
+    "motion": 0.123,
+    "lum": 0.432
+  },
+  "code": "const D = { hue: 45, energy: .65, speed: 1, density: .5, scale: 1, x: .5, y: .78, n: 5, spread: .82, chub: .5, limb: .5, style: 'suit', outfit: 'white', pal: 'warm', act: 'phrase', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst PI = Math.PI, TAU2 = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst lp = (a, b, t) => a + (b - a) * t;\nconst u = Math.min(width, height);\nconst mode = P.style;\nconst NE = mode === 'neon';\nconst N = Math.max(2, Math.min(9, Math.round(P.n)));\nconst beat = K.beat * P.speed;\nconst inten = 0.5 + 0.6 * K.intensity;\n\n// ---- palettes ----\nconst OUT = {\n  white: { shirt:[0,0,96], pants:[0,0,92], skin:[26,42,80], hair:[0,0,14], belt:[45,90,95] },\n  satin: { shirt:[hw(P.hue),52,92], pants:[hw(P.hue),60,68], skin:[26,45,78], hair:[22,60,20], belt:[45,85,95] },\n  gold:  { shirt:[45,68,95], pants:[42,80,70], skin:[28,48,82], hair:[0,0,10], belt:[45,95,100] },\n  denim: { shirt:[210,44,70], pants:[214,54,54], skin:[26,45,80], hair:[24,55,22], belt:[30,60,44] },\n  mono:  { shirt:[0,0,86], pants:[0,0,58], skin:[0,0,68], hair:[0,0,20], belt:[0,0,95] } };\nconst O = OUT[P.outfit] || OUT.white;\nconst PAL = { warm:40, cool:200, rainbow:-1, mono:hw(P.hue), gold:45 };\nconst accBase = PAL[P.pal] == null ? 40 : PAL[P.pal];\n\n// per-dancer outer state (updated in loop)\nlet sc = 1, kick = 0, dHue = accBase;\n\nfunction col(base) {\n  if (mode === 'silhouette') return [0, 0, 8];\n  if (mode === 'noir') return [dHue, 26, 15];\n  if (NE) return [dHue, 88, 100];\n  return base;\n}\nfunction fillp(c, a) {\n  if (NE) { noFill(); stroke(c[0], c[1], c[2], a == null ? 100 : a); strokeWeight(2.2 * sc); }\n  else { noStroke(); fill(c[0], c[1], c[2], a == null ? 100 : a); }\n}\n\n// ---- 16-beat chorus-line choreography (ported) ----\nfunction getMove(b, s, m) {\n  const bounce = Math.abs(Math.sin(s * PI)) * 6;\n  const snap = s < 0.3 ? s / 0.3 : 1;\n  if (b < 4) {\n    const R = (b % 2 === 0), sd = R ? 1 : -1;\n    return { dy: bounce, tilt: sd * 0.06 * m * snap, hipX: sd * 5 * m * snap,\n      lArm: R ? -0.3 : lp(0.3, -2.6, snap), rArm: R ? lp(0.3, -2.6, snap) : -0.3,\n      lLeg: sd * 0.15 * snap, rLeg: -sd * 0.1 * snap, crouch: 0, point: snap, pointHand: R ? 'r' : 'l' };\n  }\n  if (b < 8) {\n    const step = (b % 2 === 0) ? 1 : -1, str = Math.sin(s * PI);\n    return { dy: str * 4, tilt: step * 0.1 * m * str, hipX: step * 7 * m * str,\n      lArm: -0.6 + step * 0.3 * str, rArm: -0.6 - step * 0.3 * str,\n      lLeg: step * 0.2 * str, rLeg: -step * 0.2 * str, crouch: -str * 3, point: 0, pointHand: 'n' };\n  }\n  if (b < 12) {\n    const R = (b % 2 === 0), sd = R ? 1 : -1;\n    return { dy: bounce, tilt: -sd * 0.12 * m * snap, hipX: -sd * 6 * m * snap,\n      lArm: R ? -0.4 : lp(0.2, -2.2, snap), rArm: R ? lp(0.2, -2.2, snap) : -0.4,\n      lLeg: -sd * 0.12 * snap, rLeg: sd * 0.08 * snap, crouch: snap * -4, point: snap, pointHand: R ? 'r' : 'l' };\n  }\n  if (b < 14) {\n    const t = ((b - 12) + s) / 2, ar = lp(0.5, -2.8, t);\n    return { dy: bounce, tilt: Math.sin(t * PI) * 0.05 * m, hipX: Math.sin(t * PI) * 4 * m,\n      lArm: ar, rArm: ar, lLeg: Math.sin(t * PI) * 0.1, rLeg: -Math.sin(t * PI) * 0.1,\n      crouch: 0, point: t > 0.8 ? 1 : 0, pointHand: 'both' };\n  }\n  return { dy: bounce * 0.5, tilt: 0.04 * m, hipX: 3 * m, lArm: -2.6, rArm: -2.6,\n    lLeg: 0.05, rLeg: -0.05, crouch: 0, point: 1, pointHand: 'both' };\n}\n\n// ---- build dancer layout (seed + n + spread keyed) ----\nconst layKey = N + '|' + P.seed + '|' + P.spread.toFixed(2);\nif (S.layKey !== layKey) {\n  S.lay = [];\n  const c = (N - 1) / 2;\n  for (let i = 0; i < N; i++) {\n    const rel = (N === 1) ? 0 : (i - c) / N;\n    const near = 1 - Math.abs(i - c) / (c + 0.5);\n    S.lay.push({\n      xf: rel * P.spread,\n      row: 0.72 + 0.28 * near + (fr(i * 3 + 2) - 0.5) * 0.06,\n      lag: Math.abs(i - c) * 0.5 + fr(i + 1) * 0.15,\n      mir: (i - c) >= 0 ? -1 : 1,\n      ho: (fr(i * 4 + 5) - 0.5) * 22 });\n  }\n  S.layKey = layKey;\n}\nconst lay = S.lay;\nconst sBase = u * 0.0072 * P.scale;\nconst chub = 0.8 + P.chub * 0.5;\nconst limbF = 0.75 + P.limb * 0.5;\nconst floorY = height * P.y;\n\n// ---- ambient dance-floor light band (luminance + beat pulse) ----\npush();\nblendMode(ADD);\nnoStroke();\nconst flash = 0.5 * K.pulse + 0.5 * A.bass;\nfor (let r = 0; r < 4; r++) {\n  fill(hw(accBase + (P.pal === 'rainbow' ? K.t * 20 : 0)), 45, 80, (5 + flash * 6) * (0.6 + P.density * 0.8));\n  ellipse(width * P.x, floorY + u * 0.04, u * (1.5 - r * 0.28), u * (0.4 - r * 0.07));\n}\nblendMode(BLEND);\npop();\n\n// ---- draw dancers (outer/back first, center hero last) ----\nconst order = lay.map((d, i) => i).sort((p, q) => lay[p].row - lay[q].row);\nfor (const idx of order) {\n  const d = lay[idx];\n  sc = sBase * d.row * (0.8 + 0.35 * (1 - Math.abs(d.xf) * 1.2));\n  dHue = (P.pal === 'rainbow') ? hw(accBase + 20 + idx * 47) : hw(accBase + d.ho);\n  kick = Math.min(1, K.pulse * inten + A.bass * 0.7);\n\n  const db = beat - d.lag;\n  const fb = ((Math.floor(db) % 16) + 16) % 16;\n  let bip;\n  if (P.act === 'strut') bip = ((Math.floor(db) % 8) + 8) % 8;            // loop point+strut blocks\n  else if (P.act === 'freeze') bip = fb < 8 ? fb : 12 + (fb % 2);        // dwell on sweep + hold pose\n  else bip = fb;                                                          // full 16-beat phrase\n  const sub = ((db % 1) + 1) % 1;\n  const mv = getMove(bip, sub, d.mir);\n\n  const x = width * (P.x + d.xf);\n  const baseY = floorY - (d.row - 1) * u * 0.03;\n  const eA = (0.5 + 0.85 * P.energy) * (0.7 + 0.5 * K.intensity);\n\n  push();\n  translate(x + mv.hipX * sc * eA, baseY + mv.dy * sc * eA + (mv.crouch || 0) * sc * eA);\n  rotate((mv.tilt || 0) * eA);\n\n  // spotlight pool behind\n  push();\n  blendMode(ADD);\n  noStroke();\n  const spa = (mode === 'silhouette' || mode === 'noir') ? 13 : 7;\n  for (let r = 4; r > 0; r--) {\n    fill(dHue, 55, 90, (spa + kick * 7) * (0.7 + P.density * 0.5));\n    ellipse(0, -34 * sc, (52 + r * 15) * sc, (86 + r * 16) * sc);\n  }\n  blendMode(BLEND);\n  pop();\n\n  if (mode !== 'silhouette' && !NE) {\n    fill(0, 0, 0, mode === 'noir' ? 55 : 42);\n    noStroke();\n    ellipse(0, 5 * sc, (34 + (mv.crouch || 0) / 35 * 18) * sc, 8 * sc);\n  }\n\n  if (NE) { drawingContext.shadowBlur = 9 * sc; drawingContext.shadowColor = 'hsl(' + dHue + ',90%,60%)'; }\n\n  // legs (bell-bottoms)\n  push(); rotate(mv.lLeg * limbF); fillp(col(O.pants));\n  beginShape(); vertex(-10 * sc * chub, -3 * sc); vertex(-2 * sc, -3 * sc); vertex(-3 * sc, -26 * sc); vertex(-9 * sc, -26 * sc); endShape(CLOSE);\n  beginShape(); vertex(-14 * sc * chub, -3 * sc); vertex(2 * sc, -3 * sc); vertex(-2 * sc, -9 * sc); vertex(-10 * sc, -9 * sc); endShape(CLOSE); pop();\n  push(); rotate(mv.rLeg * limbF); fillp(col(O.pants));\n  beginShape(); vertex(2 * sc, -3 * sc); vertex(10 * sc * chub, -3 * sc); vertex(9 * sc, -26 * sc); vertex(3 * sc, -26 * sc); endShape(CLOSE);\n  beginShape(); vertex(-2 * sc, -3 * sc); vertex(14 * sc * chub, -3 * sc); vertex(10 * sc, -9 * sc); vertex(2 * sc, -9 * sc); endShape(CLOSE); pop();\n\n  // boots\n  fillp(col([0, 0, 32]));\n  rect(-13 * sc, -4 * sc, 11 * sc, 7 * sc, 2);\n  rect(2 * sc, -4 * sc, 11 * sc, 7 * sc, 2);\n\n  // belt\n  fillp(col(O.belt));\n  rect(-10 * sc * chub, -29 * sc, 20 * sc * chub, 4 * sc, 1);\n  if (!NE) { noStroke(); fill(dHue, 80, 100, 60 + kick * 40); rect(-3 * sc, -29 * sc, 6 * sc, 4 * sc, 1); }\n\n  // torso\n  fillp(col(O.shirt));\n  beginShape(); vertex(-12 * sc * chub, -28 * sc); vertex(12 * sc * chub, -28 * sc); vertex(13 * sc, -52 * sc); vertex(-13 * sc, -52 * sc); endShape(CLOSE);\n\n  if (mode === 'suit') {\n    // V-neck + chain\n    noStroke(); fill(O.skin[0], O.skin[1], O.skin[2]);\n    triangle(-8 * sc, -52 * sc, 8 * sc, -52 * sc, 0, -38 * sc);\n    fill(dHue, 80, 95, 55 + kick * 40); ellipse(0, -42 * sc, 4 * sc, 4 * sc);\n    // collar flaps\n    fill(O.shirt[0], Math.max(O.shirt[1] - 12, 0), Math.min(O.shirt[2] + 6, 100));\n    beginShape(); vertex(-13 * sc, -52 * sc); vertex(-8 * sc, -52 * sc); vertex(-4 * sc, -44 * sc); vertex(-18 * sc, -52 * sc); endShape(CLOSE);\n    beginShape(); vertex(13 * sc, -52 * sc); vertex(8 * sc, -52 * sc); vertex(4 * sc, -44 * sc); vertex(18 * sc, -52 * sc); endShape(CLOSE);\n    // hatch texture\n    stroke(O.shirt[0], O.shirt[1] + 8, O.shirt[2] - 22, 40); strokeWeight(0.8 * sc);\n    for (let h = 0; h < 4; h++) { const yy = -32 - h * 4; line(-11 * sc, yy * sc, -3 * sc, (yy - 6) * sc); }\n    noStroke();\n    // rim light + core shade\n    fill(0, 0, 100, 22 + kick * 20); beginShape(); vertex(9 * sc, -30 * sc); vertex(13 * sc, -52 * sc); vertex(10 * sc, -52 * sc); vertex(6 * sc, -30 * sc); endShape(CLOSE);\n    fill(O.shirt[0], O.shirt[1] + 6, O.shirt[2] - 30, 30); beginShape(); vertex(-12 * sc, -29 * sc); vertex(-7 * sc, -29 * sc); vertex(-8 * sc, -50 * sc); vertex(-13 * sc, -51 * sc); endShape(CLOSE);\n  } else if (mode === 'noir') {\n    noStroke(); fill(dHue, 45, 88, 40 + kick * 25);\n    beginShape(); vertex(8 * sc, -30 * sc); vertex(13 * sc, -52 * sc); vertex(9 * sc, -52 * sc); vertex(4 * sc, -30 * sc); endShape(CLOSE);\n  }\n\n  // shirt shimmer\n  if (!NE && mode !== 'silhouette') { push(); blendMode(ADD); noStroke(); fill(dHue, 30, 100, kick * 38); ellipse(0, -40 * sc, 20 * sc, 26 * sc); blendMode(BLEND); pop(); }\n\n  // arms\n  push(); translate(-13 * sc * chub, -48 * sc); rotate(mv.lArm * limbF);\n  fillp(col(O.shirt)); rect(0, 0, 7 * sc, 24 * sc, 2);\n  fillp(col(O.skin)); ellipse(3.5 * sc, 24 * sc, 8 * sc, 8 * sc);\n  if (mv.point > 0.2 && (mv.pointHand === 'l' || mv.pointHand === 'both')) {\n    stroke(col(O.skin)[0], col(O.skin)[1], col(O.skin)[2]); strokeWeight(2.5 * sc); line(3.5 * sc, 24 * sc, 3.5 * sc, 33 * sc); noStroke();\n    if (!NE) { push(); blendMode(ADD); fill(dHue, 70, 100, mv.point * 80); ellipse(3.5 * sc, 34 * sc, 5 * sc, 5 * sc); blendMode(BLEND); pop(); }\n  }\n  pop();\n  push(); translate(13 * sc * chub, -48 * sc); rotate(mv.rArm * limbF);\n  fillp(col(O.shirt)); rect(-7 * sc, 0, 7 * sc, 24 * sc, 2);\n  fillp(col(O.skin)); ellipse(-3.5 * sc, 24 * sc, 8 * sc, 8 * sc);\n  if (mv.point > 0.2 && (mv.pointHand === 'r' || mv.pointHand === 'both')) {\n    stroke(col(O.skin)[0], col(O.skin)[1], col(O.skin)[2]); strokeWeight(2.5 * sc); line(-3.5 * sc, 24 * sc, -3.5 * sc, 33 * sc); noStroke();\n    if (!NE) { push(); blendMode(ADD); fill(dHue, 70, 100, mv.point * 80); ellipse(-3.5 * sc, 34 * sc, 5 * sc, 5 * sc); blendMode(BLEND); pop(); }\n  }\n  pop();\n\n  // neck\n  fillp(col(O.skin)); rect(-3 * sc, -58 * sc, 6 * sc, 7 * sc);\n\n  // head\n  const headBob = Math.sin(K.beat * TAU2) * 2 * sc;\n  push(); translate(0, headBob);\n  fillp(col(O.skin)); ellipse(0, -66 * sc, 20 * sc, 20 * sc);\n  // afro\n  fillp(col(O.hair));\n  arc(0, -68 * sc, 26 * sc, 28 * sc, PI + 0.15, TAU2 - 0.15, NE ? undefined : CHORD);\n  ellipse(-11 * sc, -66 * sc, 7 * sc, 14 * sc); ellipse(11 * sc, -66 * sc, 7 * sc, 14 * sc);\n  if (mode === 'suit' || NE) {\n    // sunglasses\n    fillp(col([0, 0, 6])); rect(-8 * sc, -68 * sc, 6 * sc, 4 * sc, 1); rect(2 * sc, -68 * sc, 6 * sc, 4 * sc, 1);\n    if (!NE) { noStroke(); fill(dHue, 60, 100, 35 + kick * 45); ellipse(-5 * sc, -67.5 * sc, 1.8 * sc, 1.8 * sc); ellipse(5 * sc, -67.5 * sc, 1.8 * sc, 1.8 * sc); }\n  }\n  if (mode === 'suit') {\n    noFill(); stroke(0, 0, 10); strokeWeight(1.1 * sc); arc(0, -61.5 * sc, 8 * sc, 5 * sc, 0.15, PI - 0.15); noStroke();\n    fill(0, 0, 98); rect(-3 * sc, -61.5 * sc, 6 * sc, 2 * sc, 1);\n  }\n  pop();\n\n  if (NE) drawingContext.shadowBlur = 0;\n  pop();\n}\nblendMode(BLEND);\n"
+}

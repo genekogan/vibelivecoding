@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.water",
+  "kind": "floor",
+  "name": "Water Surface",
+  "desc": "Rippling reflective water plane with drifting specular shimmer, sparkle, and bass-triggered rings expanding toward the horizon.",
+  "tags": [
+    "water",
+    "ocean",
+    "sea",
+    "lake",
+    "reflection",
+    "ripple",
+    "waves",
+    "floor",
+    "reflective",
+    "shimmer",
+    "specular",
+    "liquid",
+    "surface",
+    "ink",
+    "sonar",
+    "thermal",
+    "calm",
+    "serene",
+    "aquatic",
+    "pond"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "shimmer line + sparkle count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wave amplitude + specular glow"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue (205 = deep blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "current drift + wave travel rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "wave amplitude / ring size scale"
+    },
+    "warp": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "wave spatial frequency spread"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "ripple focus x as canvas fraction"
+    },
+    "y": {
+      "default": 0.4,
+      "min": 0.22,
+      "max": 0.68,
+      "doc": "horizon y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic ring-position seed"
+    },
+    "style": {
+      "default": "reflective",
+      "options": [
+        "reflective",
+        "ink",
+        "sonar",
+        "thermal"
+      ],
+      "doc": "aesthetic: reflective specular water / brushed sumi ink-wash / sonar schematic contours / thermal false-color"
+    },
+    "act": {
+      "default": "calm",
+      "options": [
+        "calm",
+        "storm",
+        "tide"
+      ],
+      "doc": "dramaturgy: calm drift / beat-driven storm / slow-breathing tide"
+    }
+  },
+  "acts": [
+    "calm",
+    "storm",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:13:56+00:00",
+    "fps": 60.2,
+    "motion": 0.0083,
+    "lum": 0.16
+  },
+  "code": "const D = { density:.55, energy:.6, hue:205, speed:1, scale:1, warp:.3, x:.5, y:.4, seed:0, style:'reflective', act:'calm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return q - Math.floor(q); };\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst TAU = 6.28318530718;\nconst sty = P.style, H = P.hue;\nconst hz = cl(P.y, .22, .68) * height;\nconst cx = cl(P.x, .1, .9) * width;\nconst groundH = Math.max(24, height - hz);\nconst yOf = t => hz + Math.pow(cl(t,0,1), 1.6) * groundH;   // t 0=far 1=near\nconst u = Math.min(width, height);\n\nS.bass = (S.bass||0)*.78 + (A.bass||0)*.22;\nS.tre  = (S.tre||0)*.8 + (A.treble||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.5 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5 + .5*K.intensity) + S.bass*.7);\n\n// real-time current drift (never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.55 + .8*K.intensity);\nif (P.act === 'storm') sp *= .6 + 1.3*kick;\nif (P.act === 'tide')  sp *= .35 + 1.0*(.5 + .5*Math.sin(K.t*.05 + K.section*.9));\nS.drift = (S.drift||0) + dt*sp;\nconst drift = S.drift;\n\n// cached water/sky base: reflected gradient below horizon\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+Math.round(P.y*20)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = (S.base && S.base.width===width && S.base.height===height) ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 60;\n  for (let i=0;i<STR;i++){ const f=i/STR, y=hz + f*groundH, t=f;   // near horizon dark, deep foreground brighter reflection\n    let h,s,b;\n    if (sty==='ink'){ h=H; s=6; b=cl(30 - 20*t + 8*Math.sin(t*9), 6, 46); }\n    else if (sty==='sonar'){ h=(H+150)%360; s=70; b=cl(6 + 10*t, 3, 22); }\n    else if (sty==='thermal'){ h=cl(250 - 230*t, 0, 300); s=90; b=cl(14 + 24*t, 8, 60); }\n    else { h=H; s=cl(70 - 24*t, 20, 85); b=cl(18 + 30*Math.pow(t,1.3), 8, 62); }  // reflective\n    g.fill(h, cl(s,0,95), b, 100); g.rect(0, y, width, groundH/STR + 1);\n  }\n  // faint far shore/horizon band\n  g.fill(H, 20, sty==='thermal'?70:40, 60); g.rect(0, hz-2, width, 3);\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// perspective shimmer lines \u2014 the guaranteed real-time motion floor\nconst NL = Math.round(10 + P.density*26);\npush();\nfor (let i=0;i<NL;i++){\n  const t = (i+.5)/NL, y = yOf(t), near = t;\n  const amp = (1 + 5*near) * (.6 + .8*glow) * P.scale;\n  const freq = (.006 + .02*(1-near)) * (1 + P.warp);\n  const ph = drift*1.4 + i*.7;\n  if (sty==='sonar'){\n    // schematic contour: dashed horizontal iso-lines\n    stroke((H+150)%360, 70, 100, (14 + 40*near)*(.5+.6*glow)); strokeWeight(.6 + near*1.2); noFill();\n    beginShape();\n    for (let x=0;x<=width;x+=10){ const yy = y + Math.sin(x*freq + ph)*amp*.6 + Math.sin(x*freq*2.3 - ph*1.3)*amp*.3; vertex(x, yy); }\n    endShape();\n  } else if (sty==='ink'){\n    // brushed sumi stroke: tapered translucent wash line\n    noFill(); stroke(H, 8, cl(50 + 30*near,10,88), (10 + 26*near)*(.5+.6*glow)); strokeWeight(.8 + near*2.6);\n    beginShape();\n    for (let x=0;x<=width;x+=12){ const yy = y + Math.sin(x*freq + ph)*amp + Math.sin(x*freq*1.7 + ph*.6)*amp*.4; vertex(x, yy); }\n    endShape();\n  } else {\n    // reflective / thermal specular highlight ribbons (additive)\n    push(); blendMode(ADD); noFill();\n    let h = sty==='thermal' ? cl(60 - 40*near, 0, 60) : (H - 8);\n    let s = sty==='thermal' ? 95 : cl(35 - 20*near, 6, 60);\n    stroke(h, s, 100, (6 + 30*near*(.4 + .9*S.tre))*(.5+.7*glow)); strokeWeight(.8 + near*2.2);\n    beginShape();\n    for (let x=0;x<=width;x+=10){ const yy = y + Math.sin(x*freq + ph)*amp + Math.sin(x*freq*2.1 - ph*1.4)*amp*.5; vertex(x, yy); }\n    endShape();\n    pop();\n  }\n}\npop();\n\n// expanding rings on bass/beat \u2014 spawned from a small pool\nS.rings = S.rings || [];\nif (S.lb == null || K.beat < S.lb) S.lb = K.beat;\nif (Math.floor(K.beat) > Math.floor(S.lb) && S.rings.length < 14){\n  const n = Math.floor(K.beat), big = kick > .5 || (n & 1)===0;\n  const rx = cx + (fr(n*2)*2-1) * width*.4;\n  const rt = .25 + fr(n*2+1)*.7;\n  S.rings.push({ x:rx, t0:rt, born:K.t, life: big?3.2:2.0, str: big?1:.55 });\n}\nS.lb = K.beat;\npush(); blendMode(ADD); noFill();\nfor (let i=S.rings.length-1;i>=0;i--){\n  const rg = S.rings[i];\n  if (rg.born > K.t) rg.born = K.t;   // t reset guard\n  const age = K.t - rg.born;\n  if (age > rg.life){ S.rings.splice(i,1); continue; }\n  const p = age / rg.life;\n  const t = cl(rg.t0 + p*.35, 0, 1);\n  const y = yOf(t), rad = (u*.02 + p*u*.4*(.6+.6*rg.str)) * P.scale;\n  const a = (1-p) * rg.str * (18 + 30*glow);\n  let h = sty==='thermal' ? cl(50 - 30*t, 0, 60) : sty==='sonar' ? (H+150)%360 : (H-6);\n  stroke(h, sty==='thermal'?95:cl(30 - 16*t,6,60), 100, cl(a,0,40));\n  strokeWeight(.8 + (1-p)*2.4);\n  ellipse(rg.x, y, rad*2, rad*.7);\n}\npop();\n\n// specular sparkle: twinkling additive dots (treble + baseline)\nconst NP = Math.round(P.density*60);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane=fr(i*3), t = .1 + .88*fr(i*3+1), y = yOf(t);\n  const tw = .5 + .5*Math.sin(drift*3 + i*2.1);\n  const x = lane*width + Math.sin(K.t*.4 + i)*8;\n  const sz = (1 + 3.5*t) * (.6 + tw + 1.3*S.tre) * P.scale;\n  let h = sty==='thermal' ? 55 : sty==='sonar' ? (H+150)%360 : H;\n  fill(h, sty==='thermal'?60:(sty==='ink'?6:24), 100, cl((6 + 30*t)*tw*(.5+.9*glow), 0, 44));\n  ellipse(x, y, sz, sz*.7);\n}\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

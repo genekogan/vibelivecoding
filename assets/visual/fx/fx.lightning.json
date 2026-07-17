@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.lightning",
+  "kind": "fx",
+  "name": "Lightning",
+  "desc": "Branching lightning bolts re-forked on every strike over a roiling storm sky, with a strobe-safe partial afterglow and continuous rain \u2014 strikes fire on strong bass or every few bars, in storm, tesla-violet, scraperboard-engraving, or cyan blueprint renderings.",
+  "tags": [
+    "lightning",
+    "bolt",
+    "storm",
+    "thunder",
+    "electric",
+    "flash",
+    "strike",
+    "branch",
+    "fork",
+    "rain",
+    "sky",
+    "clouds",
+    "weather",
+    "tempest",
+    "energy",
+    "spark",
+    "tesla",
+    "voltage",
+    "dramatic",
+    "menacing",
+    "dark",
+    "night",
+    "engraving",
+    "scraperboard",
+    "blueprint",
+    "schematic",
+    "fx",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "flash + bolt brightness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rain amount + cloud presence + branch count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "strike rate + rain fall multiplier"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "sky/bolt hue (220=blue-white; 280 violet, 190 cyan)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "strike origin x / rain wind lean"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0.2,
+      "max": 0.9,
+      "doc": "ground/strike terminus height"
+    },
+    "branch": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fork/branch count per bolt"
+    },
+    "rate": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "strike frequency (0 rare, 1 frequent)"
+    },
+    "style": {
+      "default": "storm",
+      "options": [
+        "storm",
+        "tesla",
+        "engraving",
+        "blueprint"
+      ],
+      "doc": "render philosophy: blue-white glow bolt over dark cloud / violet-cyan crackling tesla / scraperboard etched pale strokes with hatching / non-representational cyan blueprint vectors with measurement ticks"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "cloud shapes + per-strike geometry base"
+    },
+    "act": {
+      "default": "scattered",
+      "options": [
+        "scattered",
+        "frontline",
+        "supercell"
+      ],
+      "doc": "multi-minute program: scattered occasional bolts / frontline steady rhythm / supercell intensity builds with the section arc"
+    }
+  },
+  "acts": [
+    "scattered",
+    "frontline",
+    "supercell"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:24:15+00:00",
+    "fps": 62.9,
+    "motion": 0.0098,
+    "lum": 0.089
+  },
+  "code": "const D = { energy:.7, density:.5, speed:1, hue:220, x:.5, y:.55, branch:.6, rate:.5, style:'storm', seed:0, act:'scattered' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst storm=st==='storm',tesla=st==='tesla',engr=st==='engraving',blue=st==='blueprint';\nconst en=P.energy*(0.55+0.5*K.intensity);\nconst act=P.act;\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.cl=[]; for(let i=0;i<9;i++) S.cl.push({x:fr(i*2+1),y:fr(i*2+2)*0.42,r:0.28+fr(i*2+3)*0.5,ph:fr(i*2+4)*6.28,sp:0.25+fr(i*2+5)*0.8}); S.strikeT=-999; S.bolt=null; S.idx=null; S.sc=0; }\n\n// ---- strike scheduler ----\nconst period=Math.max(0.7, lrp(4.5,1.1,clp(P.rate,0,1)) * (act==='scattered'?1.7 : act==='supercell'? lrp(1.6,0.5,K.intensity) : 1) / Math.max(0.3,P.speed));\nconst idx=Math.floor(K.bar/period);\nlet doStrike=false;\nif(S.idx==null) S.idx=idx;\nif(idx!==S.idx){ S.idx=idx; doStrike=true; }\nif(A.bass>0.62 && (K.t-(S.strikeT||-9))>0.5) doStrike=true;\nif(doStrike){\n  S.strikeT=K.t; S.sc=(S.sc||0)+1;\n  const rr=k=>{const s=Math.sin(k*127.1+(P.seed+S.sc*57.31)*311.7)*43758.5453;return s-Math.floor(s);};\n  // build jagged bolt as normalized polyline + branches\n  const ox=clp(P.x + (rr(1)-0.5)*0.18, 0.08,0.92);\n  const gy=clp(P.y+0.32,0.4,0.98);\n  const segs=[]; let x=ox,y=0.02,k=0;\n  const steps=10+Math.floor(rr(2)*5);\n  const pts=[{x,y}];\n  for(let s2=0;s2<steps;s2++){ y+=(gy-0.02)/steps; x+=(rr(k++)-0.5)*0.09; x=clp(x,0.04,0.96); pts.push({x,y}); }\n  for(let i2=0;i2<pts.length-1;i2++) segs.push({a:pts[i2],b:pts[i2+1],g:0,w:1});\n  // branches\n  const nb=Math.round(lrp(1,7,clp(P.branch,0,1)));\n  for(let bI=0;bI<nb;bI++){ const anchor=pts[2+Math.floor(rr(30+bI)*(pts.length-4))]; if(!anchor)continue; let bx=anchor.x,by=anchor.y; const bl=2+Math.floor(rr(40+bI)*3); const dir=(rr(50+bI)-0.5); for(let s3=0;s3<bl;s3++){ const nx=clp(bx+dir*0.05+(rr(60+bI*7+s3)-0.5)*0.06,0.02,0.98); const ny=by+(gy-by)*0.16; segs.push({a:{x:bx,y:by},b:{x:nx,y:ny},g:1,w:0.55}); bx=nx;by=ny; } }\n  S.bolt={segs,ox,gy};\n}\n\n// ---- storm cloud baseline (continuous roil, always animating) ----\nblendMode(BLEND); noStroke();\nfor(let i=0;i<S.cl.length;i++){ const c=S.cl[i];\n  const dx=frc(c.x + K.t*0.012*c.sp*P.speed)*1.2-0.1;\n  const cxp=dx*W; const cyp=(c.y)*Hh*0.9;\n  const rr2=u*c.r*(0.9+0.12*Math.sin(K.t*0.4*c.sp+c.ph));\n  const bri=8+6*(0.5+0.5*Math.sin(K.t*0.5+c.ph))+en*4;\n  for(let r=4;r>0;r--){ const t=r/4; fill(md(H+6,360), lrp(30,55,t), bri*(1-t*0.5), 26*(1-t)); ellipse(cxp,cyp,rr2*t*2.2,rr2*t*1.1); }\n}\n// faint continuous heat-flicker glow (partial, upper region)\nconst hf=(0.5+0.5*Math.sin(K.t*1.7)+0.4*Math.sin(K.t*3.3+1))*0.5;\nblendMode(ADD); noStroke();\nfill(md(H-6,360),20,90, (4+en*5)*hf); ellipse(W*0.5, Hh*0.18, W*1.1, Hh*0.6);\nblendMode(BLEND);\n\n// ---- rain (continuous fall -> guaranteed motion floor) ----\nif(!blue){\n  const nr=Math.round(lrp(20,130,clp(P.density,0,1)));\n  stroke(md(H+2,360),18,88, storm?38:tesla?42:60); strokeWeight(Math.max(0.7,u*0.0014));\n  const wind=(P.x-0.5)*u*0.12;\n  for(let i=0;i<nr;i++){ const rx=fr(i*4+1), rsp=0.6+fr(i*4+2)*0.9, rl=0.03+fr(i*4+3)*0.05;\n    const ry=frc(fr(i*4+4)+K.t*rsp*0.35*P.speed);\n    const sx=rx*W+wind*ry, sy=ry*Hh; line(sx,sy, sx+wind*0.12+u*0.008, sy+u*rl); }\n  noStroke();\n}\n\n// ---- bolt + partial afterglow ----\nif(S.bolt){\n  const age=K.t-S.strikeT;\n  const life=clp(1-age/0.55,0,1); // ~0.55s visible\n  if(life>0){\n    const flick=life*(0.55+0.45*Math.sin(K.t*55));\n    // partial afterglow: additive glow around bolt origin, upper region only (strobe-safe)\n    blendMode(ADD); noStroke();\n    const glow=flick*(0.5+en);\n    const ogx=S.bolt.ox*W, ogy=Hh*0.25;\n    for(let r=3;r>0;r--){ const t=r/3; fill(md(blue?190:H-4,360),18,95, 22*glow*(1-t)); ellipse(ogx,ogy, u*1.0*t, Hh*0.7*t); }\n    // the bolt path\n    for(let pass=0;pass<(engr?1:2);pass++){\n      const core=pass===1;\n      for(let i=0;i<S.bolt.segs.length;i++){ const sg=S.bolt.segs[i];\n        const ax=sg.a.x*W, ay=sg.a.y*Hh, bx=sg.b.x*W, by=sg.b.y*Hh;\n        if(engr){\n          // scraperboard: crisp pale strokes, hatched, light-on-dark\n          stroke(md(H,360),6,96, 92*life*(sg.g?0.6:1)); strokeWeight(Math.max(1,u*0.0026*sg.w*(sg.g?0.6:1))); line(ax,ay,bx,by);\n          if(!sg.g && i%2===0){ stroke(md(H,360),4,70,40*life); strokeWeight(Math.max(0.5,u*0.0009)); const mx=(ax+bx)/2,my=(ay+by)/2; line(mx-u*0.01,my,mx+u*0.01,my); }\n        } else if(blue){\n          stroke(md(190,360),70,100, 85*life*(sg.g?0.6:1)); strokeWeight(Math.max(0.8,u*0.0016*(sg.g?0.6:1))); line(ax,ay,bx,by);\n        } else {\n          const hh=tesla? md(H+70,360):md(H-4,360);\n          stroke(hh, core?15:70, 100, (core?95:60)*flick*(sg.g?0.55:1));\n          strokeWeight(Math.max(1,u*(core?0.0018:0.006)*sg.w));\n          line(ax,ay,bx,by);\n        }\n      }\n    }\n    // blueprint measurement ticks along bolt\n    if(blue){ stroke(md(190,360),45,90,50*life); strokeWeight(Math.max(0.5,u*0.001));\n      for(let i=0;i<S.bolt.segs.length;i+=2){ const sg=S.bolt.segs[i]; const mx=(sg.a.x+sg.b.x)/2*W,my=(sg.a.y+sg.b.y)/2*Hh; line(mx-u*0.012,my,mx+u*0.012,my); } }\n    noStroke(); blendMode(BLEND);\n  }\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

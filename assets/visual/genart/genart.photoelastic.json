@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.photoelastic",
+  "kind": "genart",
+  "name": "Photoelastic Fringes",
+  "desc": "White light through a stressed birefringent specimen between crossed polarizers \u2014 an Airy stress function loaded by orbiting point loads throws isochromatic rainbow fringes that crowd into tight nested families around each stress concentration as the specimen is slowly loaded and relaxed over minutes, while black isoclinic bands sweep through wherever a principal axis lines up with the polarizer; also sodium-lamp monochromatic fringes, plane-polariscope isoclinics, a clinical FEA stress map, or luminous dark-field filaments.",
+  "tags": [
+    "photoelastic",
+    "photoelasticity",
+    "birefringence",
+    "birefringent",
+    "polariscope",
+    "crossed-polarizers",
+    "polarized-light",
+    "isochromatic",
+    "isoclinic",
+    "fringe",
+    "fringe-order",
+    "retardation",
+    "interference",
+    "stress",
+    "stress-field",
+    "strain",
+    "airy-stress-function",
+    "principal-stress",
+    "stress-concentration",
+    "elasticity",
+    "continuum-mechanics",
+    "engineering",
+    "fea",
+    "finite-element",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "optics",
+    "rainbow",
+    "spectral",
+    "iridescent",
+    "prismatic",
+    "dark-field",
+    "x-ray",
+    "false-colour",
+    "field",
+    "continuum",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "sophisticated",
+    "austere",
+    "jewel-tone",
+    "plastic",
+    "glass",
+    "acrylic",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness + colour gain of the fringes"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into a sub-region of the specimen \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate the loads orbit and the stress field evolves (0.2 still creeps)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of point loads pressing on the specimen, 2 to 6 \u2014 each is a stress concentration with its own fringe family"
+    },
+    "load": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "applied load \u2014 fringe order. Low = a few broad colour bands; high = dozens of tight nested fringes crowding the concentrations"
+    },
+    "polar": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "polarizer angle \u2014 rotates where the black isoclinic bands fall (it also sweeps slowly on its own)"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue for the false-colour and dark-field styles (the isochromatic sequence is set by real R/G/B wavelengths)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the magnified region"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan of the magnified region"
+    },
+    "style": {
+      "default": "isochromatic",
+      "options": [
+        "isochromatic",
+        "monochromatic",
+        "isoclinic",
+        "stress_map",
+        "xray"
+      ],
+      "doc": "aesthetic: white-light rainbow fringes / sodium-lamp dark-bright fringes / plane-polariscope isoclinic bands only / clinical FEA stress map / luminous dark-field filaments"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the load orbits and the stress field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:21+00:00",
+    "fps": 60.2,
+    "motion": 0.1108,
+    "lum": 0.403
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, load: .55, polar: .3, hue: 300, x: .5, y: .5, style: 'isochromatic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Photoelasticity: white light through a stressed birefringent medium between crossed\n// polarizers. The stress tensor comes from an Airy stress function phi (any phi satisfies\n// equilibrium exactly): sxx = d2phi/dy2, syy = d2phi/dx2, sxy = -d2phi/dxdy.\n// Retardation is proportional to the principal stress DIFFERENCE, so\n//   I(lambda) = sin^2( pi * C * (s1-s2) / lambda )\n// summed over R/G/B gives the true isochromatic fringe colour sequence; the isoclinic\n// factor sin^2(2(theta - polAng)) puts the black bands where a principal axis lines up\n// with the polarizer. ----\nconst BW = 176, BH = Math.max(72, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.PH = new Float32Array(N);\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hsh(ix, iy, iz), a1 = hsh(ix + 1, iy, iz), a2 = hsh(ix, iy + 1, iz), a3 = hsh(ix + 1, iy + 1, iz);\n  const b0 = hsh(ix, iy, iz + 1), b1 = hsh(ix + 1, iy, iz + 1), b2 = hsh(ix, iy + 1, iz + 1), b3 = hsh(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nfunction fbm3(x, y, z) { return 0.58 * vn3(x, y, z) + 0.27 * vn3(x * 2.13 + 5.1, y * 2.13 - 3.2, z * 1.6 + 1.3) + 0.15 * vn3(x * 4.31 - 2.3, y * 4.31 + 7.7, z * 2.7 - 4.1); }\n\nconst tt = K.t;\nconst sp2 = 0.25 + P.speed * 0.9;\n// Master drift rate. A fringe field is inherently high-variance: any change to the stress\n// sweeps whole bands, so the 8s motion metric runs hot and crowds the 0.35 strobe ceiling.\n// The specimen is meant to be loaded and relaxed over MINUTES \u2014 slow is both the fix and the\n// intent. EV scales every drift rate in the piece at once.\nconst EV = 0.24;\n\n// ---- build the Airy stress function on the grid ----\nconst nL = 2 + Math.round(P.density * 4);      // discrete load points pressing on the specimen\nconst zf = tt * 0.013 * EV * sp2 + 7.3;\nconst fsp = 2.3 / BH;\nconst ox = 0.8 * Math.sin(tt * 0.041 * EV) + 0.35 * Math.sin(tt * 0.103 * EV + 1.6);\nconst oy = 0.6 * Math.cos(tt * 0.059 * EV) + 0.3 * Math.sin(tt * 0.127 * EV + 0.8);\nconst PH = S.PH;\n// load points orbit slowly; each contributes a smooth Airy-like well -> stress concentrations\nconst lx = [], ly = [], lw = [];\nfor (let s = 0; s < nL; s++) {\n  const a1 = 0.19 + hsh(s * 7 + 1, 2, 6) * 0.5, a2 = 0.17 + hsh(s * 7 + 2, 3, 6) * 0.44;\n  const b1 = hsh(s * 7 + 3, 4, 6) * 6.28, b2 = hsh(s * 7 + 4, 5, 6) * 6.28;\n  lx.push((0.5 + 0.40 * Math.sin(tt * a1 * 0.052 * EV * sp2 + b1)) * BW);\n  ly.push((0.5 + 0.38 * Math.cos(tt * a2 * 0.047 * EV * sp2 + b2)) * BH);\n  lw.push((0.5 + 0.5 * Math.sin(tt * (0.021 + s * 0.009) * EV + s * 1.9)) * 2 - 0.6);\n}\nconst ls = BH * 0.30;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    let v = fbm3(i * fsp + ox, j * fsp + oy, zf) * 1.9;\n    for (let s = 0; s < nL; s++) {\n      const dx = (i - lx[s]) / ls, dy = (j - ly[s]) / ls;\n      const rr = dx * dx + dy * dy;\n      v += lw[s] * Math.exp(-rr * 1.6) * 1.5;    // smooth load well\n    }\n    PH[j * BW + i] = v;\n  }\n}\n\n// ---- render: second derivatives of phi -> stress tensor -> fringes ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 14) % 360 + 360) % 360;\n// the specimen is slowly LOADED and unloaded over minutes: fringe order climbs and crowds in,\n// then relaxes. Incommensurate sines, so the frame never repeats.\nconst loadArc = 0.76 + 0.15 * Math.sin(tt * 0.0217 * EV) + 0.08 * Math.sin(tt * 0.0463 * EV + 2.1) + 0.04 * Math.sin(tt * 0.0791 * EV + 0.7);\n// The stress difference off a smooth Airy function's second differences is ~5e-3, so the\n// stress-optic constant has to be ~1e3 for the retardation to reach the several fringe\n// ORDERS that make the colour sequence read. At C~70 the whole plate is black.\nconst C = (150 + P.load * 620) * loadArc * (0.88 + K.swell * 0.08 + A.lowmid * 0.20);\nconst gain = 0.5 + P.energy * 1.1 + A.rms * 0.35;\n// polarizer angle: sweeps the black isoclinic bands across the frame (slow \u2014 never a strobe)\nconst polAng = P.polar * 3.1416 + tt * 0.0105 * EV;\n// R/G/B relative wavelengths (610 / 545 / 460 nm, normalised) \u2014 this ratio IS the photoelastic\n// colour sequence: straw -> magenta -> blue-green -> ...\nconst wR = 1.0, wG = 0.893, wB = 0.754;\nfunction pal(m, spx, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx * 2))];\n}\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  const jm2 = (j > 1 ? j - 1 : 0), jp2 = (j < BH - 1 ? j + 1 : BH - 1);\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    const c0 = PH[jc + i];\n    // second derivatives of the Airy function -> the stress tensor\n    const sxx = PH[jp + i] + PH[jm + i] - 2 * c0;            // d2phi/dy2\n    const syy = PH[jc + ip] + PH[jc + im] - 2 * c0;          // d2phi/dx2\n    const sxy = -(PH[jp2 * BW + ip] - PH[jp2 * BW + im] - PH[jm2 * BW + ip] + PH[jm2 * BW + im]) * 0.25;\n    const dif = sxx - syy;\n    const R2 = Math.sqrt(dif * dif + 4 * sxy * sxy);         // principal stress difference s1-s2\n    const theta = 0.5 * Math.atan2(2 * sxy, dif);            // principal axis direction\n    const delta = R2 * C;                                     // retardation\n    // Isoclinic factor. theta is the PRINCIPAL STRESS DIRECTION, which wanders wildly wherever\n    // R2 is small, so sin^2(2(theta-polAng)) is a noisy full-range multiplier \u2014 as a global\n    // gain it churns the whole plate. A real lab hits exactly this and answers with a CIRCULAR\n    // polariscope: quarter-wave plates delete the isoclinics and leave pure isochromatics.\n    // So the fringe styles run circular (isoc = 1) and only `isoclinic` runs a plane polariscope.\n    const iso = Math.sin(2 * (theta - polAng));\n    const isoP = iso * iso;\n    const isoc = 0.5 + 0.5 * isoP;\n    let r, gg, b;\n    if (style === 'monochromatic') {        // sodium lamp (589nm): one wavelength, pure dark/bright fringes\n      const s1 = Math.sin(delta * 0.5 / 0.965); const I = Math.pow(s1 * s1 * isoc, 0.72);\n      const v = Math.min(1, I * (0.42 + gain * 0.48) + 0.04);\n      r = v * 1.0; gg = v * 0.86; b = v * 0.22;\n    } else if (style === 'isoclinic') {     // plane polariscope: only the black isoclinic bands sweep\n      const v = Math.min(1, isoP * (0.55 + gain * 0.5) * 0.8 + 0.08);\n      const cc = pal(0.5 + R2 * 0.04, 0.1, 0.0);\n      r = Math.min(1, v * (0.42 + cc[0] * 0.5)); gg = Math.min(1, v * (0.44 + cc[1] * 0.5)); b = Math.min(1, v * (0.5 + cc[2] * 0.5));\n    } else if (style === 'stress_map') {    // clinical FEA plot of the stress magnitude \u2014 no fringes\n      const m = Math.min(1, R2 * C * 0.052 * (0.55 + gain * 0.5));\n      const cc = pal(0.02 + m * 0.62, 0.28, 0.0);\n      const sh = 0.20 + m * 0.85;\n      r = Math.min(1, cc[0] * sh); gg = Math.min(1, cc[1] * sh); b = Math.min(1, cc[2] * sh);\n    } else if (style === 'xray') {          // dark-field: fringes as luminous filaments, no colour\n      const s1 = Math.sin(delta * 0.5); const I = s1 * s1 * (0.45 + 0.55 * isoP);\n      const v = Math.pow(I, 1.6) * (0.7 + gain * 0.6);\n      r = Math.min(1, v * 0.86 + 0.055); gg = Math.min(1, v * 0.94 + 0.065); b = Math.min(1, v * 1.0 + 0.09);\n    } else {                                // isochromatic (default) \u2014 white-light fringes\n      const sR = Math.sin(delta * 0.5 / wR), sG = Math.sin(delta * 0.5 / wG), sB = Math.sin(delta * 0.5 / wB);\n      const k = (0.38 + gain * 0.40);\n      r = Math.min(1, sR * sR * isoc * k + 0.035);\n      gg = Math.min(1, sG * sG * isoc * k + 0.04);\n      b = Math.min(1, sB * sB * isoc * k + 0.06);\n    }\n    const o = 4 * (jc + i);\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

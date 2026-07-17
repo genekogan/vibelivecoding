@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ascii_rain",
+  "kind": "genart",
+  "name": "ASCII Rain",
+  "desc": "Cascading terminal glyph-columns of phosphor rain that periodically self-organize into a hidden word or glyph before dissolving back into digital noise.",
+  "tags": [
+    "ascii",
+    "rain",
+    "matrix",
+    "code",
+    "terminal",
+    "digital",
+    "glyphs",
+    "green",
+    "cyberpunk",
+    "hacker",
+    "phosphor",
+    "crt",
+    "text",
+    "falling",
+    "generative",
+    "monochrome",
+    "retro",
+    "data",
+    "dot-matrix"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1,
+      "doc": "active column fraction + trail length + glyph grid density"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "glyph cell size (chunky vs fine rain)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.5,
+      "doc": "fall speed + glyph churn rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "head glow / phosphor brightness (+treble sparkle)"
+    },
+    "hue": {
+      "default": 130,
+      "min": 0,
+      "max": 360,
+      "doc": "phosphor hue (130 green, 90 lime, 190 cyan) \u2014 used by terminal style"
+    },
+    "reveal": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how strongly the hidden word/shape surfaces through the rain"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reveal shape center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reveal shape center y"
+    },
+    "style": {
+      "default": "terminal",
+      "options": [
+        "terminal",
+        "amber",
+        "paper",
+        "thermal",
+        "mono"
+      ],
+      "doc": "render discipline: green CRT phosphor / amber monochrome / dark ink dot-matrix on cream / false-color heat ramp / high-contrast white"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout + reveal-shape seed"
+    },
+    "act": {
+      "default": "storm",
+      "options": [
+        "storm",
+        "broadcast",
+        "decay"
+      ],
+      "doc": "dramaturgy: storm (shapes surface on swells) / broadcast (shapes dominate) / decay (rain thins over sections)"
+    }
+  },
+  "acts": [
+    "storm",
+    "broadcast",
+    "decay"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:36:24+00:00",
+    "fps": 60.6,
+    "motion": 0.0336,
+    "lum": 0.026
+  },
+  "code": "const D = { density:.55, scale:1, speed:1, energy:.6, hue:130, x:.5, y:.5, style:'terminal', seed:0, reveal:.6, act:'storm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst GLY = \"01</>{}[]#$%&*+=|\\\\:;~^?!.a\uff66\uff71\";\nconst st = P.style;\nconst dark = (st!=='paper');\n\n// ---- cached background (CRT phosphor / paper / thermal ground) ----\nconst bgkey = width+'x'+height+':'+st+':'+Math.round(P.hue);\nif (!S.bg || S.bgKey !== bgkey) {\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  if (st==='paper') g.background(42,9,84);\n  else if (st==='amber') g.background(32,55,5);\n  else if (st==='thermal') g.background(250,55,4);\n  else if (st==='mono') g.background(0,0,3);\n  else g.background((P.hue)%360,72,4);\n  // vignette\n  for (let r=8;r>0;r--){ g.fill(0,0, dark?0:20, dark?4:3); g.ellipse(width/2,height/2, width*(0.7+r*0.09), height*(0.75+r*0.09)); }\n  // scanlines for CRT styles\n  if (dark){ g.stroke(0,0,0,34); g.strokeWeight(1); const sp=Math.max(2,u*0.006); for (let y=0;y<height;y+=sp) g.line(0,y,width,y); }\n  S.bg=g; S.bgKey=bgkey;\n}\nimage(S.bg,0,0);\n\n// ---- grid geometry ----\nconst cell = Math.max(12, u*0.03*P.scale*(1.28-0.55*P.density));\nconst cols = Math.min(160, Math.ceil(width/cell)+1);\nconst rows = Math.min(120, Math.ceil(height/cell)+1);\n\n// ---- per-column drop state (seed + col-count keyed) ----\nif (!S.nc || S.nc!==cols || S.seedUsed!==P.seed){\n  S.nc=cols; S.seedUsed=P.seed; S.cspd=[]; S.coff=[]; S.cact=[];\n  for (let c=0;c<cols;c++){ S.cspd[c]=0.55+fr(c*3+1)*1.6; S.coff[c]=fr(c*7+2)*(rows+8); S.cact[c]=fr(c*11+5); }\n}\n\n// ---- reveal mask (word / shape) rebuilt per section ----\nif (!S.mbuf || S.mw!==cols || S.mh!==rows){ if(S.mbuf&&S.mbuf.remove)S.mbuf.remove(); S.mbuf=createGraphics(cols,rows); S.mbuf.colorMode(HSB,360,100,100,100); S.mw=cols; S.mh=rows; S.mkey=null; }\nconst sec = K.section|0;\nconst mkey = cols+'x'+rows+':'+sec+':'+(P.seed|0)+':'+Math.round(P.x*20)+':'+Math.round(P.y*20);\nif (S.mkey!==mkey){\n  S.mkey=mkey; const m=S.mbuf; m.background(0,0,0); m.noStroke(); m.fill(0,0,100);\n  const cx=cols*P.x, cy=rows*P.y, R=Math.min(cols,rows)*0.42;\n  const idx=(sec + (P.seed|0)*3)%8;\n  if (idx%2===0){\n    const words=[\"LIVE\",\"CODE\",\"RAIN\",\"NULL\",\"ECHO\",\"SYNC\",\"VOID\",\"0xF\"];\n    m.textAlign(CENTER,CENTER); m.textStyle(BOLD); m.textFont('monospace');\n    m.textSize(rows*0.52); m.text(words[idx%words.length], cx, cy);\n  } else {\n    const gi=idx%4;\n    if (gi===1){ m.noFill(); m.stroke(0,0,100); m.strokeWeight(Math.max(1,cols*0.035)); m.ellipse(cx,cy,R*2,R*2); m.strokeWeight(Math.max(1,cols*0.02)); m.ellipse(cx,cy,R*1.0,R*1.0); }\n    else if (gi===3){ for(let k=0;k<5;k++){ m.rect(cx-R*0.9 + k*R*0.42, cy-R, R*0.16, R*2); } }\n    else { m.triangle(cx, cy-R, cx-R, cy+R*0.85, cx+R, cy+R*0.85); }\n  }\n  m.loadPixels();\n  const mg=new Uint8Array(cols*rows), pd=m.pixelDensity?m.pixelDensity():1;\n  for (let yy=0;yy<rows;yy++) for (let xx=0;xx<cols;xx++){ const pi=4*((yy*pd)*(cols*pd)+(xx*pd)); mg[yy*cols+xx]=(m.pixels[pi]>60)?1:0; }\n  S.mg=mg;\n}\n\n// ---- reveal envelope + act dramaturgy ----\nlet rev = P.reveal;\nif (P.act==='broadcast') rev *= (0.6+0.4*K.swell);\nelse if (P.act==='decay') rev *= (0.25+0.75*(1-((sec%4)/3)));\nelse rev *= (0.12+0.88*Math.pow(K.swell,1.6)); // storm: surfaces on the swell\nrev = Math.max(0, Math.min(1, rev));\nlet actFrac = 1;\nif (P.act==='decay') actFrac = 0.4+0.6*(1-((sec%4)/3));\n\nconst glow = 0.55 + 0.45*P.energy + A.treble*0.55;\nconst activeThresh = (0.28 + P.density*0.66) * actFrac;\nconst T = Math.min(30, Math.round(5 + P.density*20));\nconst churn = 2 + P.speed*2;\n\nblendMode(dark?ADD:BLEND);\nnoStroke(); textAlign(CENTER,CENTER); textFont('monospace'); textSize(cell*0.86);\nconst gcx = cell*0.5, gcy = cell*0.5;\n\nfunction gfill(level, head){\n  level=level<0?0:(level>1?1:level);\n  if (st==='paper'){ fill(220,14+level*16, 90-level*74, 92); return; }\n  if (st==='thermal'){ const h=(1-level)*208+level*16; fill(h%360, 92-level*32, 22+level*78, 86); return; }\n  if (st==='amber'){ fill(35, head?38:88, head?100:(24+level*72), 88); return; }\n  if (st==='mono'){ fill(0,0, head?100:(22+level*74), 88); return; }\n  fill((P.hue)%360, head?22:78, head?100:(22+level*74), 88);\n}\n\nlet budget = 2500;\n// falling drops\nfor (let c=0; c<cols && budget>0; c++){\n  if (S.cact[c] >= activeThresh) continue;\n  const spd = S.cspd[c];\n  const head = (K.t*P.speed*spd*4.2 + S.coff[c]) % (rows + T + 4);\n  const gx = c*cell;\n  for (let k=0; k<T && budget>0; k++){\n    const row = Math.floor(head) - k;\n    if (row<0 || row>=rows) continue;\n    const isHead = (k===0);\n    const lvl = isHead ? 1 : (1 - k/T)*0.9;\n    gfill(lvl*glow, isHead);\n    const gi = Math.floor(fr(c*31 + row*17 + Math.floor(K.t*(churn+spd*1.5)))*GLY.length) % GLY.length;\n    text(GLY[gi<0?0:gi], gx+gcx, row*cell+gcy);\n    budget--;\n  }\n}\n// mask glyphs \u2014 the shape surfacing through the rain\nif (rev>0.04 && S.mg){\n  const mg=S.mg; let mb = Math.min(budget, 900);\n  const flick = 0.7+0.3*Math.sin(K.t*3.0);\n  for (let idx=0; idx<mg.length && mb>0; idx++){\n    if (!mg[idx]) continue;\n    const xx=idx%cols, yy=(idx/cols)|0;\n    gfill(rev*glow*0.9*flick, true);\n    const gi = Math.floor(fr(xx*13 + yy*29 + Math.floor(K.t*1.4))*GLY.length) % GLY.length;\n    text(GLY[gi<0?0:gi], xx*cell+gcx, yy*cell+gcy);\n    mb--; budget--;\n  }\n}\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.schlieren",
+  "kind": "genart",
+  "name": "Schlieren",
+  "desc": "Schlieren photography of an invisible medium \u2014 buoyant thermal plumes shed off pulsing burners and roll into turbulence, made visible only by their refractive-index GRADIENT as a knife edge at the focus cuts the deflected light into ghostly signed grey-on-grey; switchable to rainbow-filter schlieren, a caustic-edged shadowgraph, Mach-Zehnder interference fringes, or ironbow thermal.",
+  "tags": [
+    "schlieren",
+    "shadowgraph",
+    "refraction",
+    "refractive-index",
+    "knife-edge",
+    "density-gradient",
+    "optics",
+    "wind-tunnel",
+    "plume",
+    "thermal-plume",
+    "buoyancy",
+    "convection",
+    "turbulence",
+    "vortex",
+    "advection",
+    "fluid",
+    "fluid-dynamics",
+    "gas",
+    "heat",
+    "candle",
+    "burner",
+    "smoke",
+    "ghostly",
+    "invisible",
+    "grey",
+    "monochrome",
+    "greyscale",
+    "duotone",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "photography",
+    "interferogram",
+    "mach-zehnder",
+    "fringe",
+    "rainbow-schlieren",
+    "caustic",
+    "thermal",
+    "ironbow",
+    "field",
+    "continuum",
+    "simulation",
+    "pde",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "eerie",
+    "austere",
+    "sublime",
+    "smoky",
+    "atmospheric"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "schlieren sensitivity \u2014 how hard the density gradient is amplified into contrast (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into a sub-region of the test section \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "advection + field evolution rate (0.2 still flows)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "number, size and strength of the thermal sources feeding the plume"
+    },
+    "knife": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "knife-edge orientation \u2014 which way a ray must deflect to be cut (rotates the light/dark relief); it also drifts slowly on its own"
+    },
+    "buoy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "buoyancy \u2014 from lazy stratified drift to a hard vertical chimney that shreds into vortices"
+    },
+    "hue": {
+      "default": 208,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue of the faint duotone cast on the grey (and the rainbow filter's anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the magnified region"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan of the magnified region"
+    },
+    "style": {
+      "default": "knife_edge",
+      "options": [
+        "knife_edge",
+        "rainbow",
+        "shadowgraph",
+        "interferogram",
+        "thermal"
+      ],
+      "doc": "aesthetic: classic knife-edge grey schlieren / rainbow colour-filter schlieren / caustic-edged shadowgraph / Mach-Zehnder fringes / ironbow thermal"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for source placement and the turbulent field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:00+00:00",
+    "fps": 63.7,
+    "motion": 0.0471,
+    "lum": 0.425
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .55, knife: .5, buoy: .6, hue: 208, x: .5, y: .5, style: 'knife_edge', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Schlieren imaging: a refractive-index field n(x,y) is advected as a buoyant plume, then\n// imaged by its DERIVATIVE. A knife edge at the focus blocks light deflected one way, so\n// dn/dx maps to signed grey \u2014 the classic ghostly grey-on-grey density photograph. ----\nconst BW = 180, BH = Math.max(72, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.T = new Float32Array(N); S.T2 = new Float32Array(N); S.PS = new Float32Array(N);\n  S.init = false;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hsh(ix, iy, iz), a1 = hsh(ix + 1, iy, iz), a2 = hsh(ix, iy + 1, iz), a3 = hsh(ix + 1, iy + 1, iz);\n  const b0 = hsh(ix, iy, iz + 1), b1 = hsh(ix + 1, iy, iz + 1), b2 = hsh(ix, iy + 1, iz + 1), b3 = hsh(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nfunction fbm3(x, y, z) { return 0.57 * vn3(x, y, z) + 0.28 * vn3(x * 2.11 + 5.1, y * 2.11 - 3.2, z * 1.6 + 1.3) + 0.15 * vn3(x * 4.23 - 2.3, y * 4.23 + 7.7, z * 2.8 - 4.1); }\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  S.T.fill(0);\n}\n\nconst tt = K.t;\nconst T = S.T, T2 = S.T2, PS = S.PS;\nconst sp = 0.3 + P.speed * 0.9;\n\n// ---- velocity: curl of a drifting stream function + buoyancy. Sample psi to a grid once,\n// difference the grid (4 fbm/cell for a per-cell FD costs 4x). ----\nconst zf = tt * 0.10 * sp + 2.3;\nconst dxo = 1.3 * Math.sin(tt * 0.053) + 0.6 * Math.sin(tt * 0.131 + 1.9);\nconst dyo = 1.1 * Math.cos(tt * 0.071) + 0.5 * Math.sin(tt * 0.167 + 0.6);\nconst fs = 2.6 / BH;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) PS[j * BW + i] = fbm3(i * fs + dxo, j * fs + dyo, zf);\n\n// ---- inject: pulsing thermal sources along the floor (the burner) ----\nconst nsrc = 2 + Math.round(P.density * 3);\nconst inj = (0.09 + P.density * 0.13) * (0.7 + K.swell * 0.35 + A.bass * 0.6);\nfor (let s = 0; s < nsrc; s++) {\n  const bx = (0.14 + 0.72 * hsh(s * 7 + 1, 3, 2)) * BW\n           + Math.sin(tt * (0.31 + hsh(s, 5, 2) * 0.4) + s * 2.1) * BW * 0.05;\n  const by = BH - 2 - hsh(s * 3, 9, 2) * 3;\n  const rad = (2.6 + hsh(s, 11, 2) * 3.4) * (0.7 + P.density * 0.7);\n  const amp = inj * (0.55 + 0.45 * Math.sin(tt * (0.83 + s * 0.37) + s));\n  const r2 = rad * rad;\n  const i0 = Math.max(0, (bx - rad) | 0), i1 = Math.min(BW - 1, (bx + rad) | 0);\n  const j0 = Math.max(0, (by - rad) | 0), j1 = Math.min(BH - 1, (by + rad) | 0);\n  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {\n    const dx = i - bx, dy = j - by, d2 = dx * dx + dy * dy;\n    if (d2 > r2) continue;\n    const p = j * BW + i;\n    T[p] = Math.min(1.6, T[p] + amp * (1 - d2 / r2));\n  }\n}\n\n// ---- semi-Lagrangian advection of the density field by (curl psi + buoyancy) ----\nconst buo = 5.5 + P.buoy * 22;\nconst adv = 0.85 * sp;\nconst wind = Math.sin(tt * 0.061) * 1.7 + Math.sin(tt * 0.149 + 1.1) * 0.8;\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    let vx = (PS[jp + i] - PS[jm + i]) * 30 + wind;\n    let vy = -(PS[jc + ip] - PS[jc + im]) * 30 - T[jc + i] * buo;   // hot fluid rises\n    // backtrace\n    let bx = i - vx * adv, by = j - vy * adv;\n    bx = bx < 0 ? 0 : (bx > BW - 1.001 ? BW - 1.001 : bx);\n    by = by < 0 ? 0 : (by > BH - 1.001 ? BH - 1.001 : by);\n    const x0 = bx | 0, y0 = by | 0, fx = bx - x0, fy = by - y0;\n    const x1 = x0 + 1 < BW ? x0 + 1 : x0, y1 = y0 + 1 < BH ? y0 + 1 : y0;\n    const a = T[y0 * BW + x0], b = T[y0 * BW + x1], c = T[y1 * BW + x0], d = T[y1 * BW + x1];\n    const v = (a + (b - a) * fx) + ((c + (d - c) * fx) - (a + (b - a) * fx)) * fy;\n    T2[jc + i] = v * 0.9955;                      // slow dissipation\n  }\n}\n// light diffusion + copy back\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    T[jc + i] = T2[jc + i] * 0.88 + (T2[jc + im] + T2[jc + ip] + T2[jm + i] + T2[jp + i]) * 0.03;\n  }\n}\n\n// ---- image the field by its derivative ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 7 + Math.sin(tt * 0.023) * 12) % 360 + 360) % 360;\nconst gain = (14 + P.energy * 46) * (0.75 + A.rms * 0.5);\n// the knife edge slowly rotates: which way the density gradient must lean to be cut\nconst ka = P.knife * 6.2831 + tt * 0.037;\nconst kx = Math.cos(ka), ky = Math.sin(ka);\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp2)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp2 * 2))];\n}\nconst tint1 = pal(0.0, 0.13, 0.0), tint2 = pal(0.5, 0.13, 0.0);\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    const c = T[jc + i];\n    const gx = (T[jc + ip] - T[jc + im]) * 0.5, gy = (T[jp + i] - T[jm + i]) * 0.5;\n    let r, gg, b;\n    if (style === 'rainbow') {              // rainbow schlieren: a colour filter replaces the knife\n      const ang = Math.atan2(gy, gx) / 6.2831 + 0.5;\n      const mag = Math.min(1, Math.sqrt(gx * gx + gy * gy) * gain * 0.55);\n      const cc = pal(ang, 0.33, 0.0);\n      const lo = 0.13;\n      r = lo + (cc[0] - lo) * mag + mag * 0.10; gg = lo + (cc[1] - lo) * mag + mag * 0.10; b = lo + (cc[2] - lo) * mag + mag * 0.12;\n    } else if (style === 'shadowgraph') {   // second derivative: bright/dark caustic edges\n      const lap = T[jc + im] + T[jc + ip] + T[jm + i] + T[jp + i] - 4 * c;\n      const s2 = Math.max(-1, Math.min(1, lap * gain * 1.5));\n      const v = 0.42 + s2 * 0.5;\n      r = v * 0.97; gg = v * 0.99; b = v * 1.02;\n    } else if (style === 'interferogram') { // Mach-Zehnder: n mapped to cos fringes (abstracted)\n      const fr = Math.cos(c * (7 + P.energy * 26) * 6.2831 * 0.16 + tt * 0.24);\n      const v = 0.44 + fr * 0.42;\n      r = Math.min(1, v * tint1[0] * 1.5 + 0.05); gg = Math.min(1, v * tint1[1] * 1.5 + 0.06); b = Math.min(1, v * tint1[2] * 1.5 + 0.08);\n    } else if (style === 'thermal') {\n      const m = Math.min(1, c * (0.55 + P.energy * 0.9) * 1.25);\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55)); b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.4 - m * 1.5));\n    } else {                                // knife_edge (default) \u2014 signed grey, faintly duotoned\n      const dfl = gx * kx + gy * ky;                 // deflection component the knife cuts\n      const s2 = Math.max(-1, Math.min(1, dfl * gain));\n      const v = 0.46 + s2 * 0.46;\n      // a whisper of colour: warm where light passes, cool where it is cut \u2014 still grey-on-grey\n      const w = Math.max(0, s2), cl = Math.max(0, -s2);\n      r = Math.min(1, v * (0.94 + tint1[0] * 0.14 * w) + cl * 0.01);\n      gg = Math.min(1, v * (0.95 + tint1[1] * 0.10 * w) + cl * 0.02);\n      b = Math.min(1, v * (0.99 + tint2[2] * 0.16 * cl) + cl * 0.04);\n    }\n    const o = 4 * (jc + i);\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

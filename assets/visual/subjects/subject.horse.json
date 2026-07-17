@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.horse",
+  "kind": "subject",
+  "name": "Horse",
+  "desc": "A ukiyo-e woodblock horse in beat-locked gallop, flat color block offset from a tapered ink key-line with carving hatch, whipping mane and tail, dust puffs on hoof strikes, plus trot, rearing and grazing-idle gaits and sumi, silhouette and neon skins.",
+  "tags": [
+    "horse",
+    "pony",
+    "stallion",
+    "mare",
+    "equine",
+    "animal",
+    "gallop",
+    "trot",
+    "canter",
+    "rear",
+    "run",
+    "ride",
+    "mane",
+    "tail",
+    "woodblock",
+    "ukiyo-e",
+    "print",
+    "ink",
+    "sumi",
+    "japanese",
+    "silhouette",
+    "western",
+    "ranch",
+    "dust",
+    "gait",
+    "character",
+    "fast"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "size vs design (~0.5u tall at 1)"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "gait amplitude, suspension bounce, mane/tail whip, dust"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "strides/beats-relative rate multiplier"
+    },
+    "mane": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "mane + tail length/volume morph"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "carve hatch, mane strands, dust count"
+    },
+    "hue": {
+      "default": 22,
+      "min": 0,
+      "max": 360,
+      "doc": "coat color-block hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.66,
+      "min": 0.2,
+      "max": 0.9,
+      "doc": "anchor y (torso center)"
+    },
+    "pose": {
+      "default": "gallop",
+      "options": [
+        "gallop",
+        "trot",
+        "rear",
+        "idle"
+      ],
+      "doc": "gallop=full suspension stride; trot=diagonal 2-beat; rear=up on hinds pawing on the beat; idle=graze + weight-shift + tail swish"
+    },
+    "style": {
+      "default": "woodblock",
+      "options": [
+        "woodblock",
+        "sumi",
+        "silhouette",
+        "neon"
+      ],
+      "doc": "aesthetic: ukiyo-e color block + offset ink key-line + hatch / monochrome sumi brush / pure black mass (abstracted) / dark body with glowing contour"
+    },
+    "act": {
+      "default": "free",
+      "options": [
+        "free",
+        "journey",
+        "spook"
+      ],
+      "doc": "free=obey pose; journey=idle-trot-gallop-rear cycled by section arc; spook=gait escalates with musical intensity, rears at peaks"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic strand, hatch and dust variation"
+    }
+  },
+  "acts": [
+    "free",
+    "journey",
+    "spook"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:51:15+00:00",
+    "fps": 62.1,
+    "motion": 0.0326,
+    "lum": 0.13
+  },
+  "code": "const D = { scale:1, energy:.7, speed:1, mane:.6, density:.5, hue:22, x:.5, y:.66, pose:'gallop', style:'woodblock', act:'free', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst TAU = Math.PI * 2;\nconst clamp = (v,a,b) => v < a ? a : v > b ? b : v;\nconst u = Math.min(width, height);\nconst sf = (u * P.scale) / 1000;               // design units -> px; horse ~520 tall => ~0.5u\nconst E = P.energy;\nconst H = ((P.hue % 360) + 360) % 360;\nconst style = P.style;\nconst dens = P.density;\nconst bt = K.beat * P.speed;\n\n// seeded strand/hatch/dust tables\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.mane = []; for (let i = 0; i < 15; i++) S.mane.push({ o: fr(i*3+1), l: 0.7 + fr(i*3+2)*0.6, w: 0.6 + fr(i*3+3)*0.8 });\n  S.tail = []; for (let i = 0; i < 11; i++) S.tail.push({ o: fr(i*5+40), l: 0.75 + fr(i*5+41)*0.5, w: 0.5 + fr(i*5+42)*0.9 });\n  S.hatch = []; for (let i = 0; i < 22; i++) S.hatch.push({ x: fr(i*7+9)*2-1, y: fr(i*7+10)*2-1, a: fr(i*7+11), l: 0.4+fr(i*7+12)*0.6 });\n}\nif (!S.dust) S.dust = [];\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\n\n// ---- pose / act resolution ----\nlet pose = P.pose;\nif (P.act === 'journey') pose = ['idle','trot','gallop','gallop','trot','gallop','rear','idle'][K.section % 8];\nelse if (P.act === 'spook') pose = (K.intensity > 0.82) ? 'rear' : (K.intensity > 0.5 ? 'gallop' : 'trot');\n\n// gait constants\nconst G = ({\n  gallop: { rate:1.0, swing:0.62, knee:0.9, bounce:1.0, pitch:0.13, surge:0.05, stream:1.0, up:0.0 },\n  trot:   { rate:1.15, swing:0.42, knee:0.6, bounce:0.5, pitch:0.05, surge:0.02, stream:0.55, up:0.0 },\n  rear:   { rate:0.5, swing:0.3, knee:0.7, bounce:0.25, pitch:0.0, surge:0.0, stream:0.7, up:1.0 },\n  idle:   { rate:0.5, swing:0.12, knee:0.35, bounce:0.12, pitch:0.02, surge:0.0, stream:0.25, up:0.0 }\n})[pose] || { rate:1, swing:0.5, knee:0.8, bounce:0.8, pitch:0.1, surge:0.04, stream:0.8, up:0 };\n\nconst sp = bt * G.rate;                          // stride clock\nconst strideP = sp - Math.floor(sp);             // 0..1 within stride\nconst kick = K.pulse * 0.6 + A.bass * 0.9;\n\n// body dynamics (px) \u2014 the silhouette-displacing baseline\nconst bAmp = u * (0.028 + 0.075 * E) * G.bounce;\nlet bounce = -bAmp * (0.62 * Math.sin(strideP * TAU) + 0.38 * Math.sin(strideP * 2 * TAU));\nlet surge = Math.sin(strideP * TAU) * u * 0.035 * G.surge * (0.6 + E);\nlet pitch = Math.sin(strideP * TAU + 0.6) * G.pitch * (0.5 + 0.6 * E);\n// rear: raise front, pitch back, rhythmic paw\nlet rearLift = 0;\nif (pose === 'rear') { const r = 0.5 + 0.5 * Math.sin(sp * TAU * 0.5); rearLift = r; pitch = -0.55 * r; bounce = -u * 0.03 * r; }\nif (pose === 'idle') { surge = Math.sin(K.t * 1.1) * u * 0.006; pitch = Math.sin(K.t * 0.7) * 0.02; }\n\nconst px = P.x * width + surge + A.lowmid * u * 0.02 * Math.sin(K.t * 4);\nconst py = P.y * height + bounce;\n\n// grazing head dip (idle) on alternating beats\nconst graze = pose === 'idle' ? clamp(Math.sin(bt * 0.5 * TAU), 0, 1) : 0;\n\npush();\ntranslate(px, py);\nrotate(pitch);\nscale(sf);\n// face left; flip so P.x still means anchor. (keep facing left)\n\n// ============ palette ============\nconst bodyH = H, bodyS = style === 'sumi' ? 0 : 46, bodyB = style === 'silhouette' ? 10 : 62;\nconst inkH = 20, inkS = style === 'neon' ? 70 : 16, inkB = style === 'neon' ? 100 : 9;\nconst shadowB = bodyB - 22;\n\n// ---- anatomical key points (local units, origin=barrel center) ----\nconst NECK = { x: -300, y: -70 };                // neck base (shoulder top)\nlet neckAng = -0.55 + graze * 1.35 - G.up * 0.5; // radians from +x axis, head direction\nconst neckLen = 250;\nconst head = { x: NECK.x + Math.cos(Math.PI + neckAng) * neckLen, y: NECK.y + Math.sin(Math.PI + neckAng) * neckLen };\n// legs anchors\nconst shoulder = { x: -215, y: 40 };\nconst hip = { x: 235, y: 30 };\nconst groundReach = 250;\n\n// ---- leg solver ----\nfunction legPoints(hx, hy, phase, front) {\n  const dir = front ? -1 : 1;\n  const th1 = 0.02 + dir * (G.swing) * Math.sin(phase * TAU) * (0.6 + 0.7 * E);\n  const kneePh = front ? 1.2 : 1.6;\n  const flex = G.knee * Math.max(0, Math.sin(phase * TAU + kneePh)) * (0.5 + 0.8 * E);\n  const upLen = groundReach * 0.5, loLen = groundReach * 0.52;\n  const kx = hx + Math.sin(th1) * upLen, ky = hy + Math.cos(th1) * upLen;\n  const th2 = th1 + flex * (front ? -1 : 1) * 0.9 - 0.15;\n  const hox = kx + Math.sin(th2) * loLen, hoy = ky + Math.cos(th2) * loLen;\n  return { hx, hy, kx, ky, hox, hoy, planted: Math.cos(phase * TAU) < -0.2 };\n}\n// phase offsets per gait\nlet offFN, offFF, offHN, offHF;\nif (pose === 'trot') { offFN = 0.0; offHF = 0.0; offFF = 0.5; offHN = 0.5; }\nelse { offHN = 0.0; offHF = 0.12; offFN = 0.5; offFF = 0.62; }\nlet rearPawN = 0, rearPawF = 0;\nif (pose === 'rear') { rearPawN = rearLift; rearPawF = rearLift * 0.85; }\n\nfunction drawLeg(pt, near, front) {\n  const wgt = (near ? 30 : 24) * (0.85 + 0.3 * dens);\n  const col = near ? shadowB : shadowB - 8;\n  if (style === 'silhouette') { stroke(bodyH, bodyS, bodyB); }\n  else if (style === 'neon') { stroke(inkH, inkS, inkB, 90); drawingContext.shadowBlur = 10 * P.scale; drawingContext.shadowColor = 'hsla(' + inkH + ',80%,55%,0.8)'; }\n  else if (style === 'sumi') { stroke(0, 0, near ? 12 : 22); }\n  else { stroke(bodyH, bodyS + 6, col, 100); }\n  strokeCap(ROUND); noFill();\n  strokeWeight(wgt); line(pt.hx, pt.hy, pt.kx, pt.ky);\n  strokeWeight(wgt * 0.72); line(pt.kx, pt.ky, pt.hox, pt.hoy);\n  drawingContext.shadowBlur = 0;\n  // hoof\n  if (style !== 'silhouette') { noStroke(); fill(inkH, 20, style === 'neon' ? 100 : 14); ellipse(pt.hox, pt.hoy, wgt * 1.1, wgt * 0.8); }\n}\n\n// ==== far legs first ====\nconst flFore = legPoints(shoulder.x, shoulder.y, strideP + offFF - (pose === 'rear' ? rearPawF : 0) * 0.0, true);\nconst flHind = legPoints(hip.x, hip.y, strideP + offHF, false);\n// rear: fold forelegs up\nif (pose === 'rear') { flFore.kx = shoulder.x - 40; flFore.ky = shoulder.y + 60 - 120 * rearPawF; flFore.hox = shoulder.x - 120; flFore.hoy = shoulder.y - 10 - 200 * rearPawF; }\ndrawLeg(flHind, false, false);\ndrawLeg(flFore, false, true);\n\n// ============ MANE + TAIL under-block (drawn behind body for stream) ============\nfunction drawStreamer(rootX, rootY, baseAng, table, lenU, back) {\n  const stream = G.stream * (0.6 + 0.9 * E);\n  const velWhip = (bounce / u) * 6;\n  for (const s of table) {\n    const L = lenU * s.l * (0.5 + P.mane);\n    const seg = 5;\n    let x = rootX, y = rootY, ang = baseAng + (s.o - 0.5) * 0.5;\n    if (style === 'neon') { stroke((inkH + 20) % 360, 60, 100, 70); drawingContext.shadowBlur = 8 * P.scale; drawingContext.shadowColor = 'hsla(40,90%,55%,0.7)'; }\n    else if (style === 'silhouette') stroke(bodyH, bodyS, bodyB);\n    else if (style === 'sumi') stroke(0, 0, 16 + s.o * 18);\n    else stroke(bodyH, bodyS + 10, shadowB - 4 + s.o * 20);\n    noFill(); strokeCap(ROUND); strokeWeight((14 + s.w * 12) * (0.7 + dens * 0.5));\n    beginShape(); vertex(x, y);\n    for (let k = 1; k <= seg; k++) {\n      const t = k / seg;\n      const wob = Math.sin(t * 3 + K.t * 3 + s.o * 6) * (0.35 + stream * 0.5) * t;\n      ang = baseAng + (s.o - 0.5) * 0.4 + wob + back * stream * t * 1.1 + velWhip * t * 0.3;\n      x += Math.cos(ang) * (L / seg); y += Math.sin(ang) * (L / seg) + t * 6;\n      curveVertex(x, y);\n    }\n    endShape();\n    drawingContext.shadowBlur = 0;\n  }\n}\n// tail (from croup, streams back = +x)\ndrawStreamer(hip.x + 40, hip.y - 40, 0.2, S.tail, 300, 0.9);\n\n// ============ BODY BLOCK (color) with woodblock misregistration ============\nfunction bodyOutline() {\n  beginShape();\n  vertex(hip.x + 70, -30);                 // croup top\n  bezierVertex(120, -150, -120, -160, NECK.x + 40, NECK.y - 20); // topline/back to withers\n  // neck front to poll\n  bezierVertex(NECK.x - 40, NECK.y - 40, head.x + 70, head.y - 30, head.x + 20, head.y - 40); // up neck to poll\n  bezierVertex(head.x - 30, head.y - 30, head.x - 55, head.y + 20, head.x - 30, head.y + 55); // face to muzzle\n  bezierVertex(head.x + 10, head.y + 70, head.x + 40, head.y + 55, NECK.x - 30, NECK.y + 120); // jaw down throat\n  bezierVertex(NECK.x + 20, NECK.y + 170, shoulder.x - 10, 130, shoulder.x + 40, 150); // chest to under\n  bezierVertex(-40, 200, 120, 205, hip.x + 20, 150);   // belly to flank\n  bezierVertex(hip.x + 90, 120, hip.x + 100, 20, hip.x + 70, -30); // haunch back to croup\n  endShape(CLOSE);\n}\nconst mreg = style === 'woodblock' ? 9 : 0; // misregistration offset (local units)\n\nif (style === 'silhouette') {\n  noStroke(); fill(bodyH, bodyS, bodyB); bodyOutline();\n} else if (style === 'neon') {\n  noFill(); stroke(inkH, inkS, inkB, 95); strokeWeight(9);\n  drawingContext.shadowBlur = 16 * P.scale; drawingContext.shadowColor = 'hsla(' + inkH + ',85%,55%,0.85)';\n  bodyOutline(); drawingContext.shadowBlur = 0;\n} else {\n  // color under-block, offset (misregistration for woodblock)\n  push(); translate(mreg, mreg * 0.6);\n  noStroke();\n  if (style === 'sumi') fill(0, 0, 30); else fill(bodyH, bodyS, bodyB);\n  bodyOutline();\n  pop();\n  // carving hatch in shadow zones (belly / lower neck)\n  stroke(style === 'sumi' ? color(0, 0, 20, 60) : color(bodyH, bodyS + 10, shadowB - 6, 70));\n  strokeWeight(4 + dens * 3);\n  const hn = Math.round(8 + dens * 12);\n  for (let i = 0; i < hn; i++) {\n    const h = S.hatch[i % S.hatch.length];\n    const bx = -80 + h.x * 260, by = 120 + h.y * 60;\n    line(bx, by, bx + Math.cos(h.a * 3) * 30 * h.l, by + 16 * h.l);\n  }\n  // ink key-line contour (on top, not offset -> registration gap shows)\n  noFill();\n  if (style === 'sumi') { stroke(0, 0, 8); strokeWeight(11 + kick * 6); }\n  else { stroke(inkH, inkS, inkB); strokeWeight(9); }\n  strokeJoin(ROUND); bodyOutline();\n  // eye + nostril\n  noStroke(); fill(inkH, 30, style === 'sumi' ? 6 : 10);\n  ellipse(head.x + 6, head.y - 2, 26, 30);\n  ellipse(head.x - 34, head.y + 40, 16, 12);\n  if (style !== 'sumi') { fill(45, 20, 96, 80); ellipse(head.x + 1, head.y - 7, 9, 9); }\n}\n\n// ============ MANE (over neck, streams back) ============\ndrawStreamer(head.x + 30, head.y - 25, -0.1 + neckAng * 0.3, S.mane, 150, 0.55);\n\n// ==== near legs (front of body) ====\nconst nlHind = legPoints(hip.x, hip.y, strideP + offHN, false);\nlet nlFore = legPoints(shoulder.x, shoulder.y, strideP + offFN, true);\nif (pose === 'rear') { nlFore.kx = shoulder.x - 20; nlFore.ky = shoulder.y + 40 - 150 * rearPawN; nlFore.hox = shoulder.x - 150; nlFore.hoy = shoulder.y - 40 - 240 * rearPawN; }\ndrawLeg(nlHind, true, false);\ndrawLeg(nlFore, true, true);\n\npop(); // end horse transform\n\n// ============ DUST puffs on hoof strikes (world space, moving particles) ============\nif (pose !== 'idle' && pose !== 'rear') {\n  // spawn on stride landings\n  if (strideP < (S.lastStrideP == null ? 1 : S.lastStrideP)) {\n    const n = 2 + Math.round(dens * 3 + E * 2);\n    for (let i = 0; i < n; i++) S.dust.push({ x: px + (fr(i + Math.floor(sp)) - 0.7) * u * 0.12, y: py + u * 0.11 * P.scale, vx: -(0.3 + fr(i * 2) * 0.5) * u * 0.004, vy: -fr(i * 3) * u * 0.003, r: (0.3 + fr(i * 5) * 0.7) * u * 0.03, life: 1 });\n  }\n}\nS.lastStrideP = strideP;\nnoStroke();\nfor (let i = S.dust.length - 1; i >= 0; i--) {\n  const d = S.dust[i]; d.x += d.vx; d.y += d.vy; d.vy += u * 0.00006; d.life -= 0.03; d.r *= 1.03;\n  if (d.life <= 0) { S.dust.splice(i, 1); continue; }\n  const a = d.life * 40 * (style === 'neon' ? 0.6 : 1);\n  if (style === 'sumi' || style === 'silhouette') fill(0, 0, 55, a);\n  else fill(H, 12, 82, a);\n  ellipse(d.x, d.y, d.r * 2, d.r * 2);\n}\nif (S.dust.length > 90) S.dust.splice(0, S.dust.length - 90);\n\nblendMode(BLEND);\n"
+}

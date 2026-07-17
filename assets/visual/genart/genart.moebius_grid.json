@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.moebius_grid",
+  "kind": "genart",
+  "name": "Mobius Transform",
+  "desc": "A conformal Mobius transformation endlessly warps a colored checker grid on the complex plane, bending straight lines into circles as elliptic and loxodromic flows swirl the whole field toward and away from two drifting fixed points.",
+  "tags": [
+    "mobius",
+    "moebius",
+    "conformal",
+    "complex-plane",
+    "checker",
+    "checkerboard",
+    "grid",
+    "tiling",
+    "symmetry",
+    "loxodromic",
+    "elliptic",
+    "spiral",
+    "swirl",
+    "warp",
+    "vortex",
+    "polar-grid",
+    "op-art",
+    "opart",
+    "neon",
+    "oil-slick",
+    "iridescent",
+    "blueprint",
+    "wireframe",
+    "lattice",
+    "geometric",
+    "psychedelic",
+    "kaleidoscope",
+    "field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "mathematical",
+    "hypnotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grid detail / cell count (higher = finer tiling)"
+    },
+    "twist": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "spiral winding of the grid (loxodromic shear)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "conformal flow / rotation rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "zoom into the complex plane"
+    },
+    "sep": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "separation between the two fixed points"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vortex-center x (between fixed points)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vortex-center y"
+    },
+    "style": {
+      "default": "checker",
+      "options": [
+        "checker",
+        "polar",
+        "neon",
+        "oil",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:05:33+00:00",
+    "fps": 59.5,
+    "motion": 0.1618,
+    "lum": 0.274
+  },
+  "code": "const D = { density: .5, twist: .45, energy: .6, speed: 1, scale: 1, sep: .4, hue: 205, x: .5, y: .5, style: 'checker', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TWO = 6.28318530718, PI = Math.PI, INV2PI = 0.15915494309;\nconst BW = 190, BH = Math.max(56, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.baseAng = fr(1) * TWO;     // seed orientation of the fixed-point axis\n  S.hoff = fr(2) * 360;         // seed hue offset\n  S.tw = fr(3) * 0.9 + 0.6;     // seed twist bias\n  S.px = (fr(4) - 0.5) * 0.6;   // seed vortex-center jitter\n  S.py = (fr(5) - 0.5) * 0.6;\n}\nconst frac = v => v - Math.floor(v);\n\n// ---- flow (all rhythm from K; continuous drift = motion floor) ----\nconst spd = 0.14 + P.speed * 0.34;\nconst flowAng = K.t * spd * 0.62 + K.pulse * 0.15 + A.lowmid * 0.6;             // elliptic rotation (never re-phases)\nconst flowBreath = Math.sin(K.t * 0.11 * (0.5 + P.speed)) * (0.55 + A.bass * 0.9); // loxodromic in/out toward fixed points\nconst orbit = K.t * 0.031;                                                       // fixed points slowly revolve\nconst hueDrift = K.t * 0.016 + K.section * 0.055;                                 // slow palette drift + section arc\nconst expo = 0.45 + P.energy * 0.6 + K.intensity * 0.25 + A.rms * 0.55;\n\n// ---- geometry ----\nconst aspect = BW / BH;\nconst zoom = 3.2 / (0.4 + P.scale * 1.25);\nconst fpx = S.px + (P.x - 0.5) * zoom * aspect * 0.7;   // vortex center (between the two fixed points)\nconst fpy = S.py + (P.y - 0.5) * zoom * 0.7;\nconst sepR = 0.14 + P.sep * 1.35 + 0.22 * Math.sin(K.t * 0.023);  // fixed-point separation breathes over minutes\nconst sa = S.baseAng + orbit;\nconst spx = sepR * Math.cos(sa), spy = sepR * Math.sin(sa);\nconst pr = fpx + spx, pi = fpy + spy;   // fixed point p\nconst qr = fpx - spx, qi = fpy - spy;   // fixed point q\n\nconst gR = 1.5 + P.density * 7.0;                                   // radial ring frequency (log space)\nconst gT = 2 * Math.round(2 + P.density * 10);                      // angular sectors (even = seamless wrap)\nconst twist = (P.twist * S.tw + 0.14 * Math.sin(K.t * 0.05 + K.section)) * 2.6; // spiral coupling wanders per section\nconst style = P.style;\n\nconst hb = frac((P.hue + S.hoff) / 360 + K.section * 0.03);\nfunction pal(m) {\n  const r = 0.5 + 0.5 * Math.cos(TWO * (m + hb + 0.00));\n  const g = 0.5 + 0.5 * Math.cos(TWO * (m + hb + 0.33));\n  const b = 0.5 + 0.5 * Math.cos(TWO * (m + hb + 0.67));\n  return [r, g, b];\n}\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst EPS = 1e-6;\nfor (let j = 0; j < BH; j++) {\n  const zi0 = (j / BH - 0.5) * zoom;\n  for (let i = 0; i < BW; i++) {\n    const zr0 = (i / BW - 0.5) * zoom * aspect;\n    // zeta = (z - p) / (z - q)  (complex division) \u2014 conformal Mobius normal-form coord\n    const a1 = zr0 - pr, b1 = zi0 - pi;\n    const a2 = zr0 - qr, b2 = zi0 - qi;\n    const den = a2 * a2 + b2 * b2 + EPS;\n    const zr = (a1 * a2 + b1 * b2) / den;\n    const zi = (b1 * a2 - a1 * b2) / den;\n    const lm = 0.5 * Math.log(zr * zr + zi * zi + EPS); // log-radius\n    const ang = Math.atan2(zi, zr);                     // argument\n    // apply loxodromic flow: elliptic rotation on ang, hyperbolic breathe on lm\n    const angF = ang + flowAng;\n    const lmF = lm + flowBreath;\n    const cr = lmF * gR;\n    const ct = (angF * INV2PI) * gT + lmF * twist * gR * 0.5;\n    let r, gg, bb;\n    if (style === 'oil') {\n      // iridescent thin-film: smooth conformal color field, no checker\n      const iri = frac(lmF * 0.5 + (angF * INV2PI) * 2.0 + hueDrift * 1.8);\n      const c = pal(iri);\n      const sh = 0.42 + 0.4 * (0.5 + 0.5 * Math.sin(PI * cr)) + 0.15 * Math.sin(ct * 0.7);\n      const e = sh * expo;\n      r = c[0] * e; gg = c[1] * e; bb = c[2] * e;\n    } else if (style === 'mono') {\n      // op-art: hard black/white warped checker, no color\n      const sc = Math.sin(PI * cr) * Math.sin(PI * ct);\n      const mCk = 0.5 + 0.5 * Math.tanh(sc * 2.2);\n      const v = (0.16 + 0.68 * mCk) * (0.75 + 0.35 * expo);\n      r = gg = bb = Math.min(1, v);\n    } else if (style === 'polar') {\n      // blueprint polar grid: bright rings + spokes on dim tone\n      const dR = Math.abs(cr - Math.round(cr));\n      const dT = Math.abs(ct - Math.round(ct));\n      const lw = 0.14;\n      const ln = Math.max(0, 1 - dR / lw) * 0.9 + Math.max(0, 1 - dT / lw);\n      const base = pal(frac((angF * INV2PI) * 1.2 + hueDrift));\n      const lc = pal(frac((angF * INV2PI) * 1.2 + hueDrift + 0.15));\n      const li = Math.min(1.35, ln) * (0.7 + expo * 0.4 + A.treble * 0.6);\n      r = base[0] * 0.16 + lc[0] * li; gg = base[1] * 0.16 + lc[1] * li; bb = base[2] * 0.20 + lc[2] * li;\n    } else if (style === 'neon') {\n      // neon lattice: saturated glowing grid on near-black, wide falloff\n      const dR = Math.abs(cr - Math.round(cr));\n      const dT = Math.abs(ct - Math.round(ct));\n      const w1 = 0.42;\n      const glow = Math.max(0, 1 - dR / w1) + Math.max(0, 1 - dT / w1);\n      const c = pal(frac(ct * 0.09 + lmF * 0.04 + hueDrift));\n      const e = glow * (0.9 + expo * 0.5 + A.treble * 0.7) * 0.72;\n      r = c[0] * e + 0.03; gg = c[1] * e + 0.035; bb = c[2] * e + 0.05;\n    } else {\n      // checker (default): warped colored checkerboard, hue drift, fills frame\n      const sc = Math.sin(PI * cr) * Math.sin(PI * ct);\n      const mCk = 0.5 + 0.5 * Math.tanh(sc * 3.5);\n      const m = frac(ct * 0.11 + lmF * 0.05 + hueDrift);\n      const c = pal(m);\n      const bright = (0.30 + 0.62 * mCk) * expo;\n      const tint2 = 0.85 + 0.3 * mCk;\n      r = c[0] * bright; gg = c[1] * bright * tint2; bb = c[2] * bright;\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, bb * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n// audio-reactive vortex bloom at the fixed-point center (partial, never full-frame -> won't strobe)\nif ((A.bass > 0.02 || A.rms > 0.02) && P.energy > 0.02) {\n  const cxp = (fpx / (zoom * aspect) + 0.5) * width;\n  const cyp = (fpy / zoom + 0.5) * height;\n  push(); blendMode(ADD); noStroke();\n  const gl = (A.bass * 0.6 + A.rms * 0.4) * P.energy;\n  fill(frac(hb + 0.08) * 360, 40, 100, gl * 26);\n  const rad = Math.min(width, height) * (0.2 + gl * 0.5);\n  ellipse(cxp, cyp, rad, rad);\n  blendMode(BLEND); pop();\n}\n"
+}

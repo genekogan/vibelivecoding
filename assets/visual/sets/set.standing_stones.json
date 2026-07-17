@@ -1,0 +1,163 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.standing_stones",
+  "kind": "set",
+  "name": "Standing Stones",
+  "desc": "A megalithic ring set out in perspective \u2014 weathered monoliths leaning at their own angles with a few long fallen, lichen crusting the tooth of the rock \u2014 worked by a low sun that drifts steadily round the circle so the lit faces come up in a slow wave and the cast shadows sweep across the ground like the hand of a sundial, with mist creeping between the stones.",
+  "tags": [
+    "standing-stones",
+    "stones",
+    "stone",
+    "megalith",
+    "megalithic",
+    "monolith",
+    "menhir",
+    "dolmen",
+    "cromlech",
+    "henge",
+    "stonehenge",
+    "circle",
+    "ring",
+    "avebury",
+    "callanish",
+    "neolithic",
+    "prehistoric",
+    "ancient",
+    "archaeology",
+    "ritual",
+    "sacred",
+    "solstice",
+    "sundial",
+    "granite",
+    "sandstone",
+    "basalt",
+    "rock",
+    "boulder",
+    "weathered",
+    "eroded",
+    "lichen",
+    "moss",
+    "fallen",
+    "shadow",
+    "raking",
+    "light",
+    "sun",
+    "low-sun",
+    "mist",
+    "fog",
+    "moor",
+    "heath",
+    "austere",
+    "eerie",
+    "sublime",
+    "melancholy",
+    "pagan",
+    "lidar",
+    "pointcloud",
+    "scan",
+    "silhouette",
+    "scenery",
+    "mid-ground",
+    "set"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "strength of the sun \u2014 how hard the lit faces come up, plus mist and air glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "ring radius and stone height vs frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many stones stand in the ring (5-14), plus mist banks"
+    },
+    "weather": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.4,
+      "doc": "erosion, lichen colonies, and how many stones have gone over"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "how fast the sun travels round the ring (1 = a full circuit in ~2min)"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "rock hue (32 = weathered granite warm-grey; shadow and mist answer cold on the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "ring centre x as a canvas fraction"
+    },
+    "y": {
+      "default": 0.74,
+      "min": 0.3,
+      "max": 1.0,
+      "doc": "ring centre y as a canvas fraction \u2014 the ellipse of the circle sits on this"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "overall opacity \u2014 drop it to sit the ring back into the weather"
+    },
+    "style": {
+      "default": "granite",
+      "options": [
+        "granite",
+        "sandstone",
+        "basalt",
+        "lidar",
+        "ash"
+      ],
+      "doc": "granite: weathered warm-grey granite, mottled and stippled, lichen rosettes, modelled by the raking sun \u00b7 sandstone: eroded and warm, bedding planes laid bare, wind-scoured \u00b7 basalt: cold dark columnar rock, vertical fracture joints, hard and unforgiving \u00b7 lidar: not stone at all \u2014 an archaeological laser scan, each monolith existing only as false-coloured range returns, denser and hotter where the beam strikes square \u00b7 ash: pure silhouette \u2014 no interior, no texture, black masses standing against a lit mist"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "vigil",
+        "race"
+      ],
+      "doc": "drift: the sun makes its slow circuit of the ring \u00b7 vigil: near-frozen \u2014 a low moon barely moves and the mist does the breathing \u00b7 race: the day runs fast, shadows wheeling round the stones"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for stone placement, silhouette, lean, orientation and which have fallen"
+    }
+  },
+  "acts": [
+    "drift",
+    "vigil",
+    "race"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:35:08+00:00",
+    "fps": 60.2,
+    "motion": 0.0094,
+    "lum": 0.109
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, weather: .5, speed: 1, hue: 32, x: .5, y: .74, alpha: 1, style: 'granite', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:(v>b?b:v), md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst sd=P.seed|0;\nconst fr=i=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lb==null||K.beat<S.lb)S.lb=K.beat; S.lb=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style;\nconst sand=(sty==='sandstone'), bas=(sty==='basalt'), lidar=(sty==='lidar'), ash=(sty==='ash');\nconst H=md(P.hue,360), AL=cl(P.alpha,0,1);\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.4), dens=cl(P.density,0,1);\nconst spd=cl(P.speed,.1,4), wx=cl(P.weather,0,1.4), act=P.act;\nconst cx=cl(P.x,.05,.95)*W, cy=cl(P.y,.3,1.0)*Hh;\nconst rx=u*.44*sc, ry=rx*.30;\nconst NST=Math.max(4,Math.round(5+dens*9));\n\nS.bass=(S.bass||0)*.85+(A.bass||0)*.15;\nconst T=K.t*spd;\nconst glow=(.32+.78*en)*(.55+.5*K.intensity)+S.bass*.25;\n\n// ---- the sun: a MONOTONIC drift + two incommensurate wobbles.\n// The wobble amplitudes are deliberately held BELOW the linear term's 8s\n// travel, so |la(t+8)-la(t)| has a hard floor (~0.20 rad) no matter when the\n// motion gate samples. A wobble big enough to cancel the drift is exactly how\n// a \"clearly moving\" piece reads STATIC 8s later \u2014 so it isn't allowed to.\nlet la=T*.048+.26*Math.sin(T*.047)+.10*Math.sin(T*.113);\nlet le=.34+.26*Math.sin(T*.019+1.2)+.08*Math.sin(T*.061);\nif(act==='vigil'){ la=T*.018+.14*Math.sin(T*.029); le=.16+.07*Math.sin(T*.017); }\nelse if(act==='race'){ la=T*.095+.40*Math.sin(T*.071); }\nle=cl(le,.07,.72);\nconst shLen=cl(1/Math.max(.10,le),1.2,9)*ry*.42;    // low sun -> long shadows\n\n// ---- seeded ring plan -----------------------------------------------------\nfunction plan(){\n  const st=[];\n  for(let i=0;i<NST;i++){\n    const a=(i/NST)*TAU+(fr(i*3.7)-.5)*(TAU/NST)*.5;\n    const dep=(Math.sin(a)+1)*.5;                    // 0 far (back of ring) .. 1 near\n    const per=.42+.80*dep;                           // perspective\n    const h=u*.30*sc*(.62+.52*fr(i*3.7+1))*per;\n    const w=h*(.22+.20*fr(i*3.7+2));\n    const fallen=fr(i*3.7+3)>(.80-wx*.16);\n    const verts=[];\n    const NV=9;\n    for(let k=0;k<NV;k++){                            // an irregular weathered column\n      const q=k/NV;\n      const side=(k<NV/2)?-1:1;\n      const t2=(k<NV/2)?(k/(NV/2)):(1-(k-NV/2)/(NV/2));\n      const taper=.62+.38*(1-t2);\n      const jag=(fr(i*3.7+10+k)-.5)*.34;\n      verts.push({sx:side*w*.5*taper*(1+jag), sy:-h*t2});\n    }\n    st.push({ a:a, dep:dep, h:h, w:w, fallen:fallen, verts:verts,\n      ori:fr(i*3.7+4)*TAU, lean:(fr(i*3.7+5)-.5)*.30, per:per });\n  }\n  st.sort((p,q)=>p.dep-q.dep);                        // far stones first\n  return st;\n}\n\nconst pkey=[sd,NST,Math.round(sc*40),Math.round(wx*6),Math.round(P.x*120),Math.round(P.y*120),W,Hh].join('|');\nif(!S.plan||S.pk!==pkey){ S.plan=plan(); S.pk=pkey; }\nconst st=S.plan;\n\n// ---- cached rock grain: one small tile, stretched under a compound clip ----\nconst gkey=[sty,sd,Math.round(H),Math.round(wx*6)].join('|');\nif(!S.grain||S.gk!==gkey){\n  const GN=220;\n  const g=(S.grain&&S.grain.width===GN)?S.grain:createGraphics(GN,GN);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  // mottling: broad tonal blotches so the rock is never one flat value\n  for(let k=0;k<180;k++){\n    const bx2=fr(k*1.7)*GN, by2=fr(k*1.7+1)*GN, rr=GN*(.03+fr(k*1.7+2)*.14);\n    g.fill(md(H+(fr(k*1.7+3)-.5)*24,360), sand?16:(bas?8:10), fr(k*1.7+4)>.5?68:16, 9);\n    g.ellipse(bx2,by2,rr*2.2,rr*1.7);\n  }\n  // stipple: the tooth of the stone\n  for(let k=0;k<2600;k++){\n    const bx2=fr(k*2.3+7)*GN, by2=fr(k*2.3+8)*GN;\n    const up=fr(k*2.3+9)>.5;\n    g.fill(md(H+(fr(k*2.3+10)-.5)*30,360), sand?20:10, up?78:8, 12+fr(k*2.3+11)*16);\n    g.rect(bx2,by2,GN*.004*(1+fr(k*2.3+12)*2),GN*.004*(1+fr(k*2.3+12)));\n  }\n  if(sand){ // bedding planes: sandstone is laid down in strata\n    for(let k=0;k<26;k++){\n      const yy=fr(k*5.1+3)*GN;\n      g.fill(md(H-6,360),24,fr(k*5.1+4)>.5?62:12,14);\n      g.rect(0,yy,GN,GN*(.004+fr(k*5.1+5)*.014));\n    }\n  }\n  if(bas){ // columnar basalt: hexagonal fracture, vertical joints\n    g.noFill();\n    for(let k=0;k<20;k++){\n      g.stroke(md(H+180,360),8,fr(k*7.3)>.5?58:4,18);\n      g.strokeWeight(GN*.004);\n      g.line(fr(k*7.3+1)*GN,0,fr(k*7.3+1)*GN+GN*.06,GN);\n    }\n    g.noStroke();\n  }\n  // lichen: the only living thing on the stone \u2014 rosettes, not a wash\n  const NL=Math.round(wx*70);\n  for(let k=0;k<NL;k++){\n    const bx2=fr(k*3.1+40)*GN, by2=fr(k*3.1+41)*GN, rr=GN*(.008+fr(k*3.1+42)*.030);\n    const lh=md(H+fr(k*3.1+43)*44+40,360);\n    g.fill(lh,34+fr(k*3.1+44)*22,44+fr(k*3.1+45)*26,22);\n    g.ellipse(bx2,by2,rr*2,rr*1.8);\n    for(let q=0;q<6;q++){\n      g.fill(lh,40,58,24);\n      g.ellipse(bx2+Math.cos(q*1.05)*rr*.7,by2+Math.sin(q*1.05)*rr*.6,rr*.5,rr*.45);\n    }\n  }\n  S.grain=g; S.gk=gkey;\n}\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst lightX=Math.cos(la), lightY=Math.sin(la);\n\n// ---- cast shadows first: the ring is a sundial, and this is the hand -------\n// they sweep a large area as the sun drifts \u2014 the piece's main motion\nif(!ash){\n  dc.globalCompositeOperation='source-over';\n  noStroke();\n  for(let i=0;i<st.length;i++){\n    const s=st[i];\n    if(lidar) break;\n    const px=cx+Math.cos(s.a)*rx, py=cy+Math.sin(s.a)*ry;\n    const len=shLen*(.5+.9*s.per)*(s.fallen?.4:1);\n    const ex=px-lightX*len, ey=py-lightY*len*.34;\n    const hw=s.w*.5*(.8+.5*le);\n    fill(md(H+186,360),18,3,cl(26*(.4+.6*glow),0,34)*AL);\n    beginShape();\n    vertex(px-hw,py); vertex(px+hw,py);\n    vertex(ex+hw*.5,ey); vertex(ex-hw*.5,ey);\n    endShape(CLOSE);\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- the stones -----------------------------------------------------------\nconst bodies=[];\nfor(let i=0;i<st.length;i++){\n  const s=st[i];\n  const px=cx+Math.cos(s.a)*rx, py=cy+Math.sin(s.a)*ry;\n  // how squarely this stone faces the sun \u2014 the whole ring lights in a slow wave\n  const facing=Math.cos(la-s.ori);\n  const litAmt=cl(.5+.5*facing,0,1);\n  const haze=cl(.30+.70*s.dep,0,1);          // far side of the ring sits back in air\n\n  push();\n  translate(px,py);\n  if(s.fallen){ rotate(Math.PI*.5*(s.lean>0?1:-1)*.92); translate(0,-s.w*.5); }\n  else rotate(s.lean*.5);\n\n  const path=[];\n  for(const v of s.verts) path.push({x:v.sx,y:v.sy});\n  // remember the silhouette in screen space so the grain can be clipped to it\n  bodies.push({s:s,px:px,py:py,path:path,fallen:s.fallen,lean:s.lean});\n\n  if(lidar){\n    // an archaeological laser scan: the stone exists only as returns,\n    // denser and hotter where the beam hits square\n    noStroke();\n    const step=Math.max(3,s.h*.055);\n    for(let yy=-s.h;yy<=0;yy+=step){\n      for(let xx=-s.w*.6;xx<=s.w*.6;xx+=step){\n        let inside=false, n=path.length;\n        for(let a2=0,b2=n-1;a2<n;b2=a2++){\n          if(((path[a2].y>yy)!==(path[b2].y>yy))&&\n             (xx<(path[b2].x-path[a2].x)*(yy-path[a2].y)/(path[b2].y-path[a2].y)+path[a2].x)) inside=!inside;\n        }\n        if(!inside) continue;\n        const hgt=cl(-yy/Math.max(1,s.h),0,1);\n        fill(md(H+40+240*hgt,360),72,cl(38+54*litAmt,10,98),cl((36+44*litAmt)*haze,0,92)*AL);\n        circle(xx,yy,Math.max(1,step*.34));\n      }\n    }\n  } else {\n    // the mass: dark, and lit only as far as the sun reaches round the ring\n    let bs,bb;\n    if(ash){ bs=10; bb=3+7*litAmt; }\n    else if(bas){ bs=8+6*litAmt; bb=(5+34*litAmt)*(.45+.65*haze); }\n    else if(sand){ bs=22+10*litAmt; bb=(10+52*litAmt)*(.45+.65*haze); }\n    else { bs=8+8*litAmt; bb=(7+44*litAmt)*(.45+.65*haze); }\n    fill(md(H+(ash?186:0),360),cl(bs,0,50),cl(bb,2,92),96*AL);\n    beginShape(); for(const v of path) vertex(v.x,v.y); endShape(CLOSE);\n\n    // the sun rakes ACROSS the slab: a directional falloff, clipped to the\n    // stone, sweeping side to side as the azimuth drifts round the ring\n    if(!ash&&litAmt>.04){\n      const side=Math.sign(Math.sin(la-s.ori))||1;\n      dc.save();\n      dc.beginPath();\n      for(let k=0;k<path.length;k++){\n        if(k===0) dc.moveTo(path[k].x,path[k].y); else dc.lineTo(path[k].x,path[k].y);\n      }\n      dc.closePath(); dc.clip();\n      dc.globalCompositeOperation='lighter';\n      const gx0=-side*s.w*.62, gx1=side*s.w*.62;\n      const lgr=dc.createLinearGradient(gx0,0,gx1,0);\n      const warm=sand?'255,214,150':(bas?'198,216,255':'255,236,206');\n      const pk=(0.30+0.46*glow)*litAmt*AL*(.4+.7*haze);\n      lgr.addColorStop(0,'rgba('+warm+','+pk.toFixed(3)+')');\n      lgr.addColorStop(.45,'rgba('+warm+','+(pk*.34).toFixed(3)+')');\n      lgr.addColorStop(1,'rgba('+warm+',0)');\n      dc.fillStyle=lgr;\n      dc.fillRect(-s.w,-s.h*1.05,s.w*2,s.h*1.15);\n      dc.globalCompositeOperation='source-over';\n      dc.restore();\n    }\n    // ambient occlusion where the stone meets the ground \u2014 it must sit, not float\n    fill(md(H+186,360),16,2,cl(40*haze,0,44)*AL);\n    ellipse(0,0,s.w*1.5,s.w*.34);\n  }\n  pop();\n}\n\n// ---- rock texture: one compound clip, one stretched grain tile ------------\nif(!lidar&&!ash){\n  dc.save();\n  dc.beginPath();\n  for(const b of bodies){\n    const s=b.s;\n    const rot=b.fallen?(Math.PI*.5*(b.lean>0?1:-1)*.92):(b.lean*.5);\n    const ca=Math.cos(rot), sa2=Math.sin(rot);\n    const oy=b.fallen?-s.w*.5:0;\n    for(let k=0;k<b.path.length;k++){\n      const v=b.path[k];\n      const vy=v.y+oy;\n      const X=b.px+v.x*ca-vy*sa2, Y=b.py+v.x*sa2+vy*ca;\n      if(k===0) dc.moveTo(X,Y); else dc.lineTo(X,Y);\n    }\n    dc.closePath();\n  }\n  dc.clip();\n  const bw=rx*2.4, bh=u*.9*sc;\n  tint(0,0,100,cl(70+30*glow,0,100)*AL);\n  image(S.grain,cx-bw*.5,cy-bh*.86,bw,bh);\n  image(S.grain,cx-bw*.5+bw*.37,cy-bh*.4,bw*.8,bh*.7);\n  noTint();\n  dc.restore();\n}\n\n// ---- ground mist creeping through the ring \u2014 a real process, low and slow --\nif(act!=='race'){\n  dc.globalCompositeOperation='lighter';\n  noStroke();\n  const NM=Math.round(10+dens*14);\n  for(let k=0;k<NM;k++){\n    const ph=md(T*.013+fr(k*4.3),1);\n    const a2=fr(k*4.3+1)*TAU;\n    const mx=cx+Math.cos(a2+T*.021)*rx*(.3+1.25*ph);\n    const my=cy+Math.sin(a2)*ry*(.4+.9*ph)+Math.sin(T*.09+k)*ry*.06;\n    const rr=u*(.05+.10*fr(k*4.3+2))*(.5+ph)*sc;\n    const aa=Math.sin(ph*Math.PI)*(0.030+0.055*glow)*AL;\n    if(aa<=.002) continue;\n    fill(md(H+180,360),cl(10-6*ph,0,18),cl(56+26*ph,0,96),aa*100);\n    ellipse(mx,my,rr*3.0,rr*.82);\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- the sun's own light in the air behind the ring -----------------------\n{\n  dc.globalCompositeOperation='lighter';\n  const sx2=cx+lightX*rx*1.25, sy2=cy+lightY*ry*.9-u*.05*le;\n  const rr=u*(.24+.14*le)*sc;\n  const hg=dc.createRadialGradient(sx2,sy2,0,sx2,sy2,Math.max(4,rr));\n  const ha=(0.05+0.10*glow)*AL;\n  const warm=ash?'210,226,255':(bas?'190,210,255':'255,214,158');\n  hg.addColorStop(0,'rgba('+warm+','+ha.toFixed(3)+')');\n  hg.addColorStop(1,'rgba('+warm+',0)');\n  dc.fillStyle=hg; dc.fillRect(sx2-rr,sy2-rr,rr*2,rr*2);\n  dc.globalCompositeOperation=oldOp;\n}\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0;\nnoStroke(); noTint();\n"
+}

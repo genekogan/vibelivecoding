@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spectrogram",
+  "kind": "genart",
+  "name": "Spectrogram Waterfall",
+  "desc": "A scrolling audio-waterfall spectrogram where drifting synthetic formants, harmonic combs and diagonal chirp-sweeps burn magma-hot ridges into a dark ground and cascade downward through frequency-time, driven by live FFT when present.",
+  "tags": [
+    "spectrogram",
+    "waterfall",
+    "fft",
+    "audio",
+    "frequency",
+    "spectrum",
+    "signal",
+    "sonogram",
+    "scrolling",
+    "cascade",
+    "magma",
+    "inferno",
+    "thermal",
+    "heatmap",
+    "formant",
+    "harmonic",
+    "sweep",
+    "chirp",
+    "scientific",
+    "radio",
+    "ham",
+    "viridis",
+    "phosphor",
+    "hot",
+    "ridges",
+    "print",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / ridge brightness (higher = hotter)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "spectral richness (formant + harmonic + sweep count)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.35,
+      "max": 2.5,
+      "doc": "frequency zoom (feature size along the freq axis)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "scroll + spectral drift rate"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how far formant peaks wander in frequency"
+    },
+    "hue": {
+      "default": 25,
+      "min": 0,
+      "max": 360,
+      "doc": "colormap hue rotation (0 offset at 25=magma anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "frequency pan"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "noise-floor / haze brightness"
+    },
+    "style": {
+      "default": "magma",
+      "options": [
+        "magma",
+        "inferno",
+        "viridis",
+        "ice",
+        "phosphor",
+        "mono"
+      ],
+      "doc": "colormap philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic formant bank"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:47:16+00:00",
+    "fps": 59.9,
+    "motion": 0.304,
+    "lum": 0.471
+  },
+  "code": "const D = { energy: .62, density: .55, scale: 1, speed: 1, drift: .5, hue: 25, x: .5, y: .5, style: 'magma', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 256, BH = 160, rowB = BW * 4;\nif (!S.g || S.bw !== BW) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.needFill = true; S.acc = 0; }\nconst g = S.g;\n\n// seed-deterministic value noise + formant bank\nfunction hsh(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed|0) * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const u = fx*fx*(3-2*fx), v = fy*fy*(3-2*fy); const a = hsh(ix,iy), b = hsh(ix+1,iy), c = hsh(ix,iy+1), d = hsh(ix+1,iy+1); return a + (b-a)*u + (c-a)*v + (a-b-c+d)*u*v; }\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n  S.forms = [];\n  for (let k = 0; k < 8; k++) {\n    S.forms.push({ c0: 0.06 + fr(k*3+1)*0.9, rate: 0.04 + fr(k*3+2)*0.22, phase: fr(k*3+3)*6.28, w: 0.01 + fr(k*7+4)*0.035, h: 0.4 + fr(k*7+5)*0.6 });\n  }\n  S.f0 = 0.05 + fr(90)*0.04;\n  S.needFill = true;\n}\n\n// colormap stops (rgb 0..1), 5 anchors\nconst MAPS = {\n  magma:  [[0,0,.02],[.28,.06,.42],[.68,.19,.42],[.98,.55,.38],[.99,.96,.86]],\n  inferno:[[0,0,.02],[.30,.06,.35],[.72,.21,.30],[.97,.55,.04],[.98,1,.64]],\n  viridis:[[.27,0,.33],[.23,.32,.55],[.13,.57,.55],[.37,.79,.38],[.99,.91,.15]],\n  ice:    [[.01,.02,.10],[.04,.16,.40],[.12,.42,.72],[.47,.71,.90],[.90,.96,1]],\n  phosphor:[[0,.03,.02],[0,.20,.09],[.08,.55,.18],[.47,.86,.31],[.78,1,.71]],\n  mono:   [[0,0,0],[.22,.22,.22],[.5,.5,.5],[.78,.78,.78],[1,1,1]]\n};\nconst stops = MAPS[P.style] || MAPS.magma;\nfunction lut(m) { if (m<=0) return stops[0]; if (m>=1) return stops[4]; const s = m*4, k = s|0, f = s-k; const a = stops[k], b = stops[k+1]; return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }\n\n// hue rotation (applied per bin, not per pixel)\nconst ha = ((P.hue - 25)) * Math.PI / 180, useHue = Math.abs(ha) > 0.001;\nconst cw = Math.cos(ha), sw = Math.sin(ha);\nconst m00=.213+cw*.787-sw*.213, m01=.715-cw*.715-sw*.715, m02=.072-cw*.072+sw*.928;\nconst m10=.213-cw*.213+sw*.143, m11=.715+cw*.285+sw*.140, m12=.072-cw*.072-sw*.283;\nconst m20=.213-cw*.213-sw*.787, m21=.715-cw*.715+sw*.715, m22=.072+cw*.928+sw*.072;\n\n// per-frame drivers\nconst t = K.t, spd = 0.5 + P.speed * 1.0, dr = 0.35 + P.drift * 1.1;\nconst sec = K.section | 0, inten = K.intensity;\nconst zoom = 0.4 + P.scale * 1.2, pan = (P.x - 0.5) * 0.6;\nconst floorLv = 0.06 + P.y * 0.15;\nconst expo = 0.30 + P.energy * 1.15 + inten * 0.28 + A.rms * 0.85;\nconst activeN = Math.max(2, Math.min(8, 2 + Math.round(P.density*4 + (sec % 3))));\nconst nHarm = Math.max(2, Math.round(2 + P.density*4));\nconst nSweep = Math.max(1, Math.min(3, 1 + Math.round(P.density*1.5 + inten*1.2)));\nconst f0 = S.f0 * (0.85 + 0.5 * (0.5 + 0.5*Math.sin(t*0.05*spd + sec*0.6)));\nconst hasFft = A.fft && A.fft.length > 4;\n\n// synthesize the newest spectrum column -> rgb bytes\nconst col = S.col || (S.col = new Uint8ClampedArray(BW * 3));\nfor (let i = 0; i < BW; i++) {\n  const raw = i / BW;\n  let f = 0.5 + (raw - 0.5) / zoom + pan;      // frequency coord (feature space)\n  let mag = floorLv + 0.05 * vn(f * 11 + 4.0, t * 0.5);\n  for (let k = 0; k < activeN; k++) {\n    const fm = S.forms[k];\n    const c = fm.c0 + Math.sin(t * fm.rate * spd + fm.phase) * 0.22 * dr;\n    const d = f - c; mag += fm.h * Math.exp(-(d*d) / (fm.w*fm.w));\n  }\n  for (let s = 0; s < nSweep; s++) {\n    let c = ((t * (0.035 + 0.028*s) * spd + s * 0.37) % 1 + 1) % 1;\n    const d = f - c; mag += 0.55 * Math.exp(-(d*d) / 0.0008);\n  }\n  for (let n = 1; n <= nHarm; n++) {\n    const c = n * f0; if (c > 1.05) break;\n    const d = f - c; mag += (0.5 / n) * Math.exp(-(d*d) / 0.0003);\n  }\n  // audio on top (baseline carries when zero)\n  if (hasFft) { const fi = Math.min(A.fft.length - 1, (raw * A.fft.length) | 0); let v = A.fft[fi] || 0; if (v > 1) v /= 255; mag += v * 1.3; }\n  mag += (A.bass * (1 - raw) + A.treble * raw + A.mid * 0.5) * 0.45;\n\n  let m = mag * expo; m = m > 0 ? Math.pow(m > 1 ? 1 : m, 0.82) : 0;\n  let c = lut(m), r = c[0], gr = c[1], bl = c[2];\n  if (useHue) { const nr = r*m00+gr*m01+bl*m02, ng = r*m10+gr*m11+bl*m12, nb = r*m20+gr*m21+bl*m22; r = nr; gr = ng; bl = nb; }\n  const o = i * 3;\n  col[o] = r * 255; col[o+1] = gr * 255; col[o+2] = bl * 255;\n}\n\n// scroll the waterfall down; write newest column into the top band\ng.loadPixels();\nconst px = g.pixels;\nif (S.needFill) {\n  for (let j = 0; j < BH; j++) { const rb = j * rowB; for (let i = 0; i < BW; i++) { const o = rb + i*4, c3 = i*3; px[o]=col[c3]; px[o+1]=col[c3+1]; px[o+2]=col[c3+2]; px[o+3]=255; } }\n  S.needFill = false; S.acc = 0;\n} else {\n  S.acc += 0.05 + P.speed * 0.11 + inten * 0.05 + A.rms * 0.6;\n  let sp = S.acc | 0; if (sp < 1) sp = 1; if (sp > 3) sp = 3; S.acc -= sp;\n  px.copyWithin(sp * rowB, 0, (BH - sp) * rowB);\n  for (let j = 0; j < sp; j++) { const rb = j * rowB; for (let i = 0; i < BW; i++) { const o = rb + i*4, c3 = i*3; px[o]=col[c3]; px[o+1]=col[c3+1]; px[o+2]=col[c3+2]; px[o+3]=255; } }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

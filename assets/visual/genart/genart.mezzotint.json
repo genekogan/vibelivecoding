@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mezzotint",
+  "kind": "genart",
+  "name": "Mezzotint Ground",
+  "desc": "A copper plate rocked all over until it prints solid velvet black, then burnished back into light \u2014 heavy volumes surface out of the dark with no outline at all, only a raking lamp crawling across them, the burr grain never quite scraped away.",
+  "tags": [
+    "mezzotint",
+    "intaglio",
+    "engraving",
+    "rocker",
+    "burr",
+    "burnish",
+    "copper",
+    "plate",
+    "print",
+    "printmaking",
+    "chiaroscuro",
+    "tonal",
+    "velvet",
+    "black",
+    "dark",
+    "monochrome",
+    "grain",
+    "aquatint",
+    "sepia",
+    "bister",
+    "xray",
+    "volume",
+    "sculptural",
+    "raking-light",
+    "austere",
+    "sublime",
+    "melancholy",
+    "antique",
+    "old-master",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the raking lamp bites \u2014 relief exaggeration, specular burnish, x-ray density"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many volumes are worked into the plate (3 to 10)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the drifting volumes and the lamp"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "size of the volumes against the plate"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue \u2014 32 is a warm printer's black, drives paper and toning too"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the worked area, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the worked area, y"
+    },
+    "grain": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how much rocker burr survives the burnishing"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "act": {
+      "default": "rock",
+      "options": [
+        "rock",
+        "burnish",
+        "bite"
+      ],
+      "doc": "multi-minute program: steady plate / the lights are worked open and re-rocked / the tonal range compresses through aquatint bite stages"
+    },
+    "style": {
+      "default": "mezzotint",
+      "options": [
+        "mezzotint",
+        "aquatint",
+        "chiaroscuro",
+        "bister",
+        "xray"
+      ],
+      "doc": "aesthetic: velvet warm-black burr / hard-stepped tonal bite with rosin speckle / smooth outline-free light modelling, no grain / warm sepia old-master proof / clinical negative built from accumulated density instead of surface light"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic plate \u2014 rocker ground, volume placement and sizes"
+    }
+  },
+  "acts": [
+    "rock",
+    "burnish",
+    "bite"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:21+00:00",
+    "fps": 60.2,
+    "motion": 0.1567,
+    "lum": 0.17
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 32, speed: 1, scale: 1, x: .5, y: .5, grain: .6, act: 'rock', style: 'mezzotint', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);\n  const a = hsh(xi, yi), b = hsh(xi + 1, yi), c = hsh(xi, yi + 1), d = hsh(xi + 1, yi + 1);\n  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;\n};\nconst fbm = (x, y, o) => { let s = 0, am = .5, f = 1; for (let i = 0; i < o; i++) { s += am * vn(x * f, y * f); am *= .5; f *= 2.03; } return s; };\nconst hsv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\n\n// ---- buffers ---------------------------------------------------------------\nconst GW = 176, GH = Math.max(72, Math.round(GW * height / width));\nif (!S.g || S.gw !== GW || S.gh !== GH) {\n  if (S.g && S.g.remove) S.g.remove();\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1); S.gw = GW; S.gh = GH; S.gr = null;\n}\nif (!S.gr || S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const nn = GW * GH;\n  S.gr = new Float32Array(nn); S.pt = new Float32Array(nn);\n  S.ff = new Float32Array(nn); S.zz = new Float32Array(nn); S.dd = new Float32Array(nn);\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n    const i = y * GW + x;\n    const a = hsh(x * 1.7 + y * .31, y * 1.9 + x * .23);\n    const b = hsh(x * .61 - y * 1.13 + 91.3, y * .77 + x * .41 + 17.7);\n    const c = vn(x * .9 + y * .22, y * .9 - x * .18);\n    S.gr[i] = clp(a * .55 + b * .25 + c * .35 - .075, 0, 1);\n    S.pt[i] = fbm(x * .021, y * .021, 4);\n  }\n}\n\n// fine rocker burr, cached near canvas scale (low-res field can't carry it)\nconst TW = Math.max(300, Math.min(760, Math.round(width * .5)));\nconst TH = Math.max(180, Math.round(TW * height / width));\nif (!S.tile || S.tw !== TW || S.th !== TH || S.tseed !== P.seed || S.tsty !== P.style) {\n  if (S.tile && S.tile.remove) S.tile.remove();\n  S.tile = createGraphics(TW, TH); S.tile.pixelDensity(1);\n  S.tw = TW; S.th = TH; S.tseed = P.seed; S.tsty = P.style;\n  const rough = P.style === 'aquatint' ? 1.4 : (P.style === 'chiaroscuro' ? .3 : (P.style === 'xray' ? .55 : 1));\n  S.tile.loadPixels(); const tp = S.tile.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    const h1 = hsh(x * .917 + y * .113, y * .983 + x * .071);\n    const h2 = hsh(x * .317 - y * .451 + 31.7, y * .293 + x * .617 + 53.1);\n    let b = Math.pow(clp(h1 * .7 + h2 * .5 - .1, 0, 1), .85);\n    // the rocker is walked over the plate in criss-cross passes\n    b = b * .8 + .2 * (.5 + .5 * Math.sin((x + y) * 1.93 + h2 * 3.1)) * (.6 + .4 * Math.sin((x - y) * 1.71 + h1 * 2.7));\n    const v = 255 - 122 * b * rough;\n    const o = 4 * (y * TW + x); tp[o] = v; tp[o + 1] = v; tp[o + 2] = v; tp[o + 3] = 255;\n  }\n  S.tile.updatePixels();\n}\n\nconst n = GW * GH, FF = S.ff, ZZ = S.zz, DD = S.dd, GR = S.gr, PT = S.pt;\nFF.fill(0); DD.fill(0);\n\nconst sp = Math.max(.1, P.speed);\nconst en = clp(P.energy, 0, 1);\nconst st = P.style;\n\n// ---- act: multi-minute proofing programs -----------------------------------\nlet burn = 1, wander = 1, comp = 1;\nif (P.act === 'burnish') {\n  burn = .70 + .80 * (.5 + .5 * Math.sin(K.t * .0113 + .7 * Math.sin(K.t * .0041 + 1.9)));\n} else if (P.act === 'bite') {\n  comp = .58 + .86 * (.5 + .5 * Math.sin(K.t * .0087 + 1.3)); wander = 1.45;\n} else {\n  burn = .86 + .30 * (.5 + .5 * Math.sin(K.t * .0071 + .6 * Math.sin(K.t * .0029 + 2.2)));\n}\nburn *= (.82 + .40 * K.intensity);\n\n// ---- the forms: volumes wandering under the burnisher -----------------------\nconst nb = 3 + Math.round(clp(P.density, 0, 1) * 7);\nconst sc = Math.max(.35, P.scale);\nconst bx = [], by = [], br = [], bz = [], bw = [];\nfor (let i = 0; i < nb; i++) {\n  const ph = i * 2.3999 + fr(i * 3 + 1) * 6.283;\n  const ax = (.26 + .17 * fr(i * 5 + 2)) * wander, ay = (.20 + .15 * fr(i * 5 + 3)) * wander;\n  const cx = (P.x - .5) + ax * Math.sin(K.t * .041 * sp + ph) + .42 * ax * Math.sin(K.t * .0971 * sp + ph * 1.7);\n  const cy = (P.y - .5) + ay * Math.sin(K.t * .053 * sp + ph * 1.3) + .40 * ay * Math.sin(K.t * .1131 * sp + ph * 2.1);\n  bx.push((.5 + cx) * GW); by.push((.5 + cy) * GH);\n  br.push(GW * (.13 + .15 * fr(i * 7 + 4)) * sc * (.9 + .16 * Math.sin(K.t * .083 * sp + ph * 2.7) + .1 * K.swell + .28 * A.bass));\n  bz.push(fr(i * 11 + 5)); bw.push(.75 + .55 * fr(i * 13 + 6));\n}\nfor (let i = 0; i < nb; i++) {\n  const cx = bx[i], cy = by[i], R = Math.max(2, br[i]), w = bw[i], z = bz[i], R2 = R * R;\n  const x0 = Math.max(0, Math.floor(cx - R)), x1 = Math.min(GW - 1, Math.ceil(cx + R));\n  const y0 = Math.max(0, Math.floor(cy - R)), y1 = Math.min(GH - 1, Math.ceil(cy + R));\n  for (let y = y0; y <= y1; y++) {\n    const dy = y - cy, dy2 = dy * dy, row = y * GW;\n    for (let x = x0; x <= x1; x++) {\n      const dx = x - cx, q = (dx * dx + dy2) / R2;\n      if (q < 1) { const s = 1 - q, c = w * s * s, j = row + x; FF[j] += c; DD[j] += c * z; }\n    }\n  }\n}\nconst thr = .20;\nfor (let i = 0; i < n; i++) { const f = FF[i]; ZZ[i] = f > thr ? Math.sqrt(f - thr) : 0; }\n\n// ---- raking light (two incommensurate rates => never re-phases) -------------\nconst az = K.t * .19 * sp + .85 * Math.sin(K.t * .071) + .30 * Math.sin(K.t * .163 + 1.1);\nlet lx = Math.cos(az), ly = Math.sin(az) * .78, lz = .60 - .24 * Math.sin(K.t * .047 + 1.4);\nconst ll = Math.sqrt(lx * lx + ly * ly + lz * lz); lx /= ll; ly /= ll; lz /= ll;\nconst ex = 9 + en * 20;\nconst ga = clp(P.grain, 0, 1) * (st === 'chiaroscuro' ? .12 : 1);\nconst hb = ((P.hue % 360) + 360) % 360;\n\nlet inkH = hb, inkS = .38, inkV = .055, papH = hb + 8, papS = .10, papV = .93;\nif (st === 'aquatint') { inkH = hb + 180; inkS = .30; inkV = .07; papH = hb + 172; papS = .07; papV = .90; }\nelse if (st === 'chiaroscuro') { inkS = .14; inkV = .035; papS = .04; papV = .97; }\nelse if (st === 'bister') { inkH = hb - 8; inkS = .68; inkV = .16; papH = hb + 12; papS = .22; papV = .92; }\n\nconst g = S.g; g.loadPixels(); const pix = g.pixels;\nfor (let y = 0; y < GH; y++) {\n  const yc = y * GW, yu = Math.max(0, y - 1) * GW, yd = Math.min(GH - 1, y + 1) * GW;\n  for (let x = 0; x < GW; x++) {\n    const i = yc + x, xl = Math.max(0, x - 1), xr = Math.min(GW - 1, x + 1), o = 4 * i;\n    if (st === 'xray') {\n      const f = FF[i];\n      const dsq = 1 - Math.exp(-f * (1.5 + en * 2.4) * burn * comp);\n      const edge = Math.min(1, (Math.abs(FF[yc + xr] - FF[yc + xl]) + Math.abs(FF[yd + x] - FF[yu + x])) * 2.2);\n      const v = clp(.11 + dsq * .74 + edge * .34 + (GR[i] - .5) * ga * .09 + PT[i] * .05, 0, 1);\n      const c1 = hsv(hb + 172 + dsq * 16, .32 - dsq * .24, v);\n      pix[o] = c1[0]; pix[o + 1] = c1[1]; pix[o + 2] = c1[2]; pix[o + 3] = 255;\n      continue;\n    }\n    const z = ZZ[i];\n    let tone;\n    if (z > 0) {\n      const dzdx = (ZZ[yc + xr] - ZZ[yc + xl]) * ex, dzdy = (ZZ[yd + x] - ZZ[yu + x]) * ex;\n      const nl = (-dzdx * lx - dzdy * ly + lz) / Math.sqrt(dzdx * dzdx + dzdy * dzdy + 1);\n      const dif = nl > 0 ? nl : 0;\n      const dep = FF[i] > 0 ? DD[i] / FF[i] : .5;\n      const spec = Math.pow(dif, 26) * (.22 + en * .70);\n      tone = .06 + (.15 + .60 * burn) * dif + spec;\n      tone *= (.60 + .44 * (1 - dep));\n      tone *= (.84 + .32 * Math.min(1, z * 1.5));\n    } else {\n      tone = .035 + .060 * PT[i] * burn;\n    }\n    tone = clp(tone * comp, 0, 1);\n    if (st === 'aquatint') tone = Math.floor(tone * 5 + .5) / 5;\n    else if (st === 'bister') tone = .10 + tone * .82;\n    const gwt = 4 * tone * (1 - tone);\n    const tg = clp(tone + (GR[i] - .5) * ga * .9 * gwt, 0, 1);\n    const c0 = hsv(inkH + (papH - inkH) * tg, inkS + (papS - inkS) * tg, inkV + (papV - inkV) * tg);\n    pix[o] = c0[0]; pix[o + 1] = c0[1]; pix[o + 2] = c0[2]; pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- composite: tonal plate, then the fine burr on top ---------------------\nconst dc = drawingContext;\nconst la = clp(P.alpha, 0, 100) / 100;\nblendMode(BLEND);\ndc.globalAlpha = la;\ndc.drawImage(g.drawingContext.canvas, 0, 0, width, height);\nif (ga > .01 && la > .01) {\n  blendMode(MULTIPLY);\n  dc.globalAlpha = la * ga * .9;\n  dc.drawImage(S.tile.drawingContext.canvas, 0, 0, width, height);\n}\ndc.globalAlpha = 1;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

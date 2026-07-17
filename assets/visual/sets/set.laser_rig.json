@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.laser_rig",
+  "kind": "set",
+  "name": "Laser Rig",
+  "desc": "A lighting truss of moving-head fixtures throwing volumetric beams that fan, scan, crossfire and wave per section, brightness strobing on the treble.",
+  "tags": [
+    "laser",
+    "lasers",
+    "laser rig",
+    "beam",
+    "beams",
+    "moving head",
+    "light rig",
+    "truss",
+    "lighting",
+    "stage lighting",
+    "spotlight",
+    "scanner",
+    "strobe",
+    "fan",
+    "scan",
+    "crossfire",
+    "concert",
+    "festival",
+    "rave",
+    "club",
+    "edm",
+    "show",
+    "volumetric",
+    "haze",
+    "blueprint",
+    "schematic",
+    "neon",
+    "set",
+    "prop"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "beams": {
+      "default": 6,
+      "min": 2,
+      "max": 12,
+      "doc": "number of beams / fixtures"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2,
+      "doc": "beam length / reach"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "beam hue center"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "beam brightness amplitude"
+    },
+    "spread": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "fan width / beam divergence"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "sweep rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting dust-mote count catching the beams"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "room center x (haze/aim)"
+    },
+    "y": {
+      "default": 0.12,
+      "min": 0.02,
+      "max": 0.4,
+      "doc": "truss height y"
+    },
+    "pattern": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "fan",
+        "scan",
+        "crossfire",
+        "wave"
+      ],
+      "doc": "beam choreography (auto advances per section)"
+    },
+    "style": {
+      "default": "volumetric",
+      "options": [
+        "volumetric",
+        "wireframe",
+        "blueprint",
+        "neon",
+        "mono"
+      ],
+      "doc": "render look (wireframe/blueprint = schematic rays)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "fan",
+    "scan",
+    "crossfire",
+    "wave"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:17:45+00:00",
+    "fps": 60.2,
+    "motion": 0.1351,
+    "lum": 0.209
+  },
+  "code": "const D = { beams: 6, scale: 1, hue: 320, energy: .6, spread: .6, speed: 1, density: .5, x: .5, y: .12, pattern: 'auto', style: 'volumetric', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\n\nconst STY = {\n  volumetric: { wire:false, dashed:false, truss:[210,10,32], node:[210,8,60], head:[220,12,22], sat:88, layers:3, air:1 },\n  wireframe:  { wire:true,  dashed:false, truss:[190,60,55], node:[190,40,92], head:[190,55,45], sat:80, layers:1, air:0 },\n  blueprint:  { wire:true,  dashed:true,  truss:[212,70,26], node:[196,55,80], head:[212,60,40], sat:70, layers:1, air:0 },\n  neon:       { wire:false, dashed:false, truss:[280,30,14], node:[300,60,90], head:[280,40,26], sat:100, layers:2, air:0 },\n  mono:       { wire:false, dashed:false, truss:[0,0,26],    node:[0,0,70],    head:[0,0,20],    sat:0,  layers:3, air:1 }\n};\nconst st = STY[P.style] || STY.volumetric;\n\nconst nB = Math.max(2, Math.min(12, Math.round(P.beams)));\nconst trussY = P.y * height;\nconst trussX0 = width * 0.08, trussX1 = width * 0.92;\nconst cxRoom = P.x * width;\n\n// ---- pattern selection (auto advances per section) ----\nconst PATS = ['fan','scan','crossfire','wave'];\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.3,.5,.7,.9,.4,.7,1,.5][sec];\nconst pat = P.pattern === 'auto' ? PATS[sec % PATS.length] : P.pattern;\n\n// ---- fixtures along truss (cache the static truss) ----\nconst key = width+'x'+height+'|'+nB+'|'+P.style+'|'+P.seed+'|'+Math.round(P.y*40)+'|'+Math.round(P.x*40);\nif (!S.bg || S.key !== key) {\n  if (!S.bg) S.bg = createGraphics(width, height); else S.bg.resizeCanvas(width, height);\n  const g = S.bg; g.clear(); g.colorMode(g.HSB, 360, 100, 100, 100);\n  const tr = st.truss, nd = st.node;\n  const th = u * 0.028;\n  // truss chords\n  g.stroke(tr[0],tr[1],tr[2],90); g.strokeWeight(Math.max(2,u*0.004));\n  g.line(trussX0, trussY - th/2, trussX1, trussY - th/2);\n  g.line(trussX0, trussY + th/2, trussX1, trussY + th/2);\n  // truss lattice diagonals\n  g.strokeWeight(Math.max(1,u*0.002));\n  const segs = Math.round((trussX1-trussX0)/(u*0.05));\n  for (let i=0;i<segs;i++){ const a=trussX0+(i/segs)*(trussX1-trussX0), b=trussX0+((i+1)/segs)*(trussX1-trussX0);\n    g.line(a, trussY-th/2, b, trussY+th/2); g.line(b, trussY-th/2, a, trussY+th/2); }\n  // end rigging to ceiling\n  g.stroke(tr[0],tr[1],tr[2]*0.7,70); g.strokeWeight(Math.max(1,u*0.0016));\n  g.line(trussX0+u*0.05, trussY-th/2, trussX0+u*0.1, 0);\n  g.line(trussX1-u*0.05, trussY-th/2, trussX1-u*0.1, 0);\n  S.fx = [];\n  for (let i=0;i<nB;i++){ const t = nB===1?0.5:i/(nB-1); const fx = trussX0 + t*(trussX1-trussX0); S.fx.push(fx); }\n  S.key = key;\n}\nimage(S.bg, 0, 0);\n\nconst fixes = S.fx || [];\nconst rootHue = P.hue;\n\n// beam-angle programs \u2014 all driven by continuous K.t (never re-phases) + beat accents\nconst swScan = Math.sin(K.t * 0.55 * P.speed) ;             // -1..1 slow sweep\nconst swWave = K.t * 0.9 * P.speed;\nconst fanBase = (P.spread * 0.9 + 0.15) * (0.7 + 0.3*Math.sin(K.t*0.4*P.speed));\nconst kick = K.pulse*0.5 + A.bass*0.5;\n\nfunction beamAngle(i) {\n  const t = nB===1?0.5:i/(nB-1);\n  const sgn = (t - 0.5);\n  if (pat === 'fan')      return sgn * fanBase * 1.4 + 0.12*Math.sin(K.t*0.7 + i);\n  if (pat === 'scan')     return swScan * (0.7 + P.spread*0.5) + sgn*0.05;\n  if (pat === 'crossfire')return (i%2? 1 : -1) * (0.35 + P.spread*0.7) * (0.6 + 0.4*Math.sin(K.t*0.6*P.speed)) ;\n  /* wave */              return Math.sin(swWave + t*TAU*1.2) * (0.5 + P.spread*0.8);\n}\n\n// ---- draw beams (additive volumetric cones) ----\npush();\nblendMode(ADD);\nnoStroke();\nconst L = height * (1.05 + P.scale*0.5);\nconst halfW = u * (0.012 + P.spread*0.02) * P.scale;\nfor (let i = 0; i < nB; i++) {\n  const fx = fixes[i], fy = trussY + u*0.02;\n  const ang = beamAngle(i);\n  // per-beam color: split across hue, seeded jitter\n  const bh = hw(rootHue + (i - nB/2) * 14 + (fr(i)-0.5)*30);\n  // treble strobes brightness \u2014 PARTIAL (0.45..1), strobe-safe\n  const strobe = 0.55 + 0.45*Math.pow(Math.max(0,Math.sin(K.t*(3+fr(i)*2)+i)),2);\n  const bright = (0.5 + K.intensity*0.5) * (0.6 + 0.4*strobe) * (0.7 + P.energy*0.6) * (1 + kick*0.6);\n  const dx = Math.sin(ang), dy = Math.cos(ang);\n  // perpendicular\n  const px = Math.cos(ang), py = -Math.sin(ang);\n  const ex = fx + dx * L, ey = fy + dy * L;\n  const baseW = halfW * (2.6 + P.spread*3);\n  const layers = st.layers;\n  if (st.wire) {\n    // schematic ray\n    stroke(bh, st.sat, st.node[2], 60 + bright*30); strokeWeight(Math.max(1, u*0.0016));\n    if (st.dashed) { const nd=24; for (let d=0; d<nd; d+=2){ const a=d/nd, b=(d+1)/nd;\n        line(fx+dx*L*a, fy+dy*L*a, fx+dx*L*b, fy+dy*L*b);} }\n    else line(fx, fy, ex, ey);\n    noStroke();\n  } else {\n    for (let k = layers; k >= 1; k--) {\n      const t = k / layers;\n      const wNear = halfW * (0.5 + 0.5*t);\n      const wFar = baseW * t;\n      const al = Math.min(30, (6 + bright*16) / t);\n      fill(bh, st.sat, Math.min(100, 70 + bright*30), al);\n      quad(fx - px*wNear, fy - py*wNear,\n           fx + px*wNear, fy + py*wNear,\n           ex + px*wFar,  ey + py*wFar,\n           ex - px*wFar,  ey - py*wFar);\n    }\n    // hot core\n    fill(bh, st.sat*0.4, 100, 30 + bright*40);\n    quad(fx - px*halfW*0.4, fy - py*halfW*0.4,\n         fx + px*halfW*0.4, fy + py*halfW*0.4,\n         ex + px*baseW*0.3, ey + py*baseW*0.3,\n         ex - px*baseW*0.3, ey - py*baseW*0.3);\n  }\n  // fixture glint at source\n  fill(st.node[0], st.node[1], st.node[2], 60 + bright*30);\n  ellipse(fx, fy, u*0.012, u*0.012);\n}\nblendMode(BLEND);\npop();\n\n// ---- moving-head fixture bodies (rotate to beam) ----\npush();\nfor (let i = 0; i < nB; i++) {\n  const fx = fixes[i], ang = beamAngle(i);\n  push(); translate(fx, trussY + u*0.008); rotate(ang);\n  noStroke(); fill(st.head[0], st.head[1], st.head[2], 95);\n  rectMode(CENTER); rect(0, u*0.012, u*0.02, u*0.024, u*0.004);\n  // lens\n  const bh = hw(rootHue + (i - nB/2) * 14);\n  fill(bh, st.sat*0.6, 100, 90); ellipse(0, u*0.022, u*0.012, u*0.012);\n  pop();\n}\npop();\n\n// ---- faint atmospheric haze band (volumetric only) ----\nif (st.air) {\n  push(); blendMode(ADD); noStroke();\n  const hz = hw(rootHue);\n  fill(hz, st.sat*0.3, 100, 3 + (K.intensity*4 + A.rms*6));\n  const bandY = trussY + height*0.5;\n  ellipse(cxRoom, bandY, width*1.1, height*0.7);\n  blendMode(BLEND); pop();\n}\n\n// ---- drifting dust motes catching the beams (density) ----\nif (P.density > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  const nM = Math.round(P.density * 60);\n  for (let i = 0; i < nM; i++) {\n    const mx = (fr(i)*1.2 - 0.1 + Math.sin(K.t*0.05*P.speed + i)*0.04) * width;\n    const my = ((fr(i+40) + K.t*(0.01 + fr(i+7)*0.02)*P.speed) % 1) * height;\n    const tw = 0.3 + 0.7*Math.pow(Math.max(0,Math.sin(K.t*(1.5+fr(i)*3)+i)),4) + A.treble*0.6;\n    const mh = hw(rootHue + (fr(i)-0.5)*40);\n    fill(mh, st.sat*0.5, 100, 8 + tw*20);\n    ellipse(mx, my, u*0.004*(0.6+tw), u*0.004*(0.6+tw));\n  }\n  blendMode(BLEND); pop();\n}\n\nblendMode(BLEND);\nif (drawingContext) drawingContext.shadowBlur = 0;\n"
+}

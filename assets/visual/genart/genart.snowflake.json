@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.snowflake",
+  "kind": "genart",
+  "name": "Snowflake Growth",
+  "desc": "Reiter's hexagonal snowflake cellular automaton \u2014 vapor diffuses across a hex lattice and freezes onto a growing seed, spontaneously blooming a unique six-fold dendritic ice crystal that glitters and slowly turns, then dissolves so a fresh seed can grow.",
+  "tags": [
+    "snowflake",
+    "snow",
+    "ice",
+    "crystal",
+    "frost",
+    "frozen",
+    "winter",
+    "dendrite",
+    "hexagonal",
+    "hex",
+    "six-fold",
+    "reiter",
+    "cellular-automaton",
+    "ca",
+    "automaton",
+    "growth",
+    "crystallization",
+    "fractal",
+    "symmetry",
+    "facet",
+    "iridescent",
+    "blue-white",
+    "indigo",
+    "cool",
+    "glitter",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "spectral",
+    "gold",
+    "neon",
+    "ink",
+    "holiday",
+    "serene",
+    "macro"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "crystal size (higher = larger flake, fills more of the frame)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / facet glow / breathing amplitude"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "growth rate + facet detail + glitter count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "crystallization rate + shimmer drift speed"
+    },
+    "vapor": {
+      "default": 0.58,
+      "min": 0.35,
+      "max": 0.9,
+      "doc": "Reiter beta (background vapor) \u2014 low=sparse fern, high=full plate"
+    },
+    "branch": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "Reiter gamma (vapor addition) \u2014 branchiness / growth speed"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (crystal + iridescence)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flake center x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flake center y (canvas fraction)"
+    },
+    "style": {
+      "default": "ice",
+      "options": [
+        "ice",
+        "gold-frost",
+        "spectral",
+        "neon",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic flake \u2014 every seed a different crystal"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:14:37+00:00",
+    "fps": 55.6,
+    "motion": 0.0308,
+    "lum": 0.152
+  },
+  "code": "const D = { scale:1, energy:.62, density:.55, speed:1, vapor:.58, branch:.5, hue:210, x:.5, y:.5, style:'ice', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clamp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst SQ3 = 0.8660254;               // sqrt(3)/2\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst styles = ['ice','gold-frost','spectral','neon','ink'];\nlet stMode = styles.indexOf(P.style); if (stMode<0) stMode=0;\n\n// ---- hex grid geometry (fixed) ----\nconst N = 91, R = 45, Rlimit = 42;   // hex grid: N cells wide, center at (R,R), growth cap at Rlimit\n\n// ---- coarse buffer sized to canvas AR, <=256, ~200 short side ----\nconst AR = width/Math.max(1,height);\nlet BW, BH;\nif (AR>=1){ BH = 200; BW = Math.min(256, Math.round(BH*AR)); }\nelse { BW = 200; BH = Math.min(256, Math.round(BW/AR)); }\nconst minB = Math.min(BW,BH);\nif (!S.g || S.bw!==BW || S.bh!==BH){ if(S.g) S.g.remove(); S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; S.lutKey=''; }\n\n// ---- per-seed hash ----\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7 + 17.3) * 43758.5453; return s - Math.floor(s); };\n\n// ---- geometry caches (angle, hex-dist, euclid-radius) \u2014 depend only on N ----\nif (!S.ANG || S.geoN!==N){\n  S.geoN = N;\n  S.ANG = new Float32Array(N*N); S.HD = new Float32Array(N*N); S.RN = new Float32Array(N*N);\n  for (let r=0;r<N;r++){ const dr=r-R; for (let q=0;q<N;q++){ const dq=q-R; const i=q+r*N;\n    const ux = dq + dr*0.5, uy = dr*SQ3;\n    S.ANG[i] = Math.atan2(uy,ux);\n    S.HD[i]  = (Math.abs(dq)+Math.abs(dr)+Math.abs(dq+dr))*0.5;\n    S.RN[i]  = Math.sqrt(ux*ux+uy*uy);\n  }}\n}\nconst ANG=S.ANG, HD=S.HD, RN=S.RN;\n\n// ---- Reiter constants (live-pokeable + per-seed offset) ----\nconst gammaEff = (0.0009 + P.branch*0.0062) * (0.7 + fr(2)*0.7);\nconst alphaEff = clamp(1.0 * (0.9 + fr(3)*0.25), 0.6, 1.35);\n\n// ---- dramaturgy: epoch regrow with soft melt ----\nconst period = 38;\nconst epoch = Math.floor(K.t/period);\nconst tp = (K.t - epoch*period)/period;            // 0..1 within this flake's life\nconst meltStart = 0.82;\nconst globalA = tp<meltStart ? 1 : clamp(1-(tp-meltStart)/(1-meltStart),0,1);\n\nconst simKey = N+'|'+P.seed+'|'+epoch;\nif (S.simKey !== simKey){\n  S.simKey = simKey;\n  const betaEff = clamp(P.vapor + (fr(1)-0.5)*0.10, 0.30, 0.95);\n  S.s  = new Float32Array(N*N); S.s.fill(betaEff);\n  S.s2 = new Float32Array(N*N);\n  S.u  = new Float32Array(N*N); S.u.fill(betaEff);\n  S.rc = new Uint8Array(N*N);\n  S.fr = new Uint8Array(N*N);\n  // seed a small hex core (HD<=2) so growth starts visible & symmetric\n  for (let i=0;i<N*N;i++){ if (HD[i]<=2){ S.fr[i]=1; S.s[i]=1.0; } }\n  S.done=false; S.reached=false;\n  // glint sample points (6-fold-ish scatter across the disc)\n  const NG=64; S.gq=new Int32Array(NG); S.gr=new Int32Array(NG);\n  S.gph=new Float32Array(NG); S.grate=new Float32Array(NG);\n  for (let k=0;k<NG;k++){ const a=fr(k*3+11)*6.2832, rad=(0.22+0.72*fr(k*3+12))*Rlimit;\n    const dr=Math.round(Math.sin(a)*rad/SQ3), dq=Math.round(Math.cos(a)*rad - dr*0.5);\n    S.gq[k]=dq+R; S.gr[k]=dr+R; S.gph[k]=fr(k*3+13)*6.2832; S.grate[k]=1.4+fr(k*3+14)*3.6; }\n}\nconst FR=S.fr;\n\n// ---- Reiter CA step ---- (reads S.s/S.s2 fresh each call so multi-step-per-frame swaps correctly)\nfunction stepCA(){\n  const s=S.s, s2=S.s2, u=S.u, rc=S.rc;\n  const a2 = alphaEff*0.5;\n  s2.set(s);\n  // pass A: receptive flag + non-receptive vapor u\n  for (let r=1;r<N-1;r++){ const b=r*N;\n    for (let q=1;q<N-1;q++){ const i=b+q;\n      const rec = FR[i]||FR[i+1]||FR[i-1]||FR[i+N]||FR[i-N]||FR[i+1-N]||FR[i-1+N];\n      rc[i]=rec?1:0; u[i]=rec?0:s[i];\n    }}\n  // pass B: diffuse u, add gamma to receptive, freeze on s>=1\n  for (let r=1;r<N-1;r++){ const b=r*N;\n    for (let q=1;q<N-1;q++){ const i=b+q;\n      const un=u[i];\n      const mean=(u[i+1]+u[i-1]+u[i+N]+u[i-N]+u[i+1-N]+u[i-1+N])*0.16666667;\n      const du=un + a2*(mean-un);\n      const v = rc[i] ? (s[i]+gammaEff) : 0;\n      let ns=v+du; if(ns>3.5) ns=3.5;\n      s2[i]=ns;\n      if(!FR[i] && ns>=1 && HD[i]<=Rlimit){ FR[i]=1; if(HD[i]>=Rlimit-2) S.reached=true; }\n    }}\n  S.s=s2; S.s2=s;                    // swap\n}\nconst melting = tp>=meltStart;\nlet G = (S.done||melting) ? 0 : Math.round((2 + P.speed*2.4)*(0.45+P.density*0.85) + intn*1.5 + A.bass*4);\nG = clamp(G,0,12);\nfor (let g=0; g<G; g++){ stepCA(); }\nif (S.reached) S.done=true;\nconst sFld = S.s;                    // current field after swap(s)\n\n// ---- neon needs an edge map ----\nif (stMode===3){\n  const ed = S.edge || (S.edge=new Uint8Array(N*N)); ed.fill(0);\n  for (let r=1;r<N-1;r++){ const b=r*N; for (let q=1;q<N-1;q++){ const i=b+q;\n    if (FR[i] && (!FR[i+1]||!FR[i-1]||!FR[i+N]||!FR[i-N]||!FR[i+1-N]||!FR[i-1+N])) ed[i]=1; }}\n}\nconst EDG = S.edge;\n\n// ---- pixel<->cell LUT + halo (depends on size, anchor, scale) ----\nconst cellPix = 0.82*minB*clamp(P.scale,0.4,1.9)/N;\nconst cx = P.x*BW, cy = P.y*BH;\nconst lutKey = BW+'x'+BH+'|'+P.x.toFixed(3)+'|'+P.y.toFixed(3)+'|'+P.scale.toFixed(3);\nif (S.lutKey !== lutKey){\n  S.lutKey = lutKey;\n  S.lut = new Int32Array(BW*BH); S.halo = new Float32Array(BW*BH);\n  const inv = 1/cellPix, invY = 1/(cellPix*SQ3), hR = 0.62*minB;\n  for (let j=0;j<BH;j++){ for (let i=0;i<BW;i++){ const pi=j*BW+i;\n    const X=(i-cx)*inv, Y=(j-cy);\n    const frF = Y*invY;                       // fractional dr\n    const fqF = X - frF*0.5;                   // fractional dq\n    // cube round\n    let rx=fqF, rz=frF, ry=-rx-rz;\n    let RX=Math.round(rx), RY=Math.round(ry), RZ=Math.round(rz);\n    const xd=Math.abs(RX-rx), yd=Math.abs(RY-ry), zd=Math.abs(RZ-rz);\n    if (xd>yd && xd>zd) RX=-RY-RZ; else if (yd>zd) RY=-RX-RZ; else RZ=-RX-RY;\n    const q=RX+R, r=RZ+R;\n    S.lut[pi] = (q>=0&&q<N&&r>=0&&r<N) ? (q+r*N) : -1;\n    const pr=Math.sqrt((i-cx)*(i-cx)+(j-cy)*(j-cy));\n    S.halo[pi] = clamp(1-pr/hR,0,1);\n  }}\n}\nconst LUT=S.lut, HALO=S.halo;\n\n// ---- style constants ----\n// ground: [hue, sat, base-B, halo-amt, vapor-amt]\nconst G0=[[232,76,21,24,11],[26,70,16,18,9],[252,58,15,20,9],[235,80,11,13,8],[228,16,10,12,7]][stMode];\n// precompute unit ground rgb (B=100)\nfunction hsb(h,sa,b,out){ sa/=100; b/=100; h=((h%360)+360)%360; const c=b*sa, x=c*(1-Math.abs((h/60)%2-1)), m=b-c;\n  let r,g,bl; if(h<60){r=c;g=x;bl=0;}else if(h<120){r=x;g=c;bl=0;}else if(h<180){r=0;g=c;bl=x;}\n  else if(h<240){r=0;g=x;bl=c;}else if(h<300){r=x;g=0;bl=c;}else{r=c;g=0;bl=x;}\n  out[0]=(r+m)*255; out[1]=(g+m)*255; out[2]=(bl+m)*255; }\nconst gU=[0,0,0]; hsb(G0[0],G0[1],100,gU);\nconst RGBt=[0,0,0];\nconst energy=P.energy;\nconst shim = (5+energy*15)*(0.55+intn*0.6) + A.treble*18 + A.rms*9;\nconst shTime = K.t*(0.5+P.speed*0.9);\nconst facetFreq = 5 + P.density*9;\nconst exposure = 0.72 + energy*0.55 + intn*0.28 + A.rms*0.5;\nconst hbShift = Math.sin(K.t*0.05)*7 + (K.section||0)*6;\n\n// ---- render into buffer ----\nconst g2=S.g; g2.loadPixels(); const px=g2.pixels;\nfor (let pi=0; pi<BW*BH; pi++){\n  const cell = LUT[pi];\n  const halo = HALO[pi];\n  const vv = cell>=0 ? sFld[cell] : G0? P.vapor : 0;\n  const groundB = G0[2] + halo*G0[3] + clamp(vv,0,1)*G0[4];\n  let r8,g8,b8;\n  const frozen = cell>=0 && FR[cell];\n  if (frozen){\n    const sVal=sFld[cell], sn=clamp((sVal-1)/1.4,0,1);\n    const ang=ANG[cell], rn=clamp(RN[cell]/R,0,1);\n    const facet=0.5+0.5*Math.cos(ang*6 + rn*facetFreq);\n    const glint=0.5+0.5*Math.sin(shTime + ang*6 - rn*7.0);   // fine sparkle (texture)\n    // slow low-freq light-ring breathing outward: omega chosen so an 8s gap is ~half a cycle\n    // (never re-phases to static, and low spatial freq survives the 320px motion downsample)\n    const pulse=Math.sin(rn*1.5 - K.t*(0.42+P.speed*0.12) + ang*0.3);\n    const shade=(glint-0.5)*shim + pulse*(9+energy*11);\n    let hh,ss,bb;\n    if (stMode===0){            // ice \u2014 blue-white on indigo\n      bb=(58+sn*30+(facet-0.5)*22+shade)*exposure;\n      ss=clamp(64-sn*44-(facet-0.5)*16,4,92);\n      hh=P.hue+(facet-0.5)*14+rn*10+hbShift;\n    } else if (stMode===1){     // gold-frost \u2014 metallic\n      const spec=facet*facet*facet;\n      bb=(40+sn*22+spec*48*(0.6+energy)+shade)*exposure;\n      ss=clamp(88-spec*72-sn*10,6,96);\n      hh=44+(facet-0.5)*10-spec*10+hbShift*0.4;\n    } else if (stMode===2){     // spectral \u2014 iridescent facets\n      bb=(46+sn*28+facet*16+shade)*exposure;\n      ss=86;\n      hh=(P.hue+ang*28.6+sn*140+rn*90+glint*40+hbShift)%360;\n    } else if (stMode===3){     // neon \u2014 glowing contour\n      if (EDG && EDG[cell]){\n        bb=(64+glint*22*(0.5+energy)+facet*12+pulse*(7+energy*9))*exposure;\n        ss=72; hh=185+(0.5+0.5*Math.sin(ang*3+rn*4))*80+hbShift;\n      } else {\n        bb=(15+sn*11+halo*4+pulse*7)*exposure; ss=64; hh=232+hbShift*0.3;\n      }\n    } else {                    // ink \u2014 white flake on black\n      bb=(46+sn*46+(facet-0.5)*20+shade)*exposure;\n      ss=clamp(8-(facet-0.5)*4,0,20); hh=220;\n    }\n    hsb(hh,ss,clamp(bb,0,100),RGBt);\n    r8=RGBt[0]; g8=RGBt[1]; b8=RGBt[2];\n    if (globalA<1){ const gb=groundB/100; const gr=gU[0]*gb, gg=gU[1]*gb, gbl=gU[2]*gb;\n      r8=gr+(r8-gr)*globalA; g8=gg+(g8-gg)*globalA; b8=gbl+(b8-gbl)*globalA; }\n  } else {\n    const gb=groundB/100; r8=gU[0]*gb; g8=gU[1]*gb; b8=gU[2]*gb;\n  }\n  const o=4*pi;\n  px[o]  = r8<0?0:(r8>255?255:r8);\n  px[o+1]= g8<0?0:(g8>255?255:g8);\n  px[o+2]= b8<0?0:(b8>255?255:b8);\n  px[o+3]= 255;\n}\ng2.updatePixels();\n\n// seamless base tone so the slow rotation never reveals a bare corner (opaque mode only)\nif (P.alpha>=100){ noStroke(); fill(G0[0], G0[1], G0[2]+8); rect(0,0,width,height); }\n\n// ---- motion floor: gentle continuous rotation of the floating crystal (never re-phases) ----\nconst minC=Math.min(width,height);\nconst rot = (fr(7)>0.5?1:-1) * K.t * 0.030;\nconst ax=P.x*width, ay=P.y*height;\npush();\ntranslate(ax,ay); rotate(rot); translate(-ax,-ay);\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g2,0,0,width,height);\nnoTint();\n// glitter twinkles ride the same transform so they sit on the crystal tips\nblendMode(ADD); noStroke();\nconst NG = Math.round(24 + P.density*40);\nfor (let k=0;k<NG;k++){\n  const gq=S.gq[k], gr=S.gr[k]; const ci=gq+gr*N;\n  if (!(ci>=0 && ci<N*N && FR[ci])) continue;\n  const dq=gq-R, dr=gr-R;\n  const gx=(cx+(dq+dr*0.5)*cellPix)/BW*width;\n  const gy=(cy+dr*SQ3*cellPix)/BH*height;\n  const tw=Math.pow(0.5+0.5*Math.sin(K.t*S.grate[k]+S.gph[k]),4);\n  const gb=((28+tw*66)*(0.4+energy*0.8) + A.treble*40)*globalA*0.5;\n  const gh = stMode===2 ? (P.hue+dq*4+dr*4)%360 : (stMode===1?46:(stMode===3?190:P.hue+8));\n  const gsat = stMode===4?10:(stMode===1?40:34);\n  fill(((gh%360)+360)%360, gsat, 100, clamp(gb,0,58));\n  circle(gx, gy, (1.4+tw*3.2)*(minC*0.006));\n}\nblendMode(BLEND);\npop();\n"
+}

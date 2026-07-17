@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.impossible",
+  "kind": "genart",
+  "name": "Impossible Architecture",
+  "desc": "A slowly turning axonometric lattice of cuboid bar-frames that cannot exist \u2014 each frame's farthest strut is repainted over the strut it just passed behind, so the occlusion runs in a cycle and the structure reads as solid and as a lie at once, with stair treads climbing runs that reset where you cannot see.",
+  "tags": [
+    "impossible",
+    "escher",
+    "penrose",
+    "paradox",
+    "illusion",
+    "ambiguous",
+    "ambiguity",
+    "necker",
+    "impossible-cube",
+    "tribar",
+    "axonometric",
+    "isometric",
+    "parallel-projection",
+    "depth",
+    "recession",
+    "lattice",
+    "frame",
+    "struts",
+    "bars",
+    "space-frame",
+    "scaffold",
+    "stairs",
+    "staircase",
+    "treads",
+    "relativity",
+    "architecture",
+    "architectural",
+    "geometry",
+    "optical",
+    "lithograph",
+    "engraving",
+    "blueprint",
+    "neon",
+    "chiaroscuro",
+    "uncanny",
+    "eerie",
+    "austere",
+    "cerebral",
+    "structure",
+    "built"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "face luminance, neon bloom and drift amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the lattice on the frame (2.2 = struts crash off every edge)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many cuboid frames make up the lattice (3 to 7)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "azimuth turn rate; a slow warp keeps it moving even at 0.1"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "material hue; the void takes its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "lattice centre across frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "lattice centre up the frame"
+    },
+    "paradox": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "fraction of frames that tell the lie \u2014 0 is an honest lattice of ordinary cubes, 1 makes every frame impossible"
+    },
+    "style": {
+      "default": "concrete",
+      "options": [
+        "concrete",
+        "lithograph",
+        "blueprint",
+        "neon",
+        "chiaroscuro"
+      ],
+      "doc": "aesthetic: modelled solid concrete / hatched paper plate in Escher's own medium / cyan schematic linework / glowing struts on black / form from light alone"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "frame sizes, positions, strut girth, which frames lie and where the stairs run"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:44:18+00:00",
+    "fps": 66.2,
+    "motion": 0.0684,
+    "lum": 0.21
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:32, x:.5, y:.5, paradox:.8, style:'concrete', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, HU = ((P.hue%360)+360)%360;\nconst wire = (sty === 'blueprint'), paper = (sty === 'lithograph'), neon = (sty === 'neon'), dk = (sty === 'chiaroscuro');\n\nconst bsm = (S.bm = (S.bm||0)*.84 + (A.bass||0)*.16);\nconst gl = (.44 + .56*P.energy) * (.55 + .5*K.intensity) + bsm*.26;\nconst dC = .60*Math.sin(K.t*.089) + .40*Math.sin(K.t*.211+1.1);\n\n// ---- AXONOMETRIC, not perspective: parallel projection is what makes depth\n//      ambiguous, and the paradox is a deliberate painter's-order violation.\n//      The azimuth turns forever on incommensurate rates -> never the same pose.\nconst az = .105*K.t*P.speed + .42*Math.sin(K.t*.037) + .18*Math.sin(K.t*.091+1.3);\nconst sa2 = Math.sin(az), ca2 = Math.cos(az);\nconst ELEV = .50 + .13*Math.sin(K.t*.071) + .05*Math.sin(K.t*.163+2.1);\nconst SC = u*.50*P.scale;\nconst ox = cl(P.x,.15,.85)*width, oy = cl(P.y,.2,.8)*height + u*.02*dC*P.energy;\nconst NFR = 3 + Math.round(cl(P.density,0,1)*4);\nconst PDX = cl(P.paradox,0,1);\n\nfunction pj(X,Y,Z){ return [ox + (X*ca2 - Z*sa2)*SC, oy + ((X*sa2 + Z*ca2)*ELEV + Y)*SC]; }\nconst dep = (X,Z) => X*sa2 + Z*ca2;\n\n// ---- tone tables ---------------------------------------------------------------\nfunction tone(v, tv){\n  if (paper) return [40, 5 + 5*tv, cl(96 - 62*(1-v), 26, 96)];\n  if (wire)  return [212, cl(64 - 24*v, 10, 70), cl(13 + 16*v, 8, 40)];\n  if (dk)    return [HU, cl(22 - 12*v, 0, 26), cl(2 + 92*Math.pow(v,1.9), 1, 97)];\n  if (neon)  return [(HU + 150 + 120*v)%360, cl(78 - 30*v, 20, 90), cl(10 + 76*v, 6, 96)];\n  return [(HU + 14 - 10*v)%360, cl(24 - 12*v + 6*tv, 3, 34), cl(10 + 76*v, 5, 95)];\n}\nfunction ink(a){\n  if (wire) stroke(190, 30, 100, a);\n  else if (paper) stroke(30, 24, 10, a);\n  else if (neon) stroke((HU+180)%360, 40, 100, a*.7);\n  else stroke((HU+10)%360, 10, 6, a*.8);\n}\n\n// ---- ground: a graded void, banded (never a flat fill) --------------------------\nnoStroke();\nconst NBD = 32;\nfor (let i=0;i<NBD;i++){\n  const s = i/(NBD-1);\n  let c;\n  if (paper)     c = [40, 4 + 4*s, 95 - 9*s];\n  else if (wire) c = [214, 64, 10 + 8*s];\n  else if (neon) c = [(HU+200)%360, 62 - 20*s, 5 + 9*s];\n  else if (dk)   c = [HU, 14, 3 + 6*s];\n  else           c = [(HU + 196 - 30*s)%360, 26 - 8*s, 9 + 17*Math.pow(s,1.4)];\n  fill(c[0], c[1], cl(c[2] + (fr(i*5.7)-.5)*1.6, 0, 100));\n  rect(0, s*height - 1.5, width, height/NBD + 3);\n}\n\n// ---- build the lattice: cuboid bar-frames, seeded, each bobbing on its own rate --\nconst EDG = [];\nfor (let a=0;a<3;a++) for (let s1=-1;s1<=1;s1+=2) for (let s2=-1;s2<=1;s2+=2) EDG.push([a,s1,s2]);\n\nconst bars = [];\nfor (let fi=0; fi<NFR; fi++){\n  const h = .17 + .16*fr(fi*5.3+1);\n  const w = h*(.15 + .07*fr(fi*9.1));\n  const cx = (fr(fi*3.1)-.5)*1.05, cz = (fr(fi*11.3)-.5)*1.05;\n  const cy = (fr(fi*7.7)-.5)*.72 + .075*Math.sin(K.t*(.23 + fr(fi*2.3)*.47) + fi*1.9)\n           + .045*Math.sin(K.t*(.61 + fr(fi*4.7)*.33) + fi*.7);\n  const ctr = [cx, cy, cz];\n  for (let e=0; e<12; e++){\n    const ax = EDG[e][0], s1 = EDG[e][1], s2 = EDG[e][2];\n    const o1 = (ax+1)%3, o2 = (ax+2)%3;\n    const lo = [0,0,0], hi = [0,0,0];\n    lo[ax] = ctr[ax] - h - w; hi[ax] = ctr[ax] + h + w;\n    lo[o1] = ctr[o1] + s1*h - w; hi[o1] = ctr[o1] + s1*h + w;\n    lo[o2] = ctr[o2] + s2*h - w; hi[o2] = ctr[o2] + s2*h + w;\n    const mx = (lo[0]+hi[0])*.5, mz = (lo[2]+hi[2])*.5;\n    bars.push([dep(mx,mz), lo, hi, fi, fr(fi*31.7 + e*3.3)]);\n  }\n}\nbars.sort((a,b) => a[0]-b[0]);                 // far -> near\nconst NB = Math.min(bars.length, 42);\nconst keep = bars.slice(bars.length-NB);       // the nearest NB bars\n\n// per frame, remember its FARTHEST bar \u2014 redrawing that on top is the paradox\nconst liar = {};\nfor (let i=0;i<keep.length;i++){ const b = keep[i]; if (liar[b[3]] === undefined) liar[b[3]] = i; }\n\nstrokeWeight(Math.max(1, u*.0016));\nfunction bx(b){\n  const lo = b[1], hi = b[2], tv = b[4];\n  const hz = cl(.5 - b[0]*.5, 0, 1);                       // farther => flatter/hazier\n  const x = sa2 >= 0 ? hi[0] : lo[0];\n  const z = ca2 >= 0 ? hi[2] : lo[2];\n  const faces = [\n    [ [lo[0],lo[1],lo[2], hi[0],lo[1],lo[2], hi[0],lo[1],hi[2], lo[0],lo[1],hi[2]], .92 ],\n    [ [x,lo[1],lo[2], x,hi[1],lo[2], x,hi[1],hi[2], x,lo[1],hi[2]], .22 + .50*Math.abs(sa2) ],\n    [ [lo[0],lo[1],z, hi[0],lo[1],z, hi[0],hi[1],z, lo[0],hi[1],z], .22 + .50*Math.abs(ca2) ]\n  ];\n  for (let q=0;q<3;q++){\n    const v = cl(faces[q][1]*(.55+.5*gl)*(.90+.18*tv) - .10*hz, 0, 1);\n    const c = tone(v, tv);\n    if (wire) noFill(); else { fill(c[0], c[1], c[2], 100); }\n    ink(paper ? 62 : wire ? 62 : 40);\n    const g2 = faces[q][0];\n    beginShape();\n    for (let i=0;i<4;i++){ const p = pj(g2[i*3], g2[i*3+1], g2[i*3+2]); vertex(p[0], p[1]); }\n    endShape(CLOSE);\n  }\n  // engraved hatching on the dark faces \u2014 texture, never a flat fill\n  if (paper){\n    const g2 = faces[Math.abs(sa2) < Math.abs(ca2) ? 1 : 2][0];\n    ink(30); strokeWeight(Math.max(1, u*.0010));\n    for (let i=1;i<=4;i++){\n      const t2 = i/5;\n      const p0 = pj(g2[0]+(g2[3]-g2[0])*t2, g2[1]+(g2[4]-g2[1])*t2, g2[2]+(g2[5]-g2[2])*t2);\n      const p1 = pj(g2[9]+(g2[6]-g2[9])*t2, g2[10]+(g2[7]-g2[10])*t2, g2[11]+(g2[8]-g2[11])*t2);\n      line(p0[0], p0[1], p1[0], p1[1]);\n    }\n    strokeWeight(Math.max(1, u*.0016));\n  }\n  if (neon){\n    push(); blendMode(ADD); noStroke();\n    const g2 = faces[0][0];\n    fill((HU+170)%360, 40, 100, cl(5 + 10*gl, 0, 20));\n    beginShape();\n    for (let i=0;i<4;i++){ const p = pj(g2[i*3], g2[i*3+1], g2[i*3+2]); vertex(p[0], p[1]); }\n    endShape(CLOSE);\n    pop(); blendMode(BLEND);\n  }\n}\n\n// ---- pass 1: honest painter's order, far -> near ---------------------------------\nfor (let i=0;i<keep.length;i++) bx(keep[i]);\n\n// ---- pass 2: THE LIE. Each frame's farthest strut is repainted on top, so it\n//      passes in front of the strut it just went behind. Cyclic occlusion =\n//      the figure reads as solid and as impossible at the same time.\nif (PDX > .02){\n  for (const k2 in liar){\n    if (fr((k2|0)*17.3 + 5) > PDX) continue;\n    bx(keep[liar[k2]]);\n  }\n}\n\n// ---- stair treads climbing the nearest frames \u2014 the Relativity read ---------------\nconst NST = Math.min(3, NFR);\nfor (let fi=0; fi<NST; fi++){\n  if (fr(fi*23.1+7) > .62) continue;\n  const h = .17 + .16*fr(fi*5.3+1);\n  const cx = (fr(fi*3.1)-.5)*1.05, cz = (fr(fi*11.3)-.5)*1.05;\n  const cy = (fr(fi*7.7)-.5)*.72 + .075*Math.sin(K.t*(.23 + fr(fi*2.3)*.47) + fi*1.9)\n           + .045*Math.sin(K.t*(.61 + fr(fi*4.7)*.33) + fi*.7);\n  const nt = 5, tw = h*.30, th2 = (2*h)/nt;\n  const along = (fr(fi*13.7) < .5) ? 0 : 2;\n  for (let s2=0; s2<nt; s2++){\n    const t2 = -h + (s2+.5)*th2;\n    const lo = [0,0,0], hi = [0,0,0];\n    if (along === 0){ lo[0] = cx + t2 - th2*.5; hi[0] = cx + t2 + th2*.5; lo[2] = cz + h - tw; hi[2] = cz + h + tw; }\n    else            { lo[2] = cz + t2 - th2*.5; hi[2] = cz + t2 + th2*.5; lo[0] = cx + h - tw; hi[0] = cx + h + tw; }\n    // the tread climbs as it goes \u2014 and RESETS at the far end, which is the same\n    // lie the Penrose staircase tells: a periodic run pretending to be monotone\n    const ry = cy + h - (s2/nt)*2*h*.86;\n    lo[1] = ry; hi[1] = ry + th2*.55;\n    const mx = (lo[0]+hi[0])*.5, mz = (lo[2]+hi[2])*.5;\n    bx([dep(mx,mz), lo, hi, fi, fr(fi*7.1+s2*2.9)]);\n  }\n}\n\n// ---- cached grain + vignette ------------------------------------------------------\nif (!S.gv || S.gk !== width+'x'+height+'|'+sty){\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const N = Math.min(9000, Math.floor(width*height/240));\n  for (let i=0;i<N;i++){\n    const px = Math.abs((Math.sin(i*12.9898)*43758.5453)%1)*width;\n    const py = Math.abs((Math.sin(i*78.233+2.1)*43758.5453)%1)*height;\n    g.fill(0,0, (i%2) ? 100 : 0, paper ? 9 : 5);\n    g.rect(px, py, 1.7, 1.7);\n  }\n  for (let i=0;i<26;i++){ const s=i/26, bw=(1-s)*.085;\n    g.fill(0,0,0, 1.0 + 3.4*s*s);\n    g.rect(0,0,width,height*bw); g.rect(0,height*(1-bw),width,height*bw);\n    g.rect(0,0,width*bw,height); g.rect(width*(1-bw),0,width*bw,height);\n  }\n  S.gv = g; S.gk = width+'x'+height+'|'+sty;\n}\nimage(S.gv, 0, 0);\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

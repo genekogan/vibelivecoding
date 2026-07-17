@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.festival",
+  "kind": "crowd",
+  "name": "Festival Crowd",
+  "desc": "Backlit rows of silhouetted festival-goers that jump on the beat while a hands-up wave ripples across them and phone lights twinkle in the haze.",
+  "tags": [
+    "crowd",
+    "festival",
+    "concert",
+    "audience",
+    "silhouette",
+    "backlit",
+    "people",
+    "hands-up",
+    "wave",
+    "jump",
+    "rave",
+    "gig",
+    "stage",
+    "fans",
+    "dance",
+    "mosh",
+    "phone lights",
+    "glow",
+    "stadium",
+    "party",
+    "night"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "n": {
+      "default": 28,
+      "min": 6,
+      "max": 60,
+      "doc": "number of figures (front-biased across depth rows)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "figure size vs design (front row ~0.32*min-dim tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "jump height + arm-wave amplitude + audio gain"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "backlight/glow hue (28 = warm sunset)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier for wave & jumps"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "floating phone-light / spark motes among the crowd"
+    },
+    "spread": {
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "doc": "horizontal fill of the crowd across the frame"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crowd anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.4,
+      "max": 1,
+      "doc": "front-row feet line as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic roster/layout seed"
+    },
+    "style": {
+      "default": "backlit",
+      "options": [
+        "backlit",
+        "thermal",
+        "riso",
+        "wire"
+      ],
+      "doc": "render philosophy: mass silhouette / infrared false-color / 2-ink halftone print / X-ray skeletal line"
+    },
+    "pal": {
+      "default": "sunset",
+      "options": [
+        "sunset",
+        "laser",
+        "gold",
+        "cold",
+        "mono"
+      ],
+      "doc": "color scheme for glow + ink"
+    },
+    "act": {
+      "default": "crowd",
+      "options": [
+        "crowd",
+        "ambient",
+        "frenzy"
+      ],
+      "doc": "multi-minute energy program: full wave / gentle sway / moshing"
+    }
+  },
+  "acts": [
+    "crowd",
+    "ambient",
+    "frenzy"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:59:40+00:00",
+    "fps": 59.9,
+    "motion": 0.0337,
+    "lum": 0.203
+  },
+  "code": "const D = { n: 28, scale: 1, energy: .6, hue: 28, speed: 1, density: .5, spread: .6, x: .5, y: .82, seed: 0, style: 'backlit', pal: 'sunset', act: 'crowd' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst cl = (x,a,b) => x < a ? a : x > b ? b : x;\nconst c01 = x => x < 0 ? 0 : x > 1 ? 1 : x;\nconst TAU = 6.28318530718;\nconst W = width, H = height, u = Math.min(W, H);\n\nlet bt = K.beat * P.speed;\nif (S.lastBeat == null || bt < S.lastBeat) S.lastBeat = bt;\nS.lastBeat = bt;\n\n// smoothed audio\nS.bass = (S.bass || 0) * .82 + (A.bass || 0) * .18;\nS.tre  = (S.tre  || 0) * .78 + (A.treble || 0) * .22;\nS.rms  = (S.rms  || 0) * .85 + (A.rms || 0) * .15;\n\nconst eAmp = .35 + .65 * P.energy;\nconst kick = c01(K.pulse * (.55 + .45 * K.intensity) + S.bass * .85);\nconst swell = K.swell;                                   // smooth breathe 0..1\n// hands-up level rises with musical intensity + surges on odd sections (chorus feel)\nconst surge = (K.section % 2) ? .35 : 0;\nconst handsBase = c01(.12 + .72 * K.intensity + surge);\n\n// ---- act dramaturgy (multi-minute) ----\nconst ACTS = {\n  crowd:  { waveAmp: .55, wavePace: .5,  hop: 1,   phones: 1 },   // full festival wave\n  ambient:{ waveAmp: .22, wavePace: .28, hop: .55, phones: .5 },  // swaying, arms mostly down\n  frenzy: { waveAmp: .7,  wavePace: .82, hop: 1.35,phones: 1.3 }  // moshing, everyone up\n};\nconst act = ACTS[P.act] || ACTS.crowd;\n\nconst style = P.style;\nconst paper = style === 'riso';\n\n// ---- palette ----\nconst PALS = {\n  sunset:  { glow: [P.hue, 78, 96], sky: [(P.hue + 285) % 360, 55, 8], ink: (P.hue + 10) % 360, phone: 44 },\n  laser:   { glow: [312, 88, 92],   sky: [268, 70, 7],  ink: 300, phone: 190 },\n  gold:    { glow: [46, 82, 100],   sky: [30, 45, 6],   ink: 40,  phone: 52 },\n  cold:    { glow: [205, 72, 90],   sky: [230, 62, 8],  ink: 210, phone: 190 },\n  mono:    { glow: [0, 0, 88],      sky: [0, 0, 5],     ink: 0,   phone: 0 }\n};\nconst PL = PALS[P.pal] || PALS.sunset;\n\n// ---- roster build (seed/count dependent) ----\nconst N = Math.max(4, Math.round(P.n));\nconst rosterKey = N + '|' + P.seed + '|' + P.spread;\nif (S.rosterKey !== rosterKey) {\n  S.rosterKey = rosterKey;\n  const R = Math.min(6, Math.max(2, Math.round(Math.sqrt(N) * .78)));\n  S.R = R;\n  const fx = [], row = [], ph = [], szj = [], hasP = [], pph = [], ord = [];\n  for (let i = 0; i < N; i++) {\n    // front-biased row assignment (more bodies near camera)\n    const r = Math.floor(R * Math.pow(fr(i * 2.3 + 7), .72));\n    row.push(Math.min(R - 1, r));\n    const sprd = .5 + .5 * P.spread;\n    fx.push(.5 + (fr(i * 1.7 + 3) - .5) * sprd);\n    ph.push(fr(i * 3.1 + 11));\n    szj.push(.82 + fr(i * 5.9 + 2) * .4);\n    hasP.push(fr(i * 9.3 + 5) < .34);\n    pph.push(fr(i * 4.4 + 8));\n    ord.push(i);\n  }\n  // paint back-to-front\n  ord.sort((a, b) => row[a] - row[b]);\n  S.fx = fx; S.row = row; S.ph = ph; S.szj = szj; S.hasP = hasP; S.pph = pph; S.ord = ord;\n}\nconst R = S.R;\n\n// ---- backdrop cache ----\nconst bdKey = W + 'x' + H + '|' + style + '|' + P.pal + '|' + P.seed + '|' + Math.round(P.hue);\nif (!S.bd || S.bdKey !== bdKey) {\n  S.bdKey = bdKey;\n  const g = createGraphics(W, H);\n  g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.noStroke();\n  const hy = H * 0.6;\n  const step = Math.max(2, Math.round(H / 140));\n  if (paper) {\n    // riso paper: warm cream ground + faint grain\n    g.background(38, 12, 93, 100);\n    for (let k = 0; k < 1400; k++) {\n      const gx = fr(k * 1.1 + 1) * W, gy = fr(k * 2.7 + 3) * H;\n      g.fill(38, 16, 70, 5 + fr(k) * 8);\n      g.rect(gx, gy, 2, 2);\n    }\n  } else if (style === 'backlit') {\n    // dark sky with a hot horizon glow band + stage light shafts\n    for (let yy = 0; yy < H; yy += step) {\n      const d = Math.abs(yy - hy) / H;\n      const glow = Math.exp(-d * d * 20);\n      const bri = PL.sky[2] + (PL.glow[2] - PL.sky[2]) * glow * (yy < hy ? 1 : .55);\n      const sat = PL.sky[1] + (PL.glow[1] - PL.sky[1]) * glow;\n      const hu = PL.sky[0] + (((PL.glow[0] - PL.sky[0] + 540) % 360) - 180) * glow;\n      g.fill((hu + 360) % 360, sat, bri, 100);\n      g.rect(0, yy, W, step + 1);\n    }\n    // light shafts from above\n    g.blendMode(g.ADD);\n    const shafts = 3 + Math.floor(fr(90) * 3);\n    for (let sI = 0; sI < shafts; sI++) {\n      const sx = (fr(sI * 7 + 4) * .8 + .1) * W;\n      const sw = u * (.12 + fr(sI * 3 + 1) * .18);\n      g.noStroke();\n      for (let b = 0; b < 5; b++) {\n        g.fill(PL.glow[0], PL.glow[1] * .7, PL.glow[2], 5 - b);\n        g.triangle(sx, -H * .05, sx - sw * (1 + b * .4), hy, sx + sw * (1 + b * .4), hy);\n      }\n    }\n    g.blendMode(g.BLEND);\n  } else {\n    // thermal / wire: deep dark gradient, cool\n    const base = style === 'thermal' ? [232, 70, 6] : [220, 55, 5];\n    for (let yy = 0; yy < H; yy += step) {\n      const t = yy / H;\n      g.fill(base[0], base[1], base[2] + t * 5 + (1 - Math.abs(t - .58) * 1.6) * 3, 100);\n      g.rect(0, yy, W, step + 1);\n    }\n  }\n  S.bd = g;\n\n  // halftone overlay for riso (sparse dot texture)\n  if (paper) {\n    const ht = createGraphics(W, H);\n    ht.colorMode(ht.HSB, 360, 100, 100, 100);\n    ht.noStroke();\n    const cell = Math.max(6, Math.round(u * .016));\n    for (let yy = 0; yy < H; yy += cell) for (let xx = 0; xx < W; xx += cell) {\n      ht.fill(0, 0, 0, 6);\n      ht.ellipse(xx, yy, cell * .38, cell * .38);\n    }\n    S.ht = ht;\n  } else S.ht = null;\n}\nimage(S.bd, 0, 0, W, H);\n\n// ---- geometry / draw ----\nconst hy = H * 0.6;\nconst baseSz = u * 0.16 * P.scale;\nconst feetTop = P.y * H;                                  // front row feet line\nconst bandH = H * 0.30;\n\nfunction figure(i) {\n  const r = S.row[i];\n  const dep = R > 1 ? r / (R - 1) : 1;                    // 0 back .. 1 front\n  const sz = baseSz * (0.52 + 0.62 * dep) * S.szj[i];\n  const px = S.fx[i] * W;\n  const py = (feetTop - bandH) + bandH * dep + (fr(i * 6 + 1) - .5) * sz * .12;\n  const phi = S.ph[i];\n\n  // per-figure jump (staggered slightly by depth so a ripple reads)\n  const jk = c01(kick - dep * .06 * (1 - kick));\n  const jump = jk * sz * 0.26 * (0.55 + 0.9 * eAmp) * act.hop;\n  const sway = Math.sin(bt * 0.5 + phi * TAU) * sz * 0.06 * (0.5 + eAmp);\n  const breath = swell * sz * 0.04;\n\n  // arm wave: travels across x, plus base hands-up\n  const wave = act.waveAmp * Math.sin(S.fx[i] * 1.6 * TAU - bt * act.wavePace * TAU);\n  const raise = c01(handsBase * (.4 + .6 * eAmp) + (0.4 + 0.6 * eAmp) * (wave * .5 + .18) + S.bass * .25);\n\n  const cx = px + sway;\n  const cy = py - jump - breath;\n\n  // depth ink\n  let bri = 22 - 19 * dep, alph = 68 + 28 * dep;\n  const hazeUp = dep < .5 ? (1 - dep * 2) * 6 : 0;        // atmospheric lift for back rows\n\n  push();\n  translate(cx, cy);\n\n  if (style === 'wire') {\n    // X-ray skeletal figure \u2014 glowing thin strokes, no fill (glow via double-stroke, no shadowBlur)\n    noFill(); strokeCap(ROUND);\n    const ax = sz * .22, ay = -sz * .64;\n    const hx = ax + raise * sz * .16, hyw = ay - raise * sz * .95;\n    const bones = () => {\n      ellipse(0, -sz * .9, sz * .30, sz * .34);            // skull\n      line(0, -sz * .72, 0, -sz * .05);                    // spine\n      for (let rb = 0; rb < 3; rb++) { const yy = -sz * (.6 - rb * .16); line(-sz * (.16 - rb * .02), yy, sz * (.16 - rb * .02), yy); }\n      line(-ax, ay, -hx, hyw); line(ax, ay, hx, hyw);      // arms\n      line(0, -sz * .05, -sz * .18, sz * .42); line(0, -sz * .05, sz * .18, sz * .42); // legs\n    };\n    stroke(PL.ink, PL.glow[1] * .5, 90, 22 + 18 * dep); strokeWeight(Math.max(2, sz * .14)); bones(); // soft glow pass\n    stroke(PL.ink, PL.glow[1] * .35, 100, 78 + 20 * jk); strokeWeight(Math.max(1, sz * .045)); bones(); // bright pass\n    pop();\n    return;\n  }\n\n  if (style === 'thermal') {\n    // false-color heat: cool outer + hot core (layered additive, no shadowBlur)\n    const heat = c01(.35 + .5 * jk + .25 * raise + .2 * S.rms);\n    const cool = cl(232 - heat * 44, 150, 232), hot = cl(60 - heat * 55, 2, 60);\n    noStroke(); blendMode(ADD);\n    fill(cool, 80, 24 + heat * 22, 22); ellipse(0, -sz * .52, sz * 1.05, sz * 1.72);   // cool halo\n    fill(cl(cool - 20, 30, 232), 82, 34 + heat * 26, 26); ellipse(0, -sz * .58, sz * .66, sz * 1.06);\n    fill(hot, 90, 62 + heat * 38, 55); ellipse(0, -sz * .9, sz * .34, sz * .38);        // hot head\n    beginShape();\n    vertex(-sz * .26, 0); vertex(-sz * .3, -sz * .62); vertex(sz * .3, -sz * .62); vertex(sz * .26, 0);\n    endShape(CLOSE);\n    fill(cl(hot + 8, 5, 62), 70, 90, 60); ellipse(0, -sz * .9, sz * .18, sz * .2);      // white-hot core\n    strokeWeight(sz * .14); strokeCap(ROUND); stroke(hot, 92, 72 + heat * 28, 60); noFill();\n    const ax = sz * .24, ay = -sz * .62, hx = ax + raise * sz * .16, hyt = ay - raise * sz * .95;\n    line(-ax, ay, -hx, hyt); line(ax, ay, hx, hyt);\n    blendMode(BLEND);\n    pop();\n    return;\n  }\n\n  // ---- backlit (default) & riso silhouette body ----\n  const drawBody = (hueI, sI, bI, aI, sw) => {\n    noStroke();\n    fill(hueI, sI, bI, aI);\n    // head\n    ellipse(0, -sz * .9, sz * .32, sz * .36);\n    // torso silhouette\n    beginShape();\n    vertex(-sz * .27, sz * .02);\n    vertex(-sz * .30, -sz * .58);\n    vertex(-sz * .18, -sz * .70);\n    vertex(sz * .18, -sz * .70);\n    vertex(sz * .30, -sz * .58);\n    vertex(sz * .27, sz * .02);\n    endShape(CLOSE);\n    // arms (thick strokes)\n    stroke(hueI, sI, bI, aI); strokeWeight(sw); strokeCap(ROUND); noFill();\n    const ax = sz * .24, ay = -sz * .62;\n    const hx = ax + raise * sz * .18, hyy = ay - raise * sz * .96;\n    // elbow bend\n    const ex = ax + raise * sz * .05, ey = ay - raise * sz * .5;\n    line(-ax, ay, -ex, ey); line(-ex, ey, -hx, hyy);\n    line(ax, ay, ex, ey); line(ex, ey, hx, hyy);\n    noStroke();\n  };\n\n  if (paper) {\n    // riso: two ink layers, misregistered\n    const off = sz * .05;\n    push(); translate(-off, off * .6);\n    drawBody((PL.ink + 175) % 360, 70, 62, 46, sz * .12);   // ink 2 (offset)\n    pop();\n    drawBody(PL.ink, 74, 40, 52, sz * .12);                 // ink 1\n  } else {\n    // backlit silhouette\n    drawBody((PL.ink + 6) % 360, 34, cl(bri + hazeUp, 2, 34), alph, sz * .13);\n    // rim light on the glow side (front rows only)\n    if (dep > .45) {\n      stroke(PL.glow[0], PL.glow[1] * .7, PL.glow[2], 40 * dep);\n      strokeWeight(Math.max(1, sz * .04)); noFill();\n      arc(0, -sz * .9, sz * .32, sz * .36, -TAU * .32, TAU * .12);\n      noStroke();\n    }\n  }\n\n  // phone light held up (twinkles)\n  if (S.hasP[i] && raise > .45 && !paper) {\n    const tw = .45 + .55 * Math.sin(bt * 3.3 + S.pph[i] * TAU) + S.tre * 1.2;\n    if (tw > .2) {\n      blendMode(ADD);\n      const px2 = (S.fx[i] > .5 ? 1 : -1) * (sz * .24 + raise * sz * .18);\n      const py2 = -sz * .62 - raise * sz * .96;\n      noStroke();\n      fill(PL.phone, P.pal === 'mono' ? 0 : 30, 100, cl(30 + 40 * tw, 0, 80));\n      ellipse(px2, py2, sz * .16 * (1 + .3 * tw), sz * .16 * (1 + .3 * tw));\n      fill(PL.phone, 10, 100, cl(50 + 50 * tw, 0, 95));\n      ellipse(px2, py2, sz * .07, sz * .07);\n      blendMode(BLEND);\n    }\n  }\n  pop();\n}\n\nfor (let k = 0; k < S.ord.length; k++) figure(S.ord[k]);\n\n// ---- extra float phone-lights / spark motes (density) among far crowd ----\nif (P.density > 0.02 && style !== 'wire') {\n  const m = Math.round(P.density * 26 * act.phones);\n  noStroke(); blendMode(ADD);\n  for (let i = 0; i < m; i++) {\n    const fx = (fr(i * 2.1 + 30) * .9 + .05) * W;\n    const fy = hy + fr(i * 3.7 + 40) * (bandH * .8);\n    const tw = .4 + .6 * Math.sin(bt * 2.2 + fr(i + 60) * TAU) + S.tre * 1.4;\n    if (tw < .15) continue;\n    fill(paper ? PL.ink : PL.phone, paper ? 60 : 24, 100, cl(14 + 26 * tw, 0, 55));\n    const d = u * .012 * (1 + .5 * tw);\n    ellipse(fx, fy, d, d);\n  }\n  blendMode(BLEND);\n}\n\n// halftone overlay (riso only)\nif (paper && S.ht) { blendMode(MULTIPLY); image(S.ht, 0, 0, W, H); blendMode(BLEND); }\n\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.blancmange",
+  "kind": "genart",
+  "name": "Blancmange Curve",
+  "desc": "Parallax bands of the nowhere-differentiable Takagi/blancmange fractal stacked back-to-front as a spectral mountain-fabric, each crinkled ridge scrolling and shivering as its triangle-wave octave phases drift.",
+  "tags": [
+    "blancmange",
+    "takagi",
+    "fractal",
+    "nowhere-differentiable",
+    "triangle-wave",
+    "weierstrass",
+    "crinkle",
+    "ridge",
+    "mountain",
+    "fabric",
+    "parallax",
+    "bands",
+    "spectral",
+    "layered",
+    "self-similar",
+    "continuous",
+    "curve",
+    "aurora",
+    "thermal",
+    "neon",
+    "ink",
+    "abstract",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "math",
+    "generative",
+    "landscape",
+    "shiver"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "crinkle": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "fractal detail depth + roughness (jaggedness of the creases)"
+    },
+    "amp": {
+      "default": 0.6,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "ridge height / mountain amplitude"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "number of stacked parallax bands (3..13)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "scroll + shiver rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "spectral base hue"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "translucency / glow / exposure amplitude"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "horizontal feature zoom (creases per band)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "horizontal pan of the curve field"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0.3,
+      "max": 0.95,
+      "doc": "vertical baseline anchor of the front band"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "aurora",
+        "ink",
+        "neon",
+        "thermal"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation of phases/hues/scroll"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:24:48+00:00",
+    "fps": 59.9,
+    "motion": 0.0417,
+    "lum": 0.432
+  },
+  "code": "const D = { crinkle: .55, amp: .6, density: .6, speed: 1, hue: 210, energy: .7, scale: 1, x: .5, y: .72, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst MAXOCT = 11, MAXBANDS = 13;\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph = []; S.shiv = [];\n  for (let n = 0; n < MAXOCT; n++) { S.ph[n] = fr(n + 3) * 1000; S.shiv[n] = (fr(n + 40) - .5) * 0.9 * (1 + n * 0.15); }\n  S.hj = []; S.scj = []; S.bj = []; S.dir = [];\n  for (let b = 0; b < MAXBANDS; b++) { S.hj[b] = (fr(b + 70) - .5) * 22; S.scj[b] = 0.6 + fr(b + 100) * 0.9; S.bj[b] = (fr(b + 130) - .5) * 0.5; S.dir[b] = fr(b + 160) < 0.5 ? -1 : 1; }\n}\n\nconst t = K.t;\nconst aAll = P.alpha / 100;\nconst u = Math.min(width, height);\nconst NB = 3 + Math.round(P.density * (MAXBANDS - 3));\nconst sec = K.section | 0;\nconst secDrift = Math.sin(sec * 0.9) * 30 + t * 2.0;\nconst hueSpread = 120 + K.intensity * 70;\nconst rough = 0.5 + P.crinkle * 0.12;\nconst maxOct = 2 + Math.round(P.crinkle * 7);\nconst swell = 1 + K.swell * 0.15 + A.rms * 0.5;\nconst baseY = P.y * height;\nconst spanBase = 1.1 + P.scale * 1.3;\nconst style = P.style;\n\nfunction tri(v) { const f = v - Math.floor(v); return f < .5 ? f * 2 : (1 - f) * 2; }\nfunction blanc(xx, dep) {\n  let sum = 0, w = 1, tot = 0;\n  for (let n = 0; n <= dep; n++) {\n    const p = S.ph[n] + t * S.shiv[n] * P.speed * 0.15 + A.bass * 0.4;\n    sum += w * tri(Math.pow(2, n) * xx + p);\n    tot += w; w *= rough;\n  }\n  return sum / tot;\n}\nfunction thermal(m) { m = Math.max(0, Math.min(1, m)); return [5 + m * 50, 100 - m * 78, 18 + m * 78]; }\n\n// dark spectral ground so the frame is never near-black and never empty\npush();\nnoStroke();\nconst bgH = ((P.hue + secDrift + 200) % 360 + 360) % 360;\nfill(bgH, 42, 8 + P.energy * 5, 100 * aAll);\nrect(0, 0, width, height);\npop();\n\nif (style === 'aurora') blendMode(ADD);\n\nfor (let b = 0; b < NB; b++) {\n  const bf = NB > 1 ? b / (NB - 1) : 0;                 // 0 back .. 1 front\n  const freqBand = 0.6 + bf * 1.4;\n  const unitsAcross = spanBase * freqBand;\n  let depth = Math.round(maxOct * (0.4 + 0.6 * bf));\n  depth = Math.max(1, Math.min(MAXOCT - 1, depth));\n  const samples = Math.min(360, 70 + depth * 46);\n  let cap = Math.floor(Math.log2(Math.max(2, (samples / 2.3) / unitsAcross)));\n  cap = Math.max(1, cap);\n  const dep = Math.min(depth, cap);\n  const ampPix = P.amp * u * (0.12 + 0.44 * bf) * swell;\n  const baselineY = baseY - (1 - bf) * (height * 0.46) + S.bj[b] * height * 0.05;\n  const scrollX = t * P.speed * (0.05 + bf * 0.16) * S.scj[b] * S.dir[b] + P.x * 0.6;\n\n  // build silhouette\n  const xs = [], ys = [];\n  for (let i = 0; i <= samples; i++) {\n    const x01 = i / samples;\n    const val = blanc(x01 * unitsAcross + scrollX, dep);\n    xs.push(x01 * width);\n    ys.push(baselineY - val * ampPix);\n  }\n\n  const hh = ((P.hue + bf * hueSpread + secDrift + S.hj[b]) % 360 + 360) % 360;\n\n  if (style === 'ink') {\n    // ink-crease: monochrome contour lines only, no mass \u2014 abstracted\n    noFill();\n    const g = 40 + bf * 55;\n    stroke(bgH, 6, g, (55 + P.energy * 35) * aAll);\n    strokeWeight(0.6 + bf * 1.8);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    endShape();\n  } else if (style === 'neon') {\n    // dark mass + glowing crest wire\n    noStroke();\n    fill(hh, 60, 10 + bf * 8, (55 + P.energy * 25) * aAll);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    vertex(width, height); vertex(0, height);\n    endShape(CLOSE);\n    blendMode(ADD);\n    noFill();\n    stroke(hh, 80, 100, (40 + P.energy * 40) * aAll);\n    strokeWeight(1 + bf * 1.4);\n    drawingContext.shadowBlur = 12 + bf * 10;\n    drawingContext.shadowColor = color(hh, 90, 100).toString();\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    endShape();\n    drawingContext.shadowBlur = 0;\n    blendMode(BLEND);\n  } else if (style === 'thermal') {\n    const c = thermal(0.15 + bf * 0.8);\n    noStroke();\n    fill(c[0], c[1], c[2], (40 + P.energy * 30) * aAll);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    vertex(width, height); vertex(0, height);\n    endShape(CLOSE);\n  } else if (style === 'aurora') {\n    // luminous ADD curtains: low-alpha glow mass + bright crest\n    noStroke();\n    fill(hh, 55, 45 + bf * 30, (10 + P.energy * 12) * aAll);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    vertex(width, height); vertex(0, height);\n    endShape(CLOSE);\n    noFill();\n    stroke((hh + 20) % 360, 45, 100, (30 + P.energy * 30) * aAll);\n    strokeWeight(1 + bf * 1.6);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    endShape();\n  } else {\n    // spectral-fabric (default): stacked translucent spectral bands\n    noStroke();\n    fill(hh, 72 - bf * 16, 52 + bf * 40, (30 + P.energy * 28) * aAll);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    vertex(width, height); vertex(0, height);\n    endShape(CLOSE);\n    // thin crest highlight for crease definition\n    noFill();\n    stroke(hh, 40, 92, (18 + P.energy * 20) * aAll);\n    strokeWeight(0.8 + bf * 0.8);\n    beginShape();\n    for (let i = 0; i <= samples; i++) vertex(xs[i], ys[i]);\n    endShape();\n  }\n}\n\nif (style === 'aurora') blendMode(BLEND);\n\n// audio sparkle on treble, partial (never full-frame flash)\nif ((A.treble > 0.02 || A.rms > 0.02)) {\n  push();\n  blendMode(ADD);\n  noStroke();\n  const gl = (A.treble * 0.6 + A.rms * 0.4) * P.energy;\n  fill(((P.hue + 40) % 360 + 360) % 360, 30, 100, gl * 18 * aAll);\n  rect(0, baseY - u * 0.3, width, u * 0.6);\n  blendMode(BLEND);\n  pop();\n}\n"
+}

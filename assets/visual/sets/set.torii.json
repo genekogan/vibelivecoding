@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.torii",
+  "kind": "set",
+  "name": "Torii Gate",
+  "desc": "A vermilion torii gate with a shimenawa rope of fluttering paper shide, mist drifting through the posts, and a paper lantern breathing warm light.",
+  "tags": [
+    "torii",
+    "gate",
+    "shrine",
+    "shinto",
+    "japan",
+    "japanese",
+    "vermilion",
+    "zen",
+    "shide",
+    "paper",
+    "lantern",
+    "mist",
+    "sacred",
+    "temple",
+    "kyoto",
+    "sumi",
+    "ink"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "gate scale"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "shide streamer count"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "flutter amplitude"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "lantern glow brightness"
+    },
+    "mist": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "mist density"
+    },
+    "hue": {
+      "default": 9,
+      "min": 0,
+      "max": 360,
+      "doc": "lacquer hue (vermilion)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "motion rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (center)"
+    },
+    "y": {
+      "default": 0.92,
+      "min": 0.6,
+      "max": 1.0,
+      "doc": "floor anchor y"
+    },
+    "style": {
+      "default": "vermilion",
+      "options": [
+        "vermilion",
+        "sumi",
+        "woodblock",
+        "blueprint",
+        "twilight"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "shrine",
+      "options": [
+        "shrine",
+        "storm",
+        "dawn"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variant seed"
+    }
+  },
+  "acts": [
+    "shrine",
+    "storm",
+    "dawn"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:27:44+00:00",
+    "fps": 56.5,
+    "motion": 0.0151,
+    "lum": 0.137
+  },
+  "code": "const D = { scale:1, density:.55, energy:.55, glow:.7, hue:9, mist:.6, speed:1, x:.5, y:.92, style:'vermilion', act:'shrine', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI*2;\nconst u = Math.min(width,height);\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h%360)+360)%360;\nconst clamp = (v,a,b) => v<a?a:(v>b?b:v);\n\nconst scl = P.scale;\nconst gh = u*0.72*scl, pw = u*0.50*scl;\nconst cx = P.x*width, by = P.y*height, top = by - gh;\nconst pW = pw*0.085;                    // pillar half-width\nconst Lx = cx - pw/2, Rx = cx + pw/2;   // pillar centers\nconst kasY = top + gh*0.06;             // top curved beam center\nconst nukY = top + gh*0.28;             // second beam center\nconst over = pw*0.16;                   // kasagi overhang\n\n// ---- style table ----\nconst V = hw(P.hue);\nconst STY = {\n  vermilion: { wood:[V,70,76], woodD:[V,80,42], cap:[0,0,10], plaque:[44,66,86], mode:'lacquer', ink:false, wire:false, wood2:[V,60,90] },\n  sumi:      { wood:[220,6,20], woodD:[220,8,8], cap:[0,0,6], plaque:[220,4,44], mode:'ink', ink:true, wire:false, wood2:[220,5,40] },\n  woodblock: { wood:[V,72,80], woodD:[0,0,8], plaque:[44,70,84], cap:[0,0,8], mode:'block', ink:false, wire:false, wood2:[V,50,94] },\n  blueprint: { wood:[196,64,74], woodD:[210,72,16], plaque:[192,55,60], cap:[196,50,50], mode:'wire', ink:false, wire:true, wood2:[196,40,90] },\n  twilight:  { wood:[hw(V+8),34,46], woodD:[230,40,16], plaque:[40,30,58], cap:[230,20,20], mode:'lacquer', ink:false, wire:false, wood2:[hw(V+8),24,64] }\n};\nconst sty = STY[P.style] || STY.vermilion;\n\n// ---- cached gate structure ----\nconst key = width+'x'+height+':'+scl.toFixed(3)+':'+Math.round(P.hue)+':'+P.style+':'+P.seed;\nif (!S.gfx || S.key !== key) {\n  const g = S.gfx || (S.gfx = createGraphics(width, height));\n  g.colorMode(HSB,360,100,100,100);\n  g.clear(); g.push();\n\n  const roughRect = (x0,y0,w,h,base,dark) => {\n    // ink dry-brush block: layered translucent strokes with broken edges\n    for (let l=0;l<5;l++){\n      const a = 22 + l*10;\n      g.noStroke(); g.fill(base[0],base[1],clamp(base[2]-l*3,0,100), a);\n      const jx = (fr(x0*0.7+l*3.3)-0.5)*w*0.05, jy=(fr(y0*0.9+l)-0.5)*h*0.03;\n      g.rect(x0+jx, y0+jy, w, h);\n    }\n    // dry-brush streaks\n    g.stroke(dark[0],dark[1],dark[2],40); g.strokeWeight(Math.max(1,u*0.003));\n    for (let i=0;i<7;i++){ const yy=y0+ (i+ .5)/7*h; g.line(x0+w*0.04, yy, x0+w*0.96, yy+ (fr(i+x0)-0.5)*u*0.01); }\n  };\n  const beam = (x0,x1,yc,h) => {\n    if (sty.ink) { roughRect(x0, yc-h/2, x1-x0, h, sty.wood, sty.woodD); return; }\n    if (sty.wire){ g.noFill(); g.stroke(sty.wood[0],sty.wood[1],sty.wood[2]); g.strokeWeight(Math.max(1.2,u*0.004)); g.rect(x0,yc-h/2,x1-x0,h); return; }\n    // lacquer / block: base + top-lit band + shadow underside + keyline\n    g.noStroke();\n    g.fill(sty.woodD[0],sty.woodD[1],sty.woodD[2]); g.rect(x0,yc-h/2,x1-x0,h);\n    g.fill(sty.wood[0],sty.wood[1],sty.wood[2]); g.rect(x0,yc-h/2,x1-x0,h*0.62);\n    g.fill(sty.wood2[0],sty.wood2[1],sty.wood2[2],70); g.rect(x0,yc-h/2,x1-x0,h*0.16);\n    if (sty.mode==='block'){ g.noFill(); g.stroke(0,0,8); g.strokeWeight(Math.max(1.4,u*0.005)); g.rect(x0,yc-h/2,x1-x0,h); }\n  };\n\n  // pillars (slight taper: wider at base)\n  const pillar = (xc) => {\n    const wB = pW*2.15, wT = pW*1.9;\n    if (sty.ink){ roughRect(xc-wB/2, nukY, wB, by-nukY, sty.wood, sty.woodD); return; }\n    if (sty.wire){ g.noFill(); g.stroke(sty.wood[0],sty.wood[1],sty.wood[2]); g.strokeWeight(Math.max(1.2,u*0.004));\n      g.quad(xc-wT/2,nukY-gh*0.02, xc+wT/2,nukY-gh*0.02, xc+wB/2,by, xc-wB/2,by); return; }\n    g.noStroke();\n    g.fill(sty.woodD[0],sty.woodD[1],sty.woodD[2]); g.quad(xc-wT/2,top, xc+wT/2,top, xc+wB/2,by, xc-wB/2,by);\n    g.fill(sty.wood[0],sty.wood[1],sty.wood[2]); g.quad(xc-wT/2,top, xc+wT*0.15,top, xc+wB*0.15,by, xc-wB/2,by);\n    g.fill(sty.wood2[0],sty.wood2[1],sty.wood2[2],55); g.rect(xc-wT/2, top, wT*0.18, by-top);\n    if (sty.mode==='block'){ g.noFill(); g.stroke(0,0,8); g.strokeWeight(Math.max(1.4,u*0.005)); g.quad(xc-wT/2,top, xc+wT/2,top, xc+wB/2,by, xc-wB/2,by); }\n  };\n\n  // bokashi sky wash for woodblock behind the gate\n  if (sty.mode==='block'){\n    for (let i=0;i<40;i++){ const f=i/39; g.noStroke(); g.fill(hw(V+20), 30*(1-f)+8, 30+f*40, 8); g.rect(cx-pw*0.9, top-gh*0.05+f*(gh*0.5), pw*1.8, gh*0.5/40+1); }\n  }\n\n  pillar(Lx); pillar(Rx);\n  // nuki (lower straight beam) \u2014 extends beyond pillars\n  beam(Lx-pW*1.6, Rx+pW*1.6, nukY, gh*0.075);\n  // gakuzuka strut + plaque\n  if (!sty.wire){ g.noStroke(); g.fill(sty.woodD[0],sty.woodD[1],sty.woodD[2]); g.rect(cx-pW*0.5, kasY+gh*0.03, pW, nukY-kasY-gh*0.03); }\n  // plaque\n  if (sty.ink){ roughRect(cx-pw*0.10, kasY+gh*0.05, pw*0.20, gh*0.14, sty.plaque, sty.woodD); }\n  else if (sty.wire){ g.noFill(); g.stroke(sty.plaque[0],sty.plaque[1],sty.plaque[2]); g.rect(cx-pw*0.10, kasY+gh*0.05, pw*0.20, gh*0.14); }\n  else { g.noStroke(); g.fill(sty.plaque[0],sty.plaque[1],sty.plaque[2]*0.7); g.rect(cx-pw*0.10, kasY+gh*0.05, pw*0.20, gh*0.14, u*0.006);\n         g.fill(sty.plaque[0],sty.plaque[1],sty.plaque[2]); g.rect(cx-pw*0.085, kasY+gh*0.065, pw*0.17, gh*0.11, u*0.004);\n         g.stroke(0,0,10,50); g.strokeWeight(Math.max(1,u*0.004)); g.line(cx-pw*0.04, kasY+gh*0.08, cx-pw*0.04, kasY+gh*0.155); g.line(cx+pw*0.02, kasY+gh*0.075, cx+pw*0.02, kasY+gh*0.16); }\n\n  // shimagi (thin flat beam just under kasagi)\n  beam(cx-pw/2-over*0.8, cx+pw/2+over*0.8, kasY+gh*0.055, gh*0.03);\n  // kasagi (top beam) \u2014 curved with upturned ends, drawn as a shape\n  const drawKasagi = () => {\n    const y = kasY, h = gh*0.06, x0 = cx-pw/2-over, x1 = cx+pw/2+over;\n    if (sty.wire){ g.noFill(); g.stroke(sty.wood[0],sty.wood[1],sty.wood[2]); g.strokeWeight(Math.max(1.2,u*0.004)); }\n    else { g.noStroke(); g.fill(sty.ink?sty.wood[0]:sty.woodD[0], sty.ink?sty.wood[1]:sty.woodD[1], sty.ink?sty.wood[2]:sty.woodD[2], sty.ink?70:100); }\n    const sag = gh*0.035;\n    g.beginShape();\n    g.vertex(x0, y-h*0.5 - sag*0.4);\n    g.bezierVertex(x0+ (x1-x0)*0.3, y-h*0.5+sag, cx-(x1-x0)*0.1, y-h*0.5+sag, cx, y-h*0.5+sag);\n    g.bezierVertex(cx+(x1-x0)*0.1, y-h*0.5+sag, x1-(x1-x0)*0.3, y-h*0.5+sag, x1, y-h*0.5 - sag*0.4);\n    g.vertex(x1, y+h*0.5 - sag*0.2);\n    g.bezierVertex(x1-(x1-x0)*0.3, y+h*0.5+sag*1.2, cx+(x1-x0)*0.1, y+h*0.5+sag*1.2, cx, y+h*0.5+sag*1.2);\n    g.bezierVertex(cx-(x1-x0)*0.1, y+h*0.5+sag*1.2, x0+(x1-x0)*0.3, y+h*0.5+sag*1.2, x0, y+h*0.5 - sag*0.2);\n    g.endShape(CLOSE);\n    if (!sty.ink && !sty.wire){ g.noStroke(); g.fill(sty.wood[0],sty.wood[1],sty.wood[2]); g.beginShape();\n      g.vertex(x0, y-h*0.5-sag*0.4);\n      g.bezierVertex(x0+(x1-x0)*0.3,y-h*0.5+sag, cx-(x1-x0)*0.1,y-h*0.5+sag, cx,y-h*0.5+sag);\n      g.bezierVertex(cx+(x1-x0)*0.1,y-h*0.5+sag, x1-(x1-x0)*0.3,y-h*0.5+sag, x1,y-h*0.5-sag*0.4);\n      g.vertex(x1,y); g.bezierVertex(cx+(x1-x0)*0.1,y+sag*0.4, cx-(x1-x0)*0.1,y+sag*0.4, x0,y); g.endShape(CLOSE);\n      if (sty.mode==='block'){ g.noFill(); g.stroke(0,0,8); g.strokeWeight(Math.max(1.4,u*0.005));\n        g.beginShape();\n        g.vertex(x0, y-h*0.5-sag*0.4);\n        g.bezierVertex(x0+(x1-x0)*0.3,y-h*0.5+sag, cx-(x1-x0)*0.1,y-h*0.5+sag, cx,y-h*0.5+sag);\n        g.bezierVertex(cx+(x1-x0)*0.1,y-h*0.5+sag, x1-(x1-x0)*0.3,y-h*0.5+sag, x1,y-h*0.5-sag*0.4);\n        g.vertex(x1, y+h*0.5-sag*0.2);\n        g.bezierVertex(x1-(x1-x0)*0.3,y+h*0.5+sag*1.2, cx+(x1-x0)*0.1,y+h*0.5+sag*1.2, cx,y+h*0.5+sag*1.2);\n        g.bezierVertex(cx-(x1-x0)*0.1,y+h*0.5+sag*1.2, x0+(x1-x0)*0.3,y+h*0.5+sag*1.2, x0,y+h*0.5-sag*0.2);\n        g.endShape(CLOSE); }\n    }\n  };\n  drawKasagi();\n  g.pop();\n  S.key = key;\n  // rope anchor geometry stored\n  S.ropeY = nukY + gh*0.04;\n  S.ropeX0 = Lx + pW*1.4; S.ropeX1 = Rx - pW*1.4;\n}\n\nimage(S.gfx, 0, 0);\n\n// ---- act ----\nlet flutterMul=1, mistMul=1, glowMul=1;\nif (P.act==='storm'){ flutterMul=2.2; mistMul=1.5; glowMul=0.9; }\nelse if (P.act==='dawn'){ flutterMul=0.6; mistMul=0.7; glowMul=1.2; }\n\nconst wind = Math.sin(K.t*0.5)*0.6 + Math.sin(K.t*1.7+1.3)*0.4 + K.pulse*0.5 + A.lowmid*0.7;\nconst breath = 0.5 + 0.5*K.swell;\n\n// ---- drifting mist (continuous K.t scroll) ----\npush(); blendMode(SCREEN); noStroke();\nconst NM = Math.round(4 + P.mist*mistMul*7);\nfor (let i=0;i<NM;i++){\n  const spd = (0.02+fr(i*3.1)*0.05)*P.speed*mistMul;\n  const bx = (fr(i*7.7) + K.t*spd) % 1.3 - 0.15;\n  const mx = bx*(width*1.2) - width*0.1;\n  const my = top + gh*(0.25+fr(i*2.2)*0.7) + Math.sin(K.t*0.4+i)*u*0.02;\n  const mw = u*(0.25+fr(i*5.5)*0.35), mh = u*(0.05+fr(i*4.4)*0.05);\n  const a = clamp((6 + P.mist*10)*mistMul, 0, 22);\n  fill(hw(V+ (sty.ink?200:30)), sty.ink?4:18, sty.ink?70:88, a);\n  ellipse(mx, my, mw, mh);\n}\nblendMode(BLEND); pop();\n\n// ---- shimenawa rope + fluttering shide ----\nconst ropeY = S.ropeY!=null?S.ropeY:(nukY+gh*0.04);\nconst rx0 = S.ropeX0!=null?S.ropeX0:(Lx+pW*1.4), rx1 = S.ropeX1!=null?S.ropeX1:(Rx-pW*1.4);\nconst ropeSag = gh*0.05*(1+wind*0.15);\npush();\n// rope (catenary)\nnoFill();\nstroke(sty.ink?[220,5,30][0]:44, sty.ink?6:36, sty.ink?36:60);\nstrokeWeight(Math.max(2.5,u*0.011));\nbeginShape();\nfor (let i=0;i<=16;i++){ const f=i/16; const rxp=rx0+(rx1-rx0)*f; const ry=ropeY+Math.sin(f*Math.PI)*ropeSag; vertex(rxp,ry); }\nendShape();\nstrokeWeight(Math.max(1,u*0.004)); stroke(sty.ink?220:44, sty.ink?4:20, sty.ink?52:82,60);\nbeginShape();\nfor (let i=0;i<=16;i++){ const f=i/16; const rxp=rx0+(rx1-rx0)*f; const ry=ropeY+Math.sin(f*Math.PI)*ropeSag - u*0.004; vertex(rxp,ry); }\nendShape();\n\n// shide zigzag paper streamers hanging from rope\nconst NS = Math.round(3 + P.density*6);\nfor (let i=0;i<NS;i++){\n  const f = (i+0.5)/NS;\n  const ax = rx0+(rx1-rx0)*f;\n  const ayy = ropeY+Math.sin(f*Math.PI)*ropeSag;\n  const len = gh*(0.14+fr(i*2.7)*0.05);\n  const phase = fr(i*9.1)*TAU;\n  const sway = (wind*flutterMul)*(0.6+fr(i*1.3)*0.8);\n  push(); translate(ax, ayy);\n  const segs = 5, sw = u*(0.018+fr(i*3.3)*0.006);\n  noStroke();\n  for (let s=0;s<segs;s++){\n    const t0=s/segs, t1=(s+1)/segs;\n    const bend = Math.sin(K.t*2.4*P.speed + phase + s*0.7)*sway*u*0.03*(t0+0.3);\n    const x0=Math.sin(phase+s*0.5)*sway*u*0.01 + bend*0.3;\n    const y0=len*t0, y1=len*t1;\n    const dir = s%2? 1:-1;\n    const bl = sty.ink? (s%2? [220,4,72]:[220,3,58]) : (sty.mode==='block'? [0,0,98]:[44,8,97]);\n    fill(bl[0],bl[1],bl[2], 92);\n    quad(x0-sw*0.5+bend, y0, x0+sw*0.5+bend, y0, x0+sw*0.5+dir*sw*0.7+bend, y1, x0-sw*0.5+dir*sw*0.7+bend, y1);\n    // fold shadow\n    fill(0,0, sty.ink?10:18, 22); quad(x0+dir*sw*0.1+bend, y0, x0+sw*0.5+bend, y0, x0+sw*0.5+dir*sw*0.7+bend, y1, x0+dir*sw*0.2+dir*sw*0.7+bend, y1);\n  }\n  pop();\n}\npop();\n\n// ---- hanging paper lantern (chochin) breathing glow ----\npush();\nconst lyBase = nukY + gh*0.10;\nconst lx = cx + Math.sin(K.t*0.7)*pw*0.02;\nconst ly = lyBase + Math.sin(K.t*0.9)*u*0.006;\nconst lw = u*0.085*scl, lh = u*0.12*scl;\nconst flick = 1 + (fr(Math.floor(K.t*7))-0.5)*0.12;\nconst gI = (P.glow*glowMul)*breath*flick + A.bass*0.3;\n// glow halo\nblendMode(SCREEN); noStroke();\nfor (let i=0;i<3;i++){ fill(28, 60, 100, clamp((10+gI*20)*(1-i/3),0,40)); ellipse(lx, ly, lw*(1.8+i*1.3), lh*(1.6+i*1.2)); }\nblendMode(BLEND);\n// lantern body\nconst lb = sty.ink? [30,30,70] : [30, 62, 78+gI*18];\ndrawingContext.shadowBlur = 8+gI*22; drawingContext.shadowColor='hsla(30,80%,60%,0.8)';\nnoStroke(); fill(lb[0],lb[1],clamp(lb[2],0,100)); ellipse(lx, ly, lw, lh);\ndrawingContext.shadowBlur=0;\n// ribs\nstroke(0,0,20,55); strokeWeight(Math.max(1,u*0.003)); noFill();\nfor (let i=1;i<5;i++){ const yy=ly-lh/2+lh*i/5; const wwv = lw*Math.sin((i/5)*Math.PI); line(lx-wwv/2, yy, lx+wwv/2, yy); }\n// top & bottom caps\nnoStroke(); fill(0,0,15); rect(lx-lw*0.22, ly-lh*0.55, lw*0.44, lh*0.08, u*0.004); rect(lx-lw*0.18, ly+lh*0.47, lw*0.36, lh*0.07, u*0.004);\n// inner warm core\nblendMode(SCREEN); fill(40,50,100, 30+gI*30); ellipse(lx, ly, lw*0.5, lh*0.55); blendMode(BLEND);\npop();\n\nblendMode(BLEND);\n"
+}

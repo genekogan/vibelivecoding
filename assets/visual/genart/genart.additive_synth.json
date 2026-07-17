@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.additive_synth",
+  "kind": "genart",
+  "name": "Additive Waveform",
+  "desc": "An oscilloscope of Fourier synthesis where stacked lanes of faint spectral sine harmonics (low=red to high=violet) sum into one bright gold composite that perpetually morphs between sawtooth, square and organic timbres as harmonic amplitudes and phases drift.",
+  "tags": [
+    "additive-synthesis",
+    "fourier",
+    "harmonics",
+    "sine",
+    "waveform",
+    "oscilloscope",
+    "scope",
+    "spectrum",
+    "spectral",
+    "signal",
+    "dsp",
+    "synth",
+    "sawtooth",
+    "square",
+    "phosphor",
+    "crt",
+    "amber",
+    "neon",
+    "blueprint",
+    "schematic",
+    "gold",
+    "rainbow",
+    "waves",
+    "polyline",
+    "glow",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "audio-reactive",
+    "music"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "waveform amplitude + glow (taller, brighter)"
+    },
+    "harmonics": {
+      "default": 9,
+      "min": 1,
+      "max": 18,
+      "doc": "number of summed sine harmonics (richer/sharper edges)"
+    },
+    "morph": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "timbre crossfade: sawtooth (0) <-> square (1)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "phase drift + horizontal scroll rate"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "visibility of individual harmonic lines"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "horizontal zoom = cycles across the width"
+    },
+    "lanes": {
+      "default": 3,
+      "min": 1,
+      "max": 4,
+      "doc": "number of stacked oscilloscope lanes"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "spectral gradient base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "global phase offset"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "vertical bias within each lane"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "phosphor",
+        "amber",
+        "neon",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic harmonic drift variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:06:48+00:00",
+    "fps": 60.2,
+    "motion": 0.0579,
+    "lum": 0.09
+  },
+  "code": "const D = { energy: .62, harmonics: 9, morph: .5, speed: 1, density: .6, scale: 1, lanes: 3, hue: 8, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst wu = u / 520;\nconst Nh = Math.max(1, Math.min(18, Math.round(P.harmonics)));\nconst Lanes = Math.max(1, Math.min(4, Math.round(P.lanes)));\nconst cycles = 1.0 + P.scale * 1.55;\nconst SN = Math.max(120, Math.min(240, Math.round(cycles * Nh * 2.4)));\nconst av = P.alpha / 100;\nconst style = P.style;\n\n// ---- seed-dependent per-harmonic / per-lane structure (rebuild on change) ----\nconst hkey = P.seed + '|' + Nh + '|' + Lanes;\nif (S.hkey !== hkey) {\n  S.hkey = hkey;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.rate = []; S.phz = []; S.dir = []; S.lanePh = []; S.detune = [];\n  for (let l = 0; l < Lanes; l++) { S.lanePh[l] = fr(l * 7 + 3) * 6.283; S.detune[l] = 0.92 + fr(l * 7 + 5) * 0.2; }\n  for (let k = 1; k <= Nh; k++) { S.rate[k] = 0.15 + fr(k * 3 + 1) * 0.5; S.phz[k] = fr(k * 3 + 2) * 6.283; S.dir[k] = fr(k * 3 + 9) < 0.5 ? -1 : 1; }\n}\n\n// ---- section / time drivers (motion floor from K.t; audio on top) ----\nconst morphE = Math.max(0, Math.min(1, P.morph + 0.28 * Math.sin(K.section * 0.8 + 1) + 0.1 * Math.sin(K.t * 0.05)));\nconst dt = K.t * (0.15 + P.speed * 0.55);\nconst sc = K.t * (0.20 + P.speed * 0.60);\nconst hueShift = K.section * 10 + K.t * 1.2;\nconst ampScale = 0.70 + 0.30 * K.intensity + 0.20 * K.swell;\nconst audioGlow = A.rms * 0.5 + A.bass * 0.4;\n\n// ---- style palette ----\nlet gTop, gBot, grat, sumH, sumS, useGlow = true, crt = false;\nif (style === 'phosphor') { gTop = [150, 30, 3]; gBot = [145, 35, 9]; grat = [130, 65, 22, 26]; sumH = 125; sumS = 85; crt = true; }\nelse if (style === 'amber') { gTop = [30, 42, 3]; gBot = [28, 48, 10]; grat = [33, 72, 26, 26]; sumH = 38; sumS = 92; crt = true; }\nelse if (style === 'neon') { gTop = [285, 55, 3]; gBot = [250, 52, 9]; grat = [300, 62, 18, 22]; sumH = 190; sumS = 12; }\nelse if (style === 'blueprint') { gTop = [212, 60, 50]; gBot = [214, 64, 40]; grat = [210, 78, 32, 60]; sumH = 210; sumS = 8; useGlow = false; }\nelse { gTop = [248, 66, 5]; gBot = [252, 56, 18]; grat = [250, 46, 27, 32]; sumH = 45; sumS = 55; } // spectral\n\nfunction harmColor(k) {\n  const s = Nh > 1 ? (k - 1) / (Nh - 1) : 0;\n  if (style === 'phosphor') return [120 + s * 34, 90, 42 + s * 42];\n  if (style === 'amber') return [30 + s * 16, 95, 46 + s * 40];\n  if (style === 'neon') return [(P.hue + s * 300 + hueShift * 2 + k * 15) % 360, 100, 86];\n  if (style === 'blueprint') return [195 - s * 20, 26 + s * 34, 92];\n  return [(P.hue + s * 280 + hueShift + 360) % 360, 82, 70 + s * 8]; // spectral\n}\n\n// ---- ground gradient (fills frame; keeps luminance up) ----\npush();\nnoStroke();\nconst GB = 46;\nfor (let b = 0; b < GB; b++) {\n  const f = b / (GB - 1);\n  fill(gTop[0] + (gBot[0] - gTop[0]) * f, gTop[1] + (gBot[1] - gTop[1]) * f, gTop[2] + (gBot[2] - gTop[2]) * f, 100 * av);\n  rect(0, f * height, width + 1, height / GB + 2);\n}\npop();\n\n// ---- graticule ----\npush();\nstroke(grat[0], grat[1], grat[2], grat[3] * av);\nstrokeWeight(1);\nfor (let vx = 1; vx < 14; vx++) line(vx / 14 * width, 0, vx / 14 * width, height);\nfor (let l = 0; l < Lanes; l++) {\n  const cy = (l + 0.5) / Lanes * height;\n  stroke(grat[0], grat[1], grat[2], grat[3] * 1.5 * av); line(0, cy, width, cy);\n  stroke(grat[0], grat[1], grat[2], grat[3] * av);\n  line(0, cy - height / Lanes * 0.33, width, cy - height / Lanes * 0.33);\n  line(0, cy + height / Lanes * 0.33, width, cy + height / Lanes * 0.33);\n}\npop();\n\n// ---- helper ----\nfunction poly(xs, ys, n) { beginShape(); for (let q = 0; q < n; q++) vertex(xs[q], ys[q]); endShape(); }\n\npush();\nnoFill();\nstrokeJoin(ROUND);\nstrokeCap(ROUND);\nconst sxArr = new Float32Array(SN), syArr = new Float32Array(SN);\nconst hxArr = new Float32Array(SN), hyArr = new Float32Array(SN);\nconst harmA = (9 + P.density * 46) * av;\nconst glowA = Math.min(90, (26 + P.energy * 30 + audioGlow * 60 + K.swell * 18)) * av;\nconst coreA = Math.min(100, (72 + P.energy * 22)) * av;\n\nfor (let l = 0; l < Lanes; l++) {\n  const laneY = (l + 0.5) / Lanes * height + (P.y - 0.5) * (height / Lanes) * 0.5;\n  const laneAmpPx = Math.min(height / Lanes * 0.48, height / Lanes * 0.44 * (0.35 + P.energy * 0.95) * ampScale);\n  const detune = S.detune[l], lanePh = S.lanePh[l];\n\n  // per-harmonic amplitude + phase (constant across x)\n  const amp = new Float64Array(Nh + 1), phs = new Float64Array(Nh + 1);\n  let sumAbs = 0;\n  for (let k = 1; k <= Nh; k++) {\n    const saw = 1 / k;\n    const sq = (k % 2 === 1) ? 1 / k : 0;\n    const base = saw * (1 - morphE) + sq * morphE;\n    const wob = 0.6 + 0.4 * Math.sin(K.t * S.rate[k] * (0.5 + P.speed * 0.5) + S.phz[k] + lanePh);\n    const fftv = (A.fft && A.fft.length) ? (A.fft[Math.min(A.fft.length - 1, (k * 3) | 0)] / 255) : 0;\n    const a = base * wob * (1 + fftv * 1.3);\n    amp[k] = a; sumAbs += Math.abs(a);\n    phs[k] = S.dir[k] * dt * (0.6 + k * 0.03) + S.phz[k] + lanePh + P.x * 6.283;\n  }\n  const norm = laneAmpPx / Math.max(0.02, sumAbs);\n  const twoPi = 6.28318;\n\n  // faint individual harmonics (spectral / style-colored)\n  for (let k = 1; k <= Nh; k++) {\n    const hc = harmColor(k);\n    const ak = amp[k] * norm, pk = phs[k];\n    for (let xi = 0; xi < SN; xi++) {\n      const uu = xi / (SN - 1);\n      const theta = uu * cycles * twoPi * detune + sc;\n      hxArr[xi] = uu * width;\n      hyArr[xi] = laneY - ak * Math.sin(k * theta + pk);\n    }\n    stroke(hc[0], hc[1], hc[2], harmA);\n    strokeWeight((0.9 + 0.4 / k) * wu);\n    poly(hxArr, hyArr, SN);\n  }\n\n  // composite sum polyline\n  for (let xi = 0; xi < SN; xi++) {\n    const uu = xi / (SN - 1);\n    const theta = uu * cycles * twoPi * detune + sc;\n    let ssum = 0;\n    for (let k = 1; k <= Nh; k++) ssum += amp[k] * Math.sin(k * theta + phs[k]);\n    sxArr[xi] = uu * width;\n    syArr[xi] = laneY - ssum * norm;\n  }\n  if (useGlow) {\n    blendMode(ADD);\n    stroke(sumH, sumS * 0.55, 100, glowA * 0.5); strokeWeight((5.5 + P.energy * 3) * wu); poly(sxArr, syArr, SN);\n    stroke(sumH, sumS, 100, glowA); strokeWeight(2.6 * wu); poly(sxArr, syArr, SN);\n    blendMode(BLEND);\n    stroke(sumH, sumS * 0.35, 100, coreA); strokeWeight(1.5 * wu); poly(sxArr, syArr, SN);\n  } else {\n    stroke(sumH, sumS, 100, coreA); strokeWeight(2.0 * wu); poly(sxArr, syArr, SN);\n  }\n}\npop();\n\n// ---- CRT scanlines (phosphor / amber only) ----\nif (crt) {\n  push();\n  stroke(0, 0, 0, 20 * av);\n  strokeWeight(1);\n  for (let yy = 0; yy < height; yy += 3) line(0, yy, width, yy);\n  pop();\n}\nblendMode(BLEND);\n"
+}

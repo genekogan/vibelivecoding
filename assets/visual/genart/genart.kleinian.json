@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.kleinian",
+  "kind": "genart",
+  "name": "Kleinian Limit Set",
+  "desc": "An Indra's-Pearls Kleinian-group limit set: two Mobius maps spin an infinite necklace of nested tangent pearls and fractal dust that breathes between a loose chain and dense self-similar froth, depth-hued and glowing on dark.",
+  "tags": [
+    "kleinian",
+    "indras-pearls",
+    "mobius",
+    "schottky",
+    "limit-set",
+    "fractal",
+    "fractal-dust",
+    "necklace",
+    "pearls",
+    "tangent-circles",
+    "apollonian-kin",
+    "group-theory",
+    "hyperbolic",
+    "self-similar",
+    "filigree",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "froth",
+    "spiral",
+    "glow",
+    "iq-palette",
+    "thermal",
+    "gold",
+    "neon",
+    "ice",
+    "ink",
+    "monochrome",
+    "cosmic",
+    "ornamental",
+    "recursive",
+    "mathematical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "froth": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "group closeness / trace: loose chain (low) -> dense fractal froth (high)"
+    },
+    "swirl": {
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "loxodromic twist of the generators -> spiralling filigree"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0.1,
+      "max": 1.6,
+      "doc": "pearl glow / exposure"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "word depth & pearl count (detail richness)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rotation & breathing rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "zoom of the limit set"
+    },
+    "hue": {
+      "default": 285,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "pearls",
+      "options": [
+        "pearls",
+        "gold-froth",
+        "neon-dust",
+        "ice",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:01:10+00:00",
+    "fps": 64.9,
+    "motion": 0.0319,
+    "lum": 0.152
+  },
+  "code": "const D = { froth: .7, swirl: .35, energy: .7, density: .6, speed: 1, scale: 1, hue: 285, x: .5, y: .5, style: 'pearls', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- seed-derived constants (deterministic, rebuild on seed change) ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.phiSeed = fr(1) * 6.2831;\n  S.asym = (fr(2) - 0.5) * 0.12;   // radius asymmetry between the two generators\n  S.rot0 = fr(3) * 6.2831;         // overall orientation\n  S.hueSeed = fr(4) * 45;\n}\n\nconst u = Math.min(width, height);\nconst t = K.t;\nconst sec = K.section, inten = K.intensity;\nconst bass = A.bass || 0, treble = A.treble || 0;\n\n// ---- breathing group parameters: the trace/closeness morph (loose chain <-> dense froth) ----\nconst breathe = Math.sin(t * 0.11 * (0.4 + P.speed * 0.6)) * 0.05 + Math.sin(t * 0.047) * 0.028;\nlet rhoBase = 0.42 + P.froth * 0.285 + breathe + inten * 0.02;\nconst rhoA = Math.max(0.30, Math.min(0.701, rhoBase));\nconst rhoB = Math.max(0.30, Math.min(0.701, rhoBase * (1 + S.asym)));\nconst phi = P.swirl * 2.2 + S.phiSeed + t * 0.05 * (0.5 + P.speed) + Math.sin(t * 0.063) * 0.22;\nconst cp = Math.cos(phi), sp = Math.sin(phi);\n\n// ---- complex helpers ----\nfunction csqrt(x, y) { const r = Math.hypot(x, y); let re = Math.sqrt((r + x) / 2), im = Math.sqrt(Math.max(0, (r - x) / 2)); if (y < 0) im = -im; return [re, im]; }\n// normalize a complex 2x2 to det = 1 (proper SL2 Mobius)\nfunction norm(M) {\n  const dx = M[0]*M[6] - M[1]*M[7] - (M[2]*M[4] - M[3]*M[5]);\n  const dy = M[0]*M[7] + M[1]*M[6] - (M[2]*M[5] + M[3]*M[4]);\n  const s = csqrt(dx, dy), sr = s[0], si = s[1], d2 = sr*sr + si*si || 1e-9, o = [];\n  for (let i = 0; i < 8; i += 2) { const xr = M[i], xi = M[i+1]; o[i] = (xr*sr + xi*si)/d2; o[i+1] = (xi*sr - xr*si)/d2; }\n  return o;\n}\nfunction mul(W, g) {\n  const a=W[0],ai=W[1],b=W[2],bi=W[3],c=W[4],ci=W[5],d=W[6],di=W[7];\n  const e=g[0],ei=g[1],f=g[2],fi=g[3],gg=g[4],gi=g[5],h=g[6],hi=g[7];\n  return [a*e-ai*ei + b*gg-bi*gi, a*ei+ai*e + b*gi+bi*gg,\n          a*f-ai*fi + b*h-bi*hi,  a*fi+ai*f + b*hi+bi*h,\n          c*e-ci*ei + d*gg-di*gi, c*ei+ci*e + d*gi+di*gg,\n          c*f-ci*fi + d*h-di*hi,  c*fi+ci*f + d*hi+di*h];\n}\n\n// generator matrices \u2014 Schottky pairings of 4 circles, normalized to SL2\nconst rA2 = rhoA*rhoA, rB2 = rhoB*rhoB;\nconst gA = norm([1,0,  rA2*cp + 1, rA2*sp,  1,0,  1,0]);            // pairs (-1,0)->(+1,0)\nconst gB = norm([0,1,  rB2*cp - 1, rB2*sp,  1,0,  0,1]);            // pairs (0,-1)->(0,+1)\nconst gAi = [gA[6],gA[7], -gA[2],-gA[3], -gA[4],-gA[5], gA[0],gA[1]];  // inverse (det=1)\nconst gBi = [gB[6],gB[7], -gB[2],-gB[3], -gB[4],-gB[5], gB[0],gB[1]];\nconst GEN = [gA, gAi, gB, gBi];\nconst INV = [1, 0, 3, 2];   // forbidden immediate inverse\n\n// ---- view ----\nconst span = 1.34;\nconst ppu = u * 0.47 * P.scale / span;\nconst cx = P.x * width, cy = P.y * height;\nconst theta = S.rot0 + t * (0.03 + P.speed * 0.035) + P.swirl * 0.3;\nconst style = P.style;\nconst hb = (P.hue + S.hueSeed + sec * 18) % 360;\nconst refR = 0.9;\nconst bigPx = ppu * 0.32;\nconst maxDepth = Math.floor(5 + P.density * 4.5);\nconst nodeCap = Math.floor(500 + P.density * 1000);\nconst alphaMul = P.alpha / 100;\nconst glowB = Math.min(100, 52 + P.energy * 34 + K.swell * 7 + bass * 26 + inten * 6);\n\n// ---- background / ground tone (fills frame, holds luminance) ----\nlet bgH, bgS, bgV;\nif (style === 'gold-froth') { bgH = 32; bgS = 62; bgV = 8; }\nelse if (style === 'neon-dust') { bgH = hb; bgS = 55; bgV = 5; }\nelse if (style === 'ice') { bgH = 202; bgS = 45; bgV = 9; }\nelse if (style === 'ink') { bgH = 0; bgS = 0; bgV = 5; }\nelse { bgH = hb; bgS = 48; bgV = 11; }\n\npush();\nif (P.alpha >= 100) background(bgH, bgS, bgV);\nelse { noStroke(); fill(bgH, bgS, bgV, 58); rect(0, 0, width, height); }\nif (style !== 'ink') {   // soft nebular ground glow (2 cheap ADD shapes) lifts luminance & depth\n  blendMode(ADD); noStroke();\n  fill(hb, 42, 46, 10 * alphaMul); ellipse(cx, cy, u * 1.5, u * 1.5);\n  fill((hb + 45) % 360, 58, 40, 7 * alphaMul); ellipse(cx, cy, u * 0.85, u * 0.85);\n  blendMode(BLEND);\n}\npop();\n\n// ---- draw the Kleinian limit set (reduced-word enumeration) under one rotated frame ----\npush();\ntranslate(cx, cy);\nrotate(theta);\nblendMode(ADD);\nif (style === 'ice') { noFill(); strokeWeight(Math.max(0.6, u * 0.0016)); } else noStroke();\n\nlet frontier = [];\nfor (let k = 0; k < 4; k++) frontier.push({ W: GEN[k], last: k });\nlet drawn = 0;\nconst lim = u * 1.85;\n\nfor (let depth = 1; depth <= maxDepth && drawn < nodeCap; depth++) {\n  const next = [];\n  for (let n = 0; n < frontier.length; n++) {\n    if (drawn >= nodeCap) break;\n    const node = frontier[n], W = node.W;\n    drawn++;\n    const D2 = W[6]*W[6] + W[7]*W[7];\n    if (D2 > 1e-9) {\n      let rpx = refR / D2 * ppu;\n      if (rpx > bigPx) rpx = bigPx;\n      const sx = (W[2]*W[6] + W[3]*W[7]) / D2 * ppu;\n      const sy = (W[3]*W[6] - W[2]*W[7]) / D2 * ppu;\n      if (Math.abs(sx) < lim && Math.abs(sy) < lim) {\n        const dia = Math.max(1.3, rpx * 2);\n        const big = rpx > 1.2;                 // a real pearl vs a dust grain\n        const fade = big ? Math.min(1, rpx / 6) : 1;\n        const gb = glowB * (0.6 + 0.4 * fade);\n        if (style === 'gold-froth') {\n          const h = 26 + (depth * 4) % 30;\n          fill(h, 84, gb, (13 + P.energy * 18) * alphaMul); ellipse(sx, sy, dia, dia);\n          if (rpx > 5) { fill(48, 28, 100, 20 * alphaMul); ellipse(sx, sy, rpx * 0.7, rpx * 0.7); }\n        } else if (style === 'neon-dust') {\n          const h = (hb + depth * 44) % 360;\n          fill(h, 96, Math.min(100, gb + 14), (24 + P.energy * 22) * alphaMul); ellipse(sx, sy, big ? dia : 1.6, big ? dia : 1.6);\n        } else if (style === 'ice') {\n          const h = 188 + (depth * 5) % 40;\n          stroke(h, 34, Math.min(100, gb + 15), (22 + P.energy * 26) * alphaMul); ellipse(sx, sy, dia, dia);\n        } else if (style === 'ink') {\n          fill(0, 0, 90, (9 + P.energy * 13) * alphaMul); ellipse(sx, sy, dia, dia);\n          if (rpx > 6) { fill(0, 0, 100, 13 * alphaMul); ellipse(sx, sy, rpx * 0.6, rpx * 0.6); }\n        } else { // pearls (default) \u2014 depth-hued glowing circles\n          const h = (hb + depth * 20) % 360;\n          fill(h, 56 + (depth * 7) % 32, gb, (13 + P.energy * 18) * alphaMul); ellipse(sx, sy, dia, dia);\n          if (rpx > 4) { fill((h + 18) % 360, 28, 100, 20 * alphaMul); ellipse(sx, sy, rpx * 0.7, rpx * 0.7); }\n        }\n        // treble sparkle on brightest pearls (audio on top of clk baseline; zero-safe)\n        if (treble > 0.03 && big && style !== 'ink' && style !== 'ice') {\n          fill((hb + 60) % 360, 22, 100, treble * 24 * alphaMul); ellipse(sx, sy, dia * 0.6, dia * 0.6);\n        }\n      }\n    }\n    if (depth < maxDepth) {\n      const forbid = INV[node.last];\n      for (let k = 0; k < 4; k++) { if (k === forbid) continue; next.push({ W: mul(W, GEN[k]), last: k }); }\n    }\n  }\n  frontier = next;\n}\nblendMode(BLEND);\npop();\n"
+}

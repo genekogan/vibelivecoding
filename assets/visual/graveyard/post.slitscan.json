@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.slitscan",
+  "kind": "post",
+  "name": "Slit-Scan Smear",
+  "desc": "Temporal row-delay smear from a canvas ring buffer, a wave of delay scrolling down the frame in continuous time.",
+  "tags": [
+    "slitscan",
+    "slit-scan",
+    "smear",
+    "time",
+    "temporal",
+    "delay",
+    "warp",
+    "glitch",
+    "datamosh",
+    "echo",
+    "ghost",
+    "crt",
+    "scanline",
+    "rgb-split",
+    "chromatic",
+    "xray",
+    "distortion",
+    "post",
+    "overlay",
+    "experimental",
+    "analog",
+    "feedback"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "smear-band tint/brightness intensity"
+    },
+    "depth": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "maximum temporal delay (smear length)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "tint/chroma hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "delay-wave scroll rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of delay bands (14..46)"
+    },
+    "chroma": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "chromatic-ghost offset amount"
+    },
+    "warp": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal displacement (datamosh)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved uniform scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wave phase offset"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "smear",
+      "options": [
+        "smear",
+        "crt",
+        "datamosh",
+        "echo",
+        "xray"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "wave",
+      "options": [
+        "wave",
+        "pulse",
+        "drift",
+        "stutter"
+      ],
+      "doc": "dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "wave",
+    "pulse",
+    "drift",
+    "stutter"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy:.55, depth:.5, hue:210, speed:1, density:.5, scale:1, x:.5, y:.5, style:'smear', act:'wave', seed:0, chroma:.5, warp:.4 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst style=P.style;\nconst disp=style==='datamosh', echo=style==='echo', crt=style==='crt', xray=style==='xray';\nconst chromaOn=style!=='xray';\nconst act=P.act;\n\nconst N=20, sc=0.42;\nconst bw=Math.max(2,Math.round(W*sc)), bh=Math.max(2,Math.round(Hh*sc));\n\n// ---- ring buffer of downscaled canvas captures (size-keyed) ----\nif(!S.ring || S.key!==W+'x'+Hh){\n  if(S.ring){ for(const g of S.ring){ try{g.remove();}catch(e){} } }\n  S.key=W+'x'+Hh; S.ring=[]; S.head=0;\n  for(let i=0;i<N;i++){ const g=createGraphics(bw,bh); g.colorMode(HSB,360,100,100,100); S.ring.push(g); }\n}\n// capture the current (pre-post) canvas into the new head slot\nS.head=(S.head+1)%N;\nconst cap=S.ring[S.head];\ncap.clear();\ntry{ cap.drawingContext.drawImage(drawingContext.canvas,0,0,W,Hh,0,0,bw,bh); }catch(e){}\n\n// ---- delay wave (scrolls in real time -> never re-phases) ----\nconst en=clp(P.energy,0,1)*(0.55+0.45*K.intensity);\nlet dep=clp(P.depth,0,1);\nconst spd=Math.max(0.05,P.speed);\nlet waveT=K.t*0.55*spd;\nif(act==='pulse'){ dep*= (0.45+0.55*K.swell); }\nelse if(act==='drift'){ waveT=K.t*0.22*spd; }\nelse if(act==='stutter'){ waveT=Math.floor(K.beat*2*spd)/2*1.4; }\nconst maxDelay=Math.max(1,Math.floor(lrp(2,N-2,dep)));\nconst nb=Math.round(lrp(14,46,clp(P.density,0,1)));\nconst phX=(P.x-0.5)*4;\n\ndrawingContext.imageSmoothingEnabled=true;\nnoStroke();\nfor(let b=0;b<nb;b++){\n  const y0=Math.floor(b*Hh/nb), y1=Math.floor((b+1)*Hh/nb), bandH=y1-y0;\n  const cy=(b+0.5)/nb;\n  const wv=0.5+0.5*Math.sin(cy*Math.PI*2*1.6 - waveT + phX + 0.7*Math.sin(waveT*0.37+cy*3.3));\n  let d=Math.floor(wv*maxDelay) + Math.floor(A.bass*4);\n  if(d>N-1)d=N-1; if(d<0)d=0;\n  const idx=((S.head-d)%N+N)%N;\n  const src=S.ring[idx];\n  const dx=(disp?(wv-0.5)*u*0.14*(0.4+P.warp):0) + (crt?Math.sin(cy*40)*u*0.002:0);\n  const sy=cy*bh - (bandH*bh/Hh)/2, sh=bandH*bh/Hh;\n  image(src, dx, y0, W, bandH, 0, sy, bw, sh);\n  // chromatic ghost\n  if(chromaOn && P.chroma>0.02){\n    blendMode(ADD);\n    tint(md(H + (b&1?185:5),360), 66, 100, 12*P.chroma);\n    image(src, dx + u*0.018*P.chroma*(b&1?1:-1), y0, W, bandH, 0, sy, bw, sh);\n    if(echo){ tint(md(H+90,360),50,100,10*P.chroma); image(src, dx, y0-bandH*0.5, W, bandH, 0, sy, bw, sh); }\n    blendMode(BLEND); noTint();\n  }\n  // self-visible scrolling tint/brightness band (carries motion on flat input)\n  const briMod=lrp(-1,1,wv);\n  if(xray){\n    fill(md(H + 180*wv,360), 55, lrp(20,95,wv), en*34);\n    rect(0,y0,W,bandH);\n  } else {\n    if(briMod>0){ fill(md(H+26*briMod,360), 42, 100, en*30*briMod); }\n    else { fill(md(H+8,360),18,4, en*30*(-briMod)); }\n    rect(0,y0,W,bandH);\n  }\n  // crt dark scanline\n  if(crt){ fill(0,0,4, 26); for(let yy=y0+1;yy<y1;yy+=3) rect(0,yy,W,1); }\n}\n// gentle vignette for crt/xray depth (cached radial sprite)\nif(crt||xray){\n  if(!S.vig || S.vigKey!==W+'x'+Hh){\n    if(S.vig){ try{S.vig.remove();}catch(e){} }\n    S.vigKey=W+'x'+Hh; const v=createGraphics(W,Hh); v.colorMode(HSB,360,100,100,100); v.noStroke();\n    const gg=v.drawingContext, rad=gg.createRadialGradient(W/2,Hh/2,u*0.22,W/2,Hh/2,u*0.74);\n    rad.addColorStop(0,'rgba(0,0,0,0)'); rad.addColorStop(1,'rgba(0,0,0,0.55)');\n    gg.fillStyle=rad; gg.fillRect(0,0,W,Hh); S.vig=v;\n  }\n  image(S.vig,0,0);\n}\nblendMode(BLEND); noTint();\ndrawingContext.imageSmoothingEnabled=true;\n",
+  "last_fail": {
+    "at": "2026-07-11T14:42:43+00:00",
+    "gate": "fps",
+    "detail": "23.7 < 25"
+  }
+}

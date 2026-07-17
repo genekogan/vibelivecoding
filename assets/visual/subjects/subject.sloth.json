@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.sloth",
+  "kind": "subject",
+  "name": "Sloth",
+  "desc": "A blissed-out felt sloth hanging from a branch, swinging in slow half-tempo pendulum arcs with sleepy half-lidded blinks and drifting sleep-Zs.",
+  "tags": [
+    "sloth",
+    "animal",
+    "mammal",
+    "jungle",
+    "rainforest",
+    "hang",
+    "branch",
+    "tree",
+    "slow",
+    "lazy",
+    "sleepy",
+    "chill",
+    "zen",
+    "half-tempo",
+    "felt",
+    "wool",
+    "craft",
+    "pendulum",
+    "swing",
+    "cute",
+    "character",
+    "calm",
+    "comedy"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design (hero fills frame at max)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "swing amplitude / motion energy"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "fur hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative rate (already half-tempo internally)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "felt fiber stipple + sleep-Z count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "branch grip anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.3,
+      "min": 0.05,
+      "max": 0.9,
+      "doc": "branch grip anchor y (body hangs below)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body roundness morph"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "arm/leg length morph"
+    },
+    "sleepy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "eyelid droop (0=alert, 1=nearly shut)"
+    },
+    "pose": {
+      "default": "hang",
+      "options": [
+        "hang",
+        "wave",
+        "dance",
+        "idle"
+      ],
+      "doc": "choreography: hang=pendulum / wave=raise+flutter arm / dance=slow sway+leg kicks / idle=gentle"
+    },
+    "style": {
+      "default": "felt",
+      "options": [
+        "felt",
+        "noir",
+        "contour",
+        "sketch"
+      ],
+      "doc": "aesthetic: felt=wool stipple / noir=chiaroscuro form-from-light no outline / contour=single continuous line / sketch=cross-hatched pencil"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic felt-fiber layout"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:03:08+00:00",
+    "fps": 62.5,
+    "motion": 0.04,
+    "lum": 0.127
+  },
+  "code": "const D = { scale:1, energy:.6, hue:28, speed:1, density:.5, x:.5, y:.30, chub:.5, limb:.5, sleepy:.55, pose:'hang', style:'felt', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst m = u * P.scale;\nconst L = (a,b,t)=>a+(b-a)*t;\nconst clamp = (v,a,b)=>v<a?a:v>b?b:v;\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst TAU = Math.PI*2;\nconst sty = P.style;\n\n// ---- seed / density keyed felt fibers ----\nif (S.seedUsed !== P.seed || S.densUsed !== P.density) {\n  S.seedUsed = P.seed; S.densUsed = P.density;\n  const nf = Math.round(24 + P.density*70);\n  S.fib = [];\n  for (let i=0;i<nf;i++) S.fib.push({ a:fr(i+3)*TAU, r:Math.sqrt(fr(i+9)), len:.4+fr(i+21)*.9, ang:fr(i+31)*TAU, sh:fr(i+41) });\n}\n\n// ---- half-tempo rhythm (sloth moves at K.beat/2) ----\nif (S.lastBeat==null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\nconst bt = K.beat * P.speed * 0.5;\nconst en = P.energy;\nconst chub = P.chub, limb = P.limb, sleepy = P.sleepy;\nconst pose = P.pose;\nconst breath = 1 + (K.swell*.5 + A.rms*.7)*(.04 + en*.05);\n\n// pendulum swing about the branch grip (whole silhouette translates)\nconst ampBase = .16 + en*.20;\nconst swingAmp = ampBase * (pose==='idle'?.55 : pose==='dance'?1.25 : pose==='wave'?.8 : 1);\nconst swing = Math.sin(bt*Math.PI)*swingAmp + Math.sin(bt*Math.PI*.5)*.03 + A.bass*.06;\n\n// blissful blink \u2014 mostly half-lidded, rare full blink, fps-independent\nconst bc = (K.t*0.42 + fr(2)) % 3.4;\nconst blink = bc < 0.15 ? 1 : 0;\nconst eyeOpen = clamp(L(.5,.12,sleepy)*(1-blink), 0, 1);\n\n// dims (relative to hero m)\nconst armL = .175*m*L(.75,1.4,limb);\nconst torW = .21*m*L(.85,1.35,chub);\nconst torH = .27*m*L(.95,1.15,chub);\nconst headR = .115*m*L(.9,1.15,chub);\nconst legL = .155*m*L(.8,1.3,limb);\nconst px = P.x*width, py = P.y*height;\nconst sw = u*0.0055*P.scale;\n\n// ---- style paint helper (shade 0..1 = dark..light for modeling) ----\nfunction paint(shade, edge){\n  if (sty==='contour'){ noFill(); stroke(P.hue,42,90,92); strokeWeight(sw*.85); }\n  else if (sty==='noir'){ noStroke(); fill(P.hue,11, L(9,96,clamp(shade,0,1))); }\n  else if (sty==='sketch'){ fill(44,7,96); stroke(P.hue,34,26,80); strokeWeight(sw*.55); }\n  else { // felt \u2014 muted wool with soft darker rim\n    if (edge){ stroke(P.hue,36, L(30,50,shade),70); strokeWeight(sw*.5); }\n    else noStroke();\n    fill(P.hue,30, L(48,80,clamp(shade,0,1)));\n  }\n}\nfunction capsule(x1,y1,x2,y2,w,shade){\n  const mx=(x1+x2)/2,my=(y1+y2)/2,dx=x2-x1,dy=y2-y1;\n  const len=Math.hypot(dx,dy),ang=Math.atan2(dy,dx);\n  push(); translate(mx,my); rotate(ang); paint(shade,true); ellipse(0,0,len+w,w); pop();\n}\n\npush();\ntranslate(px,py);\n\n// ---- branch (screen space, does NOT swing) ----\nconst brW = m*0.95, brY = -headR*0.18;\npush();\nif (sty==='contour'){ noFill(); stroke(P.hue,42,90,92); strokeWeight(sw*.85);\n  line(-brW/2,brY,brW/2,brY); }\nelse if (sty==='noir'){ noStroke(); fill(28,14,26); rectMode(CENTER); rect(0,brY,brW,m*.045,m*.02); }\nelse if (sty==='sketch'){ noFill(); stroke(P.hue,34,26,80); strokeWeight(sw*.7); rectMode(CENTER); rect(0,brY,brW,m*.045,m*.02); }\nelse { noStroke(); fill(26,44,40); rectMode(CENTER); rect(0,brY,brW,m*.05,m*.02);\n  fill(26,44,32); for(let i=0;i<5;i++){ const bx=(fr(i+70)-.5)*brW*.8; ellipse(bx,brY,m*.02,m*.03);} }\npop();\n\n// ---- body swings about the grip (origin) ----\nrotate(swing);\nscale(1, breath);\n\n// grip claws hooking the branch\npaint(.25,true);\nfor (const s of [-1,1]){ push(); translate(s*torW*0.16, brY); rotate(s*.3);\n  arc(0,0,m*.06,m*.09,Math.PI,TAU); pop(); }\n\n// layout points below grip\nconst shY = armL*0.52;\nconst headY = shY + headR*0.55;\nconst torY = headY + headR*0.5 + torH*0.5;\nconst legTopY = torY + torH*0.4;\n\n// arms: grip(origin) -> shoulders\nconst waveA = pose==='wave' ? Math.sin(bt*Math.PI*2) : 0;\ncapsule(-torW*0.16, 0, -torW*0.62, shY, m*.075, .55);\nif (pose==='wave'){\n  const hx = torW*(0.7+waveA*0.28), hy = -headR*0.6 - Math.abs(waveA)*headR*0.4;\n  capsule(torW*0.16,0, torW*0.5,shY*0.4, m*.07,.55);\n  capsule(torW*0.5,shY*0.4, hx,hy, m*.062,.62);\n} else {\n  capsule(torW*0.16, 0, torW*0.62, shY, m*.075, .55);\n}\n\n// legs (relaxed / dancing kick)\nconst kick = (pose==='dance'?1:.35);\nfor (const s of [-1,1]){\n  const la = Math.sin(bt*Math.PI + (s>0?0:Math.PI))*.16*kick;\n  const hipX=s*torW*0.42, hipY=legTopY;\n  const ftX=hipX + Math.sin(la)*legL*0.5, ftY=hipY+Math.cos(la)*legL;\n  capsule(hipX,hipY, ftX,ftY, m*.07, .5);\n  paint(.3,true); push(); translate(ftX,ftY); ellipse(s*m*.01,0,m*.075,m*.055); pop();\n}\n\n// torso \u2014 teardrop\npaint(.62,true);\nif (sty==='contour'){ noFill(); }\npush(); translate(0,torY);\nbeginShape();\nvertex(0,-torH*0.5);\nbezierVertex(torW*0.62,-torH*0.42, torW*0.6,torH*0.4, 0,torH*0.5);\nbezierVertex(-torW*0.6,torH*0.4, -torW*0.62,-torH*0.42, 0,-torH*0.5);\nendShape(CLOSE);\n// felt belly patch / modeling\nif (sty==='felt'){ noStroke(); fill(P.hue,20,86); ellipse(0,torH*0.08,torW*0.7,torH*0.62); }\nif (sty==='noir'){ noStroke(); fill(P.hue,11,78,55); ellipse(-torW*0.2,-torH*0.15,torW*0.55,torH*0.5); }\npop();\n\n// felt fiber stipple / sketch hatch on torso\nif (sty==='felt'){ noStroke();\n  for (const f of S.fib){ const fx=Math.cos(f.a)*f.r*torW*0.52, fy=torY+Math.sin(f.a)*f.r*torH*0.5;\n    fill(P.hue,28, f.sh>.5?86:58, 55); ellipse(fx,fy,sw*.7,sw*1.1); } }\nelse if (sty==='sketch'){ stroke(P.hue,30,30,45); strokeWeight(sw*.35);\n  for(let i=0;i<11;i++){ const yy=torY-torH*0.4+i*(torH*0.8/10); line(-torW*0.4,yy, torW*0.45,yy+torW*0.25);} }\n\n// ---- head ----\npush(); translate(0,headY);\nconst nod = Math.sin(bt*Math.PI*.5)*.05;\nrotate(nod);\npaint(.68,true);\nellipse(0,0,headR*2.0,headR*1.8);\n// snout\npaint(.6,true); ellipse(0,headR*0.55,headR*1.15,headR*0.95);\n// sloth face mask (dark eye patches) \u2014 the signature look\nif (sty!=='contour'){\n  noStroke();\n  const mk = sty==='noir'?color(P.hue,10,22):sty==='sketch'?color(P.hue,30,30,60):color(P.hue,38,34);\n  fill(mk);\n  for (const s of [-1,1]){ push(); translate(s*headR*0.5,-headR*0.1); rotate(s*.5);\n    ellipse(0,0,headR*0.85,headR*1.15); pop(); }\n  // brow stripe\n  fill(mk); ellipse(0,-headR*0.72,headR*1.5,headR*0.5);\n}\n// eyes\nfor (const s of [-1,1]){ push(); translate(s*headR*0.5,-headR*0.05);\n  if (eyeOpen>0.05){ paint(.95); if(sty==='noir'){noStroke();fill(0,0,98);} if(sty==='contour'){noFill();stroke(P.hue,42,90,92);strokeWeight(sw*.7);}\n    ellipse(0,0,headR*0.5,headR*0.5*L(.4,1,eyeOpen));\n    if (sty!=='contour'){ noStroke(); fill(P.hue,50,12); ellipse(0,0,headR*0.24,headR*0.24*L(.4,1,eyeOpen)); }\n  } else { stroke(sty==='noir'?color(0,0,80):color(P.hue,40,25)); strokeWeight(sw*.7); noFill();\n    arc(0,0,headR*0.5,headR*0.4,0.15,Math.PI-0.15); }\n  pop(); }\n// nose + sleepy smile\nif (sty!=='contour'){ noStroke(); fill(sty==='noir'?color(0,0,15):color(P.hue,45,22));\n  ellipse(0,headR*0.42,headR*0.34,headR*0.24); }\nstroke(sty==='noir'?color(0,0,72):color(P.hue,42,26)); strokeWeight(sw*.6); noFill();\narc(0,headR*0.66,headR*0.6,headR*0.4,0.25,Math.PI-0.25);\npop(); // head\n\npop(); // body swing\n\n// ---- floating sleep Z's (constant drift; comedic; aids never-static) ----\nif (pose!=='dance' && sty!=='contour' && sty!=='sketch'){\n  const nz = 1 + Math.round(P.density*2);\n  push(); textAlign(CENTER,CENTER);\n  for (let i=0;i<nz;i++){ const ph=(K.t*0.24 + i*0.34 + fr(i+8))%1;\n    const zx=px + m*0.30 + ph*m*0.16 + Math.sin(ph*6+i)*m*0.02;\n    const zy=py + m*0.06 - ph*m*0.34;\n    noStroke(); fill(P.hue,22,96,(1-ph)*72);\n    textSize(m*(0.045+ph*0.06)); text('z',zx,zy); }\n  pop();\n}\n"
+}

@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.flowfield",
+  "kind": "genart",
+  "name": "Flow Field Streams",
+  "desc": "Thousands of particles streaming through an evolving curl-noise flow field leave luminous additive trails that fill the frame with silky spectral rivers, also rendered as green aurora curtains, molten ember, indigo ink on pale, or electric neon.",
+  "tags": [
+    "flowfield",
+    "flow field",
+    "flow",
+    "curl noise",
+    "perlin",
+    "noise",
+    "particles",
+    "streams",
+    "streaks",
+    "trails",
+    "current",
+    "river",
+    "silk",
+    "fluid",
+    "spectral",
+    "rainbow",
+    "aurora",
+    "ember",
+    "fire",
+    "ink",
+    "indigo",
+    "neon",
+    "generative",
+    "genart",
+    "abstract",
+    "organic",
+    "luminous",
+    "glow",
+    "additive",
+    "fullbleed",
+    "background",
+    "bg",
+    "ambient",
+    "dark"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.12,
+      "max": 1,
+      "doc": "particle count (~1300..3600) \u2014 denser, brighter streams"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "trail brightness / glow / stroke weight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "field drift + advection rate (beats-relative)"
+    },
+    "turb": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1.4,
+      "doc": "vortex strength (0=laminar rivers, high=chaotic swirls)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 3,
+      "doc": "swirl size (larger=broader flow bands)"
+    },
+    "trail": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "trail persistence (higher=longer silky streaks)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue / spectral drift center"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flow-pattern anchor bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flow-pattern anchor bias y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "aurora",
+        "ember",
+        "ink",
+        "neon"
+      ],
+      "doc": "render philosophy: angle-hued spectral rivers / green aurora curtains / molten ember / indigo ink on pale / electric neon"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic field + spawn variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:36:43+00:00",
+    "fps": 61.0,
+    "motion": 0.1238,
+    "lum": 0.133
+  },
+  "code": "const D = { density:.6, energy:.62, speed:1, turb:.55, scale:1, trail:.55, hue:210, x:.5, y:.5, style:'spectral', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = 6.28318530718;\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\nconst st = P.style;\nconst light = (st==='ink');                                   // dark-on-pale subtractive vs additive glow\n\n// coarse half-canvas feedback buffer (aspect-matched, capped), cached on size\nconst BW = Math.min(520, Math.max(180, Math.round(width*0.5)));\nconst BH = Math.max(100, Math.round(BW*height/width));\nconst key = BW+'x'+BH;\nconst N = Math.floor(1000 + P.density*2600);                  // ~1300..3600 particles\n\nif (S.key!==key || S.seedUsed!==P.seed || !S.buf){\n  S.key=key; S.seedUsed=P.seed;\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(BW,BH); S.buf.pixelDensity(1); S.buf.colorMode(HSB,360,100,100,100);\n  S.needFill = true; S.ps = null;\n  let z = ((P.seed|0)*2654435761 + 12345) >>> 0;\n  S.rnd = ()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  S.noff = S.rnd()*1000;\n}\nconst rnd = S.rnd;\nif (!S.ps || S.ps.length!==N){\n  const arr=[];\n  for (let i=0;i<N;i++) arr.push({ x:rnd()*BW, y:rnd()*BH, px:0, py:0, life:(rnd()*120)|0 });\n  S.ps=arr;\n}\nconst g = S.buf;\n\n// per-style ground tone (guarantees luminance floor; pale for ink)\nlet bh,bs,bb;\nif (light){ bh=230; bs=12; bb=94; }\nelse if (st==='ember'){ bh=16; bs=82; bb=9; }\nelse if (st==='aurora'){ bh=205; bs=58; bb=8; }\nelse if (st==='neon'){ bh=272; bs=62; bb=6; }\nelse { bh=236; bs=56; bb=9; }                                 // spectral deep indigo\n\nif (S.needFill){ g.push(); g.blendMode(BLEND); g.noStroke(); g.fill(bh,bs,bb,100); g.rect(0,0,BW,BH); g.pop(); S.needFill=false; }\n\n// slow trail fade toward the ground tone\nconst fadeA = light ? (7 + (1-P.trail)*20) : (3.5 + (1-P.trail)*13);\ng.push(); g.blendMode(BLEND); g.noStroke(); g.fill(bh,bs,bb, fadeA); g.rect(0,0,BW,BH); g.pop();\n\n// field + motion (all rhythm from K; audio ON TOP)\nconst intn = K.intensity!=null?K.intensity:.6;\nconst zt   = K.t*(0.05 + P.speed*0.06) + S.noff;              // real-time drift, never re-phases\nconst sc   = 0.010 / clp(P.scale,0.3,3);\nconst oX   = (P.x-0.5)*3, oY = (P.y-0.5)*3;                   // anchor biases the flow pattern\nconst eps  = 1.4;\nconst turb = 0.7 + P.turb*2.3 + A.lowmid*1.4;\nconst step = (0.9 + P.speed*1.6) * (0.8 + intn*0.5) * (1 + A.bass*0.7);\nconst bri  = 0.7 + P.energy*0.7 + intn*0.3 + A.rms*0.6 + K.pulse*0.28*P.energy;\nconst hueDrift = K.t*3 + P.hue + K.section*8;\nconst nsv = (x,y)=> noise(x*sc+oX, y*sc+oY, zt);\n\ng.push();\ng.blendMode(light ? BLEND : ADD);\ng.strokeWeight((light?1.15:1.0) * (0.8 + P.energy*1.2));\nfor (let i=0;i<N;i++){\n  const p=S.ps[i];\n  const vx = nsv(p.x, p.y+eps) - nsv(p.x, p.y-eps);\n  const vy = -(nsv(p.x+eps, p.y) - nsv(p.x-eps, p.y));\n  const mag = Math.sqrt(vx*vx+vy*vy);\n  const ang = Math.atan2(vy, vx) * turb;\n  const nx = p.x + Math.cos(ang)*step;\n  const ny = p.y + Math.sin(ang)*step;\n  p.life++;\n  if (nx<0||nx>=BW||ny<0||ny>=BH || p.life>150){ p.x=rnd()*BW; p.y=rnd()*BH; p.life=0; continue; }\n  p.px=p.x; p.py=p.y; p.x=nx; p.y=ny;\n  let h,s,b,al;\n  if (light){ h=232+Math.cos(ang)*22; s=clp(46+mag*260,20,80); b=20+Math.sin(ang*2)*8; al=20+P.energy*24; }\n  else if (st==='ember'){ const sp=clp(mag*260,0,1); h=6+sp*48; s=96-sp*58; b=(44+sp*56)*bri; al=30+P.energy*30; }\n  else if (st==='aurora'){ h=(150+Math.cos(ang)*95+hueDrift*0.4)%360; s=82; b=(52+mag*220)*bri; al=26+P.energy*28; }\n  else if (st==='neon'){ h=(hueDrift+degrees(ang))%360; s=95; b=100*Math.min(1,bri); al=30+P.energy*32; }\n  else { h=(hueDrift+degrees(ang)*0.9+720)%360; s=72; b=(58+mag*210)*bri; al=28+P.energy*30; }   // spectral\n  g.stroke(((h%360)+360)%360, clp(s,0,100), clp(b,0,100), clp(al,0,100));\n  g.line(p.px,p.py,p.x,p.y);\n}\ng.pop();\ng.blendMode(BLEND);\n\n// composite to main (opaque bg by default; tint for VJ alpha)\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g, 0,0, width,height);\npop();\n"
+}

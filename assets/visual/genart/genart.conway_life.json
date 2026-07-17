@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.conway_life",
+  "kind": "genart",
+  "name": "Game of Life",
+  "desc": "Conway's B3/S23 automaton boiling edge-to-edge \u2014 gliders sail from planted Gosper guns, chaotic soups reseed the dying regions, living cells burn hot-to-cool by age with a fading ember-ghost trail of the recently dead.",
+  "tags": [
+    "conway",
+    "game-of-life",
+    "life",
+    "cellular-automata",
+    "ca",
+    "b3s23",
+    "glider",
+    "glider-gun",
+    "gosper",
+    "blinker",
+    "automaton",
+    "emergence",
+    "alife",
+    "artificial-life",
+    "grid",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "age",
+    "phosphor",
+    "thermal",
+    "neon",
+    "ink",
+    "retro",
+    "simulation",
+    "pixel",
+    "cells",
+    "boiling"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "soup/reseed density \u2014 how packed the frame stays with life"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude of cells & bloom"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.0,
+      "doc": "generation step rate (gated by K.t)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "cell size \u2014 higher = chunkier cells / coarser grid"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue of the age ramp (plasma/neon)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ambient-glow center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ambient-glow center y"
+    },
+    "style": {
+      "default": "plasma",
+      "options": [
+        "plasma",
+        "phosphor",
+        "heatmap",
+        "neon",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic soup / gun placement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:32:40+00:00",
+    "fps": 55.6,
+    "motion": 0.1017,
+    "lum": 0.167
+  },
+  "code": "const D = { density: .5, energy: .6, speed: 1, scale: 1, hue: 28, x: .5, y: .5, style: 'plasma', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Gosper glider gun (canonical), stored once ----\nconst GUN = [[0,4],[0,5],[1,4],[1,5],[10,4],[10,5],[10,6],[11,3],[11,7],[12,2],[12,8],[13,2],[13,8],[14,5],[15,3],[15,7],[16,4],[16,5],[16,6],[17,5],[20,2],[20,3],[20,4],[21,2],[21,3],[21,4],[22,1],[22,5],[24,0],[24,1],[24,5],[24,6],[34,2],[34,3],[35,2],[35,3]];\n\n// ---- seed-deterministic hash (no p5 random) ----\nfunction rnd(a){ let h = (Math.imul(a|0, 374761393) ^ Math.imul(P.seed|0, 2654435761) ^ Math.imul((S.salt|0)+1, 40503)) | 0; h = Math.imul(h ^ (h>>>13), 1274126177); return ((h ^ (h>>>16)) >>> 0) / 4294967295; }\n\n// ---- grid sizing (scale => feature/cell size) ----\nlet GW = Math.max(46, Math.min(200, Math.round(160 / (0.5 + P.scale * 0.5))));\nlet GH = Math.max(30, Math.min(200, Math.round(GW * height / width)));\n\nfunction stampSoup(cx, cy, r, p){\n  const gw=S.GW, gh=S.GH, cur=S.cur, age=S.age;\n  for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){\n    if(dx*dx+dy*dy > r*r) continue;\n    const x=((cx+dx)%gw+gw)%gw, y=((cy+dy)%gh+gh)%gh, i=y*gw+x;\n    if(rnd(i*2 + dx*7 + dy*13) < p){ cur[i]=1; age[i]=0; }\n  }\n}\nfunction plantGun(ox, oy, fl){\n  const gw=S.GW, gh=S.GH, cur=S.cur, age=S.age;\n  for(let k=0;k<GUN.length;k++){\n    const x=((ox + (fl>0?GUN[k][0]:-GUN[k][0]))%gw+gw)%gw;\n    const y=((oy + GUN[k][1])%gh+gh)%gh, i=y*gw+x;\n    cur[i]=1; age[i]=0;\n  }\n}\nfunction seedInit(){\n  S.cur.fill(0); S.next.fill(0); S.age.fill(0); S.trail.fill(0);\n  S.salt = 1;\n  const patches = 3 + Math.floor(P.density * 4);\n  for(let k=0;k<patches;k++){\n    S.salt++;\n    stampSoup(Math.floor(rnd(k*17+5)*S.GW), Math.floor(rnd(k*23+9)*S.GH), 7 + Math.floor(P.density*7), 0.42 + P.density*0.22);\n  }\n  if(S.GW > 46 && S.GH > 16){ S.salt++; plantGun(4 + Math.floor(rnd(77)*(S.GW-44)), 3 + Math.floor(rnd(88)*(S.GH-14)), rnd(91)<0.5?1:-1); }\n  S.pop = 0; S.stepCount = null; S.lastSection = null;\n}\n\n// ---- (re)build sim + buffer on size / seed change ----\nif(!S.cur || S.GW!==GW || S.GH!==GH || S.seedUsed!==P.seed){\n  S.GW=GW; S.GH=GH; S.seedUsed=P.seed;\n  const N=GW*GH;\n  S.cur=new Uint8Array(N); S.next=new Uint8Array(N); S.age=new Float32Array(N); S.trail=new Float32Array(N);\n  seedInit();\n}\nif(!S.g || S.gw!==GW || S.gh!==GH){ S.g=createGraphics(GW,GH); S.g.pixelDensity(1); S.gw=GW; S.gh=GH; }\n\nconst NN = S.GW * S.GH;\n\n// ---- one B3/S23 generation (toroidal) ----\nfunction step(){\n  const gw=S.GW, gh=S.GH, cur=S.cur, nx=S.next, age=S.age, tr=S.trail;\n  let pop=0;\n  for(let y=0;y<gh;y++){\n    const ym=((y-1+gh)%gh)*gw, yp=((y+1)%gh)*gw, yc=y*gw;\n    for(let x=0;x<gw;x++){\n      const xl=(x-1+gw)%gw, xr=(x+1)%gw;\n      const n = cur[ym+xl]+cur[ym+x]+cur[ym+xr]+cur[yc+xl]+cur[yc+xr]+cur[yp+xl]+cur[yp+x]+cur[yp+xr];\n      const i = yc+x, alive = cur[i];\n      const na = alive ? (n===2||n===3) : (n===3);\n      if(na){ nx[i]=1; age[i]=alive?(age[i]<250?age[i]+1:250):0; pop++; }\n      else { nx[i]=0; if(alive) tr[i]=1.0; }\n      tr[i] *= 0.80;\n    }\n  }\n  const tmp=S.cur; S.cur=S.next; S.next=tmp;\n  S.pop=pop;\n}\nfunction maybeReseed(){\n  const target = 0.03 + P.density*0.09;\n  if((S.pop||0) < target*NN){\n    S.salt=(S.salt||0)+1;\n    stampSoup(Math.floor(rnd(S.salt*7+11)*S.GW), Math.floor(rnd(S.salt*13+3)*S.GH), 5 + Math.floor(P.density*8), 0.4 + P.density*0.22);\n  }\n}\n\n// ---- section changes: plant a fresh gun + soup injection (dramaturgy) ----\nif(S.lastSection==null) S.lastSection=K.section;\nif(K.section!==S.lastSection){\n  S.lastSection=K.section; S.salt=(S.salt||0)+3;\n  if(S.GW>46 && S.GH>16) plantGun(4+Math.floor(rnd(S.salt+100)*(S.GW-44)), 3+Math.floor(rnd(S.salt+200)*(S.GH-14)), rnd(S.salt+300)<0.5?1:-1);\n  stampSoup(Math.floor(rnd(S.salt+400)*S.GW), Math.floor(rnd(S.salt+500)*S.GH), 9, 0.5);\n}\n\n// ---- step scheduling gated by K.t (never re-phases) ----\nconst rate = 1.2 + P.speed*4.0;\nlet want = Math.floor(K.t * rate);\nif(S.stepCount==null || want < S.stepCount) S.stepCount = want;\nlet todo = want - S.stepCount;\nif(todo > 0){ const run=Math.min(todo,3); for(let s=0;s<run;s++){ step(); maybeReseed(); } S.stepCount = want; }\n\n// ---- render via LUT into coarse buffer, then upscale ----\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c; let r,g,b; if(h<1){r=c;g=xx;b=0;}else if(h<2){r=xx;g=c;b=0;}else if(h<3){r=0;g=c;b=xx;}else if(h<4){r=0;g=xx;b=c;}else if(h<5){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;} return [r+m,g+m,b+m]; }\n\nconst style=P.style;\nconst t=K.t;\nconst baseHue=(P.hue + t*4 + K.section*17)%360;\nconst expo=0.55 + P.energy*0.95 + A.rms*0.6 + K.intensity*0.2;\nconst spark=A.treble*0.5;\nconst cxn=P.x, cyn=P.y;\nconst gg=S.g; gg.loadPixels(); const px=gg.pixels;\nconst cur=S.cur, age=S.age, tr=S.trail, gw=S.GW, gh=S.GH;\n\nfor(let y=0;y<gh;y++){\n  const fy=y/gh, dyc=fy-cyn;\n  const scan = 1 - (y&1)*0.28;              // CRT scanline (phosphor)\n  for(let x=0;x<gw;x++){\n    const i=y*gw+x, o=i*4;\n    const dxc=x/gw-cxn, glow=Math.max(0, 0.34 - (dxc*dxc+dyc*dyc))*expo;\n    const alive=cur[i], av=age[i]/38, a=av>1?1:av, tv=tr[i];\n    let r,g,b;\n\n    if(style==='phosphor'){\n      const gr=0.05 + glow*0.10;\n      r=gr*0.2; g=gr; b=gr*0.3;\n      if(alive){ const v=Math.min(1,(0.45+(1-a)*0.55)*expo+spark*(a<0.2?1:0))*scan; r=v*0.25; g=v; b=v*0.35; }\n      else if(tv>0.02){ const v=tv*0.55*expo*scan; r+=v*0.2; g+=v; b+=v*0.3; }\n    } else if(style==='heatmap'){\n      r=0.03+glow*0.10; g=0.01; b=0.04+glow*0.06;\n      const heat = alive ? (0.35+(1-a)*0.65) : (tv>0.02 ? tv*0.5 : -1);\n      if(heat>=0){ const h=Math.min(1,heat*expo); r=Math.min(1,h*2.1); g=Math.min(1,Math.max(0,h*1.9-0.5)); b=Math.min(1,Math.max(0,h*3.4-2.3)); }\n    } else if(style==='neon'){\n      r=0.01+glow*0.06; g=0.02+glow*0.05; b=0.05+glow*0.14;\n      if(alive){ const v=Math.min(1,(0.5+(1-a)*0.5)*expo+spark); const c=hsv(178+a*22,0.85,v); r=c[0];g=c[1];b=c[2]; }\n      else if(tv>0.02){ const c=hsv(315,0.9,tv*0.6*expo); r+=c[0];g+=c[1];b+=c[2]; }\n    } else if(style==='ink'){\n      let base=0.92 - glow*0.10;\n      r=base; g=base*0.985; b=base*0.93;\n      if(tv>0.02){ const sm=tv*0.30; r-=sm; g-=sm; b-=sm*0.9; }\n      if(alive){ const ink=0.12 + a*0.14; r=ink; g=ink; b=ink*1.05; }\n    } else { // plasma (default) \u2014 age ramp hot->cool + ember ghost trail on dark indigo\n      const gc=hsv(baseHue+205,0.72,0.085+glow*0.12);\n      r=gc[0]; g=gc[1]; b=gc[2];\n      if(tv>0.02){ const ec=hsv(baseHue+ (1-tv)*30, 0.85, tv*tv*0.62*expo); r+=ec[0]; g+=ec[1]; b+=ec[2]; }\n      if(alive){\n        const young=1-a;\n        const h=baseHue + a*210;\n        const s=a<0.10?0.30:0.86;\n        const v=Math.min(1,(0.58+young*0.44)*expo + (a<0.06?0.3:0) + K.pulse*0.12*young + spark*young);\n        const c=hsv(h,s,v); r=c[0]; g=c[1]; b=c[2];\n      }\n    }\n    px[o]=r*255; px[o+1]=g*255; px[o+2]=b*255; px[o+3]=255;\n  }\n}\ngg.updatePixels();\n\npush();\nif(P.alpha<100) tint(0,0,100,P.alpha);\nimage(gg,0,0,width,height);\npop();\n\n// ---- soft bloom (glow styles only) \u2014 partial ADD, raises luminance, no strobe ----\nif(style!=='ink'){\n  push(); blendMode(ADD);\n  const bl=Math.min(30, (12 + P.energy*15 + A.bass*10) * (0.5+P.density*0.5)) * (P.alpha/100);\n  tint(0,0,100,bl);\n  const e=Math.max(width,height)*0.028;\n  image(gg,-e,-e,width+2*e,height+2*e);\n  blendMode(BLEND); noTint(); pop();\n}\n"
+}

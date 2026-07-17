@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.fireflies",
+  "kind": "fx",
+  "name": "Fireflies",
+  "desc": "Wandering bioluminescent points whose blinks gradually synchronize over minutes (Kuramoto coupling) then scatter at each section change.",
+  "tags": [
+    "fireflies",
+    "firefly",
+    "lightning-bugs",
+    "bioluminescence",
+    "biolum",
+    "glow",
+    "sparks",
+    "lanterns",
+    "insects",
+    "summer",
+    "night",
+    "meadow",
+    "forest",
+    "warm",
+    "yellow",
+    "green",
+    "amber",
+    "synchronize",
+    "emergence",
+    "kuramoto",
+    "constellation",
+    "wander",
+    "blink",
+    "magical",
+    "serene",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "firefly count (14-90)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "blink brightness + glow radius"
+    },
+    "sync": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "coupling strength (how fast blinks synchronize)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "blink + wander rate"
+    },
+    "hue": {
+      "default": 58,
+      "min": 0,
+      "max": 360,
+      "doc": "glow hue (58 green-gold biolum)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "glow size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swarm center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swarm center y"
+    },
+    "style": {
+      "default": "biolum",
+      "options": [
+        "biolum",
+        "lantern",
+        "spark",
+        "constellation"
+      ],
+      "doc": "biolum=green-gold soft glow / lantern=large warm amber / spark=crisp blue-white electric / constellation=abstracted network web linking synced neighbors"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "swarm layout + phase seed"
+    },
+    "act": {
+      "default": "swarm",
+      "options": [
+        "swarm",
+        "scatter",
+        "pulse"
+      ],
+      "doc": "swarm=strong sync / scatter=chaotic no-sync / pulse=coupling breathes in and out"
+    }
+  },
+  "acts": [
+    "swarm",
+    "scatter",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:21:54+00:00",
+    "fps": 59.5,
+    "motion": 0.0611,
+    "lum": 0.086
+  },
+  "code": "const D = { density:.5, energy:.6, sync:.5, speed:1, hue:58, scale:1, x:.5, y:.5, style:'biolum', seed:0, act:'swarm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst isConst=st==='constellation', isSpark=st==='spark', isLantern=st==='lantern';\nconst act=P.act||'swarm';\nconst arc=0.55+0.6*K.intensity;\nconst en=clp(P.energy*arc,0,1.3);\n\n// soft glow sprite (built once)\nif(!S.sprite){ const g=createGraphics(48,48); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  for(let r=24;r>0;r--){ const t=r/24; g.fill(0,0,100,16*(1-t)*(1-t)); g.ellipse(24,24,r*2,r*2); }\n  S.sprite=g; }\n\n// rebuild population on seed / count change\nconst nWant=Math.round(lrp(14,90,clp(P.density,0,1)));\nif(S.seedU!==P.seed||S.n!==nWant){ S.seedU=P.seed; S.n=nWant;\n  S.th=[]; S.om=[]; S.bx=[]; S.by=[]; S.f1=[]; S.f2=[]; S.f3=[]; S.f4=[]; S.p1=[]; S.p2=[]; S.p3=[]; S.p4=[];\n  for(let i=0;i<nWant;i++){\n    S.th[i]=fr(i*5+1)*6.2832;\n    S.om[i]=1.5+(fr(i*5+2)-0.5)*0.7;\n    S.bx[i]=0.08+fr(i*5+3)*0.84; S.by[i]=0.08+fr(i*5+4)*0.84;\n    S.f1[i]=0.13+fr(i*9+1)*0.22; S.f2[i]=0.31+fr(i*9+2)*0.4;\n    S.f3[i]=0.11+fr(i*9+3)*0.2;  S.f4[i]=0.27+fr(i*9+4)*0.36;\n    S.p1[i]=fr(i*9+5)*6.28; S.p2[i]=fr(i*9+6)*6.28; S.p3[i]=fr(i*9+7)*6.28; S.p4[i]=fr(i*9+8)*6.28;\n  }\n  S.lastT=K.t; S.sec=K.section; }\n\n// dt guard (tolerate t0 resets)\nlet dt=K.t-(S.lastT==null?K.t:S.lastT); if(!(dt>0)||dt>0.25) dt=1/60; S.lastT=K.t;\n\n// desync burst at section change (real firefly behavior)\nif(S.sec!==K.section){ const spread=act==='scatter'?1.3:0.85;\n  for(let i=0;i<S.n;i++) S.th[i]+=(fr(i*7+K.section*13+3)-0.5)*6.2832*spread; S.sec=K.section; }\n\n// mean-field Kuramoto coupling -> gradual synchronization over minutes\nlet mc=0,ms=0; for(let i=0;i<S.n;i++){ mc+=Math.cos(S.th[i]); ms+=Math.sin(S.th[i]); }\nmc/=S.n; ms/=S.n; const R=Math.hypot(mc,ms); const psi=Math.atan2(ms,mc);\nlet Kc=P.sync*2.4;\nif(act==='scatter') Kc*=0.12;\nelse if(act==='pulse') Kc*=0.35+0.55*Math.sin(K.t*0.09);\nfor(let i=0;i<S.n;i++){ S.th[i]+=(S.om[i]*P.speed + Kc*R*Math.sin(psi-S.th[i]))*dt; }\n\n// palette per style\nlet bH=H, bS=90; if(isSpark){ bH=200; bS=45; } else if(isLantern){ bH=md(H-16,360); bS=95; }\n\n// compute positions + blink\nconst px=[], py=[], pb=[];\nfor(let i=0;i<S.n;i++){\n  const wx=(P.x+(S.bx[i]-0.5)*0.92)*W + Math.sin(K.t*S.f1[i]+S.p1[i])*u*0.07 + Math.sin(K.t*S.f2[i]+S.p2[i])*u*0.03;\n  const wy=(P.y+(S.by[i]-0.5)*0.92)*Hh + Math.cos(K.t*S.f3[i]+S.p3[i])*u*0.07 + Math.cos(K.t*S.f4[i]+S.p4[i])*u*0.025;\n  px[i]=wx; py[i]=wy;\n  pb[i]=Math.pow((1+Math.sin(S.th[i]))*0.5, isSpark?4.5:3.2);\n}\n\n// constellation web between near + phase-aligned pairs\nif(isConst){\n  blendMode(ADD); const dmax=u*0.2;\n  for(let i=0;i<S.n;i++){ for(let j=i+1;j<S.n;j++){\n    const dx=px[i]-px[j], dy=py[i]-py[j]; const d2=dx*dx+dy*dy; if(d2>dmax*dmax) continue;\n    const align=Math.cos(S.th[i]-S.th[j]); if(align<0.5) continue;\n    const dd=Math.sqrt(d2)/dmax; const a=(1-dd)*align*(0.3+(pb[i]+pb[j])*0.5)*18*(0.5+en);\n    stroke(md(bH+8,360),40,100,a); strokeWeight(Math.max(0.5,u*0.0012)); line(px[i],py[i],px[j],py[j]); } }\n  blendMode(BLEND);\n}\n\n// glowing bodies\nimageMode(CENTER);\nblendMode(ADD); noStroke();\nfor(let i=0;i<S.n;i++){\n  const b=pb[i];\n  const glow=(0.14 + b*(0.55+en) + A.treble*0.4*b);\n  const sz=u*0.03*P.scale*(isLantern?1.35:1)*(0.55+b*0.9);\n  tint(md(bH+ b*12,360), clp(bS-b*25,10,100), 100, clp(glow*80,4,95));\n  image(S.sprite, px[i], py[i], sz*6, sz*6);\n}\nnoTint();\n// hot cores on bright blinks\nnoStroke();\nfor(let i=0;i<S.n;i++){ if(pb[i]<0.5) continue; const sz=u*0.006*P.scale*(0.5+pb[i]);\n  fill(md(bH+18,360), isSpark?15:35, 100, clp(pb[i]*90,0,95)); ellipse(px[i],py[i],sz*2,sz*2); }\n\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0;\n"
+}

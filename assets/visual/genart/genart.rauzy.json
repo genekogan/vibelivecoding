@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rauzy",
+  "kind": "genart",
+  "name": "Rauzy Fractal Tiling",
+  "desc": "The Tribonacci Rauzy fractal \u2014 a jagged three-lobed quasicrystalline region tiled by three self-similar copies of itself in magenta, teal and gold, slowly rotating and re-colouring as the aperiodic mosaic breathes.",
+  "tags": [
+    "rauzy",
+    "tribonacci",
+    "fractal",
+    "aperiodic",
+    "tiling",
+    "quasicrystal",
+    "substitution",
+    "self-similar",
+    "mosaic",
+    "tri-lobe",
+    "number-theory",
+    "geometric",
+    "magenta",
+    "teal",
+    "gold",
+    "jewel",
+    "tessellation",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "thermal",
+    "neon",
+    "ink",
+    "sacred-geometry"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "fractal fill richness / substitution point count (rebuilds)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "mosaic size vs frame (higher = bigger, overfills)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "central bloom / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "rotation & drift rate"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (magenta anchor for the three lobes)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mosaic centre x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mosaic centre y (canvas fraction)"
+    },
+    "glow": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "central bloom radius"
+    },
+    "style": {
+      "default": "tri-jewel",
+      "options": [
+        "tri-jewel",
+        "pastel",
+        "thermal",
+        "neon-edge",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic orientation / mirror / hue variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:06:07+00:00",
+    "fps": 60.2,
+    "motion": 0.038,
+    "lum": 0.173
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .62, speed: 1, hue: 320, x: .5, y: .5, glow: .5, style: 'tri-jewel', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst H = x => ((x % 360) + 360) % 360;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- bake the Rauzy fractal (Tribonacci substitution + complex-eigenplane projection) into 3 per-residue mask buffers ----\nconst dens = Math.min(1, Math.max(0, P.density));\nconst BUFN = Math.min(820, Math.max(440, Math.round(Math.max(width, height) * 0.72)));\nconst N = Math.round(2200 + dens * 4200);            // 2200..6400 substitution points (first-poke: obvious fill change)\nconst edge = (P.style === 'neon-edge');\nconst key = [width, height, BUFN, N, P.seed, edge ? 'E' : 'F'].join('|');\nif (S.key !== key) {\n  S.key = key;\n  if (S.bufs) { for (let b = 1; b < S.bufs.length; b++) { const g = S.bufs[b]; if (g && g.remove) g.remove(); } }\n  // seed = static rotation + optional mirror of the projected fractal (reproducible orientation)\n  const th0 = fr(1) * Math.PI * 2, ct = Math.cos(th0), stt = Math.sin(th0), mir = fr(2) > 0.5 ? -1 : 1;\n  // phi(letter) = left-eigenvector components of the Tribonacci incidence matrix (projection onto contracting complex eigenplane)\n  const PH = [null, [1, 0], [-1.4196433776070805, 0.6062907292071993], [-0.7718445063460384, -1.1151425080399375]];\n  const sub = [null, [1, 2], [1, 3], [1]];\n  let w = [1];\n  while (w.length < N) { const nx = []; for (let q = 0; q < w.length; q++) { const s = sub[w[q]]; for (let r = 0; r < s.length; r++) nx.push(s[r]); } w = nx; }\n  const M = Math.min(N, w.length);\n  const xs = new Float32Array(M), ys = new Float32Array(M), cs = new Uint8Array(M);\n  let zx = 0, zy = 0, mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;\n  for (let k = 0; k < M; k++) {\n    const c = w[k]; zx += PH[c][0]; zy += PH[c][1];\n    const rx = zx * ct - zy * stt, ry = (zx * stt + zy * ct) * mir;\n    xs[k] = rx; ys[k] = ry; cs[k] = c;\n    if (rx < mnx) mnx = rx; if (rx > mxx) mxx = rx; if (ry < mny) mny = ry; if (ry > mxy) mxy = ry;\n  }\n  const fbw = (mxx - mnx) || 1, fbh = (mxy - mny) || 1, span = Math.max(fbw, fbh);\n  const marg = 0.09, sc = BUFN * (1 - 2 * marg) / span, ccx = (mnx + mxx) / 2, ccy = (mny + mxy) / 2;\n  const g1 = createGraphics(BUFN, BUFN), g2 = createGraphics(BUFN, BUFN), g3 = createGraphics(BUFN, BUFN);\n  const gg = [null, g1, g2, g3];\n  for (let c = 1; c <= 3; c++) { gg[c].pixelDensity(1); gg[c].noStroke(); }\n  const jit = BUFN * 0.010;\n  if (!edge) {\n    const rDot = Math.max(2.6, BUFN * 0.0085), dA = 70 + dens * 42;\n    for (let c = 1; c <= 3; c++) gg[c].fill(255, 255, 255, dA);\n    for (let k = 0; k < M; k++) {\n      const c = cs[k], jx = (fr(k * 2 + 7) * 2 - 1) * jit, jy = (fr(k * 2 + 8) * 2 - 1) * jit;\n      gg[c].circle(BUFN / 2 + (xs[k] - ccx) * sc + jx, BUFN / 2 - (ys[k] - ccy) * sc + jy, rDot);\n    }\n  } else {\n    // coarse occupancy so each residue class fills SOLID, then keep only boundary cells -> jagged fractal outlines\n    const GN = Math.round(Math.sqrt(M / 1.6)), occ = [null, new Uint8Array(GN * GN), new Uint8Array(GN * GN), new Uint8Array(GN * GN)];\n    for (let k = 0; k < M; k++) {\n      const c = cs[k], gx = Math.floor((xs[k] - mnx) / fbw * (GN - 1)), gy = Math.floor((ys[k] - mny) / fbh * (GN - 1));\n      occ[c][gy * GN + gx] = 1;\n    }\n    const rDot = Math.max(3, (BUFN / GN) * 0.85);\n    for (let c = 1; c <= 3; c++) gg[c].fill(255, 255, 255, 150);\n    for (let c = 1; c <= 3; c++) {\n      const o = occ[c];\n      for (let gy = 0; gy < GN; gy++) for (let gx = 0; gx < GN; gx++) {\n        if (!o[gy * GN + gx]) continue;\n        const up = gy > 0 ? o[(gy - 1) * GN + gx] : 0, dn = gy < GN - 1 ? o[(gy + 1) * GN + gx] : 0, lf = gx > 0 ? o[gy * GN + gx - 1] : 0, rt = gx < GN - 1 ? o[gy * GN + gx + 1] : 0;\n        if (up && dn && lf && rt) continue;             // interior -> keep only boundary cells\n        const fx = mnx + (gx + 0.5) / GN * fbw, fy = mny + (gy + 0.5) / GN * fbh;\n        gg[c].circle(BUFN / 2 + (fx - ccx) * sc, BUFN / 2 - (fy - ccy) * sc, rDot);\n      }\n    }\n  }\n  S.bufs = [null, g1, g2, g3];\n}\n\n// ---- live: fill frame, then rotate + re-color the three colored copies (continuous K.t motion floor) ----\nconst st = P.style, en = Math.min(1, Math.max(0, P.energy)), spd = P.speed, gl = Math.min(1, Math.max(0, P.glow));\nconst sec = K.section | 0, intn = (K.intensity != null ? K.intensity : 0.6), al = Math.min(100, Math.max(0, P.alpha)) / 100;\nconst drift = K.t * 2.2 + sec * 13;                    // slow palette rotation / re-color\nlet cols, bg, add, aBase, tA;\nif (st === 'pastel') {\n  cols = [[H(P.hue + drift), 33, 99], [H(P.hue + 215 + drift), 30, 97], [H(P.hue + 85 + drift), 40, 100]];\n  bg = [H(P.hue + 215), 26, 20]; add = false; aBase = 96; tA = 80;\n} else if (st === 'thermal') {\n  cols = [[H(18 + drift * 0.5), 90, 100], [H(46 + drift * 0.5), 92, 100], [H(214 + drift * 0.5), 82, 96]];\n  bg = [232, 62, 5]; add = true; aBase = 90; tA = 78;\n} else if (st === 'neon-edge') {\n  cols = [[H(P.hue + drift), 92, 100], [H(P.hue + 215 + drift), 90, 100], [H(P.hue + 85 + drift), 95, 100]];\n  bg = [H(P.hue + 215), 72, 6]; add = true; aBase = 100; tA = 74;\n} else if (st === 'ink') {\n  cols = [[40, 7, 24], [38, 7, 45], [42, 6, 64]];\n  bg = [40, 13, 86]; add = false; aBase = 100; tA = 92;\n} else {                                                // tri-jewel (default): magenta / teal / gold\n  cols = [[H(P.hue + drift), 82, 92], [H(P.hue + 215 + drift), 80, 90], [H(P.hue + 85 + drift), 85, 90]];\n  bg = [H(P.hue + 215), 52, 14]; add = false; aBase = 100; tA = 80;\n}\n\nnoStroke();\nfill(bg[0], bg[1], bg[2], tA * al);                    // trail-clear / frame fill\nrect(0, 0, width, height);\n\npush();\ntranslate(P.x * width, P.y * height);\nrotate(K.t * 0.024 * spd);                             // slow continuous rotation = motion floor\nimageMode(CENTER);\nif (add) blendMode(ADD);\nconst disp = u * 1.25 * P.scale;\nconst aa = Math.min(100, aBase * (0.72 + 0.28 * en)) * al;\nfor (let c = 1; c <= 3; c++) {\n  const cc = cols[c - 1];\n  const bri = Math.min(100, cc[2] * (1 + 0.09 * Math.sin(K.t * 0.45 + c * 2.1)));  // slow per-lobe breathing\n  tint(cc[0], cc[1], bri, aa);\n  image(S.bufs[c], 0, 0, disp, disp);\n}\nnoTint();\nblendMode(BLEND);\nimageMode(CORNER);\npop();\n\n// central soft bloom (partial-frame, breathes on K.t + beat; ADD alpha capped) \u2014 energy/glow\nconst beat = K.pulse * 0.5 + A.bass * 0.9 + K.swell * 0.3;\nconst glowR = u * (0.42 + 0.14 * Math.sin(K.t * 0.3)) * (0.7 + gl) * P.scale;\nconst gA = (5 + en * 13 + beat * 9) * (0.5 + intn * 0.7) * al;\nif (gA > 0.4) {\n  push(); blendMode(ADD); noStroke();\n  const gh = H(cols[0][0] + 18);\n  for (let i = 0; i < 3; i++) { fill(gh, 42, 100, gA * (0.42 - i * 0.12)); circle(P.x * width, P.y * height, glowR * (0.55 + i * 0.55)); }\n  blendMode(BLEND); pop();\n}\n"
+}

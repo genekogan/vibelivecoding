@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.crane",
+  "kind": "set",
+  "name": "Crane",
+  "desc": "An overhead travelling bridge crane working a lattice girder \u2014 the trolley traverses and brakes, the hoist drum pays out and winds in, and the slung load swings on the rope exactly as hard as the trolley just accelerated, damping out while festoon cables bunch and stretch along the span.",
+  "tags": [
+    "crane",
+    "bridge-crane",
+    "overhead-crane",
+    "gantry",
+    "hoist",
+    "trolley",
+    "girder",
+    "lattice",
+    "runway",
+    "rail",
+    "end-truck",
+    "rope",
+    "reeving",
+    "load-block",
+    "hook",
+    "sling",
+    "festoon",
+    "cable",
+    "payload",
+    "swing",
+    "sway",
+    "pendulum",
+    "physics",
+    "lifting",
+    "rigging",
+    "industrial",
+    "factory",
+    "warehouse",
+    "steel",
+    "machine",
+    "mechanism",
+    "mechanical",
+    "engineering",
+    "technical",
+    "drawing",
+    "draughting",
+    "schematic",
+    "diagram",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "ghost",
+    "free-body",
+    "annotation",
+    "swl",
+    "prop",
+    "scenery",
+    "austere",
+    "rigorous"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "traverse rate + steel weight + tool glow \u2014 faster traverse means harsher acceleration and a bigger swing"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "crane size \u2014 girder depth and span vs frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lattice panel count, festoon loops, load size and rated capacity"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the trolley works through its moves"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "steel hue (film/ghost styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "bridge centre, canvas fraction"
+    },
+    "y": {
+      "default": 0.16,
+      "min": 0.04,
+      "max": 0.55,
+      "doc": "girder level \u2014 the crane hangs everything below it"
+    },
+    "drop": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1,
+      "doc": "how far the hoist can pay out \u2014 a longer rope swings slower, like the real thing"
+    },
+    "anno": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: festoon, SWL marking, sway/hoist readout, span dimension"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "schematic"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / additive x-ray ghost / schematic (the load becomes a free-body diagram: weight vector, rope tension, sway arc)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "the trolley/hoist move programme"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "opacity \u2014 steel line work high in the frame, so it layers politely"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:47+00:00",
+    "fps": 54.6,
+    "motion": 0.0069,
+    "lum": 0.096
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:44, x:.5, y:.16, drop:.55, anno:.6, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst lp = (a,b,s) => a+(b-a)*s;\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { line:[200,6,99], body:[208,52,38], dark:[214,70,15], ctr:[196,38,80], anno:[200,12,92], hatch:[204,44,58], hot:[46,70,98], rope:[198,20,88], add:false };\n  if (sty==='engraving') return { line:[28,40,10], body:[36,14,64], dark:[32,26,32], ctr:[8,64,42], anno:[28,42,14], hatch:[30,30,26], hot:[6,74,44], rope:[30,34,22], add:false };\n  if (sty==='ghost')     return { line:[H,26,98], body:[H,62,28], dark:[H,66,11], ctr:[12,72,60], anno:[H,16,86], hatch:[H,44,52], hot:[46,74,100], rope:[H,20,96], add:true };\n  if (sty==='schematic') return { line:[178,64,94], body:[190,50,20], dark:[196,44,9], ctr:[10,72,68], anno:[52,56,88], hatch:[186,42,44], hot:[340,74,96], rope:[178,30,94], add:false };\n  return { line:[H,8,93], body:[H,22,40], dark:[H,30,15], ctr:[10,66,62], anno:[H,8,88], hatch:[H,14,56], hot:[H+8,74,96], rope:[H,10,86], add:false };\n}\nconst C = pal();\nconst hw = q => ((q%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst schem = (sty==='schematic');\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .06); S.pt = K.t;\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- rig geometry ------------------------------------------------------------\nconst SCA = cl(P.scale,.4,1.9);\nconst SPAN = width*.86*cl(SCA,.5,1.35);\nconst gy = cl(P.y,.04,.55)*height;\nconst gcx = cl(P.x,.2,.8)*width;\nconst gx0 = gcx - SPAN/2, gx1 = gcx + SPAN/2;\nconst GD = u*.052*SCA;                       // girder depth\n\n// ---- trolley traverse: analytic ease so velocity AND acceleration are exact --\nconst NW = Math.round(3 + cl(P.density,0,1)*5);\nif (S.wk !== sd+'|'+NW){\n  S.wk = sd+'|'+NW; S.wp = [];\n  for (let i=0;i<NW;i++) S.wp.push({ p: .10 + fr(i*3.7+2)*.80, h: .30 + fr(i*5.3+7)*.62, dw: .16 + fr(i*7.1+11)*.26 });\n}\nconst WP = S.wp || [{p:.5,h:.5,dw:.2}];\nconst wob = 1 + .20*Math.sin(K.t*.127) + .12*Math.sin(K.t*.311+1.4) + .07*Math.sin(K.t*.743+2.7);\nconst prate = P.speed * (.10 + .17*NRG) * wob * (.6+.7*K.intensity);\nS.tg = (S.tg||0) + dt*prate;\nconst seg = Math.floor(S.tg) % WP.length;\nconst rawF = S.tg - Math.floor(S.tg);\nconst w0 = WP[seg], w1 = WP[(seg+1)%WP.length];\nconst dw = w0.dw;\nconst mf = cl((rawF - dw)/Math.max(.05, 1-dw), 0, 1);\nconst es = mf*mf*(3-2*mf);\nconst trX = lp(gx0 + SPAN*w0.p, gx0 + SPAN*w1.p, es);\n// analytic derivatives of the smoothstep programme -> honest trolley dynamics\nconst dEs = 6*mf*(1-mf), ddEs = 6-12*mf;\nconst dfdt = (mf>0 && mf<1) ? prate/Math.max(.05, 1-dw) : 0;\nconst dX = (gx0+SPAN*w1.p - (gx0+SPAN*w0.p));\nconst trA = dX * ddEs * dfdt * dfdt;          // trolley acceleration, px/s^2\n\n// ---- hoist -------------------------------------------------------------------\nconst maxDrop = (height - gy) * cl(P.drop,.15,1) * .92;\nconst ropeL = Math.max(u*.05, lp(w0.h, w1.h, es) * maxDrop);\n\n// ---- the load is a REAL pendulum driven by the trolley's acceleration --------\nif (S.th == null){ S.th = 0; S.thd = 0; }\n{\n  const g = u*1.8;\n  const sub = cl(Math.round(dt/(1/240)), 1, 6), h2 = dt/sub;\n  for (let i=0;i<sub;i++){\n    const acc = -(g/ropeL)*Math.sin(S.th) - .80*S.thd - (trA/ropeL)*Math.cos(S.th);\n    S.thd += acc*h2;\n    S.th  += S.thd*h2;\n    if (S.th > 1.05){ S.th = 1.05; S.thd = 0; }\n    if (S.th < -1.05){ S.th = -1.05; S.thd = 0; }\n    if (!isFinite(S.th) || !isFinite(S.thd)){ S.th = 0; S.thd = 0; }\n  }\n}\nconst th = S.th;\nconst blkX = trX + Math.sin(th)*ropeL, blkY = gy + GD*.5 + Math.cos(th)*ropeL;\n\n// ---- helpers -----------------------------------------------------------------\nconst LW = Math.max(1, u*.0026*(.6+.7*NRG))*cl(SCA,.6,1.5);\n// 45-deg section hatch, analytically clipped to the rect (t0/t1 along the diagonal)\nfunction hatchRect(x,y,w2,h2,a){\n  sc(C.hatch, a); strokeWeight(Math.max(.4,u*.0007));\n  const sp = Math.max(u*.009, Math.min(w2,h2)*.22);\n  for (let o=-h2; o<w2; o+=sp){\n    const t0 = Math.max(0, -o), t1 = Math.min(h2, w2-o);\n    if (t1 <= t0) continue;\n    line(x+o+t0, y+t0, x+o+t1, y+t1);\n  }\n}\nfunction lattice(x0,y0,x1,y1,d,n){\n  sc(C.line, C.add?52:88); strokeWeight(LW);\n  line(x0,y0,x1,y1); line(x0,y0+d,x1,y1+d);\n  sc(C.line, C.add?38:64); strokeWeight(LW*.55);\n  for (let i=0;i<n;i++){\n    const a0=x0+(x1-x0)*(i/n), a1=x0+(x1-x0)*((i+1)/n);\n    line(a0,y0, a1,y0+d); line(a1,y0, a0,y0+d);\n    line(a0,y0, a0,y0+d);\n  }\n}\n\nif (C.add) blendMode(ADD);\n\n// ---- runway rails + end trucks ----------------------------------------------\nif (!schem){\n  sc(C.dark, C.add?30:80); strokeWeight(LW*2.4);\n  line(0, gy - GD*.72, width, gy - GD*.72);\n  sc(C.line, 86); strokeWeight(LW*.8);\n  line(0, gy - GD*.95, width, gy - GD*.95);\n  for (const ex of [gx0, gx1]){\n    noStroke(); fc(C.body, C.add?26:92);\n    rect(ex - GD*.55, gy - GD*.62, GD*1.1, GD*1.25);\n    noFill(); sc(C.line, 92); strokeWeight(LW); rect(ex - GD*.55, gy - GD*.62, GD*1.1, GD*1.25);\n    for (const wx of [-1,1]){\n      noStroke(); fc(C.dark, C.add?22:92); ellipse(ex + wx*GD*.32, gy - GD*.72, GD*.42, GD*.42);\n      noFill(); sc(C.line, 88); strokeWeight(LW*.6); ellipse(ex + wx*GD*.32, gy - GD*.72, GD*.42, GD*.42);\n    }\n  }\n}\n\n// ---- bridge girder -----------------------------------------------------------\nif (schem){\n  sc(C.line, 88); strokeWeight(LW*1.2); line(gx0, gy, gx1, gy);\n  for (const ex of [gx0,gx1]){ sc(C.ctr,70); strokeWeight(Math.max(.4,u*.0008));\n    for (let i=-2;i<=2;i++) line(ex+i*GD*.2, gy, ex+i*GD*.2-GD*.16, gy-GD*.3); }\n} else {\n  lattice(gx0, gy, gx1, gy, GD, Math.round(10 + cl(P.density,0,1)*14));\n}\n\n// ---- festoon: constant-length cable loops that bunch as the trolley closes ---\nif (!schem && anno > .1){\n  const fx0 = gx0 + GD*.5;\n  const NF = Math.round(5 + cl(P.density,0,1)*6);\n  const spanF = Math.abs(trX - fx0);\n  const sp = spanF/NF;\n  const maxSp = (SPAN*.9)/NF;\n  const sag = GD*.28 + GD*1.05*(1 - cl(sp/Math.max(1e-3,maxSp),0,1));\n  sc(C.rope, C.add?40:70); strokeWeight(Math.max(.6,LW*.42));\n  for (let i=0;i<NF;i++){\n    const a0 = lp(fx0, trX, i/NF), a1 = lp(fx0, trX, (i+1)/NF);\n    noFill(); beginShape();\n    for (let s=0;s<=6;s++){ const t=s/6; vertex(lp(a0,a1,t), gy + GD*1.05 + 4*sag*t*(1-t)); }\n    endShape();\n    sc(C.line, 62); strokeWeight(Math.max(.4,LW*.3));\n    line(a0, gy+GD, a0, gy+GD*1.05+GD*.12);\n    sc(C.rope, C.add?40:70); strokeWeight(Math.max(.6,LW*.42));\n  }\n}\n\n// ---- trolley -----------------------------------------------------------------\nconst TW = GD*1.5;\nif (!schem){\n  noStroke(); fc(C.body, C.add?28:94);\n  rect(trX - TW*.5, gy - GD*.30, TW, GD*.92);\n  hatchRect(trX - TW*.5, gy - GD*.30, TW, GD*.92, 40);\n  noFill(); sc(C.line, 96); strokeWeight(LW); rect(trX - TW*.5, gy - GD*.30, TW, GD*.92);\n  // hoist drum + the rope wrapping it as the load rises\n  const dr = GD*.34;\n  noStroke(); fc(C.dark, C.add?24:92); ellipse(trX, gy + GD*.16, dr*2, dr*2);\n  noFill(); sc(C.line, 90); strokeWeight(LW*.7); ellipse(trX, gy + GD*.16, dr*2, dr*2);\n  sc(C.line, 58); strokeWeight(Math.max(.4,u*.0007));\n  const wrap = -ropeL/Math.max(1e-3,maxDrop)*9;\n  for (let i=0;i<7;i++){ const a=wrap + i*0.9; line(trX+Math.cos(a)*dr*.35, gy+GD*.16+Math.sin(a)*dr*.35, trX+Math.cos(a)*dr*.92, gy+GD*.16+Math.sin(a)*dr*.92); }\n  for (const wx of [-1,1]){\n    noStroke(); fc(C.dark, C.add?20:92); ellipse(trX + wx*TW*.32, gy, GD*.30, GD*.30);\n    noFill(); sc(C.line, 80); strokeWeight(LW*.5); ellipse(trX + wx*TW*.32, gy, GD*.30, GD*.30);\n  }\n}\n\n// ---- 2-fall reeving: the ropes really do angle as the block swings -----------\n{\n  const sh = GD*.30;\n  sc(C.rope, C.add?52:86); strokeWeight(Math.max(.7, LW*.34));\n  for (const s2 of [-1,1]){\n    line(trX + s2*sh, gy + GD*.4, blkX + s2*sh*.5, blkY - GD*.28);\n  }\n}\n\n// ---- load block, hook, and the load ------------------------------------------\n{\n  const bw = GD*.9, bh = GD*.55;\n  if (!schem){\n    noStroke(); fc(C.body, C.add?30:96); rect(blkX - bw*.5, blkY - GD*.28, bw, bh);\n    noFill(); sc(C.line, 96); strokeWeight(LW*.85); rect(blkX - bw*.5, blkY - GD*.28, bw, bh);\n    for (const s2 of [-1,1]){ sc(C.line, 70); strokeWeight(LW*.5); ellipse(blkX + s2*bw*.24, blkY - GD*.28 + bh*.5, bh*.5, bh*.5); }\n    // hook\n    sc(C.line, 96); strokeWeight(LW*.9); noFill();\n    const hkY = blkY - GD*.28 + bh;\n    line(blkX, hkY, blkX, hkY + GD*.22);\n    arc(blkX, hkY + GD*.40, GD*.34, GD*.40, -Math.PI*.85, Math.PI*.72);\n  } else {\n    noStroke(); fc(C.hot, 94); ellipse(blkX, blkY, GD*.34, GD*.34);\n  }\n  // the load: a hatched blank slung under the hook\n  const ls = GD*(1.05 + .5*cl(P.density,0,1));\n  const ly = blkY + GD*.72 + ls*.5;\n  if (!schem){\n    sc(C.rope, 80); strokeWeight(Math.max(.5,LW*.30));\n    line(blkX, blkY + GD*.52, blkX - ls*.42, ly - ls*.5);\n    line(blkX, blkY + GD*.52, blkX + ls*.42, ly - ls*.5);\n    noStroke(); fc(C.body, C.add?26:94); rect(blkX - ls*.62, ly - ls*.5, ls*1.24, ls);\n    hatchRect(blkX - ls*.62, ly - ls*.5, ls*1.24, ls, 46);\n    noFill(); sc(C.line, 96); strokeWeight(LW); rect(blkX - ls*.62, ly - ls*.5, ls*1.24, ls);\n    sc(C.line, 60); strokeWeight(LW*.5);\n    line(blkX - ls*.62, ly - ls*.18, blkX + ls*.62, ly - ls*.18);\n    line(blkX - ls*.62, ly + ls*.20, blkX + ls*.62, ly + ls*.20);\n  } else {\n    // free-body diagram: weight down, rope tension along the fall, sway arc\n    const vs = u*.075;\n    const arrow = (ax2,ay2,bx2,by2,col) => { const an=Math.atan2(by2-ay2,bx2-ax2), hd=u*.011;\n      sc(col, 92); strokeWeight(Math.max(.9,u*.0020)); line(ax2,ay2,bx2,by2);\n      line(bx2,by2, bx2-Math.cos(an-.4)*hd, by2-Math.sin(an-.4)*hd);\n      line(bx2,by2, bx2-Math.cos(an+.4)*hd, by2-Math.sin(an+.4)*hd); };\n    arrow(blkX, blkY, blkX, blkY+vs, C.hot);\n    arrow(blkX, blkY, blkX - Math.sin(th)*vs*1.15, blkY - Math.cos(th)*vs*1.15, C.line);\n    sc(C.ctr, 70); strokeWeight(Math.max(.5,u*.0010)); noFill();\n    line(trX, gy, trX, gy + ropeL*1.1);\n    const aw = Math.max(.02, Math.abs(th));\n    arc(trX, gy + GD*.5, ropeL*.9, ropeL*.9, Math.PI/2 - aw, Math.PI/2 + aw);\n  }\n}\nblendMode(BLEND);\n\n// ---- annotation --------------------------------------------------------------\nif (anno > .12){\n  textFont('monospace'); noStroke(); textSize(Math.max(6, Math.min(u*.0125, GD*.34)));\n  // capacity on the girder\n  textAlign(CENTER, CENTER); fc(C.anno, 84);\n  text('SWL '+(8 + Math.round(cl(P.density,0,1)*42))+' t', gcx, gy + GD*.5);\n  // live sway + hoist readout on a leader off the block\n  if (anno > .35){\n    const lx = blkX + GD*1.5, ly2 = blkY - GD*1.1;\n    sc(C.anno, 50+26*anno); strokeWeight(Math.max(.4,u*.0007));\n    line(blkX + GD*.4, blkY - GD*.2, lx, ly2); line(lx, ly2, lx + u*.030, ly2);\n    noStroke(); fc(C.anno, 92); textAlign(LEFT, BOTTOM);\n    const ts = Math.max(6, Math.min(u*.0115, GD*.30));\n    textSize(ts);\n    text('SWAY '+(th*57.2958).toFixed(1)+' deg', lx + u*.034, ly2 - u*.002);\n    text('HOIST '+(ropeL/Math.max(1e-3,maxDrop)*18).toFixed(2)+' m', lx + u*.034, ly2 - u*.002 + ts*1.35);\n    text(Math.abs(trA) > u*.4 ? 'TRAVERSE - ACCEL' : (dfdt>0 ? 'TRAVERSE' : 'HOLD'), lx + u*.034, ly2 - u*.002 + ts*2.7);\n  }\n  // span dimension under the girder\n  if (anno > .5){\n    const dy2 = gy + GD*2.4;\n    sc(C.ctr, 62); strokeWeight(Math.max(.4,u*.0008));\n    line(gx0, gy+GD*1.2, gx0, dy2+u*.010); line(gx1, gy+GD*1.2, gx1, dy2+u*.010);\n    line(gx0, dy2, gx1, dy2);\n    const ar = u*.010;\n    line(gx0,dy2, gx0+ar,dy2-ar*.4); line(gx0,dy2, gx0+ar,dy2+ar*.4);\n    line(gx1,dy2, gx1-ar,dy2-ar*.4); line(gx1,dy2, gx1-ar,dy2+ar*.4);\n    noStroke(); fc(C.anno, 86); textAlign(CENTER, BOTTOM);\n    text((SPAN/u*22).toFixed(1)+' m SPAN', gcx, dy2 - u*.004);\n  }\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

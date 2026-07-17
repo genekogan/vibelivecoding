@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.flow_calligraphy",
+  "kind": "genart",
+  "name": "Flow Calligraphy",
+  "desc": "Generative ink calligraphy where brush agents integrate along a slow curl-noise flow field, laying swelling and tapering variable-width strokes that accumulate into flowing glyph-like marks before the ink washes away and new gestures are written.",
+  "tags": [
+    "calligraphy",
+    "brush",
+    "ink",
+    "sumi",
+    "sumi-e",
+    "flow-field",
+    "flow",
+    "curl-noise",
+    "gestural",
+    "brushstroke",
+    "strokes",
+    "glyph",
+    "handwriting",
+    "wash",
+    "bleed",
+    "wet",
+    "jewel",
+    "gold-leaf",
+    "neon",
+    "blueprint",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "organic",
+    "meditative",
+    "asian",
+    "zen",
+    "calligraphic",
+    "field"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "brush agent count / mark coverage"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "brush pressure / stroke width + brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "field drift + stroke advection rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 3.0,
+      "doc": "flow swirl size (bigger = broader gestures)"
+    },
+    "turb": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.5,
+      "doc": "curl vortex strength (0 laminar, high chaotic)"
+    },
+    "bleed": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wet halo spread around strokes"
+    },
+    "wash": {
+      "default": 0.4,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how fast old ink washes away"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "base ink / accent hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "stroke spawn bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "stroke spawn bias y"
+    },
+    "style": {
+      "default": "sumi",
+      "options": [
+        "sumi",
+        "jewel-ink",
+        "gold-leaf",
+        "neon-brush",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density: .55, energy: .6, speed: 1, scale: 1, turb: .55, bleed: .45, wash: .4, hue: 32, x: .5, y: .5, style: 'sumi', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\n\n// --- persistent wash buffer (half-canvas feedback), size-keyed ---\nconst BW = Math.min(720, Math.max(160, Math.round(width/2)));\nconst BH = Math.max(2, Math.round(BW*height/width));\nconst bu = Math.min(BW,BH);\nif (!S.ink || S.bw!==BW || S.bh!==BH){\n  if (S.ink && S.ink.remove) S.ink.remove();\n  S.ink = createGraphics(BW,BH); S.ink.pixelDensity(1);\n  S.ink.colorMode(HSB,360,100,100,100);\n  S.styleUsed = null; S.seedUsed = null;\n  S.ag = []; S.spawnN = 0;\n}\nconst g = S.ink;\n\n// --- ground palette per style ---\nconst ST = P.style;\nlet gh,gs,gb, add=false, bleedOn=true, lightGround=false;\nif (ST==='jewel-ink'){ gh=232; gs=48; gb=8; add=true; }\nelse if (ST==='gold-leaf'){ gh=32; gs=52; gb=7; add=true; }\nelse if (ST==='neon-brush'){ gh=266; gs=34; gb=5; add=true; }\nelse if (ST==='blueprint'){ gh=212; gs=66; gb=25; add=false; bleedOn=false; }\nelse { gh=34; gs=22; gb=75; add=false; lightGround=true; } // sumi\n\n// repaint ground on first run / style / seed change (also re-seeds agents)\nif (S.styleUsed!==ST || S.seedUsed!==sd){\n  S.styleUsed=ST; S.seedUsed=sd; S.ag=[]; S.spawnN=0;\n  g.push(); g.blendMode(BLEND); g.noStroke(); g.fill(gh,gs,gb,100); g.rect(0,0,BW,BH); g.pop();\n}\n\n// --- curl-noise flow field (divergence-free), drifts on K.t (never re-phases) ---\nconst zt   = K.t*(0.05 + P.speed*0.06) + sd*0.13;\nconst fscl = 1.1 + 2.4/clp(P.scale,0.3,3);\nconst turb = (0.55 + P.turb*2.0 + A.lowmid*1.2) * (1 + 0.14*Math.sin(K.section*0.9));\nconst eps  = 0.004;\nconst ns   = (fx,fy)=> noise(fx*fscl + sd*0.7, fy*fscl + 11.3, zt);\nconst ang  = (fx,fy)=> Math.atan2( ns(fx,fy+eps)-ns(fx,fy-eps), -(ns(fx+eps,fy)-ns(fx-eps,fy)) ) * turb;\n\n// --- brush-agent pool (continuous writing = motion floor) ---\nif (!S.ag) { S.ag=[]; S.spawnN=0; }\nfunction spawn(){\n  const n = S.spawnN++;\n  const spread = 0.26 + 0.24*(0.5+0.5*Math.sin(K.section*0.7));\n  const x = clp(clp(P.x,0,1) + (fr(n*3+1)*2-1)*spread, 0.02, 0.98) * BW;\n  const y = clp(clp(P.y,0,1) + (fr(n*3+2)*2-1)*spread, 0.02, 0.98) * BH;\n  return { x, y, px:x, py:y, age:0, life: 34 + fr(n*3+3)*72,\n           bw: bu*(0.010 + fr(n*3+7)*0.028), wp:0, hh: fr(n*5+4), wob: fr(n*5+9)*99 };\n}\nconst target = Math.round(14 + P.density*104);\nwhile (S.ag.length < target) S.ag.push(spawn());\nif (S.ag.length > target) S.ag.length = target;\n\n// --- fade the buffer toward ground (ink washes away) ---\nconst washA = (lightGround ? (1.4 + P.wash*8.5) : (1.8 + P.wash*7.0)) * (0.85 + 0.25*Math.sin(K.section*0.5));\ng.push();\ng.blendMode(BLEND); g.noStroke();\ng.fill(gh,gs,gb,washA); g.rect(0,0,BW,BH);\n\n// --- advance agents + lay tapered variable-width strokes ---\ng.blendMode(add ? ADD : BLEND);\nconst briMul = 0.82 + K.intensity*0.34 + A.rms*0.5;\nconst kick = K.pulse*0.42 + A.bass*0.6;\nconst st = bu*0.006*(0.5 + P.speed);\nconst hueShift = K.section*13 + K.t*2.5;\nconst eW = 0.35 + P.energy;\nfor (let k=0;k<S.ag.length;k++){\n  const p = S.ag[k];\n  const fx = p.x/BW, fy = p.y/BH;\n  const a = ang(fx,fy);\n  const nx = p.x + Math.cos(a)*st, ny = p.y + Math.sin(a)*st;\n  const t = p.age/p.life;\n  const env = Math.sin(Math.PI*clp(t,0,1));\n  const pr = 0.45 + 0.55*noise(p.wob + p.age*0.05);\n  let w = p.bw * env * pr * eW * (1 + kick*0.5);\n  if (ST==='blueprint') w *= 0.42;\n  const w2 = w*0.5, wp2 = p.wp*0.5;\n  const perpx = -Math.sin(a), perpy = Math.cos(a);\n  // hue/tone per style\n  let ch,cs,cb,ca, hh,hs,hb,ha;\n  if (ST==='jewel-ink'){ ch=(P.hue + p.hh*300 + hueShift)%360; cs=82; cb=88*briMul; ca=52+P.energy*28; hh=ch; hs=68; hb=42*briMul; ha=8+P.bleed*20; }\n  else if (ST==='gold-leaf'){ ch=(40 + env*10)%360; cs=48+env*32; cb=(58+env*40)*briMul; ca=50+P.energy*30; hh=38; hs=62; hb=30*briMul; ha=7+P.bleed*18; }\n  else if (ST==='neon-brush'){ ch=(P.hue + p.hh*210 + hueShift)%360; cs=92; cb=100; ca=48+P.energy*30; hh=ch; hs=80; hb=48; ha=10+P.bleed*26; }\n  else if (ST==='blueprint'){ ch=(P.hue*0.1+200)%360; cs=10; cb=96; ca=46+P.energy*30; hh=0; hs=0; hb=0; ha=0; }\n  else { // sumi: dark sepia ink, occasional indigo, soft wet halo\n    const indigo = p.hh<0.16; ch = indigo?222:(28+p.hh*10); cs = indigo?38:34; cb = 8+p.hh*7; ca=58+P.energy*26;\n    hh=ch; hs=indigo?22:16; hb=44; ha=6+P.bleed*20;\n  }\n  // wet bleed halo (soft wide edge), then core\n  if (bleedOn && ha>0){\n    const hw = (w + p.wp)*0.5 * (1 + P.bleed*2.3) + 0.6;\n    g.noStroke(); g.fill(hh,hs,hb,ha);\n    g.quad(p.px+perpx*hw, p.py+perpy*hw, p.px-perpx*hw, p.py-perpy*hw, nx-perpx*hw, ny-perpy*hw, nx+perpx*hw, ny+perpy*hw);\n  }\n  g.noStroke(); g.fill(ch,cs,cb,ca);\n  if (w2+wp2 < 0.35){ g.circle(nx,ny,Math.max(0.8,w)); }\n  else { g.quad(p.px+perpx*wp2, p.py+perpy*wp2, p.px-perpx*wp2, p.py-perpy*wp2, nx-perpx*w2, ny-perpy*w2, nx+perpx*w2, ny+perpy*w2); }\n  // advance / respawn\n  p.px=p.x; p.py=p.y; p.x=nx; p.y=ny; p.wp=w; p.age++;\n  if (p.age>=p.life || nx<-6||nx>BW+6||ny<-6||ny>BH+6){ S.ag[k]=spawn(); }\n}\ng.blendMode(BLEND);\ng.pop();\n\n// --- composite to full frame ---\npush();\nif (P.alpha < 100) tint(0,0,100,P.alpha);\nimage(g, 0,0, width,height);\npop();\n\n// --- audio treble sparkle on top (partial, never full-frame; zero-safe baseline) ---\nif ((A.treble>0.03 || A.rms>0.04) && P.energy>0.05){\n  push(); blendMode(ADD); noStroke();\n  const spN = Math.round(A.treble*40*P.density);\n  for (let i=0;i<spN;i++){\n    const r = fr(i*7 + Math.floor(K.beat));\n    const sx = (clp(P.x,0,1)+(fr(i*7+2)*2-1)*0.4)*width;\n    const sy = (clp(P.y,0,1)+(fr(i*7+3)*2-1)*0.4)*height;\n    fill((P.hue+hueShift+40)%360, 40, 100, A.treble*55);\n    circle(sx,sy, r*bu*0.02*P.energy + 1);\n  }\n  blendMode(BLEND); pop();\n}\n"
+}

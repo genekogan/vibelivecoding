@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.kuramoto",
+  "kind": "genart",
+  "name": "Kuramoto Sync",
+  "desc": "A lattice of coupled Kuramoto phase-oscillators that spontaneously synchronizes out of random noise into flowing rainbow phase-domains, rotating spirals and sweeping traveling waves \u2014 a shimmering map of collective synchronization, rendered as full-hue phase-wheel, cool ocean, warm ember, hard two-ink duotone, or bioluminescent iso-phase veins.",
+  "tags": [
+    "kuramoto",
+    "synchronization",
+    "sync",
+    "oscillators",
+    "phase-oscillator",
+    "coupled-oscillators",
+    "coupling",
+    "order-parameter",
+    "collective-behavior",
+    "emergence",
+    "self-organizing",
+    "spirals",
+    "phase-domains",
+    "traveling-waves",
+    "wavefront",
+    "spiral-wave",
+    "fireflies",
+    "metronomes",
+    "complexity",
+    "cellular-automaton",
+    "automata",
+    "field",
+    "simulation",
+    "rainbow",
+    "spectrum",
+    "colorful",
+    "psychedelic",
+    "flow",
+    "organic",
+    "generative",
+    "genart",
+    "abstract",
+    "ocean",
+    "ember",
+    "duotone",
+    "bioluminescent",
+    "contour",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / glow amplitude (synced domains brighten)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.8,
+      "max": 2.8,
+      "doc": "display zoom \u2014 magnify a swept sub-region of the field"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "integration steps/frame \u2014 wave rotation & sync rate"
+    },
+    "coupling": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "K \u2014 coupling strength; low = incoherent shimmer, high = big smooth synced domains"
+    },
+    "spread": {
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "doc": "natural-frequency heterogeneity \u2014 order (clean spirals) <-> turbulent churn"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wandering pacemaker count \u2014 how many fresh rotors keep nucleating"
+    },
+    "cores": {
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "doc": "seeded spiral singularity count (re-tiles the phase field on change)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue offset rotating the phase->color wheel"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spiral seed bias + pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spiral seed bias + pan y"
+    },
+    "style": {
+      "default": "phase-wheel",
+      "options": [
+        "phase-wheel",
+        "ocean",
+        "ember",
+        "duotone",
+        "bioluminescent"
+      ],
+      "doc": "phase-wheel = full-hue sync bands / ocean = cool blue-teal / ember = warm thermal / duotone = hard two-ink riso posterization / bioluminescent = bright iso-phase wavefront veins on dark"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic spiral layout, handedness & natural-freq field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:13:40+00:00",
+    "fps": 60.2,
+    "motion": 0.2097,
+    "lum": 0.386
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, coupling: .55, spread: .28, density: .5, cores: 3, hue: 200, x: .5, y: .5, style: 'phase-wheel', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b) => Math.max(a, Math.min(b, v)), W = width, H = height, TAU = Math.PI * 2;\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat; S.lastBeat = K.beat;   // tolerate t0 reset\nconst seedI = P.seed | 0;\nconst hsh = i => { const s = Math.sin(i * 127.1 + seedI * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- coarse phase-oscillator grid (<=168 wide) ----\nconst LS = 150;\nconst GW = clp(Math.round(LS * W / Math.max(W, H)), 60, 168) | 0;\nconst GH = clp(Math.round(LS * H / Math.max(W, H)), 40, 104) | 0;\nconst N = GW * GH;\nconst cores = clp(Math.round(P.cores), 1, 8) | 0;\n\n// ---- (re)build phase field + natural-freq heterogeneity on size / seed / cores change ----\nconst key = GW + 'x' + GH + '_' + seedI + '_' + cores;\nif (S.key !== key || !S.ph) {\n  S.key = key;\n  S.ph = new Float32Array(N); S.ph2 = new Float32Array(N);\n  S.si = new Float32Array(N); S.co = new Float32Array(N);\n  S.omN = new Float32Array(N);\n  // plant `cores` topological phase singularities -> immediate rotating spirals\n  const cx = new Float32Array(cores), cy = new Float32Array(cores), ch = new Float32Array(cores);\n  for (let c = 0; c < cores; c++) {\n    cx[c] = (0.15 + 0.7 * hsh(c * 3 + 1)) * GW + (P.x - 0.5) * 0.35 * GW;\n    cy[c] = (0.15 + 0.7 * hsh(c * 3 + 2)) * GH + (P.y - 0.5) * 0.35 * GH;\n    ch[c] = hsh(c * 3 + 3) > 0.5 ? 1 : -1;                 // random handedness\n  }\n  const kx = (hsh(91) - 0.5) * 0.11, ky = (hsh(92) - 0.5) * 0.11;   // planar phase gradient -> drift wind\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n    const i = y * GW + x; let a = kx * x + ky * y;\n    for (let c = 0; c < cores; c++) a += ch[c] * Math.atan2(y - cy[c], x - cx[c]);\n    a += (hsh(i * 0.37 + 7) - 0.5) * 0.6;                  // symmetry-breaking noise\n    S.ph[i] = a;\n    S.omN[i] = hsh(i * 1.13 + 31) - 0.5;                   // per-cell natural-freq offset base\n  }\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(GW, GH); S.buf.pixelDensity(1);\n  S.burn = 28;                                             // burn-in so first visible frame already shows spirals\n}\n\n// ---- live dynamics (read P every frame) ----\nconst dt = 0.11, omega0 = 0.26;\nconst spreadAmp = 0.30 + P.spread * 2.2;                   // natural-freq heterogeneity: order <-> turbulence\nconst secPhase = K.t * 0.045 + K.section * 0.7;\nconst Kc = (0.35 + P.coupling * 3.1) * (0.72 + 0.42 * Math.sin(secPhase)) + A.bass * 0.6;   // coupling breathes desync<->sync\nconst kcoef = Kc * dt / 8;\nconst si = S.si, co = S.co, omN = S.omN;\n\n// ---- density-driven wandering pacemakers: implant fresh rotors so new spirals keep nucleating ----\nconst nInj = clp(Math.round(P.density * 5), 0, 6) | 0;\nfor (let q = 0; q < nInj; q++) {\n  const wa = K.t * (0.1 + q * 0.05) + q * 2.399, rad = 0.15 + 0.12 * Math.sin(K.t * 0.04 + q * 1.3);\n  const ix = ((0.5 + (P.x - 0.5) * 0.4 + Math.cos(wa) * rad) * GW) | 0;\n  const iy = ((0.5 + (P.y - 0.5) * 0.4 + Math.sin(wa) * rad) * GH) | 0;\n  const rr = 2, spin = K.t * 0.5 + (q & 1 ? 0 : Math.PI);\n  for (let dy = -rr; dy <= rr; dy++) for (let dx = -rr; dx <= rr; dx++) {\n    const xx = ((ix + dx) % GW + GW) % GW, yy = ((iy + dy) % GH + GH) % GH;\n    S.ph[yy * GW + xx] = Math.atan2(dy, dx) * (q & 1 ? 1 : -1) + spin;   // topological singularity -> spiral source\n  }\n}\n\nfunction stepSim() {\n  const a = S.ph, b = S.ph2;\n  for (let k = 0; k < N; k++) { const p = a[k]; si[k] = Math.sin(p); co[k] = Math.cos(p); }\n  for (let y = 0; y < GH; y++) {\n    const ym = (y - 1 + GH) % GH, yp = (y + 1) % GH, r0 = ym * GW, r1 = y * GW, r2 = yp * GW;\n    for (let x = 0; x < GW; x++) {\n      const xm = (x - 1 + GW) % GW, xp = (x + 1) % GW, i = r1 + x;\n      const mS = si[r0 + xm] + si[r0 + x] + si[r0 + xp] + si[r1 + xm] + si[r1 + xp] + si[r2 + xm] + si[r2 + x] + si[r2 + xp];\n      const mC = co[r0 + xm] + co[r0 + x] + co[r0 + xp] + co[r1 + xm] + co[r1 + xp] + co[r2 + xm] + co[r2 + x] + co[r2 + xp];\n      const omg = omega0 + spreadAmp * omN[i];\n      let np = a[i] + dt * omg + kcoef * (co[i] * mS - si[i] * mC);   // theta += w*dt + K*mean sin(dphase)\n      np = np - TAU * Math.floor(np / TAU);                            // wrap for float precision\n      b[i] = np;\n    }\n  }\n  S.ph = b; S.ph2 = a;                                     // ping-pong\n}\n\nlet steps = clp(Math.round((1 + P.speed * 1.7) * (0.6 + 0.7 * K.intensity)) + (S.burn || 0), 1, 9);\nfor (let s = 0; s < steps; s++) stepSim();\nS.burn = 0;\n\n// ---- recompute sin/cos of FINAL phases for coherence-lit render ----\n{ const a = S.ph; for (let k = 0; k < N; k++) { const p = a[k]; si[k] = Math.sin(p); co[k] = Math.cos(p); } }\n\n// ---- HSV -> rgb 0..255 into shared triple (no per-pixel alloc) ----\nconst OUT = [0, 0, 0];\nfunction setHSV(h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; } else if (h < 180) { r = 0; g = c; b = x; }\n  else if (h < 240) { r = 0; g = x; b = c; } else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }\n  OUT[0] = (r + m) * 255; OUT[1] = (g + m) * 255; OUT[2] = (b + m) * 255;\n}\n\nconst hueOff = P.hue + K.section * 12 + K.t * 1.6;\nconst expo = clp(0.5 + P.energy * 0.9 + K.intensity * 0.22 + A.rms * 0.5, 0, 1.55);\nconst style = P.style;\nconst ph = S.ph, buf = S.buf;\nbuf.loadPixels(); const px = buf.pixels;\n\nfor (let y = 0; y < GH; y++) {\n  const ym = (y - 1 + GH) % GH, yp = (y + 1) % GH, r0 = ym * GW, r1 = y * GW, r2 = yp * GW;\n  for (let x = 0; x < GW; x++) {\n    const xm = (x - 1 + GW) % GW, xp = (x + 1) % GW, i = r1 + x;\n    const mS = si[r0 + xm] + si[r0 + x] + si[r0 + xp] + si[r1 + xm] + si[r1 + xp] + si[r2 + xm] + si[r2 + x] + si[r2 + xp];\n    const mC = co[r0 + xm] + co[r0 + x] + co[r0 + xp] + co[r1 + xm] + co[r1 + xp] + co[r2 + xm] + co[r2 + x] + co[r2 + xp];\n    const rC = Math.min(1, Math.sqrt(mS * mS + mC * mC) / 8);   // local order parameter (1=synced interior, 0=defect/boundary)\n    const p = ph[i], q = p / TAU;                              // 0..1 phase fraction\n    if (style === 'ocean') {\n      const hh = 150 + (0.5 + 0.5 * Math.cos(p)) * 105;\n      setHSV(hh, 0.60 + 0.20 * rC, clp((0.24 + 0.52 * rC) * expo, 0.05, 0.96));\n    } else if (style === 'ember') {\n      const hh = 8 + (0.5 + 0.5 * Math.cos(p)) * 46;\n      setHSV(hh, clp(0.98 - rC * 0.42, 0.4, 1), clp((0.15 + 0.64 * rC) * expo, 0.05, 0.98));\n    } else if (style === 'duotone') {\n      const bi = Math.floor(q * 6), parity = bi & 1;           // hard posterized 2-ink risograph bands\n      const hh = hueOff + (parity ? 0 : 22);\n      setHSV(hh, 0.30 + parity * 0.06, clp((parity ? 0.30 : 0.62) * (0.55 + 0.6 * rC) * expo, 0.05, 0.95));\n    } else if (style === 'bioluminescent') {\n      const f = q * 5, fr = f - Math.floor(f), lp = Math.min(fr, 1 - fr);\n      const line = clp(1 - lp * 8, 0, 1);                      // bright iso-phase wavefront veins\n      const defect = clp(1 - rC * 1.6, 0, 1) * 0.55;           // glowing defect network\n      const glow = Math.max(line, defect);\n      const hh = 150 + (0.5 + 0.5 * Math.cos(p)) * 40;\n      setHSV(hh, 0.55 + 0.30 * glow, clp((0.07 + glow * 0.92) * expo, 0.04, 0.98));\n    } else { // phase-wheel (default) -- full hue wheel, synced domains glow, defect veins darken\n      const hh = q * 360 + hueOff;\n      setHSV(hh, 0.52 + 0.42 * rC, clp((0.24 + 0.52 * rC) * expo, 0.04, 0.98));\n    }\n    const o = 4 * i; px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n  }\n}\nbuf.updatePixels();\n\n// ---- composite: upscale full-frame w/ slow rotation + zoom breath (motion floor, overscanned = no black edges) ----\nconst ang = K.t * 0.014;\nconst zoom = Math.max(1.6, 1.4 + (P.scale - 1) * 0.9) + Math.sin(K.t * 0.09) * 0.04 + A.rms * 0.10;\nconst panx = (P.x - 0.5) * W * 0.07, pany = (P.y - 0.5) * H * 0.07;\ndrawingContext.imageSmoothingEnabled = true;\npush();\nif (P.alpha < 100) tint(0, 0, 100, clp(P.alpha, 0, 100));\ntranslate(W / 2 + panx, H / 2 + pany);\nrotate(ang);\nscale(zoom);\nimageMode(CENTER);\nimage(buf, 0, 0, W, H);\npop();\nimageMode(CORNER);\n\n// ---- audio glow ON TOP of clk baseline (all-zero during validation; partial alpha, never strobes) ----\nif (A.bass > 0.01 || A.treble > 0.01 || A.rms > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  fill((hueOff + 20) % 360, 42, 100, (A.bass * 0.6 + A.rms * 0.4) * P.energy * 15);\n  rect(0, 0, W, H);\n  fill((hueOff + 65) % 360, 55, 100, A.treble * P.energy * 11);\n  rect(0, 0, W, H);\n  blendMode(BLEND); pop();\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; noStroke();\n"
+}

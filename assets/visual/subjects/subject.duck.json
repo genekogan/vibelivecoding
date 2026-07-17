@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.duck",
+  "kind": "subject",
+  "name": "Duck",
+  "desc": "Plump rubber-duck-adjacent duck that bobs on a rippling pond, waddles foot to foot, and headbangs with a bass-triggered quacking bill, rendered in glossy picture-book light.",
+  "tags": [
+    "duck",
+    "bird",
+    "animal",
+    "waterfowl",
+    "rubber duck",
+    "pond",
+    "water",
+    "quack",
+    "beak",
+    "bill",
+    "float",
+    "waddle",
+    "headbang",
+    "dance",
+    "yellow",
+    "bath",
+    "cute",
+    "character",
+    "mascot",
+    "glossy",
+    "picture-book",
+    "chrome",
+    "iridescent",
+    "feathers",
+    "swim"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.6,
+      "doc": "size vs design (hero ~0.46*min-dim tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "expressive motion/flourish + audio gain"
+    },
+    "hue": {
+      "default": 50,
+      "min": 0,
+      "max": 360,
+      "doc": "body hue (50 = rubber-duck yellow)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient bubbles/motes amount"
+    },
+    "plump": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body roundness morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (waterline/feet) as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "float",
+        "waddle",
+        "headbang"
+      ],
+      "doc": "pose preset (auto cycles by section via act)"
+    },
+    "style": {
+      "default": "gloss",
+      "options": [
+        "gloss",
+        "chrome",
+        "noir",
+        "contour"
+      ],
+      "doc": "render philosophy: glossy picture-book / iridescent oil-slick / chiaroscuro / single-line contour"
+    },
+    "act": {
+      "default": "pond",
+      "options": [
+        "pond",
+        "strut",
+        "chill"
+      ],
+      "doc": "multi-minute pose dramaturgy"
+    }
+  },
+  "acts": [
+    "pond",
+    "strut",
+    "chill"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:49:35+00:00",
+    "fps": 59.9,
+    "motion": 0.0169,
+    "lum": 0.136
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 50, speed: 1, density: .5, plump: .5, x: .5, y: .72, seed: 0, pose: 'auto', style: 'gloss', act: 'pond' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst u = Math.min(width, height);\nconst s = u * 0.0019 * P.scale;\n\nlet bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nif (S.lastBeat == null || bt < S.lastBeat) S.lastBeat = bt;\nS.lastBeat = bt;\nconst am = .82 + .22 * Math.sin(K.t * .29 + fr(6) * 6);\nconst loco = (.72 + .5 * K.intensity) * am;\nconst eAmp = (.35 + .65 * P.energy) * (.6 + .55 * K.intensity) * am;\nconst kick = Math.min(1, K.pulse * (.5 + .5 * K.intensity) + A.bass * .8);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\n\nconst ACTS = {\n  pond:  ['float','waddle','float','headbang','waddle','float','headbang','waddle'],\n  strut: ['waddle','headbang','waddle','float','headbang','waddle','float','headbang'],\n  chill: ['float','float','waddle','float','float','waddle','float','headbang'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.pond)[((K.section % 8) + 8) % 8];\n\nconst slow1 = Math.sin(K.t * .5 + fr(2) * 6);\nconst slow2 = Math.sin(K.t * .34 + fr(4) * 6);\n\nlet dy = 0, sway = 0, tilt = 0, headNod = 0, headRot = 0, tailA = 0, wingA = 0, footStep = 0, onWater = 0;\nconst quackBase = Math.min(1, K.pulse * .35 + A.bass * .9);\nlet quack = quackBase * .5;\n\nif (pose === 'float') {\n  onWater = 1;\n  dy = Math.sin(bt * Math.PI / 2) * 13 * loco;\n  tilt = Math.sin(bt * Math.PI / 2 + 1) * .05 * loco + slow2 * .02;\n  headRot = Math.sin(K.t * .6) * .12;\n  headNod = Math.sin(bt * Math.PI) * 3 * eAmp;\n  tailA = Math.sin(bt * Math.PI / 2) * .12;\n  wingA = Math.sin(bt * Math.PI) * .12 * eAmp;\n  quack = quackBase * (fr(Math.floor(K.t * .7) + 5) < .18 ? .8 : .12);\n} else if (pose === 'waddle') {\n  const side = (((Math.floor(bt) % 2) + 2) % 2 === 0) ? 1 : -1;\n  const w = Math.sin(sb * Math.PI);\n  sway = side * 16 * w * loco;\n  tilt = side * .13 * w * loco;\n  dy = -Math.abs(Math.sin(bt * Math.PI)) * 5 * loco;\n  footStep = side;\n  headNod = Math.abs(Math.sin(bt * Math.PI)) * 6 * eAmp;\n  headRot = side * .08 * w;\n  tailA = -side * .18 * w;\n  wingA = .1 + Math.sin(bt * Math.PI) * .14 * eAmp;\n  quack = Math.max(quack, fr(Math.floor(bt) + 12) < .22 ? kick * .7 : quack);\n} else {                                                     // headbang\n  const nod = Math.pow(kick, 1.2);\n  headNod = nod * 30 * (.5 + eAmp) + 3;\n  headRot = nod * .34;\n  dy = -kick * 4 - Math.abs(Math.sin(bt * Math.PI)) * 3 * loco;\n  tailA = kick * .5;\n  wingA = .2 + kick * .5 * eAmp;\n  sway = Math.sin(bt * Math.PI) * 6 * loco;\n  tilt = Math.sin(bt * TAU) * .04 * eAmp;\n  quack = Math.max(quack, kick * .6);\n}\n\n// universal slow drift\ndy += slow1 * 3;\nsway += slow2 * 4.5;\ntilt += Math.sin(K.t * .19 + fr(8) * 6) * .026;\n\n// ---- style ----\nconst styles = ['gloss', 'chrome', 'noir', 'contour'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'gloss';\nconst contour = st === 'contour';\nconst H = ((P.hue % 360) + 360) % 360;\nconst plump = P.plump;\nconst bw = .86 + plump * .4;\n\n// glossy / chrome / noir / contour blob\nfunction blob(cx, cy, w, h, hh, sat, br) {\n  push(); translate(cx, cy);\n  if (contour) { noFill(); stroke(hh, 62, 38, 92); strokeWeight(2 * s); ellipse(0, 0, w, h); pop(); return; }\n  noStroke();\n  if (st === 'noir') {\n    fill(hh, sat * .38, br * .26); ellipse(0, 0, w, h);\n    fill(hh, sat * .28, Math.min(100, br * .52), 65); ellipse(-w * .16, -h * .2, w * .66, h * .66);\n    pop(); return;\n  }\n  if (st === 'chrome') {\n    for (let b = 0; b < 5; b++) { const f = b / 5; fill((hh + f * 120 + K.t * 9 + kick * 40) % 360, 42 + 42 * f, 58 + 34 * (1 - f), 78); ellipse(-w * .05 * f, -h * .09 * f, w * (1 - f * .17), h * (1 - f * .17)); }\n    fill(0, 0, 100, 88); ellipse(-w * .2, -h * .26, w * .17, h * .15);\n    pop(); return;\n  }\n  // gloss (default picture-book): stacked translucent shading + specular\n  fill(hh, Math.min(100, sat + 16), br * .6); ellipse(0, 0, w, h);\n  fill((hh + 4) % 360, sat, br * .9); ellipse(-w * .04, -h * .05, w * .92, h * .92);\n  fill(hh, sat * .74, Math.min(100, br * 1.02 + 6)); ellipse(-w * .13, -h * .15, w * .64, h * .64);\n  fill(0, 0, 100, 72); ellipse(-w * .22, -h * .27, w * .2, h * .15);\n  pop();\n}\n\nconst ax = P.x * width + sway * s;\nconst ay = P.y * height;\nconst pump = 1 + S.rms * .32 * P.energy;\n\n// water ripples (float/waddle-on-pond feel) or ground shadow\nif (onWater && !contour) {\n  noStroke();\n  for (let i = 0; i < 3; i++) {\n    const ph = ((K.t * .5 + i * .34) % 1);\n    const rr = (30 + ph * 150) * s;\n    fill(195, 45, 90, (1 - ph) * (st === 'noir' ? 18 : 30));\n    noFill(); stroke(195, 40, 92, (1 - ph) * (st === 'noir' ? 22 : 40)); strokeWeight(2 * s);\n    ellipse(P.x * width, ay + 70 * s, rr * 1.8, rr * .6);\n  }\n  noStroke();\n} else if (!contour) {\n  noStroke(); fill(0, 0, 0, 24);\n  ellipse(P.x * width, ay + 120 * s, Math.max(14, 150 * bw - Math.abs(sway) * .3) * s, 16 * s);\n}\n\npush();\ntranslate(ax, ay + dy * s);\nrotate(tilt);\nscale(pump, pump);\n\n// feet (orange) \u2014 hidden on water, stepping on land\nif (!onWater) {\n  const fH = 30, fS = 92, fB = 98;\n  const lift = footStep;\n  push(); translate(-24 * s, (112 - (lift < 0 ? Math.abs(Math.sin(sb * Math.PI)) * 13 : 0)) * s);\n  if (contour) { noFill(); stroke(fH, 60, 50, 92); strokeWeight(2 * s); } else { noStroke(); fill(fH, fS, fB); }\n  triangle(-16 * s, 8 * s, 16 * s, 8 * s, 0, -6 * s); pop();\n  push(); translate(24 * s, (112 - (lift > 0 ? Math.abs(Math.sin(sb * Math.PI)) * 13 : 0)) * s);\n  if (contour) { noFill(); stroke(fH, 60, 50, 92); strokeWeight(2 * s); } else { noStroke(); fill(fH, fS, fB); }\n  triangle(-16 * s, 8 * s, 16 * s, 8 * s, 0, -6 * s); pop();\n} else {\n  // waterline mask: draw a bed-tone band over lower body so duck sits IN water\n}\n\n// tail (back, up-left) \u2014 flips with tailA\npush(); translate(-74 * bw * s, 30 * s); rotate(-.5 - tailA);\nblob(0, 0, 46 * s, 30 * s, H, 78, 92);\npop();\n\n// body mass\nblob(8 * s, 40 * s, 168 * bw * s, 138 * s, H, 82, 96);\n\n// wing on flank\npush(); translate(2 * s, 44 * s); rotate(-.15 - wingA);\nif (contour) { noFill(); stroke(H, 60, 38, 92); strokeWeight(2 * s); ellipse(0, 0, 90 * bw * s, 60 * s); }\nelse { noStroke(); fill(H, Math.min(100, 88), 76, 60); ellipse(0, 0, 90 * bw * s, 60 * s); fill(H, 70, 90, 40); ellipse(-6 * s, -6 * s, 66 * bw * s, 42 * s); }\npop();\n\n// waterline: hide lower body in the pond\nif (onWater && !contour) {\n  noStroke();\n  fill(200, 34, st === 'noir' ? 20 : 70, st === 'noir' ? 92 : 78);\n  const wl = 78 * s;\n  rect(-140 * s, wl, 300 * s, 130 * s);\n  fill(195, 48, 96, st === 'noir' ? 30 : 46);\n  ellipse(0, wl, 220 * bw * s, 26 * s);\n}\n\n// head (big, forward-up) with nod + rotation\npush();\ntranslate(-4 * s, -66 * s + headNod * s);\nrotate(headRot);\nblob(0, 0, 124 * s, 116 * s, H, 82, 98);\n\n// bill (orange) \u2014 upper + lower, opens with quack\nconst qo = quack * 12 * s;\nconst bH = 30, bS = 94, bB = 98;\npush(); translate(58 * s, 4 * s);\nif (contour) {\n  noFill(); stroke(bH, 62, 52, 92); strokeWeight(2 * s);\n  beginShape(); vertex(-6 * s, -8 * s - qo * .3); vertex(42 * s, -4 * s - qo * .3); vertex(46 * s, 4 * s); vertex(-4 * s, 8 * s); endShape(CLOSE);\n} else {\n  noStroke();\n  fill(bH, bS, bB);\n  quad(-8 * s, -9 * s - qo, 44 * s, -6 * s - qo, 48 * s, 1 * s - qo, -6 * s, 1 * s - qo);       // upper bill\n  fill(bH, Math.min(100, bS + 4), bB * .82);\n  quad(-8 * s, 3 * s + qo, 48 * s, 1 * s + qo, 44 * s, 8 * s + qo, -6 * s, 9 * s + qo);          // lower bill\n  if (qo > 2 * s) { fill(2, 82, 34); quad(-6 * s, 1 * s - qo * .3, 44 * s, -2 * s - qo * .3, 44 * s, 2 * s + qo * .3, -6 * s, 3 * s + qo * .3); }\n}\npop();\n\n// eye\nconst blink = ((K.t * .3 + fr(9)) % 1) < .04;\nif (contour) {\n  noFill(); stroke(H, 60, 38, 92); strokeWeight(2 * s); ellipse(26 * s, -18 * s, 12 * s, 12 * s);\n} else if (blink) {\n  stroke(0, 0, st === 'noir' ? 4 : 8); strokeWeight(2.4 * s); noFill();\n  line(20 * s, -18 * s, 32 * s, -18 * s); noStroke();\n} else {\n  noStroke(); fill(0, 0, 100); ellipse(26 * s, -18 * s, 15 * s, 16 * s);\n  fill(0, 0, st === 'noir' ? 6 : 8); ellipse(27 * s, -18 * s, 9 * s, 10 * s);\n  fill(0, 0, 100, 92); ellipse(25 * s, -21 * s, 4 * s, 4 * s);\n}\npop();\n\n// noir key light over whole figure\nif (st === 'noir') {\n  const g = drawingContext.createRadialGradient(-30 * s, -80 * s, 5 * s, -30 * s, -80 * s, 190 * s);\n  g.addColorStop(0, 'rgba(255,248,228,0.5)'); g.addColorStop(1, 'rgba(255,248,228,0)');\n  drawingContext.save(); drawingContext.globalCompositeOperation = 'screen'; drawingContext.fillStyle = g;\n  drawingContext.fillRect(-150 * s, -170 * s, 320 * s, 340 * s); drawingContext.restore();\n}\n\npop();\n\n// ambient motes / bubbles (density)\nif (P.density > 0.02 && !contour) {\n  const n = Math.round(P.density * 20);\n  noStroke();\n  for (let i = 0; i < n; i++) {\n    const ph = (K.t * (.1 + fr(i + 50) * .16) + fr(i + 70)) % 1;\n    const fx = (fr(i + 90) - .5) * u * 1.0 + P.x * width;\n    const fy = P.y * height + 60 * s - ph * u * .5;\n    const tw = .5 + .5 * Math.sin(K.t * 2.4 + i);\n    fill(onWater ? 195 : 50, onWater ? 30 : 10, 100, (12 + 20 * tw) * (.4 + .6 * P.density));\n    ellipse(fx, fy, (2.5 + 2.6 * tw + S.tre * 5) * s, (2.5 + 2.6 * tw) * s);\n  }\n}\n"
+}

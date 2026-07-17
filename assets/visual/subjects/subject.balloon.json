@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.balloon",
+  "kind": "subject",
+  "name": "Hot-Air Balloon",
+  "desc": "A hot-air balloon drifting on seeded wind, burner flaring on the bass while tiny passengers wave from the basket.",
+  "tags": [
+    "balloon",
+    "hot-air-balloon",
+    "hotairballoon",
+    "aircraft",
+    "flight",
+    "float",
+    "drift",
+    "sky",
+    "burner",
+    "basket",
+    "passengers",
+    "watercolor",
+    "wash",
+    "serene",
+    "dreamy",
+    "travel",
+    "adventure",
+    "envelope",
+    "aerostat",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wind sway / bob / wave amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size vs design (~0.5u tall at 1)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "envelope primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "watercolor granulation / texture density"
+    },
+    "aspect": {
+      "default": 1,
+      "min": 0.7,
+      "max": 1.6,
+      "doc": "envelope roundness\u2192teardrop morph"
+    },
+    "basket": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.7,
+      "doc": "gondola/basket size morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (basket base) as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic look/wind seed"
+    },
+    "style": {
+      "default": "watercolor",
+      "options": [
+        "watercolor",
+        "ink",
+        "blueprint",
+        "silhouette"
+      ],
+      "doc": "aesthetic: wet bleeding watercolor washes / sumi ink brush / schematic blueprint line / dusk silhouette with burner bloom"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "ascend",
+        "voyage"
+      ],
+      "doc": "multi-minute dramaturgy: gentle drift / steady climb / gusty voyage"
+    }
+  },
+  "acts": [
+    "drift",
+    "ascend",
+    "voyage"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:00:14+00:00",
+    "fps": 59.9,
+    "motion": 0.0335,
+    "lum": 0.12
+  },
+  "code": "const D = { hue: 28, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .82, aspect: 1, basket: 1, seed: 0, style: 'watercolor', act: 'drift' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = Math.PI * 2;\nconst clamp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst u = Math.min(width, height);\nconst s = u * 0.0016 * P.scale;\nconst bt = K.beat * P.speed;\nconst H = ((P.hue % 360) + 360) % 360;\nconst st = ['watercolor','ink','blueprint','silhouette'].indexOf(P.style) >= 0 ? P.style : 'watercolor';\n\nS.bass = (S.bass || 0) * .8 + (A.bass || 0) * .2;\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nconst am = .8 + .3 * Math.sin(K.t * .27 + fr(6) * 6);\nconst eAmp = P.energy * (.5 + .6 * K.intensity) * am;\n\nlet windMul = 1, buoy = 1, burnRate = 1;\nif (P.act === 'ascend') { windMul = .7; buoy = 1.25; burnRate = 1.7; }\nelse if (P.act === 'voyage') { const g = ((K.section % 2) + 2) % 2; windMul = g ? 1.8 : .65; burnRate = g ? 1.5 : .75; }\n\nconst gust = Math.sin(K.t * .33 + fr(2) * 6) + .5 * Math.sin(K.t * .71 + fr(4) * 6) + .3 * Math.sin(K.t * 1.31 + fr(7) * 6);\nconst swayD = gust * (26 + 34 * eAmp) * windMul;\nconst bobD = (Math.sin(K.t * .6 + fr(8) * 6) * 14 + K.swell * 10) * buoy;\nconst tilt = clamp(gust * .05 * windMul + Math.sin(K.t * .9) * .02, -.22, .22);\n\nconst flick = .55 + .45 * Math.abs(Math.sin(K.t * 6.3 + fr(3) * 6)) * (.7 + .3 * Math.sin(K.t * 13.1));\nconst burn = clamp((.3 + .5 * K.pulse) * burnRate * flick + S.bass * .9 + K.intensity * .12, 0, 1.4);\n\nconst AS = clamp(P.aspect, .7, 1.6);\nconst BK = clamp(P.basket, .5, 1.7);\nconst dens = clamp(P.density, 0, 1);\n\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.dots = []; for (let i = 0; i < 70; i++) S.dots.push({ fx: (fr(i) * 2 - 1), tt: fr(i + 80), r: .5 + fr(i + 160) * 1.4, hj: (fr(i + 240) - .5) * 26 });\n  S.gorej = []; for (let i = 0; i < 10; i++) S.gorej.push((fr(i + 400) - .5) * 20);\n}\n\nconst bh = 46 * BK, bw = 60 * BK;\nconst mouthY = -(bh + 34);\nconst Hb = 300 * AS, Wb = 244;\nconst hh = Hb / 2, hw = Wb / 2;\nconst ecy = mouthY - Hb * 0.46;\n\nfunction shp(theta) {\n  const c = Math.cos(theta), sn = Math.sin(theta);\n  const nrw = Math.pow(Math.max(0, (1 + c) / 2), .5) * .7 + .3;\n  return [hw * sn * nrw, ecy - hh * c];\n}\nfunction seam(fx, tt) {\n  const theta = tt * Math.PI, c = Math.cos(theta);\n  const nrw = Math.pow(Math.max(0, (1 + c) / 2), .5) * .7 + .3;\n  return [hw * fx * nrw, ecy - hh * c];\n}\nfunction outline() {\n  beginShape();\n  for (let i = 0; i <= 44; i++) { const p = shp(i / 44 * TAU); vertex(p[0], p[1]); }\n  endShape(CLOSE);\n}\n\npush();\ntranslate(P.x * width + swayD * s, P.y * height + bobD * s);\nrotate(tilt);\nscale(s);\n\nif (st === 'silhouette') {\n  noStroke();\n  const gr = 200 + burn * 120;\n  for (let i = 6; i >= 1; i--) { const f = i / 6; fill((H + 12) % 360, 40, 30 + burn * 30, 10); ellipse(0, ecy - 10, gr * f * 2, gr * f * 2); }\n  fill(H, 30, 9); outline();\n  fill(28, 70, 60 + burn * 35, 55 + burn * 30); ellipse(0, mouthY - 6, 70 + burn * 40, 90 + burn * 60);\n  fill(H, 24, 6); rect(-bw / 2, -bh, bw, bh, 4);\n  for (let k = -1; k <= 1; k += 2) {\n    const wv = Math.sin(bt * Math.PI + (k > 0 ? .6 : 0)) * eAmp;\n    fill(H, 20, 5); ellipse(k * bw * .24, -bh - 10, 15, 17);\n    stroke(H, 20, 5); strokeWeight(4); line(k * bw * .24, -bh - 6, k * bw * .24 + k * 12, -bh - 6 - wv * 16); noStroke();\n  }\n} else if (st === 'blueprint') {\n  const LC = (H + 4) % 360;\n  noFill();\n  stroke(LC, 60, 100, 20); strokeWeight(.8); line(0, ecy - hh - 20, 0, -bh - 4);\n  stroke(LC, 55, 100, 32); strokeWeight(.9);\n  for (let r = 1; r <= 6; r++) { const tt = r / 7, c = Math.cos(tt * Math.PI); const nrw = Math.pow(Math.max(0, (1 + c) / 2), .5) * .7 + .3; ellipse(0, ecy - hh * c, hw * nrw * 2, 12); }\n  stroke(LC, 68, 100, 85); strokeWeight(1.7); outline();\n  stroke(LC, 55, 100, 46); strokeWeight(1);\n  for (let g = 0; g <= 6; g++) { const fx = (g / 6) * 2 - 1; beginShape(); for (let i = 0; i <= 20; i++) { const p = seam(fx, i / 20); vertex(p[0], p[1]); } endShape(); }\n  stroke(LC, 40, 100, 40); strokeWeight(.8);\n  line(hw + 14, ecy - hh, hw + 14, ecy + hh); line(hw + 10, ecy - hh, hw + 18, ecy - hh); line(hw + 10, ecy + hh, hw + 18, ecy + hh);\n  stroke(LC, 68, 100, 82); strokeWeight(1.5); noFill(); rect(-bw / 2, -bh, bw, bh);\n  line(-bw / 2, mouthY, -bw * .32, -bh); line(bw / 2, mouthY, bw * .32, -bh);\n  stroke(28, 70, 100, 60 + burn * 30); strokeWeight(1 + burn); line(0, mouthY, 0, mouthY - 16 - burn * 22);\n  for (let k = -1; k <= 1; k += 2) { const wv = Math.sin(bt * Math.PI + (k > 0 ? .6 : 0)) * eAmp; stroke(LC, 60, 100, 70); strokeWeight(1.2); noFill(); ellipse(k * bw * .24, -bh - 9, 13, 13); line(k * bw * .24, -bh - 4, k * bw * .24 + k * 11, -bh - 4 - wv * 14); }\n  noStroke();\n} else {\n  const ink = (st === 'ink');\n  if (ink) {\n    noStroke();\n    fill(H, 8, 22, 60); push(); translate(-3, 2); outline(); pop();\n    fill(H, 10, 14, 70); outline();\n    fill(H, 6, 30, 32); push(); translate(6, -Hb * .12); scale(.9, .82); outline(); pop();\n    for (let i = 0; i < 7; i++) { const tt = i / 6; const p = seam((fr(i + 11) * 2 - 1) * .7, tt * .9 + .05); fill(H, 8, 8, 30 + fr(i) * 30); ellipse(p[0], p[1], 10 + fr(i + 3) * 22, 4); }\n    noFill(); stroke(H, 12, 6, 92);\n    for (let i = 0; i < 44; i++) { const a = i / 44 * TAU, b = (i + 1) / 44 * TAU; const p = shp(a), q = shp(b); strokeWeight(1.2 + 2.6 * Math.pow(Math.max(0, Math.sin(a * .5)), 1.5)); line(p[0], p[1], q[0], q[1]); }\n    noStroke();\n  } else {\n    noStroke();\n    fill(H, 46, 96, 12); push(); scale(1.06); outline(); pop();\n    fill(H, 40, 92, 22); push(); translate(4, 5); scale(1.01); outline(); pop();\n    fill((H + 8) % 360, 52, 94, 34); outline();\n    for (let g = 0; g < 7; g++) {\n      const fx0 = (g / 7) * 2 - 1, fx1 = ((g + 1) / 7) * 2 - 1;\n      const hj = (S.gorej[g] || 0);\n      fill((H + hj + (g % 2 ? 14 : -10) + 360) % 360, 44 + (g % 2) * 12, 88 - (g % 2) * 8, 30);\n      beginShape();\n      for (let i = 0; i <= 16; i++) { const p = seam(fx0, i / 16); vertex(p[0], p[1]); }\n      for (let i = 16; i >= 0; i--) { const p = seam(fx1, i / 16); vertex(p[0], p[1]); }\n      endShape(CLOSE);\n    }\n    fill(0, 0, 100, 40); push(); translate(-hw * .3, ecy - hh * .35); ellipse(0, 0, hw * .5, hh * .4); pop();\n    const nd = Math.floor(24 + dens * 42);\n    for (let i = 0; i < nd; i++) { const d = S.dots[i]; const p = seam(d.fx * .92, d.tt); fill((H + d.hj + 360) % 360, 58, 40, 26); circle(p[0], p[1], d.r * 3.2); }\n  }\n\n  noStroke();\n  for (let i = 4; i >= 1; i--) { const f = i / 4; fill(24 + burn * 8, 80, 60 + burn * 30, 12 + burn * 14); ellipse(0, mouthY - 4, Wb * .5 * f, Hb * .3 * f); }\n\n  stroke(ink ? color(H, 10, 8, 80) : color(28, 40, 40, 70)); strokeWeight(1.4);\n  line(-hw * .34, mouthY + 4, -bw * .38, -bh); line(hw * .34, mouthY + 4, bw * .38, -bh);\n  line(-hw * .12, mouthY + 6, -bw * .12, -bh); line(hw * .12, mouthY + 6, bw * .12, -bh);\n  noStroke();\n\n  const fH = (18 + burn * 30);\n  for (let i = 3; i >= 0; i--) { const f = i / 3; const w = (10 + f * 16) * (.8 + .4 * Math.sin(K.t * 20 + i)); fill(20 + f * 22, 90 - f * 30, 100, 60 + burn * 25); const fl = fH * (1 + .3 * Math.sin(K.t * 17 + i * 2)); triangle(-w, -bh - 2, w, -bh - 2, (fr(i) - .5) * 8, -bh - 2 - fl * (1 - f * .5)); }\n\n  if (ink) { fill(H, 10, 12); rect(-bw / 2, -bh, bw, bh, 3); }\n  else {\n    fill(28, 55, 46); rect(-bw / 2, -bh, bw, bh, 3);\n    stroke(30, 60, 30, 60); strokeWeight(1);\n    for (let wv = 1; wv < 4; wv++) line(-bw / 2, -bh + wv * bh / 4, bw / 2, -bh + wv * bh / 4);\n    for (let wv = 1; wv < 5; wv++) line(-bw / 2 + wv * bw / 5, -bh, -bw / 2 + wv * bw / 5, 0);\n    noStroke();\n  }\n\n  for (let k = -1; k <= 1; k += 2) {\n    const wv = Math.sin(bt * Math.PI + (k > 0 ? .6 : 0)) * eAmp;\n    const px = k * bw * .22, py = -bh - 9;\n    fill(ink ? color(H, 10, 20) : color((H + 180 + k * 40) % 360, 40, 70)); ellipse(px, py, 15, 17);\n    stroke(ink ? color(H, 10, 20) : color((H + 180 + k * 40) % 360, 40, 70)); strokeWeight(4);\n    line(px, py + 3, px + k * (10 + wv * 6), py + 2 - Math.abs(wv) * 18); noStroke();\n  }\n}\n\npop();\n"
+}

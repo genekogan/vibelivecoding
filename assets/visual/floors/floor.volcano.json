@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.volcano",
+  "kind": "floor",
+  "name": "Volcano Floor",
+  "desc": "Cracked basalt crust receding to the horizon with molten lava veins glowing and breathing between the plates and embers rising off the surface; glassy-obsidian and thermal false-color variants.",
+  "tags": [
+    "volcano",
+    "volcanic",
+    "lava",
+    "magma",
+    "molten",
+    "basalt",
+    "obsidian",
+    "crust",
+    "cracked",
+    "veins",
+    "embers",
+    "sparks",
+    "fire",
+    "heat",
+    "hell",
+    "inferno",
+    "geothermal",
+    "thermal",
+    "perspective",
+    "floor",
+    "stage",
+    "red",
+    "orange",
+    "menacing",
+    "dark",
+    "glowing",
+    "eruption",
+    "smoulder"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "plate + vein + ember count"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "vein glow amplitude + beat flare"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "lava hue (20 = orange-red)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll + vein-pulse rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "plate size / perspective spread"
+    },
+    "warp": {
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel curvature of converging seams"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic crack / ember seed"
+    },
+    "style": {
+      "default": "lava",
+      "options": [
+        "lava",
+        "obsidian",
+        "thermal"
+      ],
+      "doc": "aesthetic: molten lava veins / glassy low-poly obsidian / thermal false-color heat map"
+    },
+    "act": {
+      "default": "smoulder",
+      "options": [
+        "smoulder",
+        "eruption",
+        "flowfield"
+      ],
+      "doc": "dramaturgy: steady smoulder / beat-driven eruption / slow flowing heat field"
+    }
+  },
+  "acts": [
+    "smoulder",
+    "eruption",
+    "flowfield"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:13:40+00:00",
+    "fps": 57.5,
+    "motion": 0.0288,
+    "lum": 0.124
+  },
+  "code": "const D = { density: .55, energy: .65, hue: 20, speed: 1, scale: 1, warp: .2, x: .5, y: .46, seed: 0, style: 'lava', act: 'smoulder' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst hz = cl(P.y, .28, .72) * height;\nconst cx = cl(P.x, .05, .95) * width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t, 1.7) * groundH;\nconst hwOf = t => width * (.045 + t * .95) * .5 * P.scale;\nconst NR = Math.round(8 + P.density * 20);\nconst NC = Math.round(6 + P.density * 14);\nconst H = P.hue;\n// thermal false-color ramp: cold->hot along v in 0..1\nconst thermal = v => { v=cl(v,0,1); const h=(1-v)*230; const s=v<.15?40:90; const b=cl(8+v*92,6,100); return [h,s,b]; };\n\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.75);\n\n// real-time scroll + independent vein-pulse phase (never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.4 + .7*K.intensity);\nif (P.act === 'eruption') sp *= 1 + 1.3*kick;\nif (P.act === 'flowfield') sp *= .35 + 1.0*(.5 + .5*Math.sin(K.t*.04 + K.section*.8));\nS.scroll = (S.scroll||0) + dt*sp*.42;\nS.vph = (S.vph||0) + dt*(.7+.6*P.speed);   // vein glow breathing time\nconst scroll = S.scroll, vph = S.vph;\n// molten pulse that surges on the beat but always has a slow floor\nS.heat = (S.heat||0)*.9 + (.3 + .7*(.5+.5*Math.sin(vph*.9)) + .5*kick)*.1;\nconst heat = cl(S.heat,0,1);\n\n// ---- cached basalt-plate base (crust tiles; veins drawn live) ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*8)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 60;\n  // smoke-choked sky\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz;\n    let h,s,b;\n    if (sty==='thermal'){ const c=thermal(.05+.12*(1-f)); h=c[0]; s=c[1]; b=c[2]; }\n    else if (sty==='obsidian'){ h=H+200; s=14; b=4+6*(1-f); }\n    else { h=H+8; s=40+20*f; b=cl(6+12*(1-f),4,26); }  // lava / ember smoke\n    g.fill(h,cl(s,4,90),cl(b,2,80),100); g.rect(0,y,width,hz/STR+1);\n  }\n  // ground crust plane\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR);\n    let h,s,b;\n    if (sty==='thermal'){ const c=thermal(.06+.18*(1-t)); h=c[0]; s=c[1]; b=c[2]; }\n    else if (sty==='obsidian'){ h=H+210; s=cl(18-8*t,4,30); b=cl(10+6*t,4,22); }\n    else { h=H+6; s=30-10*t; b=cl(6+4*t,4,16); }\n    g.fill(h,cl(s,3,90),b,100); g.rect(0,y,width,(y2-y)+1);\n  }\n  // static crust texture: faceted plates\n  g.push();\n  if (sty==='obsidian'){ // glassy low-poly facets\n    for(let ry=0;ry<9;ry++){ const t0=ry/9,t1=(ry+1)/9;\n      for(let cc=0;cc<8;cc++){ const u0=cc/8,u1=(cc+1)/8, sh=fr(ry*8+cc);\n        const y0=yOf(t0),y1=yOf(t1),hw0=hwOf(t0),hw1=hwOf(t1);\n        g.fill(H+205, cl(18-6*t0,4,26), cl(8+26*sh-16*t0,4,50), 34);\n        g.quad(cx-hw0+u0*2*hw0,y0, cx-hw0+u1*2*hw0,y0, cx-hw1+u1*2*hw1,y1, cx-hw1+u0*2*hw1,y1); } } }\n  else if (sty==='lava'||sty==='thermal'){ // stony grain speckle\n    g.blendMode(BLEND);\n    for(let i=0;i<180;i++){ const t=.04+.96*fr(i*2), y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(i*2+1)*2-1)*hw; const r=1+t*2.6;\n      g.fill(H+6,20,cl(10+30*fr(i*3),6,60),20+30*t); g.ellipse(x,y,r,r); } }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- GLOWING LAVA VEINS between plates (live; the motion floor) ----\npush(); blendMode(ADD); noStroke();\nfor(let r=0;r<NR;r++){ const t0=r/NR,t1=(r+1)/NR; const y0=yOf(t0),y1=yOf(t1);\n  const hw0=hwOf(t0),hw1=hwOf(t1);\n  for(let c=0;c<NC;c++){ const u0=c/NC,u1=(c+1)/NC; const um=(u0+u1)*.5;\n    const vein=Math.abs(Math.sin((um*7+t0*3.1)*2.0)+Math.sin((t0*1.7-um*6)*1.4 + vph*.6));\n    const open = vein<0.4 ? (1 - vein/0.4) : 0;   // 0..1 how molten this seam is\n    if(open<=0) continue;\n    const pulse = .5+.5*Math.sin(vph*1.6 + (r*3+c)*.7);\n    const hot = cl(open*(.5+.7*pulse)*(.6+.7*heat),0,1);\n    let col;\n    if(sty==='thermal'){ col=thermal(.35+.65*hot); }\n    else { col=[cl(H+ (1-hot)*20 - 6,0,60), 95, cl(50+55*hot,30,100)]; }\n    const x0a=cx-hw0+u0*2*hw0,x0b=cx-hw0+u1*2*hw0,x1a=cx-hw1+u0*2*hw1,x1b=cx-hw1+u1*2*hw1;\n    fill(col[0],col[1],col[2], Math.min(60,(14+46*hot)*(.55+.6*glow)));\n    quad(x0a,y0,x0b,y0,x1b,y1,x1a,y1); } }\npop();\n\n// ---- crack seams outline (defines the plates) ----\nnoFill();\nfor (let r=0; r<=NR; r++){\n  let t=(r-(scroll%1))/NR; if(t<=0||t>1)continue;\n  const y=yOf(t),hw=hwOf(t), near=t;\n  let h,s,b,a,sw;\n  if(sty==='obsidian'){ h=H+205; s=16; b=60; a=20+50*near; sw=.6+near*1.6; }\n  else if(sty==='thermal'){ const c=thermal(.2); h=c[0]; s=50; b=40; a=16+44*near; sw=.5+near*1.4; }\n  else { h=H; s=40; b=cl(16+20*heat,10,60); a=18+48*near; sw=.6+near*1.8; }\n  stroke(h,s,b,a*(.5+.6*glow)); strokeWeight(sw);\n  beginShape();\n  const seg=8;\n  for(let k=0;k<=seg;k++){ const u=k/seg, xx=cx-hw+u*2*hw;\n    const jj=(fr(r*13+k)*2-1)*hw*.06*(1-t)*4; vertex(xx,y+jj); }\n  endShape();\n}\n// converging plate seams\nfor (let c=0;c<=NC;c++){ const u=c/NC,d=(u-.5);\n  const xTop=cx+d*width*.03*P.scale, xBot=cx+d*width*1.9*P.scale*(1+P.warp*1.2*d*d*4);\n  let h,s,b,a;\n  if(sty==='obsidian'){ h=H+205; s=14; b=55; a=22; }\n  else if(sty==='thermal'){ h=200; s=40; b=45; a=18; }\n  else { h=H; s=42; b=cl(20+18*heat,10,60); a=24; }\n  stroke(h,s,b,a*(.5+.5*glow)); strokeWeight(.8); line(xTop,hz,xBot,height);\n}\n\n// ---- rising embers / sparks (always on) ----\nconst NP = Math.round(30 + P.density * 90);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane=fr(i*4);\n  let prog=(fr(i*4+2) - vph*.08*(.5+fr(i*4+1)))%1; prog=(prog+1)%1;\n  const t=1-prog; if(t<=.02) continue;\n  const rise=(1-t)*groundH*.35;\n  const y=yOf(t) - rise, hw=hwOf(t);\n  const x=cx+(lane*2-1)*hw*.92 + Math.sin(vph*.8+i*1.4)*hw*.1;\n  const life=t; const sz=(1+4.5*life)*(1+.5*S.tre);\n  let col = sty==='thermal'? thermal(.5+.5*life) : [cl(H+8+ (1-life)*20,0,60), 95, cl(55+45*life,30,100)];\n  fill(col[0],col[1],col[2], Math.min(46,(8+34*life)*(.5+.9*glow)));\n  ellipse(x,y,sz,sz);\n}\npop();\n\n// horizon heat bloom on the beat (partial, safe)\npush(); blendMode(ADD); noStroke();\nconst flare=(kick*.7+K.swell*.3)*glow*(.5+.7*heat);\nfor(let i=0;i<5;i++){ const rr=(5-i)*groundH*.055*(1+flare);\n  let col = sty==='thermal'? thermal(.7) : [H+4,80,98];\n  fill(col[0],col[1],col[2], 4+11*flare); rect(0, hz-rr*.45, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

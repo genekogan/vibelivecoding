@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wave_packet",
+  "kind": "genart",
+  "name": "Quantum Wavefunction",
+  "desc": "A 2D Schrodinger wavefunction evolving in real time, its probability density blooming into interference fringes and self-focusing lumps as the quantum phase spins through a full colour wheel, rendered as phase-hued density, thermal heat, blue-white wave fringes, spectral glow, or an x-ray greyscale.",
+  "tags": [
+    "quantum",
+    "wavefunction",
+    "schrodinger",
+    "wave-packet",
+    "wave",
+    "physics",
+    "complex-field",
+    "phase",
+    "interference",
+    "probability",
+    "quantum-mechanics",
+    "field",
+    "flow",
+    "generative",
+    "genart",
+    "abstract",
+    "psychedelic",
+    "thermal",
+    "spectral",
+    "fringe",
+    "ripple",
+    "iridescent",
+    "fullbleed",
+    "background",
+    "science",
+    "blue"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "detail, contrast & bloom richness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "wavefunction evolution rate (integration substeps)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.5,
+      "doc": "packet & potential feature size"
+    },
+    "well": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "confining potential (0 = free box, 1 = tight trap)"
+    },
+    "scatter": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scatterer strength (interference richness)"
+    },
+    "momentum": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "injected packet momentum (travel speed)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "phase-wheel base hue / palette hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "packet & potential anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "packet & potential anchor y"
+    },
+    "style": {
+      "default": "phase-density",
+      "options": [
+        "phase-density",
+        "thermal",
+        "interference",
+        "spectral",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:06:24+00:00",
+    "fps": 60.2,
+    "motion": 0.1715,
+    "lum": 0.311
+  },
+  "code": "const D = { energy: .62, density: .55, speed: 1, scale: 1, well: .5, scatter: .5, momentum: .5, hue: 200, x: .5, y: .5, style: 'phase-density', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, TAU = 6.28318530718;\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\n\n// --- coarse complex-field grid (<=140), aspect-matched, size-keyed cache ---\nlet GW, GH;\nif (W >= H) { GW = 132; GH = Math.max(8, Math.round(132 * H / W)); }\nelse        { GH = 132; GW = Math.max(8, Math.round(132 * W / H)); }\nGW = Math.min(140, GW); GH = Math.min(140, GH);\nconst GN = GW * GH;\n\nif (!S.re || S.gw !== GW || S.gh !== GH) {\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(GW, GH); S.buf.pixelDensity(1);\n  S.re = new Float32Array(GN); S.im = new Float32Array(GN); S.pb = new Float32Array(GN);\n  S.gw = GW; S.gh = GH; S.expo = 0.2; S.seedUsed = null;\n}\n\n// --- inline seed hash (no p5 random) ---\nconst fr = i => { const s = Math.sin(i * 127.1 + (P.seed|0) * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// --- (re)inject a gaussian x plane-wave packet, then renormalise total prob ---\nfunction injectPacket(cx, cy, kx, ky, sig, amp, fresh) {\n  const re = S.re, im = S.im;\n  if (fresh) { for (let i = 0; i < GN; i++) { re[i] = 0; im[i] = 0; } }\n  const gcx = cx * (GW - 1), gcy = cy * (GH - 1), inv = 1 / (2 * sig * sig);\n  const rr = Math.ceil(sig * 3.2);\n  for (let dy = -rr; dy <= rr; dy++) {\n    const yy = Math.round(gcy) + dy; if (yy < 0 || yy >= GH) continue;\n    for (let dx = -rr; dx <= rr; dx++) {\n      const xx = Math.round(gcx) + dx; if (xx < 0 || xx >= GW) continue;\n      const ox = xx - gcx, oy = yy - gcy, q = ox * ox + oy * oy;\n      const g = amp * Math.exp(-q * inv);\n      if (g < 1e-4) continue;\n      const ph = kx * ox + ky * oy;\n      const i = yy * GW + xx;\n      re[i] += g * Math.cos(ph); im[i] += g * Math.sin(ph);\n    }\n  }\n  // renormalise to a fixed total probability so brightness stays stable\n  let tot = 0; for (let i = 0; i < GN; i++) tot += re[i]*re[i] + im[i]*im[i];\n  const target = GN * 0.14;\n  if (tot > 1e-9) { const sf = Math.sqrt(target / tot); for (let i = 0; i < GN; i++) { re[i] *= sf; im[i] *= sf; } }\n}\n\n// --- seed rebuild: fresh clean packet keyed on seed ---\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const a0 = fr(3) * TAU, km = 0.18 + P.momentum * 0.55;\n  injectPacket(clp(P.x + (fr(1)-0.5)*0.2, 0.15, 0.85), clp(P.y + (fr(2)-0.5)*0.2, 0.15, 0.85),\n               Math.cos(a0) * km, Math.sin(a0) * km, (0.09 + P.scale * 0.06) * Math.min(GW, GH), 1.0, true);\n  S.lastSection = K.section; S.expo = 0.2;\n}\n\n// --- re-inject a new packet on section change (superposition -> interference) ---\nif (S.lastSection == null) S.lastSection = K.section;\nif (K.section !== S.lastSection) {\n  const sIdx = ((K.section|0) % 8 + 8) % 8;\n  const a1 = (sIdx * 0.9 + fr(sIdx + 20)) * TAU, km = 0.18 + P.momentum * 0.55 + A.bass * 0.25;\n  injectPacket(0.30 + fr(sIdx + 7) * 0.4, 0.30 + fr(sIdx + 11) * 0.4,\n               Math.cos(a1) * km, Math.sin(a1) * km, (0.08 + P.scale * 0.05) * Math.min(GW, GH), 0.9, false);\n  S.lastSection = K.section;\n}\n\n// --- build the (slowly drifting) potential landscape: confining bowl + two scatterers ---\nconst ph1 = fr(5) * TAU, ph2 = fr(6) * TAU;\nconst drift = K.t * (0.05 + P.speed * 0.06);\nconst s1x = 0.5 + 0.26 * Math.cos(drift + ph1), s1y = 0.5 + 0.24 * Math.sin(drift * 1.2 + ph1);\nconst s2x = 0.5 + 0.28 * Math.cos(drift * 0.8 - ph2 + 2.1), s2y = 0.5 + 0.22 * Math.sin(drift * 0.9 + ph2 + 1.3);\nconst wK = P.well * 0.7, scH = P.scatter * 0.9;\nconst ssig = 0.11 * Math.min(GW, GH), sinv = 1 / (2 * ssig * ssig);\nconst bx = clp(P.x, 0.1, 0.9), by = clp(P.y, 0.1, 0.9);\nif (!S.V || S.V.length !== GN) S.V = new Float32Array(GN);\n{\n  const V = S.V;\n  for (let y = 0; y < GH; y++) {\n    const fy = y / (GH - 1);\n    for (let x = 0; x < GW; x++) {\n      const fx = x / (GW - 1);\n      const nx = (fx - bx) * 2, ny = (fy - by) * 2;\n      let v = wK * (nx * nx + ny * ny);\n      const d1x = (fx - s1x) * GW, d1y = (fy - s1y) * GH;\n      v += scH * Math.exp(-(d1x*d1x + d1y*d1y) * sinv);\n      const d2x = (fx - s2x) * GW, d2y = (fy - s2y) * GH;\n      v += scH * 0.85 * Math.exp(-(d2x*d2x + d2y*d2y) * sinv);\n      V[y * GW + x] = v;\n    }\n  }\n}\n\n// --- Visscher staggered leapfrog integration of i dpsi/dt = -0.5 lap psi + V psi ---\nconst re = S.re, im = S.im, V = S.V;\nconst dt = 0.15;\nconst substeps = clp(Math.round(1 + P.speed * 2.2), 1, 8);\nfor (let s = 0; s < substeps; s++) {\n  // update real part from imaginary:  R += dt*(-0.5*lapI + V*I)\n  for (let y = 0; y < GH; y++) {\n    const yb = y * GW, up = y > 0 ? -GW : 0, dn = y < GH - 1 ? GW : 0;\n    for (let x = 0; x < GW; x++) {\n      const i = yb + x;\n      const lf = x > 0 ? im[i-1] : 0, rt = x < GW-1 ? im[i+1] : 0;\n      const lapI = lf + rt + im[i+up] + im[i+dn] - 4 * im[i];\n      re[i] += dt * (-0.5 * lapI + V[i] * im[i]);\n    }\n  }\n  // update imaginary part from (new) real:  I += dt*(0.5*lapR - V*R)\n  for (let y = 0; y < GH; y++) {\n    const yb = y * GW, up = y > 0 ? -GW : 0, dn = y < GH - 1 ? GW : 0;\n    for (let x = 0; x < GW; x++) {\n      const i = yb + x;\n      const lf = x > 0 ? re[i-1] : 0, rt = x < GW-1 ? re[i+1] : 0;\n      const lapR = lf + rt + re[i+up] + re[i+dn] - 4 * re[i];\n      im[i] += dt * (0.5 * lapR - V[i] * re[i]);\n    }\n  }\n}\n\n// --- probability density + auto-exposure (smoothed peak) ---\nconst pb = S.pb; let curMax = 1e-6;\nfor (let i = 0; i < GN; i++) { const p = re[i]*re[i] + im[i]*im[i]; pb[i] = p; if (p > curMax) curMax = p; }\nS.expo = S.expo + (curMax - S.expo) * 0.12;\nconst invExpo = 1 / (S.expo + 1e-6);\n\n// --- palette helpers ---\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, xx = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r=c; g=xx; b=0; } else if (h < 120) { r=xx; g=c; b=0; }\n  else if (h < 180) { r=0; g=c; b=xx; } else if (h < 240) { r=0; g=xx; b=c; }\n  else if (h < 300) { r=xx; g=0; b=c; } else { r=c; g=0; b=xx; }\n  return [r + m, g + m, b + m];\n}\nfunction iqp(t, off) {\n  return [0.5 + 0.5 * Math.cos(TAU * (t + off)),\n          0.5 + 0.5 * Math.cos(TAU * (t + off + 0.33)),\n          0.5 + 0.5 * Math.cos(TAU * (t + off + 0.67))];\n}\n\n// --- render into coarse RGBA buffer, then upscale ---\nconst style = P.style;\nconst bri = (0.7 + P.energy * 0.95 + K.intensity * 0.32 + A.rms * 0.5);\nconst gamma = 0.66 - P.density * 0.30;\nconst bloom = P.density * 0.9 + A.treble * 0.3;\nconst amb = 0.2 + P.density * 0.06;\nconst hueBase = P.hue + K.section * 16 + K.t * 3 + A.mid * 40;\nconst sqExpo = Math.sqrt(S.expo) + 1e-6;\n\nS.buf.loadPixels(); const px = S.buf.pixels;\nfor (let i = 0; i < GN; i++) {\n  const p = pb[i], n = clp(p * invExpo, 0, 1.4);\n  const amp = Math.pow(clp(n, 0, 1), gamma);            // tone-mapped amplitude 0..1\n  const hot = clp(n - 0.6, 0, 0.8) * 1.25;              // white-hot core factor 0..1\n  const ph = Math.atan2(im[i], re[i]);\n  let r, g, b;\n  if (style === 'thermal') {\n    const m = clp(amp * bri, 0, 1.25);\n    r = clp(0.18 + m * 1.7, 0, 1);                      // warm haze floor -> orange -> yellow\n    g = clp(0.07 + m * 1.55 - 0.24, 0, 1);\n    b = clp(0.13 + m * 2.3 - 1.3 + hot * 0.5, 0, 1);    // whitens at the hottest cores\n  } else if (style === 'interference') {\n    const env = 0.35 + Math.pow(n, 0.5);\n    const tt = clp(re[i] / sqExpo, -1, 1);        // signed wavefront: crest -> white, trough -> deep blue\n    const w = tt * 0.5 + 0.5;\n    r = clp((0.12 + 0.82 * w) * env + 0.06, 0, 1);\n    g = clp((0.22 + 0.78 * w) * env + 0.09, 0, 1);\n    b = clp((0.55 + 0.45 * w) * (env + 0.15) + 0.16, 0, 1);\n  } else if (style === 'spectral') {\n    const c = iqp(ph / TAU + 0.5 + hueBase / 360, 0.0);\n    const sh = clp(amp * bri + bloom * n * n * 0.5, 0, 1.3);\n    r = clp(c[0] * sh + amb * 0.55 + hot * 0.4, 0, 1);\n    g = clp(c[1] * sh + amb * 0.55 + hot * 0.4, 0, 1);\n    b = clp(c[2] * sh + amb * 0.6 + hot * 0.4, 0, 1);\n  } else if (style === 'mono') {\n    const v = clp(amb + amp * (1 - amb) * bri + hot * 0.4, 0, 1);\n    r = v; g = v; b = clp(v * 1.03, 0, 1);\n  } else { // phase-density (default): hue = phase, value = |psi|^2, cores go white-hot\n    const hh = (ph / TAU + 0.5) * 360 + hueBase;\n    const v = clp(amb + amp * (1 - amb) * bri, 0, 1);\n    const sat = clp(0.8 - amp * 0.5 - hot * 0.3, 0.15, 0.85);  // bright cores desaturate -> lift luma\n    const c = hsv(hh, sat, v);\n    const fl = (0.25 + bloom * 0.4) * Math.pow(clp(n, 0, 1.4) / 1.4, 1.4);   // white bloom on lumps\n    r = clp(c[0] + fl, 0, 1); g = clp(c[1] + fl, 0, 1); b = clp(c[2] + fl, 0, 1);\n  }\n  const o = i << 2;\n  px[o] = r * 255; px[o+1] = g * 255; px[o+2] = b * 255; px[o+3] = 255;\n}\nS.buf.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.buf, 0, 0, W, H);\npop();\n"
+}

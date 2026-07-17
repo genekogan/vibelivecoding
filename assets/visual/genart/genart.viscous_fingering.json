@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.viscous_fingering",
+  "kind": "genart",
+  "name": "Viscous Fingering",
+  "desc": "A Hele-Shaw cell in close-up: air forced into viscous oil between two glass plates cannot hold a smooth front, so the interface buckles into Saffman-Taylor fingers that stretch, widen and tip-split forever while surface tension fights to keep them fat \u2014 injected as glowing dye in dark oil, false-color pressure interferogram, bitten sumi litho plate, electroplated metal dendrite, or ironbow thermal flux.",
+  "tags": [
+    "viscous-fingering",
+    "saffman-taylor",
+    "hele-shaw",
+    "fingering",
+    "instability",
+    "interface",
+    "darcy",
+    "porous",
+    "laplacian-growth",
+    "dendrite",
+    "tip-splitting",
+    "surface-tension",
+    "capillary",
+    "viscosity",
+    "oil",
+    "injection",
+    "displacement",
+    "fluid",
+    "fluid-dynamics",
+    "flow",
+    "continuum",
+    "pde",
+    "simulation",
+    "physics",
+    "laboratory",
+    "scientific",
+    "clinical",
+    "interferogram",
+    "fringe",
+    "pressure",
+    "thermal",
+    "ironbow",
+    "litho",
+    "sumi",
+    "ink",
+    "metallic",
+    "electroplate",
+    "crystalline",
+    "branching",
+    "organic",
+    "amber",
+    "austere",
+    "eerie",
+    "sublime",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "drive pressure and exposure \u2014 injection speed, tip glow, fringe count and contrast (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification onto the injection point \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "growth rate and inject/withdraw cycle rate (0.2 still creeps)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "finger COUNT \u2014 inverse surface tension: 0 = a few fat lobes, 1 = the front shatters into fine dendritic fingers"
+    },
+    "aniso": {
+      "default": 0.25,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "crystalline anisotropy \u2014 0 = isotropic Saffman-Taylor lobes, 1 = six-fold snowflake dendrites on a slowly creeping axis"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the injected phase (the oil takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "injection point across the plate (also centers the magnified view)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "injection point down the plate"
+    },
+    "style": {
+      "default": "hele_shaw",
+      "options": [
+        "hele_shaw",
+        "interferogram",
+        "ink_plate",
+        "metallic",
+        "thermal"
+      ],
+      "doc": "aesthetic: lab plate of glowing dye in dark oil / false-color pressure fringes / bitten sumi litho / electroplated metal dendrite under raking light / ironbow thermal flux"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the nucleus perturbation and plate grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:54+00:00",
+    "fps": 60.2,
+    "motion": 0.0503,
+    "lum": 0.331
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .5, aniso: .25, hue: 28, x: .5, y: .5, style: 'hele_shaw', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Hele-Shaw cell / Saffman-Taylor viscous fingering ------------------------------\n// Air is injected into a viscous oil trapped in the thin gap between two glass plates.\n// Darcy's law (v = -k/mu * grad p) makes the oil pressure HARMONIC, so the interface is\n// Laplacian-growth unstable: any bump reaches into a steeper gradient, drinks more flux\n// and runs away. Surface tension enters as a Gibbs-Thomson boundary condition\n// p_interface = Pin - sigma*kappa, which starves high-curvature tips and so puts a floor\n// under the finger width. The competition is the whole piece: fingers widen, tips split.\n// ------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 148, BH = Math.max(64, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.PHI = new Float32Array(N); S.PH2 = new Float32Array(N); S.PR = new Float32Array(N);\n  S.BC = new Float32Array(N); S.MSK = new Uint8Array(N); S.GRN = new Float32Array(N);\n  S.TMP = new Float32Array(N);\n  S.init = false;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\n\nconst PHI = S.PHI, PH2 = S.PH2, PR = S.PR, BC = S.BC, MSK = S.MSK, GRN = S.GRN, TMP = S.TMP;\n\n// injection point drifts on incommensurate rates so no two cycles nucleate alike\nconst tt = K.t;\nconst cxN = Math.min(0.86, Math.max(0.14, P.x + 0.045 * Math.sin(tt * 0.037) + 0.02 * Math.sin(tt * 0.091 + 1.3)));\nconst cyN = Math.min(0.86, Math.max(0.14, P.y + 0.04 * Math.cos(tt * 0.051 + 0.7) + 0.018 * Math.sin(tt * 0.113)));\n\nfunction reseed() {\n  PHI.fill(0); PR.fill(0);\n  const cn = (S.cno | 0);\n  const cx = cxN * BW, cy = cyN * BH;\n  const r0 = BH * 0.052;\n  // seed-dependent angular harmonics: the nucleus is never a perfect disc, so the growth\n  // has something to amplify (a perfect disc on a square grid just makes a grid-aligned star)\n  const a1 = hsh(cn * 13 + 1, 7, 3) * TAU, a2 = hsh(cn * 13 + 2, 9, 3) * TAU, a3 = hsh(cn * 13 + 3, 11, 3) * TAU;\n  const m1 = 3 + Math.floor(hsh(cn, 21, 5) * 4), m2 = 7 + Math.floor(hsh(cn, 23, 5) * 6);\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const dx = i - cx, dy = j - cy, d = Math.sqrt(dx * dx + dy * dy);\n    const th = Math.atan2(dy, dx);\n    const rr = r0 * (1 + 0.20 * Math.sin(m1 * th + a1) + 0.11 * Math.sin(m2 * th + a2) + 0.07 * Math.sin(2 * th + a3));\n    const v = 1 - Math.min(1, Math.max(0, (d - rr + 1.2) / 2.4));\n    PHI[j * BW + i] = v * v * (3 - 2 * v);\n  }\n}\nfunction buildGrain() {\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    // frozen plate grain \u2014 static, so it textures without flickering\n    GRN[j * BW + i] = hsh(i, j, 91) * 0.6 + hsh(i >> 1, j >> 1, 92) * 0.4;\n  }\n}\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed; S.cno = 0; S.mode = 0; S.age = 0; S.cov = 0;\n  buildGrain(); reseed();\n}\n\n// real-time accumulator: tolerates t0 resets (K.t can jump backwards at any time)\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\ndt = dt < 0 ? 0 : (dt > 0.05 ? 0.05 : dt);\n\nconst sp = 0.4 + P.speed * 0.6;\n// ---- dramaturgy: a coverage-driven inject / withdraw cycle (~50s at speed 1).\n// Injection is the UNSTABLE direction and grows fingers; withdrawal (viscous pushing\n// inviscid) is the stable one, so the front smooths as it retracts. Coverage-driven\n// rather than timed means the front can never saturate the plate and freeze. ----\nS.age += dt;\nif (S.mode !== 1) {\n  if (S.cov > 0.50 || S.age > 75 / sp) { S.mode = 1; S.age = 0; }\n} else {\n  if (S.cov < 0.012 || S.age > 40 / sp) { S.cno = (S.cno | 0) + 1; reseed(); S.mode = 0; S.age = 0; }\n}\nconst growing = S.mode !== 1;\n\n// ---- 1. smoothed phase field (curvature off the raw field is grid noise) + coverage ----\nlet cov = 0;\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    PH2[jc + i] = PHI[jc + i] * 0.5 + (PHI[jc + im] + PHI[jc + ip] + PHI[jm + i] + PHI[jp + i]) * 0.125;\n    if (PHI[jc + i] > 0.5) cov++;\n  }\n}\nS.cov = cov / N;\n\n// ---- 2. Gibbs-Thomson boundary values on the invaded phase ----\n// density = finger COUNT: the selected wavelength goes like sqrt(sigma), so low tension\n// shatters the front into many fine fingers, high tension keeps a few fat ones.\nconst sigma = 0.75 - P.density * 0.70;\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1, p = jc + i;\n    if (PHI[p] < 0.5) { MSK[p] = 0; continue; }\n    MSK[p] = 1;\n    const c = PH2[p];\n    const lap = PH2[jc + im] + PH2[jc + ip] + PH2[jm + i] + PH2[jp + i] - 4 * c;\n    const gx = (PH2[jc + ip] - PH2[jc + im]) * 0.5, gy = (PH2[jp + i] - PH2[jm + i]) * 0.5;\n    const gm = Math.sqrt(gx * gx + gy * gy);\n    let kap = gm > 0.010 ? -lap / gm : 0;\n    kap = kap < -1.4 ? -1.4 : (kap > 1.4 ? 1.4 : kap);\n    BC[p] = 1 - sigma * kap;          // Pin = 1\n  }\n}\n\n// ---- 3. relax the harmonic pressure in the oil (SOR, warm-started from last frame,\n// so a handful of sweeps tracks the slowly-moving boundary). Borders stay 0 = the sink. ----\nconst wSOR = 1.75;\nfor (let it = 0; it < 14; it++) {\n  for (let j = 1; j < BH - 1; j++) {\n    const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n    for (let i = 1; i < BW - 1; i++) {\n      const p = jc + i;\n      if (MSK[p]) { PR[p] = BC[p]; continue; }\n      const nb = 0.25 * (PR[p - 1] + PR[p + 1] + PR[jm + i] + PR[jp + i]);\n      PR[p] = PR[p] + wSOR * (nb - PR[p]);\n    }\n  }\n}\n\n// ---- 4. advance the interface at the Darcy flux ----\nconst aniso = P.aniso;\nconst mfold = 6;\nconst arot = tt * 0.019 + (S.cno | 0) * 0.7;     // the crystal axis creeps: never a repeat\n// NOTE both branches read neighbours from TMP (a snapshot taken before the sweep) and write\n// PHI. Updating PHI in place would let a cell see its already-updated left/up neighbour, which\n// cascades the update across a whole row in one sweep \u2014 a runaway diffusion, and a systematic\n// growth bias toward +x/+y.\nTMP.set(PHI);\nif (growing) {\n  const gr = dt * 34 * sp * (0.62 + P.energy * 0.70) * (0.85 + K.swell * 0.18 + A.bass * 0.35);\n  for (let j = 3; j < BH - 3; j++) {\n    const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n    for (let i = 3; i < BW - 3; i++) {\n      const p = jc + i;\n      if (TMP[p] >= 0.999) continue;\n      const nbf = 0.25 * (TMP[p - 1] + TMP[p + 1] + TMP[jm + i] + TMP[jp + i]);\n      if (nbf < 0.012) continue;\n      const gx = (PR[p + 1] - PR[p - 1]) * 0.5, gy = (PR[jp + i] - PR[jm + i]) * 0.5;\n      let gm = Math.sqrt(gx * gx + gy * gy);\n      if (aniso > 0.001) {\n        const th = Math.atan2(gy, gx);\n        gm *= Math.max(0.05, 1 + aniso * 0.9 * Math.cos(mfold * (th - arot)));\n      }\n      const nv = TMP[p] + gr * gm * nbf;\n      PHI[p] = nv > 1 ? 1 : nv;\n    }\n  }\n} else {\n  // Withdrawal: suck the air back out. Viscous-pushing-inviscid is the STABLE direction, so\n  // the front does not finger \u2014 it recedes at its normal and relaxes its curvature, and the\n  // fingers (which are all interface) are the first thing to go.\n  // This is level-set normal motion, d(phi)/dt = -V*|grad phi|: the erosion is keyed on the\n  // GRADIENT, so it only bites where an interface actually is. A value-keyed term instead\n  // eats the whole interior at once the moment it dips below 1.\n  const Vret = dt * 2.6 * sp;\n  for (let j = 0; j < BH; j++) {\n    const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1, p = jc + i;\n      const sm = TMP[p] * 0.84 + (TMP[jc + im] + TMP[jc + ip] + TMP[jm + i] + TMP[jp + i]) * 0.04;\n      const gx = (TMP[jc + ip] - TMP[jc + im]) * 0.5, gy = (TMP[jp + i] - TMP[jm + i]) * 0.5;\n      const gm = Math.sqrt(gx * gx + gy * gy);\n      const nv = sm - Vret * gm;\n      PHI[p] = nv < 0 ? 0 : nv;\n    }\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.021) * 10 + sec * 5) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cIn = pal(0.02, 0.16, 0.0);      // the injected phase\nconst cOil = pal(0.55, 0.10, 0.0);     // the defending viscous phase\nconst en = P.energy;\nconst glow = (0.5 + en * 1.5) * (0.85 + A.treble * 0.4);\n// fringe families drift on their own clock: a motion floor that survives even a frozen front\nconst fdr = tt * 0.27 + Math.sin(tt * 0.083) * 1.4;\nconst nb2 = 5 + en * 12;\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1, p = jc + i;\n    const ph = PH2[p], pr = PR[p], gn = GRN[p];\n    const rim = 4 * ph * (1 - ph);                       // peaks exactly on the interface\n    const dgx = (PR[jc + ip] - PR[jc + im]) * 0.5, dgy = (PR[jp + i] - PR[jm + i]) * 0.5;\n    const act = Math.sqrt(dgx * dgx + dgy * dgy) * (1 - ph);   // Darcy flux \u2014 brightest at live tips\n    let r, gg, b;\n    if (style === 'interferogram') {\n      const fr = 0.5 + 0.5 * Math.cos(pr * TAU * (nb2 * 1.6) + fdr);\n      const cc = pal(pr * 0.85 + 0.1, 0.31, 0.0);\n      const v = 0.30 + fr * 0.34;\n      r = v * (0.5 + cc[0]); gg = v * (0.5 + cc[1]); b = v * (0.5 + cc[2]);\n      const w = ph * 0.55;                                // the bubble reads as a fringe dislocation\n      r = r * (1 - w) + 0.86 * w; gg = gg * (1 - w) + 0.83 * w; b = b * (1 - w) + 0.72 * w;\n      r += act * glow * 1.4; gg += act * glow * 1.2; b += act * glow * 0.7;\n    } else if (style === 'ink_plate') {\n      const stip = (gn - 0.5) * 0.20;\n      const ink = 0.13 + stip * 0.5 + 0.04 * Math.cos(pr * TAU * nb2 * 0.5 + fdr * 0.4);\n      const paper = 0.80 + stip;\n      let v = ink + (paper - ink) * ph;\n      v -= rim * 0.30;                                   // a bitten litho edge\n      v += act * glow * 0.5;\n      r = v * 1.00; gg = v * 0.975; b = v * 0.93;\n    } else if (style === 'metallic') {\n      // form from light only: the pressure gradient is the surface normal\n      const sh2 = Math.max(0, -(dgx * 0.62 + dgy * 0.78) * 26);\n      const v = 0.16 + gn * 0.05 + sh2 * (0.5 + en) * 0.5;\n      const inv = 0.30 + rim * 0.55 + gn * 0.06;\n      let m = v * (1 - ph) + inv * ph;\n      m += act * glow * 2.0;\n      r = m * (0.80 + cIn[0] * 0.30); gg = m * (0.86 + cIn[1] * 0.24); b = m * (1.02 + cIn[2] * 0.16);\n    } else if (style === 'thermal') {\n      const m = Math.min(1, (act * 34 + rim * 0.55 + ph * 0.30) * (0.5 + en * 1.1) + 0.06 + gn * 0.03);\n      r = Math.min(1, m * 2.15);\n      gg = Math.min(1, Math.max(0, m * 2.0 - 0.55));\n      b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.40 - m * 1.5));\n    } else {                                              // hele_shaw (default)\n      const band = 0.5 + 0.5 * Math.cos(pr * TAU * nb2 + fdr);\n      const ov = 0.17 + band * 0.085 + gn * 0.055;        // oil: never a flat fill\n      const iv = 0.52 + gn * 0.07 + rim * 0.14;\n      const mo = ov, mi = iv;\n      const m = mo + (mi - mo) * ph;\n      r = m * (0.62 + cIn[0] * 0.95) + cOil[0] * (1 - ph) * 0.10;\n      gg = m * (0.52 + cIn[1] * 0.85) + cOil[1] * (1 - ph) * 0.11;\n      b = m * (0.46 + cIn[2] * 0.70) + cOil[2] * (1 - ph) * 0.16;\n      const tip = act * glow * 2.6;\n      r += tip * 1.0; gg += tip * 0.86; b += tip * 0.55;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = Math.min(BW - sw, Math.max(0, cxN * BW - sw / 2));\nconst sy = Math.min(BH - sh, Math.max(0, cyN * BH - sh / 2));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

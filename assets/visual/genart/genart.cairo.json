@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cairo",
+  "kind": "genart",
+  "name": "Cairo Pentagons",
+  "desc": "The Cairo pentagonal pavement caught mid-morph \u2014 a single parameter breathes the whole one-parameter family, sliding the tiling from diagonal squares through the true 120/90 Cairo pentagon to basketweave rectangles while the plane drifts and turns beneath it.",
+  "tags": [
+    "cairo",
+    "pentagon",
+    "pentagonal",
+    "tiling",
+    "tessellation",
+    "pavement",
+    "morph",
+    "family",
+    "basketweave",
+    "snub-square",
+    "dual",
+    "geometry",
+    "lattice",
+    "plane",
+    "mosaic",
+    "tile",
+    "tiles",
+    "joints",
+    "enamel",
+    "cloisonne",
+    "riso",
+    "risograph",
+    "ink",
+    "sumi",
+    "field",
+    "quantised",
+    "mathematics",
+    "continuous",
+    "deformation",
+    "structure",
+    "concrete",
+    "cast",
+    "austere",
+    "clinical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the tiling swings across its family each cycle (at max it runs the whole range, squares to basketweave)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "tile size vs frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ornament worked into every tile \u2014 inset course, then a centre stud"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "drift rate across the plane"
+    },
+    "morph": {
+      "default": 0.405,
+      "min": 0,
+      "max": 1,
+      "doc": "resting point in the family: 0 = squares on the diagonal, 0.405 = the true Cairo pentagon (120/90/120/90/120), 0.54 = equilateral Cairo, 1 = basketweave"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "primary material hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "lattice origin x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "lattice origin y as canvas fraction"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "pavement",
+      "options": [
+        "pavement",
+        "enamel",
+        "ink",
+        "riso",
+        "field"
+      ],
+      "doc": "aesthetic: cast concrete pavement in four castings / jewel-toned cloisonn\u00e9 enamel between dark cell walls / brushed ink outlines on paper, no fills / two-ink risograph plates / pure abstraction \u2014 the tiling quantises a drifting continuous field, no outlines at all"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for per-tile tone variation and the field"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:32:48+00:00",
+    "fps": 66.7,
+    "motion": 0.1224,
+    "lum": 0.565
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, morph:.405, hue:32, x:.5, y:.5, style:'pavement', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst hs = n => { const s = Math.sin(n*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst fr = (i,j) => hs(i*57.3 + j*131.9 + 3.7);\nconst vn = (x,y) => { const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=fr(ix,iy), b=fr(ix+1,iy), c=fr(ix,iy+1), d=fr(ix+1,iy+1);\n  return a + (b-a)*wx + (c-a)*wy + (a-b-c+d)*wx*wy; };\nconst fbm = (x,y) => .58*vn(x,y) + .27*vn(x*2.1+5.3, y*2.1-3.7) + .15*vn(x*4.3-1.9, y*4.3+6.1);\n\nconst sty = P.style;\nconst ink = (sty==='ink'), riso = (sty==='riso'), fld = (sty==='field'), ena = (sty==='enamel');\nconst H = ((P.hue%360)+360)%360;\n\n// ---- real-time drift + the family morph -------------------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst rate = P.speed * (.45 + .5*K.intensity);\nS.dx = (S.dx||0) + dt*rate*.135;\nS.dy = (S.dy||0) + dt*rate*.083;      // incommensurate with dx -> never re-tiles the same way\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.3;\n\n// The pentagon family. h -> 0 : squares on the diagonal.  h = 0.4226 : Cairo\n// (angles 120/90/120/90/120, the dual snub square).  h = 0.5486 : equilateral\n// Cairo.  h -> 1 : basketweave rectangles.  Morphing h moves EVERY vertex.\nconst h0 = .05 + cl(P.morph,0,1)*.92;\nconst wob = .55*Math.sin(K.t*.071) + .30*Math.sin(K.t*.163+1.1) + .15*Math.sin(K.t*.397+2.3);\nconst hm = cl(h0 + .36*P.energy*wob, .06, .96);\n\nconst rot = K.t*.0135 + .09*Math.sin(K.t*.059+.4) + .04*Math.sin(K.t*.147+2.1);\nconst ca = Math.cos(rot), sa = Math.sin(rot);\nlet SC = u*.085*cl(P.scale,.3,2.2);\nSC = Math.max(SC, Math.sqrt(width*height/150)*.5);      // hard cap: ~150 cells on screen\nconst ox = cl(P.x,.1,.9)*width, oy = cl(P.y,.1,.9)*height;\nconst pX = S.dx, pY = S.dy;\nconst TS = (lx,ly) => { const rx = lx - pX, ry = ly - pY;\n  return [ox + (rx*ca - ry*sa)*SC, oy + (rx*sa + ry*ca)*SC]; };\nconst IV = (sx,sy) => { const dx=(sx-ox)/SC, dy=(sy-oy)/SC;\n  return [dx*ca + dy*sa + pX, -dx*sa + dy*ca + pY]; };\n\n// ---- palette ----------------------------------------------------------------\nlet GC;\nif (ink)       GC = [40, 8, 88];\nelse if (riso) GC = [38, 6, 93];\nelse if (fld)  GC = [H, 40, 8];\nelse if (ena)  GC = [H, 30, 7];\nelse           GC = [H, 12, 13];\nnoStroke(); fill(GC[0], GC[1], GC[2], 100); rect(0,0,width,height);\n\n// ---- visible lattice window -------------------------------------------------\nconst cs = [IV(0,0), IV(width,0), IV(0,height), IV(width,height)];\nlet mnx=1e9, mxx=-1e9, mny=1e9, mxy=-1e9;\nfor (let i=0;i<4;i++){ mnx=Math.min(mnx,cs[i][0]); mxx=Math.max(mxx,cs[i][0]);\n                       mny=Math.min(mny,cs[i][1]); mxy=Math.max(mxy,cs[i][1]); }\nconst i0 = Math.floor((mnx-2.2)/2), i1 = Math.ceil((mxx+2.2)/2);\nconst j0 = Math.floor((mny-2.2)/2), j1 = Math.ceil((mxy+2.2)/2);\n\nfunction pent(cx,cy,kind,h){\n  if (kind===0) return [[cx,cy+h],[cx+1,cy+1],[cx+2-h,cy],[cx+1,cy-1],[cx,cy-h]];   // E of an even cell\n  if (kind===1) return [[cx,cy+h],[cx-1,cy+1],[cx-2+h,cy],[cx-1,cy-1],[cx,cy-h]];   // W of an even cell\n  if (kind===2) return [[cx-h,cy],[cx-1,cy+1],[cx,cy+2-h],[cx+1,cy+1],[cx+h,cy]];   // N of an odd cell\n  return [[cx-h,cy],[cx-1,cy-1],[cx,cy-2+h],[cx+1,cy-1],[cx+h,cy]];                 // S of an odd cell\n}\n\nconst jw = Math.max(.8, SC*.055);                 // joint / cell-wall weight\nconst orn = cl(P.density,0,1);\nconst drift = K.t*.037;\n\nfor (let j=j0; j<=j1; j++){\n  for (let i=i0; i<=i1; i++){\n    const cx = 2*i, cy = 2*j, even = ((i+j)&1)===0;\n    for (let k=0;k<2;k++){\n      const kind = even ? k : 2+k;\n      const q = pent(cx, cy, kind, hm);\n      let gx=0, gy=0;\n      for (let v=0;v<5;v++){ gx+=q[v][0]; gy+=q[v][1]; }\n      gx/=5; gy/=5;\n      const tv = fr(i*3+kind, j*5+1);\n      const fv = fbm(gx*.14 + drift*.5, gy*.14 - drift*.31);\n      let cc;\n      if (ink)       cc = [40, 6, cl(94 - 10*tv - 14*(kind>1?1:0), 40, 98)];\n      else if (riso) cc = (kind%2===0) ? [338, cl(28 + 44*fv, 8, 82), cl(96 - 22*fv, 44, 98)]\n                                       : [212, cl(30 + 46*fv, 8, 82), cl(94 - 26*fv, 40, 98)];\n      else if (fld)  cc = [(H + fv*150 + kind*6) % 360, cl(38 + 44*fv, 8, 92), cl(10 + 74*fv*fv*1.5 + 8*tv, 5, 92)];\n      else if (ena)  cc = [(H + kind*46 + tv*18) % 360, cl(56 + 22*fv, 20, 90), cl(30 + 46*fv + 12*tv, 12, 88)];\n      else {                                       // pavement: cast concrete, four castings\n        const shade = [.62,.44,.86,.52][kind];\n        cc = [(H + tv*14 - 6) % 360, cl(9 + 8*tv + 5*fv, 2, 26), cl(24 + 46*shade + 16*fv + 8*tv, 8, 86)];\n      }\n      const pj = [];\n      for (let v=0;v<5;v++) pj.push(TS(q[v][0], q[v][1]));\n      // fill + stroke in ONE shape call\n      if (ink) noFill(); else fill(cc[0], cc[1], cc[2], 100);\n      if (fld) noStroke();\n      else { stroke(ink?28:(riso?338:H), ink?30:(riso?60:(ena?40:14)),\n                    ink?12:(riso?42:(ena?6:9)), ink?92:(riso?70:88));\n             strokeWeight(ink ? Math.max(1, SC*.038*(1+.5*tv)) : jw); }\n      beginShape(); for (let v=0;v<5;v++) vertex(pj[v][0], pj[v][1]); endShape(CLOSE);\n      // ornament: an inset course inside every tile, then a centre stud\n      if (orn > .15 && SC > 26){\n        const f2 = 1 - .14 - .16*orn;\n        const c2 = TS(gx, gy);\n        noFill();\n        stroke(ink?28:H, ink?26:(fld?20:12), ink?18:(fld?96:(ena?92:74)),\n               cl((ink?46:24) + 40*orn*(fld?glow:1), 0, 84));\n        strokeWeight(Math.max(.8, jw*.6));\n        beginShape();\n        for (let v=0;v<5;v++) vertex(c2[0] + (pj[v][0]-c2[0])*f2, c2[1] + (pj[v][1]-c2[1])*f2);\n        endShape(CLOSE);\n        if (orn > .62 && SC > 44){\n          noStroke(); fill(ink?28:H, ink?26:cl(cc[1]*.5,0,100), ink?16:cl(cc[2]*1.5+14,4,98), 80);\n          ellipse(c2[0], c2[1], SC*.16*orn, SC*.16*orn);\n        }\n      }\n    }\n  }\n}\n\n// ---- a light sweeping the plane, out of phase with the morph ---------------\nif (!ink && !riso){\n  push(); blendMode(ADD); noStroke();\n  const lxx = ox + Math.cos(K.t*.083 + 1.2)*width*.42 + Math.cos(K.t*.211)*width*.10;\n  const lyy = oy + Math.sin(K.t*.127 + .3)*height*.40 + Math.sin(K.t*.317+2)*height*.09;\n  for (let i=5;i>=1;i--){ fill(H, fld?24:20, 100, 1.4 + 2.6*glow); ellipse(lxx, lyy, u*.20*i, u*.20*i); }\n  pop(); blendMode(BLEND);\n}\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

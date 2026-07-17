@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.vinyl",
+  "kind": "floor",
+  "name": "Vinyl Record Floor",
+  "desc": "A colossal spinning record underfoot: matte wax grooves shimmer, a paper label rotates at cps with a sweeping specular glint and swaying tonearm shadow, scratch-wobble on strong bass; label / iridescent-chrome / vector-wireframe / blueprint variants.",
+  "tags": [
+    "vinyl",
+    "record",
+    "turntable",
+    "lp",
+    "disc",
+    "groove",
+    "dj",
+    "spin",
+    "rotate",
+    "music",
+    "floor",
+    "stage",
+    "label",
+    "platter",
+    "tonearm",
+    "scratch",
+    "wax",
+    "analog",
+    "chrome",
+    "iridescent",
+    "wireframe",
+    "blueprint",
+    "schematic",
+    "retro",
+    "warm",
+    "amber",
+    "spinning"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "groove-ring + surface-scuff count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "record radius vs frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glint/shimmer/glow amplitude + beat flare"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "label + glow hue (45 = warm amber)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "spin-rate multiplier"
+    },
+    "warp": {
+      "default": 0.18,
+      "min": 0,
+      "max": 1,
+      "doc": "label-plate size morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "record center x as canvas fraction"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "record center y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic groove/scuff seed"
+    },
+    "style": {
+      "default": "label",
+      "options": [
+        "label",
+        "chrome",
+        "wireframe",
+        "blueprint"
+      ],
+      "doc": "aesthetic: paper-label black wax / iridescent picture-disc chrome / glowing vector wireframe / cyan blueprint schematic"
+    },
+    "act": {
+      "default": "spin",
+      "options": [
+        "spin",
+        "pulse",
+        "tide",
+        "scratch"
+      ],
+      "doc": "dramaturgy: steady spin / beat-surging pulse / slow tidal drift / bass scratch-wobble"
+    }
+  },
+  "acts": [
+    "spin",
+    "pulse",
+    "tide",
+    "scratch"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:16:18+00:00",
+    "fps": 61.3,
+    "motion": 0.0291,
+    "lum": 0.15
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .6, hue: 45, speed: 1, warp: .18, x: .5, y: .56, seed: 0, style: 'label', act: 'spin' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst cx = cl(P.x,.05,.95) * width;\nconst cy = cl(P.y,.05,.95) * height;\nconst um = Math.min(width,height);\nconst R = um * .66 * cl(P.scale,.4,2.4);\nconst lr = R * (.28 + .06*cl(P.warp,0,1));   // label radius (warp doubles as label-size morph)\nconst H = P.hue;\n\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\nS.tre  = (S.tre ||0)*.82 + (A.treble||0)*.18;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.7);\n\n// ---- rotation: real-time base spin (never re-phases) + act flavour ----\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt,0,.1);\nlet rate = P.speed * (.55 + .7*K.intensity);\nif (P.act === 'pulse') rate *= 1 + .8*kick;\nif (P.act === 'tide')  rate *= .4 + .9*(.5 + .5*Math.sin(K.t*.05 + K.section*.8));\nlet scratch = 0;\nif (P.act === 'scratch') scratch = Math.sin(K.t*7.5) * (S.bass*S.bass) * 2.4;\nS.ang = (S.ang||0) + dt*(rate*0.95) + scratch*dt*5;\nconst ang = S.ang;\n\n// ---- cached record body (disc, grooves, sheen, label plate) ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(R)+'|'+Math.round(P.density*10)+'|'+Math.round(cx)+'|'+Math.round(cy);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.push(); g.translate(cx,cy);\n  // vinyl body: concentric radial sheen bands\n  const bands = 54;\n  for (let i=bands;i>=0;i--){ const t=i/bands, rr=R*t;\n    let h,s,b;\n    if (sty==='blueprint'){ h=(H+195)%360; s=70; b=8 + 5*t; }\n    else if (sty==='wireframe'){ h=H; s=40; b=4 + 3*t; }\n    else if (sty==='chrome'){ h=(H + 300*t)%360; s=42; b=16 + 30*Math.pow(t,.7); }\n    else { h=H; s=8; b=5 + 7*Math.pow(t,1.4); }   // label: warm near-black wax\n    g.noStroke(); g.fill(h,s,b,100); g.ellipse(0,0,rr*2,rr*2);\n  }\n  // groove rings\n  const NG = Math.round(28 + P.density*96);\n  g.noFill();\n  for (let i=0;i<NG;i++){ const t=.30 + .69*(i/NG), rr=R*t;\n    let h,s,b,a,sw;\n    if (sty==='wireframe'){ h=H; s=85; b=100; a=18+22*fr(i); sw=.7; }\n    else if (sty==='blueprint'){ h=(H+195)%360; s=30; b=100; a=16+14*fr(i); sw=.6; }\n    else if (sty==='chrome'){ h=(H+300*t)%360; s=30; b=100; a=14+16*fr(i); sw=.6; }\n    else { h=H; s=6; b=10+9*fr(i); a=34+16*fr(i); sw=.6; }\n    g.stroke(h,s,b,a); g.strokeWeight(sw); g.ellipse(0,0,rr*2,rr*2);\n  }\n  // run-out & outer rim\n  g.noFill(); g.stroke(sty==='label'?H:(H+195)%360, sty==='label'?10:40, sty==='wireframe'?100:60, 60);\n  g.strokeWeight(1.4); g.ellipse(0,0,R*2,R*2);\n  // label plate\n  if (sty==='wireframe' || sty==='blueprint'){\n    g.noFill(); g.stroke((H+40)%360, sty==='blueprint'?30:90, 100, 80); g.strokeWeight(1.4);\n    g.ellipse(0,0,lr*2,lr*2);\n    for (let s0=0;s0<8;s0++){ const a0=s0/8*TAU; g.line(Math.cos(a0)*lr*.2,Math.sin(a0)*lr*.2, Math.cos(a0)*lr,Math.sin(a0)*lr); }\n  } else {\n    g.noStroke(); g.fill(H, sty==='chrome'?55:72, 86, 100); g.ellipse(0,0,lr*2,lr*2);\n    g.noFill(); g.stroke(0,0,100,55); g.strokeWeight(2); g.ellipse(0,0,lr*2*.86,lr*2*.86);\n    g.stroke(0,0,0,40); g.strokeWeight(1); g.ellipse(0,0,lr*2*1.02,lr*2*1.02);\n  }\n  g.pop(); S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- rotating surface detail (scuffs, label sectors, marker) ----\npush(); translate(cx,cy); rotate(ang);\n// radial dust scuffs sweeping with the disc\nconst NS = Math.round(9 + P.density*26);\nblendMode(ADD); noStroke();\nfor (let i=0;i<NS;i++){ const a0=fr(i*3)*TAU, r0=(.34+.6*fr(i*3+1))*R, len=(.05+.16*fr(i*3+2))*R;\n  const x0=Math.cos(a0)*r0, y0=Math.sin(a0)*r0, x1=Math.cos(a0)*(r0+len), y1=Math.sin(a0)*(r0+len);\n  stroke(H, sty==='wireframe'?60:10, 100, 8*glow); strokeWeight(.8);\n  line(x0,y0,x1,y1);\n}\nnoStroke(); blendMode(BLEND);\n// label sectors + marker so rotation is unmistakable\nif (sty==='label' || sty==='chrome'){\n  const segs = 3;\n  for (let s0=0;s0<segs;s0++){ const a0=s0/segs*TAU;\n    fill((H+ s0*22)%360, 68, 96, 90);\n    arc(0,0, lr*1.4, lr*1.4, a0, a0+.34);\n  }\n  // top marker pip\n  fill(0,0,100,95); ellipse(lr*.62,0, lr*.16, lr*.16);\n} else {\n  stroke((H+40)%360, sty==='blueprint'?24:80, 100, 70); strokeWeight(1.2); noFill();\n  arc(0,0, lr*1.3, lr*1.3, .2, 1.9);\n  noStroke(); fill((H+40)%360, sty==='blueprint'?24:80, 100, 80); ellipse(lr*.55,0, lr*.14,lr*.14);\n}\n// spindle hole\nnoStroke(); fill(0,0, sty==='wireframe'?0:6, sty==='wireframe'?0:100); ellipse(0,0, um*.012, um*.012);\nstroke(0,0,100,60); strokeWeight(1); noFill(); ellipse(0,0, um*.02, um*.02);\npop();\n\n// ---- sweeping specular glint (real-time, independent) ----\nconst gA = K.t*0.55 + K.section*.4;\npush(); translate(cx,cy); rotate(gA); blendMode(ADD); noStroke();\nfor (let i=0;i<6;i++){ fill(H, sty==='chrome'?20:8, 100, (5+3*i*0.0+7)*glow*.55*(1-i*0.12));\n  ellipse(R*.42, 0, R*(1.3-i*.16), R*.46); }\npop();\n\n// ---- groove shimmer ring (beat, partial-frame) ----\npush(); translate(cx,cy); blendMode(ADD); noFill();\nconst shR = R*(.32 + .64*((K.t*.16)%1));\nstroke(H, sty==='wireframe'?70:14, 100, 20*glow*(.4+.6*kick)); strokeWeight(2+3*kick);\nellipse(0,0, shR*2, shR*2);\nconst shR2 = R*(.32 + .64*((K.t*.16+.5)%1));\nstroke(H, sty==='wireframe'?70:14, 100, 14*glow); strokeWeight(1.6);\nellipse(0,0, shR2*2, shR2*2);\npop();\n\n// ---- tonearm shadow (static-ish, sways subtly) ----\npush(); blendMode(BLEND);\nconst sway = Math.sin(K.t*.18)*.05 + kick*.03;\nconst baseX = cx + R*1.02, baseY = cy - R*1.02;\nconst tipX = cx + Math.cos(TAU*(.62+sway))*R*.86, tipY = cy + Math.sin(TAU*(.62+sway))*R*.86;\nstroke(0,0,0,26); strokeWeight(um*.02); line(baseX,baseY, tipX,tipY);\nstroke(0,0,0,34); strokeWeight(um*.011); line(baseX,baseY, tipX,tipY);\nnoStroke(); fill(0,0,8,70); ellipse(tipX,tipY, um*.03, um*.02);\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

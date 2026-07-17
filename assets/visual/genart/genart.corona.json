@@ -1,0 +1,148 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.corona",
+  "kind": "genart",
+  "name": "Corona Layers",
+  "desc": "One interlocking tile, ringed by its own coronas out to the frame edge \u2014 the shape writhes and re-carves its own silhouette continuously yet every neighbour still locks in without a hair of gap, while rings of state change ripple outward layer by layer under an orbiting light.",
+  "tags": [
+    "corona",
+    "coronas",
+    "heesch",
+    "heesch-number",
+    "interlock",
+    "interlocking",
+    "tessellation",
+    "tiling",
+    "plane-division",
+    "regelmatige-vlakverdeling",
+    "escher",
+    "hexagon",
+    "parallelogon",
+    "monohedral",
+    "translation",
+    "wallpaper",
+    "lattice",
+    "rings",
+    "layers",
+    "onion",
+    "ripple",
+    "wave",
+    "morph",
+    "morphing",
+    "geometry",
+    "geometric",
+    "mathematical",
+    "inlay",
+    "marquetry",
+    "shellac",
+    "riso",
+    "risograph",
+    "verdigris",
+    "patina",
+    "bronze",
+    "slate",
+    "xray",
+    "luminous",
+    "engraved",
+    "relief",
+    "contour",
+    "eerie",
+    "austere",
+    "sacred",
+    "organic",
+    "texture",
+    "structure"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "interlock violence + shading contrast + joint weight"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 2,
+      "doc": "tile size vs frame (2 = a few colossal interlocking cells)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "inlaid inner contours cut into each cell"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "shape-morph / corona-wave / rotation rate"
+    },
+    "hue": {
+      "default": 26,
+      "min": 0,
+      "max": 360,
+      "doc": "primary cell + ground hue"
+    },
+    "wig": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the tile edges depart from a plain hexagon (0 = regular hexagons, 1 = deep Escher interlock)"
+    },
+    "rings": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "strength of the corona wave rippling outward through the layers"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "core cell x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "core cell y as canvas fraction"
+    },
+    "style": {
+      "default": "inlay",
+      "options": [
+        "inlay",
+        "riso",
+        "verdi",
+        "slate",
+        "xray"
+      ],
+      "doc": "aesthetic: engraved marquetry inlay in dark shellac / two-ink risograph overprint / verdigris patina on bronze / cold incised slate / luminous additive contours on black (non-representational)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "the tile's edge harmonics \u2014 reseeds the whole interlocking shape"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:44:18+00:00",
+    "fps": 58.8,
+    "motion": 0.0646,
+    "lum": 0.453
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:26, wig:.55, rings:.6, x:.5, y:.5, style:'inlay', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\n\n// ---- an interlocking tile that PROVABLY tiles the plane -------------------\n// Start from the regular hexagon (a parallelogon). Its neighbour across edge i\n// is the translate by T_i = v_i + v_{i+1}. For the tile to keep tiling after we\n// deform edge i into any curve C, edge i+3 must become exactly reverse(C - T_i).\n// Every wiggle we add is mirrored onto the opposite edge, so the shape can morph\n// live -- as wildly as it likes -- and the coronas still lock together with zero\n// gap. Endpoints are pinned because every harmonic is sin(pi*h*f), zero at f=0,1.\nconst VX=[], VY=[];\nfor (let i=0;i<6;i++){ const a = Math.PI/6 + i*Math.PI/3; VX[i]=Math.cos(a); VY[i]=Math.sin(a); }\nconst TXv=[], TYv=[];\nfor (let i=0;i<3;i++){ TXv[i]=VX[i]+VX[(i+1)%6]; TYv[i]=VY[i]+VY[(i+1)%6]; }\n\nconst MS = 6;\nconst wig = cl(P.wig,0,1) * (.35 + .85*en) * .34;\nconst EDG = [];\nfor (let i=0;i<3;i++){\n  const x0=VX[i], y0=VY[i], x1=VX[(i+1)%6], y1=VY[(i+1)%6];\n  let tx=x1-x0, ty=y1-y0; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;\n  const nx=-ty, ny=tx;\n  const pts=[];\n  for (let s=0;s<=MS;s++){\n    const f=s/MS;\n    let amp=0;\n    for (let hh=1;hh<=3;hh++){\n      const a0 = (fr(i*17.3+hh*5.1)*2-1)/hh;\n      const ph = K.t*(.061*hh + .047*fr(i*3.1+hh)) * sp + fr(i*7.7+hh*2.3)*6.283;\n      amp += a0*Math.sin(Math.PI*hh*f + 0)*Math.sin(ph)*0.9 + a0*Math.sin(Math.PI*hh*f)*.45;\n    }\n    amp *= wig*tl;\n    let tg = 0;\n    for (let hh=1;hh<=2;hh++){\n      const b0 = (fr(i*23.9+hh*11.7)*2-1)/hh;\n      tg += b0*Math.sin(Math.PI*hh*f)*Math.sin(K.t*(.083+.037*hh)*sp + fr(i*13.1+hh)*6.283);\n    }\n    tg *= wig*tl*.5;\n    pts.push(x0+tx*(f*tl+tg)+nx*amp, y0+ty*(f*tl+tg)+ny*amp);\n  }\n  EDG[i]=pts;\n}\nfor (let i=0;i<3;i++){                       // the forced opposite edges\n  const src=EDG[i], out=[];\n  for (let s=MS;s>=0;s--){ out.push(src[s*2]-TXv[i], src[s*2+1]-TYv[i]); }\n  EDG[i+3]=out;\n}\nconst BX=[], BY=[];\nfor (let i=0;i<6;i++){ const e=EDG[i]; for (let s=0;s<MS;s++){ BX.push(e[s*2]); BY.push(e[s*2+1]); } }\nconst NB = BX.length;\n\n// ---- lattice + coronas ----------------------------------------------------\nconst ax = cl(P.x,.2,.8)*width, ay = cl(P.y,.2,.8)*height;\nconst corner = Math.max(Math.hypot(ax,ay), Math.hypot(width-ax,ay), Math.hypot(ax,height-ay), Math.hypot(width-ax,height-ay));\nconst NMAX = 9;\nconst hexR = Math.max(u*.105*cl(P.scale,.55,2.0), corner/(1.732*NMAX + 1));\nconst NC = cl(Math.ceil(corner/(1.732*hexR) - .5) + 1, 1, NMAX);\nconst rot = K.t*.0132*sp + .10*Math.sin(K.t*.0713+1.4);\n\n// ---- styles ---------------------------------------------------------------\nconst glow = (sty==='xray');\nfunction grd(){\n  if (sty==='riso')   return [44, 9, 93];\n  if (sty==='verdi')  return [172, 34, 15];\n  if (glow)           return [(H+192)%360, 56, 5];\n  if (sty==='slate')  return [216, 13, 17];\n  return [(H+10)%360, 30, 13];                 // inlay: dark shellac between cells\n}\nfunction cellCol(n, w, sh){\n  const q = n/Math.max(1,NC);\n  if (sty==='riso')  return [ (n%2) ? 352 : 205, 58 + 14*w, cl(96 - 26*(1-w) + 10*sh, 20, 100) ];\n  if (sty==='verdi') return [ (168 + q*26 + w*22)%360, cl(44 - 18*w,6,90), cl(30 + 46*sh + 30*w, 6, 96) ];\n  if (glow)          return [ (H + 130 + q*100 + w*60)%360, 42, cl(30 + 70*w + 40*sh, 4, 100) ];\n  if (sty==='slate') return [ 214, cl(8 + 8*w,0,40), cl(24 + 48*sh + 26*w, 5, 92) ];\n  return [ (H + 4 + q*20 + w*16)%360, cl(52 - 22*w, 8, 80), cl(28 + 50*sh + 30*w, 5, 96) ];\n}\n\nconst gc = grd(); noStroke(); background(gc[0], gc[1], gc[2]);\n\n// light direction orbits -> every cell's shading changes continuously\nconst lang = K.t*.077*sp + .6*Math.sin(K.t*.029+1.1);\nconst lgx = Math.cos(lang), lgy = Math.sin(lang);\nconst wavT = K.t*(.55 + .95*sp) + .8*Math.sin(K.t*.043);\nconst rw = cl(P.rings,0,1);\n\npush(); translate(ax, ay); rotate(rot);\nstrokeJoin(ROUND); strokeWeight((u/900)*(.7 + 2.0*en));\nconst inner = cl(P.density,0,1) > .22;\n\nfor (let a=-NC;a<=NC;a++){\n  for (let b=-NC;b<=NC;b++){\n    const n = (Math.abs(a) + Math.abs(b) + Math.abs(a+b))*.5;    // axial hex distance\n    if (n > NC) continue;\n    const cx = (a*TXv[0] + b*TXv[1])*hexR, cy = (a*TYv[0] + b*TYv[1])*hexR;\n    if (Math.abs(cx) > corner + hexR*1.8 || Math.abs(cy) > corner + hexR*1.8) continue;\n    // the corona wave: rings of state change rippling out through the layers\n    const w = rw * Math.pow(Math.max(0, Math.sin(n*.92 - wavT)), 2) * (.65 + .5*bass) * lift;\n    const jit = fr(a*31.7 + b*17.3);\n    // flat shade off the orbiting light\n    const dl = Math.hypot(cx,cy) || 1;\n    const sh = (.34 + .5*((cx/dl)*lgx + (cy/dl)*lgy)*.5 + .5*.5) * (.6 + .55*en) + .12*jit;\n    const c = cellCol(n, w, sh);\n    fill(c[0], c[1], c[2], glow ? cl(38 + 54*w, 14, 96) : 100);\n    stroke(gc[0], cl(gc[1]*1.15,0,100), cl(gc[2]*(.45+.5*(1-en)),0,100), 88);\n    beginShape();\n    for (let s=0;s<NB;s++) vertex(cx + BX[s]*hexR, cy + BY[s]*hexR);\n    endShape(CLOSE);\n    if (inner) {                              // inlaid contour -> engraved relief\n      noFill();\n      stroke(c[0], cl(c[1]+16,0,100), cl(c[2]*.52,0,100), 30 + 46*cl(P.density,0,1));\n      strokeWeight((u/900)*(.5 + .9*en));\n      const k2 = .80 - .10*cl(P.density,0,1);\n      beginShape();\n      for (let s=0;s<NB;s++) vertex(cx + BX[s]*hexR*k2, cy + BY[s]*hexR*k2);\n      endShape(CLOSE);\n      stroke(c[0], c[1], cl(c[2]*1.35,0,100), 22 + 30*w);\n      strokeWeight((u/900)*(.4 + .7*en));\n      const k3 = k2*.56;\n      beginShape();\n      for (let s=0;s<NB;s++) vertex(cx + BX[s]*hexR*k3, cy + BY[s]*hexR*k3);\n      endShape(CLOSE);\n      strokeWeight((u/900)*(.7 + 2.0*en));\n    }\n  }\n}\npop();\n\n// ---- moving chiaroscuro ---------------------------------------------------\nconst lw2 = 180, lh2 = cl(Math.round(180*height/Math.max(1,width)), 60, 340);\nif (!S.lg || S.lgk !== lw2+'x'+lh2) { S.lg = createGraphics(lw2, lh2); S.lg.colorMode(HSB,360,100,100,100); S.lgk = lw2+'x'+lh2; }\nconst L = S.lg;\nL.push(); L.noStroke(); L.blendMode(BLEND);\nL.background(0, 0, 100 - (18 + 30*en));\nL.blendMode(ADD);\nconst plx = (.5 + .28*Math.sin(K.t*.067+.7))*lw2, ply = (.5 + .24*Math.cos(K.t*.053+2.4))*lh2;\nfor (let i=0;i<9;i++){\n  const q=i/8, rr=Math.max(lw2,lh2)*(1.26-q*.98);\n  L.fill(0,0,100, (6.5 + 7*en + 5*bass)*(.28+.72*q*q));\n  L.ellipse(plx, ply, rr*2, rr*2);\n}\nL.blendMode(BLEND); L.pop();\nblendMode(MULTIPLY); noStroke(); image(L, 0, 0, width, height); blendMode(BLEND);\n\n// ---- cached grain ---------------------------------------------------------\nconst tk = sty+'|'+sd;\nif (!S.tex || S.texk !== tk) {\n  const tw=420, th=280, t=createGraphics(tw,th);\n  t.colorMode(HSB,360,100,100,100); t.background(0,0,100); t.noStroke();\n  for (let i=0;i<2200;i++){\n    const rr=.4+fr(i*4.31)*1.8;\n    t.fill(30, 8, 100-fr(i*6.77)*42, 50);\n    t.ellipse(fr(i*2.53)*tw, fr(i*3.79+5.1)*th, rr, rr);\n  }\n  S.tex = t; S.texk = tk;\n}\nblendMode(MULTIPLY); noStroke(); image(S.tex, 0, 0, width, height); blendMode(BLEND);\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

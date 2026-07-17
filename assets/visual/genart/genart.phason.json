@@ -1,0 +1,159 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.phason",
+  "kind": "genart",
+  "name": "Phason",
+  "desc": "A twelvefold dodecagonal quasicrystal of squares and 30/60-degree rhombi built live by the de Bruijn dual, drifting in perpendicular space so that phason flips keep rearranging the tiles beneath a raking light while a narrow annealing front sweeps across the plane.",
+  "tags": [
+    "phason",
+    "quasicrystal",
+    "quasilattice",
+    "quasiperiodic",
+    "aperiodic",
+    "dodecagonal",
+    "12-fold",
+    "twelvefold",
+    "stampfli",
+    "socolar",
+    "de-bruijn",
+    "multigrid",
+    "dual",
+    "rhombus",
+    "rhombi",
+    "tiling",
+    "tessellation",
+    "plane-division",
+    "crystallography",
+    "crystallographic",
+    "diffraction",
+    "solid-state",
+    "flip",
+    "annealing",
+    "relaxation",
+    "front",
+    "wave",
+    "geometry",
+    "geometric",
+    "mathematical",
+    "islamic",
+    "plaster",
+    "stucco",
+    "carved",
+    "muqarnas",
+    "lapis",
+    "gilt",
+    "steel",
+    "brushed-metal",
+    "xray",
+    "wireframe",
+    "riso",
+    "pigment",
+    "raking-light",
+    "chiaroscuro",
+    "engraved",
+    "hatching",
+    "austere",
+    "clinical",
+    "sacred",
+    "structure",
+    "architecture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "heavy",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light contrast + joint weight + front intensity"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.75,
+      "max": 2.2,
+      "doc": "rhombus edge vs frame (2.2 = a dozen huge tiles, 0.75 = a fine mosaic)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "engraved hatching richness inside the fat tiles"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "pan / rotation / phason / front rate"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "primary material + light hue"
+    },
+    "fold": {
+      "default": 6,
+      "min": 4,
+      "max": 7,
+      "doc": "grid families -> symmetry: 6 = 12-fold dodecagonal, 5 = 10-fold, 4 = 8-fold, 7 = 14-fold"
+    },
+    "phason": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "perpendicular-space drift rate \u2014 how often tiles flip in place"
+    },
+    "front": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness of the annealing front sweeping the plane"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "tiling centre x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "tiling centre y as canvas fraction"
+    },
+    "style": {
+      "default": "plaster",
+      "options": [
+        "plaster",
+        "lapis",
+        "steel",
+        "xray",
+        "pigment"
+      ],
+      "doc": "aesthetic: carved Islamic stucco in raking light / gilt jewel tones on lapis / cold brushed metal plate / luminous additive wireframe on black (non-representational) / flat 3-ink overprint"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "perpendicular-space phases of the grid families + grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:34+00:00",
+    "fps": 58.1,
+    "motion": 0.1296,
+    "lum": 0.497
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:34, fold:6, phason:.5, front:.55, x:.5, y:.5, style:'plaster', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst trb  = (S.tb = (S.tb||0)*.87 + (A.treble||0)*.13);\n\n// ---- de Bruijn multigrid -> dual rhombic quasilattice ---------------------\n// N line families at pi/N apart give 2N-fold symmetry: N=6 -> the 12-fold\n// dodecagonal tiling (30/60/90 rhombi), N=5 -> 10-fold, N=4 -> 8-fold.\nconst N = cl(Math.round(P.fold), 4, 7)|0;\n\n// gamma_j is the perpendicular-space coordinate. Drifting each family on its\n// OWN incommensurate rate is a phason: tiles flip in place. cam is a genuine\n// pan across the (infinite, never-repeating) tiling.\nS.pz = (S.pz||0) + dt*sp*(.010 + .085*cl(P.phason,0,1));\nS.cx = (S.cx||0) + dt*sp*(.20 + .16*Math.sin(K.t*.041));\nS.cy = (S.cy||0) + dt*sp*(.11 + .16*Math.cos(K.t*.053+1.4));\nconst rot = K.t*.0115*sp + .07*Math.sin(K.t*.0637+2.1);\n\nconst EX=[], EY=[], G=[];\nlet vox=0, voy=0;\nfor (let j=0;j<N;j++){\n  const a = Math.PI*j/N;\n  EX[j] = Math.cos(a); EY[j] = Math.sin(a);\n  G[j] = fr(j*7.13+1.9)*3.1 + S.pz*(1 + .37*fr(j*11.7+.3));\n  vox += (G[j]+.5)*EX[j]; voy += (G[j]+.5)*EY[j];\n}\n\nconst ax = cl(P.x,.15,.85)*width, ay = cl(P.y,.15,.85)*height;\nconst corner = Math.max(Math.hypot(ax,ay), Math.hypot(width-ax,ay), Math.hypot(ax,height-ay), Math.hypot(width-ax,height-ay));\n// tile count grows as Rv^2; floor the edge length so the frame is always fully\n// covered without blowing past the shape budget (Rv<=11 -> <=~570 rhombi)\nconst te = Math.max(u*.15*cl(P.scale,.75,2.2), corner/9.4);\nconst Rv = corner/te + 1.6;\n// v ~= (N/2)*p - sum (gamma_m+.5) e_m  ->  invert to find the p-disc we need\nconst pcx = 2*(S.cx + vox)/N, pcy = 2*(S.cy + voy)/N;\nconst Rp = 2*(Rv + 3.2)/N;\n\nconst TL = [], TLMAX = 3600;                               // 6 slots per tile -> 600 rhombi\nfor (let j=0;j<N && TL.length<TLMAX;j++){\n  for (let jp=j+1;jp<N && TL.length<TLMAX;jp++){\n    const cx=EX[j], cy=EY[j], dx=EX[jp], dy=EY[jp];\n    const det = cx*dy - cy*dx;\n    if (Math.abs(det) < 1e-6) continue;\n    const bj = pcx*cx + pcy*cy - G[j], bp = pcx*dx + pcy*dy - G[jp];\n    const k0 = Math.ceil(bj-Rp), k1 = Math.floor(bj+Rp);\n    const q0 = Math.ceil(bp-Rp), q1 = Math.floor(bp+Rp);\n    for (let k=k0;k<=k1 && TL.length<TLMAX;k++){\n      const a = k + G[j];\n      for (let q=q0;q<=q1 && TL.length<TLMAX;q++){\n        const b = q + G[jp];\n        const px = (a*dy - b*cy)/det, py = (cx*b - dx*a)/det;\n        const rx = px-pcx, ry = py-pcy;\n        if (rx*rx + ry*ry > Rp*Rp) continue;\n        let ox=0, oy=0;\n        for (let m=0;m<N;m++){\n          const Km = (m===j) ? k-1 : (m===jp) ? q-1 : Math.floor(px*EX[m] + py*EY[m] - G[m]);\n          ox += Km*EX[m]; oy += Km*EY[m];\n        }\n        const mx = ox + (cx+dx)*.5 - S.cx, my = oy + (cy+dy)*.5 - S.cy;\n        if (mx*mx + my*my > (Rv+1)*(Rv+1)) continue;\n        let kind = jp-j; if (kind > N-kind) kind = N-kind;\n        TL.push(ox - S.cx, oy - S.cy, j, jp, kind, Math.abs(det));\n      }\n    }\n  }\n}\n\n// ---- style tables ---------------------------------------------------------\nconst wire = (sty==='xray');\nfunction grd(){\n  if (sty==='lapis')   return [236, 74, 12];\n  if (sty==='steel')   return [206, 16, 13];\n  if (wire)            return [(H+188)%360, 60, 4];\n  if (sty==='pigment') return [46, 12, 92];\n  return [(H+8)%360, 26, 12];                                // plaster: shadowed niche\n}\n// base tone per rhombus kind (1 = thinnest)\nfunction kindTone(kind){\n  const q = (kind-1)/Math.max(1, Math.floor(N/2)-1);\n  if (sty==='lapis')   return [ (H + 4 + q*16)%360, 30 - q*16, 62 + q*30 ];\n  if (sty==='steel')   return [ 206 + q*10, 8 + q*5, 36 + q*24 ];\n  if (wire)            return [ (H + 150 + q*70)%360, 40, 96 ];\n  if (sty==='pigment') return [ [352, 205, 46][kind % 3], 62, 84 ];\n  return [ (H + 2 + q*10)%360, 20 - q*6, 46 + q*24 ];        // plaster\n}\n\n// ---- ground ---------------------------------------------------------------\nconst gc = grd(); noStroke(); background(gc[0], gc[1], gc[2]);\n\n// ---- orbiting raking light + the annealing front --------------------------\nconst lang = K.t*.083*sp + .5*Math.sin(K.t*.0311);\nconst lgx = Math.cos(lang), lgy = Math.sin(lang);\nconst plx = (.5 + .27*Math.sin(K.t*.061+.3))*width, ply = (.5 + .24*Math.cos(K.t*.047+2.2))*height;\nconst fdir = K.t*.037*sp + 1.1;\nconst fnx = Math.cos(fdir), fny = Math.sin(fdir);\nconst fw = cl(P.front,0,1)*(.65+.5*lift);\n\npush(); translate(ax, ay); rotate(rot);\nstrokeJoin(ROUND);\nconst jw = (u/900)*(.5 + 2.2*(1-cl(P.density,0,1))*.35 + 1.1*en);\nconst hatch = cl(P.density,0,1) > .18 && TL.length < 2520;  // budget: hatch only while the rhombi are big enough to read\n\nfor (let i=0;i<TL.length;i+=6){\n  const ox=TL[i], oy=TL[i+1], j=TL[i+2], jp=TL[i+3], kind=TL[i+4], ar=TL[i+5];\n  const e0x=EX[j], e0y=EY[j], e1x=EX[jp], e1y=EY[jp];\n  const cxm = ox + (e0x+e1x)*.5, cym = oy + (e0y+e1y)*.5;\n\n  // flat shade: long diagonal against the orbiting light\n  let dgx = e0x+e1x, dgy = e0y+e1y;\n  const dl = Math.hypot(dgx,dgy) || 1; dgx/=dl; dgy/=dl;\n  const lam = Math.abs(dgx*lgx + dgy*lgy);\n  // annealing front: a narrow travelling band of relaxation\n  const wv = Math.sin((cxm*fnx + cym*fny)*.44 - K.t*1.09*sp) * .5 + .5;\n  const fq = fw * Math.pow(wv, 4) * (.6 + .55*bass);\n  const t0 = kindTone(kind);\n  const sh = (.34 + .60*lam) * (.62 + .5*en) + fq*.85 + .10*Math.sin(cxm*.7+cym*.5);\n\n  const X0=ox*te, Y0=oy*te, X1=(ox+e0x)*te, Y1=(oy+e0y)*te;\n  const X2=(ox+e0x+e1x)*te, Y2=(oy+e0y+e1y)*te, X3=(ox+e1x)*te, Y3=(oy+e1y)*te;\n\n  if (wire) {\n    noFill();\n    stroke(t0[0], t0[1], cl(t0[2]*(.30+.62*sh+.3*trb),0,100), cl(26 + 52*sh, 8, 92));\n    strokeWeight(jw*(.7+1.1*sh));\n    quad(X0,Y0,X1,Y1,X2,Y2,X3,Y3);\n    if (hatch && kind >= 2) {\n      stroke(t0[0], t0[1], t0[2], cl(10+26*sh,0,60)); strokeWeight(jw*.5);\n      line((X0+X1)*.5, (Y0+Y1)*.5, (X2+X3)*.5, (Y2+Y3)*.5);\n    }\n  } else {\n    fill(t0[0], cl(t0[1]*(1.18-.35*sh),0,100), cl(t0[2]*(.30 + .78*sh), 2, 100));\n    stroke(gc[0], cl(gc[1]*1.2,0,100), cl(gc[2]*(.5 + .5*(1-en)), 0, 100), 74);\n    strokeWeight(jw);\n    quad(X0,Y0,X1,Y1,X2,Y2,X3,Y3);\n    if (hatch && kind >= 2 && ar > .45) {           // engraved hatching on the fat tiles\n      const nh = 2 + ((kind*7+j)%2);\n      stroke(t0[0], cl(t0[1]+16,0,100), cl(t0[2]*(.30+.5*sh)*.62, 0, 100), 30 + 40*cl(P.density,0,1));\n      strokeWeight(jw*.55);\n      for (let h=1;h<=nh;h++){\n        const f = h/(nh+1);\n        line(X0 + (X3-X0)*f, Y0 + (Y3-Y0)*f, X1 + (X2-X1)*f, Y1 + (Y2-Y1)*f);\n      }\n    }\n  }\n}\npop();\n\n// ---- cached grain / plaster tooth ----------------------------------------\nconst tk = sty+'|'+sd;\nif (!S.tex || S.texk !== tk) {\n  const tw=440, th=290, t=createGraphics(tw,th);\n  t.colorMode(HSB,360,100,100,100); t.background(0,0,100); t.noStroke();\n  for (let i=0;i<2400;i++){\n    const rr = .4 + fr(i*4.77)*1.9;\n    t.fill(30, 8, 100 - fr(i*6.31)*46, 52);\n    t.ellipse(fr(i*2.11)*tw, fr(i*3.97+4.4)*th, rr, rr);\n  }\n  S.tex = t; S.texk = tk;\n}\nblendMode(MULTIPLY); noStroke(); image(S.tex, 0, 0, width, height); blendMode(BLEND);\n\n// ---- moving chiaroscuro: sink the plate, then relight with a wandering pool.\n// (a bare additive pool over the whole frame washes the mean luminance up past\n// the 0.5 target and toward the 0.92 ceiling -- darken first, relight second.)\nconst lw2 = 180, lh2 = cl(Math.round(180*height/Math.max(1,width)), 60, 340);\nif (!S.lg || S.lgk !== lw2+'x'+lh2) { S.lg = createGraphics(lw2, lh2); S.lg.colorMode(HSB,360,100,100,100); S.lgk = lw2+'x'+lh2; }\nconst L = S.lg;\nL.push(); L.noStroke(); L.blendMode(BLEND);\nL.background(0, 0, 100 - (24 + 30*en));\nL.blendMode(ADD);\nconst bx2 = plx/width*lw2, by2 = ply/height*lh2;\nfor (let i=0;i<9;i++){\n  const q2=i/8, rr = Math.max(lw2,lh2)*(1.24 - q2*.96);\n  L.fill(0, 0, 100, (6 + 7.5*en + 5*bass)*(.26 + .74*q2*q2));\n  L.ellipse(bx2, by2, rr*2, rr*2);\n}\nL.blendMode(BLEND); L.pop();\nblendMode(MULTIPLY); noStroke(); image(L, 0, 0, width, height); blendMode(BLEND);\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

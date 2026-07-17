@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.frost",
+  "kind": "fx",
+  "name": "Frost",
+  "desc": "Ice creeps in from the edges of the frame \u2014 dendrites nucleate on the border and branch inward at the real 60-degree ice angle, the growth front breathing deeper and shallower while seeded facets ignite as it sweeps over them; steer the cold pole with x/y and the frame slowly glazes over from that side.",
+  "tags": [
+    "frost",
+    "ice",
+    "icy",
+    "freeze",
+    "frozen",
+    "cold",
+    "winter",
+    "hoarfrost",
+    "rime",
+    "crystal",
+    "crystals",
+    "dendrite",
+    "dendritic",
+    "windowpane",
+    "glaze",
+    "creep",
+    "growth",
+    "edges",
+    "border",
+    "vignette",
+    "snowflake",
+    "arctic",
+    "cyan",
+    "white",
+    "eerie",
+    "austere",
+    "clinical",
+    "atmosphere",
+    "overlay",
+    "weather"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how deep the frost front reaches in from the edges + facet sparkle"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "nucleation sites / branchiness / facet count (rebuilds the sheet)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "crystal + band size vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "front breathing + facet twinkle rate"
+    },
+    "alpha": {
+      "default": 0.62,
+      "min": 0.06,
+      "max": 1,
+      "doc": "overlay opacity \u2014 drop toward 0.2 to sit politely over a busy scene"
+    },
+    "hue": {
+      "default": 195,
+      "min": 0,
+      "max": 360,
+      "doc": "ice hue (195 cyan-white, 30 sodium rime, 280 violet cold)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cold pole X \u2014 edges nearest it frost deepest"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cold pole Y \u2014 edges nearest it frost deepest"
+    },
+    "style": {
+      "default": "dendrite",
+      "options": [
+        "dendrite",
+        "hoar",
+        "etch",
+        "thermal"
+      ],
+      "doc": "aesthetic: feathered windowpane bloom / coarse needle spicules / white-on-dark stipple engraving, no glow / thermal false-colour by branch depth"
+    },
+    "act": {
+      "default": "creep",
+      "options": [
+        "creep",
+        "bloom",
+        "siege"
+      ],
+      "doc": "dramaturgy: slow breathing advance / surges with the musical arc and sublimates back / marches deep and holds, only the tips shiver"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "crystal layout"
+    }
+  },
+  "acts": [
+    "creep",
+    "bloom",
+    "siege"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:06+00:00",
+    "fps": 60.6,
+    "motion": 0.0403,
+    "lum": 0.155
+  },
+  "code": "const D = { energy:.55, density:.5, scale:1, speed:1, alpha:.62, hue:195, x:.5, y:.5, style:'dendrite', act:'creep', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'creep';\nconst isHoar=st==='hoar', isEtch=st==='etch', isTherm=st==='thermal';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// ---- seeded frost sheet, cached (rebuild on size/seed/style/density) ----\nconst dq=Math.round(clp(P.density,0,1)*8);\nconst key=W+'x'+Hh+'|'+P.seed+'|'+st+'|'+dq+'|'+md(Math.round(H),360);\nif(!S.fg||S.key!==key){\n  const bw=Math.max(320,Math.min(1100,Math.round(W))), bh=Math.max(200,Math.round(bw*Hh/W));\n  if(!S.fg||S.bw!==bw||S.bh!==bh){ S.fg=createGraphics(bw,bh); S.bw=bw; S.bh=bh; }\n  const g=S.fg, uu=Math.min(bw,bh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noFill();\n  let ctr=0; const rnd=()=>fr(++ctr*1.7+3);\n\n  // cold haze hugging the border \u2014 breaks up flat fill, gives the band body\n  g.noStroke();\n  const steps=30, band=uu*0.46;\n  for(let i=0;i<steps;i++){\n    const f=i/steps, inset=f*band;\n    const a=(1-f)*(1-f)*(isEtch?7:isTherm?9:13);\n    g.fill(isTherm?md(H+150,360):md(H+6,360), isEtch?4:isTherm?60:22, isEtch?86:isTherm?46:92, a);\n    g.rect(inset,inset,bw-inset*2,bh-inset*2);\n  }\n\n  // dendrites nucleating on the border and growing inward (hexagonal ice habit)\n  const sites=Math.round(lrp(26,96,clp(P.density,0,1)));\n  const per=2*(bw+bh);\n  const grow=(x,y,ang,len,dep,w)=>{\n    if(dep<0||len<uu*0.006) return;\n    const segs=isHoar?4:6; let px=x,py=y,a=ang;\n    for(let i=0;i<segs;i++){\n      a+=(rnd()-0.5)*(isHoar?0.10:0.26);\n      const sl=len/segs, nx=px+Math.cos(a)*sl, ny=py+Math.sin(a)*sl;\n      const f=i/segs;\n      if(isTherm){ g.stroke(md(H+150-dep*46-f*44,360), 74, lrp(52,100,f*0.5+dep*0.2), 76); }\n      else if(isEtch){ g.stroke(md(H,360), 5, 88, lrp(70,26,f)); }\n      else { g.stroke(md(H+lrp(-6,10,f),360), isHoar?9:18, lrp(88,100,f), lrp(58,88,f)); }\n      g.strokeWeight(Math.max(0.4,w*(1-f*0.5)));\n      g.line(px,py,nx,ny);\n      if(!isEtch&&dep>=1&&i===1){ // soft crystal bloom on the trunk only (few shapes)\n        g.drawingContext.shadowBlur=uu*0.012; g.drawingContext.shadowColor='rgba(210,240,255,0.5)';\n        g.line(px,py,nx,ny); g.drawingContext.shadowBlur=0;\n      }\n      if(dep>=1&&i%2===1){\n        const sg=rnd()>0.5?1:-1, br=Math.PI/3; // 60\u00b0 \u2014 real ice branching angle\n        grow(nx,ny,a+sg*br,len*(isHoar?0.30:0.46),dep-1,w*0.6);\n        grow(nx,ny,a-sg*br,len*(isHoar?0.26:0.36),dep-1,w*0.52);\n      }\n      px=nx; py=ny;\n    }\n    if(isEtch){ // stipple the branch axis \u2014 engraving texture instead of bloom\n      g.noStroke(); g.fill(md(H,360),4,92,40);\n      for(let k=0;k<5;k++){ const f2=rnd(); g.circle(lrp(x,px,f2)+(rnd()-0.5)*uu*0.01, lrp(y,py,f2)+(rnd()-0.5)*uu*0.01, uu*0.0022); }\n      g.noFill();\n    }\n  };\n  for(let i=0;i<sites;i++){\n    const d=rnd()*per; let x,y,na;\n    if(d<bw){ x=d; y=0; na=Math.PI/2; }\n    else if(d<bw+bh){ x=bw; y=d-bw; na=Math.PI; }\n    else if(d<2*bw+bh){ x=bw-(d-bw-bh); y=bh; na=-Math.PI/2; }\n    else { x=0; y=bh-(d-2*bw-bh); na=0; }\n    grow(x,y,na+(rnd()-0.5)*0.9, uu*lrp(0.10,0.30,rnd())*(isHoar?0.7:1), isHoar?1:2, uu*lrp(0.0016,0.0042,rnd()));\n  }\n  S.key=key;\n}\n\n// ---- the growth front: creeps in and back on incommensurate real-time rates ----\nlet envD=1, envG=1;\nif(act==='bloom'){ envD=0.62+0.75*K.intensity; envG=1.25; }\nelse if(act==='siege'){ envD=1.42; envG=0.8; }\nconst breathe=0.58*Math.sin(K.t*0.113*P.speed)+0.27*Math.sin(K.t*0.291*P.speed+1.9)+0.15*Math.sin(K.t*0.047*P.speed+0.4);\nconst en=clp(P.energy,0,1);\nconst dep0=u*(0.05+0.38*en)*P.scale*envD*(0.80+0.20*breathe+0.10*A.bass);\nconst px0=P.x*W, py0=P.y*Hh, diag=Math.hypot(W,Hh);\nconst NS=112, per=2*(W+Hh), pts=[];\nfor(let i=0;i<NS;i++){\n  const s=i/NS, d=s*per; let x,y,nx,ny,ce;\n  if(d<W){ x=d; y=0; nx=0; ny=1; ce=Math.min(d,W-d); }\n  else if(d<W+Hh){ const q=d-W; x=W; y=q; nx=-1; ny=0; ce=Math.min(q,Hh-q); }\n  else if(d<2*W+Hh){ const q=d-W-Hh; x=W-q; y=Hh; nx=0; ny=-1; ce=Math.min(q,W-q); }\n  else { const q=d-2*W-Hh; x=0; y=Hh-q; nx=1; ny=0; ce=Math.min(q,Hh-q); }\n  // travelling wobble \u2014 three incommensurate K.t rates so the line never re-phases\n  const ph=fr(i*2.3+11)*6.283;\n  const wob=0.52*Math.sin(s*6.283*11+K.t*0.19*P.speed+ph)\n           +0.30*Math.sin(s*6.283*23-K.t*0.31*P.speed+ph*0.7)\n           +0.18*Math.sin(s*6.283*37+K.t*0.53*P.speed);\n  const corner=1+0.95*Math.exp(-ce/(0.15*u));\n  const pull=0.58+0.86*clp(1-Math.hypot(x-px0,y-py0)/(0.80*diag),0,1);\n  // clamp: the front must never cross the middle, or the ring polygon inverts under evenodd\n  const room=(nx===0?Hh:W)*0.47;\n  const dep=Math.min(dep0*corner*pull*(0.60+0.44*wob), room);\n  pts.push([x+nx*dep, y+ny*dep]);\n}\n\n// ---- composite: frost sheet revealed only inside the wobbling front ----\nconst al=clp(P.alpha,0,1);\ndrawingContext.save();\ndrawingContext.beginPath();\ndrawingContext.rect(0,0,W,Hh);\ndrawingContext.moveTo(pts[0][0],pts[0][1]);\nfor(let i=1;i<NS;i++) drawingContext.lineTo(pts[i][0],pts[i][1]);\ndrawingContext.closePath();\ndrawingContext.clip('evenodd');\nif(isTherm) blendMode(ADD);\ntint(0,0,100,al*100); image(S.fg,0,0,W,Hh); noTint();\nblendMode(BLEND);\n\n// facet glints \u2014 seeded crystal positions that ignite as the front sweeps over them\nconst ng=Math.round(lrp(18,60,clp(P.density,0,1)));\nnoStroke();\nfor(let i=0;i<ng;i++){\n  const gx=fr(i*5.1+70)*W, gy=fr(i*5.1+71)*Hh;\n  const tw=0.5+0.5*Math.sin(K.t*(1.1+fr(i*5.1+72)*2.6)*P.speed+fr(i*5.1+73)*6.283);\n  const sp=(tw*tw)*(0.34+0.66*en)*al*envG*(1+A.treble*0.9+K.pulse*0.3);\n  if(sp<0.04) continue;\n  const r=u*0.004*P.scale*(0.5+fr(i*5.1+74)*1.3);\n  fill(isTherm?md(H+120,360):md(H+4,360), isEtch?3:14, 100, 30+52*sp);\n  circle(gx,gy,r*(1.4+2.2*sp));\n  stroke(md(H+4,360),8,100,26+40*sp); strokeWeight(Math.max(0.4,r*0.28));\n  line(gx-r*2.4*sp,gy,gx+r*2.4*sp,gy); line(gx,gy-r*2.4*sp,gx,gy+r*2.4*sp);\n  noStroke();\n}\ndrawingContext.restore();\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

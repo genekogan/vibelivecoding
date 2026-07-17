@@ -1,0 +1,170 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "fx.windblown_paper",
+ "kind": "fx",
+ "name": "Windblown Paper",
+ "desc": "Loose paper and polythene running before the wind across an empty lot — whole newspaper sheets and carrier bags tumble edge over edge, going nearly invisible as they turn side-on and blazing white as they come face-up to the light, flapping and bowing while they go, with torn scraps skittering along the ground line and a gust front coming through every so often to loft the lot of it.",
+ "tags": [
+  "paper",
+  "newspaper",
+  "newsprint",
+  "broadsheet",
+  "sheet",
+  "sheets",
+  "litter",
+  "rubbish",
+  "trash",
+  "detritus",
+  "carrier bag",
+  "plastic bag",
+  "polythene",
+  "polyethylene",
+  "bag",
+  "cardboard",
+  "flyer",
+  "leaflet",
+  "poster",
+  "wind",
+  "windblown",
+  "windswept",
+  "gust",
+  "gale",
+  "blowing",
+  "tumble",
+  "tumbling",
+  "flutter",
+  "flap",
+  "flapping",
+  "loft",
+  "updraft",
+  "thermal",
+  "vortex",
+  "dust devil",
+  "scud",
+  "street",
+  "lot",
+  "car park",
+  "urban",
+  "city",
+  "alley",
+  "backlot",
+  "empty",
+  "desolate",
+  "derelict",
+  "liminal",
+  "melancholy",
+  "eerie",
+  "wistful",
+  "grimy",
+  "documentary",
+  "cinematic",
+  "chronophotography",
+  "marey",
+  "motion study",
+  "wireframe",
+  "backlit",
+  "silhouette",
+  "grey",
+  "overlay",
+  "atmosphere",
+  "fx",
+  "effect",
+  "composite",
+  "particles",
+  "parallax"
+ ],
+ "slots": [
+  "fxA",
+  "fxB"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "wind force — how hard the sheets tumble and how high the gusts loft them, plus grit-veil density"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.4,
+   "max": 2.2,
+   "doc": "sheet size vs design size — 2.2 puts broadsheets right against the lens"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "how much is loose out there (4–16 sheets, 12–90 scraps)"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.1,
+   "max": 4,
+   "doc": "advection + tumble + gust rate multiplier"
+  },
+  "wind": {
+   "default": 0.7,
+   "min": -1,
+   "max": 1,
+   "doc": "wind direction and strength — negative blows it the other way"
+  },
+  "alpha": {
+   "default": 0.85,
+   "min": 0.05,
+   "max": 1,
+   "doc": "overall overlay opacity"
+  },
+  "hue": {
+   "default": 42,
+   "min": 0,
+   "max": 360,
+   "doc": "paper tone — dirty newsprint cream by default"
+  },
+  "x": {
+   "default": 0.5,
+   "min": -0.2,
+   "max": 1.2,
+   "doc": "where the light is, so you can tell which sheets are catching it"
+  },
+  "y": {
+   "default": 0.82,
+   "min": -0.2,
+   "max": 1.2,
+   "doc": "the ground line the paper skitters along and lofts up from"
+  },
+  "style": {
+   "default": "newsprint",
+   "options": [
+    "newsprint",
+    "polythene",
+    "backlit",
+    "chronograph"
+   ],
+   "doc": "aesthetic — newsprint: grubby broadsheet with column rules and halftone blocks showing as it turns · polythene: translucent bag film with a hard specular skating over the crinkle · backlit: no interior at all, just luminous translucent forms against the light · chronograph: a Marey motion study — wireframe outline, four fading ghosts of where it just was, and a velocity vector"
+  },
+  "act": {
+   "default": "scud",
+   "options": [
+    "scud",
+    "gust",
+    "vortex"
+   ],
+   "doc": "multi-minute programme — scud: a steady wind walking it across · gust: fronts arrive and loft everything at once · vortex: a slow wandering whirl catches the lot and turns it in a spiral"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "sheet shapes, tumble rates, depths, print layout (int)"
+  }
+ },
+ "acts": [
+  "scud",
+  "gust",
+  "vortex"
+ ],
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy:.6, scale:1, density:.5, speed:1, wind:.7, alpha:.85, hue:42, x:.5, y:.82, style:'newsprint', act:'scud', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst rgbs=(h,s,v,a)=>{const H2=md(h,360)/60,S2=clp(s,0,1),V2=clp(v,0,1);const c=V2*S2,x=c*(1-Math.abs(H2%2-1)),m=V2-c;let r=0,g=0,b=0;\n  if(H2<1){r=c;g=x;}else if(H2<2){r=x;g=c;}else if(H2<3){g=c;b=x;}else if(H2<4){g=x;b=c;}else if(H2<5){r=x;b=c;}else{r=c;b=x;}\n  return 'rgba('+(((r+m)*255)|0)+','+(((g+m)*255)|0)+','+(((b+m)*255)|0)+','+clp(a,0,1).toFixed(3)+')';};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'scud';\nconst isPly=st==='polythene', isBkl=st==='backlit', isChr=st==='chronograph';\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sc=clp(P.scale,0.4,2.2), sp=clp(P.speed,0.1,4);\nconst wd=clp(P.wind,-1,1), sgn=wd<0?-1:1, wm=Math.abs(wd)*0.85+0.15;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst MAXS=16, MAXC=90;\nif(S.seedUsed!==P.seed||!S.sh){\n  S.seedUsed=P.seed;\n  S.sh=[];\n  for(let i=0;i<MAXS;i++){\n    const nv=8;\n    const rr=[];\n    for(let j=0;j<nv;j++) rr.push(0.80+fr(i*97+j*17+5)*0.42);\n    S.sh.push({\n      d: fr(i*3+1),                                  // depth: sets size, speed, alpha\n      x0: fr(i*5+2), y0: fr(i*7+3),\n      yaw0: fr(i*11+4)*6.2832, p0: fr(i*13+5)*6.2832,\n      yr: (0.28+fr(i*17+6)*0.62)*(fr(i*19+7)>0.5?1:-1),   // tumble rates, all incommensurate\n      pr: (0.41+fr(i*23+8)*0.93)*(fr(i*29+9)>0.5?1:-1),\n      wr: 0.19+fr(i*31+10)*0.44,\n      br: 1.7+fr(i*37+11)*2.9,                        // flap (Strouhal-ish, fast)\n      lr: 0.13+fr(i*41+12)*0.29,\n      lift: 0.25+fr(i*43+13)*0.75,\n      ph: fr(i*47+14)*6.2832,\n      tone: 0.62+fr(i*53+15)*0.38,\n      cols: 2+Math.floor(fr(i*59+16)*4),\n      nv: nv, rr: rr\n    });\n  }\n  S.cf=[];\n  for(let i=0;i<MAXC;i++) S.cf.push({\n    d: fr(i*61+21), x0: fr(i*67+22), y0: fr(i*71+23),\n    r: 0.004+Math.pow(fr(i*73+24),2)*0.020,\n    yr: (0.9+fr(i*79+25)*3.1)*(fr(i*83+26)>0.5?1:-1),\n    lr: 0.21+fr(i*89+27)*0.71, lift: 0.15+fr(i*101+28)*0.6, ph: fr(i*103+29)*6.2832\n  });\n}\nconst t=K.t*sp;\n\n// ---- gust programme: real-time envelopes, incommensurate, never beat-locked ----\nconst base=0.52+0.26*Math.sin(t*0.071+0.6)+0.14*Math.sin(t*0.163+2.3)+0.08*Math.sin(t*0.317);\nlet gust=base, vort=0, vx0=0.5, vy0=0.5;\nif(act==='gust'){ gust=0.34+1.15*Math.pow(clp(0.5+0.5*Math.sin(t*0.053+1.1),0,1),2.6)+0.16*Math.sin(t*0.29); }\nelse if(act==='vortex'){\n  gust=0.42+0.4*base;\n  vort=0.55+0.45*Math.sin(t*0.037+0.8);\n  vx0=0.5+0.34*Math.sin(t*0.043)+0.12*Math.sin(t*0.113+1.9);\n  vy0=clp(P.y,-0.2,1.2)-0.28+0.10*Math.sin(t*0.067+2.2);\n}\nconst arc=0.72+0.55*K.intensity;\nconst G=gust*arc*(0.42+0.85*en)*(1+A.bass*0.25);\nconst nS=Math.max(2,Math.round(lrp(4,MAXS,dn)));\nconst nC=Math.round(lrp(12,MAXC,dn));\nconst gy=clp(P.y,-0.2,1.2), lxf=clp(P.x,-0.2,1.2);\n\n// ---- the gust veil: broad grit sweeping with the front, an accent under the sheets ----\nblendMode(ADD);\n{\n  const gp=frc(t*0.061*wm+0.2)*1.5-0.25;\n  const gxp=(sgn>0?gp:1-gp)*W, gw=W*(0.20+0.34*clp(G,0,1.4));\n  const gc=rgbs(H-4, isBkl?0.10:0.34, 1, 1);\n  const ga=clp(0.135*al*(0.3+0.85*en)*(0.4+0.7*clp(G,0,1.4)),0,0.26);\n  const gr=drawingContext.createLinearGradient(gxp-gw,0,gxp+gw,0);\n  gr.addColorStop(0,gc.replace(/[\\d.]+\\)$/,'0)'));\n  gr.addColorStop(0.5,gc.replace(/[\\d.]+\\)$/,ga.toFixed(3)+')'));\n  gr.addColorStop(1,gc.replace(/[\\d.]+\\)$/,'0)'));\n  drawingContext.fillStyle=gr;\n  drawingContext.fillRect(0,0,W,Hh);\n  // a low band of streaming grit along the ground line\n  const bh2=Hh*0.30;\n  const br2=drawingContext.createLinearGradient(0,gy*Hh-bh2,0,gy*Hh+bh2*0.4);\n  const ba=clp(0.105*al*(0.3+0.8*en)*(0.5+0.6*clp(G,0,1.4)),0,0.21);\n  br2.addColorStop(0,gc.replace(/[\\d.]+\\)$/,'0)'));\n  br2.addColorStop(0.75,gc.replace(/[\\d.]+\\)$/,ba.toFixed(3)+')'));\n  br2.addColorStop(1,gc.replace(/[\\d.]+\\)$/,(ba*0.4).toFixed(3)+')'));\n  drawingContext.fillStyle=br2;\n  drawingContext.fillRect(0,Math.max(0,gy*Hh-bh2),W,bh2*1.4);\n}\nblendMode(BLEND);\n\nconst place=(o,spdK,liftK)=>{\n  const d=o.d;\n  let px, py;\n  if(act==='vortex'&&vort>0.05){\n    const orb=0.9+d*0.6, om=(0.09+d*0.16)*sp*(0.5+wm);\n    const a2=o.ph+t*om*sgn;\n    const rr=(0.10+0.30*frc(o.x0+t*0.013))*orb*vort;\n    px=(vx0+Math.cos(a2)*rr*(W>Hh?1:0.7))*W;\n    py=(vy0+Math.sin(a2)*rr*0.62)*Hh;\n  } else {\n    const v=lrp(0.030,0.115,d)*wm*spdK*sgn;\n    px=(frc(o.x0+v*t)*1.3-0.15)*W;\n    const yb=gy-lrp(0.02,0.15,d);\n    const lift=G*o.lift*liftK*(0.5+0.5*Math.sin(t*o.lr+o.ph))+0.06*Math.sin(t*o.lr*2.7+o.ph);\n    py=(yb-lift*0.62+ (o.y0-0.5)*0.10)*Hh;\n  }\n  return [px,py,d];\n};\n\n// ---- torn scraps: fine detail riding on the sheets, never carrying the read ----\nblendMode(isChr?BLEND:ADD);\nnoStroke();\nfor(let i=0;i<nC;i++){\n  const c=S.cf[i];\n  const pp=place(c,1.25,1.15);\n  if(pp[0]<-30||pp[0]>W+30) continue;\n  const fxq=Math.abs(Math.cos(c.ph+t*c.yr))*0.85+0.15;\n  const rad=c.r*u*sc*(0.5+pp[2]);\n  const aa=clp((isChr?34:22+58*fxq)*al*lrp(0.45,1,pp[2]),0,72);\n  fill(H+lrp(-6,8,fxq), isBkl?6:isPly?5:14, lrp(48,100,fxq), aa);\n  push(); translate(pp[0],pp[1]); rotate(c.ph+t*c.yr*0.6); scale(1,clp(fxq,0.12,1));\n  rect(-rad,-rad*0.7,rad*2,rad*1.4);\n  pop();\n}\nblendMode(BLEND);\n\n// ---- the sheets: big bodies that cross the whole frame — THIS is the area element ----\nfor(let i=0;i<nS;i++){\n  const s=S.sh[i];\n  const pp=place(s,1,1);\n  const px=pp[0], py=pp[1], d=pp[2];\n  const size=u*lrp(0.075,0.26,d)*sc;\n  if(px<-size*2||px>W+size*2||py<-size*2||py>Hh+size*2) continue;\n  const pitch=s.p0+t*s.pr*(0.35+wm*0.9)*(0.5+0.8*en);\n  const fxq=Math.abs(Math.cos(pitch));                 // foreshortening: edge-on sheets nearly vanish\n  const sq=clp(fxq,0.05,1);\n  const spin=s.yaw0+t*s.yr*(0.3+wm*0.7)*(0.4+0.8*en);\n  const flap=Math.sin(t*s.br*(0.4+0.9*wm)+s.ph);\n  // light: face-on to the source catches it, edge-on does not\n  const toL=Math.atan2(gy*Hh-0.4*Hh-py, lxf*W-px);\n  const face=clp(0.22+0.78*fxq*(0.55+0.45*Math.cos(spin-toL)),0,1);\n  const aBase=lrp(0.55,1,d)*al;\n  push();\n  translate(px,py);\n  rotate(spin*0.42+0.35*flap);\n  scale(1,sq);\n  const hw=size*0.62, hh2=size*0.46;\n  let hh3,ss3,vv3,aa3;\n  if(isPly){ hh3=H+lrp(150,168,face); ss3=lrp(0.16,0.03,face); vv3=lrp(0.42,1,Math.pow(face,0.6)); aa3=lrp(30,72,face)*aBase; }\n  else if(isBkl){ hh3=H+lrp(-8,16,face); ss3=lrp(0.30,0.06,face); vv3=lrp(0.30,1,Math.pow(face,0.5)); aa3=lrp(38,88,face)*aBase; }\n  else if(isChr){ hh3=H+178; ss3=0.55; vv3=0.95; aa3=0; }\n  else { hh3=H+lrp(-4,6,face); ss3=lrp(0.20,0.05,face)*s.tone; vv3=lrp(0.34,0.99,Math.pow(face,0.72))*s.tone; aa3=lrp(52,94,face)*aBase; }\n  if(isChr){\n    // Marey motion study: the sheet's recent history as fading outlines + a velocity vector\n    noFill();\n    for(let k=3;k>=0;k--){\n      const kk=k*0.055;\n      push(); translate(-sgn*hw*2.1*kk*(0.4+wm), hh2*0.5*kk*flap); rotate(-s.yr*kk*2.2);\n      stroke(H+178,52,96,clp((72-k*17)*aBase,0,80)); strokeWeight(Math.max(0.5,u*0.0013*(1-k*0.18)));\n      beginShape();\n      for(let j=0;j<=s.nv;j++){ const a2=j/s.nv*6.2832; vertex(Math.cos(a2)*hw*s.rr[j%s.nv],Math.sin(a2)*hh2*s.rr[j%s.nv]); }\n      endShape(CLOSE);\n      pop();\n    }\n    stroke(H+150,70,100,clp(80*aBase,0,86)); strokeWeight(Math.max(0.8,u*0.0018));\n    line(0,0,sgn*hw*1.5*(0.4+wm),-hh2*0.5*flap);\n    noStroke();\n  } else {\n    blendMode(ADD);\n    noStroke();\n    fill(hh3,ss3*100,vv3*100,clp(aa3,0,94));\n    beginShape();\n    for(let j=0;j<=s.nv+2;j++){\n      const a2=(j%s.nv)/s.nv*6.2832;\n      const bow=1+0.16*Math.sin(a2*2+flap*1.7)+0.09*Math.sin(a2*3-t*s.br*0.3);\n      curveVertex(Math.cos(a2)*hw*s.rr[j%s.nv]*bow, Math.sin(a2)*hh2*s.rr[j%s.nv]*bow);\n    }\n    endShape(CLOSE);\n    // the crease: a bright fold catching the light down the middle of every sheet\n    stroke(hh3,ss3*60,Math.min(100,vv3*128),clp(aa3*0.7,0,72));\n    strokeWeight(Math.max(0.5,u*0.0016*sc*(0.4+d)));\n    noFill();\n    beginShape();\n    for(let j=0;j<=4;j++){ const f=j/4; vertex(lrp(-hw*0.9,hw*0.9,f), Math.sin(f*3.1416+flap)*hh2*0.42); }\n    endShape();\n    noStroke();\n    if(isPly){\n      // polythene: a hard specular streak that skates across the crinkle\n      fill(H+160,3,100,clp(aa3*0.85,0,74));\n      push(); rotate(0.5*flap); rect(-hw*0.5,-hh2*(0.08+0.06*fxq),hw*1.0,hh2*0.10); pop();\n    } else if(!isBkl){\n      // newsprint: column rules and a halftone block, so it reads as a printed page\n      stroke(H-6,16,lrp(20,54,face),clp(aa3*0.5,0,44));\n      strokeWeight(Math.max(0.4,u*0.0008*sc));\n      for(let c2=1;c2<s.cols;c2++){ const cx=lrp(-hw*0.72,hw*0.72,c2/s.cols); line(cx,-hh2*0.62,cx,hh2*0.62); }\n      noStroke();\n      fill(H-8,12,lrp(18,50,face),clp(aa3*0.42,0,40));\n      rect(-hw*0.66,-hh2*0.52,hw*0.5,hh2*0.34);\n      rect(hw*0.10,hh2*0.06,hw*0.52,hh2*0.30);\n    }\n    blendMode(BLEND);\n  }\n  pop();\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint();"
+}

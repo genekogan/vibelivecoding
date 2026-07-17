@@ -1,0 +1,123 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.fireflies",
+  "kind": "genart",
+  "name": "Firefly Synchrony",
+  "desc": "A meadow swarm of pulse-coupled firefly oscillators that drift and twinkle at random then spontaneously entrain into unison waves of amber-green bloom, sync converging and breaking as coupling breathes across the arc.",
+  "tags": [
+    "fireflies",
+    "firefly",
+    "synchrony",
+    "synchronization",
+    "kuramoto",
+    "mirollo-strogatz",
+    "oscillators",
+    "emergence",
+    "swarm",
+    "meadow",
+    "night",
+    "bioluminescence",
+    "glow",
+    "bloom",
+    "amber",
+    "green",
+    "particles",
+    "twinkle",
+    "insects",
+    "summer",
+    "field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "organic",
+    "ambient"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "firefly count / swarm richness"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "flash brightness & bloom size"
+    },
+    "coupling": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Mirollo-Strogatz sync strength (0=chaos twinkle, 1=lockstep pulse)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "blink & drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "firefly / glow size"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "palette rotation (45=amber anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0.5,
+      "max": 0.97,
+      "doc": "horizon / grass line height"
+    },
+    "style": {
+      "default": "meadow",
+      "options": [
+        "meadow",
+        "cyan-swarm",
+        "ember",
+        "spectral",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic swarm layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:34:53+00:00",
+    "fps": 29.7,
+    "motion": 0.1363,
+    "lum": 0.113
+  },
+  "code": "const D = { density: .55, energy: .6, coupling: .5, speed: 1, scale: 1, hue: 45, x: .5, y: .8, style: 'meadow', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst MAXN = 500;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- rebuild swarm on seed change ----\nif (S.seedUsed !== P.seed || !S.fx) {\n  S.seedUsed = P.seed;\n  S.fx = new Float32Array(MAXN);   // x in 0..1\n  S.ay = new Float32Array(MAXN);   // air-normalized y 0..1 (mapped under horizon each frame)\n  S.vx = new Float32Array(MAXN);\n  S.vy = new Float32Array(MAXN);\n  S.ph = new Float32Array(MAXN);   // oscillator phase\n  S.fq = new Float32Array(MAXN);   // natural frequency (cycles/sec)\n  S.hu = new Float32Array(MAXN);   // per-firefly hue jitter 0..1\n  for (let i = 0; i < MAXN; i++) {\n    S.fx[i] = fr(i * 4 + 1);\n    S.ay[i] = Math.pow(fr(i * 4 + 2), 0.7);            // bias toward lower air (near grass)\n    S.vx[i] = (fr(i * 4 + 3) - 0.5) * 0.02;\n    S.vy[i] = (fr(i * 4 + 11) - 0.5) * 0.010;\n    S.ph[i] = fr(i * 7 + 5);\n    S.fq[i] = 0.42 + fr(i * 7 + 6) * 0.34;              // 0.42..0.76 Hz\n    S.hu[i] = fr(i * 7 + 9);\n  }\n  S.coup = P.coupling;\n}\n\n// ---- soft glow sprite (size-independent, build once) ----\nif (!S.spr) {\n  const SZ = 64, sp = createGraphics(SZ, SZ);\n  sp.pixelDensity(1); sp.colorMode(HSB, 360, 100, 100, 100); sp.clear(); sp.noStroke();\n  for (let r = SZ / 2; r > 0; r -= 1) {\n    const t = 1 - r / (SZ / 2);\n    sp.fill(0, 0, 100, Math.pow(t, 2.2) * 95);\n    sp.circle(SZ / 2, SZ / 2, r * 2);\n  }\n  S.spr = sp;\n}\n\n// ---- background gradient + grass silhouette (cached, size/style/hue/horizon keyed) ----\nconst hz = Math.max(0.45, Math.min(0.97, P.y));\nif (!S.bg || S.bg.width !== width || S.bg.height !== height) { S.bg = createGraphics(width, height); S.bgKey = ''; }\nconst bgKey = width + 'x' + height + '|' + P.style + '|' + Math.round(P.hue) + '|' + Math.round(hz * 24) + '|' + P.seed;\nif (S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const g = S.bg; g.pixelDensity(1); g.colorMode(HSB, 360, 100, 100, 100); g.noStroke();\n  const st = P.style;\n  let topC, horC, groundC, glowC, bladeC, hasGrass = true;\n  if (st === 'cyan-swarm')      { topC=[206,82,7];  horC=[190,68,17]; groundC=[200,55,6]; glowC=[185,70,20]; bladeC=[195,45,8]; hasGrass=false; }\n  else if (st === 'ember')      { topC=[250,42,6];  horC=[22,58,15];  groundC=[16,55,5];  glowC=[28,70,22];  bladeC=[26,45,7]; }\n  else if (st === 'spectral')   { topC=[244,60,4];  horC=[262,52,11]; groundC=[250,45,4]; glowC=[280,45,14]; bladeC=[250,35,6]; hasGrass=false; }\n  else if (st === 'mono')       { topC=[220,22,7];  horC=[218,14,18]; groundC=[220,12,6]; glowC=[215,10,20]; bladeC=[220,10,8]; }\n  else /* meadow */             { topC=[224,74,9];  horC=[208,54,20]; groundC=[150,45,7]; glowC=[46,55,20];  bladeC=[112,52,9]; }\n  const hshift = (P.hue - 45);\n  const rot = a => [ (a[0] + hshift * 0.15 + 360) % 360, a[1], a[2] ];\n  topC = rot(topC); horC = rot(horC); groundC = rot(groundC); glowC = rot(glowC); bladeC = rot(bladeC);\n  const hy = hz * height;\n  // sky gradient top -> horizon\n  for (let y = 0; y < hy; y += 2) {\n    const f = y / Math.max(1, hy);\n    g.fill(topC[0]+(horC[0]-topC[0])*f, topC[1]+(horC[1]-topC[1])*f, topC[2]+(horC[2]-topC[2])*f);\n    g.rect(0, y, width, 2.2);\n  }\n  // horizon glow band (additive light bleed)\n  g.push(); g.blendMode(ADD); g.noStroke();\n  for (let k = 0; k < 5; k++) {\n    g.fill(glowC[0], glowC[1], glowC[2], 12 - k * 2);\n    g.ellipse(width * 0.5, hy, width * (1.1 - k * 0.13), height * (0.28 - k * 0.04));\n  }\n  g.pop();\n  // ground below horizon\n  for (let y = hy; y < height; y += 2) {\n    const f = (y - hy) / Math.max(1, height - hy);\n    g.fill(groundC[0], groundC[1], groundC[2] * (1 - f * 0.55));\n    g.rect(0, y, width, 2.2);\n  }\n  // grass blade silhouette along the horizon\n  if (hasGrass) {\n    g.noStroke();\n    const nb = Math.floor(width / 7);\n    for (let b = 0; b < nb; b++) {\n      const gx = (b + fr(b * 3 + 40) * 0.9) / nb * width;\n      const bh = (0.02 + fr(b * 3 + 41) * 0.07) * height;\n      const lean = (fr(b * 3 + 42) - 0.5) * bh * 0.6;\n      const w = 1.2 + fr(b * 3 + 43) * 2.2;\n      const v = bladeC[2] * (0.6 + fr(b * 3 + 44) * 0.8);\n      g.fill(bladeC[0], bladeC[1], v);\n      g.beginShape();\n      g.vertex(gx - w, hy + 4); g.vertex(gx + w, hy + 4);\n      g.vertex(gx + lean, hy - bh);\n      g.endShape(CLOSE);\n    }\n  }\n}\n\n// ---- time delta (real-time motion floor from K.t; tolerate resets) ----\nif (S.lastT == null || K.t < S.lastT || K.t - S.lastT > 0.5) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (dt <= 0) dt = 1 / Math.max(24, K.fps || 60);\ndt = Math.min(dt, 0.08);\n\n// ---- coupling arc: breathe between sync and chaos across the section arc ----\nconst sec = K.section || 0;\nconst arc = 0.5 + 0.5 * Math.sin(K.t * 0.045 + sec * 0.9 + (0.5 + K.intensity));\nconst targetCoup = P.coupling * (0.08 + 0.92 * arc);\nS.coup += (targetCoup - (S.coup || 0)) * 0.03;\nconst eps = S.coup * 0.30 + (A.bass || 0) * 0.05 * P.coupling;\n\nconst activeN = Math.max(60, Math.floor(120 + P.density * 380));\nconst rateMul = 0.4 + P.speed * 0.9;\n\n// ---- advance oscillators + drift, detect fires ----\nconst fired = S._fired || (S._fired = new Int32Array(MAXN));\nlet nf = 0;\nfor (let i = 0; i < activeN; i++) {\n  S.ph[i] += dt * S.fq[i] * rateMul * (0.85 + K.intensity * 0.4);\n  S.fx[i] += S.vx[i] * dt * rateMul; if (S.fx[i] < 0) S.fx[i] += 1; else if (S.fx[i] > 1) S.fx[i] -= 1;\n  S.ay[i] += S.vy[i] * dt * rateMul; if (S.ay[i] < 0) S.ay[i] += 1; else if (S.ay[i] > 1) S.ay[i] -= 1;\n  if (S.ph[i] >= 1) { S.ph[i] -= Math.floor(S.ph[i]); fired[nf++] = i; }\n}\n\n// ---- Mirollo-Strogatz pulse coupling via a fixed spatial grid ----\nif (nf > 0 && eps > 0.001) {\n  const GC = 7, R = 0.15, R2 = R * R;\n  let head = S._head; if (!head || head.length !== GC * GC) head = S._head = new Int32Array(GC * GC);\n  const nxt = S._nxt || (S._nxt = new Int32Array(MAXN));\n  head.fill(-1);\n  for (let i = 0; i < activeN; i++) {\n    let cx = (S.fx[i] * GC) | 0; if (cx < 0) cx = 0; else if (cx >= GC) cx = GC - 1;\n    let cy = (S.ay[i] * GC) | 0; if (cy < 0) cy = 0; else if (cy >= GC) cy = GC - 1;\n    const ci = cy * GC + cx; nxt[i] = head[ci]; head[ci] = i;\n  }\n  for (let k = 0; k < nf; k++) {\n    const f = fired[k], fx = S.fx[f], fy = S.ay[f];\n    let cx = (fx * GC) | 0; if (cx < 0) cx = 0; else if (cx >= GC) cx = GC - 1;\n    let cy = (fy * GC) | 0; if (cy < 0) cy = 0; else if (cy >= GC) cy = GC - 1;\n    for (let oy = -1; oy <= 1; oy++) {\n      const yy = cy + oy; if (yy < 0 || yy >= GC) continue;\n      for (let ox = -1; ox <= 1; ox++) {\n        const xx = cx + ox; if (xx < 0 || xx >= GC) continue;\n        let j = head[yy * GC + xx];\n        while (j !== -1) {\n          if (j !== f) {\n            let dx = S.fx[j] - fx; if (dx > 0.5) dx -= 1; else if (dx < -0.5) dx += 1;\n            const dy = S.ay[j] - fy, d2 = dx * dx + dy * dy;\n            if (d2 < R2) {\n              S.ph[j] += eps * (1 - d2 / R2);\n              if (S.ph[j] >= 1) S.ph[j] = 0.985;   // cap: fire next frame, no same-frame avalanche\n            }\n          }\n          j = nxt[j];\n        }\n      }\n    }\n  }\n}\n\n// ---- render ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.bg, 0, 0);\npop();\n\nconst aMul = P.alpha / 100;\nconst rms = A.rms || 0, bass = A.bass || 0, treb = A.treble || 0;\nconst baseR = u * 0.011 * P.scale;\nconst bloom = u * 0.055 * P.energy * P.scale;\nconst st = P.style;\npush();\nblendMode(ADD);\nimageMode(CENTER);\nnoStroke();\nfor (let i = 0; i < activeN; i++) {\n  let bright = Math.pow(S.ph[i], 5);\n  bright = bright * (0.9 + rms * 0.6) + 0.03;         // faint charge glow + audio lift\n  if (bright > 1.2) bright = 1.2;\n  const x = S.fx[i] * width;\n  const y = (0.03 + S.ay[i] * (hz - 0.05)) * height;\n  let hh, ss;\n  if (st === 'cyan-swarm')    { hh = 176 + S.hu[i] * 26; ss = 78; }\n  else if (st === 'ember')    { hh = 8 + S.hu[i] * 30;   ss = 96; }\n  else if (st === 'spectral') { hh = (S.fx[i] * 250 + S.ay[i] * 90 + K.t * 6) % 360; ss = 88; }\n  else if (st === 'mono')     { hh = 210; ss = 6 + bright * 10; }\n  else                        { hh = 44 + S.hu[i] * 66; ss = 82; }  // meadow amber->green\n  hh = (hh + (P.hue - 45) + 360) % 360;\n  const sz = (baseR + bright * bloom * (1 + bass * 0.8)) * 2.1;\n  const al = (20 + bright * 66) * aMul;\n  tint(hh, ss, 100, al > 96 ? 96 : al);\n  image(S.spr, x, y, sz, sz);\n}\nblendMode(BLEND);\nimageMode(CORNER);\npop();\n"
+}

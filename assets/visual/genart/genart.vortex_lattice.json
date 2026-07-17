@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.vortex_lattice",
+  "kind": "genart",
+  "name": "Vortex Lattice",
+  "desc": "A superfluid that cannot rotate the way ordinary matter does, so it punches an Abrikosov lattice of quantized vortices through itself \u2014 each a bottomless hole where the density hits exactly zero and the phase winds by exactly one turn \u2014 the whole crystal wheeling as a body and ringing with slow Tkachenko waves; as a luminous condensate pierced by black cores, a forked interference pattern, a raw phase pinwheel map, a grainy absorption shot, or spectral false-color.",
+  "tags": [
+    "superfluid",
+    "condensate",
+    "bose-einstein",
+    "bec",
+    "quantized-vortex",
+    "vortex-lattice",
+    "abrikosov",
+    "vortex",
+    "quantum",
+    "quantised",
+    "circulation",
+    "phase-defect",
+    "topological-defect",
+    "winding",
+    "order-parameter",
+    "gross-pitaevskii",
+    "healing-length",
+    "tkachenko",
+    "rotation",
+    "rotating",
+    "lattice",
+    "triangular",
+    "crystal",
+    "point-vortex",
+    "interferogram",
+    "interference",
+    "fringe",
+    "fork-dislocation",
+    "phase",
+    "pinwheel",
+    "absorption",
+    "quantum-turbulence",
+    "turbulence",
+    "fluid",
+    "fluid-dynamics",
+    "physics",
+    "simulation",
+    "laboratory",
+    "scientific",
+    "clinical",
+    "cryogenic",
+    "cold",
+    "helium",
+    "spectral",
+    "false-color",
+    "indigo",
+    "cyan",
+    "eerie",
+    "austere",
+    "sublime",
+    "clinical",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "circulation per vortex \u2014 how fast the whole lattice wheels, plus fringe count and glow (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "true optical zoom into the lattice \u2014 resolves individual cores and their phase winding"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "time rate \u2014 lattice motion and the chemical-potential fringe sweep"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "vortex COUNT \u2014 the lattice constant: a few fat cores through to a dense crystal"
+    },
+    "heal": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "healing length \u2014 core size, from needle-fine punctures to fat overlapping holes that eat the condensate"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the condensate (the core depths take the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan across the lattice when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan down the lattice when magnified"
+    },
+    "style": {
+      "default": "condensate",
+      "options": [
+        "condensate",
+        "interferogram",
+        "phase_map",
+        "absorption",
+        "spectral"
+      ],
+      "doc": "aesthetic: luminous condensate with black cores and bright rims / forked interference fringes / raw phase as a pinwheel colormap / grainy greyscale absorption shot / spectral false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the lattice's initial displacement off its ideal sites (this is what rings the Tkachenko modes)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:45:25+00:00",
+    "fps": 64.1,
+    "motion": 0.0668,
+    "lum": 0.457
+  },
+  "code": "const D = { energy: .55, scale: 1, speed: 1, density: .5, heal: .45, hue: 196, x: .5, y: .5, style: 'condensate', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Quantized vortex lattice in a rotating superfluid (Abrikosov lattice) ---------------\n// A superfluid cannot rotate like a solid body. The only way it can carry angular momentum is\n// to punch an array of vortices through itself, and their circulation is QUANTIZED \u2014 each is\n// a phase defect where the density goes to exactly zero and the phase winds by exactly 2*pi.\n// They then arrange into the triangular lattice Abrikosov predicted.\n//\n// The order parameter is built from the vortex positions:\n//   |psi|^2 = prod_k r_k^2/(r_k^2 + xi^2)      (a core hole per vortex, xi = healing length)\n//   arg psi = sum_k arg(z - z_k)\n// Every vortex here has the SAME sign (that is what rotation means), which is what makes the\n// phase cheap: sum of args == arg of the product, so each pixel accumulates ONE complex\n// product and takes ONE atan2 at the end instead of N of them.\n//\n// Dynamics are honest 2D point-vortex: each vortex is advected by the others. A same-sign\n// cluster conserves its second moment, so it needs no trap \u2014 it rotates as a body and rings\n// with undamped Tkachenko modes (the soft transverse oscillations of the lattice itself).\n// The condensate phase also advances at the chemical potential, e^(-i*mu*t), which sweeps the\n// interference fringes forever \u2014 a real-physics motion floor no lattice geometry can freeze.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 116, BH = Math.max(60, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.init = false;\n}\nconst NVMAX = 44;\nif (!S.VX) { S.VX = new Float64Array(NVMAX); S.VY = new Float64Array(NVMAX); S.NV = 0; }\nconst VX = S.VX, VY = S.VY;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\n// fast atan2 (max err ~1e-3 rad) \u2014 a real atan2 per pixel is the whole frame budget\nfunction fatan2(y, x) {\n  const ax = x < 0 ? -x : x, ay = y < 0 ? -y : y;\n  const mx = ax > ay ? ax : ay, mn = ax > ay ? ay : ax;\n  const a = mn / (mx + 1e-12), s = a * a;\n  let r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;\n  if (ay > ax) r = 1.5707963 - r;\n  if (x < 0) r = 3.1415927 - r;\n  return y < 0 ? -r : r;\n}\n\nconst L = BW / BH;                       // field is [0,L] x [0,1]\nconst cx0 = L * 0.5, cy0 = 0.5;\nconst RD = 1.06;                         // the lattice disc must always cover the frame corners\nconst spac = 0.50 - P.density * 0.20;    // lattice constant -> vortex COUNT\n\nfunction buildLattice() {\n  const rowH = spac * 0.8660254;\n  const nr = Math.ceil(RD / rowH) + 1, nc2 = Math.ceil(RD / spac) + 1;\n  let n = 0;\n  for (let row = -nr; row <= nr && n < NVMAX; row++) {\n    const yy = cy0 + row * rowH;\n    const xoff = (row & 1) ? spac * 0.5 : 0;\n    for (let col = -nc2; col <= nc2 && n < NVMAX; col++) {\n      const xx = cx0 + col * spac + xoff;\n      const dx = xx - cx0, dy = yy - cy0;\n      if (dx * dx + dy * dy > RD * RD) continue;\n      // a small seeded displacement off the ideal site is what rings the Tkachenko modes\n      VX[n] = xx + (fr(n * 3 + 1) - 0.5) * spac * 0.20;\n      VY[n] = yy + (fr(n * 3 + 2) - 0.5) * spac * 0.20;\n      n++;\n    }\n  }\n  S.NV = n;\n}\nif (!S.init || S.seedUsed !== P.seed || S.spacUsed !== spac) {\n  S.init = true; S.seedUsed = P.seed; S.spacUsed = spac; buildLattice();\n}\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dtr = K.t - S.lastT; S.lastT = K.t;\ndtr = dtr < 0 ? 0 : (dtr > 0.05 ? 0.05 : dtr);\nconst dt = dtr * (0.25 + P.speed * 0.75);\nconst tt = K.t;\n\nconst nv = S.NV;\nconst en = P.energy;\nconst xi = (0.10 + P.heal * 0.22) * spac;      // healing length -> core size\nconst xi2 = xi * xi;\nconst aReg = xi * 1.15, a2 = aReg * aReg;      // regularisation: no singular self-interaction\n// circulation: sets the rigid rotation rate of the whole lattice (Omega ~ N*G/(2*Area))\nconst G = (0.004 + en * 0.014) / TAU;\n\n// ---- point-vortex advection, RK2 ----\n{\n  const n = nv;\n  const ux = new Float64Array(n), uy = new Float64Array(n);\n  const sx = new Float64Array(n), sy = new Float64Array(n);\n  for (let k = 0; k < n; k++) {\n    let vx = 0, vy = 0;\n    for (let j = 0; j < n; j++) {\n      if (j === k) continue;\n      const dx = VX[k] - VX[j], dy = VY[k] - VY[j];\n      const f = G / (dx * dx + dy * dy + a2);\n      vx -= dy * f; vy += dx * f;\n    }\n    ux[k] = vx; uy[k] = vy; sx[k] = VX[k]; sy[k] = VY[k];\n  }\n  for (let k = 0; k < n; k++) { VX[k] += ux[k] * dt * 0.5; VY[k] += uy[k] * dt * 0.5; }\n  for (let k = 0; k < n; k++) {\n    let vx = 0, vy = 0;\n    for (let j = 0; j < n; j++) {\n      if (j === k) continue;\n      const dx = VX[k] - VX[j], dy = VY[k] - VY[j];\n      const f = G / (dx * dx + dy * dy + a2);\n      vx -= dy * f; vy += dx * f;\n    }\n    VX[k] = sx[k] + vx * dt; VY[k] = sy[k] + vy * dt;\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.017) * 8 + sec * 5) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cCond = pal(0.06, 0.13, 0.0), cDeep = pal(0.52, 0.16, 0.0);\n\nconst z = Math.max(1, P.scale);\nconst spanX = L / z, spanY = 1 / z;\nconst ocx = cx0 + (Math.min(1, Math.max(0, P.x)) - 0.5) * (L - spanX);\nconst ocy = cy0 + (Math.min(1, Math.max(0, P.y)) - 0.5) * (1 - spanY);\nconst ox = ocx - spanX * 0.5, oy = ocy - spanY * 0.5;\n\n// reference plane wave for the interferogram; mu is the chemical potential \u2014 the condensate\n// phase really does advance as e^(-i*mu*t), so the fringes sweep on their own forever\nconst mu = 1.05 * (0.4 + P.speed * 0.6);\nconst kang = 0.55 + 0.12 * Math.sin(tt * 0.041) + 0.06 * Math.sin(tt * 0.107 + 1.9);\nconst kmag = (26 + en * 22) / z;\nconst kxr = Math.cos(kang) * kmag, kyr = Math.sin(kang) * kmag;\nconst eps = 0.42 + en * 0.30;\nconst gl = 0.86 + A.bass * 0.35 + K.swell * 0.12;\n\nfor (let j = 0; j < BH; j++) {\n  const y = oy + (j + 0.5) / BH * spanY;\n  for (let i = 0; i < BW; i++) {\n    const x = ox + (i + 0.5) / BW * spanX, p = j * BW + i;\n    let amp = 1, pr = 1, pi = 0;\n    for (let k = 0; k < nv; k++) {\n      const dx = x - VX[k], dy = y - VY[k];\n      const r2 = dx * dx + dy * dy;\n      amp *= r2 / (r2 + xi2);\n      const inv = 1 / Math.sqrt(r2 + 1e-9);\n      const ur = dx * inv, ui = dy * inv;\n      const nr2 = pr * ur - pi * ui, ni = pr * ui + pi * ur;   // arg(prod) == sum(arg)\n      pr = nr2; pi = ni;\n    }\n    if (amp > 1) amp = 1;\n    const ph = fatan2(pi, pr);\n    const mod = Math.sqrt(amp);\n    const kr = kxr * x + kyr * y - mu * tt;\n    // |psi + eps*e^{i k.r}|^2 \u2014 the cross term forks into a dislocation at every vortex\n    const inter = amp + eps * eps + 2 * eps * mod * Math.cos(ph - kr);\n    let r, gg, b;\n    if (style === 'interferogram') {\n      const v = 0.07 + inter * 0.30;\n      const cc = pal(0.10 + amp * 0.30, 0.30, 0.0);\n      r = v * (0.45 + cc[0] * 1.05); gg = v * (0.45 + cc[1] * 1.05); b = v * (0.50 + cc[2] * 1.05);\n    } else if (style === 'phase_map') {\n      // abstracted: only the phase. Every core becomes a pinwheel singularity.\n      const u = ph / TAU + 0.5 - mu * tt * 0.03;\n      const cc = pal(u, 0.33, 0.0);\n      const dim = 0.32 + amp * 0.68;\n      r = (0.10 + cc[0] * 0.66) * dim; gg = (0.10 + cc[1] * 0.66) * dim; b = (0.12 + cc[2] * 0.66) * dim;\n    } else if (style === 'absorption') {\n      // the experimental shot. Absorption imaging is a SHADOW: the dense condensate blocks\n      // the probe beam and comes out dark, and the vortex cores \u2014 being empty \u2014 come out\n      // bright. So this plate is the negative of the density, with CCD grain on top.\n      const gr = (fr(i * 7.1 + j * 3.3) - 0.5) * 0.075;\n      const v = 0.80 - amp * 0.60 + gr;\n      r = v * 1.0; gg = v * 0.99; b = v * 0.96;\n    } else if (style === 'spectral') {\n      const u = 0.08 + amp * 0.52 + 0.10 * Math.cos(ph - kr);\n      const cc = pal(u, 0.32, 0.0);\n      const v = 0.16 + amp * 0.50;\n      r = v * (0.28 + cc[0] * 1.25); gg = v * (0.28 + cc[1] * 1.25); b = v * (0.30 + cc[2] * 1.25);\n    } else {                                   // condensate (default)\n      // luminous superfluid punched through with black cores; a faint fringe texture rides\n      // on top so the surface is never a flat fill\n      const fringe = (inter - eps * eps - amp) * 0.5;   // just the cross term\n      const v = (0.13 + amp * 0.46 + fringe * 0.10) * gl;\n      r = v * (0.34 + cCond[0] * 1.05) + cDeep[0] * (1 - amp) * 0.07;\n      gg = v * (0.36 + cCond[1] * 1.05) + cDeep[1] * (1 - amp) * 0.08;\n      b = v * (0.40 + cCond[2] * 1.05) + cDeep[2] * (1 - amp) * 0.12;\n      // each core wears a bright rim where the density recovers\n      const rim = amp * (1 - amp) * 4;\n      r += rim * 0.15 * gl; gg += rim * 0.17 * gl; b += rim * 0.20 * gl;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.constellations",
+  "kind": "genart",
+  "name": "Living Constellations",
+  "desc": "A deep night sky that visibly wheels overhead \u2014 blue-white stars sweep across the frame with parallax drift while cyan and gold constellation lines lace and dissolve, shooting stars streak past, and a faint drifting nebula glows behind it all.",
+  "tags": [
+    "constellation",
+    "constellations",
+    "stars",
+    "starfield",
+    "star-chart",
+    "sky",
+    "night",
+    "night-sky",
+    "astronomy",
+    "celestial",
+    "zodiac",
+    "cosmos",
+    "space",
+    "galaxy",
+    "nebula",
+    "shooting-star",
+    "meteor",
+    "twinkle",
+    "parallax",
+    "aurora",
+    "blueprint",
+    "schematic",
+    "gold",
+    "cyan",
+    "blue",
+    "deep-blue",
+    "serene",
+    "sacred",
+    "mythic",
+    "navigation",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "star count \u2014 higher fills a richer sky"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "twinkle + line glow + nebula exposure"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "sky-rotation + twinkle + shooting-star rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "star + line weight vs design size"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "star-tint + line + shimmer hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "celestial-pole x (rotation center)"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "celestial-pole y (rotation center)"
+    },
+    "twist": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sky-rotation amount (higher = faster wheel)"
+    },
+    "style": {
+      "default": "night",
+      "options": [
+        "night",
+        "zodiac-gold",
+        "aurora-sky",
+        "blueprint",
+        "mono"
+      ],
+      "doc": "render philosophy \u2014 glowing deep-sky / antique gold / green aurora / technical schematic / minimalist grayscale"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "star + constellation + nebula seed (hash-deterministic)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:02:30+00:00",
+    "fps": 60.6,
+    "motion": 0.0273,
+    "lum": 0.093
+  },
+  "code": "const D = { density:.55, energy:.7, speed:1, scale:1, hue:220, x:.5, y:.45, twist:.5, style:'night', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst style=P.style;\nconst night=style==='night', zod=style==='zodiac-gold', aur=style==='aurora-sky', blue=style==='blueprint', mono=style==='mono';\nconst hue=md(P.hue,360);\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1), spd=P.speed, scl=clp(P.scale,.4,2.2);\n\n// ---- seed-dependent value noise (drifting nebula) ----\nconst sd=P.seed|0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy; const a0=fx*fx*(3-2*fx),b0=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*a0+(c-a)*b0+(a-b-c+d)*a0*b0; }\nfunction fbm(x,y){ return .6*vn(x,y)+.3*vn(x*2.03+5.1,y*2.03-3.2)+.1*vn(x*4.1-2.3,y*4.1+7.7); }\n\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.o1=fr(1)*30; S.o2=fr(2)*30; }\n\n// coarse nebula buffer (recomputed every frame -> broad real-time motion floor)\nconst NW=132, NH=Math.max(48,Math.round(NW*Hh/W));\nif(!S.nb||S.nw!==NW||S.nh!==NH){ S.nb=createGraphics(NW,NH); S.nb.pixelDensity(1); S.nw=NW; S.nh=NH; }\n\n// per-style nebula palette (deep base -> cloud glow), RGB 0..255\nlet dR,dG,dB,gR,gG,gB;\nif(night){dR=8;dG=16;dB=38; gR=66;gG=122;gB=188;}\nelse if(zod){dR=26;dG=18;dB=9; gR=158;gG=116;gB=48;}\nelse if(aur){dR=6;dG=22;dB=26; gR=46;gG=176;gB=134;}\nelse if(blue){dR=7;dG=18;dB=44; gR=28;gG=84;gB=134;}\nelse {dR=15;dG=16;dB=20; gR=124;gG=128;gB=144;} // mono\n\nconst expo=0.62+en*0.7+K.intensity*0.25+A.rms*0.5;\nconst drift=K.t*(0.05+spd*0.05);\nconst swirl=K.t*0.02*spd; const csw=Math.cos(swirl), ssw=Math.sin(swirl);\nconst nb=S.nb; nb.loadPixels(); const px=nb.pixels;\nfor(let j=0;j<NH;j++){\n  for(let i=0;i<NW;i++){\n    let x=(i/NW-0.5)*3.2*(NW/NH), y=(j/NH-0.5)*3.2;\n    const rx=x*csw-y*ssw+S.o1+drift*0.6, ry=x*ssw+y*csw+S.o2-drift*0.45;\n    let v=fbm(rx,ry);\n    v=clp((v-0.22)*1.85,0,1);\n    let vv=Math.pow(v,1.05)*expo; if(vv>1.6)vv=1.6;\n    const o=4*(j*NW+i);\n    px[o]=clp(dR+(gR-dR)*vv,0,255); px[o+1]=clp(dG+(gG-dG)*vv,0,255); px[o+2]=clp(dB+(gB-dB)*vv,0,255); px[o+3]=255;\n  }\n}\nnb.updatePixels();\n\n// ---- stars + constellations (seed + density + style deterministic) ----\nconst NSTAR=Math.round(110+dens*250);\nconst key=P.seed+'|'+NSTAR+'|'+style;\nif(S.key!==key){\n  S.key=key;\n  const stars=[];\n  for(let s=0;s<NSTAR;s++){\n    const mag=Math.pow(fr(s*1.7+3),2.2);\n    stars.push({ x:-0.3+fr(s*3.1+1)*1.6, y:-0.3+fr(s*5.7+2)*1.6, mag,\n      b:26+74*(1-mag), sz:0.5+2.6*(1-mag),\n      tr:0.7+2.6*fr(s*7.3+4), tp:fr(s*2.9+5)*TAU,\n      vx:(fr(s*8.1+6)-0.5)*0.018, vy:(fr(s*9.3+7)-0.5)*0.018,\n      tmp:fr(s*4.4+8), glow:false });\n  }\n  const order=stars.map((v,i)=>i).sort((a,b)=>stars[a].mag-stars[b].mag);\n  for(let i=0;i<Math.min(24,order.length);i++) stars[order[i]].glow=true;\n  const bright=order.slice(0,Math.min(order.length,60));\n  const segs=[]; let bi=0; const NCON=8;\n  for(let c=0;c<NCON && bi<bright.length;c++){\n    const len=3+Math.floor(fr(c*11.1+9)*4);\n    let cur=bright[bi++];\n    for(let l=1;l<len && bi<bright.length;l++){\n      let best=-1,bd=1e9;\n      for(let q=bi;q<Math.min(bi+6,bright.length);q++){\n        const oo=bright[q]; const dd=Math.hypot(stars[oo].x-stars[cur].x,stars[oo].y-stars[cur].y);\n        if(dd<bd){bd=dd;best=q;}\n      }\n      if(best<0)break;\n      const nx=bright[best]; bright[best]=bright[bi]; bright[bi]=nx; bi++;\n      segs.push({a:cur,b:nx,c,tp:fr(segs.length*5.3+13)});\n      cur=nx;\n    }\n  }\n  S.stars=stars; S.segs=segs; S.nseg=segs.length;\n}\nconst stars=S.stars, segs=S.segs, nseg=S.nseg;\n\n// ---- draw nebula (fills frame; genart owns bg) ----\npush();\nif(P.alpha<100) tint(0,0,100,P.alpha);\nimage(nb,0,0,W,Hh);\npop();\n\n// blueprint faint grid overlay\nif(blue){\n  push(); stroke(198,45,92,7); strokeWeight(0.8);\n  const st=u*0.09;\n  for(let x=0;x<=W;x+=st) line(x,0,x,Hh);\n  for(let y=0;y<=Hh;y+=st) line(0,y,W,y);\n  pop();\n}\n\n// ---- FAST visible sky rotation + per-star parallax (the motion fix) ----\nconst rot=K.t*(0.05+P.twist*0.06)*spd;\nconst cx=P.x*W, cy=P.y*Hh, cs=Math.cos(rot), sn=Math.sin(rot);\nconst pxs=new Float32Array(stars.length), pys=new Float32Array(stars.length);\nfor(let s=0;s<stars.length;s++){\n  const st=stars[s];\n  const bx=(st.x+st.vx*K.t)*W, by=(st.y+st.vy*K.t)*Hh;\n  const dx=bx-cx, dy=by-cy;\n  pxs[s]=cx+dx*cs-dy*sn; pys[s]=cy+dx*sn+dy*cs;\n}\n\n// ---- constellation lines continuously forming / dissolving ----\nconst activeCon=md(Math.floor(K.section+K.t*0.06),8);\nstrokeCap(ROUND);\nfor(let s=0;s<nseg;s++){\n  const seg=segs[s];\n  const life=md(K.t*0.06*spd + seg.tp + K.section*0.12, 1);\n  const f=Math.sin(life*Math.PI);\n  if(f<=0.03) continue;\n  const ax=pxs[seg.a], ay=pys[seg.a], bx=pxs[seg.b], by=pys[seg.b];\n  const active=seg.c===activeCon;\n  const gl=(active?1.0:0.55)*(0.5+0.7*en)+(active?K.pulse*0.5+A.mid*0.6:0);\n  let lh,ls,lb;\n  if(night){ lh=(seg.c%2===0)?190:46; ls=(seg.c%2===0)?45:55; lb=95; }\n  else if(zod){ lh=44; ls=60; lb=90; }\n  else if(aur){ lh=(seg.c%2===0)?155:180; ls=55; lb=92; }\n  else if(blue){ lh=198; ls=55; lb=96; }\n  else { lh=0; ls=0; lb=92; }\n  stroke(lh,ls,lb, clp(42*f*gl,0,90));\n  strokeWeight(u*(active?0.0026:0.0016)*scl);\n  if(blue){\n    const dl=Math.hypot(bx-ax,by-ay), n=Math.max(2,Math.floor(dl/9));\n    for(let d=0;d<n;d+=2){ const t0=d/n,t1=Math.min(1,(d+1)/n); line(ax+(bx-ax)*t0,ay+(by-ay)*t0, ax+(bx-ax)*t1,ay+(by-ay)*t1); }\n  } else line(ax,ay,bx,by);\n}\n\n// ---- stars (twinkle) ----\nnoStroke();\nconst twG=0.6+0.8*en;\nfor(let s=0;s<stars.length;s++){\n  const st=stars[s]; const x=pxs[s], y=pys[s];\n  if(x<-6||x>W+6||y<-6||y>Hh+6) continue;\n  const tw=0.58+0.42*Math.sin(K.t*st.tr*spd+st.tp);\n  const b=clp(st.b*tw*twG,0,100);\n  const sz=st.sz*u*0.0034*scl*(0.8+0.5*tw);\n  let sh,ss;\n  if(zod){ sh=44; ss=st.mag<0.25?18:36; }\n  else if(aur){ sh=st.mag<0.3?175:160; ss=st.mag<0.25?20:45; }\n  else if(blue){ sh=198; ss=40; }\n  else if(mono){ sh=0; ss=0; }\n  else { sh=md(hue+(st.mag<0.3?4:12),360); ss=st.mag<0.22?12:6; }\n  if(blue){\n    stroke(198,45,96,clp(b,15,80)); strokeWeight(u*0.0013); noFill(); circle(x,y,sz*2.0);\n    if(st.glow){ noStroke(); fill(198,25,100,b); circle(x,y,sz*0.9); } noStroke();\n  } else {\n    if(st.glow){ drawingContext.shadowBlur=sz*3.6; drawingContext.shadowColor=(night||mono)?'rgba(190,215,255,0.9)':(zod?'rgba(255,220,150,0.9)':'rgba(150,255,220,0.9)'); }\n    fill(sh,ss,b); circle(x,y,sz);\n    drawingContext.shadowBlur=0;\n  }\n}\ndrawingContext.shadowBlur=0;\n\n// ---- frequent shooting stars (multiple generators, spawn on K.t) ----\nconst NSH=4;\nblendMode(ADD);\nfor(let k=0;k<NSH;k++){\n  const period=3.0+fr(k*13.1+70)*3.0;\n  const off=fr(k*7.7+71);\n  const ph=md(K.t/period+off,1);\n  if(ph<0.14){\n    const kk=ph/0.14; const si=Math.floor(K.t/period+off);\n    const sx=fr(si*3.7+41+k)*W, sy=fr(si*1.9+42+k)*Hh*0.6;\n    const ang=(-0.4+0.8*fr(si*5.3+43+k))+Math.PI*0.16;\n    const len=u*(0.18+0.1*fr(si*2.2+44+k));\n    const hx=sx+Math.cos(ang)*len*kk, hy=sy+Math.sin(ang)*len*kk;\n    const tx=hx-Math.cos(ang)*len*0.55, ty=hy-Math.sin(ang)*len*0.55;\n    const fade=Math.sin(kk*Math.PI);\n    const shh=zod?44:aur?165:blue?198:md(hue+24,360);\n    stroke(shh,zod?30:20,100,72*fade); strokeWeight(u*0.0032*scl); line(tx,ty,hx,hy);\n    noStroke(); fill(0,0,100,88*fade); circle(hx,hy,u*0.011*(0.5+fade));\n  }\n}\nblendMode(BLEND);\n\n// ---- audio treble shimmer (partial, never full-frame) ----\nif((A.treble>0.02||A.rms>0.02)){\n  push(); blendMode(ADD); noStroke();\n  const glow=(A.treble*0.5+A.rms*0.4)*en;\n  fill(md(hue+30,360),25,100,glow*18);\n  rect(0,0,W,Hh);\n  blendMode(BLEND); pop();\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

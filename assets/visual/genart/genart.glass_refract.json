@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.glass_refract",
+  "kind": "genart",
+  "name": "Glass Refraction",
+  "desc": "The view through a pane of irregular glass \u2014 hand-blown crown rondels, fluted reeds, hammered dimples or a shattered sheet \u2014 each cell dragging the colour field behind it into a different place, fringing at the steep edges, with the lead came dark between and specular seams crawling as the pane drifts.",
+  "tags": [
+    "glass",
+    "refraction",
+    "refract",
+    "displacement",
+    "distortion",
+    "warp",
+    "pane",
+    "window",
+    "rondel",
+    "crown",
+    "bullseye",
+    "reeded",
+    "fluted",
+    "hammered",
+    "dimpled",
+    "shatter",
+    "cracked",
+    "lens",
+    "lensing",
+    "stained-glass",
+    "came",
+    "lead",
+    "cathedral",
+    "seam",
+    "specular",
+    "fringe",
+    "chromatic",
+    "material",
+    "surface",
+    "texture",
+    "optical",
+    "translucent",
+    "obscure",
+    "frosted",
+    "industrial",
+    "clinical",
+    "eerie",
+    "abstract"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "refraction": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.6,
+      "doc": "displacement strength \u2014 flat plate to wildly warped"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.2,
+      "doc": "glass feature size \u2014 rondel diameter / reed pitch / shard size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "specular + chromatic fringe amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much colour lies behind the pane"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue of the field behind the glass"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "pane drift + field rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "field centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "field centre y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "seam + grime opacity"
+    },
+    "style": {
+      "default": "rondel",
+      "options": [
+        "rondel",
+        "reeded",
+        "hammered",
+        "shatter"
+      ],
+      "doc": "rondel: hand-blown crown-glass discs with pontil centres and spin rings, set in dark came \u00b7 reeded: vertical flutes, everything smeared into columns \u00b7 hammered: dense dimpled cell glass \u00b7 shatter: rigid fractured shards, each displacing on its own, bright cracks between"
+    },
+    "act": {
+      "default": "settle",
+      "options": [
+        "settle",
+        "slide",
+        "breathe"
+      ],
+      "doc": "settle: the pane barely drifts \u00b7 slide: strong parallax, the glass slides across the view \u00b7 breathe: the refraction strength swells and slackens"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "settle",
+    "slide",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:16+00:00",
+    "fps": 57.5,
+    "motion": 0.065,
+    "lum": 0.301
+  },
+  "code": "const D = { refraction: .6, scale: 1, energy: .6, density: .5, hue: 196, speed: 1, x: .5, y: .5, alpha: 1, style: 'rondel', act: 'settle', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2, PI=Math.PI;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=(((h%360)+360)%360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst rf=cl(P.refraction,0,1.6), sc=cl(P.scale,.35,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,.05,.95), ay=cl(P.y,.05,.95);\n\nS.bass=(S.bass||0)*.87+(A.bass||0)*.13;\nS.tre=(S.tre||0)*.87+(A.treble||0)*.13;\nconst kick=Math.min(1,K.pulse*.42+S.bass*.6);\nconst gm = sty==='reeded'?1 : sty==='hammered'?2 : sty==='shatter'?3 : 0;\n\n// ---- what lies behind the pane: an orbiting colour field (analytic source) ----\nconst NB=4+Math.round(dens*3);\nif(S.sSeed!==P.seed||S.sN!==NB){ S.sSeed=P.seed; S.sN=NB; S.s0=[];\n  for(let i=0;i<NB;i++) S.s0.push({ a:fr(i*3)*TAU, r:.14+fr(i*3+1)*.32, s:.055+fr(i*3+2)*.13,\n    dh:fr(i*5)*300, w1:.029+fr(i*7)*.047, w2:.017+fr(i*11)*.031, ph:fr(i*13)*TAU }); }\nconst SS=S.s0, bx=new Array(NB), by=new Array(NB), bs=new Array(NB), br=new Array(NB), bg=new Array(NB), bb=new Array(NB);\nfor(let i=0;i<NB;i++){ const q=SS[i];\n  bx[i]=ax+Math.cos(q.a+T*q.w1)*q.r+.05*Math.sin(T*q.w2*2.7+q.ph);\n  by[i]=ay+Math.sin(q.a+T*q.w1*1.29)*q.r*.72+.04*Math.cos(T*q.w2*2.1+q.ph);\n  bs[i]=Math.max(.012,q.s*(.85+.3*Math.sin(T*.17+q.ph)));\n  const c=hsb2rgb(md(H+q.dh+18*Math.sin(T*.023+q.ph),360), 60+30*fr(i*17), 52+42*fr(i*19));\n  br[i]=c[0]; bg[i]=c[1]; bb[i]=c[2]; }\nconst gA=hsb2rgb(md(H+206,360),56,10), gB=hsb2rgb(md(H+8,360),44,44);\nlet _r=0,_g=0,_b=0;\nconst srcAt=(x,y)=>{\n  let ws=.85, r=0,g=0,b=0;\n  const t=cl(y,0,1);\n  r=ws*(gA[0]+(gB[0]-gA[0])*t); g=ws*(gA[1]+(gB[1]-gA[1])*t); b=ws*(gA[2]+(gB[2]-gA[2])*t);\n  for(let i=0;i<NB;i++){ const dx=x-bx[i], dy=(y-by[i])*1.12, q=(dx*dx+dy*dy)/(bs[i]*bs[i]);\n    const d=1+q, w=3.2/(d*d); ws+=w; r+=w*br[i]; g+=w*bg[i]; b+=w*bb[i]; }\n  _r=r/ws; _g=g/ws; _b=b/ws; };\n\n// ---- the pane: jittered lattice / reeds / shards (cached) ----\nconst cs = (gm===2? .062 : gm===1? .05 : .17)*sc;\nconst gkey=sty+'|'+P.seed+'|'+Math.round(sc*20);\nif(!S.jx||S.gk!==gkey){\n  S.jx=new Float32Array(256); S.jy=new Float32Array(256); S.jr=new Float32Array(256);\n  for(let i=0;i<256;i++){ S.jx[i]=(fr(i*3+1)-.5)*(gm===2?.62:.38); S.jy[i]=(fr(i*3+2)-.5)*(gm===2?.62:.38); S.jr[i]=.72+fr(i*3)*.5; }\n  const NSH=16; S.px2=new Float32Array(NSH); S.py2=new Float32Array(NSH); S.pd=new Float32Array(NSH*2);\n  for(let i=0;i<NSH;i++){ S.px2[i]=fr(i*23); S.py2[i]=fr(i*23+1);\n    S.pd[i*2]=(fr(i*29)-.5); S.pd[i*2+1]=(fr(i*29+1)-.5); }\n  S.gk=gkey; }\nconst jx=S.jx, jy=S.jy, jrr=S.jr, sxp=S.px2, syp=S.py2, sdp=S.pd, NSH=16;\n\n// ---- pane parallax + light: incommensurate real-time drift (motion floor) ----\nlet par=.055; if(act==='slide') par=.16; else if(act==='breathe') par=.09;\nconst ox0=par*Math.sin(T*.047)+par*.5*Math.sin(T*.113+1.7);\nconst oy0=par*.7*Math.cos(T*.039)+par*.4*Math.sin(T*.091+.6);\nconst lphi=T*.09+.9*Math.sin(T*.041)+1.2*Math.sin(T*.0173);\nconst Ldx=Math.cos(lphi), Ldy=Math.sin(lphi);\nlet refr=rf*(.85+.35*en)*(1+.30*kick*en);\nif(act==='breathe') refr*=.55+.85*(.5+.5*Math.sin(T*.037));\nconst rk=refr*cs*1.35, ringA=(gm===0?.55:0)*(.6+.5*Math.sin(T*.027));\n\nconst GW=cl(Math.round(156*(W>=Hh?1:W/Math.max(1,Hh))),64,156);\nconst GH=cl(Math.round(GW*Hh/Math.max(1,W)),44,156);\nif(!S.buf||S.bw!==GW||S.bh!==GH){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(GW,GH); S.bw=GW; S.bh=GH; }\nconst buf=S.buf; buf.loadPixels();\nconst px=buf.pixels;\nconst seamC=hsb2rgb(md(H+30,360),18,100), cameC=hsb2rgb(md(H+210,360),50,7);\nconst specI=(45+70*en)*al, ar=W/Math.max(1,Hh);\nfor(let j=0;j<GH;j++){\n  const y=(j+.5)/GH, jc=j*GW;\n  for(let i=0;i<GW;i++){\n    const x=(i+.5)/GW;\n    let dxp=0, dyp=0, seam=0, came=0;\n    if(gm===1){ // reeded: vertical flutes, one axis of bend\n      const xr=x*ar/cs, ci=Math.floor(xr), f=xr-ci-.5;\n      const w=jrr[(ci&15)*16+((ci>>4)&15)];\n      const t=cl(f*2/w,-1,1);\n      dxp=-t*Math.sqrt(Math.max(0,1-t*t*.82))*rk*2.1;\n      dyp=.14*rk*Math.sin(y*11+ci);\n      seam=cl((Math.abs(t)-.80)*5,0,1); came=0;\n    } else if(gm===3){ // shatter: rigid shards, bright crack seams\n      let d1=9,d2=9,k1=0;\n      for(let k=0;k<NSH;k++){ const dx=(x-sxp[k])*ar, dy=y-syp[k]; const d=dx*dx+dy*dy;\n        if(d<d1){ d2=d1; d1=d; k1=k; } else if(d<d2) d2=d; }\n      d1=Math.sqrt(d1); d2=Math.sqrt(d2);\n      dxp=sdp[k1*2]*rk*3.4; dyp=sdp[k1*2+1]*rk*3.4;\n      seam=cl(1-(d2-d1)*(26/Math.max(.35,sc)),0,1); came=0;\n    } else { // rondel / hammered: jittered lattice of lenses\n      const gx=x*ar/cs, gy=y/cs;\n      const ci=Math.floor(gx), cj=Math.floor(gy);\n      let best=9, bdx=0, bdy=0, bR=1;\n      for(let dj=-1;dj<=1;dj++) for(let di=-1;di<=1;di++){\n        const ii=ci+di, jj=cj+dj, hh=((ii&15)*16+(jj&15))&255;\n        const cxx=ii+.5+jx[hh], cyy=jj+.5+jy[hh], R=jrr[hh]*(gm===2?.60:.66);\n        const dx=gx-cxx, dy=gy-cyy, d=(dx*dx+dy*dy)/(R*R);\n        if(d<best){ best=d; bdx=dx; bdy=dy; bR=R; } }\n      const r=Math.sqrt(best);\n      if(r<1){\n        const dist=Math.sqrt(bdx*bdx+bdy*bdy)+1e-5;\n        let dh=-2.3*r*Math.sqrt(Math.sqrt(Math.max(0,1-r*r)));\n        if(gm===2) dh=1.9*r*(1-r*r);                         // hammered dimples bulge inward\n        else dh-=ringA*Math.sin(r*9*PI)/(1+2.4*r);           // crown-glass spin rings\n        dxp=(bdx/dist)*dh*rk; dyp=(bdy/dist)*dh*rk;\n        seam=cl((r-.80)*4.2,0,1)+ (gm===0? cl((.14-r)*7,0,1)*.8 : 0);\n      } else { came=cl((r-1)*2.6,0,1); dxp=bdx*.05*rk; dyp=bdy*.05*rk; }\n    }\n    srcAt(x+ox0+dxp, y+oy0+dyp);\n    let r=_r, g=_g, b=_b;\n    // chromatic fringe at the steep parts of the pane\n    const gmag=Math.sqrt(dxp*dxp+dyp*dyp)/Math.max(1e-4,rk);\n    const fri=cl(gmag*.55,0,1)*(.35+.5*en);\n    r*=1+fri*.42; b*=1+fri*.30; g*=1-fri*.16;\n    // glass specular (fake normal from the displacement) + seam rim\n    const sp=Math.pow(cl((dxp*Ldx+dyp*Ldy)/Math.max(1e-4,rk)*.9,0,1),3)*specI;\n    r+=sp+seam*seamC[0]*.30*al; g+=sp*.99+seam*seamC[1]*.30*al; b+=sp*1.05+seam*seamC[2]*.30*al;\n    if(came>0){ const m=1-came*.82; r=r*m+cameC[0]*came*.7; g=g*m+cameC[1]*came*.7; b=b*m+cameC[2]*came*.7; }\n    const o=(jc+i)*4;\n    px[o]=r>255?255:r<0?0:r; px[o+1]=g>255?255:g<0?0:g; px[o+2]=b>255?255:b<0?0:b; px[o+3]=255;\n  }\n}\nbuf.updatePixels();\ndrawingContext.imageSmoothingEnabled=true;\nimage(buf,0,0,W,Hh);\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// ---- surface grime + micro-scratches on the near face of the pane (cached) ----\nconst tkey=W+'x'+Hh+'|'+sty+'|'+P.seed;\nif(!S.tex||S.tk!==tkey){\n  const g=(S.tex&&S.tex.width===W&&S.tex.height===Hh)?S.tex:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.strokeWeight(1);\n  for(let i=0;i<220;i++){ const x=fr(i*13)*W, y=fr(i*13+1)*Hh, a=fr(i*13+2)*TAU, L=u*(.01+fr(i*13+3)*.13);\n    g.stroke(0,0,100,4+fr(i*13+4)*9); g.line(x,y,x+Math.cos(a)*L,y+Math.sin(a)*L); }\n  g.noStroke();\n  for(let i=0;i<700;i++){ const x=fr(i*29)*W, y=fr(i*29+1)*Hh;\n    g.fill(0,0,fr(i*29+2)>.5?100:0,3+fr(i*29+3)*7); g.circle(x,y,.8+fr(i*29+4)*2.6); }\n  S.tex=g; S.tk=tkey; }\ndc.globalCompositeOperation='overlay'; image(S.tex,0,0); dc.globalCompositeOperation=oldOp;\n\n// ---- specular hotspots crawling the pane where the light rakes the seams ----\nnoStroke(); dc.globalCompositeOperation='lighter';\nconst NG=Math.round(12+dens*22);\nfor(let i=0;i<NG;i++){\n  const gx2=((fr(i*31)+.09*Math.sin(T*.043+i*1.3))%1+1)%1;\n  const gy2=((fr(i*31+1)+.07*Math.cos(T*.037+i*2.1))%1+1)%1;\n  const pk=Math.pow(cl(.5+.5*Math.sin(T*.21+i*2.7)+.35*Math.sin(T*.083+i),0,1),3);\n  const rr=u*(.012+fr(i*31+2)*.05)*(.5+pk);\n  dc.shadowBlur=rr*.6; dc.shadowColor='rgba(255,255,255,0.5)';\n  fill(md(H+24,360),12,100,(6+22*pk*en)*al); circle(gx2*W,gy2*Hh,rr);\n}\ndc.shadowBlur=0; dc.globalCompositeOperation=oldOp;\n\n// ---- room light falling off toward the edges of the pane ----\nconst vg=dc.createRadialGradient(ax*W,ay*Hh,u*.12,ax*W,ay*Hh,u*(.85+.09*Math.sin(T*.031)));\nvg.addColorStop(0,'rgba(0,0,0,0)');\nvg.addColorStop(.62,'rgba(0,0,0,'+(0.10*al).toFixed(3)+')');\nvg.addColorStop(1,'rgba(0,0,0,'+(0.52*al).toFixed(3)+')');\ndc.fillStyle=vg; dc.fillRect(0,0,W,Hh);\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

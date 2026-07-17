@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.koch_flake",
+  "kind": "genart",
+  "name": "Koch / Dragon Fractal",
+  "desc": "A thick spectral fractal curve that morphs between Koch snowflake, Levy C and Heighway dragon families, filled as a faint luminous body and stroked with a glowing hue-along-length line that slowly rotates and breathes.",
+  "tags": [
+    "koch",
+    "snowflake",
+    "koch-snowflake",
+    "dragon-curve",
+    "heighway",
+    "levy-c",
+    "cesaro",
+    "de-rham",
+    "fractal",
+    "l-system",
+    "recursive",
+    "self-similar",
+    "subdivision",
+    "polyline",
+    "curve",
+    "morph",
+    "spectral",
+    "rainbow",
+    "hue-gradient",
+    "glow",
+    "neon",
+    "gold-leaf",
+    "blueprint",
+    "ink",
+    "metallic",
+    "geometric",
+    "mathematical",
+    "abstract",
+    "generative",
+    "genart",
+    "luminous",
+    "glowing",
+    "breathing",
+    "rotating",
+    "bold",
+    "bright",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "figure size vs frame (fills ~70% at 1)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / bloom / exposure amplitude"
+    },
+    "depth": {
+      "default": 6,
+      "min": 2,
+      "max": 9,
+      "doc": "recursion depth (fractal detail; clamped to seg budget)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "line + halo weight and bloom breadth"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rotation + family-morph rate"
+    },
+    "fold": {
+      "default": 3,
+      "min": 1,
+      "max": 6,
+      "doc": "base polygon edges (1=open curve, 3=snowflake, 6=hex flake)"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "gold",
+        "neon",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (family jitter, phase, hue offset)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:10:30+00:00",
+    "fps": 59.5,
+    "motion": 0.0199,
+    "lum": 0.253
+  },
+  "code": "const D = { scale: 1, energy: .62, depth: 6, density: .55, speed: 1, fold: 3, hue: 205, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst seed = P.seed | 0;\nconst foldN = Math.max(1, Math.min(6, P.fold | 0));\nconst NF = 4;                      // families in the morph ring\nconst maxSeg = 1400;\nlet edepth = Math.floor(Math.log2(maxSeg / foldN));\nedepth = Math.max(2, Math.min(P.depth | 0, edepth, 9));\n\nconst fr = i => { const s = Math.sin(i * 127.1 + seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- build & cache family vertex lists (de Rham / Cesaro single-insert subdivision) ----\nconst cacheKey = seed + '|' + edepth + '|' + foldN;\nif (S.cacheKey !== cacheKey) {\n  S.cacheKey = cacheKey;\n  S.hoff = fr(99);\n  S.rphase = fr(50) * TAU;\n  S.bphase = fr(60) * NF;\n  const segPer = 1 << edepth;\n  const count = foldN * segPer;\n  S.count = count;\n  const start = -Math.PI / 2;\n  // family presets [are, aim, alternate] : koch / levy-C / dragon / spiky\n  const base = [ [0.5, 0.29, 0], [0.5, 0.50, 0], [0.5, 0.50, 1], [0.5, 0.20, 1] ];\n  function genFamily(are, aim, alt) {\n    const out = new Float64Array(count * 2);\n    let w = 0;\n    for (let e = 0; e < foldN; e++) {\n      let ax, ay, bx, by;\n      if (foldN === 1) { ax = -1; ay = 0; bx = 1; by = 0; }\n      else {\n        const a0 = start - e * TAU / foldN, a1 = start - (e + 1) * TAU / foldN;\n        ax = Math.cos(a0); ay = Math.sin(a0); bx = Math.cos(a1); by = Math.sin(a1);\n      }\n      let px = [ax, bx], py = [ay, by];\n      for (let lv = 0; lv < edepth; lv++) {\n        const nx = [px[0]], ny = [py[0]];\n        for (let k = 0; k < px.length - 1; k++) {\n          const Ax = px[k], Ay = py[k], Bx = px[k + 1], By = py[k + 1];\n          const vx = Bx - Ax, vy = By - Ay;\n          const ai = (alt && (k & 1)) ? -aim : aim;\n          const cx = Ax + (are * vx - ai * vy);\n          const cy = Ay + (are * vy + ai * vx);\n          nx.push(cx, Bx); ny.push(cy, By);\n        }\n        px = nx; py = ny;\n      }\n      for (let k = 0; k < px.length - 1; k++) { out[w++] = px[k]; out[w++] = py[k]; }\n    }\n    // normalize to fit [-1,1]\n    let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;\n    for (let k=0;k<out.length;k+=2){ if(out[k]<mnx)mnx=out[k]; if(out[k]>mxx)mxx=out[k]; if(out[k+1]<mny)mny=out[k+1]; if(out[k+1]>mxy)mxy=out[k+1]; }\n    const ccx=(mnx+mxx)*0.5, ccy=(mny+mxy)*0.5;\n    const half=Math.max((mxx-mnx)*0.5,(mxy-mny)*0.5,1e-6);\n    for (let k=0;k<out.length;k+=2){ out[k]=(out[k]-ccx)/half; out[k+1]=(out[k+1]-ccy)/half; }\n    return out;\n  }\n  S.fam = [];\n  for (let f=0; f<NF; f++){\n    const are = Math.max(0.42, Math.min(0.58, base[f][0] + (fr(f*3+10)-0.5)*0.05));\n    const aim = Math.max(0.14, Math.min(0.55, base[f][1] + (fr(f*3+20)-0.5)*0.08));\n    S.fam.push(genFamily(are, aim, base[f][2]));\n  }\n  S.buf = new Float64Array(count * 2);\n}\n\nconst N = S.count, fam = S.fam, buf = S.buf;\nconst closed = foldN > 1;\n\n// ---- clock motion floor (never re-phases) ----\nconst spd = P.speed;\nconst rot = K.t * (0.028 + spd * 0.05) + S.rphase;\nconst breath = 1 + 0.05*Math.sin(K.t*0.4) + K.swell*0.06 + A.rms*0.10;\nconst sec = K.section | 0;\nlet bl = K.t * (0.04 + spd*0.06) + S.bphase + sec*0.5;\nbl = ((bl % NF) + NF) % NF;\nconst i0 = Math.floor(bl) % NF, i1 = (i0+1) % NF, mixf = bl - Math.floor(bl);\nconst fa = fam[i0], fb = fam[i1];\nfor (let k=0;k<N*2;k++) buf[k] = fa[k] + (fb[k]-fa[k])*mixf;\n\n// ---- palette / exposure ----\nconst glow = P.energy*(0.55+K.intensity*0.5) + A.rms*0.5 + K.swell*0.15 + K.pulse*0.25;\nconst hb = (((P.hue + S.hoff*30 + sec*15 + K.t*1.4) % 360) + 360) % 360;\nconst aif = P.alpha/100;\nconst radius = u * 0.44 * P.scale * breath;\nconst cx = P.x*width, cy = P.y*height;\nconst style = P.style;\n\n// per-style config\nlet ST;\nif (style === 'gold')\n  ST = { grndH:38, grndS:42, grndB:14, coreW: Math.max(2, u*0.0040), haloW: u*0.026, halo2W: u*0.011, haloA:11, halo2A:20, coreA:100, fillH:40, fillS:60, fillB:60, fillA:11, bloomA:9, bloomH:42, mode:'gold' };\nelse if (style === 'neon')\n  ST = { grndH:hb, grndS:60, grndB:9,  coreW: Math.max(2, u*0.0036), haloW: u*0.030, halo2W: u*0.013, haloA:15, halo2A:24, coreA:100, fillH:hb, fillS:80, fillB:55, fillA:8, bloomA:12, bloomH:hb, mode:'neon' };\nelse if (style === 'blueprint')\n  ST = { grndH:212, grndS:70, grndB:26, coreW: Math.max(1.4, u*0.0018), haloW:0, halo2W:0, haloA:0, halo2A:0, coreA:96, fillH:200, fillS:38, fillB:72, fillA:6, bloomA:0, bloomH:200, mode:'blueprint' };\nelse if (style === 'ink')\n  ST = { grndH:40, grndS:12, grndB:88, coreW: Math.max(2.6, u*0.0060), haloW:0, halo2W:0, haloA:0, halo2A:0, coreA:84, fillH:32, fillS:20, fillB:32, fillA:10, bloomA:0, bloomH:32, mode:'ink' };\nelse\n  ST = { grndH:hb, grndS:48, grndB:18, coreW: Math.max(2, u*0.0038*(0.7+P.density*0.7)), haloW: u*0.024*(0.6+P.density*0.8), halo2W: u*0.010, haloA:11, halo2A:20, coreA:100, fillH:hb, fillS:66, fillB:56, fillA:9, bloomA:12, bloomH:hb, mode:'spectral' };\n\n// ---- ground (fills the frame; never near-black at default) ----\nif (P.alpha >= 100) {\n  background(ST.grndH, ST.grndS, ST.grndB + 3*K.intensity);\n} else {\n  noStroke();\n  fill(ST.grndH, ST.grndS, ST.grndB, 16*aif);\n  rect(0,0,width,height);\n}\n\n// ---- broad central bloom (lifts luminance, glow styles only) ----\nif (ST.bloomA > 0 && P.alpha >= 100) {\n  push(); blendMode(ADD); noStroke();\n  const gr = u*(0.5 + P.density*0.35);\n  const ga = ST.bloomA*(0.7 + glow*0.9);\n  for (let r=0;r<5;r++){ fill(ST.bloomH, 55 - r*7, 45 + r*11, ga*(1 - r*0.18)); const rr = gr*(2.4 - r*0.42); ellipse(cx, cy, rr, rr); }\n  blendMode(BLEND); pop();\n}\n\npush();\ntranslate(cx, cy);\nrotate(rot);\n\n// faint luminous interior fill -> reads as a solid form, not a thread\nif (ST.fillA > 0 && closed) {\n  noStroke();\n  fill(ST.fillH, ST.fillS, ST.fillB, ST.fillA*aif*(0.7+0.4*K.intensity));\n  beginShape();\n  for (let k=0;k<N;k++) vertex(buf[k*2]*radius, buf[k*2+1]*radius);\n  endShape(CLOSE);\n}\n\n// wide ADD glow halo (the \"thick glowing line\" outer bloom)\nif (ST.haloA > 0) {\n  blendMode(ADD); noFill(); strokeCap(ROUND); strokeJoin(ROUND);\n  stroke(ST.bloomH, ST.mode==='spectral'?70:ST.grndS, 92, ST.haloA*(0.7+glow*0.7)*aif);\n  strokeWeight(ST.haloW*(0.85 + A.bass*0.5));\n  beginShape(); for (let k=0;k<N;k++) vertex(buf[k*2]*radius, buf[k*2+1]*radius); if (closed) endShape(CLOSE); else endShape();\n  blendMode(BLEND);\n}\nif (ST.halo2A > 0) {\n  blendMode(ADD); noFill(); strokeCap(ROUND); strokeJoin(ROUND);\n  stroke(ST.bloomH, 50, 100, ST.halo2A*(0.7+glow*0.6)*aif);\n  strokeWeight(ST.halo2W);\n  beginShape(); for (let k=0;k<N;k++) vertex(buf[k*2]*radius, buf[k*2+1]*radius); if (closed) endShape(CLOSE); else endShape();\n  blendMode(BLEND);\n}\n\n// core -- thick hue-gradient line along the curve length\nnoFill(); strokeCap(ROUND); strokeJoin(ROUND);\nstrokeWeight(ST.coreW*(1 + A.bass*0.4));\nconst gph = rot*0.3 + K.t*0.25;\nconst H = 44;\nfor (let m=0;m<H;m++){\n  const a0 = Math.floor(m*N/H);\n  let a1 = Math.floor((m+1)*N/H);\n  if (a1 >= N) a1 = closed ? N : N-1;\n  const g01 = m/H;\n  let hh, ss, bb;\n  const aa = ST.coreA*aif;\n  if (ST.mode==='gold'){ const sh=(Math.sin(g01*TAU*2+gph)+1)*0.5; hh=38+8*sh; ss=85-32*sh; bb=52+48*sh; }\n  else if (ST.mode==='neon'){ hh=hb+22*Math.sin(g01*TAU+gph); ss=92-30*Math.abs(Math.sin(g01*Math.PI+gph)); bb=100; }\n  else if (ST.mode==='blueprint'){ hh=198+8*Math.sin(g01*TAU); ss=28+18*Math.sin(g01*TAU*2); bb=100; }\n  else if (ST.mode==='ink'){ hh=32; ss=16; bb=14+8*Math.sin(g01*TAU+gph); }\n  else { hh=hb + 300*g01 + 40*Math.sin(g01*TAU+gph); ss=88; bb=88+12*Math.sin(g01*TAU+gph*1.2); }\n  stroke(((hh%360)+360)%360, ss, bb, aa);\n  beginShape(); for (let k=a0;k<=a1;k++){ const kk=k%N; vertex(buf[kk*2]*radius, buf[kk*2+1]*radius); } endShape();\n}\n\npop();\nblendMode(BLEND);\n"
+}

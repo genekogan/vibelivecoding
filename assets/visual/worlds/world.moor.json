@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.moor",
+  "kind": "world",
+  "name": "Foggy Moor",
+  "desc": "A desaturated highland heath at low sun where standing stones loom out of fog banks rolling through the grass, which shivers in the wind.",
+  "tags": [
+    "moor",
+    "heath",
+    "moorland",
+    "fog",
+    "mist",
+    "standing stones",
+    "megalith",
+    "menhir",
+    "stonehenge",
+    "highland",
+    "celtic",
+    "druid",
+    "bronze age",
+    "grass",
+    "meadow",
+    "dusk",
+    "dawn",
+    "landscape",
+    "melancholy",
+    "austere",
+    "eerie",
+    "desaturated",
+    "muted",
+    "atmospheric",
+    "sumi",
+    "ink wash",
+    "blueprint",
+    "thermal",
+    "engraving",
+    "nature",
+    "outdoor",
+    "wild"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "fog thickness / bank count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "standing-stone size"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grass shiver + glow amplitude"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.5,
+      "doc": "fog drift rate"
+    },
+    "sun": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sun elevation / brightness"
+    },
+    "stones": {
+      "default": 7,
+      "min": 2,
+      "max": 16,
+      "doc": "number of standing stones"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue shift"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "time / motion rate"
+    },
+    "x": {
+      "default": 0.32,
+      "min": 0,
+      "max": 1,
+      "doc": "sun x position"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0.35,
+      "max": 0.85,
+      "doc": "horizon line fraction"
+    },
+    "style": {
+      "default": "heath",
+      "options": [
+        "heath",
+        "ink",
+        "blueprint",
+        "thermal",
+        "engraving"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "dawn",
+        "storm"
+      ],
+      "doc": "multi-minute light program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "dusk",
+    "dawn",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:10:41+00:00",
+    "fps": 61.3,
+    "motion": 0.0082,
+    "lum": 0.344
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .5, wind: .5, sun: .5, stones: 7, hue: 150, speed: 1, x: .32, y: .62, style: 'heath', act: 'dusk', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst ho = P.hue - 150;\nconst lerp3 = (a, b, f) => [a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f, a[2] + (b[2]-a[2])*f];\n\nconst STY = {\n  heath:     { sky:[[205,20,30],[160,14,44],[38,30,60]], ground:[150,16,20], stone:[205,10,17], slit:[40,14,54], fog:[185,7,74], line:false, hatch:false },\n  ink:       { sky:[[35,4,92],[33,6,84],[30,9,76]],      ground:[30,7,52],   stone:[220,10,15], slit:[30,6,64],  fog:[32,3,88],  line:false, hatch:true  },\n  blueprint: { sky:[[214,78,13],[213,70,19],[212,62,26]],ground:[212,60,16], stone:[190,24,96], slit:[190,30,80],fog:[196,40,40], line:true,  hatch:false },\n  thermal:   { sky:[[240,58,9],[232,52,15],[220,46,22]], ground:[228,44,14], stone:[22,90,94],  slit:[46,88,90], fog:[210,44,40], line:false, hatch:false },\n  engraving: { sky:[[40,9,80],[38,10,70],[36,12,60]],    ground:[36,12,40],  stone:[30,10,20],  slit:[38,10,52], fog:[38,6,74],  line:false, hatch:true  } };\nconst st = STY[P.style] || STY.heath;\nconst shift = c => [hw(c[0] + ho), c[1], c[2]];\n\n// ---- cached sky gradient + starfield ----\nconst key = width + 'x' + height + P.style + P.seed + Math.round(P.hue);\nif (!S.sky || S.key !== key) {\n  if (!S.sky) S.sky = createGraphics(width, height); else S.sky.resizeCanvas(width, height);\n  const g = S.sky; g.colorMode(g.HSB, 360, 100, 100, 100); g.noStroke();\n  const c = st.sky.map(shift);\n  for (let yy = 0; yy < height; yy++) {\n    const t = yy / height; let col;\n    if (t < 0.55) col = lerp3(c[0], c[1], t / 0.55); else col = lerp3(c[1], c[2], (t - 0.55) / 0.45);\n    g.fill(col[0], col[1], col[2]); g.rect(0, yy, width, 1);\n  }\n  // faint speckle / stars high in sky\n  const ns = 46 + Math.floor(P.seed % 34);\n  for (let i = 0; i < ns; i++) {\n    const sx = fr(i*4+1) * width, sy = fr(i*4+2) * height * 0.42;\n    g.fill(hw(st.slit[0] + ho), 8, st.line ? 90 : 84, 26 * fr(i*4+3));\n    g.rect(sx, sy, 1.3, 1.3);\n  }\n  S.key = key;\n}\nimage(S.sky, 0, 0);\n\n// ---- act / section slow drift (day <-> dusk) ----\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.2,.35,.55,.75,.4,.6,.85,.5][sec];\nconst ACT = { dusk:{ dk:.10+arc*.30, warm:1 }, dawn:{ dk:.34-arc*.28, warm:.7 }, storm:{ dk:.18+arc*.22, warm:.3 } };\nconst act = ACT[P.act] || ACT.dusk;\nconst dusk = act.dk + 0.05 * Math.sin(K.t * 0.018);\npush(); noStroke(); fill(hw(232 + ho), 30, 8, 46 * dusk); rect(0, 0, width, height); pop();\n\nconst horY = height * P.y;\n\n// ---- distant ridge silhouettes (parallax) ----\nfor (let L = 0; L < 2; L++) {\n  const gy = horY - u * (0.02 + L * 0.03);\n  const amp = u * (0.03 + L * 0.02);\n  const dx = Math.sin(K.t * 0.01 * (1 + L)) * u * 0.01;\n  const col = shift(st.ground); const v = col[2] * (0.7 + L * 0.18);\n  noStroke(); fill(col[0], col[1] * 0.8, v, 90);\n  beginShape(); vertex(-10, height + 10); vertex(-10, gy);\n  for (let sxp = 0; sxp <= width + 40; sxp += 40) {\n    const n = Math.sin(sxp * 0.006 + L * 3 + fr(L*7) * 6) + 0.5 * Math.sin(sxp * 0.017 + L);\n    vertex(sxp + dx, gy - n * amp);\n  }\n  vertex(width + 10, height + 10); endShape(CLOSE);\n}\n\n// ---- heath ground with tonal wash bands ----\nconst gcol = shift(st.ground);\nnoStroke(); fill(gcol[0], gcol[1], gcol[2]); rect(0, horY, width, height - horY);\nfor (let bnd = 0; bnd < 3; bnd++) {\n  const by = horY + (height - horY) * (0.2 + bnd * 0.28);\n  fill(gcol[0], gcol[1], gcol[2] * (0.7 - bnd * 0.08), 30);\n  rect(0, by, width, (height - horY) * 0.18);\n}\n\n// ---- low sun glow ----\nconst sunV = 0.25 + P.sun * 0.75;\nconst sx = P.x * width + Math.sin(K.t * 0.012) * u * 0.02;\nconst sy = horY - u * 0.015 * sunV;\npush(); blendMode(ADD); noStroke();\nconst breathe = 0.8 + 0.35 * K.swell + 0.5 * A.rms;\nconst gv = (st.line ? 22 : 40) * sunV * breathe * act.warm;\nfor (let r = 0; r < 4; r++) {\n  fill(hw(38 + ho + 6 * Math.sin(K.t * 0.02)), 60, 46, gv * (1 - r * 0.2));\n  ellipse(sx, sy, u * (0.5 + r * 0.4) * (0.6 + P.sun), u * (0.3 + r * 0.22) * (0.6 + P.sun));\n}\nif (sunV > 0.4) { fill(hw(44 + ho), 30, 90, 30 * sunV); ellipse(sx, sy, u * 0.11 * sunV, u * 0.11 * sunV); }\nblendMode(BLEND); pop();\n\n// ---- standing stones ----\nconst NST = Math.max(2, Math.min(16, Math.round(P.stones)));\nconst lightAng = (sx / width - 0.5);\nfor (let i = 0; i < NST; i++) {\n  const f0 = fr(i*3+1);\n  const spx = width * (0.08 + f0 * 0.86);\n  const depth = 0.3 + fr(i*3+2) * 0.7;               // near stones bigger/lower\n  const spy = horY + (height - horY) * (0.02 + depth * 0.5);\n  const h = u * (0.10 + fr(i*3+3) * 0.16) * P.scale * (0.55 + depth * 0.7);\n  const w = h * (0.24 + fr(i*5+2) * 0.16);\n  const lean = (fr(i*5+4) - 0.5) * 0.28;\n  const sc = shift(st.stone); const vv = sc[2] * (0.5 + depth * 0.5);\n  push(); translate(spx, spy); rotate(lean * 0.4);\n  if (st.line) {\n    stroke(sc[0], sc[1], vv, 90); strokeWeight(1.3); noFill();\n    beginShape(); vertex(-w*0.5, 0); vertex(-w*0.42, -h*0.6); vertex(-w*0.28, -h);\n    vertex(w*0.3, -h*0.98); vertex(w*0.46, -h*0.55); vertex(w*0.5, 0); endShape(CLOSE);\n    line(0, 0, 0, -h*0.9);\n  } else {\n    noStroke(); fill(sc[0], sc[1], vv * 0.72);\n    beginShape(); vertex(-w*0.5, 0); vertex(-w*0.44, -h*0.6); vertex(-w*0.3, -h);\n    vertex(w*0.3, -h*0.98); vertex(w*0.46, -h*0.55); vertex(w*0.5, 0); endShape(CLOSE);\n    // sun-lit edge\n    const le = lightAng < 0 ? -1 : 1;\n    fill(hw(st.slit[0] + ho), st.slit[1], st.slit[2] * (0.5 + sunV * 0.5), 60);\n    beginShape(); vertex(le*w*0.5, 0); vertex(le*w*0.46, -h*0.55); vertex(le*w*0.3, -h*0.98);\n    vertex(le*w*0.18, -h*0.96); vertex(le*w*0.34, -h*0.5); vertex(le*w*0.36, 0); endShape(CLOSE);\n    if (st.hatch) {\n      stroke(sc[0], sc[1], vv * 0.4, 40); strokeWeight(0.8);\n      for (let hy = -h*0.9; hy < -h*0.05; hy += Math.max(3, h*0.08)) line(-w*0.4, hy, w*0.4, hy + w*0.3);\n      noStroke();\n    }\n  }\n  pop();\n}\n\n// ---- rolling fog banks (continuous K.t drift, wraps) ----\npush(); noStroke();\nconst fc = shift(st.fog);\nconst nb = 3 + Math.round(P.density * 4);\nconst fA = (st.line ? 5 : 9) + P.density * 20;\nfor (let i = 0; i < nb; i++) {\n  const fy = horY - u * 0.04 + (height - horY + u * 0.08) * (i / nb) + Math.sin(K.t * 0.05 + i) * u * 0.01;\n  const spd = (0.006 + (i % 3) * 0.004) * (i % 2 ? 1 : -1) * (0.6 + P.wind * 1.6) * P.speed;\n  const bw = width * (0.7 + (i % 3) * 0.25);\n  const off = ((K.t * spd * width + i * 137) % (width + bw) + (width + bw)) % (width + bw) - bw;\n  const bh = u * (0.10 + (i % 3) * 0.05);\n  const a = fA * (0.5 + 0.5 * Math.sin(K.t * 0.03 + i * 1.7)) * (0.7 + 0.6 * (i / nb));\n  for (let s = 0; s < 3; s++) {\n    fill(fc[0], fc[1], fc[2], a * (0.5 - s * 0.12));\n    ellipse(off + bw * 0.5, fy, bw * (1 + s * 0.2), bh * (1 + s * 0.3));\n  }\n}\npop();\n\n// ---- shivering foreground grass ----\npush();\nconst gn = Math.round((30 + P.density * 70));\nconst gy0 = height - u * 0.02;\nconst shiver = (0.6 + P.energy * 1.6);\nconst wind = A.lowmid * 1.2 + 0.4 * Math.sin(K.t * 0.3);\nconst gcolF = shift(st.ground);\nfor (let i = 0; i < gn; i++) {\n  const gx = (i + fr(i) * 0.8) / gn * width;\n  const gh = u * (0.03 + fr(i*2+1) * 0.06) * (0.8 + P.energy * 0.5);\n  const sw = (Math.sin(K.t * (1.4 + fr(i)*1.2) + i * 0.7) * shiver + wind) * gh * 0.28;\n  stroke(gcolF[0], gcolF[1] * 1.1, gcolF[2] * (0.5 + fr(i*3)*0.4), 85);\n  strokeWeight(Math.max(1, u * 0.0016));\n  noFill();\n  beginShape(); vertex(gx, gy0 + u*0.02); vertex(gx + sw*0.4, gy0 - gh*0.55); vertex(gx + sw, gy0 - gh); endShape();\n}\npop();\nblendMode(BLEND);\n"
+}

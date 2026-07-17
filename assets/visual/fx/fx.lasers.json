@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.lasers",
+  "kind": "fx",
+  "name": "Laser Beams",
+  "desc": "Fans of thin laser beams firing from the top corners, sweeping and crossing with per-section patterns and treble-driven brightness, from saturated neon club lines to austere monochrome, prism rainbows, wide sheets and abstract dot-lattice scans.",
+  "tags": [
+    "laser",
+    "lasers",
+    "beams",
+    "club",
+    "rave",
+    "neon",
+    "fan",
+    "light-show",
+    "edm",
+    "disco",
+    "sci-fi",
+    "prism",
+    "rainbow",
+    "sheet",
+    "grid",
+    "scan",
+    "treble",
+    "corner",
+    "sweep",
+    "cyberpunk",
+    "overlay",
+    "fx",
+    "crossing",
+    "monochrome"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "beams": {
+      "default": 9,
+      "min": 1,
+      "max": 22,
+      "doc": "beams per corner fan"
+    },
+    "spread": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fan opening angle"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness amplitude"
+    },
+    "hue": {
+      "default": 330,
+      "min": 0,
+      "max": 360,
+      "doc": "beam hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "sweep rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "halo glow layers"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "reserved scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "emitter horizontal nudge"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "sway": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "fan sweep amplitude"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "mono",
+        "prism",
+        "sheet",
+        "grid"
+      ],
+      "doc": "neon=saturated core+halo club lines / mono=austere desaturated single-hue / prism=rainbow fan / sheet=wide volumetric bands / grid=abstract dot-lattice scan"
+    },
+    "act": {
+      "default": "fan",
+      "options": [
+        "fan",
+        "cross",
+        "scan"
+      ],
+      "doc": "fan=corner fans / cross=scissoring crossfire / scan=tight sweeping sheet"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "per-emitter jitter seed"
+    }
+  },
+  "acts": [
+    "fan",
+    "cross",
+    "scan"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:23:42+00:00",
+    "fps": 60.2,
+    "motion": 0.0065,
+    "lum": 0.088
+  },
+  "code": "const D = { beams:9, spread:.6, energy:.7, hue:330, speed:1, density:.5, scale:1, x:.5, y:.5, sway:.6, style:'neon', act:'fan', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst neon=st==='neon',mono=st==='mono',prism=st==='prism',sheet=st==='sheet',grid=st==='grid';\nconst en=P.energy*(0.5+0.7*K.intensity);\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\n// terminate a ray on the canvas rectangle\nfunction hit(ox,oy,dx,dy){\n  let t=Infinity;\n  if(dy>1e-4){ const tb=(Hh-oy)/dy; if(tb>0)t=Math.min(t,tb); }\n  if(dy<-1e-4){ const tt=(0-oy)/dy; if(tt>0)t=Math.min(t,tt); }\n  if(dx>1e-4){ const tr=(W-ox)/dx; if(tr>0)t=Math.min(t,tr); }\n  if(dx<-1e-4){ const tl=(0-ox)/dx; if(tl>0)t=Math.min(t,tl); }\n  if(!isFinite(t))t=u; return [ox+dx*t, oy+dy*t];\n}\n\nconst nB=Math.max(1,Math.round(clp(P.beams,1,22)));\nconst sec=Math.floor(K.section);\nconst pat=md(sec,4);\nconst treb=0.55+0.9*A.treble;\nconst bright=clp((0.4+0.6*Math.max(K.swell,0)*0.6+0.5*K.pulse)*(0.6+en)*treb,0,1.5);\nconst spreadAng=lrp(0.15,1.15,clp(P.spread,0,1))*(pat===2?(0.5+0.5*Math.abs(Math.sin(K.t*0.5))):1);\nconst swAmp=0.5*P.sway;\nconst haze=Math.round(lrp(0,2,clp(P.density,0,1)));\nconst actCross=P.act==='cross', actScan=P.act==='scan';\n\n// emitters: top-left & top-right corners (nudged by x)\nconst emit=[ {ox:W*(0.04+ (P.x-0.5)*0.1), oy:-u*0.02, base:0.55, dir:1},\n             {ox:W*(0.96+ (P.x-0.5)*0.1), oy:-u*0.02, base:-0.55, dir:-1} ];\n\nblendMode(ADD);\nfor(let ei=0; ei<emit.length; ei++){\n  const E=emit[ei];\n  // fan center angle sweeps continuously (real-time), section changes speed/shape\n  const swp = Math.sin(K.t*(0.35+pat*0.18)*P.speed + ei*2.1)*swAmp\n            + (pat===1? Math.sin(K.t*0.9*P.speed)*0.4 : 0);\n  const centerA = E.base*(actCross?-1:1) + swp;\n  for(let b=0;b<nB;b++){\n    const f = nB<2?0.5:b/(nB-1);\n    let a = centerA + (f-0.5)*spreadAng;\n    if(pat===3) a += Math.sin(K.t*1.4*P.speed + b*0.8)*0.12;       // scissor shimmer\n    if(actScan) a = centerA + (Math.sin(K.t*0.8*P.speed)*0.5)*spreadAng*0.2 + (f-0.5)*0.04;\n    const dx=Math.sin(a), dy=Math.cos(a);\n    const [hx,hy]=hit(E.ox,E.oy,dx,dy);\n    const hh = prism? md(H + f*140 + ei*20, 360) : mono? md(H,360) : md(H + (f-0.5)*36 + ei*14, 360);\n    const sat = mono? 22 : 92;\n    const flick = 0.7+0.3*Math.sin(K.t*7+b*1.3+ei);\n    const bA = bright*flick;\n    if(grid){\n      // abstract: sample dots along the beam path (dot-lattice scan)\n      const dots=10;\n      noStroke();\n      for(let d=1; d<=dots; d++){ const t=d/dots; const px=lrp(E.ox,hx,t), py=lrp(E.oy,hy,t); fill(hh,sat,100, clp(30*bA*(1-t*0.3),0,34)); ellipse(px,py, u*0.008*(0.6+treb*0.5), u*0.008); }\n    } else if(sheet){\n      // volumetric sheet \u2014 wide faint band + core\n      strokeCap(SQUARE);\n      stroke(hh,sat,100, clp(9*bA,0,20)); strokeWeight(Math.max(3,u*0.012)); line(E.ox,E.oy,hx,hy);\n      stroke(hh,lrp(sat,40,0.4),100, clp(22*bA,0,34)); strokeWeight(Math.max(1.5,u*0.004)); line(E.ox,E.oy,hx,hy);\n    } else {\n      // neon / mono / prism \u2014 thin bright core + soft halo\n      for(let l=haze;l>0;l--){ const t=l/haze; stroke(hh,sat,100, clp(8*bA,0,16)); strokeWeight(Math.max(2,u*0.006*(1+t))); line(E.ox,E.oy,hx,hy); }\n      stroke(md(hh+ (prism?0:6),360), lrp(sat,55,0.3), 100, clp(30*bA,0,34)); strokeWeight(Math.max(1,u*0.0018)); line(E.ox,E.oy,hx,hy);\n      stroke(hh,20,100, clp(34*bA,0,34)); strokeWeight(Math.max(0.6,u*0.0008)); line(E.ox,E.oy,hx,hy);\n      // terminal spark where the beam lands\n      noStroke(); fill(hh,40,100, clp(40*bA,0,45)); ellipse(hx,hy, u*0.012*(0.6+A.treble*1.5), u*0.012);\n    }\n  }\n  // emitter head glow\n  noStroke(); fill(md(H+ei*14,360), mono?22:60, 100, clp(38*bright,0,40)); ellipse(E.ox,E.oy, u*0.05, u*0.05);\n}\nblendMode(BLEND);\nstrokeCap(ROUND);\n"
+}

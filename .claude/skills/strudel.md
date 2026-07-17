@@ -1,5 +1,14 @@
 # Strudel Live Coding — Agent Guide
 
+> **Note:** This skill documents the standalone Strudel system (now in `legacy/`).
+> For day-to-day work, prefer the unified system (`livecode.py` + curl) described in
+> `CLAUDE.md`. Use this skill for Strudel **language/syntax** reference — the music
+> patterns themselves are identical in both systems.
+>
+> **For the music CATALOG system** (the verified stems/kits/arcs library, its
+> tools, performing, and grading) start at **`assets/music/README.md`** — this
+> skill is the language/craft layer beneath it.
+
 ## What This Is
 
 A Python-to-browser system for AI-driven live-coded music. You write Python scripts that send Strudel pattern code over WebSocket to a browser running the Strudel audio engine. The browser evaluates the code and plays music in real-time.
@@ -101,8 +110,12 @@ ctrl.hush()
 Strudel's `.play()` replaces the scheduler's single pattern. To play multiple tracks simultaneously, the controller:
 1. Strips `.play()` from each track's code
 2. Combines all tracks into `stack(track1, track2, ...)`
-3. Appends `.cps(N)` if tempo is set
-4. Sends via `evaluate` mode (which adds `.play()` internally)
+3. Sends via `evaluate` mode into the one owned core REPL/scheduler
+4. Changes global tempo separately through the scheduler's real `setCps()` path
+
+Pattern replacement preserves the running transport phase. A pattern-level
+`.cps(N)` remains available as a local transform, but it is not the host tempo
+authority and must not be embedded in reusable stems.
 
 ### Tempo Guide
 
@@ -364,7 +377,8 @@ s("[~ lt] [~ mt] [~ ht] ~").mask("<0 0 1 1>")  // only plays on cycles 3-4
 
 - `gm_*` instruments (e.g. `gm_acoustic_bass`) require `@strudel/soundfonts` — **NOT in the CDN bundle**
 - `github:tidalcycles/strudel-samples` — **404, don't use it**
-- `setcps()` as a global function — use `.cps()` pattern method or `ctrl.set_cps()`
+- Embedding `.cps()` in a reusable stem as global tempo — use `ctrl.set_cps()` or `/strudel/cps`; the host owns tempo
+- Calling global `setcps()` directly during a recorded show — it reaches the owned scheduler but bypasses server state/timeline recording
 - `.piano()` / `.pianoroll()` — visualization methods, not sounds. Use `.s("piano")` with loaded piano samples.
 - Calling `.play()` twice in one track — creates duplicate scheduler entries
 

@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.thunderhead",
+  "kind": "genart",
+  "name": "Thunderhead",
+  "desc": "A convective storm cell towering over a dark plain \u2014 cauliflower turrets boil upward out of the base, pile into a sheared anvil that streams downwind, hang mammatus lobes from its underside and drag a rain shaft to the horizon, the whole cell lit from within by a slow diffused sheet-glow that never flashes.",
+  "tags": [
+    "thunderhead",
+    "cumulonimbus",
+    "storm",
+    "cloud",
+    "clouds",
+    "anvil",
+    "supercell",
+    "weather",
+    "sky",
+    "convection",
+    "meteorology",
+    "mammatus",
+    "squall",
+    "rain",
+    "virga",
+    "shear",
+    "atmosphere",
+    "air",
+    "cloudscape",
+    "tempest",
+    "front",
+    "overcast",
+    "landscape",
+    "horizon",
+    "plain",
+    "sublime",
+    "ominous",
+    "brooding",
+    "austere",
+    "radar",
+    "reflectivity",
+    "satellite",
+    "infrared",
+    "lithograph",
+    "grey",
+    "blue",
+    "volumetric",
+    "billow",
+    "turret",
+    "updraft"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "convective vigour \u2014 tower height, updraft rate, turret count, rim light"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "cell size against the frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "turret / mammatus / rain-shaft count"
+    },
+    "shear": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wind shear \u2014 how far the anvil streams downwind"
+    },
+    "glow": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "diffused internal sheet-glow \u2014 slow swell, never a flash"
+    },
+    "hue": {
+      "default": 214,
+      "min": 0,
+      "max": 360,
+      "doc": "sky + cloud-shadow hue (214 = storm blue-grey)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "convection rate multiplier"
+    },
+    "x": {
+      "default": 0.46,
+      "min": 0,
+      "max": 1,
+      "doc": "cell centre x"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0.3,
+      "max": 0.9,
+      "doc": "cloud-base height; the horizon sits just below it"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "cloud opacity over the sky"
+    },
+    "style": {
+      "default": "photo",
+      "options": [
+        "photo",
+        "radar",
+        "lithograph",
+        "infrared"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "build",
+      "options": [
+        "build",
+        "anvil",
+        "decay"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "turret seeding"
+    }
+  },
+  "acts": [
+    "build",
+    "anvil",
+    "decay"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:54+00:00",
+    "fps": 58.1,
+    "motion": 0.0198,
+    "lum": 0.31
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .5, shear: .5, glow: .4, hue: 214, speed: 1, x: .46, y: .62, alpha: 1, style: 'photo', act: 'build', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sm=(e0,e1,x)=>{const t=cl((x-e0)/((e1-e0)||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), asp=W/Math.max(1,Hh);\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dens=cl(P.density,0,1);\nconst shr=cl(P.shear,0,1), glw=cl(P.glow,0,1), H0=md(P.hue,360);\nconst spd=cl(P.speed,.1,4), ax=cl(P.x,0,1), ay=cl(P.y,.3,.9), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\nconst MODE = sty==='radar'?1 : sty==='infrared'?2 : sty==='lithograph'?3 : 0;\n\nS.bass=(S.bass||0)*.9+(A.bass||0)*.1;\nS.tre=(S.tre||0)*.9+(A.treble||0)*.1;\n\n// ---- dramaturgy: the cell develops over minutes ----\nlet grow;\nif(act==='anvil'){ grow=.92+.10*Math.sin(T*.017)+.05*Math.sin(T*.043+1.1); }\nelse if(act==='decay'){ const q=md(T*.0085,1); grow=cl(1.04-.64*q,.32,1.06); }\nelse { const q=md(T*.0105,1); grow=cl(.26+1.06*q,.26,1.06); }\ngrow*=.80+.34*K.intensity;\nconst towH=(.40+.30*en)*sc*grow;\nconst hz=cl(ay+.115,.34,.985);\nconst anvY=ay-towH*.84;\n\n// ---- sky + plain: cached, upscaled (smooth gradient survives it) ----\nlet SKW,SKH;\nif(W>=Hh){ SKW=160; SKH=Math.max(60,Math.round(160*Hh/Math.max(1,W))); }\nelse { SKH=160; SKW=Math.max(60,Math.round(160*W/Math.max(1,Hh))); }\nconst skk=SKW+'x'+SKH+'|'+sty+'|'+Math.round(H0)+'|'+P.seed+'|'+Math.round(hz*300);\nif(!S.sky||S.skk!==skk){\n  if(S.sky&&S.sky.remove)S.sky.remove();\n  const g=createGraphics(SKW,SKH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const hzr=hz*SKH;\n  for(let j=0;j<SKH;j++){\n    const v=j/SKH; let hh,ss,bb;\n    if(MODE===1){ hh=md(H0+8,360); ss=30; bb=5+3*(1-v); }\n    else if(MODE===2){ hh=md(H0,360); ss=8; bb=4+4*v; }\n    else if(MODE===3){ hh=42; ss=9+5*v; bb=87-11*v; }\n    else { const k=cl(v/Math.max(.05,hz),0,1);\n      hh=md(H0-36*k*k,360); ss=44-27*k; bb=24+42*k*k+5*Math.sin(k*9.1)+3*Math.sin(k*21.3); }\n    g.fill(hh,ss,bb); g.rect(0,j,SKW,1.02);\n  }\n  for(let j=Math.floor(hzr);j<SKH;j++){\n    const v=(j-hzr)/Math.max(1,SKH-hzr); let hh,ss,bb;\n    if(MODE===1){ hh=md(H0+10,360); ss=22; bb=3; }\n    else if(MODE===2){ hh=md(H0,360); ss=5; bb=3+2*v; }\n    else if(MODE===3){ hh=40; ss=13; bb=72-18*v; }\n    else { hh=md(H0-16,360); ss=27-9*v; bb=18-8*v; }\n    g.fill(hh,ss,bb); g.rect(0,j,SKW,1.02);\n  }\n  if(MODE===0||MODE===3){ g.fill(md(H0-48,360),MODE===3?8:34,MODE===3?93:74,MODE===3?26:40); g.rect(0,hzr-1.2,SKW,2.4); }\n  for(let i=0;i<340;i++){\n    const gx=fr(i*2.7)*SKW, gy=hzr+Math.pow(fr(i*2.7+1),1.7)*Math.max(1,SKH-hzr);\n    g.fill(0,0,MODE===3?26:(MODE===1?60:10),8+fr(i*5.1)*24);\n    g.rect(gx,gy,1+fr(i*2.7+2)*5,1);\n  }\n  if(MODE===1){ g.noFill(); g.stroke(md(H0+8,360),40,34,26); g.strokeWeight(.7);\n    for(let r=1;r<=5;r++) g.ellipse(ax*SKW,ay*SKH,SKW*.34*r,SKW*.34*r);\n    for(let a2=0;a2<8;a2++) g.line(ax*SKW,ay*SKH,ax*SKW+Math.cos(a2*TAU/8)*SKW,ay*SKH+Math.sin(a2*TAU/8)*SKW);\n    g.noStroke(); }\n  S.sky=g; S.skk=skk;\n}\ndrawingContext.imageSmoothingEnabled=true;\nconst sd=6*Math.sin(K.t*.023)+3*Math.sin(K.t*.057+1.3);\nimage(S.sky,-6+sd,0,W+12,Hh);\n\n// ---- drifting haze veil over the sky (real-time motion floor, never a flash) ----\n{ const hxv=(.5+.30*Math.sin(K.t*.031)+.13*Math.sin(K.t*.073+2.1))*W;\n  const hyv=(hz*.62+.06*Math.sin(K.t*.047+.8))*Hh;\n  const rr=u*(.55+.10*Math.sin(K.t*.019));\n  const c=hsb(md(H0-30,360),MODE===3?6:24,MODE===1?18:(MODE===2?22:88));\n  const gg=drawingContext.createRadialGradient(hxv,hyv,u*.03,hxv,hyv,rr);\n  gg.addColorStop(0,'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+(.10*al).toFixed(3)+')');\n  gg.addColorStop(.6,'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+(.04*al).toFixed(3)+')');\n  gg.addColorStop(1,'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+',0)');\n  drawingContext.fillStyle=gg; drawingContext.fillRect(0,0,W,Hh); }\n\n// ---- soft blob stamp (built once) ----\nif(!S.blob){ const g=createGraphics(64,64); g.pixelDensity(1); g.clear();\n  const gd=g.drawingContext.createRadialGradient(32,32,0,32,32,32);\n  gd.addColorStop(0,'rgba(255,255,255,1)'); gd.addColorStop(.40,'rgba(255,255,255,0.66)');\n  gd.addColorStop(.72,'rgba(255,255,255,0.22)'); gd.addColorStop(1,'rgba(255,255,255,0)');\n  g.drawingContext.fillStyle=gd; g.drawingContext.fillRect(0,0,64,64); S.blob=g; }\n\n// ---- density field ----\nlet FW,FH;\nif(W>=Hh){ FW=168; FH=Math.max(64,Math.round(168*Hh/Math.max(1,W))); }\nelse { FH=168; FW=Math.max(64,Math.round(168*W/Math.max(1,Hh))); }\nconst fk=FW+'x'+FH;\nif(!S.dn||S.fk!==fk){ if(S.dn&&S.dn.remove)S.dn.remove(); S.dn=createGraphics(FW,FH); S.dn.pixelDensity(1); S.f=new Float32Array(FW*FH); S.fk=fk; }\nconst dn=S.dn, dc2=dn.drawingContext, fmin=Math.min(FW,FH);\ndn.clear(); dc2.globalCompositeOperation='lighter';\n\nconst NB=Math.min(78,Math.round(20+dens*40+en*16));\nconst boil=.9*Math.sin(K.t*.61)+.5*Math.sin(K.t*1.43+1.7)+.32*Math.sin(K.t*2.29);\nfor(let i=0;i<NB;i++){\n  const r1=fr(i*3.1), r2=fr(i*3.1+1), r3=fr(i*3.1+2), r4=fr(i*7.7), r5=fr(i*7.7+1);\n  const life=md(T*(.030+.036*r1)*(.55+.85*en)+r2,1);\n  const rise=1-Math.pow(1-life,2.6);\n  const yTop=ay-rise*towH;\n  let by, sprd=0;\n  if(yTop<anvY){ sprd=cl((anvY-yTop)/Math.max(1e-4,towH*.16),0,1.3); by=anvY-(anvY-yTop)*.24; }\n  else by=yTop;\n  const back=(r5<.16)?-.35:1;\n  let bx=ax+(r3-.5)*.15*sc + sprd*back*(.12+.50*shr)*sc*(.35+.95*r5);\n  bx+=(.014*Math.sin(K.t*(.47+r1*.8)+r2*TAU)+.009*Math.sin(K.t*(1.13+r3*.9)+r4*TAU))*sc;\n  by+=(.010*Math.sin(K.t*(.53+r4*.7)+r3*TAU))*sc;\n  const rr=(.040+.070*r1)*sc*(.30+1.45*life)*(.82+.42*en)*(1+.30*sprd);\n  const fade=sm(0,.09,life)*(1-sm(.74,1,life));\n  if(fade<=.004) continue;\n  dc2.globalAlpha=cl(fade*(.10+.11*en),0,1);\n  const fr2=rr*fmin;\n  dn.image(S.blob,bx*FW-fr2,by*FH-fr2,fr2*2,fr2*2);\n}\n// mammatus lobes hanging under the anvil deck\nconst NM=Math.round(5+dens*11);\nfor(let i=0;i<NM;i++){\n  const q1=fr(200+i*2.3), q2=fr(200+i*2.3+1);\n  const sprd2=.10+.86*q1;\n  const bx=ax+(q2-.5)*.10*sc+sprd2*(.12+.50*shr)*sc*.72;\n  const by=anvY+(.028+.030*q2)*sc+.008*sc*Math.sin(K.t*(.7+q1)+q2*TAU);\n  const rr=(.020+.024*q2)*sc;\n  dc2.globalAlpha=cl((.09+.07*en)*(1-sprd2*.4),0,1);\n  const fr2=rr*fmin;\n  dn.image(S.blob,bx*FW-fr2,by*FH-fr2,fr2*2,fr2*2);\n}\ndc2.globalAlpha=1; dc2.globalCompositeOperation='source-over';\n\n// ---- shade the field: fake normals from the density gradient ----\ndn.loadPixels();\nconst q4=dn.pixels, f=S.f, NP=FW*FH;\nfor(let i=0;i<NP;i++) f[i]=q4[i*4]/255;\nconst sunA=-2.30+.26*Math.sin(K.t*.021)+.10*Math.sin(K.t*.049);\nconst Lx=Math.cos(sunA), Ly=Math.sin(sunA), LK=11+9*en;\nconst gcx=ax+.09*Math.sin(K.t*.13)+.05*Math.sin(K.t*.29+1.1);\nconst gcy=ay-towH*(.32+.16*Math.sin(K.t*.09+.7));\nconst gAmp=glw*(.16+.20*(.5+.5*Math.sin(K.t*.21))+.12*(.5+.5*Math.sin(K.t*.37+2.1)))*(.7+.6*S.bass);\nconst GRK=1/Math.max(1e-3,Math.pow(.11+.14*glw,2));\nconst RR=[hsb(196,64,16),hsb(152,80,42),hsb(84,84,66),hsb(52,95,90),hsb(26,95,95),hsb(0,88,86),hsb(310,78,80)];\nconst IRR=[hsb(0,0,10),hsb(0,0,48),hsb(0,0,86),hsb(0,0,100),hsb(192,58,94),hsb(52,90,95),hsb(2,86,90)];\nconst BAY=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];\nlet cS,cM,cL;\nif(MODE===3){ cS=hsb(38,18,22); cM=hsb(40,11,58); cL=hsb(44,5,95); }\nelse { cS=hsb(md(H0+8,360),42,16); cM=hsb(md(H0-4,360),24,47); cL=hsb(md(H0-44,360),9,97); }\nfor(let j=0;j<FH;j++){\n  const yv=j/FH;\n  const hgt=cl((ay-yv)/Math.max(.06,towH),0,1);\n  for(let ii=0;ii<FW;ii++){\n    const i=j*FW+ii, o=i*4, d=f[i];\n    if(d<.014){ q4[o+3]=0; continue; }\n    const nx=(ii>0?f[i-1]:d)-(ii<FW-1?f[i+1]:d);\n    const ny=(j>0?f[i-FW]:d)-(j<FH-1?f[i+FW]:d);\n    const lam=cl(.5+(nx*Lx+ny*Ly)*LK,0,1);\n    const gdx=(ii/FW-gcx)*asp, gdy=yv-gcy;\n    const gl=gAmp/(1+(gdx*gdx+gdy*gdy)*GRK);\n    const nz=Math.sin(ii*12.9898+j*78.233+P.seed*3.71)*43758.5453;\n    let shade=cl(lam*.74+hgt*.32+(1-cl(d*1.25,0,1))*.15-.16+(nz-Math.floor(nz)-.5)*.055+gl*cl(d*1.4,0,1)*.9,0,1);\n    let r,g2,b2;\n    if(MODE===1){ const q=cl(d*1.35,0,1)*6, k0=q|0, k1=Math.min(6,k0+1), ff=q-k0, a0=RR[k0], b0=RR[k1];\n      r=a0[0]+(b0[0]-a0[0])*ff; g2=a0[1]+(b0[1]-a0[1])*ff; b2=a0[2]+(b0[2]-a0[2])*ff; }\n    else if(MODE===2){ const q=cl(d*.85+hgt*.42,0,1)*6, k0=q|0, k1=Math.min(6,k0+1), ff=q-k0, a0=IRR[k0], b0=IRR[k1];\n      r=a0[0]+(b0[0]-a0[0])*ff; g2=a0[1]+(b0[1]-a0[1])*ff; b2=a0[2]+(b0[2]-a0[2])*ff; }\n    else if(MODE===3){ const lv=cl(Math.round((shade+(BAY[(j&3)*4+(ii&3)]-7.5)/40)*4)/4,0,1);\n      if(lv<.5){ const ff=lv*2; r=cS[0]+(cM[0]-cS[0])*ff; g2=cS[1]+(cM[1]-cS[1])*ff; b2=cS[2]+(cM[2]-cS[2])*ff; }\n      else { const ff=(lv-.5)*2; r=cM[0]+(cL[0]-cM[0])*ff; g2=cM[1]+(cL[1]-cM[1])*ff; b2=cM[2]+(cL[2]-cM[2])*ff; } }\n    else { if(shade<.55){ const ff=shade/.55; r=cS[0]+(cM[0]-cS[0])*ff; g2=cS[1]+(cM[1]-cS[1])*ff; b2=cS[2]+(cM[2]-cS[2])*ff; }\n      else { const ff=(shade-.55)/.45; r=cM[0]+(cL[0]-cM[0])*ff; g2=cM[1]+(cL[1]-cM[1])*ff; b2=cM[2]+(cL[2]-cM[2])*ff; } }\n    q4[o]=r; q4[o+1]=g2; q4[o+2]=b2; q4[o+3]=cl(sm(.014,.24,d)*255*al,0,255);\n  }\n}\ndn.updatePixels();\nimage(dn,0,0,W,Hh);\n\n// ---- rain shaft / virga under the base ----\nif(MODE!==1){\n  const byp=ay*Hh, hzp=hz*Hh, nr=Math.round(14+dens*28);\n  const rA=cl((.16+.40*Math.min(1,grow))*(.45+.7*en),0,1);\n  strokeCap(SQUARE);\n  for(let i=0;i<nr;i++){\n    const q=fr(i*4.3), q2=fr(i*4.3+1), q3=fr(i*4.3+2), q4b=fr(i*4.3+3);\n    const rx=(ax-.13*sc+q*.27*sc)*W+u*.018*Math.sin(K.t*(.4+q2*.6)+q*9.1);\n    const dhh=(hzp-byp)*(.45+.6*q3);\n    const sx=u*(.03+.13*shr)*sc*(.4+q4b);\n    stroke(md(H0+4,360),MODE===3?10:32,MODE===3?52:(MODE===2?58:30)+14*q2,rA*(22+26*q4b)*al);\n    strokeWeight((1.1+q2*3.6)*sc*(u/720+.4));\n    line(rx,byp-u*.01,rx+sx,byp+dhh);\n  }\n  noStroke();\n}\nblendMode(BLEND); drawingContext.globalAlpha=1; drawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

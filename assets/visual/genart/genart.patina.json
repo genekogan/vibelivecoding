@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.patina",
+  "kind": "genart",
+  "name": "Patina",
+  "desc": "A metal plate corroding in real time: oxidation nucleates, creeps outward against the grain of the alloy, ripens through tarnish into crust, spalls off in flakes to bare fresh metal, and runs mineral stain down the face \u2014 while a raking light finds only the parts still bright.",
+  "tags": [
+    "patina",
+    "oxidation",
+    "corrosion",
+    "rust",
+    "verdigris",
+    "copper",
+    "bronze",
+    "brass",
+    "tarnish",
+    "silver",
+    "weathering",
+    "decay",
+    "age",
+    "aged",
+    "metal",
+    "alloy",
+    "plate",
+    "crust",
+    "bloom",
+    "mineral",
+    "stain",
+    "efflorescence",
+    "lichen",
+    "stone",
+    "spall",
+    "flake",
+    "mill-scale",
+    "conservation",
+    "material",
+    "texture",
+    "surface",
+    "industrial",
+    "clinical",
+    "eerie",
+    "austere",
+    "brutalist",
+    "slow",
+    "organic",
+    "growth"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "corrosion": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1.6,
+      "doc": "how much of the oxidation front reads as crust"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "grain of the alloy \u2014 mottle + bloom size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "specular amplitude on the bare metal"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "nucleation sites + crust speckle"
+    },
+    "hue": {
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "doc": "rotates the whole oxide ramp (0 = the true colour of the metal)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the front creeps"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "raking light anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stain origin y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "stain + speckle opacity"
+    },
+    "style": {
+      "default": "verdigris",
+      "options": [
+        "verdigris",
+        "rust",
+        "silver_tarnish",
+        "lichen",
+        "mineral"
+      ],
+      "doc": "verdigris: copper going blue-green \u00b7 rust: iron blooming orange over dark scale \u00b7 silver_tarnish: thin-film interference through gold, magenta, blue to black \u00b7 lichen: stone crusting sage and ochre \u00b7 mineral: false-colour assay bands with contour lines \u2014 clinical, non-representational"
+    },
+    "act": {
+      "default": "creep",
+      "options": [
+        "creep",
+        "bloom",
+        "strip"
+      ],
+      "doc": "creep: steady advance \u00b7 bloom: fast growth churning against constant spalling \u00b7 strip: a front sweeps the plate back to bare metal every minute and a half"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "creep",
+    "bloom",
+    "strip"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:14:26+00:00",
+    "fps": 60.2,
+    "motion": 0.174,
+    "lum": 0.541
+  },
+  "code": "const D = { corrosion: .55, scale: 1, energy: .6, density: .5, hue: 0, speed: 1, x: .5, y: .5, alpha: 1, style: 'verdigris', act: 'creep', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hz=i=>{const s=Math.sin(i*269.5+78.233)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=(((h%360)+360)%360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst corr=cl(P.corrosion,0,1.6), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\nconst kick=Math.min(1, K.pulse*.45+S.bass*.6);\n\n// ---- the plate grid ----\nconst GW=132, GH=cl(Math.round(132*Hh/Math.max(1,W)),40,132), NC=GW*GH;\nconst rkey=GH+'|'+P.seed+'|'+Math.round(sc*8);\nif(!S.age||S.n!==NC){ S.age=new Float32Array(NC); S.n=NC; S.rk=null; S.nuc=null; }\nif(S.rk!==rkey){\n  S.rk=rkey; S.res=new Float32Array(NC);\n  const f1=5.4/sc, f2=13.1/sc, f3=27.3/sc, o1=fr(1)*40, o2=fr(2)*40, o3=fr(3)*40;\n  for(let j=0;j<GH;j++){ const y=j/GH;\n    for(let i=0;i<GW;i++){ const x=i/GW;\n      let v=.5+.30*Math.sin(x*f1+o1)*Math.cos(y*f1*1.21-o1)\n             +.17*Math.sin(x*f2*1.13-o2)*Math.cos(y*f2+o2)\n             +.09*Math.sin(x*f3+o3)*Math.cos(y*f3*.87-o3);\n      S.res[j*GW+i]=cl(v,0,1); } }\n  if(S.nuc!==P.seed){ S.nuc=P.seed; S.age.fill(0); const NN=5+Math.round(dens*9);\n    for(let k=0;k<NN;k++){ const ci=Math.floor(fr(k*7)*GW), cj=Math.floor(fr(k*7+1)*GH);\n      for(let dj=-2;dj<=2;dj++) for(let di=-2;di<=2;di++){\n        const ii=(ci+di+GW)%GW, jj=cl(cj+dj,0,GH-1); S.age[jj*GW+ii]=1; } } }\n}\nconst age=S.age, res=S.res;\n\n// ---- creep: real-seconds integration, tolerant of t0 resets ----\nif(S.pt==null||K.t<S.pt) S.pt=K.t;\nlet dt=cl(K.t-S.pt,0,.09); S.pt=K.t;\nlet gr=spd*(act==='bloom'?1.35:0.55)*(0.55+0.8*K.intensity);\nconst flakeThr=act==='bloom'?0.986:0.9975;\nconst tick=Math.floor(K.t*4);\nfor(let j=0;j<GH;j++){\n  const jm=(j>0?j-1:0)*GW, jp=(j<GH-1?j+1:GH-1)*GW, jc=j*GW;\n  for(let i=0;i<GW;i++){\n    const R=res[jc+i]; if(R>.88) continue;               // permanent bare-metal islands\n    let a=age[jc+i];\n    if(a>0){ a+=dt*gr*(.30+.85*(1-R)); }\n    else{\n      const im=(i>0?i-1:GW-1), ip=(i<GW-1?i+1:0);\n      let nm=age[jc+im]; const b1=age[jc+ip], b2=age[jm+i], b3=age[jp+i];\n      if(b1>nm)nm=b1; if(b2>nm)nm=b2; if(b3>nm)nm=b3;\n      if(nm>.22) a+=dt*gr*(.45+1.15*(1-R))*(nm-.18);\n    }\n    if(a>.94 && hz(jc+i+tick*7919)>flakeThr) a=0;        // crust spalls -> fresh metal\n    age[jc+i]=a>1?1:a;\n  }\n}\n// 'strip' act: a slow front strips the plate back to bare metal every ~90s\nif(act==='strip'){ const sx=((T*.011)%1+1)%1*GW;\n  for(let i=0;i<GW;i++){ const d=Math.abs(i-sx); if(d<GW*.035||d>GW*(1-.035))\n    for(let j=0;j<GH;j++) age[j*GW+i]*=.86; } }\n\n// ---- tone ramp LUT (rebuilt only on style/hue change) ----\nconst lkey=sty+'|'+Math.round(H);\nif(!S.lut||S.lk!==lkey){\n  let st;\n  if(sty==='rust') st=[[0,210,9,44],[.28,16,42,23],[.56,20,78,52],[.82,28,82,72],[1,38,58,60]];\n  else if(sty==='silver_tarnish') st=[[0,208,4,76],[.26,46,46,66],[.5,316,46,52],[.72,232,54,40],[.88,268,40,22],[1,250,26,11]];\n  else if(sty==='lichen') st=[[0,40,7,50],[.32,84,15,30],[.58,96,28,58],[.84,48,46,72],[1,60,16,84]];\n  else if(sty==='mineral') st=[[0,250,72,16],[.25,208,74,34],[.5,150,72,48],[.75,52,78,66],[1,8,80,80]];\n  else st=[[0,22,56,52],[.24,13,64,32],[.5,200,32,22],[.72,168,54,50],[.9,156,44,66],[1,150,30,78]];\n  S.lut=new Uint8Array(256*3);\n  for(let i=0;i<256;i++){ const t=i/255; let k=0; while(k<st.length-2&&t>st[k+1][0])k++;\n    const a=st[k], b=st[k+1], f=cl((t-a[0])/Math.max(1e-4,b[0]-a[0]),0,1);\n    const c=hsb2rgb(a[1]+(b[1]-a[1])*f+H, a[2]+(b[2]-a[2])*f, a[3]+(b[3]-a[3])*f);\n    S.lut[i*3]=c[0]; S.lut[i*3+1]=c[1]; S.lut[i*3+2]=c[2]; }\n  S.lk=lkey; }\nconst lut=S.lut, band=(sty==='mineral');\n\n// ---- raking light sweeping the bare metal: the second motion floor ----\nconst lp=cl(P.x,0,1)+.46*Math.sin(T*.081)+.19*Math.sin(T*.191+1.3);\nconst specA=(38+52*en)*(1+.35*kick*en);\n\nif(!S.buf||S.bw!==GW||S.bh!==GH){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(GW,GH); S.bw=GW; S.bh=GH; }\nconst buf=S.buf; buf.loadPixels();\nconst px=buf.pixels;\nfor(let j=0;j<GH;j++){\n  const jm=(j>0?j-1:0)*GW, jp=(j<GH-1?j+1:GH-1)*GW, jc=j*GW;\n  for(let i=0;i<GW;i++){\n    const a=age[jc+i], R=res[jc+i];\n    let ox=cl(a*(.35+corr*1.30),0,1);\n    let idx=(ox*255)|0; if(idx>255)idx=255;\n    let r=lut[idx*3], g=lut[idx*3+1], b=lut[idx*3+2];\n    // crust mottle + relief rim from the oxide gradient\n    const im=(i>0?i-1:0), ip=(i<GW-1?i+1:GW-1);\n    const rim=(age[jc+im]-age[jc+ip])*46*ox + (age[jm+i]-age[jp+i])*26*ox;\n    let m=(.80+.42*R)*(1+rim*.012);\n    // bare metal is specular; crust is matte\n    const sp=Math.pow(cl(1-Math.abs(i/GW-lp)*3.1,0,1),3)*(1-ox)*specA;\n    if(band){ const q=(ox*9)%1; if(q<.11) m*=1.55; }\n    let rr=r*m+sp, gg=g*m+sp*.97, bb=b*m+sp*1.04;\n    const o=(jc+i)*4;\n    px[o]=rr>255?255:rr; px[o+1]=gg>255?255:gg; px[o+2]=bb>255?255:bb; px[o+3]=255;\n  }\n}\nbuf.updatePixels();\ndrawingContext.imageSmoothingEnabled=true;\nimage(buf,0,0,W,Hh);\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst smp=(x,y)=>age[cl(Math.floor(y*GH),0,GH-1)*GW+cl(Math.floor(x*GW),0,GW-1)];\n\n// ---- brushed / cast surface texture over the whole plate (cached) ----\nconst tkey=W+'x'+Hh+'|'+P.seed+'|'+sty;\nif(!S.tex||S.tk!==tkey){\n  const g=(S.tex&&S.tex.width===W&&S.tex.height===Hh)?S.tex:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.strokeWeight(1);\n  for(let i=0;i<680;i++){ const y=fr(i*11)*Hh, x=fr(i*11+1)*W, L=W*(.02+fr(i*11+2)*.16);\n    g.stroke(0,0,fr(i*11+3)>.5?100:0, 4+fr(i*11+4)*7); g.line(x,y,x+L,y+(fr(i*11+5)-.5)*3); }\n  g.noStroke();\n  for(let i=0;i<900;i++){ const x=fr(i*23)*W, y=fr(i*23+1)*Hh;\n    g.fill(0,0,fr(i*23+2)>.55?100:0, 3+fr(i*23+3)*7); g.circle(x,y,.8+fr(i*23+4)*2.4); }\n  S.tex=g; S.tk=tkey; }\ndc.globalCompositeOperation='overlay'; image(S.tex,0,0); dc.globalCompositeOperation=oldOp;\n\n// ---- mineral crust speckle + efflorescence bloom ----\nnoStroke();\nconst NS=Math.round(120+dens*180);\ndc.globalCompositeOperation='overlay';\nfor(let i=0;i<NS;i++){\n  const x=fr(i*13), y=fr(i*13+1), a=smp(x,y);\n  const ox=cl(a*(.35+corr*1.3),0,1); if(ox<.28) continue;\n  const wob=.006*Math.sin(T*.23+i);\n  fill(md(H+(sty==='rust'?34:sty==='lichen'?56:150),360), 24, fr(i*13+2)>.45?92:14, (10+30*ox)*al);\n  ellipse((x+wob)*W,(y-wob*.7)*Hh, u*(.004+fr(i*13+3)*.016), u*(.004+fr(i*13+4)*.013));\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- mineral run-off staining below the heaviest crust (drifts, MULTIPLY) ----\ndc.globalCompositeOperation='multiply';\nfor(let i=0;i<10;i++){\n  const x=((fr(i*29)+.05*Math.sin(T*.037+i*1.7))%1), y0=cl(P.y-.42+fr(i*29+1)*.62,.02,.78);\n  const a=smp(x,y0+.02); if(a<.4) continue;\n  const w2=u*(.012+fr(i*29+2)*.05), L=Hh*(.12+fr(i*29+3)*.4)*(.5+.6*en);\n  const lg=dc.createLinearGradient(0,y0*Hh,0,y0*Hh+L);\n  const cc=hsb2rgb(md(H+(sty==='rust'?24:sty==='silver_tarnish'?260:160),360),46,52);\n  lg.addColorStop(0,'rgba('+(cc[0]|0)+','+(cc[1]|0)+','+(cc[2]|0)+','+(0.34*al).toFixed(3)+')');\n  lg.addColorStop(1,'rgba(255,255,255,0)');\n  dc.fillStyle=lg; dc.fillRect(x*W-w2/2, y0*Hh, w2, L);\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- gallery sheen: slow specular pass over the whole plate ----\ndc.globalCompositeOperation='lighter';\nconst sa=.22+.12*Math.sin(T*.029), ux=Math.cos(sa), uy=Math.sin(sa);\nconst L2=Math.abs(W*ux)+Math.abs(Hh*uy)+1, cpos=((T*.024)%1+1)%1*L2, bw=u*.2;\nconst ox2=W/2-(L2/2-cpos)*ux, oy2=Hh/2-(L2/2-cpos)*uy;\nconst lg2=dc.createLinearGradient(ox2-bw*ux,oy2-bw*uy,ox2+bw*ux,oy2+bw*uy);\nlg2.addColorStop(0,'rgba(255,255,255,0)');\nlg2.addColorStop(.5,'rgba(255,250,235,'+(0.025+0.05*en*al).toFixed(3)+')');\nlg2.addColorStop(1,'rgba(255,255,255,0)');\ndc.fillStyle=lg2; dc.fillRect(0,0,W,Hh);\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

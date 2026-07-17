@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.ballerina",
+  "kind": "subject",
+  "name": "Ballerina",
+  "desc": "Degas-pastel ballerina working through plies, squash-spin pirouettes and trembling arabesques, tutu flaring on the swell in a warm rehearsal-room glow.",
+  "tags": [
+    "ballerina",
+    "ballet",
+    "dancer",
+    "degas",
+    "pastel",
+    "pirouette",
+    "arabesque",
+    "plie",
+    "tutu",
+    "elegant",
+    "classical",
+    "graceful",
+    "character",
+    "dance",
+    "stage",
+    "impressionist",
+    "recital",
+    "feminine"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "movement amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "figure size vs design"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "tutu/bodice hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "floor hatch scuff count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "dance",
+      "options": [
+        "dance",
+        "pirouette",
+        "arabesque",
+        "plie",
+        "idle"
+      ],
+      "doc": "pose \u2014 dance auto-cycles a 32-beat variation"
+    },
+    "style": {
+      "default": "degas",
+      "options": [
+        "degas",
+        "inkwash",
+        "neon",
+        "riso"
+      ],
+      "doc": "aesthetic: pastel / white-ink brush + seal / glow tubes / duotone overprint"
+    },
+    "act": {
+      "default": "recital",
+      "options": [
+        "recital",
+        "rehearsal"
+      ],
+      "doc": "multi-minute program: recital = full variation, rehearsal = slow marking w/ rare turns"
+    },
+    "flare": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tutu flare amount"
+    },
+    "grace": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "limb length / slenderness morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "hatch/mote layout + wobble character"
+    }
+  },
+  "acts": [
+    "recital",
+    "rehearsal"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-10T19:20:25+00:00",
+    "fps": 60.2,
+    "motion": 0.0162,
+    "lum": 0.102
+  },
+  "code": "const D = { energy:.55, scale:1, hue:200, speed:1, density:.5, x:.5, y:.8, pose:'dance', style:'degas', act:'recital', flare:.6, grace:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst md = (a, n) => ((a % n) + n) % n;\nconst frc = v => v - Math.floor(v);\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst sn = (tt, off) => { const f = Math.floor(tt), xq = tt - f; return (fr(f + off) * (1 - xq) + fr(f + 1 + off) * xq - .5) * 2; };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nconst u = Math.min(width, height);\nconst sc = u * P.scale / 330;\nconst bt = K.beat * P.speed;\nconst sub = frc(bt);\nconst en = P.energy * (.5 + .5 * K.intensity);\nconst H = md(P.hue, 360);\nconst ink = P.style === 'inkwash', neon = P.style === 'neon', riso = P.style === 'riso';\nconst GR = .85 + P.grace * .35;   // limb length morph\n\n// ---- caches ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.hatch = [];\n  for (let i = 0; i < 30; i++) S.hatch.push({\n    x: (fr(i * 3 + 2) - .5) * 340, y: -4 + fr(i * 3 + 3) * 16,\n    a: -.5 + fr(i * 5 + 4) * 1, l: 10 + fr(i * 7 + 5) * 22, ph: fr(i * 9 + 6) * 6.2832\n  });\n  S.mote = [];\n  for (let i = 0; i < 12; i++) S.mote.push({ x: (fr(i * 11 + 30) - .5) * 220, v: .35 + fr(i * 13 + 31) * .6, ph: fr(i * 17 + 32) * 6.2832 });\n}\nif (!S.spr) {\n  S.spr = createGraphics(64, 64);\n  S.spr.noStroke();\n  for (let r = 30; r > 0; r--) { S.spr.fill(255, 6); S.spr.ellipse(32, 32, r * 2.1, r * 2.1); }\n}\n\n// ---- pose program ----\nlet pose = P.pose;\nif (pose === 'dance') {\n  const ph = md(bt, 32);\n  if (P.act === 'rehearsal') {\n    pose = ph < 12 ? 'plie' : ph < 20 ? 'arabesque' : ph < 26 ? (K.section % 3 === 2 ? 'pirouette' : 'idle') : 'idle';\n  } else {\n    pose = ph < 8 ? 'plie' : ph < 16 ? 'pirouette' : ph < 24 ? 'arabesque' : 'idle';\n  }\n}\n\nconst wob = sn(K.t * .7, 100);           // balance corrections\nconst breath = Math.sin(K.t * .27) * .5 + K.swell * .5;\nlet plie = 0, rise = 0, spinA = null, lean = 0, legBack = 0, sway = 0;\nlet aL1 = .35, aL2 = -.55, aR1 = -.35, aR2 = .55;   // ports de bras (bras bas default)\nlet headT = sn(K.t * .2, 44) * .08;\nlet flare = P.flare * (.55 + K.swell * .3 * en + A.rms * .8);\n\nif (pose === 'plie') {\n  const deep = Math.floor(md(bt, 4)) % 2 === 0 ? .5 : 1;\n  plie = Math.sin(sub * Math.PI) * deep * (.4 + .6 * en);\n  const op = .5 + plie * .9;\n  aL1 = op; aL2 = -.7; aR1 = -op; aR2 = .7;\n  headT = plie * .06;\n  flare += plie * .12;\n} else if (pose === 'pirouette') {\n  spinA = bt * Math.PI * (P.act === 'rehearsal' ? .5 : 1);\n  aL1 = 2.6; aL2 = -.7; aR1 = -2.6; aR2 = .7;   // high fifth\n  rise = .8;\n  flare += .22 + en * .1;\n} else if (pose === 'arabesque') {\n  rise = K.swell * .5 * en + .2;\n  legBack = .5 + .18 * K.swell * en + wob * .06;\n  lean = .22 + K.swell * .04;\n  aR1 = -1.62; aR2 = .12;                        // front arm reaches\n  aL1 = 1.15; aL2 = -.25;                        // back arm trails\n  headT = -.1 + wob * .03;\n} else { // idle rest / bourree\n  sway = Math.sin(bt * Math.PI * .5) * 2.5 * en + sn(K.t * .31, 88) * 2;\n  rise = K.pulse * .18 * en;\n  aL1 = .35 + breath * .06; aR1 = -.35 - breath * .06;\n}\n\nconst hipY = -78 + plie * 24 - rise * 5;\nconst facing = spinA == null ? 1 : Math.cos(spinA);\nconst fx = spinA == null ? 1 : Math.max(.24, Math.abs(facing));\n\n// ---- style plumbing ----\nlet PASS = 1;\nfunction FC(h, s, b, a) {\n  if (PASS === 0) { noFill(); return; }\n  if (PASS === 3) { fill(338, 62, 97, a * .8); return; }\n  if (PASS === 4) { fill(224, 52, 93, a * .8); return; }\n  if (neon) { fill(250, 42, 13, a); return; }\n  if (ink) { fill(0, 0, 88, a * .3); return; }\n  fill(h, s, b, a);\n}\nfunction SC(h, s, b, a, w) {\n  if (PASS === 0) { stroke(H, 70, 100, 18); strokeWeight(w * 3.2); noFill(); return; }\n  if (PASS === 3) { stroke(338, 62, 97, a * .8); }\n  else if (PASS === 4) { stroke(224, 52, 93, a * .8); }\n  else if (neon) { stroke(H, 70, 100, a); }\n  else if (ink) { stroke(0, 0, 96, a); }\n  else stroke(h, s, b, a);\n  strokeWeight(w);\n}\nconst detailPass = () => PASS === 1 || PASS === 4;\n\n// ---- body parts (stroke-limb gesture rig) ----\nfunction shoe() {\n  noStroke(); FC(348, 45, 92, 95);\n  beginShape(); vertex(-2.6, -1); vertex(2.6, -1); vertex(1, 8.5); vertex(-1, 8.5); endShape(CLOSE);\n}\nfunction legL(x, y, a1, a2, w) {\n  push(); translate(x, y); rotate(a1);\n  SC(21, 26, 92, 96, w * 1.12); line(0, 0, 0, 40 * GR);\n  if (PASS === 1 && !ink && !neon) { SC(12, 55, 48, 40, w * .3); line(w * .42, 2, w * .42, 38 * GR); }\n  SC(21, 26, 92, 96, w);\n  translate(0, 40 * GR); rotate(a2);\n  line(0, 0, 0, 36 * GR);\n  translate(0, 36 * GR);\n  shoe();\n  pop();\n}\nfunction armL(x, y, a1, a2, w) {\n  push(); translate(x, y); rotate(a1);\n  SC(21, 26, 93, 96, w); line(0, 0, 0, 24 * GR);\n  translate(0, 24 * GR); rotate(a2);\n  line(0, 0, 0, 22 * GR);\n  translate(0, 22 * GR);\n  noStroke(); FC(21, 28, 94, 96); ellipse(0, 1.5, 5, 5.5);\n  pop();\n}\nfunction tutu(x, y, fl2, aMul) {\n  const tw = 62 * (1 + fl2 * .55), th = 15 * (1 + fl2 * .4);\n  noStroke();\n  for (let i = 3; i >= 1; i--) {\n    FC(md(H + i * 8, 360), 24 - i * 4, 96, (20 - i * 4) * aMul);\n    ellipse(x, y + i * 2.4, tw * (1 - i * .07), th * (1 + i * .16));\n  }\n  FC(H, 22, 97, 72 * aMul);\n  ellipse(x, y, tw, th);\n  for (let i = 0; i < 12; i++) {\n    const aa = fr(i * 7 + 21) * 6.2832 + Math.sin(K.t * .4 + i) * .06;\n    SC(md(H + 20, 360), 32, 99, 36 * aMul, 1.1);\n    const rx = Math.cos(aa) * tw * .5, ry = Math.sin(aa) * th * .5;\n    line(x + rx * .82, y + ry * .82, x + rx * 1.06, y + ry * 1.06);\n  }\n  noStroke();\n}\nfunction drawDancer() {\n  push();\n  translate(sway, 0);\n  // legs (under tutu)\n  if (pose === 'plie') {\n    legL(-4, hipY, .5 + plie * .5, -(1.02 + plie * 1.0), 6);\n    legL(4, hipY, -(.5 + plie * .5), 1.02 + plie * 1.0, 6);\n  } else if (pose === 'pirouette') {\n    push(); scale(fx, 1);\n    legL(0, hipY, .02 + wob * .02, -.02, 6);\n    if (Math.abs(facing) > .35) legL(1, hipY, -1.12, 2.25, 5.4);\n    pop();\n  } else if (pose === 'arabesque') {\n    legL(-2, hipY, .05 + wob * .02, -.04, 6);\n    legL(0, hipY, -(1.55 + legBack), -.22, 5.6);\n  } else {\n    legL(-3.5, hipY, .04 + wob * .015, -.03, 6);\n    legL(3.5, hipY, -.04, .03, 6);\n  }\n  // tutu (unsquashed disc \u2014 reads as spinning plate)\n  tutu(0, hipY - 5, flare, 1);\n  if (spinA != null && P.flare > .05) {\n    blendMode(ADD); noFill();\n    for (let g = 1; g <= 3; g++) {\n      SC(md(H + g * 12, 360), 40, 100, 22 - g * 6, 1.6);\n      ellipse(0, hipY - 5, (62 * (1 + flare * .55)) * (1 + g * .09), (15 * (1 + flare * .4)) * (1 + g * .14));\n    }\n    blendMode(BLEND); noStroke();\n  }\n  // torso + head (squashed during pirouette)\n  push();\n  translate(0, hipY - 5);\n  rotate(lean * (pose === 'arabesque' ? 1 : 0) + sway * .008);\n  scale(fx, 1);\n  const bs = 1 + breath * .025;\n  noStroke(); FC(H, 30, 90, 100);\n  push(); scale(bs, 1);\n  beginShape();\n  vertex(-7, 0); vertex(7, 0);\n  bezierVertex(9, -12, 8.5, -20, 7.5, -27);\n  vertex(-7.5, -27);\n  bezierVertex(-8.5, -20, -9, -12, -7, 0);\n  endShape(CLOSE);\n  pop();\n  if (detailPass() && !ink) { noStroke(); FC(md(H + 15, 360), 40, 80, 45); ellipse(0, -8, 8 * bs, 14); }\n  armL(-8, -25, aL1, aL2, 4.4);\n  armL(8, -25, aR1, aR2, 4.4);\n  // neck + head\n  SC(21, 26, 92, 96, 3); line(0, -27, 0, -33);\n  push(); translate(0, -33); rotate(headT);\n  noStroke(); FC(22, 28, 94, 100);\n  ellipse(0, -7, 15.5, 17);\n  const back = spinA != null && facing < 0;\n  FC(24, 62, 26, 100);\n  if (back) { ellipse(0, -9, 15, 15); ellipse(0, -16.5, 7.5, 7); }\n  else {\n    arc(0, -11, 16.5, 12, Math.PI - .3, 6.2832 + .3, CHORD);\n    ellipse(0, -16.5, 7.5, 7);\n    if (detailPass()) {\n      const blink = frc(K.t * .11 + fr(9) * 3) < .05;\n      fill(0, 0, 20, 95);\n      if (blink) { rect(-4.5, -8, 3, .9, 1); rect(1.5, -8, 3, .9, 1); }\n      else { ellipse(-3, -7.5, 1.9, 2.3); ellipse(3, -7.5, 1.9, 2.3); }\n      fill(355, 55, 80, 70); ellipse(0, -2.6, 2.6, 1.5);\n      fill(350, 45, 95, 30); ellipse(-4.6, -4.4, 3, 2); ellipse(4.6, -4.4, 3, 2);\n    }\n  }\n  pop();\n  pop();\n  pop();\n}\n\n// ---- render ----\npush();\ntranslate(P.x * width + Math.sin(K.t * .16) * 10 * sc, P.y * height);\nscale(sc);\n\n// warm stage glow (drifts side to side across sections)\nconst gx = Math.sin(K.t * .045 + K.section * .8) * 55;\nblendMode(ADD);\ntint(neon ? H : 38, neon ? 55 : 40, 95, clp(6 + K.intensity * 9 + A.bass * 8, 0, 24));\nimage(S.spr, gx - 150, -300, 300, 300);\nnoTint();\nblendMode(BLEND);\n\n// rehearsal-room floor: line + pastel hatch scuffs\nSC(30, 20, ink ? 70 : 55, 30, 1.2);\nline(-190, 6, 190, 6);\nconst nh = Math.floor(P.density * 28);\nfor (let i = 0; i < nh; i++) {\n  const hch = S.hatch[i];\n  const shim = 10 + (Math.sin(K.t * .5 + hch.ph) * .5 + .5) * 8;\n  SC(28, 25, 75, shim, 1);\n  push(); translate(hch.x, hch.y); rotate(hch.a * .3);\n  line(-hch.l / 2, 0, hch.l / 2, 0);\n  pop();\n}\nnoStroke();\n\n// soft shadow under dancer\nfill(0, 0, 0, 35);\nellipse(sway, 3, 56 + flare * 20, 10);\n\n// figure \u2014 style passes\nif (neon) {\n  PASS = 0; blendMode(ADD); drawDancer(); blendMode(BLEND);\n  PASS = 1; drawDancer();\n} else if (riso) {\n  PASS = 3; push(); translate(-2 - fr(1) * 1.5, -1.4); drawDancer(); pop();\n  PASS = 4; push(); translate(2 + fr(2) * 1.5, 1.4); drawDancer(); pop();\n  PASS = 1;\n} else {\n  PASS = 1; drawDancer();\n}\n\n// ink style: red seal stamp\nif (ink) {\n  noStroke(); fill(5, 80, 72, 85);\n  rect(120, -36, 16, 16, 2);\n  fill(0, 0, 95, 80);\n  rect(124, -32, 3, 3); rect(129, -32, 3, 8); rect(124, -27, 3, 3);\n}\n\n// dust motes in the light (treble sparkle on top of baseline drift)\nconst spark = clp(A.treble * 1.4 + .25, 0, 1);\nblendMode(ADD); noStroke();\nfor (let i = 0; i < 12; i++) {\n  const mo = S.mote[i];\n  const my2 = -20 - frc(K.t * .03 * mo.v + mo.ph) * 240;\n  const mx2 = mo.x + gx * .3 + sn(K.t * .2, i * 31) * 12;\n  const al = (Math.sin(K.t * (1.5 + mo.v) + mo.ph) * .5 + .5) * 40 * spark;\n  fill(45, 15, 100, clp(al, 0, 45));\n  ellipse(mx2, my2, 2.2, 2.2);\n}\nblendMode(BLEND);\npop();\n"
+}

@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rep_tile",
+  "kind": "genart",
+  "name": "Rep-Tile Inflation",
+  "desc": "The chair rep-tile inflating and deflating without end \u2014 every L-tromino splits into four half-size copies of itself, the substitution depth breathing so the pavement resolves into finer and finer generations and merges back while the whole plane drifts.",
+  "tags": [
+    "rep-tile",
+    "reptile",
+    "chair",
+    "chair-tiling",
+    "l-tromino",
+    "tromino",
+    "substitution",
+    "inflation",
+    "deflation",
+    "self-similar",
+    "recursion",
+    "recursive",
+    "hierarchy",
+    "subdivision",
+    "tiling",
+    "tessellation",
+    "pavement",
+    "geometry",
+    "mathematics",
+    "fractal",
+    "nested",
+    "generations",
+    "cast",
+    "concrete",
+    "lacquer",
+    "plan",
+    "blueprint",
+    "engraving",
+    "structure",
+    "segments",
+    "austere",
+    "clinical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the substitution depth swings each cycle (at max it runs from one generation to four and back)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "seed tile size vs frame"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "resting substitution depth (1\u20134 generations)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "drift rate across the plane"
+    },
+    "tilt": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much the plane rotates off axis-aligned (0 = a strict orthogonal pavement)"
+    },
+    "hue": {
+      "default": 24,
+      "min": 0,
+      "max": 360,
+      "doc": "primary material hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "lattice origin x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "lattice origin y as canvas fraction"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "poured",
+      "options": [
+        "poured",
+        "lacquer",
+        "plan",
+        "engraving",
+        "hierarchy"
+      ],
+      "doc": "aesthetic: poured concrete in four castings / glossy lacquer panels / cyan setting-out plan (line only) / hatched engraved plate / pure abstraction \u2014 tiles coloured by their position in the substitution tree, so the inflation hierarchy itself becomes the image"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 picks which of the two exact seedings each 3x2 cell takes"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:37+00:00",
+    "fps": 61.0,
+    "motion": 0.0853,
+    "lum": 0.546
+  },
+  "code": "const D = { energy:.6, scale:1, density:.55, speed:1, hue:24, x:.5, y:.5, tilt:.5, style:'poured', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst hs = n => { const s = Math.sin(n*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst vn = (x,y) => { const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hs(ix*57.3+iy*131.9), b=hs((ix+1)*57.3+iy*131.9), c=hs(ix*57.3+(iy+1)*131.9), d=hs((ix+1)*57.3+(iy+1)*131.9);\n  return a + (b-a)*wx + (c-a)*wy + (a-b-c+d)*wx*wy; };\nconst fbm = (x,y) => .60*vn(x,y) + .26*vn(x*2.1+4.7, y*2.1-2.3) + .14*vn(x*4.3-1.1, y*4.3+5.9);\n\nconst sty = P.style;\nconst plan = (sty==='plan'), paper = (sty==='engraving'), hier = (sty==='hierarchy'), lac = (sty==='lacquer');\nconst H = ((P.hue%360)+360)%360;\n\n// ---- the chair / L-tromino rep-4 substitution -------------------------------\n// A tile is (x, y, s, m): axis-aligned box [x, x+2s] x [y, y+2s] with the\n// quarter `m` missing.  Corner ids: 0=BL 1=BR 2=TL 3=TR.\n// Doubling the L gives a 4x4 box less a 2x2 quarter = exactly 4 half-size Ls.\nconst OUT = [\n  [[1,0],[2,0],[2,2],[0,2],[0,1],[1,1]],   // m=0, bottom-left quarter missing\n  [[0,0],[1,0],[1,1],[2,1],[2,2],[0,2]],   // m=1, bottom-right\n  [[0,0],[2,0],[2,2],[1,2],[1,1],[0,1]],   // m=2, top-left\n  [[0,0],[2,0],[2,1],[1,1],[1,2],[0,2]]    // m=3, top-right\n];\nconst RC = [1,3,0,2];                       // 90deg CCW maps corner -> corner\nconst KOF = [2,3,1,0];                      // rotations taking the m=3 rule to m\n// children of an m=3 parent, in the parent's local [0,4]^2 frame (half-box 1)\nconst BASE = [[1,1,3],[3,1,2],[1,3,1],[2,2,3]];\n\n// ---- motion ----------------------------------------------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst rate = P.speed*(.45 + .5*K.intensity);\nS.px = (S.px||0) + dt*rate*.052;\nS.py = (S.py||0) + dt*rate*.031;\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.3;\n// the substitution depth BREATHES on incommensurate rates \u2014 tiles resolve and re-merge\nconst wob = .55*Math.sin(K.t*.067) + .30*Math.sin(K.t*.151+1.4) + .15*Math.sin(K.t*.373+2.7);\nconst LVf = cl(1.15 + cl(P.density,0,1)*2.9 + 1.15*P.energy*wob, 1.02, 4.42);\nconst rot = cl(P.tilt,0,1)*(K.t*.0125 + .10*Math.sin(K.t*.053+.9) + .045*Math.sin(K.t*.139+2.2));\nconst ca = Math.cos(rot), sa = Math.sin(rot);\n\n// ---- lattice: a 3x2 rectangle holds exactly two L-trominoes ---------------\nconst SU = u*.30*cl(P.scale,.3,2.2);        // px per unit cell\n// leaf budget: visible lattice area / leaf area (3*4^-D) must stay under ~460\nconst budD = Math.floor(Math.log(Math.max(1.0001, 460*3*SU*SU/(width*height)))/Math.log(4));\nconst Dw = Math.max(1, Math.min(Math.floor(LVf), budD));\nconst frac = (Dw === Math.floor(LVf)) ? (LVf - Dw) : 1;\nconst ox = cl(P.x,.1,.9)*width, oy = cl(P.y,.1,.9)*height;\nconst pX = S.px, pY = S.py;\nconst TS = (lx,ly) => { const rx = lx - pX, ry = ly - pY;\n  return [ox + (rx*ca - ry*sa)*SU, oy + (rx*sa + ry*ca)*SU]; };\nconst IV = (sx,sy) => { const dx=(sx-ox)/SU, dy=(sy-oy)/SU;\n  return [dx*ca + dy*sa + pX, -dx*sa + dy*ca + pY]; };\n\n// ---- palette ----------------------------------------------------------------\nlet GC;\nif (plan)       GC = [212,64,19];\nelse if (paper) GC = [40,10,86];\nelse if (hier)  GC = [H,44,7];\nelse if (lac)   GC = [H,34,8];\nelse            GC = [H,14,12];\nnoStroke(); fill(GC[0],GC[1],GC[2],100); rect(0,0,width,height);\n\nconst cs = [IV(0,0), IV(width,0), IV(0,height), IV(width,height)];\nlet mnx=1e9, mxx=-1e9, mny=1e9, mxy=-1e9;\nfor (let i=0;i<4;i++){ mnx=Math.min(mnx,cs[i][0]); mxx=Math.max(mxx,cs[i][0]);\n                       mny=Math.min(mny,cs[i][1]); mxy=Math.max(mxy,cs[i][1]); }\nconst drift = K.t*.031;\n\nconst lerpH = (a,b,t) => { const d = ((b - a + 540)%360) - 180; return ((a + d*t)%360+360)%360; };\nfunction tone(m, acc, fv){\n  if (plan)  return [212, 58, cl(15 + 9*m + 10*fv, 8, 38)];\n  if (paper) return [40, 7, cl(94 - 9*m - 16*fv, 42, 97)];\n  // `acc` is the substitution PATH folded with a geometric weight, so siblings\n  // cluster and the whole inflation hierarchy shows as nested colour families\n  if (hier)  return [(((H + acc*46 + fv*22)%360)+360)%360, cl(40 + 40*fv, 8, 92), cl(18 + 58*(.5 + .09*acc) + 14*fv, 5, 92)];\n  if (lac)   return [(H + m*38 + fv*22) % 360, cl(58 + 24*fv, 18, 92), cl(26 + 52*fv + 14*m, 10, 90)];\n  const shade = [.86,.50,.66,.38][m];       // poured: four castings\n  return [(H + fv*16 - 6) % 360, cl(10 + 9*fv, 2, 26), cl(22 + 48*shade + 16*fv, 8, 88)];\n}\n\n// ---- draw one tile, or recurse -------------------------------------------\nfunction draw1(x, y, s, m, dep, acc, pm, pacc){\n  // bbox cull in lattice space (conservative: use the full 2s box)\n  if (x + 2*s < mnx - .1 || x > mxx + .1 || y + 2*s < mny - .1 || y > mxy + .1) return;\n  if (dep < Dw){\n    const k = KOF[m];\n    for (let i=0;i<4;i++){\n      let lx = BASE[i][0], ly = BASE[i][1], mm = BASE[i][2];\n      for (let r=0;r<k;r++){ const t2 = 4 - ly; ly = lx; lx = t2; mm = RC[mm]; }\n      const cxw = x + lx*(s*.5), cyw = y + ly*(s*.5);      // child centre, world\n      draw1(cxw - s*.5, cyw - s*.5, s*.5, mm, dep+1, acc + (i - 1.5)*Math.pow(.6, dep), m, acc);\n    }\n    if (dep >= 2) return;                                   // structural outlines: top 2 levels\n  }\n  const O = OUT[m], pj = [];\n  let gx=0, gy=0;\n  for (let v=0;v<6;v++){ const wx = x + O[v][0]*s, wy = y + O[v][1]*s;\n    gx+=wx; gy+=wy; pj.push(TS(wx,wy)); }\n  gx/=6; gy/=6;\n  if (dep < Dw){                                            // structural (coarse) outline\n    noFill();\n    stroke(plan?196:(paper?28:H), plan?26:(paper?26:14), plan?100:(paper?12:(hier?96:92)),\n           cl(30 + 46*glow*(1 - dep/Math.max(1,Dw)), 0, 80));\n    strokeWeight(Math.max(1.2, SU*s*.055));\n    beginShape(); for (let v=0;v<6;v++) vertex(pj[v][0], pj[v][1]); endShape(CLOSE);\n    return;\n  }\n  // leaf: fade from the PARENT's tone to its own as the level resolves, so a\n  // depth change never pops the frame\n  const fv = fbm(gx*.17 + drift*.6, gy*.17 - drift*.37);\n  const c0 = tone(m, acc, fv), c1 = tone(pm, pacc, fv);\n  const c = [lerpH(c1[0], c0[0], frac), c1[1] + (c0[1]-c1[1])*frac, c1[2] + (c0[2]-c1[2])*frac];\n  if (paper || plan) noFill(); else fill(c[0], c[1], c[2], 100);\n  stroke(plan?196:(paper?28:H), plan?26:(paper?28:(lac?36:12)), plan?100:(paper?12:(hier?98:8)),\n         cl((plan||paper?36:18) + 58*frac, 0, 96));\n  strokeWeight(Math.max(.9, SU*s*.05));\n  beginShape(); for (let v=0;v<6;v++) vertex(pj[v][0], pj[v][1]); endShape(CLOSE);\n  if (paper){                                               // engraved hatching by orientation\n    const nh = 2 + m;\n    stroke(28, 28, 12, 30); strokeWeight(Math.max(.7, SU*s*.02)); noFill();\n    for (let i=1;i<=nh;i++){ const q = i/(nh+1);\n      const a2 = pj[0], b2 = pj[3], c2 = pj[1], d2 = pj[4];\n      line(a2[0]+(c2[0]-a2[0])*q, a2[1]+(c2[1]-a2[1])*q, b2[0]+(d2[0]-b2[0])*q, b2[1]+(d2[1]-b2[1])*q);\n    }\n  }\n}\n\n// ---- top layer: a 3x2 rect is tiled by two Ls, two ways \u2014 seeded per rect\n// cfgA = L(box[X,X+2], m=3) + L(box[X+1,X+3], m=0)\n// cfgB = L(box[X,X+2], m=1) + L(box[X+1,X+3], m=2)   (both verified exact)\nconst a0 = Math.floor((mnx - 3)/3), a1 = Math.ceil(mxx/3);\nconst b0 = Math.floor((mny - 2)/2), b1 = Math.ceil(mxy/2);\nfor (let b=b0; b<=b1; b++){\n  for (let a=a0; a<=a1; a++){\n    const X = a*3, Y = b*2, cfg = hs(a*7.3 + b*3.1 + 1.7) > .5;\n    draw1(X + 0, Y, 1, cfg ? 1 : 3, 0, -0.5, cfg ? 1 : 3, -0.5);\n    draw1(X + 1, Y, 1, cfg ? 2 : 0, 0,  0.5, cfg ? 2 : 0,  0.5);\n  }\n}\n\n// ---- a light crawling the hierarchy, out of phase with the breathing -------\nif (!plan && !paper){\n  push(); blendMode(ADD); noStroke();\n  const lxx = ox + Math.cos(K.t*.079 + .8)*width*.40 + Math.cos(K.t*.197)*width*.11;\n  const lyy = oy + Math.sin(K.t*.113 + 2.1)*height*.38 + Math.sin(K.t*.293+1)*height*.10;\n  for (let i=5;i>=1;i--){ fill(H, hier?26:20, 100, 1.3 + 2.5*glow); ellipse(lxx, lyy, u*.19*i, u*.19*i); }\n  pop(); blendMode(BLEND);\n}\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

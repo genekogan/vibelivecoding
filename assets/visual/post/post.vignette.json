@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.vignette",
+  "kind": "post",
+  "name": "Vignette",
+  "desc": "Breathing darkroom vignette with a wandering center and drifting light-leak glows; edges close in on the beat while soft flares crawl across the frame.",
+  "tags": [
+    "vignette",
+    "post",
+    "overlay",
+    "darkroom",
+    "frame",
+    "edge",
+    "darken",
+    "light-leak",
+    "lens",
+    "bloom",
+    "chromatic",
+    "aberration",
+    "cinematic",
+    "noir",
+    "moody",
+    "analog",
+    "film",
+    "spotlight",
+    "ember",
+    "atmosphere",
+    "finish"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "light",
+  "params": {
+    "darkness": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "edge opacity / how dark the frame border gets"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the darkness reaches inward (0 corners only, 1 near center)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light-leak glow amplitude + beat response"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "drift + breathe rate multiplier"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "tint / leak hue"
+    },
+    "feather": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "softness of the vignette falloff"
+    },
+    "tint": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "how much the edge is hue-tinted vs pure black"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "inner clear-zone size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of light-leak blobs"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vignette center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vignette center y"
+    },
+    "style": {
+      "default": "darkroom",
+      "options": [
+        "darkroom",
+        "bloom",
+        "chroma",
+        "ember"
+      ],
+      "doc": "aesthetic: pure dark frame / inverted bright center halo / chromatic-aberration colored edge fringes (abstract) / warm burnt edges with rising embers"
+    },
+    "act": {
+      "default": "breathe",
+      "options": [
+        "breathe",
+        "pulse",
+        "iris",
+        "drift"
+      ],
+      "doc": "multi-minute program: breathe steady, pulse hits hard on beats, iris slowly opens+closes over ~40s, drift roams the frame"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "light-leak layout"
+    }
+  },
+  "acts": [
+    "breathe",
+    "pulse",
+    "iris",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:42:59+00:00",
+    "fps": 61.7,
+    "motion": 0.006,
+    "lum": 0.088
+  },
+  "code": "const D = { darkness:.62, spread:.5, energy:.6, speed:1, hue:32, feather:.5, tint:.3, scale:1, density:.5, x:.5, y:.5, style:'darkroom', act:'breathe', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b,seg=Math.floor(h/60)%6;if(seg===0){r=c;g=x;b=0;}else if(seg===1){r=x;g=c;b=0;}else if(seg===2){r=0;g=c;b=x;}else if(seg===3){r=0;g=x;b=c;}else if(seg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [(r+m)*255,(g+m)*255,(b+m)*255];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst style=P.style;\nconst en=clp(P.energy,0,1)*(.55+.55*K.intensity);\nlet dark=clp(P.darkness,0,1), spread=clp(P.spread,0,1);\nconst eh=md(P.hue,360);\n\n// act dramaturgy (multi-minute programs)\nlet breathAmp=1, wander=1, leakE=1;\nif(P.act==='pulse'){ breathAmp=1.8; leakE=1.1; }\nelse if(P.act==='iris'){ const io=0.5+0.5*Math.sin(K.t*0.028*(0.5+P.speed)); spread=clp(0.12+io*0.82,0,1); wander=0.5; }\nelse if(P.act==='drift'){ wander=2.3; leakE=1.5; }\n\n// wandering center \u2014 real-time, never re-phases at 8s\nconst cx=P.x*W + Math.sin(K.t*0.06*(0.5+P.speed)*wander+0.4)*u*0.06*wander;\nconst cy=P.y*Hh + Math.cos(K.t*0.048*(0.5+P.speed)*wander+1.7)*u*0.05*wander;\n\n// breathing radius: slow real-time sine + beat swell + audio\nconst breathe = Math.sin(K.t*0.19*(0.6+P.speed))*0.5 + K.swell*0.4 + K.pulse*0.18*en + A.rms*0.7;\nconst innerFrac = clp(0.80 - spread*0.72 + breathe*0.06*breathAmp, 0.08, 0.96);\nconst outerFrac = 1.15 + P.feather*0.55;\nconst innerR=u*innerFrac*P.scale + 1, outerR=u*outerFrac + innerR + 1;\n\nif(style==='bloom'){\n  const [br,bg,bb]=hsb2rgb(eh,45,100);\n  const g=dc.createRadialGradient(cx,cy,innerR*0.15,cx,cy,outerR*0.75);\n  g.addColorStop(0,`rgba(${br|0},${bg|0},${bb|0},${(dark*0.55).toFixed(3)})`);\n  g.addColorStop(0.5,`rgba(${br|0},${bg|0},${bb|0},${(dark*0.18).toFixed(3)})`);\n  g.addColorStop(1,`rgba(${br|0},${bg|0},${bb|0},0)`);\n  dc.globalCompositeOperation='lighter'; dc.fillStyle=g; dc.fillRect(0,0,W,Hh);\n  const [dr,dg,db]=hsb2rgb(eh,40,6);\n  const g2=dc.createRadialGradient(cx,cy,innerR*0.9,cx,cy,outerR);\n  g2.addColorStop(0,`rgba(${dr|0},${dg|0},${db|0},0)`);\n  g2.addColorStop(1,`rgba(${dr|0},${dg|0},${db|0},${(dark*0.5).toFixed(3)})`);\n  dc.globalCompositeOperation='source-over'; dc.fillStyle=g2; dc.fillRect(0,0,W,Hh);\n} else if(style==='chroma'){\n  const [dr,dg,db]=hsb2rgb(eh,30,5);\n  const g=dc.createRadialGradient(cx,cy,innerR,cx,cy,outerR);\n  g.addColorStop(0,`rgba(${dr|0},${dg|0},${db|0},0)`);\n  g.addColorStop(1,`rgba(${dr|0},${dg|0},${db|0},${(dark*0.88).toFixed(3)})`);\n  dc.globalCompositeOperation='source-over'; dc.fillStyle=g; dc.fillRect(0,0,W,Hh);\n  // chromatic-aberration edge rings, offsets rotate in real time\n  const off=u*(0.012+0.02*en)*(0.7+0.5*Math.sin(K.t*0.6));\n  const ang=K.t*0.25;\n  const chans=[[255,40,90],[40,255,150],[80,110,255]];\n  dc.globalCompositeOperation='lighter';\n  for(let i=0;i<3;i++){\n    const ox=cx+Math.cos(ang+i*TAU/3)*off, oy=cy+Math.sin(ang+i*TAU/3)*off;\n    const c=chans[i];\n    const gg=dc.createRadialGradient(ox,oy,innerR*0.92,ox,oy,outerR*0.92);\n    gg.addColorStop(0,`rgba(${c[0]},${c[1]},${c[2]},0)`);\n    gg.addColorStop(0.82,`rgba(${c[0]},${c[1]},${c[2]},0)`);\n    gg.addColorStop(1,`rgba(${c[0]},${c[1]},${c[2]},${(dark*0.5).toFixed(3)})`);\n    dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n  }\n} else {\n  // darkroom (default) + ember share the dark-edge base\n  const isEmber=style==='ember';\n  const [er,eg,eb]=hsb2rgb(isEmber?18:eh, isEmber?75:60*P.tint, isEmber?6:(6+P.tint*10));\n  const g=dc.createRadialGradient(cx,cy,innerR,cx,cy,outerR);\n  const midStop=clp(0.5-P.feather*0.28,0.12,0.8);\n  g.addColorStop(0,`rgba(${er|0},${eg|0},${eb|0},0)`);\n  g.addColorStop(midStop,`rgba(${er|0},${eg|0},${eb|0},${(dark*0.34).toFixed(3)})`);\n  g.addColorStop(1,`rgba(${er|0},${eg|0},${eb|0},${(dark*0.9).toFixed(3)})`);\n  dc.globalCompositeOperation='source-over'; dc.fillStyle=g; dc.fillRect(0,0,W,Hh);\n}\n\n// light-leak blobs \u2014 the reliable motion floor (large soft drifting glows)\nconst nL=3+Math.round(clp(P.density,0,1)*3);\ndc.globalCompositeOperation='lighter';\nfor(let i=0;i<nL;i++){\n  const lr=u*(0.16+0.14*fr(i*3.1+1))*(1+0.15*Math.sin(K.t*0.3+i));\n  const spd=(0.02+0.03*fr(i*7+2))*(0.5+P.speed);\n  const lx=md(fr(i*5+2)*(W+2*lr) + K.t*spd*u*(fr(i*11)-0.5)*4 + Math.sin(K.t*spd*3+i)*u*0.15, W+2*lr)-lr;\n  const ly=Hh*(0.15+0.7*fr(i*9+3)) + Math.cos(K.t*(0.03+0.03*fr(i))*(0.5+P.speed)+i*1.3)*u*0.1;\n  const lh=md(eh+(fr(i*13)*80-40),360);\n  const [lrr,lgg,lbb]=hsb2rgb(lh,55,100);\n  const la=(5+7*fr(i*17))*leakE*(0.4+0.6*en)/100 * (style==='chroma'?0.6:1);\n  const gg=dc.createRadialGradient(lx,ly,0,lx,ly,lr);\n  gg.addColorStop(0,`rgba(${lrr|0},${lgg|0},${lbb|0},${clp(la,0,0.4).toFixed(3)})`);\n  gg.addColorStop(1,`rgba(${lrr|0},${lgg|0},${lbb|0},0)`);\n  dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n}\ndc.globalCompositeOperation=oldOp;\n\n// ember: rising warm embers (extra texture + motion)\nif(style==='ember'){\n  blendMode(ADD); noStroke();\n  const ne=Math.round(18+22*clp(P.density,0,1));\n  for(let i=0;i<ne;i++){\n    const t=frc(K.t*(0.05+0.05*fr(i*3))*(0.5+P.speed)+fr(i*7));\n    const ex=fr(i*5)*W + Math.sin(t*TAU+i)*u*0.04;\n    const ey=Hh*(1.05-t*1.1);\n    const ea=clp((1-t)*t*4,0,1)*en;\n    const hh=md(20+fr(i)*30,360);\n    fill(hh,85,100, 30*ea);\n    circle(ex,ey,u*0.008*(0.6+fr(i*9)));\n  }\n}\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke();\n"
+}

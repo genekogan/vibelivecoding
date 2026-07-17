@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.doodle_world",
+  "kind": "genart",
+  "name": "Doodle World",
+  "desc": "A wobbly hand-drawn landscape that draws itself stroke by stroke over a section then keeps boiling forever - hills, a rayed sun, a little house, a tree and dancing stick figures - rendered as graphite pencil, bold ink, waxy crayon, blueprint, chalkboard or neon scribble.",
+  "tags": [
+    "doodle",
+    "sketch",
+    "hand-drawn",
+    "hand drawn",
+    "wobble",
+    "boiling line",
+    "pencil",
+    "ink",
+    "crayon",
+    "blueprint",
+    "chalk",
+    "chalkboard",
+    "neon",
+    "scribble",
+    "landscape",
+    "hills",
+    "sun",
+    "house",
+    "tree",
+    "stick figure",
+    "stick figures",
+    "children",
+    "naive",
+    "cartoon",
+    "drawing",
+    "self-drawing",
+    "generative",
+    "genart",
+    "backdrop",
+    "bg",
+    "whiteboard",
+    "cute",
+    "playful"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "jitter": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.5,
+      "doc": "line wobble amplitude (boiling)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 1.7,
+      "doc": "scene size vs design"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "extra stick figures + clouds"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "draw + boil rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "stroke weight / figure bounce"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "accent hue (sun / roof / crayon)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "scene layout + paper grain seed"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scene anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scene anchor y"
+    },
+    "style": {
+      "default": "pencil",
+      "options": [
+        "pencil",
+        "ink",
+        "crayon",
+        "blueprint",
+        "chalk",
+        "neon"
+      ],
+      "doc": "medium: graphite / ink / crayon / blueprint schematic / chalkboard / neon glow"
+    },
+    "act": {
+      "default": "draw",
+      "options": [
+        "draw",
+        "loop",
+        "windy"
+      ],
+      "doc": "dramaturgy: draw-once-and-hold / redraw loop / everything sways in wind"
+    }
+  },
+  "acts": [
+    "draw",
+    "loop",
+    "windy"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:38:46+00:00",
+    "fps": 60.2,
+    "motion": 0.0108,
+    "lum": 0.769
+  },
+  "code": "const D = { jitter:.5, scale:1, density:.5, speed:1, energy:.6, hue:40, x:.5, y:.5, style:'pencil', act:'draw', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst clamp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\n\n// --- paper / ground backdrop (cached, style-dependent) ---\nconst bgKey = width+'x'+height+'|'+P.seed+'|'+st+'|'+Math.round(P.hue);\nif (!S.paper || S.bgKey !== bgKey){\n  S.bgKey = bgKey;\n  const g = createGraphics(width,height);\n  g.colorMode(HSB,360,100,100,100);\n  g.noStroke();\n  let base, floor;\n  if (st==='blueprint'){ base=[210,62,42]; floor=[210,55,34]; }\n  else if (st==='chalk'){ base=[210,16,13]; floor=[160,20,10]; }\n  else if (st==='neon'){ base=[245,40,7]; floor=[260,45,5]; }\n  else if (st==='crayon'){ base=[45,12,88]; floor=[95,26,74]; }\n  else { base=[42,11,87]; floor=[82,20,76]; } // pencil / ink -> warm cream paper + grassy ground\n  g.fill(base[0],base[1],base[2]); g.rect(0,0,width,height);\n  g.fill(floor[0],floor[1],floor[2]); g.rect(0,height*0.66,width,height*0.34);\n  // seeded grain\n  const grains = 900;\n  for (let i=0;i<grains;i++){\n    const gx=fr(i*2+11)*width, gy=fr(i*2+12)*height;\n    const dk = st==='blueprint'||st==='chalk'||st==='neon';\n    g.fill(dk?[0,0,100][0]:0,0, dk?100:0, dk?4:5);\n    g.rect(gx,gy,1,1);\n  }\n  S.paper=g;\n}\nimage(S.paper,0,0);\n\n// --- build the scene stroke list (seeded positions), cached ---\nconst scKey = P.seed+'|'+P.density.toFixed(2)+'|'+P.scale.toFixed(2);\nif (!S.SK || S.scKey !== scKey){\n  S.scKey = scKey;\n  const SK=[]; let ord=0;\n  const seg=(pts,w,ch,fig)=>{ SK.push({pts,w,o:ord,ch:ch==null?-1:ch,fig:!!fig}); ord+=0.06; };\n  const ring=(cx,cy,r,ry,n,w,ch)=>{ const a=[]; for(let k=0;k<=n;k++){const th=k/n*TWO_PI; a.push([cx+Math.cos(th)*r, cy+Math.sin(th)*(ry||r)]);} SK.push({pts:a,w,o:ord,ch:ch==null?-1:ch,close:true}); ord+=0.06; };\n  // hills / horizon\n  const hpts=[]; const hn=14; const hy=0.64+(fr(3)-0.5)*0.03;\n  for(let k=0;k<=hn;k++){ const x=k/hn; hpts.push([x, hy - Math.max(0,Math.sin(x*3.1+fr(7)*6))*0.09*(0.6+fr(k+20)*0.5)]); }\n  seg(hpts,0.006,-1);\n  // sun (accent hue) up-right, remembered center for live rays\n  const sx=0.78+(fr(5)-0.5)*0.06, sy=0.19+(fr(6)-0.5)*0.05, sr=0.085+fr(9)*0.02;\n  S.sun=[sx,sy,sr]; ring(sx,sy,sr,sr,16,0.006,P.hue);\n  // house\n  const hx=0.20+fr(2)*0.06, hw=0.18*(0.9+fr(4)*0.3), hh=0.16, by=hy;\n  seg([[hx,by],[hx,by-hh],[hx+hw,by-hh],[hx+hw,by],[hx,by]],0.006,-1);        // body\n  seg([[hx-0.02,by-hh],[hx+hw*0.5,by-hh-0.11],[hx+hw+0.02,by-hh]],0.007,(P.hue+20)%360); // roof\n  seg([[hx+hw*0.55,by],[hx+hw*0.55,by-0.07],[hx+hw*0.78,by-0.07],[hx+hw*0.78,by]],0.005,-1); // door\n  ring(hx+hw*0.25,by-hh*0.62,0.022,0.022,10,0.005,(P.hue+180)%360); // window\n  // tree\n  const tx=0.56+fr(8)*0.05, ty=hy;\n  seg([[tx,ty],[tx,ty-0.13]],0.008,25);\n  ring(tx,ty-0.17,0.06,0.055,12,0.006,120);\n  // stick figures (density adds more)\n  const nf = 1 + Math.round(P.density*3);\n  for (let f=0; f<nf; f++){\n    const fxc=0.32+f*0.13+fr(f*4+30)*0.03, fyc=hy, sc=0.085*(0.85+fr(f+40)*0.3);\n    ring(fxc,fyc-sc*2.1,sc*0.42,sc*0.42,10,0.005,-1,true);              // head\n    seg([[fxc,fyc-sc*1.7],[fxc,fyc-sc*0.7]],0.006,-1,true);             // torso\n    seg([[fxc-sc*0.6,fyc-sc*1.35],[fxc,fyc-sc*1.5],[fxc+sc*0.6,fyc-sc*1.1]],0.005,-1,true); // arms\n    seg([[fxc-sc*0.5,fyc],[fxc,fyc-sc*0.7],[fxc+sc*0.5,fyc]],0.005,-1,true);                // legs\n  }\n  // clouds\n  const nc = 2 + Math.round(P.density*2);\n  for (let c=0;c<nc;c++){ const cx=0.12+fr(c*5+50)*0.6, cy=0.12+fr(c*5+51)*0.14; ring(cx,cy,0.06,0.032,12,0.005,-1); }\n  S.SK=SK; S.ordMax=ord;\n}\n\n// --- draw progress (self-drawing dramaturgy) + boiling line ---\nconst period = 22;\nlet prog;\nif (P.act==='loop'){ const ph=(K.t%40)/40; prog = ph<0.72? (ph/0.72)*(S.ordMax+0.2) : (S.ordMax+0.2); }\nelse { prog = Math.min(S.ordMax+0.2, (K.t/period)*(S.ordMax+0.2)); }\nconst jw = P.jitter*u*0.026;                 // wobble amplitude\nconst boil = 2.1*P.speed;                    // real-time boiling rate (never re-phases)\nconst windy = (P.act==='windy');\nconst fieldW=1.4*u*P.scale, fieldH=0.95*u*P.scale;\nconst ox=P.x*width-fieldW*0.5, oy=P.y*height-fieldH*0.5;\nconst M=(nx,ny)=>[ox+nx*fieldW, oy+ny*fieldH];\n\nconst colOf = (h)=>{\n  if (st==='ink') return [0,0,10];\n  if (st==='blueprint') return [200,8,99];\n  if (st==='chalk') return h<0?[0,0,92]:[h,32,94];\n  if (st==='neon') return h<0?[P.hue,88,100]:[h,90,100];\n  if (st==='crayon') return h<0?[28,55,55]:[h,72,80];\n  return h<0?[35,10,24]:[h,26,38]; // pencil graphite w/ faint accent tint\n};\n\nlet li=0;\nfor (const s of S.SK){\n  const local = clamp((prog - s.o)/0.14, 0, 1);\n  if (local<=0){ li++; continue; }\n  const col = colOf(s.ch);\n  const alpha = (st==='pencil'?62:88) * (0.35+0.65*local);\n  const nseg = s.pts.length;\n  const shown = s.close? nseg : Math.max(2, Math.floor(1+local*(nseg-1)));\n  strokeWeight(Math.max(0.8, s.w*u*(0.9+P.energy*0.5)*(st==='ink'?1.5:1)));\n  stroke(col[0],col[1],col[2],alpha); noFill();\n  if (st==='neon'){ drawingContext.shadowBlur=10; drawingContext.shadowColor='hsl('+col[0]+',95%,60%)'; }\n  const figBob = s.fig? -Math.abs(Math.sin(K.beat*P.speed*PI))*u*0.02 - (K.pulse*u*0.012) : 0;\n  const figSway = s.fig? Math.sin(K.beat*P.speed*PI*0.5)*u*0.01 : 0;\n  beginShape();\n  const kmax = s.close? nseg : shown;\n  for (let k=0;k<kmax;k++){\n    const bp=s.pts[k];\n    const id=(li*97+k)*1.7;\n    const wob = jw + A.mid*u*0.006;\n    const sway = windy? Math.sin(K.t*1.3 + bp[1]*4)*u*0.012*(1-bp[1]) : 0;\n    const dx = Math.sin(id*1.3 + K.t*boil)*wob + sway + figSway;\n    const dy = Math.cos(id*1.7 + K.t*boil*1.08)*wob + figBob;\n    const sc=M(bp[0],bp[1]);\n    curveVertex(sc[0]+dx, sc[1]+dy);\n  }\n  endShape(s.close?CLOSE:undefined);\n  if (st==='neon'){ drawingContext.shadowBlur=0; }\n  li++;\n}\n\n// --- live sun rays (rotate slowly; revealed with the sun) ---\nif (S.sun && prog>0.06){\n  const [sxn,syn,srn]=S.sun; const sc=M(sxn,syn); const rr=srn*fieldW;\n  const rc=colOf(P.hue);\n  strokeWeight(Math.max(1,u*0.004)); stroke(rc[0],rc[1],rc[2], 70*clamp((prog-0.06)/0.14,0,1));\n  if (st==='neon'){ drawingContext.shadowBlur=12; drawingContext.shadowColor='hsl('+rc[0]+',95%,60%)'; }\n  for (let k=0;k<9;k++){\n    const th=k/9*TWO_PI + K.t*0.18;\n    const jr=1+Math.sin(K.t*boil+k)*0.06;\n    line(sc[0]+Math.cos(th)*rr*1.35, sc[1]+Math.sin(th)*rr*1.35, sc[0]+Math.cos(th)*rr*(2.0*jr), sc[1]+Math.sin(th)*rr*(2.0*jr));\n  }\n  if (st==='neon'){ drawingContext.shadowBlur=0; }\n}\n"
+}

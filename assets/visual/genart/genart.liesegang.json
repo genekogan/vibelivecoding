@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.liesegang",
+  "kind": "genart",
+  "name": "Liesegang Rings",
+  "desc": "Periodic precipitation in a gel: reagent invades from a pipetted source, meets the loaded gel and reacts into a soluble product that stays clear until it passes supersaturation and suddenly drops out as a band - which strips the product back down, so the front must run on and re-supersaturate before it can band again, laying discrete rings of widening spacing rather than a smooth stain; new sources keep arriving so ring systems collide and interfere, read as ochre bands in translucent gel, banded agate, scattering rings in dark field, or a blueprint of contours.",
+  "tags": [
+    "liesegang",
+    "periodic-precipitation",
+    "precipitation",
+    "precipitate",
+    "supersaturation",
+    "ostwald",
+    "nucleation",
+    "banding",
+    "bands",
+    "rings",
+    "concentric",
+    "gel",
+    "colloid",
+    "chemistry",
+    "electrolyte",
+    "diffusion",
+    "reaction-diffusion",
+    "front",
+    "invasion",
+    "agate",
+    "chalcedony",
+    "banded-agate",
+    "mineral",
+    "geode",
+    "petri",
+    "petri-dish",
+    "laboratory",
+    "clinical",
+    "scientific",
+    "dark-field",
+    "stratigraphy",
+    "layered",
+    "phase-transition",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "simulation",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "blueprint",
+    "schematic",
+    "texture",
+    "translucent",
+    "ochre",
+    "earthy",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast and colour gain of the precipitate bands"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into the plate - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "diffusion and reaction rate - how fast the fronts invade (0.2 still bands)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how often fresh sources are pipetted in, and how loaded the gel is - number of ring systems on the plate"
+    },
+    "spacing": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "supersaturation threshold - wide spacing between few bold rings vs tight stacks of fine ones"
+    },
+    "grain": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "film tooth over the plate"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the precipitate; the gel takes a cool complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the plate when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan down the plate when magnified"
+    },
+    "style": {
+      "default": "gel",
+      "options": [
+        "gel",
+        "agate",
+        "darkfield",
+        "schematic"
+      ],
+      "doc": "aesthetic: ochre bands suspended in translucent gel / polished banded agate slab / scattering rings on black / blueprint of band contours"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic gel and source placement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:17+00:00",
+    "fps": 59.9,
+    "motion": 0.0597,
+    "lum": 0.457
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, spacing: .5, grain: .45, hue: 28, x: .5, y: .5, style: 'gel', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Liesegang rings -- periodic precipitation by the Ostwald supersaturation cycle.\n// An outer electrolyte B invades a gel loaded with A. They react into a soluble\n// product; where the product passes the NUCLEATION threshold it precipitates,\n// which locally strips the product back down, so the front must run on and\n// re-supersaturate before it can band again. Result: discrete rings with\n// widening spacing, not a smooth gradient. Product below the nucleation\n// threshold but above the (lower) GROWTH threshold feeds existing bands instead\n// of starting new ones -- that asymmetry is what makes the banding sharp.\n//\n// A single source dies: the front reaches the wall and the plate is finished\n// (STATIC). Kept perpetual by three coupled mechanisms:\n//   (1) fresh sources keep being pipetted in at a floored rate, so new ring\n//       systems are always invading and colliding with old ones;\n//   (2) the gel slowly recharges with A behind the fronts;\n//   (3) laid-down precipitate slowly redissolves and ripens away, so the medium\n//       is continuously wiped clean and can band again.\n// ---------------------------------------------------------------------------\nconst BW = 160, BH = Math.max(80, Math.round(BW * height / width));\nconst N = BW * BH;\nconst MAXS = 8;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.a = new Float32Array(N); S.b = new Float32Array(N); S.c = new Float32Array(N);\n  S.p = new Float32Array(N); S.lp = new Float32Array(N); S.age = new Float32Array(N);\n  S.sx = new Float32Array(MAXS); S.sy = new Float32Array(MAXS);\n  S.ss = new Float32Array(MAXS); S.sh = new Float32Array(MAXS);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\nfunction rnd() { let x = S.rng; x ^= x << 13; x |= 0; x ^= x >>> 17; x ^= x << 5; x |= 0; S.rng = x; return (x >>> 0) / 4294967296; }\n\nconst af = S.a, bf = S.b, cf = S.c, pf = S.p, lp = S.lp, age = S.age;\nconst sxs = S.sx, sys = S.sy, sss = S.ss, shs = S.sh;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  S.rng = (sd * 2654435761 + 0x9e3779b9) | 0; if (S.rng === 0) S.rng = 1;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    af[p] = 0.92 + (hs3(i, j, 3) - 0.5) * 0.08;   // gel loaded with A\n    bf[p] = 0; cf[p] = 0; pf[p] = 0; age[p] = 0;\n  }\n  S.ns = 2;\n  for (let k = 0; k < 2; k++) {\n    sxs[k] = (0.25 + rnd() * 0.5) * BW; sys[k] = (0.25 + rnd() * 0.5) * BH;\n    sss[k] = 1; shs[k] = rnd();\n  }\n  S.nacc = 0;\n}\n\nconst tt = K.t;\nfunction lap(src, dst) {\n  for (let j = 0; j < BH; j++) {\n    const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n      dst[jc + i] = src[jm + i] + src[jp + i] + src[jc + im] + src[jc + ip] - 4 * src[jc + i];\n    }\n  }\n}\n\n// ---- sources: fresh reagent keeps being pipetted in (floored rate) ----\nlet ns = S.ns;\nconst srate = 0.075 + P.density * 0.36;            // sources per second\nS.nacc += srate / 60;\nwhile (S.nacc >= 1) {\n  S.nacc -= 1;\n  if (ns < MAXS) {\n    sxs[ns] = (0.08 + rnd() * 0.84) * BW; sys[ns] = (0.08 + rnd() * 0.84) * BH;\n    sss[ns] = 1; shs[ns] = rnd(); ns++;\n  } else {                                          // recycle the most spent source\n    let worst = 0;\n    for (let k = 1; k < MAXS; k++) if (sss[k] < sss[worst]) worst = k;\n    sxs[worst] = (0.08 + rnd() * 0.84) * BW; sys[worst] = (0.08 + rnd() * 0.84) * BH;\n    sss[worst] = 1; shs[worst] = rnd();\n  }\n}\nS.ns = ns;\n\nconst steps = Math.max(1, Math.min(5, Math.round(1.5 + P.speed * 2.2)));\nconst Da = 0.15, Db = 0.23;\nconst ka = 0.052 + P.speed * 0.015;\nconst Kn = 0.018 + P.spacing * 0.055;               // nucleation threshold -> band spacing\nconst Kg = Kn * 0.32;                               // growth threshold (must be < Kn)\nconst refill = 0.00012 * (0.4 + P.density * 1.2);   // gel recharges with A over ~50s\nconst diss = 0.00019 * (0.4 + (1 - P.spacing) * 0.8); // bands ripen away over ~35s\nconst inj = 0.85 + P.density * 0.35;\n\nfor (let st = 0; st < steps; st++) {\n  // inject B at every live source; sources deplete and drift\n  for (let k = 0; k < ns; k++) {\n    if (sss[k] <= 0.001) continue;\n    const ix = sxs[k] | 0, iy = sys[k] | 0;\n    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {\n      const ii = ix + di, jj = iy + dj;\n      if (ii < 0 || ii >= BW || jj < 0 || jj >= BH) continue;\n      const q = jj * BW + ii;\n      const held = inj * sss[k];\n      if (bf[q] < held) bf[q] = held;      // reservoir held at b0, not an injection\n    }\n    sss[k] -= 0.00022 * (0.5 + P.speed * 0.8);\n    if (sss[k] < 0) sss[k] = 0;\n  }\n  // diffusion\n  lap(af, lp); for (let p = 0; p < N; p++) af[p] += Da * lp[p];\n  lap(bf, lp); for (let p = 0; p < N; p++) bf[p] += Db * lp[p];\n  // reaction A + B -> product, then the Ostwald nucleation / growth rule\n  for (let j = 0; j < BH; j++) {\n    const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const p = jc + i;\n      const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n      let a2 = af[p], b2 = bf[p];\n      const r = ka * a2 * b2;\n      a2 -= r; b2 -= r;\n      let pp = pf[p] + r;\n      const cc = cf[p];\n      // does an existing band touch this cell?\n      const nb = cc > 0.004 || cf[jc + im] > 0.004 || cf[jc + ip] > 0.004 || cf[jm + i] > 0.004 || cf[jp + i] > 0.004;\n      let nc = cc;\n      if (pp > Kn) { nc += pp * 0.92; pp *= 0.08; if (age[p] === 0) age[p] = 0.05 + (tt * 0.031) % 1; }\n      else if (nb && pp > Kg) { nc += (pp - Kg) * 0.75; pp -= (pp - Kg) * 0.75; }\n      // recharge the gel, ripen the bands away\n      a2 += (0.95 - a2) * refill;\n      nc -= nc * diss;\n      if (nc < 0.0015) { nc = 0; age[p] = 0; }\n      af[p] = a2 < 0 ? 0 : a2; bf[p] = b2 < 0 ? 0 : b2;\n      pf[p] = pp < 0 ? 0 : pp; cf[p] = nc > 1.6 ? 1.6 : nc;\n    }\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.021 + Math.sin(tt * 0.015) * 0.018;\nconst gain = 0.45 + P.energy * 1.15 + A.rms * 0.35;\nconst gr = P.grain;\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    const c2 = Math.min(1, cf[p] * 1.25);\n    const b2 = Math.min(1, bf[p] * 2.6);\n    const a2 = Math.min(1, af[p]);\n    const th = (hs3(i, j, 61) - 0.5) * 0.09 * gr;\n    let r, gg, b;\n    if (style === 'agate') {\n      // banded chalcedony: each band takes a mineral colour from when it was laid\n      const ag = age[p];\n      hsv(hb + ag * 0.52 + c2 * 0.06, 0.30 + 0.34 * Math.sin(ag * 19.7 + 1.1), 1);\n      const dens = Math.pow(c2, 0.72);\n      const host = 0.20 + a2 * 0.10 + b2 * 0.05;\n      const lit = dens * (0.42 + gain * 0.52);\n      r = host * 0.95 + RR * lit; gg = host * 0.92 + GG * lit; b = host * 1.05 + BB * lit;\n    } else if (style === 'darkfield') {\n      // scattering rings glowing out of a black bath\n      hsv(hb + 0.03, 0.42, 1);\n      const lit = Math.pow(c2, 0.85) * (0.55 + gain * 0.7);\n      r = 0.035 + RR * lit + b2 * 0.05; gg = 0.045 + GG * lit + b2 * 0.08; b = 0.085 + BB * lit + b2 * 0.14;\n    } else if (style === 'schematic') {\n      // blueprint: band contours and the invading front, nothing else\n      const gx = Math.min(1, cf[jc + ip]) - Math.min(1, cf[jc + im]);\n      const gy = Math.min(1, cf[jp + i]) - Math.min(1, cf[jm + i]);\n      const edge = Math.min(1, Math.sqrt(gx * gx + gy * gy) * 3.4);\n      const base = 0.065 + a2 * 0.025;\n      r = base * 0.5 + edge * 0.45 * gain + b2 * 0.10;\n      gg = base * 0.9 + edge * 0.85 * gain + b2 * 0.20;\n      b = base * 1.85 + edge * 1.0 * gain + b2 * 0.30;\n    } else {\n      // gel (default): silver-dichromate ochre bands suspended in a translucent\n      // green-grey gel, the invading front still visible as a diffusion halo\n      hsv(hb, 0.62 - c2 * 0.14, 1);\n      const dens = Math.pow(c2, 0.8);\n      const gelv = 0.30 + a2 * 0.16;\n      hsv(hb + 0.36, 0.26, 1);\n      const gr2 = RR, gg2 = GG, gb2 = BB;\n      hsv(hb, 0.62 - c2 * 0.14, 1);\n      const lit = dens * (0.44 + gain * 0.55);\n      r = gr2 * gelv + RR * lit + b2 * 0.045;\n      gg = gg2 * gelv + GG * lit + b2 * 0.075;\n      b = gb2 * gelv + BB * lit + b2 * 0.05;\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + th) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + th) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + th) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

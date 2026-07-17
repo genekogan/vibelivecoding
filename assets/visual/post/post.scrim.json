@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.scrim",
+  "kind": "post",
+  "name": "Scrim",
+  "desc": "The frame stops being a screen and becomes cloth \u2014 the live canvas is re-projected onto a hanging theatrical gauze, domain-warped column by column so a wave travels through it, the bunched folds turning away from the key and pooling shadow while the facing flanks catch sheen, all pinned at the edges under the projector's own falloff.",
+  "tags": [
+    "scrim",
+    "gauze",
+    "cloth",
+    "fabric",
+    "curtain",
+    "drape",
+    "silk",
+    "satin",
+    "veil",
+    "sheet",
+    "projection",
+    "projected",
+    "theatre",
+    "theater",
+    "stage",
+    "backdrop",
+    "fold",
+    "folds",
+    "pleat",
+    "ripple",
+    "billow",
+    "wave",
+    "displacement",
+    "warp",
+    "weave",
+    "texture",
+    "sheen",
+    "specular",
+    "paper",
+    "crease",
+    "contour",
+    "topographic",
+    "cinematic",
+    "post",
+    "overlay",
+    "surface",
+    "material"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fold depth \u2014 how far the cloth throws the image and how hard the folds shade"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "fold wavelength \u2014 a few broad swags or fine pleating"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fold count across the cloth (and the slice resolution that carries them)"
+    },
+    "sheen": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "specular return off the flanks facing the key"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "cloth + fold-shadow hue (210 = cool stage gauze)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the wave travels through the cloth"
+    },
+    "x": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "key-light side \u2014 0 or 1 rakes the folds hard, 0.5 is frontal and flattens them (the fold shadows stay either way)"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "projector centre \u2014 where the beam's falloff is brightest"
+    },
+    "alpha": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity of the whole pass"
+    },
+    "style": {
+      "default": "gauze",
+      "options": [
+        "gauze",
+        "silk",
+        "paper",
+        "contour"
+      ],
+      "doc": "what the frame is projected onto"
+    },
+    "act": {
+      "default": "breeze",
+      "options": [
+        "breeze",
+        "billow",
+        "still"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "wave phase + weave seeding"
+    }
+  },
+  "acts": [
+    "breeze",
+    "billow",
+    "still"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:05+00:00",
+    "fps": 60.2,
+    "motion": 0.0499,
+    "lum": 0.097
+  },
+  "code": "const D = { energy: .5, scale: 1, density: .5, sheen: .5, hue: 210, speed: 1, x: .25, y: .45, alpha: .9, style: 'gauze', act: 'breeze', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dns=cl(P.density,0,1);\nconst shn=cl(P.sheen,0,1), H0=md(P.hue,360), spd=cl(P.speed,.1,4);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\nconst MODE = sty==='silk'?1 : sty==='paper'?2 : sty==='contour'?3 : 0;\n\nS.rms=(S.rms||0)*.9+(A.rms||0)*.1;\nS.low=(S.low||0)*.9+(A.lowmid||0)*.1;\n\n// ---- dramaturgy ----\nlet gust=1;\nif(act==='billow'){ const q=md(T*.032,1); gust=.5+2.3*Math.pow(Math.sin(q*Math.PI),2.2); }\nelse if(act==='still'){ gust=.20+.14*Math.sin(K.t*.043)+.06*Math.sin(K.t*.101+1.2); }\nelse { gust=.80+.35*Math.sin(K.t*.057)+.18*Math.sin(K.t*.131+1.4)+.30*S.low; }\ngust*=.66+.55*K.intensity;\n\n// ---- copy the live frame, then re-project it onto the cloth ----\nconst sk=W+'x'+Hh;\nif(!S.src||S.sk!==sk){ if(S.src&&S.src.remove)S.src.remove(); S.src=createGraphics(W,Hh); S.src.pixelDensity(1); S.sk=sk; }\nconst src=S.src;\nsrc.clear();\nlet ok=false;\ntry{ src.drawingContext.drawImage(dc.canvas,0,0,W,Hh); ok=true; }catch(e){ ok=false; }\n\nconst NC=Math.max(18,Math.min(80,Math.round(26+dns*46)));\nconst amp=(.010+.055*en)*sc*gust;                 // fold throw as a fraction of width\nconst nf=(1.6+5.5*dns)/Math.max(.25,sc);          // folds across the cloth\nconst ph=fr(1)*TAU;\n// the wave that runs through the cloth \u2014 incommensurate so the folds never re-phase\nconst wv=xn=>{\n  const p=xn*nf*TAU;\n  return .62*Math.sin(p+T*.61*gust+ph)\n       + .27*Math.sin(p*1.87-T*.43*gust+ph*1.7)\n       + .15*Math.sin(p*3.31+T*.29*gust+ph*2.3);\n};\nconst tri=xn=>{ const p=md(xn*nf*.7+T*.06*gust+ph*.16,1); return (2*Math.abs(p-.5)-.5)*1.7; };\nconst F=MODE===2?tri:wv;\nconst pin=xn=>Math.sin(cl(xn,0,1)*Math.PI);       // the scrim is tied off at both edges\nconst warp=xn=>xn*W+amp*W*pin(xn)*F(xn);\nconst hem=xn=>1+.024*en*gust*Math.sin(xn*nf*TAU*.7-T*.5*gust+ph*1.3);\n\nconst sgn=-Math.sin((cl(ax,0,1)-.5)*Math.PI);      // key from the side; 0.5 is frontal and flattens the folds\nconst shC=MODE===2?hsb(md(H0+24,360),16,26):hsb(md(H0,360),40,26);\nconst liC=MODE===1?hsb(md(H0-16,360),12,100):hsb(md(H0-8,360),18,96);\nconst Kc=1/Math.max(.02,amp*nf*3.6);\n\ndc.imageSmoothingEnabled=true;\nif(ok&&MODE!==3){\n  for(let k=0;k<NC;k++){\n    const x0=k/NC, x1=(k+1)/NC;\n    const sx0=x0*W, sw=Math.max(.5,x1*W-sx0);\n    const xd0=warp(x0), xd1=warp(x1);\n    const dw=Math.max(.5,xd1-xd0);\n    const hh=Hh*hem((x0+x1)*.5);\n    dc.drawImage(src.drawingContext.canvas,sx0,0,sw,Hh,xd0-.5,0,dw+1,hh);\n  }\n}\n// ---- the folds: bunched cloth turns away from the key and pools shadow ----\nfor(let k=0;k<NC;k++){\n  const x0=k/NC, x1=(k+1)/NC;\n  const xd0=warp(x0), xd1=warp(x1);\n  const d=(xd1-xd0)/Math.max(1e-4,(x1-x0)*W);\n  const nrm=cl((d-1)*Kc,-1,1);\n  const bunch=cl(-nrm,0,1), face=cl(nrm*sgn,0,1);\n  const bx=xd0-.5, bw=Math.max(1,xd1-xd0+1);\n  if(MODE===3){\n    const iso=Math.abs(md(F((x0+x1)*.5)*2.6,1)-.5)*2;\n    const aa=cl(Math.pow(cl(1-iso,0,1),7)*(.5+.8*en)*al,0,.85);\n    if(aa>.004){ dc.globalCompositeOperation='screen'; dc.fillStyle=rs(liC,aa); dc.fillRect(bx,0,bw,Hh); }\n    continue;\n  }\n  if(bunch>.004){ dc.globalCompositeOperation='multiply';\n    dc.fillStyle=rs(shC,cl(bunch*(.30+.48*en)*(MODE===1?1.25:1)*al,0,.72)); dc.fillRect(bx,0,bw,Hh); }\n  if(face>.004){ dc.globalCompositeOperation='screen';\n    dc.fillStyle=rs(liC,cl(face*(.06+.30*shn)*(MODE===1?1.6:1)*(1+.2*S.rms)*al,0,.42)); dc.fillRect(bx,0,bw,Hh); }\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- the weave, and the projector's own falloff on the cloth ----\nconst wk='weave|'+sty+'|'+P.seed;\nif(!S.weave||S.wk!==wk){\n  if(S.weave&&S.weave.remove)S.weave.remove();\n  const g=createGraphics(128,128); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100);\n  g.background(0,0,100); g.noStroke();\n  if(MODE===2){ g.loadPixels(); const q=g.pixels;\n    for(let i=0;i<128*128;i++){ const s1=Math.sin(i*12.9898+P.seed*3.7)*43758.5453, r1=s1-Math.floor(s1);\n      const v=cl(210+ (r1-.5)*70,0,255), o=i*4; q[o]=v; q[o+1]=v; q[o+2]=v; q[o+3]=255; }\n    g.updatePixels();\n  } else {\n    for(let i=0;i<128;i+=4){ g.fill(0,0,MODE===1?76:58,MODE===1?26:52); g.rect(i,0,2,128); g.rect(0,i+2,128,2); }\n  }\n  S.weave=g; S.wk=wk;\n}\n{ const ws=u*(MODE===2?.55:.22)*Math.max(.4,sc);\n  dc.globalCompositeOperation='multiply';\n  dc.globalAlpha=cl((MODE===1?.16:MODE===3?.10:.26)*al,0,.4);\n  const ox=amp*W*.35*Math.sin(T*.31), nx=Math.ceil(W/ws)+2, ny=Math.ceil(Hh/ws)+1;\n  for(let j=0;j<ny;j++) for(let i=0;i<nx;i++) image(S.weave,-ws+i*ws+md(ox,ws),j*ws,ws,ws);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp; }\n{ const px2=(ax*.35+.5*.65)*W, py2=ay*Hh;\n  const vr=u*(.85+.10*Math.sin(T*.023))*Math.max(.5,sc);\n  const vc=hsb(md(H0,360),34,14);\n  const gg=dc.createRadialGradient(px2,py2,vr*.32,px2,py2,vr*1.25);\n  gg.addColorStop(0,rs(vc,0)); gg.addColorStop(1,rs(vc,cl(.42*al,0,.5)));\n  dc.globalCompositeOperation='multiply'; dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n  dc.globalCompositeOperation=oldOp; }\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

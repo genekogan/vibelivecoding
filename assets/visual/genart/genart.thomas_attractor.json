@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.thomas_attractor",
+  "kind": "genart",
+  "name": "Thomas Attractor",
+  "desc": "Thomas' cyclically-symmetric strange attractor traced as a slowly turning labyrinth of glowing looping tubes, tens of thousands of iterates splatted and depth-shaded through a teal-to-gold palette on dark, breathing open and closed as it rotates.",
+  "tags": [
+    "thomas",
+    "attractor",
+    "strange-attractor",
+    "chaos",
+    "chaotic",
+    "dynamical-system",
+    "ode",
+    "cyclic-symmetry",
+    "labyrinth",
+    "lattice",
+    "tubes",
+    "teal",
+    "gold",
+    "generative",
+    "genart",
+    "abstract",
+    "3d",
+    "rotation",
+    "glow",
+    "fullbleed",
+    "background",
+    "bg",
+    "phase-space",
+    "fractal",
+    "flow",
+    "organic",
+    "scientific",
+    "thermal",
+    "ember",
+    "ice",
+    "teal-gold"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "iterate count + brightness (more = denser, brighter lattice)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "b": {
+      "default": 0.19,
+      "min": 0.1,
+      "max": 0.28,
+      "doc": "attractor dissipation (low=open sprawl, high=tight loops)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "zoom of the projected attractor"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "3D rotation rate"
+    },
+    "hue": {
+      "default": 185,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (185=teal->gold)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "projection center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "projection center y"
+    },
+    "style": {
+      "default": "labyrinth",
+      "options": [
+        "labyrinth",
+        "plasma",
+        "ember",
+        "ice",
+        "pencil"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic start point + palette phase"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:44:35+00:00",
+    "fps": 60.6,
+    "motion": 0.0616,
+    "lum": 0.117
+  },
+  "code": "const D = { density: .6, energy: .6, b: .19, scale: 1, speed: 1, hue: 185, x: .5, y: .5, style: 'labyrinth', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// coarse density buffer (image()-upscaled to full canvas) + cached bloom scratch\nconst BW = 200, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.bw = BW; S.bh = BH;\n  const N = BW * BH;\n  S.dens = new Float32Array(N); S.zsum = new Float32Array(N);\n  S.b1 = new Float32Array(N); S.gD = new Float32Array(N);\n  S.gZ = new Float32Array(N); S.tmp = new Float32Array(N);\n}\n// seed -> deterministic start point + palette phase\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.sx = -0.4 + fr(1) * 0.8; S.sy = 0.2 + fr(2) * 0.6; S.sz = -0.1 + fr(3) * 0.5;\n  S.hoff = fr(4);\n}\n\nfunction hsb2rgb(h, s, v) { // h 0..360, s/v 0..100 -> [r,g,b] 0..255\n  h = ((h % 360) + 360) % 360; s /= 100; v /= 100;\n  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r = 0, g = 0, b = 0;\n  if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }\n  else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }\n  else if (h < 300) { r = x; b = c; } else { r = c; b = x; }\n  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];\n}\n// separable 3-tap blur src->dst using tmp scratch (spreads splats into glowing tubes)\nfunction blurBuf(src, dst, tmp) {\n  for (let y = 0; y < BH; y++) { const row = y * BW;\n    for (let xx = 0; xx < BW; xx++) { const i = row + xx;\n      const l = xx > 0 ? src[i - 1] : src[i], r = xx < BW - 1 ? src[i + 1] : src[i];\n      tmp[i] = (l + 2 * src[i] + r) * 0.25; } }\n  for (let y = 0; y < BH; y++) { const row = y * BW;\n    for (let xx = 0; xx < BW; xx++) { const i = row + xx;\n      const u = y > 0 ? tmp[i - BW] : tmp[i], d = y < BH - 1 ? tmp[i + BW] : tmp[i];\n      dst[i] = (u + 2 * tmp[i] + d) * 0.25; } }\n}\n\nconst sec = K.section | 0;\nconst t = K.t;\n// dramaturgy: hue drifts across sections, b breathes the lattice open/closed\nconst hb = (P.hue + S.hoff * 30 + sec * 17) % 360;\nlet bb = P.b + 0.03 * Math.sin(t * 0.06) + 0.02 * Math.sin(sec * 1.3);\nbb = Math.max(0.10, Math.min(0.30, bb));\n// continuous 3D rotation = motion floor (never re-phases; audio only nudges it)\nconst angY = t * (0.12 + P.speed * 0.22) + A.lowmid * 0.4;\nconst angX = 0.55 + 0.28 * Math.sin(t * 0.045);\nconst cY = Math.cos(angY), sY = Math.sin(angY), cX = Math.cos(angX), sX = Math.sin(angX);\nconst sc = (BH / 12) * P.scale;\nconst cx = BW * P.x, cy = BH * P.y;\nconst expo = 0.5 + P.energy * 1.35 + K.intensity * 0.3 + A.bass * 0.7 + A.rms * 0.5;\nconst iterN = Math.floor((0.35 + P.density * 0.8) * 64000);\nconst style = P.style;\nconst dt = 0.05, zR = 8;\n\nconst tealC = hsb2rgb(hb, 72, 62);\nconst goldC = hsb2rgb(hb + 200, 78, 96);\n\nconst dens = S.dens, zsum = S.zsum;\ndens.fill(0); zsum.fill(0);\n\n// trace the Thomas cyclically-symmetric attractor, rotate the projection, splat\nlet x = S.sx, y = S.sy, z = S.sz;\nfor (let i = 0; i < 260; i++) { // transient settle onto the attractor\n  const dx = Math.sin(y) - bb * x, dy = Math.sin(z) - bb * y, dz = Math.sin(x) - bb * z;\n  x += dx * dt; y += dy * dt; z += dz * dt;\n}\nfor (let i = 0; i < iterN; i++) {\n  const dx = Math.sin(y) - bb * x, dy = Math.sin(z) - bb * y, dz = Math.sin(x) - bb * z;\n  x += dx * dt; y += dy * dt; z += dz * dt;\n  if (!(x > -60 && x < 60)) { x = S.sx; y = S.sy; z = S.sz; continue; }\n  const x1 = x * cY + z * sY, z1 = -x * sY + z * cY, y1 = y;\n  const y2 = y1 * cX - z1 * sX, z2 = y1 * sX + z1 * cX;\n  const ix = (cx + x1 * sc) | 0, iy = (cy + y2 * sc) | 0;\n  if (ix >= 0 && ix < BW && iy >= 0 && iy < BH) {\n    const idx = iy * BW + ix;\n    dens[idx] += 1; zsum[idx] += z2;\n  }\n}\n// two blur passes = soft bloom that fills the frame with glowing tubes\nblurBuf(dens, S.b1, S.tmp); blurBuf(S.b1, S.gD, S.tmp);\nblurBuf(zsum, S.b1, S.tmp); blurBuf(S.b1, S.gZ, S.tmp);\nconst gD = S.gD, gZ = S.gZ, BLOOM = 1.05;\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst kd = expo * 0.069;\n// ground tone per style (keeps luminance off the black floor)\nlet gr, gg2, gb;\nif (style === 'ember') { gr = 13; gg2 = 4; gb = 2; }\nelse if (style === 'ice') { gr = 4; gg2 = 11; gb = 19; }\nelse if (style === 'plasma') { gr = 11; gg2 = 6; gb = 17; }\nelse if (style === 'pencil') { gr = 222; gg2 = 218; gb = 208; }\nelse { gr = 9; gg2 = 21; gb = 27; } // labyrinth dark teal\nconst N = BW * BH;\nfor (let p = 0; p < N; p++) {\n  const effD = dens[p] + gD[p] * BLOOM;\n  let r = gr, gc = gg2, b = gb;\n  if (effD > 0.01) {\n    const effZ = zsum[p] + gZ[p] * BLOOM;\n    let bv = 1 - Math.exp(-effD * kd);\n    const zn = Math.max(0, Math.min(1, 0.5 + (effZ / effD) / (2 * zR)));\n    bv *= (0.62 + 0.38 * zn); // depth shading: front tubes brighter\n    if (style === 'plasma') {\n      const m = zn * 0.5 + bv * 0.35 + t * 0.08 + S.hoff, hh = hb / 360;\n      r = gr + (0.5 + 0.5 * Math.cos(6.2831 * (m + hh))) * bv * 255;\n      gc = gg2 + (0.5 + 0.5 * Math.cos(6.2831 * (m + hh + 0.33))) * bv * 255;\n      b = gb + (0.5 + 0.5 * Math.cos(6.2831 * (m + hh + 0.66))) * bv * 255;\n    } else if (style === 'ember') {\n      r = gr + Math.min(1, bv * 2.0) * 255;\n      gc = gg2 + Math.max(0, Math.min(1, bv * 1.55 - 0.32)) * 255;\n      b = gb + Math.max(0, Math.min(1, bv * 2.4 - 1.5)) * 255;\n    } else if (style === 'ice') {\n      r = gr + Math.max(0, Math.min(1, bv * 1.5 - 0.5)) * 255;\n      gc = gg2 + Math.max(0, Math.min(1, bv * 1.15 - 0.08)) * 255;\n      b = gb + Math.min(1, 0.28 + bv * 0.85) * bv * 255;\n    } else if (style === 'pencil') {\n      const dk = Math.min(1, bv * 1.05);\n      r = gr * (1 - dk * 0.92); gc = gg2 * (1 - dk * 0.92); b = gb * (1 - dk * 0.9);\n    } else { // labyrinth: teal->gold by depth, value by density, hot cores whiten\n      const mr = tealC[0] + (goldC[0] - tealC[0]) * zn;\n      const mg = tealC[1] + (goldC[1] - tealC[1]) * zn;\n      const mb = tealC[2] + (goldC[2] - tealC[2]) * zn;\n      const wh = Math.max(0, bv - 0.8) * 3;\n      r = gr + mr * bv + wh * 60; gc = gg2 + mg * bv + wh * 60; b = gb + mb * bv + wh * 55;\n    }\n  }\n  const o = 4 * p;\n  px[o] = r < 0 ? 0 : r > 255 ? 255 : r;\n  px[o + 1] = gc < 0 ? 0 : gc > 255 ? 255 : gc;\n  px[o + 2] = b < 0 ? 0 : b > 255 ? 255 : b;\n  px[o + 3] = 255;\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

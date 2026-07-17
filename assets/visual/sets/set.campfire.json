@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.campfire",
+  "kind": "set",
+  "name": "Campfire",
+  "desc": "A crackling log fire with flickering flame tongues, glowing coals, drifting ember stream and a warm ground glow that breathes on the beat.",
+  "tags": [
+    "campfire",
+    "fire",
+    "flame",
+    "bonfire",
+    "logs",
+    "embers",
+    "sparks",
+    "coals",
+    "warm",
+    "glow",
+    "night",
+    "camp",
+    "heat",
+    "cozy",
+    "orange",
+    "ember",
+    "thermal",
+    "woodcut",
+    "sumi",
+    "ascii",
+    "survival",
+    "outdoors",
+    "light-source",
+    "flicker",
+    "set",
+    "prop"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "overall fire size"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "flame height + glow amplitude"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "fire base hue (28=orange; try 200 blue-fire, 120 green-fire)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "flicker + ember rate"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "flame tongue + ember count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fire x anchor"
+    },
+    "y": {
+      "default": 0.92,
+      "min": 0.5,
+      "max": 1,
+      "doc": "fire base y (ground line)"
+    },
+    "flick": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flame flicker chaos"
+    },
+    "glow": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ground glow spread"
+    },
+    "style": {
+      "default": "ember",
+      "options": [
+        "ember",
+        "sumi",
+        "thermal",
+        "woodcut",
+        "ascii"
+      ],
+      "doc": "ember=layered additive flame / sumi=pale ash tonal ink smoke / thermal=false-color heat ramp (abstract) / woodcut=hard high-contrast engraving with hatching / ascii=dot-matrix glyph flame (abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "tongue + ember layout seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:14:13+00:00",
+    "fps": 60.2,
+    "motion": 0.0097,
+    "lum": 0.109
+  },
+  "code": "const D = { scale:1, energy:.7, hue:28, speed:1, density:.6, x:.5, y:.92, flick:.6, glow:.6, style:'ember', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst ember=st==='ember', sumi=st==='sumi', thermal=st==='thermal', woodcut=st==='woodcut', ascii=st==='ascii';\nconst en=P.energy*(0.55+0.6*K.intensity);\nconst cx=P.x*W, cy=P.y*Hh;\nconst sc=P.scale*(0.9+0.2*K.intensity);\nconst fh=u*0.30*sc*(0.5+en);\nconst fw=u*0.16*sc;\nconst addGlow = ember||thermal;\n\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nfunction fcol(f){\n  if(thermal){ const h=md(H+lrp(40,250,f),360); return [h, lrp(10,90,f), lrp(100,78,f)]; }\n  if(sumi){ return [md(H,360), 7, lrp(72,22,f)]; }\n  if(woodcut){ return f<0.6? [md(H+8,360),90,96] : [md(H-6,360),95,72]; }\n  return [md(H+lrp(22,-14,f),360), lrp(72,96,f), lrp(100,80,f)];\n}\n\n// ---- ground glow (additive radial flicker, real-time via K.t) ----\nconst gr=u*0.5*P.scale*(0.4+P.glow)*(1+0.05*Math.sin(K.t*4));\nconst gb=0.5+en*0.5+K.swell*0.2+A.bass*0.4;\nblendMode(ADD); noStroke();\nfor(let r=8;r>0;r--){ const t=r/8; fill(md(H+10,360),70,90, 7*gb*(1-t)*(1-t)); ellipse(cx,cy-u*0.01,gr*t*2,gr*t*1.1); }\nblendMode(BLEND);\n\n// ---- log teepee ----\npush(); translate(cx,cy); noStroke();\nconst lc = sumi? [md(H,360),6,30] : woodcut? [md(H+15,360),50,40] : [md(H+12,360),55,26];\nfor(let i=0;i<4;i++){ const a=-0.95+i*0.62; push(); rotate(a);\n  fill(lc[0],lc[1],lc[2]); rect(-fw*0.95,-u*0.018,fw*1.9,u*0.05,3);\n  fill(lc[0],clp(lc[1]+16,0,100),clp(lc[2]+20,0,100)); ellipse(fw*0.95,-u*0.018+u*0.025,u*0.032,u*0.032);\n  if(woodcut){ stroke(0,0,8,70); strokeWeight(Math.max(1,u*0.0016)); noFill(); line(-fw*0.8,-u*0.005,fw*0.7,-u*0.005); noStroke(); }\n  pop(); }\npop();\n\n// ---- coals ----\nconst cg=0.6+K.pulse*0.5*en+A.bass*0.6+0.2*Math.sin(K.t*3);\nblendMode(ADD); noStroke();\nfill(md(H+5,360),95,90, 40*cg); ellipse(cx,cy,fw*2.2,u*0.05);\nfill(md(H+25,360),80,100, 55*cg); ellipse(cx,cy,fw*1.4,u*0.035);\nblendMode(BLEND);\n\n// ---- flame tongues (K.t continuous flicker + K.pulse flare) ----\nconst nT=Math.round(lrp(7,20,clp(P.density,0,1)));\nconst flare=1+K.pulse*0.28*en+A.bass*0.45;\nif(addGlow) blendMode(ADD);\nif(ascii) textAlign(CENTER,CENTER);\nconst glyphs=' .:!*coO#@';\nfor(let i=0;i<nT;i++){\n  const base=fr(i*2+1);\n  const bx=cx+(base-0.5)*fw*1.5;\n  const ph=fr(i*2+2)*6.2832;\n  const spd=0.6+fr(i*2+3)*0.9;\n  const fl=0.55+0.45*Math.sin(K.t*(2.0+spd)*P.speed+ph)*(0.5+P.flick*0.8)+0.2*Math.sin(K.t*5.3+ph*2);\n  const th=fh*flare*clp(fl,0.2,1.7)*(0.55+0.6*fr(i*2+5));\n  const w=fw*(0.5+0.5*fr(i*2+4))*(1-i/nT*0.3);\n  const sway=Math.sin(K.t*1.3*P.speed+ph)*fw*0.25*(0.5+en);\n  const seg=ascii?9:6;\n  for(let s2=0;s2<seg;s2++){\n    const f0=s2/seg, f1=(s2+1)/seg, fm=(f0+f1)/2;\n    const y0=cy-th*f0, y1=cy-th*f1;\n    const w0=w*(1-f0)*(1-f0), w1=w*(1-f1)*(1-f1);\n    const xo0=sway*f0, xo1=sway*f1;\n    const col=fcol(fm);\n    if(ascii){\n      const heat=1-fm; const gi=Math.min(glyphs.length-1,Math.floor(heat*(glyphs.length-1)));\n      const g=glyphs[gi]; if(g!==' '){ noStroke(); fill(col[0],col[1],col[2], 90*(1-f0*0.3)); textSize(Math.max(4,w*1.6)); text(g,bx+xo0,y0); }\n    } else if(woodcut){\n      noStroke(); fill(col[0],col[1],col[2]); quad(bx+xo0-w0,y0,bx+xo0+w0,y0,bx+xo1+w1,y1,bx+xo1-w1,y1);\n      if(s2%2===0){ stroke(0,0,10,55); strokeWeight(Math.max(0.6,u*0.001)); line(bx+xo0-w0*0.6,y0,bx+xo0+w0*0.6,y0); noStroke(); }\n    } else {\n      noStroke(); const a=(addGlow?42:88)*(1-f0*0.28); fill(col[0],col[1],col[2],a);\n      quad(bx+xo0-w0,y0,bx+xo0+w0,y0,bx+xo1+w1,y1,bx+xo1-w1,y1);\n    }\n  }\n}\nblendMode(BLEND);\n\n// ---- embers rising (continuous via K.t, seeded) ----\nif(S.emberSeed!==P.seed){ S.emberSeed=P.seed; S.em=[]; for(let i=0;i<80;i++) S.em.push({x:fr(i+10)-0.5,sp:0.4+fr(i+20)*0.9,ph:fr(i+30),sw:0.3+fr(i+40)}); }\nconst nE=Math.round(80*clp(P.density,0.1,1));\nblendMode(ADD); noStroke();\nfor(let i=0;i<nE;i++){\n  const e=S.em[i];\n  const life=frc(e.ph+K.t*0.12*e.sp*P.speed);\n  const ex=cx+e.x*fw*1.4+Math.sin(K.t*1.5*e.sw+i)*fw*0.5*life;\n  const ey=cy-life*fh*1.9;\n  const a=(1-life)*(0.5+en)*(thermal?70:90);\n  const sz=u*0.004*(0.5+e.sw)*(1-life*0.5);\n  const col=ember?[md(H+15,360),80,100]:thermal?[md(H+lrp(40,250,life),360),60,100]:sumi?[md(H,360),6,lrp(70,30,life)]:woodcut?[md(H+10,360),85,95]:[md(H+15,360),80,100];\n  fill(col[0],col[1],col[2],a); ellipse(ex,ey,sz,sz);\n}\nblendMode(BLEND);\n"
+}

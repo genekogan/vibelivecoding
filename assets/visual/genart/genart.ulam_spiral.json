@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ulam_spiral",
+  "kind": "genart",
+  "name": "Ulam Prime Spiral",
+  "desc": "Integers spiral out from the center and the primes ignite as glowing residue-hued dots, exposing the eerie diagonal streets where primes cluster while concentric activation waves ripple outward and a scanning highlight rakes the diagonals.",
+  "tags": [
+    "ulam",
+    "prime",
+    "primes",
+    "spiral",
+    "number-theory",
+    "math",
+    "sieve",
+    "grid",
+    "dots",
+    "diagonal",
+    "lattice",
+    "residue",
+    "phosphor",
+    "crt",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "gold",
+    "glow",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "scan",
+    "eerie",
+    "clinical",
+    "data"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "dot size/glow + composite-fill density"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "spiral zoom (cover size)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow exposure amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "ripple + diagonal-sweep rate"
+    },
+    "sweep": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "diagonal scan-highlight strength"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "spiral center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "spiral center y"
+    },
+    "style": {
+      "default": "prime-glow",
+      "options": [
+        "prime-glow",
+        "phosphor",
+        "gold",
+        "thermal",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic offset/hue variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:07:39+00:00",
+    "fps": 63.3,
+    "motion": 0.0668,
+    "lum": 0.141
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .6, speed: 1, sweep: .6, hue: 210, x: .5, y: .5, style: 'prime-glow', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst G = 99, M = G * G, half = (G - 1) / 2, maxRing = half;\nconst cellPx = 2, R = G * cellPx; // 198\n\n// prime sieve (primes are seed-independent) \u2014 build once\nif (!S.sieve) {\n  const NB = M + 1600;\n  const sv = new Uint8Array(NB + 1); sv.fill(1); sv[0] = 0; sv[1] = 0;\n  for (let i = 2; i * i <= NB; i++) { if (sv[i]) { for (let j = i * i; j <= NB; j += i) sv[j] = 0; } }\n  S.sieve = sv; S.NB = NB;\n}\n// Ulam spiral walk -> per-integer grid + buffer coords + ring index \u2014 build once\nif (!S.bx) {\n  const bx = new Int16Array(M), by = new Int16Array(M), rg = new Int16Array(M), dg = new Int16Array(M), ad = new Int16Array(M);\n  let x = 0, y = 0, dx = 1, dy = 0, seg = 1, pass = 0, steps = 0;\n  for (let n = 0; n < M; n++) {\n    rg[n] = Math.max(Math.abs(x), Math.abs(y));\n    dg[n] = x + y; ad[n] = x - y;\n    bx[n] = (x + half) * cellPx; by[n] = (y + half) * cellPx;\n    x += dx; y += dy; steps++;\n    if (steps === seg) { steps = 0; const ndx = dy, ndy = -dx; dx = ndx; dy = ndy; pass++; if (pass === 2) { pass = 0; seg++; } }\n  }\n  S.bx = bx; S.by = by; S.rg = rg; S.dg = dg; S.ad = ad;\n}\n// buffer + accumulation\nif (!S.pg || S.R !== R) { S.pg = createGraphics(R, R); S.pg.pixelDensity(1); S.R = R; S.acc = new Float32Array(R * R * 3); }\n// seed-dependent offsets (start integer progression + hue phase)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.offBase = Math.floor(fr(1) * 30);\n  S.offStep = 17 + Math.floor(fr(2) * 34);\n  S.hoff = fr(3) * 0.5;\n}\n\nconst sieve = S.sieve, NB = S.NB, bxA = S.bx, byA = S.by, rgA = S.rg, dgA = S.dg, adA = S.ad, acc = S.acc, pg = S.pg;\nconst t = K.t;\nconst sec = K.section | 0;\nconst startN = 1 + S.offBase + sec * S.offStep; // restart with a different offset every section\nconst hb = (P.hue + S.hoff * 60 + sec * 14) % 360;\nconst expo = 0.5 + P.energy * 0.85 + K.intensity * 0.3 + K.swell * 0.1 + A.rms * 0.6;\nconst dens = P.density;\n\n// continuous outward-rippling activation waves (uniform speed -> no static window, no wrap flash)\nconst growRate = 1.5 + P.speed * 1.7;\nconst ringFreq = 0.34;\nconst wavePhase = t * growRate * 0.55;\n// scanning diagonal highlight (linear phase -> never re-phases)\nconst sweepRate = 0.5 + P.speed * 1.1, sweepPeriod = 6, sweepAmt = P.sweep;\nconst sweepPhase = t * sweepRate;\nconst diagPos = (sec % 2 === 0);\n\n// iq cosine palette (rgb 0..1)\nfunction pal(m) { const hr = hb / 360; return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)), 0.5 + 0.5 * Math.cos(6.2831 * (m + hr + 0.33)), 0.5 + 0.5 * Math.cos(6.2831 * (m + hr + 0.66))]; }\nfunction thermal(m) { m = Math.max(0, Math.min(1, m)); const r = Math.min(1, m * 2.3); const g = Math.min(1, Math.max(0, m * 2.4 - 1.25)); const b = Math.max(0, 0.65 - Math.abs(m - 0.22) * 2.4) + Math.max(0, m * 2 - 1.7); return [r, g, Math.min(1, b)]; }\n\nconst style = P.style;\nlet amb, primeC = null, compC = null;\nif (style === 'phosphor') { amb = [0.0, 0.075, 0.035]; primeC = [0.22, 1.0, 0.38]; compC = [0.05, 0.34, 0.13]; }\nelse if (style === 'gold') { amb = [0.07, 0.055, 0.02]; primeC = [1.0, 0.78, 0.30]; compC = [0.34, 0.26, 0.08]; }\nelse if (style === 'thermal') { amb = [0.08, 0.03, 0.12]; }\nelse if (style === 'blueprint') { amb = [0.05, 0.12, 0.26]; primeC = [0.90, 0.96, 1.0]; compC = [0.18, 0.44, 0.64]; }\nelse { amb = [0.07, 0.10, 0.19]; compC = [0.13, 0.16, 0.28]; } // prime-glow\n\n// ambient ground fill (frame fills, luminance floor)\nconst a0 = amb[0], a1 = amb[1], a2 = amb[2];\nfor (let p = 0, L = R * R; p < L; p++) { const o = p * 3; acc[o] = a0; acc[o + 1] = a1; acc[o + 2] = a2; }\n\nconst bassW = A.bass, trebW = A.treble;\nfor (let n = 0; n < M; n++) {\n  const val = startN + n;\n  const isP = val <= NB && sieve[val];\n  const ringC = rgA[n];\n  // outward-rippling ring wave (continuous, uniform speed)\n  const wg = 0.5 + 0.5 * Math.sin(ringC * ringFreq - wavePhase);\n  // moving diagonal band\n  const diag = diagPos ? dgA[n] : adA[n];\n  let sp = (diag - sweepPhase) / sweepPeriod; sp = sp - Math.floor(sp);\n  const sband = Math.pow(Math.max(0, 1 - Math.abs(sp - 0.5) * 2), 6);\n  const sg = sband * sweepAmt * (1 + trebW * 1.4);\n\n  const bx = bxA[n], by = byA[n], oc = (by * R + bx) * 3;\n  if (isP) {\n    let br = (0.34 + 0.62 * wg + 0.5 * sg) * expo * (0.7 + 0.5 * dens);\n    br += bassW * 0.5 * wg + trebW * 0.4 * sg;\n    let c0, c1, c2;\n    if (style === 'prime-glow') { const c = pal((val % 6) / 6 + 0.03); c0 = c[0]; c1 = c[1]; c2 = c[2]; }\n    else if (style === 'thermal') { const c = thermal(ringC / maxRing * 0.55 + wg * 0.7 + sg * 0.4); c0 = c[0]; c1 = c[1]; c2 = c[2]; }\n    else { c0 = primeC[0]; c1 = primeC[1]; c2 = primeC[2]; }\n    const core = br, nb = br * (0.35 + dens * 0.95) * 0.5;\n    // plus-kernel splat (center + 4 neighbours) \u2014 upscale smoothing blooms it into a glowing dot\n    acc[oc] += c0 * core; acc[oc + 1] += c1 * core; acc[oc + 2] += c2 * core;\n    if (bx + 1 < R) { const o = oc + 3; acc[o] += c0 * nb; acc[o + 1] += c1 * nb; acc[o + 2] += c2 * nb; }\n    if (bx - 1 >= 0) { const o = oc - 3; acc[o] += c0 * nb; acc[o + 1] += c1 * nb; acc[o + 2] += c2 * nb; }\n    if (by + 1 < R) { const o = oc + R * 3; acc[o] += c0 * nb; acc[o + 1] += c1 * nb; acc[o + 2] += c2 * nb; }\n    if (by - 1 >= 0) { const o = oc - R * 3; acc[o] += c0 * nb; acc[o + 1] += c1 * nb; acc[o + 2] += c2 * nb; }\n  } else {\n    // faint composite dot (fills frame texture)\n    const f = (0.11 + 0.07 * wg) * (0.4 + 0.7 * dens) * expo;\n    if (style === 'prime-glow') { const c = pal((val % 6) / 6 + 0.03); acc[oc] += c[0] * f * 0.55; acc[oc + 1] += c[1] * f * 0.55; acc[oc + 2] += c[2] * f * 0.55; }\n    else if (style === 'thermal') { const c = thermal(0.12 + ringC / maxRing * 0.32); acc[oc] += c[0] * f; acc[oc + 1] += c[1] * f; acc[oc + 2] += c[2] * f; }\n    else { acc[oc] += compC[0] * f; acc[oc + 1] += compC[1] * f; acc[oc + 2] += compC[2] * f; }\n  }\n}\n\n// write accumulation to buffer\npg.loadPixels(); const px = pg.pixels;\nfor (let p = 0, L = R * R; p < L; p++) { const o = p * 3, q = p * 4; px[q] = Math.min(255, acc[o] * 255); px[q + 1] = Math.min(255, acc[o + 1] * 255); px[q + 2] = Math.min(255, acc[o + 2] * 255); px[q + 3] = 255; }\npg.updatePixels();\n\npush();\nif (P.alpha >= 100) background(hb, 45, style === 'blueprint' ? 14 : 6);\nconst cov = Math.max(width, height) * 1.06 * P.scale;\nimageMode(CENTER);\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(pg, P.x * width, P.y * height, cov, cov);\npop();\n"
+}

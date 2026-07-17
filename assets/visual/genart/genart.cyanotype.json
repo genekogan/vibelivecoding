@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cyanotype",
+  "kind": "genart",
+  "name": "Cyanotype Photogram",
+  "desc": "Specimens laid on a hand-coated sheet through a twenty-minute exposure \u2014 nothing holds still that long, so each one smears its own penumbra into the Prussian blue as it drifts, the coating's brush edges and mottle printing right along with them, the tray forever washing the whole thing back.",
+  "tags": [
+    "cyanotype",
+    "photogram",
+    "sun-print",
+    "blueprint",
+    "prussian-blue",
+    "alt-process",
+    "darkroom",
+    "chemistry",
+    "exposure",
+    "uv",
+    "botanical",
+    "specimen",
+    "herbarium",
+    "atkins",
+    "algae",
+    "silhouette",
+    "monochrome",
+    "duotone",
+    "blue",
+    "indigo",
+    "vandyke",
+    "platinum",
+    "toning",
+    "bronzing",
+    "solarized",
+    "paper",
+    "rag",
+    "wash",
+    "archival",
+    "antique",
+    "clinical",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "UV intensity and printing contrast \u2014 how hard the sun drives the iron blue"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many specimens are laid on the sheet (3 to 9), each with its own stem"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the drift, the exposure and the wash"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "specimen size against the sheet"
+    },
+    "hue": {
+      "default": 208,
+      "min": 0,
+      "max": 360,
+      "doc": "chemistry hue \u2014 208 is iron blue; carries paper, toning and specimens with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the arrangement, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the arrangement, y"
+    },
+    "wash": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the tray works \u2014 how fast the image washes back and how far it bleeds"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "act": {
+      "default": "expose",
+      "options": [
+        "expose",
+        "burn",
+        "cloud"
+      ],
+      "doc": "multi-minute program: the sun comes and goes / a long hard burn / cloud shadow crossing, the print stalling and racing"
+    },
+    "style": {
+      "default": "cyanotype",
+      "options": [
+        "cyanotype",
+        "vandyke",
+        "platinum",
+        "toned",
+        "solarized"
+      ],
+      "doc": "aesthetic: iron blue on rag / warm Van Dyke brown / neutral matte platinum, long scale / split-toned, cool lights and warm violet shadows / Sabattier reversal with bronzed highlights"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic sheet \u2014 coating edges and mottle, specimen forms, stems"
+    }
+  },
+  "acts": [
+    "expose",
+    "burn",
+    "cloud"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:21+00:00",
+    "fps": 60.2,
+    "motion": 0.1105,
+    "lum": 0.484
+  },
+  "code": "const D = { energy: .6, density: .5, speed: 1, scale: 1, hue: 208, x: .5, y: .5, wash: .5, alpha: 100, act: 'expose', style: 'cyanotype', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u2 = xf * xf * (3 - 2 * xf), v2 = yf * yf * (3 - 2 * yf);\n  const a = hsh(xi, yi), b = hsh(xi + 1, yi), c = hsh(xi, yi + 1), d = hsh(xi + 1, yi + 1);\n  return (a * (1 - u2) + b * u2) * (1 - v2) + (c * (1 - u2) + d * u2) * v2;\n};\nconst fbm = (x, y, o) => { let s = 0, am = .5, f = 1; for (let i = 0; i < o; i++) { s += am * vn(x * f, y * f); am *= .5; f *= 2.03; } return s; };\nconst hsv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\n\nconst en = clp(P.energy, 0, 1), de = clp(P.density, 0, 1), wa = clp(P.wash, 0, 1);\nconst sp = Math.max(.1, P.speed), sc = Math.max(.35, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360, la = clp(P.alpha, 0, 100) / 100;\n\nconst GW = 180, GH = Math.max(72, Math.round(GW * height / width));\nif (!S.g || S.gw !== GW || S.gh !== GH) {\n  if (S.g && S.g.remove) S.g.remove();\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1); S.gw = GW; S.gh = GH; S.coat = null;\n}\n// the sensitizer was brushed on by hand: ragged edges, mottled coverage, bare margins\nif (!S.coat || S.cseed !== P.seed) {\n  S.cseed = P.seed;\n  const n2 = GW * GH;\n  S.coat = new Float32Array(n2); S.exp = new Float32Array(n2); S.occ = new Float32Array(n2);\n  const mx = .03 + .03 * fr(3), my = .03 + .03 * fr(4);\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n    const nx = x / GW, ny = y / GH;\n    const wob = (fbm(x * .045, y * .045, 3) - .5) * .055 + (fbm(x * .16, y * .16, 2) - .5) * .022;\n    const dl = nx - (mx + wob), dr = (1 - mx + wob) - nx, dt2 = ny - (my + wob * 1.3), db = (1 - my + wob * 1.3) - ny;\n    const d = Math.min(Math.min(dl, dr), Math.min(dt2, db));\n    const edge = clp(d / .035, 0, 1);\n    const mot = .62 + .5 * fbm(x * .028, y * .028, 4) + .16 * (fbm(x * .11, y * .09, 2) - .5);\n    // brush-stroke banding from the coating rod\n    const brush = .88 + .16 * Math.sin(y * .19 + fbm(x * .02, y * .02, 2) * 5.5);\n    S.coat[y * GW + x] = clp(edge * mot * brush, 0, 1.25);\n  }\n}\n\n// ---- clock (tolerates t0 resets) ---------------------------------------------\nconst dt = (S.lt == null || K.t < S.lt || K.t - S.lt > .5) ? 1 / 60 : (K.t - S.lt);\nS.lt = K.t;\n\n// ---- act: multi-minute exposure programs ------------------------------------\nlet sun = 1;\nif (P.act === 'burn') sun = 1.35 + .55 * (.5 + .5 * Math.sin(K.t * .0117 + 1.3));\nelse if (P.act === 'cloud') sun = .28 + 1.5 * Math.pow(.5 + .5 * Math.sin(K.t * .0089 + .8 * Math.sin(K.t * .0031 + 2.2)), 2);\nelse sun = .72 + .72 * (.5 + .5 * Math.sin(K.t * .0069 + .6 * Math.sin(K.t * .0027 + 1.5)));\nsun *= (.75 + .5 * K.intensity);\n\n// ---- the specimens, drifting on the sheet through a twenty-minute exposure ---\nconst ns = 3 + Math.round(de * 6);\nconst spx = [], spy = [], spr = [], sph = [], spo = [], spa = [], sh1 = [], sh2 = [], sh3 = [];\nfor (let i = 0; i < ns; i++) {\n  const p0 = i * 2.3999 + fr(i * 3 + 1) * 6.283;\n  const ax = .17 + .17 * fr(i * 5 + 2), ay = .13 + .15 * fr(i * 5 + 3);\n  spx.push(((P.x - .5) + ax * Math.sin(K.t * .043 * sp + p0) + .38 * ax * Math.sin(K.t * .0971 * sp + p0 * 1.7) + .5) * GW);\n  spy.push(((P.y - .5) + ay * Math.sin(K.t * .0533 * sp + p0 * 1.3) + .36 * ay * Math.sin(K.t * .1131 * sp + p0 * 2.1) + .5) * GH);\n  spr.push(GW * (.075 + .085 * fr(i * 7 + 4)) * sc);\n  sph.push(K.t * .029 * sp * (fr(i * 11 + 5) - .5) * 2 + p0);\n  spo.push(.55 + .45 * fr(i * 13 + 6));\n  spa.push([2 + Math.floor(fr(i * 17 + 7) * 7), 3 + Math.floor(fr(i * 19 + 8) * 9), 5 + Math.floor(fr(i * 23 + 9) * 13)]);\n  sh1.push(.10 + .30 * fr(i * 29 + 10)); sh2.push(.06 + .20 * fr(i * 31 + 11)); sh3.push(.03 + .12 * fr(i * 37 + 12));\n}\nconst rad = (i, th) => spr[i] * (1 + sh1[i] * Math.sin(th * spa[i][0] + spa[i][0]) + sh2[i] * Math.sin(th * spa[i][1] + 1.7) + sh3[i] * Math.sin(th * spa[i][2] + 3.1));\n\nconst n = GW * GH, EX = S.exp, OC = S.occ, CO = S.coat;\nOC.fill(0);\nfor (let i = 0; i < ns; i++) {\n  const bb = spr[i] * (1 + sh1[i] + sh2[i] + sh3[i]) + 2;\n  const x0 = Math.max(0, Math.floor(spx[i] - bb)), x1 = Math.min(GW - 1, Math.ceil(spx[i] + bb));\n  const y0 = Math.max(0, Math.floor(spy[i] - bb)), y1 = Math.min(GH - 1, Math.ceil(spy[i] + bb));\n  const rt = sph[i], op = spo[i];\n  for (let y = y0; y <= y1; y++) {\n    const dy = y - spy[i], row = y * GW;\n    for (let x = x0; x <= x1; x++) {\n      const dx = x - spx[i], r = Math.sqrt(dx * dx + dy * dy);\n      if (r > bb) continue;\n      const th = Math.atan2(dy, dx) - rt;\n      const R = rad(i, th);\n      const o = clp((R - r) / (spr[i] * .18) + .5, 0, 1) * op;\n      const j = row + x; if (o > OC[j]) OC[j] = o;\n    }\n  }\n  // a stem laid across the sheet with the specimen\n  const sl = spr[i] * (1.6 + 2.4 * fr(i * 41 + 13)), sa = rt + fr(i * 43 + 14) * 6.283;\n  const ex2 = spx[i] + Math.cos(sa) * sl, ey2 = spy[i] + Math.sin(sa) * sl, tw = Math.max(.7, spr[i] * .045);\n  const sx0 = Math.max(0, Math.floor(Math.min(spx[i], ex2) - 3)), sx1 = Math.min(GW - 1, Math.ceil(Math.max(spx[i], ex2) + 3));\n  const sy0 = Math.max(0, Math.floor(Math.min(spy[i], ey2) - 3)), sy1 = Math.min(GH - 1, Math.ceil(Math.max(spy[i], ey2) + 3));\n  const vx = ex2 - spx[i], vy = ey2 - spy[i], vv = vx * vx + vy * vy || 1;\n  for (let y = sy0; y <= sy1; y++) for (let x = sx0; x <= sx1; x++) {\n    let t = ((x - spx[i]) * vx + (y - spy[i]) * vy) / vv; t = t < 0 ? 0 : t > 1 ? 1 : t;\n    const ddx = x - (spx[i] + vx * t), ddy = y - (spy[i] + vy * t);\n    const d = Math.sqrt(ddx * ddx + ddy * ddy) - tw * (1 - t * .55);\n    const o = clp(-d / 1.2 + .5, 0, 1) * op * .92;\n    const j = y * GW + x; if (o > OC[j]) OC[j] = o;\n  }\n}\n\n// ---- expose + wash -----------------------------------------------------------\nconst sang = K.t * .037 * sp + .8 * Math.sin(K.t * .0131 + .5) + .3 * Math.sin(K.t * .0293 + 2.4);\nconst sux = Math.cos(sang), suy = Math.sin(sang) * .7;\nconst rate = (.030 + en * .052) * sun * sp;\nconst wash = (.028 + wa * .055) * sp;\nfor (let y = 0; y < GH; y++) {\n  const ny = (y / GH - .5) * 2, row = y * GW;\n  for (let x = 0; x < GW; x++) {\n    const nx = (x / GW - .5) * 2, j = row + x;\n    const uv = rate * (.74 + .46 * (nx * sux + ny * suy));\n    let e = EX[j] + uv * (1 - OC[j] * .96) * dt - EX[j] * wash * dt;\n    EX[j] = e < 0 ? 0 : e > 3 ? 3 : e;\n  }\n}\n\n// ---- print -------------------------------------------------------------------\nlet pH = hb + 232, pS = .08, pV = .93, mH = hb - 10, mS = .48, mV = .72, dH = hb + 6, dS = .90, dV = .18;\nif (st === 'vandyke') { pH = hb + 190; pS = .10; pV = .92; mH = hb + 172; mS = .52; mV = .60; dH = hb + 168; dS = .78; dV = .20; }\nelse if (st === 'platinum') { pH = hb + 200; pS = .04; pV = .94; mH = hb + 190; mS = .09; mV = .52; dH = hb + 186; dS = .12; dV = .08; }\nelse if (st === 'toned') { pH = hb + 236; pS = .07; pV = .94; mH = hb + 152; mS = .40; mV = .50; dH = hb + 42; dS = .62; dV = .16; }\nelse if (st === 'solarized') { pH = hb + 228; pS = .10; pV = .90; mH = hb - 4; mS = .70; mV = .40; dH = hb + 178; dS = .26; dV = .46; }\nconst gam = .9 + en * 2.3;\nconst g = S.g; g.loadPixels(); const pix = g.pixels;\nfor (let y = 0; y < GH; y++) {\n  const yc = y * GW, yu = Math.max(0, y - 1) * GW, yd = Math.min(GH - 1, y + 1) * GW;\n  for (let x = 0; x < GW; x++) {\n    const i = yc + x, xl = Math.max(0, x - 1), xr = Math.min(GW - 1, x + 1), o = 4 * i;\n    // the wash bleeds the image sideways in the tray\n    const bl = .55 + .45 * wa;\n    const e = (EX[i] * (2 - bl) + (EX[yc + xl] + EX[yc + xr] + EX[yu + x] + EX[yd + x]) * bl * .25) / 2;\n    let t = 1 - Math.exp(-e * CO[i] * gam);\n    if (st === 'solarized') t = t < .58 ? t : .58 - (t - .58) * 1.35;\n    t = clp(t, 0, 1);\n    let c;\n    if (t < .5) { const m = t * 2; c = hsv(pH + (mH - pH) * m, pS + (mS - pS) * m, pV + (mV - pV) * m); }\n    else { const m = (t - .5) * 2; c = hsv(mH + (dH - mH) * m, mS + (dS - mS) * m, mV + (dV - mV) * m); }\n    let r = c[0], g2 = c[1], b = c[2];\n    // bronzing where the iron blue is laid on far too thick\n    if (t > .88) { const m = Math.min(1, (t - .88) * 5.2); const bz = hsv(38, .22, .40); r = r * (1 - m) + bz[0] * m; g2 = g2 * (1 - m) + bz[1] * m; b = b * (1 - m) + bz[2] * m; }\n    // the specimen itself is lying right there on the paper\n    const oc = OC[i];\n    if (oc > .02) {\n      const m = oc * .34;\n      const lit = clp(.5 + (OC[Math.max(0, i - 1)] - OC[Math.min(n - 1, i + 1)]) * 2.2, 0, 1);\n      const sc2 = hsv(hb + 130, .22, .30 + lit * .5);\n      r = r * (1 - m) + sc2[0] * m; g2 = g2 * (1 - m) + sc2[1] * m; b = b * (1 - m) + sc2[2] * m;\n    }\n    pix[o] = r < 0 ? 0 : r > 255 ? 255 : r;\n    pix[o + 1] = g2 < 0 ? 0 : g2 > 255 ? 255 : g2;\n    pix[o + 2] = b < 0 ? 0 : b > 255 ? 255 : b;\n    pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// rag fibre \u2014 the print is on paper, not on glass\nconst TW = Math.max(260, Math.min(640, Math.round(width * .42))), TH = Math.max(150, Math.round(TW * height / width));\nif (!S.tile || S.tw !== TW || S.th !== TH || S.tseed !== P.seed) {\n  if (S.tile && S.tile.remove) S.tile.remove();\n  S.tile = createGraphics(TW, TH); S.tile.pixelDensity(1); S.tw = TW; S.th = TH; S.tseed = P.seed;\n  S.tile.loadPixels(); const tp = S.tile.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    const f1 = hsh(x * .93 + y * .21, y * .87 + x * .15);\n    const f2 = hsh(x * .31 - y * .39 + 6.7, y * .27 + x * .51 + 2.3);\n    const fib = Math.pow(clp(f1 * .78 + f2 * .52 - .14, 0, 1), 1.25);\n    const v = 255 - 54 * fib;\n    const o = 4 * (y * TW + x); tp[o] = v; tp[o + 1] = v; tp[o + 2] = v; tp[o + 3] = 255;\n  }\n  S.tile.updatePixels();\n}\n\nconst dc = drawingContext, oldA = dc.globalAlpha, u = Math.min(width, height);\nblendMode(BLEND);\ndc.globalAlpha = la;\ndc.drawImage(g.drawingContext.canvas, 0, 0, width, height);\nblendMode(MULTIPLY);\ndc.globalAlpha = la * .9;\ndc.drawImage(S.tile.drawingContext.canvas, 0, 0, width, height);\nblendMode(BLEND);\nconst vg = dc.createRadialGradient(width * .5, height * .5, u * .28, width * .5, height * .5, u * .95);\nvg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(8,10,20,' + (.14 + .22 * en).toFixed(3) + ')');\ndc.globalAlpha = la; dc.fillStyle = vg; dc.fillRect(0, 0, width, height);\ndc.globalAlpha = oldA;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

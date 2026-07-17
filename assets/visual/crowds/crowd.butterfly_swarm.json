@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.butterfly_swarm",
+  "kind": "crowd",
+  "name": "Stained-Glass Butterfly Swarm",
+  "desc": "A drifting cloud of butterflies rendered as luminous leaded-glass panels, flitting in loose orbits around a wandering attractor and settling to a slow wing-breathing rest when the music quiets.",
+  "tags": [
+    "butterfly",
+    "butterflies",
+    "swarm",
+    "flit",
+    "insects",
+    "insect",
+    "moth",
+    "lepidoptera",
+    "stained-glass",
+    "leaded-glass",
+    "cathedral",
+    "glass",
+    "iridescent",
+    "wings",
+    "garden",
+    "meadow",
+    "pollinator",
+    "flock",
+    "crowd",
+    "particles",
+    "xray",
+    "thermal",
+    "ink",
+    "translucent",
+    "luminous",
+    "delicate",
+    "serene",
+    "ethereal",
+    "spring",
+    "kaleidoscope"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "butterfly wingspan vs design"
+    },
+    "n": {
+      "default": 26,
+      "min": 8,
+      "max": 60,
+      "doc": "number of butterflies"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "flight speed + wing-flap rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting pollen-mote haze"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall motion rate"
+    },
+    "hue": {
+      "default": 285,
+      "min": 0,
+      "max": 360,
+      "doc": "glass base hue"
+    },
+    "spread": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.4,
+      "doc": "swarm dispersion radius"
+    },
+    "wander": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.5,
+      "doc": "erratic flit jitter"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "attractor centre x"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "attractor centre y"
+    },
+    "style": {
+      "default": "stained-glass",
+      "options": [
+        "stained-glass",
+        "iridescent",
+        "ink",
+        "thermal",
+        "xray"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "meadow",
+      "options": [
+        "meadow",
+        "storm",
+        "bloom"
+      ],
+      "doc": "multi-minute swarm program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "meadow",
+    "storm",
+    "bloom"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:03:54+00:00",
+    "fps": 62.9,
+    "motion": 0.0073,
+    "lum": 0.089
+  },
+  "code": "const D = { scale: 1, n: 26, energy: .55, density: .5, speed: 1, hue: 285, spread: .55, wander: .5, x: .5, y: .45, style: 'stained-glass', act: 'meadow', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst PI = Math.PI, TAU2 = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst N = Math.max(8, Math.min(60, Math.round(P.n)));\nconst sty = P.style;\nconst add = (sty === 'thermal' || sty === 'iridescent' || sty === 'xray');\n\n// ---- swarm state ----\nif (!S.bf || S.bn !== N || S.bseed !== P.seed) {\n  S.bf = [];\n  for (let i = 0; i < N; i++) {\n    S.bf.push({ x: width * 0.5, y: height * 0.5, px: width * 0.5, py: height * 0.5,\n      ph: fr(i) * TAU2, sp: 0.45 + fr(i + 1) * 0.9, rad: 0.05 + fr(i + 2) * 0.16,\n      hu: (fr(i + 3) - 0.5) * 90, sz: 0.75 + fr(i + 4) * 0.6, fl: fr(i + 5) * TAU2 });\n  }\n  S.bn = N; S.bseed = P.seed;\n}\n\nconst inten = 0.35 + 0.65 * K.intensity;\n// rest during low-intensity sections: 0 = flying, 1 = settled/landing\nconst rest = Math.max(0, Math.min(1, (0.42 - K.intensity) / 0.42));\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\n\n// act programs modulate spread / agitation / vertical bias\nconst ACT = {\n  meadow: { spr: 1.0, agit: 1.0, ybias: 0.0, conv: 0.0 },\n  storm:  { spr: 1.7, agit: 1.9, ybias: -0.08, conv: 0.0 },\n  bloom:  { spr: 0.55 + 0.9 * (sec % 4) / 3, agit: 1.0 + 0.6 * (sec % 2), ybias: 0.0, conv: (sec % 4 === 3) ? 0.75 : 0.15 } };\nconst ac = ACT[P.act] || ACT.meadow;\n\nconst spr = P.spread * ac.spr;\nconst wob = P.wander * ac.agit;\nconst flySpd = (0.35 + 1.15 * P.energy) * P.speed * inten;\n\n// drifting attractor centre (real-time, never re-phases)\nconst cx = width * (P.x + 0.20 * spr * Math.sin(K.t * 0.061 + P.seed) + 0.06 * Math.sin(K.t * 0.017));\nconst cy = height * (P.y + ac.ybias + 0.14 * spr * Math.sin(K.t * 0.049 * 1.3) + rest * 0.22);\nconst settle = 1 - rest * 0.7;\n\n// ---- atmospheric drifting motes (density) ----\nconst nm = Math.floor(34 * P.density);\nif (nm > 0) {\n  push();\n  blendMode(ADD);\n  noStroke();\n  for (let i = 0; i < nm; i++) {\n    const mx = (fr(i * 3 + 40) * width + K.t * (6 + fr(i + 41) * 14)) % width;\n    const my = height * (0.1 + 0.8 * fr(i * 3 + 42)) + Math.sin(K.t * 0.4 + i) * u * 0.02;\n    const ma = 3 + 4 * (0.5 + 0.5 * Math.sin(K.t * 0.7 + i * 1.7));\n    fill(hw(P.hue + 40), 26, 92, ma * (0.5 + 0.5 * P.density));\n    ellipse(mx, my, u * 0.006, u * 0.006);\n  }\n  blendMode(BLEND);\n  pop();\n}\n\n// wing geometry (right side, local space; butterfly faces up)\nfunction wing(s, op, fore) {\n  beginShape();\n  if (fore) {\n    vertex(0, -s * 0.2);\n    vertex(s * 1.35 * op, -s * 1.18);\n    vertex(s * 1.95 * op, -s * 0.32);\n    vertex(s * 1.15 * op, s * 0.12);\n  } else {\n    vertex(s * 0.18, s * 0.06);\n    vertex(s * 1.28 * op, s * 0.5);\n    vertex(s * 1.02 * op, s * 1.28);\n    vertex(s * 0.16, s * 0.72);\n  }\n  endShape(CLOSE);\n}\n\nfunction paintWing(s, op, fore, glass, jewel, dk) {\n  if (sty === 'xray') {\n    noFill(); stroke(190, 60, 100, 70); strokeWeight(1.1);\n    wing(s, op, fore);\n    stroke(190, 40, 100, 45); strokeWeight(0.7);\n    for (let v = 0; v < 3; v++) line(0, 0, s * (0.9 + v * 0.35) * op, (fore ? -1 : 1) * s * (0.35 + v * 0.32));\n    noStroke();\n  } else if (sty === 'iridescent') {\n    noStroke();\n    for (let l = 0; l < 3; l++) {\n      fill(hw(glass[0] + l * 26 + Math.sin(K.t * 0.9 + l) * 18), 60 - l * 12, 100, 26);\n      push(); translate(s * 0.2 * op, (fore ? -0.2 : 0.4) * s); scale(op, 1); wing(s, 1, fore); pop();\n    }\n    fill(hw(glass[0] + 60), 30, 100, 30); ellipse(s * 0.9 * op, (fore ? -0.4 : 0.6) * s, s * 0.5, s * 0.5);\n  } else if (sty === 'ink') {\n    noStroke();\n    fill(hw(glass[0]), 12, 22, 46); wing(s, op, fore);\n    fill(hw(glass[0]), 10, 14, 40);\n    push(); translate(s * 0.12 * op, (fore ? -0.1 : 0.15) * s); scale(0.86 * op / (op || 1), 0.9); wing(s, op, fore); pop();\n    stroke(hw(glass[0]), 14, 10, 60); strokeWeight(s * 0.06); noFill();\n    line(s * 0.1, (fore ? -0.2 : 0.1) * s, s * 1.4 * op, (fore ? -0.7 : 0.9) * s);\n    noStroke();\n  } else if (sty === 'thermal') {\n    noStroke();\n    fill(248, 70, 26, 60); wing(s, op * 1.05, fore);\n    fill(20, 90, 92, 66); push(); scale(0.7, 0.78); wing(s, op, fore); pop();\n    fill(52, 20, 100, 70); ellipse(s * 0.7 * op, (fore ? -0.4 : 0.55) * s, s * 0.42, s * 0.42);\n  } else {\n    // stained-glass\n    noStroke();\n    fill(glass[0], glass[1], glass[2], 80); wing(s, op, fore);\n    fill(jewel[0], jewel[1], jewel[2], 82);\n    ellipse(s * (fore ? 1.1 : 0.85) * op, (fore ? -0.45 : 0.6) * s, s * 0.5, s * 0.5);\n    stroke(dk, 30, 10, 96); strokeWeight(s * 0.11); noFill();\n    wing(s, op, fore);\n    line(0, 0, s * 1.5 * op, (fore ? -1 : 1) * s * 0.55);\n    noStroke();\n  }\n}\n\n// ---- update + render butterflies ----\nnoStroke();\nif (add) blendMode(ADD);\nfor (let i = 0; i < N; i++) {\n  const b = S.bf[i];\n  const orbit = u * b.rad * (0.6 + spr) * settle;\n  const jx = Math.sin(K.t * 2.6 * b.sp * P.speed + b.ph * 2) * u * 0.022 * wob * settle;\n  const jy = Math.cos(K.t * 2.9 * b.sp * P.speed + b.ph) * u * 0.022 * wob * settle;\n  let tx = cx + Math.cos(K.t * 0.5 * b.sp * flySpd + b.ph) * orbit + jx;\n  let ty = cy + Math.sin(K.t * 0.42 * b.sp * flySpd + b.ph * 1.31) * orbit * 0.72 + jy;\n  tx += (cx - tx) * ac.conv * 0.6;\n  ty += (cy - ty) * ac.conv * 0.6;\n  b.px = b.x; b.py = b.y; b.x = tx; b.y = ty;\n  let ang = Math.atan2(b.y - b.py, b.x - b.px);\n  if (Math.abs(b.x - b.px) + Math.abs(b.y - b.py) < 0.4) ang = b.la || 0; else b.la = ang;\n\n  const s = u * 0.03 * P.scale * b.sz;\n  const flapRate = rest > 0.5 ? 1.4 : (2.0 + 2.0 * P.energy);\n  const flap = 0.5 + 0.5 * Math.sin(K.beat * TAU2 * flapRate * P.speed + b.fl + K.t * (rest > 0.5 ? 1.6 : 0));\n  const op = 0.28 + 0.72 * (flap * 0.7 + A.treble * 0.3);\n  const glass = [hw(P.hue + b.hu), 78, 96];\n  const jewel = [hw(P.hue + b.hu + 45), 90, 100];\n  const dk = hw(P.hue + b.hu + 200);\n\n  push();\n  translate(b.x, b.y);\n  rotate(ang + PI / 2);\n  // right wings\n  paintWing(s, op, true, glass, jewel, dk);\n  paintWing(s, op, false, glass, jewel, dk);\n  // left wings (mirror)\n  push(); scale(-1, 1);\n  paintWing(s, op, true, glass, jewel, dk);\n  paintWing(s, op, false, glass, jewel, dk);\n  pop();\n  // body + antennae\n  if (sty === 'xray') { stroke(190, 50, 100, 80); strokeWeight(s * 0.12); line(0, -s * 0.9, 0, s * 0.9); noStroke(); }\n  else if (sty !== 'iridescent') {\n    noStroke(); fill(add ? hw(P.hue) : 0, add ? 40 : 0, add ? 100 : 12, add ? 70 : 92);\n    ellipse(0, 0, s * 0.28, s * 1.5);\n  }\n  if (sty !== 'iridescent' && sty !== 'thermal') {\n    stroke(sty === 'xray' ? 190 : (add ? hw(P.hue) : 0), sty === 'xray' ? 40 : (add ? 30 : 0), add ? 100 : 14, 80);\n    strokeWeight(s * 0.05);\n    const aw = Math.sin(K.t * 3 + b.fl) * s * 0.15;\n    line(0, -s * 0.7, aw - s * 0.28, -s * 1.3);\n    line(0, -s * 0.7, aw + s * 0.28, -s * 1.3);\n    noStroke();\n  }\n  pop();\n}\nif (add) blendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.ballroom",
+  "kind": "world",
+  "name": "Grand Ballroom",
+  "desc": "A gilded candlelit ballroom in chiaroscuro with crystal chandeliers sparkling on the treble, a parquet floor receding to a vanishing point, and tall arched windows spilling moonlight.",
+  "tags": [
+    "ballroom",
+    "ball",
+    "palace",
+    "gilded",
+    "baroque",
+    "rococo",
+    "chandelier",
+    "crystal",
+    "candle",
+    "candlelight",
+    "sconce",
+    "parquet",
+    "perspective",
+    "window",
+    "moonlight",
+    "waltz",
+    "soiree",
+    "gala",
+    "opulent",
+    "elegant",
+    "gold",
+    "warm",
+    "chiaroscuro",
+    "noir",
+    "interior",
+    "victorian",
+    "aristocratic",
+    "formal",
+    "blueprint",
+    "moonlit",
+    "engraving",
+    "sparkle",
+    "glamour"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "chandelier / room scale"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "crystal & candle richness"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sway + flicker amplitude"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "candle warmth / glow"
+    },
+    "chandeliers": {
+      "default": 2,
+      "min": 1,
+      "max": 3,
+      "doc": "number of chandeliers"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue shift"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "time / motion rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vanishing-point x"
+    },
+    "y": {
+      "default": 0.52,
+      "min": 0.4,
+      "max": 0.72,
+      "doc": "floor horizon fraction"
+    },
+    "style": {
+      "default": "gilded",
+      "options": [
+        "gilded",
+        "noir",
+        "blueprint",
+        "moonlit",
+        "engraving"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "soiree",
+      "options": [
+        "soiree",
+        "waltz",
+        "candlelow"
+      ],
+      "doc": "multi-minute light program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "soiree",
+    "waltz",
+    "candlelow"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:09:06+00:00",
+    "fps": 62.9,
+    "motion": 0.0123,
+    "lum": 0.213
+  },
+  "code": "const D = { scale: 1, density: .55, energy: .5, glow: .7, chandeliers: 2, hue: 40, speed: 1, x: .5, y: .52, style: 'gilded', act: 'soiree', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst ho = P.hue - 40;\nconst lerp3 = (a, b, f) => [a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f, a[2] + (b[2]-a[2])*f];\n\nconst STY = {\n  gilded:    { wallT:[36,44,14], wallM:[38,52,34], wallB:[34,46,22], floor:[30,50,26], seam:[28,54,14], win:[220,44,30], moon:[46,24,96], gold:[44,70,92], cndl:[40,80,96], line:false, hatch:false },\n  noir:      { wallT:[220,10,8], wallM:[214,8,20], wallB:[218,9,12], floor:[216,7,15], seam:[216,6,6], win:[220,20,54], moon:[210,10,98], gold:[210,6,86], cndl:[40,20,92], line:false, hatch:false },\n  blueprint: { wallT:[212,72,12], wallM:[212,64,18], wallB:[212,68,14], floor:[210,60,16], seam:[196,50,60], win:[196,60,40], moon:[190,30,90], gold:[190,30,96], cndl:[190,40,88], line:true,  hatch:false },\n  moonlit:   { wallT:[224,40,10], wallM:[218,34,22], wallB:[222,38,14], floor:[216,30,20], seam:[220,26,10], win:[210,50,44], moon:[205,18,98], gold:[205,20,88], cndl:[210,30,80], line:false, hatch:false },\n  engraving: { wallT:[34,20,72], wallM:[34,22,60], wallB:[34,20,52], floor:[32,20,48], seam:[32,24,30], win:[34,14,40], moon:[36,10,86], gold:[34,26,74], cndl:[34,30,80], line:false, hatch:true } };\nconst st = STY[P.style] || STY.gilded;\nconst shift = c => [hw(c[0] + ho), c[1], c[2]];\n\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.25,.4,.6,.85,.4,.65,.95,.5][sec];\nconst ACT = { soiree:{ dk:.06+arc*.16, sway:.6+arc*.5 }, waltz:{ dk:.10+arc*.18, sway:1.1+arc*.9 }, candlelow:{ dk:.28-arc*.14, sway:.4+arc*.3 } };\nconst act = ACT[P.act] || ACT.soiree;\n\nconst horY = height * P.y;\nconst vpx = width * P.x;\n\n// ---- cached wall + windows + parquet ----\nconst key = width+'x'+height+P.style+P.seed+Math.round(P.hue)+Math.round(P.x*20)+Math.round(P.y*20);\nif (!S.bg || S.key !== key) {\n  if (!S.bg) S.bg = createGraphics(width, height); else S.bg.resizeCanvas(width, height);\n  const g = S.bg; g.colorMode(g.HSB, 360, 100, 100, 100); g.noStroke();\n  const wT = shift(st.wallT), wM = shift(st.wallM), wB = shift(st.wallB);\n  for (let yy = 0; yy < horY; yy++) {\n    const t = yy / Math.max(1, horY); const col = t < 0.5 ? lerp3(wT, wM, t/0.5) : lerp3(wM, wB, (t-0.5)/0.5);\n    g.fill(col[0], col[1], col[2]); g.rect(0, yy, width, 1);\n  }\n  // tall arched windows with moonlight\n  const win = shift(st.win), mn = shift(st.moon);\n  const nw = 3; const wW = width * 0.13, wH = horY * 0.72, wy = horY * 0.14;\n  for (let i = 0; i < nw; i++) {\n    const wx = width * (0.5 + (i - 1) * 0.3) - wW/2;\n    // moon glow halo\n    for (let r = 3; r >= 0; r--) { g.fill(mn[0], mn[1], mn[2], 8*(4-r)); g.ellipse(wx + wW/2, wy + wH*0.32, wW*(1.1 - r*0.16), wH*0.5*(1.1 - r*0.16)); }\n    g.fill(win[0], win[1], win[2], 92);\n    g.rect(wx, wy + wW*0.5, wW, wH - wW*0.5);\n    g.arc(wx + wW/2, wy + wW*0.5, wW, wW, Math.PI, TAU, g.CHORD);\n    // moon disc\n    g.fill(mn[0], mn[1]*0.6, mn[2], 90); g.ellipse(wx + wW*0.62, wy + wH*0.28, wW*0.34, wW*0.34);\n    // muntins\n    g.stroke(st.line ? win[0] : 30, st.line ? 40 : 24, st.line ? 70 : 18, 80); g.strokeWeight(Math.max(1.4, u*0.003)); g.noFill();\n    g.rect(wx, wy + wW*0.5, wW, wH - wW*0.5); g.arc(wx + wW/2, wy + wW*0.5, wW, wW, Math.PI, TAU);\n    g.line(wx + wW/2, wy, wx + wW/2, wy + wH); g.line(wx, wy + wH*0.42, wx + wW, wy + wH*0.42); g.line(wx, wy + wH*0.7, wx + wW, wy + wH*0.7);\n    g.noStroke();\n  }\n  // parquet floor\n  const fl = shift(st.floor), sm = shift(st.seam);\n  g.fill(fl[0], fl[1], fl[2]); g.rect(0, horY, width, height - horY);\n  // receding rows\n  g.stroke(sm[0], sm[1], sm[2], 70); g.strokeWeight(Math.max(1, u*0.0016));\n  for (let r = 1; r <= 12; r++) {\n    const t = r / 12; const ry = horY + (height - horY) * (t*t);\n    g.line(0, ry, width, ry);\n  }\n  // converging seams to vanishing point\n  const cols = 18;\n  for (let cI = 0; cI <= cols; cI++) {\n    const fx = (cI / cols) * width * 2 - width * 0.5;\n    g.line(vpx, horY, fx, height);\n  }\n  // sheen highlight band\n  g.noStroke(); for (let s = 0; s < 3; s++) { g.fill(fl[0], fl[1]*0.6, Math.min(100, fl[2]*1.7), 12); g.ellipse(vpx, height, width*(0.7 - s*0.15), (height-horY)*(0.9 - s*0.2)); }\n  // baseboard\n  g.fill(sm[0], sm[1], sm[2]*0.8); g.rect(0, horY - u*0.012, width, u*0.014);\n  S.key = key;\n}\nimage(S.bg, 0, 0);\n\n// ---- live drifting moonbeam shafts on floor ----\npush(); blendMode(ADD); noStroke();\nconst mn2 = shift(st.moon);\nfor (let i = 0; i < 3; i++) {\n  const bx = width * (0.5 + (i-1)*0.3) + Math.sin(K.t*0.05 + i)*u*0.02;\n  const sway = Math.sin(K.t*0.04 + i*2) * u * 0.03;\n  fill(mn2[0], mn2[1]*0.5, mn2[2], (st.line?4:10) * (0.6 + 0.4*Math.sin(K.t*0.2+i)));\n  quad(bx - u*0.05, horY, bx + u*0.05, horY, vpx + sway + u*0.14, height, vpx + sway - u*0.14, height);\n}\nblendMode(BLEND); pop();\n\n// ---- candle sconces (wall) flickering ----\npush();\nconst cnd = shift(st.cndl);\nconst nc = Math.round(4 + P.density * 8);\nfor (let i = 0; i < nc; i++) {\n  const cx = width * (0.06 + (i / Math.max(1,nc-1)) * 0.88);\n  const cy = horY * (0.42 + fr(i*7)*0.24);\n  const flick = 0.6 + 0.4*Math.sin(K.t*(6+fr(i)*5) + i*3) + 0.25*Math.sin(K.t*17 + i) + 0.4*A.mid;\n  const gv = P.glow * flick;\n  blendMode(ADD); noStroke();\n  for (let r = 0; r < 3; r++) { fill(cnd[0], cnd[1], cnd[2], (st.line?8:20)*gv*(1-r*0.25)); ellipse(cx, cy, u*0.05*(1-r*0.2), u*0.07*(1-r*0.2)); }\n  blendMode(BLEND);\n  fill(cnd[0], cnd[1]*0.7, 100, 90); ellipse(cx, cy, u*0.006, u*0.011*(0.8+0.3*flick));\n}\npop();\n\n// ---- chandeliers (sway, crystal sparkle) ----\nconst nch = Math.max(1, Math.min(3, Math.round(P.chandeliers)));\nconst gold = shift(st.gold);\nconst crystalCap = 150;\nlet budget = crystalCap;\nfor (let c = 0; c < nch; c++) {\n  const chx = width * (nch === 1 ? 0.5 : (0.22 + c * (0.56 / Math.max(1,nch-1))));\n  const chTop = horY * 0.02;\n  const sway = Math.sin(K.t * (0.5 + c*0.13) * P.speed) * act.sway * P.energy * u * 0.012;\n  const size = u * (0.14 + P.scale * 0.12);\n  const chy = horY * (0.30 + fr(c*3)*0.06) + size*0.1;\n  push(); translate(chx, 0);\n  // chain\n  stroke(gold[0], gold[1]*0.7, gold[2]*0.7, 70); strokeWeight(Math.max(1, u*0.0018));\n  line(0, chTop, sway, chy - size*0.5);\n  translate(sway, 0);\n  noStroke();\n  // central stem/body\n  fill(gold[0], gold[1], gold[2]*0.9, 90);\n  ellipse(0, chy, size*0.12, size*0.3);\n  // tiered arms with crystals\n  const tiers = 2 + Math.round(P.scale*0.5);\n  const perTier = Math.max(4, Math.round(6 + P.density * 10));\n  for (let ti = 0; ti < tiers; ti++) {\n    const tr = size * (0.32 + ti * 0.28);\n    const ty = chy - size*0.1 + ti * size*0.16;\n    // gold ring\n    stroke(gold[0], gold[1], gold[2], 80); strokeWeight(Math.max(1, u*0.0016)); noFill();\n    ellipse(0, ty, tr*2, tr*0.7);\n    noStroke();\n    for (let a = 0; a < perTier; a++) {\n      if (budget-- <= 0) break;\n      const ang = (a / perTier) * TAU;\n      const dxp = Math.cos(ang) * tr, dyp = ty + Math.sin(ang) * tr * 0.35;\n      // sparkle: seeded twinkle + treble\n      const tw = 0.4 + 0.6*Math.pow(Math.sin(K.t*(1.5+fr(c*20+ti*7+a)*4) + a*1.3), 8) + 0.7*A.treble*fr(a+ti);\n      // candle light at arm tip\n      blendMode(ADD);\n      fill(cnd[0], cnd[1], cnd[2], (st.line?10:26)*tw*P.glow);\n      ellipse(dxp, dyp - size*0.05, u*0.03*tw, u*0.04*tw);\n      blendMode(BLEND);\n      fill(cnd[0], cnd[1]*0.6, 100, 90); ellipse(dxp, dyp - size*0.05, u*0.004, u*0.008);\n      // crystal droplet\n      const cv = 60 + 40*tw;\n      if (st.line) { stroke(gold[0], 30, 96, 70); strokeWeight(1); noFill(); }\n      else { noStroke(); fill(gold[0], gold[1]*0.4, cv, 70 + 25*tw); }\n      push(); translate(dxp, dyp); rotate(0.3*Math.sin(K.t + a));\n      beginShape(); vertex(0, -size*0.05); vertex(size*0.03, 0); vertex(0, size*0.09); vertex(-size*0.03, 0); endShape(CLOSE);\n      pop();\n      noFill();\n    }\n  }\n  // hanging droplet strands\n  stroke(gold[0], gold[1]*0.4, 88, 40); strokeWeight(Math.max(1, u*0.0012));\n  for (let sI = 0; sI < 6; sI++) { const ang = (sI/6)*TAU; const rr = size*0.7; noFill();\n    line(Math.cos(ang)*rr*0.4, chy, Math.cos(ang)*rr, chy + size*0.4); }\n  pop();\n}\n\n// ---- act dim tint ----\npush(); noStroke(); fill(hw(224+ho), 26, 5, 50*act.dk); rect(0,0,width,height); pop();\nblendMode(BLEND);\n"
+}

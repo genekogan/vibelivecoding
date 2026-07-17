@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.meander",
+  "kind": "genart",
+  "name": "Meander Migration",
+  "desc": "A lowland river writhes across its own floodplain \u2014 bends grow and crawl downstream under upstream-weighted curvature until a neck closes and severs a loop into an oxbow lake, and every channel position it ever held is printed into the plate as arcuate scroll bars in the ink of its era, so a whole alluvial history accretes and is slowly buried; Fisk alluvial plate, false-colour satellite, sepia survey sheet or cyanotype schematic.",
+  "tags": [
+    "meander",
+    "meandering",
+    "river",
+    "stream",
+    "channel",
+    "oxbow",
+    "cutoff",
+    "sinuosity",
+    "floodplain",
+    "alluvial",
+    "alluvium",
+    "scroll-bar",
+    "point-bar",
+    "fluvial",
+    "hydrology",
+    "geomorphology",
+    "erosion",
+    "deposition",
+    "sediment",
+    "avulsion",
+    "watercourse",
+    "delta",
+    "mississippi",
+    "fisk",
+    "harold-fisk",
+    "geological-survey",
+    "map",
+    "plate",
+    "cartography",
+    "topographic",
+    "satellite",
+    "false-colour",
+    "landsat",
+    "aerial",
+    "cyanotype",
+    "blueprint",
+    "schematic",
+    "sepia",
+    "teal",
+    "ochre",
+    "simulation",
+    "emergent",
+    "slow",
+    "dramaturgy",
+    "process",
+    "landscape",
+    "terrain",
+    "scientific",
+    "austere",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bend migration vigour + colour/contrast gain in the belt inks and thalweg"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the reach around x/y \u2014 1 shows the whole floodplain, 2.6 crops to a single bend"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "migration rate \u2014 how fast bends grow and cut off (0.2 still visibly crawls)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "floodplain memory: how many scroll-bar generations survive overbank burial, and how many oxbows are retained"
+    },
+    "discharge": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "channel width \u2014 a creek at 0.05, a trunk river at 1"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "water/ink hue anchor; rotates the plate inks with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "fisk",
+      "options": [
+        "fisk",
+        "satellite",
+        "survey",
+        "blueprint"
+      ],
+      "doc": "aesthetic: fisk = alluvial plate, historic belts in saturated plate inks; satellite = false-colour NIR, dark-red vegetation, near-black water, white bars; survey = aged sepia sheet, line over mass, ink hachure; blueprint = cyanotype schematic, pale drafting lines on prussian ground"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reach + floodplain erodibility seed (rebuilds the river)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:45:58+00:00",
+    "fps": 57.5,
+    "motion": 0.0045,
+    "lum": 0.274
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, discharge: .5, hue: 205, x: .5, y: .5, style: 'fisk', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Meander migration, Ikeda-Parker-Sawai bend theory (simplified) ----------\n// Lateral migration at a node = exponentially weighted UPSTREAM curvature, so\n// bends both GROW (the bend instability) and TRANSLATE downstream (phase lag).\n// When a neck closes on itself the loop is severed -> an oxbow lake is abandoned\n// and sinuosity resets. THAT CUTOFF CYCLE is why this never reaches equilibrium.\n// Every channel position is printed into a floodplain plate, so the swept belt\n// accretes as arcuate scroll bars (Harold Fisk's Mississippi plates) while slow\n// overbank burial fades the oldest scars to ghosts -> bounded memory, endless change.\nconst BW = 768, BH = 432;\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> : an arithmetic fold would cap at .5\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- style: palette + rendering philosophy ---------------------------------\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 205)) % 360) + 360) % 360;\nlet base, waterC, inkC, barC, belts, grainAmt, lineOnly;\nif (st === 'satellite') {           // false-colour NIR: vegetation dark red, water near-black, bars white\n  base = [352, 54, 24]; belts = [[10, 52, 32], [24, 46, 40], [350, 48, 27], [35, 38, 46], [2, 46, 35], [16, 40, 43]];\n  waterC = [rot(200), 55, 13]; barC = [45, 10, 88]; inkC = [0, 0, 6]; grainAmt = 10; lineOnly = false;\n} else if (st === 'survey') {       // aged sepia plate: line over mass, ink hachure, blue water\n  base = [40, 30, 62]; belts = [[32, 36, 50], [28, 30, 57], [36, 32, 44], [24, 34, 53], [42, 28, 47], [30, 38, 42]];\n  waterC = [rot(205), 62, 42]; barC = [42, 20, 78]; inkC = [28, 44, 16]; grainAmt = 17; lineOnly = true;\n} else if (st === 'blueprint') {    // cyanotype schematic: pale drafting lines on prussian ground\n  base = [rot(212), 70, 19]; belts = [[rot(196), 34, 58], [rot(186), 26, 70], [rot(206), 40, 50], [rot(176), 22, 78], [rot(216), 36, 56], [rot(190), 30, 64]];\n  waterC = [0, 0, 96]; barC = [rot(190), 18, 86]; inkC = [rot(190), 28, 90]; grainAmt = 8; lineOnly = true;\n} else {                            // fisk (default): alluvial plate, historic belts in plate inks\n  base = [34, 44, 38]; belts = [[178, 54, 58], [38, 62, 64], [350, 46, 58], [86, 46, 50], [210, 40, 56], [292, 38, 52]];\n  waterC = [rot(206), 66, 29]; barC = [44, 36, 74]; inkC = [0, 0, 12]; grainAmt = 14; lineOnly = false;\n}\n\n// ---- buffers ---------------------------------------------------------------\nif (!S.fp) {\n  S.fp = createGraphics(BW, BH); S.fp.pixelDensity(1);\n  S.fp.colorMode(HSB, 360, 100, 100, 100); S.fp.noStroke();\n  S.styleUsed = null; S.seedUsed = null;\n}\nif (!S.grain || S.grainSeed !== sd) {\n  S.grainSeed = sd;\n  const g = S.grain || (S.grain = createGraphics(256, 144));\n  g.pixelDensity(1); g.loadPixels();\n  for (let i = 0; i < 256 * 144; i++) {\n    const v = 206 + hsh(i % 256, (i / 256) | 0) * 49;\n    const o = i * 4; g.pixels[o] = v; g.pixels[o + 1] = v; g.pixels[o + 2] = v; g.pixels[o + 3] = 255;\n  }\n  g.updatePixels();\n}\nif (!S.vig || S.vigKey !== width + 'x' + height) {\n  const gd = drawingContext.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.26,\n                                                 width / 2, height / 2, Math.max(width, height) * 0.74);\n  gd.addColorStop(0, 'rgba(0,0,0,0)'); gd.addColorStop(1, 'rgba(0,0,0,0.40)');\n  S.vig = gd; S.vigKey = width + 'x' + height;\n}\n\n// ---- (re)seed the reach ----------------------------------------------------\nfunction clearPlate() { S.fp.push(); S.fp.noStroke(); S.fp.fill(base[0], base[1], base[2], 100); S.fp.rect(0, 0, BW, BH); S.fp.pop(); }\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed; S.styleUsed = st;\n  S.ds = 0.0105;\n  S.rx = []; S.ry = [];\n  const n0 = Math.round(1 / S.ds);\n  for (let i = 0; i <= n0; i++) {\n    const u = i / n0;\n    S.rx.push(u);\n    S.ry.push(0.5 + 0.05 * Math.sin(u * Math.PI * 5.3 + fr(1) * 6.283)\n                  + 0.026 * Math.sin(u * Math.PI * 12.7 + fr(2) * 6.283)\n                  + (fr(i + 7) - 0.5) * 0.005);\n  }\n  S.ox = []; S.age = 0; S.fadeAcc = 0; S.warm = 52;\n  S.epochLen = 15 + fr(11) * 11;\n  clearPlate();\n}\nif (S.styleUsed !== st) { S.styleUsed = st; clearPlate(); }   // replate in the new inks\n\n// ---- flood stage: incommensurate real-time sines (never re-phases at 8s) ----\nconst flood = 0.5 + 0.5 * (0.55 * Math.sin(K.t * 0.041) + 0.31 * Math.sin(K.t * 0.0934 + 1.9) + 0.14 * Math.sin(K.t * 0.1571 + 0.4));\nconst stage = Math.max(0, Math.min(1, flood * (0.55 + K.intensity * 0.55) + A.bass * 0.22 + K.swell * 0.05));\nconst spd = 0.35 + P.speed * 0.95;\nconst dts = Math.min(0.05, (typeof deltaTime === 'number' ? deltaTime : 16.7) / 1000);\n\n// ---- one migration step ----------------------------------------------------\nfunction step(rate) {\n  const n = S.rx.length; if (n < 12) return;\n  const cur = S.cur || (S.cur = []); cur.length = n;\n  for (let i = 1; i < n - 1; i++) {\n    const ax = S.rx[i] - S.rx[i - 1], ay = S.ry[i] - S.ry[i - 1];\n    const bx = S.rx[i + 1] - S.rx[i], by = S.ry[i + 1] - S.ry[i];\n    const la = Math.hypot(ax, ay) || 1e-6, lb = Math.hypot(bx, by) || 1e-6;\n    const cr = Math.max(-1, Math.min(1, (ax * by - ay * bx) / (la * lb)));\n    cur[i] = Math.asin(cr) / ((la + lb) * 0.5);\n  }\n  cur[0] = 0; cur[n - 1] = 0;\n  const nrx = S.nrx || (S.nrx = []), nry = S.nry || (S.nry = []);\n  nrx.length = n; nry.length = n;\n  for (let i = 0; i < n; i++) { nrx[i] = S.rx[i]; nry[i] = S.ry[i]; }\n  for (let i = 1; i < n - 1; i++) {\n    // exponentially weighted upstream curvature -> growth + downstream translation\n    let s = 0, w = 0;\n    for (let k = 0; k < 22; k++) { const j = i - k; if (j < 1) break; const wk = Math.exp(-k * 0.16); s += cur[j] * wk; w += wk; }\n    const mig = w > 0 ? s / w : 0;\n    const tx = S.rx[i + 1] - S.rx[i - 1], ty = S.ry[i + 1] - S.ry[i - 1];\n    const tl = Math.hypot(tx, ty) || 1e-6;\n    const nx = ty / tl, ny = -tx / tl;            // outward normal for a positive bend\n    const edge = Math.min(1, Math.min(i, n - 1 - i) / 14);           // pinned inlet/outlet\n    const er = 0.5 + 1.0 * vn(S.rx[i] * 9 + 3.1, S.ry[i] * 9 - 1.7); // heterogeneous floodplain (clay plugs resist)\n    const conf = 1 - 0.92 * Math.max(0, (Math.abs(S.ry[i] - 0.5) - 0.36) / 0.11); // valley confinement (wide enough for loops to close)\n    let m = mig * rate * edge * er * Math.max(0.05, conf);\n    // CFL clamp: a tight loop reaches curvature ~60, and speed/energy are both\n    // poke-able to max \u2014 without this the step can exceed node spacing and the\n    // polyline turns itself inside out.\n    const lim = S.ds * 0.25; if (m > lim) m = lim; else if (m < -lim) m = -lim;\n    // Mild centreline smoothing. The flow cannot follow wiggles shorter than the\n    // channel width, and without this the bend instability amplifies node-scale\n    // noise into runaway length instead of coherent bends.\n    const sm = 0.075;\n    nrx[i] = S.rx[i] + nx * m + (S.rx[i - 1] + S.rx[i + 1] - 2 * S.rx[i]) * sm;\n    nry[i] = S.ry[i] + ny * m + (S.ry[i - 1] + S.ry[i + 1] - 2 * S.ry[i]) * sm;\n    if (nry[i] < 0.04) nry[i] = 0.04; else if (nry[i] > 0.96) nry[i] = 0.96;\n  }\n  for (let i = 0; i < n; i++) { S.rx[i] = nrx[i]; S.ry[i] = nry[i]; }\n  // ---- resample to constant node spacing (bends lengthen the reach) --------\n  const ds = S.ds, ox2 = [S.rx[0]], oy2 = [S.ry[0]];\n  let px = S.rx[0], py = S.ry[0], i2 = 1, acc = 0, guard = 0, capped = false;\n  while (i2 < S.rx.length && guard++ < 6000) {\n    const dx = S.rx[i2] - px, dy = S.ry[i2] - py, d = Math.hypot(dx, dy);\n    if (acc + d >= ds) {\n      const nd = (ds - acc) / (d || 1e-9); px += dx * nd; py += dy * nd;\n      ox2.push(px); oy2.push(py); acc = 0;\n      if (ox2.length > 1100) { capped = true; break; }   // backstop only \u2014 cutoffs hold n near ~300\n    } else { acc += d; px = S.rx[i2]; py = S.ry[i2]; i2++; }\n  }\n  // Only re-pin the outlet if we walked the whole reach. Appending it after an\n  // early break would stitch a spurious straight bar across the map.\n  if (!capped) { ox2.push(S.rx[S.rx.length - 1]); oy2.push(S.ry[S.ry.length - 1]); }\n  if (ox2.length > 24) { S.rx = ox2; S.ry = oy2; }\n}\n\n// ---- neck cutoff -> oxbow lake ---------------------------------------------\n// Scans the WHOLE reach for a neck via a spatial hash (a windowed scan misses\n// the long loops, and O(n^2) is too slow once the reach is 500+ nodes). The\n// threshold is the channel width \u2014 two banks touching IS the cutoff \u2014 and it\n// grows if the reach ever gets pathologically long, which bounds sinuosity no\n// matter how hard speed/energy are poked.\nfunction cutoff(beltHue) {\n  const n = S.rx.length; if (n < 30) return false;\n  const strain = 1 + Math.max(0, (n - 430) / 430) * 1.6;\n  const thr = Math.max(S.ds * 1.55, wsim * 1.9) * strain, t2 = thr * thr;\n  const cell = thr;\n  const grid = S.grid || (S.grid = new Map()); grid.clear();\n  for (let i = 0; i < n; i++) {\n    const k = Math.floor(S.rx[i] / cell) * 100003 + Math.floor(S.ry[i] / cell);\n    const arr = grid.get(k); if (arr) arr.push(i); else grid.set(k, [i]);\n  }\n  let bi = -1, bj = -1, bd = 1e9;\n  for (let i = 1; i < n - 13; i++) {\n    const gx = Math.floor(S.rx[i] / cell), gy = Math.floor(S.ry[i] / cell);\n    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {\n      const arr = grid.get((gx + a) * 100003 + (gy + b)); if (!arr) continue;\n      for (let m = 0; m < arr.length; m++) {\n        const j = arr[m];\n        if (j - i < 13 || j > n - 2) continue;      // along-channel neighbours aren't a neck\n        const dx = S.rx[j] - S.rx[i], dy = S.ry[j] - S.ry[i], d = dx * dx + dy * dy;\n        if (d < t2 && d < bd) { bd = d; bi = i; bj = j; }\n      }\n    }\n  }\n  if (bi < 0) return false;\n  S.ox.push({ x: S.rx.slice(bi, bj + 1), y: S.ry.slice(bi, bj + 1), a: 1, h: beltHue });\n  const keep = 3 + Math.round(P.density * 6);\n  while (S.ox.length > keep) S.ox.shift();\n  S.rx.splice(bi + 1, bj - bi - 1); S.ry.splice(bi + 1, bj - bi - 1);\n  return true;\n}\n\n// ---- print the current channel into the floodplain plate -------------------\nconst beltIdx = Math.floor(S.age / S.epochLen);\nconst bc = belts[((beltIdx % belts.length) + belts.length) % belts.length];\nfunction paintTrace(col, al, wmul) {\n  const g = S.fp; g.push(); g.noFill();\n  g.stroke(col[0], col[1], col[2], al); g.strokeCap(ROUND); g.strokeJoin(ROUND);\n  g.strokeWeight(Math.max(0.9, wsim * BH * wmul));\n  g.beginShape();\n  for (let i = 0; i < S.rx.length; i++) g.vertex(S.rx[i] * BW, S.ry[i] * BH);\n  g.endShape();\n  g.pop();\n}\n\nconst wsim = 0.0092 * (0.5 + P.discharge * 1.05) * (0.72 + stage * 0.62);\nconst rate = 0.000012 * spd * (0.42 + P.energy * 1.15) * (0.55 + stage * 1.15);\n\n// Warm start: run ~1000 steps over the first second so the reach opens at an\n// already-mature sinuosity with a couple of cutoff generations printed into the\n// plate. A cold straight line would be both ugly and (briefly) near-static.\nconst sub = S.warm > 0 ? 10 : 1;\nfor (let s2 = 0; s2 < sub; s2++) {\n  step(rate * (S.warm > 0 ? 2.0 : 1));\n  if (s2 % 2 === 0) cutoff(bc);\n  if (S.warm > 0) {\n    S.age += 0.62 * spd;\n    if (s2 % 3 === 0) {\n      const wb = belts[((Math.floor(S.age / S.epochLen) % belts.length) + belts.length) % belts.length];\n      paintTrace(wb, 6, 1.0);\n    }\n  }\n}\nif (S.warm > 0) S.warm--; else S.age += dts * spd;\n\n// slow overbank burial: fade the plate toward the floodplain tone on a real-time\n// cadence (a per-frame fade this gentle would round away on an 8-bit buffer)\nS.fadeAcc += dts;\nconst fadeP = 0.55, fadeA = 3.0 - P.density * 2.0;\nif (S.fadeAcc >= fadeP) {\n  S.fadeAcc = 0;\n  S.fp.push(); S.fp.noStroke(); S.fp.fill(base[0], base[1], base[2], fadeA); S.fp.rect(0, 0, BW, BH); S.fp.pop();\n}\npaintTrace(bc, 4.5 * (0.6 + P.energy * 0.8), 1.0);\nif (!lineOnly) paintTrace(barC, 2.0, 0.42);   // point-bar crest inside the belt\n\n// ---- view transform --------------------------------------------------------\nconst z = Math.max(1, P.scale), hw = 0.5 / z;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\nconst SX = x => (x - cx) * z * width + width / 2;\nconst SY = y => (y - cy) * z * height + height / 2;\nconst AL = P.alpha / 100;\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.fp, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BH, 2 * hw * BW, 2 * hw * BH);\npop();\n\nconst wpx = Math.max(1.3, wsim * z * height);\n\n// ---- oxbow lakes (abandoned loops silting up) ------------------------------\nnoFill(); strokeCap(ROUND); strokeJoin(ROUND);\nfor (let o = 0; o < S.ox.length; o++) {\n  const L = S.ox[o];\n  L.a -= dts * 0.011 * spd;                       // infill over ~90s\n  if (L.a <= 0) { S.ox.splice(o, 1); o--; continue; }\n  const f = L.a;\n  stroke(waterC[0], waterC[1] * (0.35 + f * 0.65), waterC[2] * (0.7 + f * 0.5) + (1 - f) * base[2] * 0.5, 78 * AL);\n  strokeWeight(wpx * (0.55 + f * 0.5));\n  beginShape(); for (let i = 0; i < L.x.length; i++) vertex(SX(L.x[i]), SY(L.y[i])); endShape();\n}\n\n// ---- the active channel ----------------------------------------------------\nif (lineOnly) { stroke(inkC[0], inkC[1], inkC[2], 88 * AL); strokeWeight(wpx * 1.5); beginShape(); for (let i = 0; i < S.rx.length; i++) vertex(SX(S.rx[i]), SY(S.ry[i])); endShape(); }\nstroke(waterC[0], waterC[1], waterC[2] * (1 - stage * 0.16), 96 * AL);\nstrokeWeight(wpx);\nbeginShape(); for (let i = 0; i < S.rx.length; i++) vertex(SX(S.rx[i]), SY(S.ry[i])); endShape();\n// turbid thalweg thread \u2014 brightens and yellows at flood stage\nstroke(lineOnly ? waterC[0] : rot(34), 20 + stage * 46, 62 + stage * 30 + P.energy * 12, (34 + stage * 40) * AL);\nstrokeWeight(Math.max(0.7, wpx * 0.3));\nbeginShape(); for (let i = 0; i < S.rx.length; i++) vertex(SX(S.rx[i] + 0.0012 * Math.sin(i * 0.7 + K.t * 0.9)), SY(S.ry[i])); endShape();\n\n// ---- grain + vignette: texture over flat fill ------------------------------\npush(); blendMode(MULTIPLY); tint(0, 0, 100, grainAmt * AL); image(S.grain, 0, 0, width, height); pop();\ndrawingContext.save(); drawingContext.globalAlpha = AL; drawingContext.fillStyle = S.vig; drawingContext.fillRect(0, 0, width, height); drawingContext.restore();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

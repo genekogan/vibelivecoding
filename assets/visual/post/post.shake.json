@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.shake",
+  "kind": "post",
+  "name": "Screen Shake",
+  "desc": "An impact camera pass: bass hits and downbeats punch a spring-decay whole-frame jolt with shockwave rings and motion streaks over a continuously unstable handheld vignette.",
+  "tags": [
+    "shake",
+    "screenshake",
+    "impact",
+    "camera",
+    "jolt",
+    "punch",
+    "earthquake",
+    "quake",
+    "seismic",
+    "kick",
+    "bass",
+    "rumble",
+    "hit",
+    "glitch",
+    "chromatic",
+    "aberration",
+    "rgb-split",
+    "vignette",
+    "handheld",
+    "shockwave",
+    "streaks",
+    "motion-blur",
+    "energy",
+    "action",
+    "combat",
+    "post",
+    "overlay",
+    "spring",
+    "recoil"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "amount": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "jolt magnitude + ring / streak strength"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grit density + vignette instability"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "spring stiffness / recovery + grit drift"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "ring / streak / grit tint hue"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grit speck + streak count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2,
+      "doc": "overscan + streak length"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "impact epicentre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "impact epicentre y"
+    },
+    "threshold": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "audio bass level that fires a jolt"
+    },
+    "style": {
+      "default": "impact",
+      "options": [
+        "impact",
+        "seismic",
+        "flashbulb",
+        "xray",
+        "glitch"
+      ],
+      "doc": "aesthetic: gritty impact streaks / dark heavy seismic rings / partial flashbulb bloom / inverted xray shudder / abstract glitch RGB-split datamosh"
+    },
+    "act": {
+      "default": "combat",
+      "options": [
+        "combat",
+        "quake",
+        "pulse"
+      ],
+      "doc": "multi-minute program: combat jolts every bar / quake rare heavy rolls / pulse soft bumps every beat"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "jolt direction + grit layout"
+    }
+  },
+  "acts": [
+    "combat",
+    "quake",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:41:34+00:00",
+    "fps": 59.9,
+    "motion": 0.0393,
+    "lum": 0.076
+  },
+  "code": "const D = { amount:.5, energy:.5, speed:1, hue:220, density:.5, scale:1, x:.5, y:.5, threshold:.4, style:'impact', act:'combat', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), frc=v=>v-Math.floor(v), TAU=Math.PI*2, md=(a,n)=>((a%n)+n)%n;\nconst fr=(i)=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst style=P.style;\nconst amt=clp(P.amount,0,1), en=clp(P.energy,0,1), spd=clp(P.speed,.1,6), dens=clp(P.density,0,1), sc=clp(P.scale,.3,2);\nconst cx=P.x*W, cy=P.y*Hh, act=P.act;\nconst isGlitch=style==='glitch', isSeismic=style==='seismic', isFlash=style==='flashbulb', isXray=style==='xray';\n\nif(S.ox==null){ S.ox=0; S.oy=0; S.vx=0; S.vy=0; S.tp=K.t; S.lastBar=Math.floor(K.bar); S.lastB2=Math.floor(K.beat); S.cd=0; S.rings=[]; }\nlet dt=K.t-S.tp; if(!(dt>0)||dt>0.2) dt=1/60; S.tp=K.t;\n\nconst stiff=110*spd, damp=13*Math.sqrt(spd), maxo=u*0.085*amt*sc+2;\nfunction jolt(mag,dir){ const a=dir!=null?dir:fr(Math.floor(K.t*13)+mag*7)*TAU; const kick=u*3.2*mag*amt*sc; S.vx+=Math.cos(a)*kick; S.vy+=Math.sin(a)*kick; S.rings.push({x:cx,y:cy,r:u*0.02,mag:mag,life:1}); if(S.rings.length>7)S.rings.shift(); }\n\nconst curBar=Math.floor(K.bar); if(S.lastBar==null||curBar<S.lastBar)S.lastBar=curBar;\nif(curBar>S.lastBar){ S.lastBar=curBar; const mag=0.5+0.6*K.intensity;\n  if(act==='quake'){ if(curBar%2===0) jolt(mag*1.7,null); }\n  else if(act!=='pulse') jolt(mag,null);\n}\nif(act==='pulse'){ const cb=Math.floor(K.beat); if(S.lastB2==null||cb<S.lastB2)S.lastB2=cb; if(cb>S.lastB2){ S.lastB2=cb; jolt(0.26+0.3*K.intensity,null); } }\nS.cd-=dt; if(A.bass>P.threshold && S.cd<=0){ jolt(0.5+A.bass*1.2,null); S.cd=0.11; }\n\nS.vx+=(-stiff*S.ox-damp*S.vx)*dt; S.vy+=(-stiff*S.oy-damp*S.vy)*dt;\nS.ox+=S.vx*dt; S.oy+=S.vy*dt;\nS.ox=clp(S.ox,-maxo,maxo); S.oy=clp(S.oy,-maxo,maxo);\nconst shakeMag=clp(Math.hypot(S.ox,S.oy)/(maxo+1e-6),0,1);\nconst activeShift=(Math.abs(S.ox)+Math.abs(S.oy))>0.5;\nconst tk=Math.floor(K.t*20);\n\nif(activeShift){\n  if(!S.snap||S.snapKey!==W+'x'+Hh){ S.snapKey=W+'x'+Hh; S.snap=createGraphics(W,Hh); S.snap.colorMode(S.snap.HSB,360,100,100,100); }\n  S.snap.clear(); S.snap.drawingContext.drawImage(drawingContext.canvas,0,0,W,Hh);\n  const m2=Math.max(Math.abs(S.ox),Math.abs(S.oy))+2, scl=1+(2*m2)/u;\n  push(); translate(W/2+S.ox,Hh/2+S.oy); scale(scl); image(S.snap,-W/2,-Hh/2,W,Hh); pop();\n  if(isGlitch){ blendMode(ADD); const gj=shakeMag*u*0.03; tint(0,85,100,34*amt); image(S.snap,gj,0,W,Hh); tint(180,85,100,34*amt); image(S.snap,-gj,0,W,Hh); noTint(); blendMode(BLEND); }\n}\n\n// continuous unstable-camera vignette\nif(!S.vig||S.vigKey!==W+'x'+Hh){ S.vigKey=W+'x'+Hh; const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.clear(); const ctx=g.drawingContext, r=Math.hypot(W,Hh)*0.6; const grd=ctx.createRadialGradient(W/2,Hh/2,r*0.3,W/2,Hh/2,r); grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,'rgba(0,0,0,1)'); ctx.fillStyle=grd; ctx.fillRect(0,0,W,Hh); S.vig=g; }\nconst vwx=(0.028+0.05*en)*W*Math.sin(K.t*0.53+0.3)+S.ox*1.4;\nconst vwy=(0.028+0.05*en)*Hh*Math.sin(K.t*0.47+1.1)+S.oy*1.4;\nconst vA=clp((24+30*en+18*amt)*(0.6+0.4*Math.sin(K.t*0.8))+42*shakeMag*amt,0,94);\ntint(0,0,100,vA); image(S.vig,vwx*0.42,vwy*0.42); noTint();\n\n// ---- REAL-TIME MOTION FLOOR: traveling atmospheric glow (driven by K.t seconds, never re-phases) ----\nif(!S.glow||S.glowKey!==W+'x'+Hh){ S.glowKey=W+'x'+Hh; const gs=Math.max(4,Math.round(u*0.95)); const g=createGraphics(gs,gs); g.colorMode(g.HSB,360,100,100,100); g.clear(); const ctx=g.drawingContext, r=gs/2; const grd=ctx.createRadialGradient(r,r,0,r,r,r); grd.addColorStop(0,'rgba(255,255,255,0.85)'); grd.addColorStop(0.5,'rgba(255,255,255,0.26)'); grd.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=grd; ctx.fillRect(0,0,gs,gs); S.glow=g; S.glowN=gs; }\n{\n  const gr=S.glowN;\n  blendMode(ADD);\n  const span=W+gr;\n  const travelA=frc(K.t*0.06)*span - gr;              // L->R sweep, ~16.7s wrap -> 0.48 span over 8s\n  const gyA=Hh*0.5 + Hh*0.28*Math.sin(K.t*0.11) - gr/2;\n  tint(md(P.hue,360), isXray?0:36, 100, clp(24+26*en,0,58));\n  image(S.glow, travelA - gr/2 + S.ox*0.5, gyA + S.oy*0.5, gr, gr);\n  const travelB=span - frc(K.t*0.041+0.37)*span - gr; // R->L counter-sweep, different rate\n  const gyB=Hh*0.5 + Hh*0.22*Math.cos(K.t*0.083) - gr/2;\n  tint(md(P.hue+45,360), isXray?0:28, 100, clp(16+18*en,0,42));\n  image(S.glow, travelB - gr/2, gyB, gr, gr);\n  noTint(); blendMode(BLEND);\n}\n\n// drifting grit specks\nconst gN=Math.floor(28+90*dens); noStroke();\nfor(let i=0;i<gN;i++){\n  const gx=frc(fr(i*1.7)+K.t*0.02*(0.5+fr(i))*spd)*W, gy=frc(fr(i*2.3)+K.t*0.015*(0.5+fr(i*3))*spd)*Hh, b=fr(i*4.1+tk);\n  fill(md(P.hue,360),isXray?0:16,b<0.5?92:14,clp(18+40*b*en,0,72));\n  const d=u*0.003*(1+b)*sc; rect(gx,gy,d,d);\n}\n\nblendMode(ADD);\nfor(let i=S.rings.length-1;i>=0;i--){ const rg=S.rings[i]; rg.r+=dt*u*3.0*(0.6+rg.mag); rg.life-=dt*3.0; if(rg.life<=0){ S.rings.splice(i,1); continue; } const a=clp(rg.life*62*amt,0,82); noFill(); stroke(md(P.hue+(isXray?180:0),360),isSeismic?12:58,100,a); strokeWeight((1+3*rg.mag)*sc); circle(rg.x+S.ox,rg.y+S.oy,rg.r*2); }\n\nif(shakeMag>0.05){\n  const sN=Math.floor((6+20*dens)*shakeMag), dirA=Math.atan2(S.oy,S.ox);\n  for(let i=0;i<sN;i++){ const a=dirA+(fr(i*3+tk)-0.5)*1.2, rr0=u*(0.08+0.5*fr(i*5)), len=u*0.12*shakeMag*sc*(0.5+fr(i*2)); const sx=cx+Math.cos(a)*rr0, sy=cy+Math.sin(a)*rr0; stroke(md(P.hue+(isXray?180:0),360),isSeismic?10:44,100,clp(50*shakeMag*amt,0,80)); strokeWeight((0.6+1.5*fr(i))*sc); line(sx,sy,sx+Math.cos(a)*len,sy+Math.sin(a)*len); }\n}\n\nif(isFlash && shakeMag>0.28){ noStroke(); fill(md(P.hue+30,360),12,100,clp(46*shakeMag*amt,0,70)); circle(cx+S.ox,cy+S.oy,u*(0.4+0.5*shakeMag)); }\nblendMode(BLEND);\n\ndrawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

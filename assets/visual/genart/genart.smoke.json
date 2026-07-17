@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.smoke",
+  "kind": "genart",
+  "name": "Rising Smoke",
+  "desc": "A buoyant column of curl-noise particles born at the base and rising into billowing plumes and vortices, warm amber embers cooling to grey-violet dispersal, or colored vapor, volcanic ash, pale ghost, and graphite pencil-flow.",
+  "tags": [
+    "smoke",
+    "rising-smoke",
+    "plume",
+    "column",
+    "incense",
+    "ember",
+    "curl-noise",
+    "flow-field",
+    "flow",
+    "particles",
+    "buoyant",
+    "buoyancy",
+    "turbulence",
+    "vortex",
+    "billow",
+    "vapor",
+    "fog",
+    "mist",
+    "haze",
+    "volcanic",
+    "ash",
+    "ghost",
+    "graphite",
+    "pencil",
+    "amber",
+    "violet",
+    "warm",
+    "atmospheric",
+    "soft",
+    "organic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "smoke volume / particle emission (more = fuller column)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness / glow amplitude + blob size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rise + turbulence drift rate (beats-relative)"
+    },
+    "turb": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.4,
+      "doc": "curl turbulence (0=laminar rise, high=chaotic billow)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "plume feature size / blob scale"
+    },
+    "buoyancy": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.4,
+      "doc": "upward rise force"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "ember base hue (young smoke at the source)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "emitter x (column base)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.3,
+      "max": 1,
+      "doc": "emitter y (base height)"
+    },
+    "style": {
+      "default": "incense",
+      "options": [
+        "incense",
+        "colored-vapor",
+        "volcanic",
+        "ghost",
+        "pencil-smoke"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T03:40:07+00:00",
+    "fps": 60.2,
+    "motion": 0.1053,
+    "lum": 0.212
+  },
+  "code": "const D = { density: .55, energy: .6, speed: 1, turb: .6, scale: 1, buoyancy: .6, hue: 32, x: .5, y: .82, style: 'incense', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H);\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\nconst style = P.style, pencil = style === 'pencil-smoke';\nconst CAP = 1800, BW = 200, BH = Math.max(2, Math.round(BW * H / W));\n\nfunction hsb2rgb(h,s,b){\n  h = ((h%360)+360)%360; s = clp(s,0,100)/100; b = clp(b,0,100)/100;\n  const c = b*s, x = c*(1 - Math.abs((h/60)%2 - 1)), m = b - c;\n  let r,g,bl;\n  if (h<60){ r=c; g=x; bl=0; } else if (h<120){ r=x; g=c; bl=0; }\n  else if (h<180){ r=0; g=c; bl=x; } else if (h<240){ r=0; g=x; bl=c; }\n  else if (h<300){ r=x; g=0; bl=c; } else { r=c; g=0; bl=x; }\n  return [(r+m)*255, (g+m)*255, (bl+m)*255];\n}\n\n// coarse smoke feedback buffer (fixed width, aspect-matched height) \u2014 upscale = free blur\nif (!S.buf || S.bh !== BH){\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1); S.buf.background(0);\n  S.bh = BH; S.bgKey = null;\n}\n// particle pool (typed arrays)\nif (!S.px){\n  S.px = new Float32Array(CAP); S.py = new Float32Array(CAP);\n  S.vx = new Float32Array(CAP); S.vy = new Float32Array(CAP);\n  S.age = new Float32Array(CAP); S.life = new Float32Array(CAP); S.rnd = new Float32Array(CAP);\n  for (let i=0;i<CAP;i++){ S.age[i] = 1e9; S.life[i] = 1; }\n  S.rc = 1;\n}\n// seed rebuild: noise offsets + hash counter\nconst fr = i => { const s = Math.sin(i*127.1 + (P.seed|0)*311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.seedUsed !== (P.seed|0)){\n  S.seedUsed = P.seed|0;\n  S.so = fr(3)*100; S.so2 = fr(7)*100; S.so3 = fr(11)*40; S.rc = (P.seed|0)*131 + 7; S.bgKey = null;\n}\n\nconst sec = K.section||0, intn = (K.intensity!=null?K.intensity:.6);\nconst secHue = sec*6;\n\n// ambient gradient ground (rebuilt only on size/style/hue/seed change) \u2014 luminance floor + mood\nconst hueBucket = Math.round(P.hue/14);\nconst bgKey = BH+':'+style+':'+hueBucket+':'+S.seedUsed;\nif (!S.bg || S.bgKey !== bgKey){\n  if (S.bg && S.bg.remove) S.bg.remove();\n  S.bg = createGraphics(BW, BH); S.bg.pixelDensity(1); S.bg.noStroke();\n  let tH,tS,tB, bH,bS,bB;\n  if (style==='colored-vapor'){ tH=248; tS=52; tB=9; bH=192; bS=44; bB=20; }\n  else if (style==='volcanic'){ tH=8; tS=48; tB=6; bH=20; bS=72; bB=24; }\n  else if (style==='ghost'){ tH=222; tS=20; tB=7; bH=210; bS=12; bB=18; }\n  else if (pencil){ tH=0; tS=0; tB=8; bH=0; bS=0; bB=19; }\n  else { tH=268; tS=48; tB=8; bH=(P.hue-6+360)%360; bS=58; bB=22; }\n  const wob = (fr(21)-0.5)*10;\n  for (let j=0;j<BH;j++){\n    const f = j/(BH-1), ff = f*f*1.15;\n    const h = tH + (bH-tH)*f + wob*f;\n    const s = tS + (bS-tS)*f;\n    const b = tB + (bB-tB)*Math.min(1,ff);\n    const rgb = hsb2rgb(h, s, b);\n    S.bg.fill(rgb[0], rgb[1], rgb[2]); S.bg.rect(0, j, BW, 1);\n  }\n  S.bgKey = bgKey;\n}\n\n// wandering emitter at the base of the column \u2014 perpetual sway = motion floor\nconst exN = clp(P.x + Math.cos(K.t*0.13)*0.03, 0.02, 0.98);\nconst eyN = clp(P.y + Math.sin(K.t*0.09)*0.015, 0.05, 0.99);\nconst ex = exN*BW, ey = eyN*BH;\n\n// shared curl-noise velocity kernel (divergence-free; seed folded into coords, drift on K.t)\nconst spF = 0.02 / clp(P.scale, 0.35, 3), eps = 1.5;\nconst zt = K.t*(0.05 + P.speed*0.06) + S.so3;\nconst ns = (x,y)=> noise(x*spF + S.so, y*spF + S.so2, zt);\nconst curl = (x,y)=> Math.atan2(-(ns(x+eps,y)-ns(x-eps,y)), ns(x,y+eps)-ns(x,y-eps));\n\n// dynamics (audio + pulse blended ON TOP of clk baseline)\nconst pulse = K.pulse||0, swell = K.swell||0;\nconst turbA = (0.15 + P.turb*0.8) * (0.9 + intn*0.4) * (1 + swell*0.25 + A.lowmid*0.7);\nconst riseA = (0.25 + P.buoyancy*0.85) * (1 + pulse*0.2*P.energy + A.bass*0.5);\nconst drag = 0.86, spd = 0.7 + P.speed*0.7, lifeBase = 120;\nconst spreadX = BW*(0.02 + P.scale*0.025 + P.density*0.022), spreadY = BH*0.02;\nconst briBoost = 1 + A.rms*0.6 + pulse*0.12;\nconst baseAlpha = 17 + P.energy*38;\nconst radE = 0.82 + P.energy*0.42;\n\nfunction spawn(i){\n  const a1 = fr(S.rc++), a2 = fr(S.rc++), a3 = fr(S.rc++), a4 = fr(S.rc++);\n  S.px[i] = ex + (a1*2-1)*spreadX;\n  S.py[i] = ey + a2*spreadY;\n  S.vx[i] = (a3*2-1)*0.25;\n  S.vy[i] = -(0.4 + a4*0.5)*riseA;\n  S.age[i] = 0;\n  S.life[i] = lifeBase*(0.55 + a1*0.9);\n  S.rnd[i] = a2;\n}\n\nconst activeN = Math.min(CAP, Math.round(200 + P.density*1400));\n\nS.buf.push();\nS.buf.blendMode(BLEND); S.buf.noStroke();\nS.buf.fill(0, 0, 0, 22 + P.density*20);            // exponential fade toward black\nS.buf.rect(0, 0, BW, BH);\nS.buf.blendMode(ADD);\nif (!pencil) S.buf.noStroke();\n\nfor (let i=0;i<activeN;i++){\n  if (S.age[i] >= S.life[i] || S.py[i] < -6 || S.px[i] < -8 || S.px[i] > BW+8) spawn(i);\n  const px = S.px[i], py = S.py[i];\n  const a = curl(px, py);\n  const f = clp(S.age[i]/S.life[i], 0, 1);\n  const tvx = Math.cos(a)*turbA;\n  const tvy = Math.sin(a)*turbA - riseA*(0.4 + (1-f)*1.1);   // buoyancy cools with age -> disperses\n  const vx = S.vx[i]*drag + tvx*(1-drag);\n  const vy = S.vy[i]*drag + tvy*(1-drag);\n  S.vx[i] = vx; S.vy[i] = vy;\n  S.px[i] = px + vx*spd; S.py[i] = py + vy*spd;\n  S.age[i] += spd;\n\n  let h,sa,br;\n  if (style==='colored-vapor'){ h = (S.rnd[i]<0.5?185:308) + secHue + f*22; sa = 82-f*30; br = 92-f*36; }\n  else if (style==='volcanic'){ h = 28 - f*20 + secHue*0.3; sa = 90-f*22; br = 100-f*74; }\n  else if (style==='ghost'){ h = 205 + secHue*0.4; sa = 6+f*9; br = 97-f*44; }\n  else if (pencil){ h = 0; sa = 0; br = 74-f*42; }\n  else { h = P.hue + f*243 + secHue; sa = 86-f*54; br = 95-f*42; }   // incense: amber -> grey-violet\n  const rgb = hsb2rgb(h, sa, br);\n  const al = clp(baseAlpha*(1 - f*0.5)*briBoost, 0, 205);\n  const rad = (1.4 + f*8.5)*(0.55 + P.scale*0.7)*radE;\n\n  if (pencil){\n    const vl = Math.hypot(vx, vy) || 1e-3, dx = vx/vl, dy = vy/vl, ln = rad*1.4;\n    S.buf.stroke(rgb[0], rgb[1], rgb[2], al*0.85); S.buf.strokeWeight(0.8 + P.scale*0.6);\n    S.buf.line(px - dx*ln, py - dy*ln, px + dx*ln, py + dy*ln);\n  } else {\n    S.buf.fill(rgb[0], rgb[1], rgb[2], al);\n    S.buf.ellipse(px, py, rad, rad);\n  }\n}\nS.buf.blendMode(BLEND);\nS.buf.pop();\n\n// ---- composite to main canvas ----\nconst ta = clp(P.alpha, 0, 100);\npush();\nif (ta < 100) tint(0, 0, 100, ta);\nimage(S.bg, 0, 0, W, H);                              // opaque ground (clears frame at alpha 100)\nblendMode(ADD);\nif (ta < 100) tint(0, 0, 100, ta);\nimage(S.buf, 0, 0, W, H);                             // upscaled soft smoke\nnoTint();\n// warm base glow following the emitter (few soft ADD shapes)\nconst gH = pencil?0:(style==='ghost'?205:style==='volcanic'?20:style==='colored-vapor'?300:P.hue);\nconst gS = pencil?0:(style==='ghost'?14:78);\nnoStroke();\nfor (let k=0;k<3;k++){\n  const rr = u*(0.09 + k*0.055);\n  fill((((gH+secHue)%360)+360)%360, gS, 88, (9 + P.energy*13)*(1 - k*0.28)*(ta/100));\n  ellipse(exN*W, eyN*H, rr*1.7, rr);\n}\nblendMode(BLEND);\npop();\n"
+}

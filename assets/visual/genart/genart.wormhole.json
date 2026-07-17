@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wormhole",
+  "kind": "genart",
+  "name": "Wireframe Wormhole",
+  "desc": "A pseudo-3D wireframe tunnel of deforming rings hurtling past a drifting vanishing point, rendered as vector-green wireframe, hue-cycled neon, drafting blueprint schematic, or thermal false-color depth.",
+  "tags": [
+    "wormhole",
+    "tunnel",
+    "wireframe",
+    "vector",
+    "retro",
+    "3d",
+    "rings",
+    "hyperspace",
+    "warp",
+    "flythrough",
+    "vaporwave",
+    "synthwave",
+    "grid",
+    "perspective",
+    "vanishing point",
+    "neon",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "generative",
+    "genart",
+    "abstract",
+    "space",
+    "vortex",
+    "bg",
+    "backdrop",
+    "dark"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "ring + segment count (9..26 rings)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "tunnel size / focal length"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "fly-through rate"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "line weight + brightness"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (vector/neon)"
+    },
+    "twist": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1.2,
+      "doc": "helical twist along tunnel length"
+    },
+    "warp": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "per-segment ring deformation (lobes)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vanishing-point x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vanishing-point y"
+    },
+    "style": {
+      "default": "vector",
+      "options": [
+        "vector",
+        "neon",
+        "blueprint",
+        "thermal"
+      ],
+      "doc": "render philosophy: green vector wireframe / hue-cycled neon glow / drafting blueprint schematic / thermal false-color depth ramp"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "ring phase + deformation seed"
+    },
+    "act": {
+      "default": "fly",
+      "options": [
+        "fly",
+        "warp",
+        "drift"
+      ],
+      "doc": "dramaturgy: steady flight / section-synced lightspeed surges / slow swaying drift"
+    }
+  },
+  "acts": [
+    "fly",
+    "warp",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:41:23+00:00",
+    "fps": 58.1,
+    "motion": 0.0823,
+    "lum": 0.104
+  },
+  "code": "const D = { density:.5, scale:1, speed:1, energy:.65, hue:135, twist:.4, warp:.45, x:.5, y:.5, style:'vector', seed:0, act:'fly' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:0.6);\n// ring + segment counts (density is FIRST numeric param -> obvious change at max)\nconst N = Math.floor(9 + P.density*17);        // 9..26 rings\nconst SEG = Math.floor(13 + P.density*10);      // 13..23 segments\n// act dramaturgy\nlet rate = 0.20 + P.speed*0.30;\nlet wander = 0.03, twMul = 1;\nif (P.act==='warp'){ rate *= (1 + K.pulse*1.4 + (K.section%2?0.5:0)); twMul = 1.4; }\nelse if (P.act==='drift'){ rate *= 0.55; wander = 0.06; twMul = 0.7; }\n// continuous real-time fly-through (never re-phases at 8s)\nconst t = K.t;\nconst cx = P.x*width  + Math.sin(t*0.31)*u*wander + Math.sin(t*0.17+1.3)*u*wander*0.6;\nconst cy = P.y*height + Math.cos(t*0.26)*u*wander + Math.cos(t*0.19+0.7)*u*wander*0.6;\nconst focal = u*0.62*P.scale;                    // scale is SECOND numeric -> tunnel size\nconst punch = K.pulse*0.5 + A.bass*0.9;          // audio on top of baseline\n// background trail (motion-blur streak; keeps luminance off black, never a full flash)\nnoStroke(); blendMode(BLEND);\nif (st==='blueprint') fill(214,66,10, 26);\nelse fill(232,52,4, 20+P.warp*6);\nrect(0,0,width,height);\n// build rings, sort far -> near for correct overdraw + depth connectors\nconst rings = [];\nfor (let i=0;i<N;i++){\n  const ph = ((i/N - t*rate)%1 + 1)%1;           // 0=near .. 1=far, decreasing => fly in\n  const z = 0.10 + ph*4.2;\n  rings.push({ ph, z, i, pts:null });\n}\nrings.sort((a,b)=> b.z - a.z);\nconst twistBase = P.twist*2.4*twMul;\nconst lobes = 2 + Math.floor(P.warp*4);\nif (st==='vector' || st==='neon' || st==='thermal') blendMode(ADD);\nlet prev = null;\nfor (let r=0;r<rings.length;r++){\n  const R = rings[r];\n  const screenR = focal / R.z;\n  if (screenR > u*3.5){ prev=null; continue; }    // past the camera -> skip\n  const tw = R.z*twistBase + t*0.25;\n  const fade = Math.min(1, 1 - R.ph*0.75);         // far rings dimmer\n  const near = Math.max(0, 1 - R.z/1.1);           // near rings brighter\n  let h,s,bb;\n  if (st==='thermal'){ const m = 1 - R.z/4.3; h = (250 - m*250 + 360)%360; s = 84; bb = 45 + m*55; }\n  else if (st==='neon'){ h = (P.hue + R.z*26 + t*22)%360; s = 90; bb = 100; }\n  else if (st==='blueprint'){ h = 200; s = 55; bb = 92; }\n  else { h = (P.hue + R.z*8)%360; s = 78; bb = 88; }   // vector: green wireframe\n  const al = (st==='blueprint'?55:30)*(0.4+fade)*(0.6+P.energy) + near*35 + punch*20;\n  strokeWeight(st==='blueprint'?1.0:(0.9 + P.energy*1.4 + near*1.2));\n  stroke((h+360)%360, s, bb, Math.min(92, al));\n  const pts = [];\n  for (let k=0;k<=SEG;k++){\n    const a = k/SEG*TWO_PI + tw;\n    const lobe = 1 + P.warp*0.34*Math.sin(k*lobes + R.z*0.7 + t*1.1) + punch*0.18*Math.sin(a*3);\n    const rr = screenR*lobe;\n    pts.push([cx + Math.cos(a)*rr, cy + Math.sin(a)*rr]);\n  }\n  noFill();\n  beginShape();\n  for (let k=0;k<pts.length;k++) vertex(pts[k][0], pts[k][1]);\n  endShape();\n  if (prev && Math.abs(prev.z - R.z) < (4.2/N)*1.8){\n    strokeWeight(st==='blueprint'?0.8:(0.7 + P.energy*0.8));\n    for (let k=0;k<pts.length;k+=2) line(prev.pts[k][0], prev.pts[k][1], pts[k][0], pts[k][1]);\n  }\n  R.pts = pts;\n  prev = R;\n}\nif (st==='blueprint'){                             // schematic center spokes\n  stroke(200,55,90,40); strokeWeight(0.8);\n  for (let k=0;k<8;k++){ const a=k/8*TWO_PI; line(cx,cy, cx+Math.cos(a)*u*0.5, cy+Math.sin(a)*u*0.5); }\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

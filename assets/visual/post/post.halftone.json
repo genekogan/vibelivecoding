@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.halftone",
+  "kind": "post",
+  "name": "Halftone",
+  "desc": "Re-renders the frame as a print halftone: a low-res sample of the canvas becomes an ink-dot grid whose dots swell with darkness and breathe with the music; newsprint, CMYK misregistration, duotone and LED-jumbotron screens.",
+  "tags": [
+    "halftone",
+    "print",
+    "dots",
+    "post",
+    "overlay",
+    "newsprint",
+    "comic",
+    "cmyk",
+    "riso",
+    "dot-matrix",
+    "screen",
+    "benday",
+    "offset",
+    "litho",
+    "led",
+    "jumbotron",
+    "pixelate",
+    "posterize",
+    "retro",
+    "graphic",
+    "ink",
+    "paper",
+    "monochrome",
+    "duotone",
+    "finish"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "cell": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "dot-grid cell size (bigger = chunkier, fewer dots)"
+    },
+    "contrast": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "tonal contrast of the dot sizing"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "breathe + sheen amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "breathe + sheen-sweep rate"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "ink / paper tint hue"
+    },
+    "ink": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "dot opacity"
+    },
+    "angle": {
+      "default": 15,
+      "min": 0,
+      "max": 180,
+      "doc": "screen angle (sheen sweep + dot registration axis)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "reserved feature scale"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved element density"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "style": {
+      "default": "newsprint",
+      "options": [
+        "newsprint",
+        "cmyk",
+        "duotone",
+        "led"
+      ],
+      "doc": "aesthetic: black ink dots on paper / 4-color CMYK misregistered screens (abstract) / two-ink duotone / emissive RGB LED jumbotron matrix"
+    },
+    "act": {
+      "default": "print",
+      "options": [
+        "print",
+        "registration",
+        "scan"
+      ],
+      "doc": "multi-minute program: print steady, registration drifts the CMYK screens apart, scan speeds a reveal sweep"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reserved seed"
+    }
+  },
+  "acts": [
+    "print",
+    "registration",
+    "scan"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:41:56+00:00",
+    "fps": 62.5,
+    "motion": 0.0731,
+    "lum": 0.287
+  },
+  "code": "const D = { cell:.4, contrast:.55, energy:.6, speed:1, hue:220, ink:.85, angle:15, scale:1, density:.5, x:.5, y:.5, style:'newsprint', act:'print', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst rgb2hsb=(r,g,b)=>{r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360;}return [h, mx?d/mx:0, mx];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst en=clp(P.energy,0,1)*(.5+.6*K.intensity);\nconst cellP=clp(P.cell,0,1), con=clp(P.contrast,0,1), inkA=clp(P.ink,0,1);\nconst eh=md(P.hue,360);\nconst led=style==='led', cmyk=style==='cmyk', duo=style==='duotone';\n\n// act dramaturgy\nlet regE=1, sweepE=1;\nif(P.act==='registration'){ regE=2.6; }\nelse if(P.act==='scan'){ sweepE=2.3; }\n\nconst cellPx=Math.max(4, u*(0.014+cellP*0.055));\nconst cols=clp(Math.round(W/cellPx),6,60), rows=clp(Math.round(Hh/cellPx),6,40);\n\n// low-res sample of the composited frame below this post pass\nif(!S.samp || S.sw!==cols || S.sh!==rows){ if(S.samp&&S.samp.remove)S.samp.remove(); S.samp=createGraphics(cols,rows); S.sw=cols; S.sh=rows; }\nconst samp=S.samp;\nsamp.clear();\nsamp.drawingContext.imageSmoothingEnabled=true;\ntry{ samp.drawingContext.drawImage(drawingContext.canvas,0,0,cols,rows); }catch(e){}\nsamp.loadPixels();\nconst px=samp.pixels;\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// paper / ground (re-render: cover the sampled frame, redraw it as dots)\nnoStroke();\nif(led){ background(md(eh+200,360),35,7); }\nelse { background(md(eh+30,360),6,88); }\n\n// global dot-size breathe = the reliable motion floor (non-8s period) + rms pump\nconst breathe = 0.86 + 0.13*Math.sin(K.t*0.5*(0.5+P.speed)) + K.swell*0.1 + A.rms*0.5 + K.pulse*0.07*en;\nconst cw=W/cols, chh=Hh/rows;\nconst maxR=Math.min(cw,chh)*0.72*breathe;\nconst ang0=md(P.angle,360)*TAU/360;\n\nif(px && px.length>=cols*rows*4){\n  if(led){ dc.globalCompositeOperation='lighter'; noStroke(); }\n  else if(cmyk){ dc.globalCompositeOperation='multiply'; noStroke(); }\n  else { noStroke(); }\n  for(let j=0;j<rows;j++){\n    for(let i=0;i<cols;i++){\n      const idx=(j*cols+i)*4;\n      const r=px[idx],g=px[idx+1],b=px[idx+2];\n      let lum=(0.299*r+0.587*g+0.114*b)/255;\n      lum=clp((lum-0.5)*(1+con*2.4)+0.5,0,1);\n      const cx=(i+0.5)*cw, cy=(j+0.5)*chh;\n      if(led){\n        const bright=clp(lum,0,1)*breathe;\n        if(bright>0.04){\n          const hs=rgb2hsb(r,g,b);\n          const hh=hs[1]>0.08? hs[0] : eh;\n          const s=maxR*1.7*(0.35+0.65*bright);\n          fill(hh, 40+hs[1]*55, 100, clp(55+40*bright,0,95)*inkA);\n          rect(cx-s/2,cy-s/2,s,s);\n        }\n      } else if(cmyk){\n        const R=r/255,G=g/255,B=b/255, k=1-Math.max(R,G,B), kd=(1-k)||1;\n        const c=(1-R-k)/kd, m=(1-G-k)/kd, y=(1-B-k)/kd;\n        const chans=[[c,180,80],[m,300,80],[y,55,85],[k,0,0]];\n        for(let ci=0;ci<4;ci++){\n          const cov=clp(chans[ci][0]*(0.55+con*0.9),0,1); if(cov<0.03)continue;\n          const rr=maxR*0.95*Math.sqrt(cov);\n          const reg=u*0.004*regE*(1+0.4*en);\n          const ra=ci*TAU/4 + K.t*0.05*regE;\n          fill(chans[ci][1], chans[ci][3], ci===3?12:95, 82*inkA);\n          circle(cx+Math.cos(ra)*reg, cy+Math.sin(ra)*reg, rr*2);\n        }\n      } else {\n        // newsprint + duotone: ink dot sized by darkness\n        const dk=clp(1-lum,0,1);\n        const rr=maxR*Math.sqrt(dk);\n        if(rr>0.4){\n          if(duo){ fill(md(eh,360), 55, 22, 92*inkA); }\n          else { fill(md(eh,360), 10, 10, 92*inkA); }\n          circle(cx,cy,rr*2);\n        }\n        if(duo && lum>0.55){ const rb=maxR*0.6*Math.sqrt(clp(lum-0.4,0,1)); fill(md(eh+40,360),60,95,55*inkA); circle(cx,cy,rb*2); }\n      }\n    }\n  }\n}\ndc.globalCompositeOperation=oldOp;\n\n// moving sheen band \u2014 second motion floor, sweeps in the screen-angle direction\nconst ux=Math.cos(ang0), uy=Math.sin(ang0);\nconst L=Math.abs(W*ux)+Math.abs(Hh*uy)+1;\nconst c=frc(K.t*0.05*sweepE*(0.4+P.speed))*L;\nconst bw=u*0.13;\nconst ox=W/2-(L/2-c)*ux, oy=Hh/2-(L/2-c)*uy;\ndc.globalCompositeOperation='lighter';\nconst lg=dc.createLinearGradient(ox-bw*ux,oy-bw*uy,ox+bw*ux,oy+bw*uy);\nlg.addColorStop(0,'rgba(255,255,255,0)');\nlg.addColorStop(0.5,`rgba(255,255,255,${(0.05+0.09*en).toFixed(3)})`);\nlg.addColorStop(1,'rgba(255,255,255,0)');\ndc.fillStyle=lg; dc.fillRect(0,0,W,Hh);\ndc.globalCompositeOperation=oldOp;\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke();\n"
+}

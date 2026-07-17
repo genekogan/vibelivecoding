@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.delta_lobe",
+  "kind": "genart",
+  "name": "Delta Lobe",
+  "desc": "A river delta builds itself into a standing basin \u2014 sediment parcels walk the bed downhill, incise channels on the plain and settle at the mouth into bars that split the flow, so distributaries branch outward on their own; the lobe superelevates until the trunk avulses to a new one, and a slow rise and fall of sea level drowns and re-progrades the whole plain, so the basin never fills.",
+  "tags": [
+    "delta",
+    "distributary",
+    "river",
+    "avulsion",
+    "lobe",
+    "mouth-bar",
+    "birdfoot",
+    "estuary",
+    "sediment",
+    "sedimentation",
+    "deposition",
+    "progradation",
+    "aggradation",
+    "transgression",
+    "regression",
+    "sea-level",
+    "subsidence",
+    "bathymetry",
+    "shoreline",
+    "coast",
+    "fluvial",
+    "hydrology",
+    "geomorphology",
+    "erosion",
+    "plume",
+    "turbidity",
+    "alluvial",
+    "floodplain",
+    "landsat",
+    "false-colour",
+    "satellite",
+    "aerial",
+    "survey",
+    "chart",
+    "nautical",
+    "contour",
+    "map",
+    "cartography",
+    "radar",
+    "ink",
+    "sumi",
+    "teal",
+    "indigo",
+    "simulation",
+    "emergent",
+    "self-organizing",
+    "slow",
+    "dramaturgy",
+    "process",
+    "landscape",
+    "terrain",
+    "scientific",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sediment load + channel incision vigour, and overall colour/contrast gain"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the delta around x/y \u2014 1 shows the whole basin, 2.6 crops to the distributary mouths"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the delta builds, avulses and drowns"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "number of sediment parcels per step \u2014 thread count of the distributary network, and plume persistence"
+    },
+    "sealevel": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "base sea level: 0 = a deeply incised subaerial plain, 1 = a drowned shelf with only the lobe tips showing"
+    },
+    "hue": {
+      "default": 195,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue anchor; rotates the chart inks with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "bathymetric",
+      "options": [
+        "bathymetric",
+        "landsat",
+        "radar",
+        "ink"
+      ],
+      "doc": "aesthetic: bathymetric = survey chart, banded depth contours, buff plain; landsat = false-colour NIR, near-black water, cyan sediment plume, maroon vegetation; radar = abstracted dark plate with only the distributary skeleton glowing; ink = sumi tonal wash"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "antecedent basin floor + routing seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:38+00:00",
+    "fps": 60.2,
+    "motion": 0.0239,
+    "lum": 0.433
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, sealevel: .5, hue: 195, x: .5, y: .5, style: 'bathymetric', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Sediment-routing delta (DeltaRCM-lite) --------------------------------\n// Parcels of sediment leave the trunk apex and walk the bed by weighted steepest\n// descent. Subaerial -> the parcel incises a channel and picks up load.\n// Subaqueous -> it settles exponentially, so a mouth bar builds AT the shoreline\n// and forces the flow to bifurcate around it: distributaries are emergent, not\n// drawn. Aggradation then superelevates the active lobe until a lower path wins\n// and the flow AVULSES to a new one.\n// Anti-convergence: relative sea level oscillates (transgression drowns the\n// plain, regression progrades and incises it), the trunk apex wanders over\n// minutes so lobes switch, and subsidence keeps making accommodation. The\n// basin therefore never fills and the piece never reaches equilibrium.\nconst BW = 176, BH = 99, N = BW * BH;\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\nfunction fbm(x, y) { return 0.6 * vn(x, y) + 0.28 * vn(x * 2.03 + 5.1, y * 2.03 - 3.2) + 0.12 * vn(x * 4.1 - 2.3, y * 4.1 + 7.7); }\n\nif (!S.g) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.Z = new Float32Array(N); S.T = new Float32Array(N); S.T2 = new Float32Array(N);\n  S.seedUsed = null;\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  // antecedent margin: alluvial plain at the left, ramp down into a basin right\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const u = i / BW, v = j / BH;\n    S.Z[j * BW + i] = 0.30 - u * 0.88 + (fbm(u * 5 + 1.3, v * 5 + 2.7) - 0.5) * 0.11 - Math.abs(v - 0.5) * 0.05;\n    S.T[j * BW + i] = 0;\n  }\n  S.rng = (Math.imul(sd, 2654435761) + 12345) >>> 0;\n  // Warm start counted in PASSES, not frames: a lobe needs ~900 routing passes to\n  // build, so a cold open would be a bare ramp for its first 15 seconds.\n  S.warm = 850;\n}\nconst rnd = () => { S.rng = (Math.imul(S.rng, 1664525) + 1013904223) >>> 0; return S.rng / 4294967296; };\n\nconst spd = 0.3 + P.speed * 0.95;\n// relative sea level: incommensurate slow sines -> transgression/regression cycles\nconst sl = (P.sealevel - 0.5) * 0.30\n         + 0.075 * (0.55 * Math.sin(K.t * 0.055) + 0.31 * Math.sin(K.t * 0.118 + 2.1) + 0.14 * Math.sin(K.t * 0.201 + 0.7));\n// the trunk wanders across the plain over minutes -> the lobe switches\nconst apexY = BH * (0.5 + 0.19 * (0.6 * Math.sin(K.t * 0.0271) + 0.4 * Math.sin(K.t * 0.0613 + 1.4)));\nconst flood = 0.5 + 0.5 * (0.6 * Math.sin(K.t * 0.047 + 0.3) + 0.4 * Math.sin(K.t * 0.1013 + 2.6));\nconst disch = Math.max(0, Math.min(1.4, flood * (0.5 + K.intensity * 0.6) + A.bass * 0.25));\n\n// ---- route sediment parcels ------------------------------------------------\nconst sub = S.warm > 0 ? 12 : 1;\nconst NP = Math.round((30 + P.density * 105) * (0.6 + disch * 0.6));\nconst L0 = 0.0045 * (0.5 + P.energy * 0.9);\nfor (let pass = 0; pass < sub; pass++) {\n  for (let p = 0; p < NP; p++) {\n    let x = 2.5, y = apexY + (rnd() - 0.5) * BH * 0.09;\n    let dirx = 1, diry = 0, load = L0, wet = 0;\n    // Step budget must outlast the widest the plain ever gets. At 90 the parcels\n    // ran out of steps crossing a prograded plain and never reached the sea, which\n    // silently killed the mouth bar and the plume.\n    for (let s2 = 0; s2 < 320; s2++) {\n      const xi = x | 0, yi = y | 0;\n      if (xi < 1 || xi >= BW - 1 || yi < 1 || yi >= BH - 1) break;\n      const k = yi * BW + xi;\n      let bx = 0, by = 0, bw = -1e9;\n      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {\n        if (!a && !b) continue;\n        const drop = S.Z[k] - S.Z[(yi + b) * BW + (xi + a)];\n        const inert = (a * dirx + b * diry) * 0.42;\n        const w = drop * 26 + inert + rnd() * 0.5;\n        if (w > bw) { bw = w; bx = a; by = b; }\n      }\n      dirx = bx; diry = by;\n      const depth = sl - S.Z[k];\n      if (depth <= 0.002) {\n        // Subaerial. Incise only where the bed is STEEP (that is a channel);\n        // aggrade where it is flat (overbank / crevasse splay). Both conserve\n        // mass into the parcel's load. Incising every subaerial step instead\n        // grinds the whole plain away faster than the delta can build it.\n        const drop = S.Z[k] - S.Z[(yi + by) * BW + (xi + bx)];\n        if (drop > 0.004) {\n          const e = 0.00075 * (0.4 + P.energy * 0.9) * (0.5 + disch * 0.8) * Math.min(1, drop * 55);\n          S.Z[k] -= e; load += e;\n        } else {\n          // Overbank is a SMALL fraction \u2014 most of the load must survive the\n          // plain and reach the mouth, or the bar never builds and the plume dies.\n          const dp = load * 0.003; S.Z[k] += dp; load -= dp;\n        }\n      } else {\n        wet++;\n        const dep = load * 0.11;                     // exponential settling -> mouth bar -> bifurcation\n        S.Z[k] += dep; load -= dep;\n        // plume is scaled to load RELATIVE to a full parcel, so it renders at a\n        // visible density regardless of the absolute (tiny) elevation units\n        S.T[k] += (load / L0) * 0.045;\n        if (S.T[k] > 1.4) S.T[k] = 1.4;\n        if (load < L0 * 0.04 || wet > 34) break;\n      }\n      x += bx; y += by;\n    }\n  }\n  if (S.warm > 0) S.warm--;\n}\n\n// ---- subsidence + clamps (accommodation is created forever) ----------------\n// Subsidence tapers to zero as the bed approaches the basin floor, so the margin\n// has finite accommodation. Without this it outruns deposition and the whole\n// frame slowly drowns into a flat dark field over ~10 minutes.\nconst subs = 0.000011 * spd;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  S.Z[k] -= subs * (0.35 + 0.65 * (i / BW)) * Math.max(0, S.Z[k] + 1.0);\n  if (S.Z[k] < -1.15) S.Z[k] = -1.15; else if (S.Z[k] > 0.5) S.Z[k] = 0.5;\n}\n// diffuse + decay the plume (keeps it a cloud, not a speckle trail)\nconst Td = 0.92 - (1 - P.density) * 0.05;\nfor (let j = 1; j < BH - 1; j++) for (let i = 1; i < BW - 1; i++) {\n  const k = j * BW + i;\n  S.T2[k] = (S.T[k] * 0.52 + (S.T[k - 1] + S.T[k + 1] + S.T[k - BW] + S.T[k + BW]) * 0.12) * Td;\n}\nconst tmp = S.T; S.T = S.T2; S.T2 = tmp;\n\n// ---- render ----------------------------------------------------------------\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 195)) % 360) + 360) % 360;\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c;\n  let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; }\n  else if (h < 3) { r = 0; g2 = c; b2 = xx; } else if (h < 4) { r = 0; g2 = xx; b2 = c; }\n  else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n}\nconst gain = 0.72 + P.energy * 0.5 + K.intensity * 0.16 + A.rms * 0.3;\nconst laz = K.t * 0.043 + 1.1 + 0.3 * Math.sin(K.t * 0.017);   // light drifts: a motion floor on the land\nconst lx = Math.cos(laz), ly = Math.sin(laz);\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  const z = S.Z[k], depth = sl - z;\n  const i0 = i > 0 ? i - 1 : 0, i1 = i < BW - 1 ? i + 1 : BW - 1;\n  const j0 = j > 0 ? j - 1 : 0, j1 = j < BH - 1 ? j + 1 : BH - 1;\n  const gx = (S.Z[j * BW + i1] - S.Z[j * BW + i0]) * 26, gy = (S.Z[j1 * BW + i] - S.Z[j0 * BW + i]) * 26;\n  const shade = Math.max(0, Math.min(1, 0.5 + (gx * lx + gy * ly) * 0.9));\n  const turb = Math.min(1, S.T[k] * 0.9);\n  let r, g2, b;\n  if (st === 'landsat') {          // false-colour NIR: near-black water, cyan plume, maroon vegetation\n    if (depth > 0) {\n      const dd = Math.min(1, depth * 2.2);\n      const c = hsv(rot(206), 0.62 - turb * 0.5, (0.20 - dd * 0.11 + turb * 0.72) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    } else {\n      const veg = Math.min(1, Math.max(0, (-depth) * 3.4)) * (0.4 + fbm(i * 0.09, j * 0.09) * 0.7);\n      const c = hsv(rot(352) - veg * 8, 0.30 + veg * 0.42, (0.30 + veg * 0.26) * (0.62 + shade * 0.62) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    }\n  } else if (st === 'radar') {     // abstracted: dark plate, the distributary skeleton glowing\n    const chan = depth > 0 ? Math.min(1, depth * 1.5) : 0;\n    const wet2 = depth > -0.006 ? 1 : 0;\n    const c = hsv(rot(168) + turb * 40, 0.55, (0.06 + wet2 * 0.34 + turb * 0.6 + chan * 0.16 + shade * 0.10) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (st === 'ink') {       // sumi: tonal wash, water dark, plain pale\n    const v = depth > 0 ? 0.30 - Math.min(1, depth * 1.6) * 0.18 + turb * 0.5 : 0.72 - shade * 0.20;\n    const c = hsv(rot(196), 0.10, Math.max(0, Math.min(1, v)) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else {                          // bathymetric (default): survey chart, banded depth, buff plain\n    if (depth > 0) {\n      const dd = Math.min(1, depth * 1.5);\n      const band = depth * 17, onLine = (band - Math.floor(band)) < 0.11 ? 1 : 0;\n      const c = hsv(rot(188) + dd * 34, 0.46 + dd * 0.28, (0.60 - dd * 0.33 + turb * 0.55 + onLine * 0.09) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    } else {\n      const h2 = Math.min(1, (-depth) * 2.6);\n      const c = hsv(46 - h2 * 12, 0.26 + h2 * 0.16, (0.56 + h2 * 0.16) * (0.66 + shade * 0.58) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    }\n  }\n  const o = k * 4; px[o] = r; px[o + 1] = g2; px[o + 2] = b; px[o + 3] = 255;\n}\ng.updatePixels();\n\nconst z2 = Math.max(1, P.scale), hw = 0.5 / z2;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BH, 2 * hw * BW, 2 * hw * BH);\npop();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

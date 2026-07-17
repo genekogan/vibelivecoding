@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spirolateral",
+  "kind": "genart",
+  "name": "Spirolateral Weave",
+  "desc": "Nested turtle spirolaterals whose increasing-length segments turn a drifting angle into interlocking symmetric star-polygon lattices, layering multi-hue glowing polylines into a slowly re-weaving, rotating luminous mandala.",
+  "tags": [
+    "spirolateral",
+    "turtle",
+    "geometry",
+    "star-polygon",
+    "polygon",
+    "lattice",
+    "weave",
+    "woven",
+    "mandala",
+    "rosette",
+    "symmetry",
+    "radial",
+    "kaleidoscope",
+    "neon",
+    "glow",
+    "additive",
+    "wireframe",
+    "blueprint",
+    "gold",
+    "pastel",
+    "ink",
+    "line-art",
+    "generative",
+    "genart",
+    "abstract",
+    "geometric",
+    "mathematical",
+    "sacred-geometry",
+    "luminous",
+    "fullbleed",
+    "background",
+    "bg",
+    "purple",
+    "cyan",
+    "meditative",
+    "hypnotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow amplitude / stroke weight / brightness"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "segments per turtle + rotational copies (woven complexity)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "overall mandala size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "angle-drift + rotation rate"
+    },
+    "warp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "turn-angle wobble amplitude (morph depth)"
+    },
+    "layers": {
+      "default": 3,
+      "min": 1,
+      "max": 4,
+      "doc": "number of nested spirolaterals"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue anchor"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center y"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "gold",
+        "blueprint",
+        "pastel",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic order/angle variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:07:54+00:00",
+    "fps": 59.9,
+    "motion": 0.0867,
+    "lum": 0.203
+  },
+  "code": "const D = { energy: .62, density: .55, scale: 1, speed: 1, warp: .5, layers: 3, hue: 210, x: .5, y: .5, style: 'neon', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nif (S.seedUsed !== P.seed || !S.L) {\n  S.seedUsed = P.seed;\n  S.L = [];\n  for (let l = 0; l < 4; l++) {\n    S.L.push({\n      nBase: 5 + Math.floor(fr(l * 7 + 1) * 7),   // 5..11 turtle segments\n      sym: 4 + Math.floor(fr(l * 7 + 2) * 5),      // 4..8 rotational copies\n      k: 1 + Math.floor(fr(l * 7 + 3) * 4),        // angle numerator\n      hoff: fr(l * 7 + 4),                          // hue spread seed\n      dir: fr(l * 7 + 5) < .5 ? -1 : 1,            // spin direction\n      ph: fr(l * 7 + 6) * 6.283,                    // phase offset\n      wf: .25 + fr(l * 7 + 7) * .5                  // breathe frequency\n    });\n  }\n}\n\nconst u = Math.min(width, height);\nconst cx = width * P.x, cy = height * P.y;\nconst nLayers = Math.max(1, Math.min(4, Math.round(P.layers)));\nconst section = K.section | 0;\nconst t = K.t;\nconst af = P.alpha / 100;\nconst expo = .5 + P.energy * .9 + K.intensity * .3 + A.bass * .6;\nconst style = P.style;\n\n// ---- style discipline table ----\nlet addMode = true, closeShape = true;\nlet gH = (P.hue + 200) % 360, gS = 55, gB = 9;    // ground\nlet bloomH = P.hue, satBase = 82, coreShift = 18, coreSat = 55;\nlet blendAlpha = 60, weightVary = 0, hueSpread = 300;\nif (style === 'gold') {\n  gH = 34; gS = 78; gB = 5; bloomH = 42; satBase = 86; coreShift = 8; coreSat = 40; hueSpread = 40;\n} else if (style === 'blueprint') {\n  addMode = false; gH = 212; gS = 78; gB = 24; satBase = 14; blendAlpha = 78; hueSpread = 24; weightVary = 0;\n} else if (style === 'pastel') {\n  addMode = false; gH = P.hue; gS = 20; gB = 22; satBase = 36; blendAlpha = 30; hueSpread = 260; weightVary = 0;\n} else if (style === 'ink') {\n  addMode = false; gH = 42; gS = 10; gB = 92; satBase = 28; blendAlpha = 60; hueSpread = 30; weightVary = 1; closeShape = true;\n}\n\npush();\nif (P.alpha >= 100) background(gH, gS, gB);\n\n// soft radial bloom to lift luminance + fill frame (additive styles)\nif (addMode) {\n  blendMode(ADD); noStroke();\n  const bl = (5 + P.energy * 9 + K.intensity * 4) * af;\n  for (let b = 0; b < 3; b++) {\n    fill((bloomH + section * 14 + b * 10) % 360, 45, 85, bl);\n    ellipse(cx, cy, u * (0.55 + b * 0.4), u * (0.55 + b * 0.4));\n  }\n}\n\ntranslate(cx, cy);\nconst wCore = Math.max(1, u * 0.0022 * (0.6 + P.energy) * P.scale);\nconst wWide = u * (0.006 + P.energy * 0.010) * P.scale + (addMode ? A.bass * u * 0.01 : 0);\n\nfor (let l = 0; l < nLayers; l++) {\n  const cfg = S.L[l];\n  const N = Math.max(3, Math.min(18, Math.round(cfg.nBase * (0.6 + P.density * 1.0))));\n  const m = Math.max(3, Math.min(10, Math.round(cfg.sym * (0.7 + P.density * 0.5)) + (section > 3 ? 1 : 0)));\n  const drift = t * 6 * P.speed * cfg.dir;                       // perpetual morph (deg)\n  const breathe = Math.sin(t * cfg.wf + cfg.ph) * 22 * P.warp;   // angle wobble\n  const thetaR = (360 * cfg.k / N + drift + breathe) * Math.PI / 180;\n\n  // turtle walk: segment i has length i, turn thetaR each step\n  const xs = [0], ys = [0];\n  let x = 0, y = 0, a = cfg.ph;\n  for (let i = 1; i <= N; i++) { a += thetaR; x += Math.cos(a) * i; y += Math.sin(a) * i; xs.push(x); ys.push(y); }\n  const len = xs.length;\n  let mx = 0, my = 0; for (let i = 0; i < len; i++) { mx += xs[i]; my += ys[i]; } mx /= len; my /= len;\n  let maxR = 1e-4; for (let i = 0; i < len; i++) { const dx = xs[i] - mx, dy = ys[i] - my; const r = Math.sqrt(dx * dx + dy * dy); if (r > maxR) maxR = r; }\n  const fit = (0.47 * u * P.scale) / maxR;\n\n  const rotSpeed = t * 0.12 * P.speed * cfg.dir;\n  const hue = (P.hue + section * 16 + cfg.hoff * 60 + l * (hueSpread / nLayers)) % 360;\n  const wideA = Math.min(60, (7 + P.energy * 13) * af * (0.55 + P.density * 0.55));\n  const coreA = Math.min(95, (34 + P.energy * 46 + A.treble * 28) * af);\n\n  noFill();\n  for (let c = 0; c < m; c++) {\n    const rot = rotSpeed + c * (6.28318 / m) + cfg.ph * 0.3;\n    push();\n    rotate(rot);\n    if (addMode) {\n      blendMode(ADD);\n      stroke(hue, satBase, 100, wideA); strokeWeight(wWide);\n      drawPoly(xs, ys, mx, my, fit, closeShape);\n      stroke((hue + coreShift) % 360, coreSat, 100, coreA); strokeWeight(wCore);\n      drawPoly(xs, ys, mx, my, fit, closeShape);\n    } else {\n      blendMode(BLEND);\n      const wv = weightVary ? (0.55 + ((c + l) % 3) * 0.55) : 1;\n      const sB = style === 'blueprint' ? 100 : (style === 'pastel' ? 96 : 18);\n      stroke(hue, satBase, sB, blendAlpha * af);\n      strokeWeight(style === 'blueprint' ? wCore * 1.1 : (style === 'pastel' ? wWide * 1.6 : wWide * wv));\n      drawPoly(xs, ys, mx, my, fit, closeShape);\n    }\n    pop();\n  }\n}\nblendMode(BLEND);\npop();\n\nfunction drawPoly(xs, ys, mx, my, fit, close) {\n  beginShape();\n  for (let i = 0; i < xs.length; i++) vertex((xs[i] - mx) * fit, (ys[i] - my) * fit);\n  endShape(close ? CLOSE : undefined);\n}\n"
+}

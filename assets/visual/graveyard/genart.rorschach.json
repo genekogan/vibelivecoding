@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rorschach",
+  "kind": "genart",
+  "name": "Rorschach Bloom",
+  "desc": "A bilaterally-symmetric inkblot that perpetually blooms and dissolves — fractal-noise ink spreads from the mirror axis into wet organic lobes and tendrils, pools dark at its bleeding edges, holds, then recedes as a new blot grows in deep indigo bleeding to oxblood on damp paper.",
+  "tags": [
+    "rorschach",
+    "inkblot",
+    "blot",
+    "symmetry",
+    "bilateral",
+    "mirror",
+    "ink",
+    "wet-ink",
+    "bleed",
+    "indigo",
+    "oxblood",
+    "crimson",
+    "paper",
+    "organic",
+    "texture",
+    "bloom",
+    "dissolve",
+    "fractal",
+    "noise",
+    "fbm",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "psychology",
+    "sumi",
+    "stain",
+    "thermal",
+    "gold-leaf",
+    "x-ray",
+    "dark",
+    "eerie",
+    "clinical",
+    "meditative",
+    "morph"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "spread": {
+      "default": 0.62,
+      "min": 0.2,
+      "max": 1.3,
+      "doc": "blot size / how far the ink reaches from the axis"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tendril richness & ink coverage (fractal detail amplitude)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ink depth / contrast / glow exposure"
+    },
+    "bleed": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wet-edge feather width (soft bleeding boundary)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "bloom + drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "noise feature zoom (bigger = larger lobes)"
+    },
+    "hue": {
+      "default": 250,
+      "min": 0,
+      "max": 360,
+      "doc": "ink palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "mirror-axis horizontal position"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "blot vertical center"
+    },
+    "style": {
+      "default": "wet-ink",
+      "options": [
+        "wet-ink",
+        "classic",
+        "thermal-blot",
+        "gold-leaf",
+        "x-ray"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic blot variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { spread: .62, density: .55, energy: .6, bleed: .5, speed: 1, scale: 1, hue: 250, x: .5, y: .5, style: 'wet-ink', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// coarse buffer (per-pixel ink field, upscaled)\nconst BW = 200, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\n\n// seed-dependent domain offsets (rebuild only when P.seed changes)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.o1 = fr(1) * 40; S.o2 = fr(2) * 40; S.hoff = fr(4);\n}\nconst sd = (P.seed | 0);\nfunction hsh(ix, iy){ let h=(ix*374761393 + iy*668265263 + sd*2147483647)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295; }\nfunction vn(x, y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy; const u=fx*fx*(3-2*fx), v=fy*fy*(3-2*fy); const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1); return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }\nfunction fbm(x, y){ return 0.55*vn(x,y) + 0.30*vn(x*2.03+5.1, y*2.03-3.2) + 0.15*vn(x*4.11-2.3, y*4.11+7.7); }\nfunction ss(a, b, x){ let t=(x-a)/(b-a); t=t<0?0:t>1?1:t; return t*t*(3-2*t); }\nfunction h2r(h, s, v){ h=((h%360)+360)%360; const c=v*s, X=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b; if(h<60){r=c;g=X;b=0;}else if(h<120){r=X;g=c;b=0;}else if(h<180){r=0;g=c;b=X;}else if(h<240){r=0;g=X;b=c;}else if(h<300){r=X;g=0;b=c;}else{r=c;g=0;b=X;} return [r+m,g+m,b+m]; }\n\n// time / dramaturgy (all rhythm from K — continuous drift never re-phases)\nconst spd = P.speed;\nconst driftX = K.t * 0.040 * spd + S.o1;\nconst driftY = K.t * 0.030 * spd + S.o2;\nconst bph = K.t * 0.066 * spd + K.section * 0.7;          // bloom envelope phase\nconst morphX = Math.sin(K.t*0.018*spd + K.section*1.7) * 3.5;  // slow blot reshape -> new blots\nconst morphY = Math.cos(K.t*0.015*spd + K.section*1.3) * 3.5;\nconst hb = (P.hue + S.hoff*30 + K.section*10) % 360;\n\nconst spread = P.spread, dens = P.density, energy = P.energy, bleed = P.bleed;\nconst fscale = 2.4 / (0.45 + P.scale * 1.0);\nconst edgeW = 0.10 + bleed * 0.55;                        // wet-edge feather width\nconst noiseAmp = 1.5 * (0.35 + dens);                     // tendril amplitude\n// bloom envelope: blot grows then recedes; audio/intensity swell it ON TOP of baseline\nconst grow = 0.085 * Math.sin(bph) + 0.01 + K.intensity * 0.10 + A.bass * 0.20 + A.rms * 0.10;\n\n// per-frame palette (precomputed rgb — no hsb conversion inside the pixel loop)\nconst style = P.style;\nconst inkDark = 0.30 - energy * 0.10;\nlet paperA, paperB, inkCore, inkRim, ground;\nif (style === 'classic') {\n  paperA = h2r(42, 0.13, 0.82); paperB = h2r(38, 0.22, 0.71);\n  inkCore = [0.09,0.08,0.07]; inkRim = [0.02,0.02,0.02];\n} else if (style === 'gold-leaf') {\n  ground = h2r(28, 0.55, 0.07);\n  inkCore = h2r(46, 0.74, 0.60); inkRim = h2r(42, 0.85, 0.98);\n} else if (style === 'x-ray') {\n  ground = [0.010,0.020,0.035];\n  inkCore = h2r(hb, 0.55, 0.52); inkRim = h2r((hb+28)%360, 0.18, 1.0);\n} else { // wet-ink (default)\n  paperA = h2r((hb+8)%360, 0.16, 0.64); paperB = h2r((hb+200)%360, 0.12, 0.55);\n  inkCore = h2r(hb, 0.74, inkDark); inkRim = h2r((hb+112)%360, 0.86, inkDark+0.02);\n}\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst invBW = 1/BW, invBH = 1/BH;\nfor (let j=0;j<BH;j++){\n  const vy = j*invBH - P.y;\n  for (let i=0;i<BW;i++){\n    const fx = Math.abs(i*invBW - P.x);              // fold x -> bilateral symmetry about axis\n    const rx = fx / (0.40*spread + 0.02);\n    const ry = vy / (0.52*spread + 0.02);\n    const rr2 = rx*rx + ry*ry, rad = Math.sqrt(rr2);\n    const nx = fx*fscale + driftX + morphX*0.35;\n    const ny = (j*invBH)*fscale + driftY + morphY*0.35;\n    const n = fbm(nx, ny);\n    const field = (1 - rad) + (n - 0.5) * noiseAmp + grow;\n    const cov = ss(-edgeW, edgeW, field);            // ink coverage 0..1\n    const eb = cov*(1-cov)*4;                         // wet-edge band (peaks mid)\n    let r,gg,b;\n    if (style === 'thermal-blot') {\n      const m = Math.min(1, cov*(0.75+energy*0.5) + eb*0.2);\n      const rr = Math.min(1, m*2.3);\n      const gn = Math.min(1, Math.max(0, m*1.9 - 0.7));\n      const bn = Math.min(1, Math.max(0, m*3.6 - 2.7));\n      r = Math.min(1, rr + 0.020); gg = Math.min(1, gn + 0.012); b = Math.min(1, bn + 0.045);\n    } else if (style === 'x-ray') {\n      const glow = Math.min(1, cov*(0.5+energy*0.7) + eb*1.1);\n      r = Math.min(1, ground[0] + inkCore[0]*cov*0.7 + inkRim[0]*glow*0.9);\n      gg = Math.min(1, ground[1] + inkCore[1]*cov*0.7 + inkRim[1]*glow*0.9);\n      b = Math.min(1, ground[2] + inkCore[2]*cov*0.7 + inkRim[2]*glow*0.9);\n    } else if (style === 'gold-leaf') {\n      const spec = Math.min(1, cov*0.55 + eb*1.3);\n      r = Math.min(1, ground[0]*(1-cov) + inkCore[0]*cov + (inkRim[0]-inkCore[0])*spec);\n      gg = Math.min(1, ground[1]*(1-cov) + inkCore[1]*cov + (inkRim[1]-inkCore[1])*spec);\n      b = Math.min(1, ground[2]*(1-cov) + inkCore[2]*cov + (inkRim[2]-inkCore[2])*spec);\n    } else { // wet-ink + classic (paper + ink model)\n      const mot = vn(fx*6+31 + driftX*0.6, (j*invBH)*6+13 + driftY*0.6);  // creeping damp mottle\n      let pr = paperA[0] + (paperB[0]-paperA[0])*mot;\n      let pg = paperA[1] + (paperB[1]-paperA[1])*mot;\n      let pb = paperA[2] + (paperB[2]-paperA[2])*mot;\n      const vig = 1 - 0.18*(rr2>4?1:rr2*0.25);       // faint stained-paper vignette\n      const wash = 1 + 0.11*(vn(fx*1.6 + driftX*1.5, (j*invBH)*1.6 + driftY*1.5 + 50) - 0.5); // slow tonal drift = whole-frame motion floor\n      pr*=vig*wash; pg*=vig*wash; pb*=vig*wash;\n      let ir = inkCore[0] + (inkRim[0]-inkCore[0])*eb*0.85;\n      let ig = inkCore[1] + (inkRim[1]-inkCore[1])*eb*0.85;\n      let ib = inkCore[2] + (inkRim[2]-inkCore[2])*eb*0.85;\n      const pool = 1 - eb*0.30 - ss(0.75,1,cov)*0.10;  // wet pooling darkens rim + core depth\n      ir*=pool; ig*=pool; ib*=pool;\n      r = pr + (ir-pr)*cov; gg = pg + (ig-pg)*cov; b = pb + (ib-pb)*cov;\n    }\n    const o = 4*(j*BW+i);\n    px[o]   = r<0?0:r>1?255:r*255;\n    px[o+1] = gg<0?0:gg>1?255:gg*255;\n    px[o+2] = b<0?0:b>1?255:b*255;\n    px[o+3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n// audio-only wet shimmer on treble/rms — partial add, never a full-frame flash\nif (A.treble > 0.02 || A.rms > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  fill((hb+20)%360, 25, 100, (A.treble*0.5 + A.rms*0.3) * 8);\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

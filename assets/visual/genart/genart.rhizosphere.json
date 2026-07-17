@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rhizosphere",
+  "kind": "genart",
+  "name": "Rhizosphere",
+  "desc": "A cutaway of living soil packed with root \u2014 several plants drive multiple primary axes down through the O, A, B and C horizons hunting water, laterals fanning off to a fourth order until the profile is a dense mat, root hairs and mycorrhizal fuzz hazing every tip, while rain fronts visibly percolate downward through crumb aggregates and pores and generations germinate and senesce.",
+  "tags": [
+    "root",
+    "roots",
+    "rhizosphere",
+    "soil",
+    "earth",
+    "dirt",
+    "underground",
+    "subsurface",
+    "horizon",
+    "profile",
+    "pedology",
+    "geotropism",
+    "hydrotropism",
+    "taproot",
+    "lateral",
+    "mycorrhiza",
+    "fungal",
+    "hyphae",
+    "aggregate",
+    "ped",
+    "pore",
+    "botanical",
+    "plant",
+    "germination",
+    "water",
+    "percolation",
+    "rain",
+    "cross-section",
+    "xray",
+    "cyanotype",
+    "survey",
+    "scientific",
+    "austere",
+    "growth",
+    "process",
+    "emergence",
+    "network",
+    "dense",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "root extension rate, hydrotropic sensitivity and exposure"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many plants contend for the profile (2-7), mycorrhizal fuzz and the strength of the moisture wash"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "soil hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate of growth, ageing and the climate cycle"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "root thickness and the hydrotropic sensing distance"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where seed rain is centred"
+    },
+    "y": {
+      "default": 0.08,
+      "min": 0,
+      "max": 1,
+      "doc": "the soil surface \u2014 where roots start"
+    },
+    "branch": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lateral branching rate \u2014 a bare taproot to a dense fibrous mat"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "monsoon",
+        "drought"
+      ],
+      "doc": "cycle: rain comes and goes on the section arc \u00b7 monsoon: constant percolation, roots race \u00b7 drought: the profile dries and roots die back from the tips"
+    },
+    "style": {
+      "default": "soil_profile",
+      "options": [
+        "soil_profile",
+        "xray",
+        "cyanotype",
+        "ink"
+      ],
+      "doc": "soil_profile: the pedological cutaway, warm horizons and aggregate \u00b7 xray: radiograph, roots as transmitted density on near-black \u00b7 cyanotype: blueprint contact print \u00b7 ink: dark line on a pale field, no tone"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "monsoon",
+    "drought"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:51+00:00",
+    "fps": 59.5,
+    "motion": 0.06,
+    "lum": 0.439
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 28, speed: 1, scale: 1, x: .5, y: .08, branch: .5, act: 'cycle', style: 'soil_profile', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 was too sparse \u2014 3 plants, one taproot each, a 2% branch\n// chance, and a network that needed ~40s to develop, so it read as \"a few thin\n// roots on brown\". Fixed four ways: more plants each with several primary axes,\n// a much higher branching rate to a 4th order, a BURN-IN that runs the growth\n// model 300 steps at init so the profile is already full the instant it is\n// fired (on stage nobody waits 40s for a visual to arrive), and real soil \u2014\n// aggregates, pores and mycorrhizal fuzz instead of a flat brown wash.\n\nconst BW = Math.max(360, Math.min(1180, Math.round(width * .68)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst GW = 112, GH = Math.max(44, Math.round(GW * height / width));\nconst MAXT = 1100, MAXP = 10;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\nconst soilV = st === 'xray' ? 15 : st === 'cyanotype' ? 30 : st === 'ink' ? 74 : 46;\nconst rootV = st === 'xray' ? 97 : st === 'cyanotype' ? 93 : st === 'ink' ? 15 : 90;\nconst hOff = st === 'xray' ? 150 : st === 'cyanotype' ? 182 : st === 'ink' ? 8 : 0;\nconst tSat = st === 'xray' ? 16 : st === 'cyanotype' ? 72 : st === 'ink' ? 11 : 44;\n\nif (!S.rt || S.bw !== BW || S.bh !== BH || S.styleUsed !== st || S.seedUsed !== P.seed) {\n  if (S.rt && S.rt.remove) S.rt.remove();\n  if (S.soil && S.soil.remove) S.soil.remove();\n  if (S.wg && S.wg.remove) S.wg.remove();\n  S.soil = createGraphics(BW, BH); S.soil.pixelDensity(1);\n  S.rt = createGraphics(BW, BH); S.rt.pixelDensity(1);\n  S.wg = createGraphics(GW, GH); S.wg.pixelDensity(1);\n  S.bw = BW; S.bh = BH; S.styleUsed = st; S.seedUsed = P.seed;\n  S.tick = 0; S.step = 0; S.cur = 0; S.secUsed = -1; S.rainT = 0; S.burned = 0;\n  // --- bake the soil cross-section: O / A / B / C horizons -----------------\n  const so = S.soil; so.colorMode(HSB, 360, 100, 100, 100); so.noStroke();\n  const prof = fy => {\n    if (fy < .04) return soilV * .55;                       // O \u2014 litter\n    if (fy < .27) return soilV * (.72 + (fy - .04) * .5);   // A \u2014 topsoil\n    if (fy < .68) return soilV * (1.06 + (fy - .27) * .38); // B \u2014 subsoil\n    return soilV * (1.2 - (fy - .68) * .34);                // C \u2014 parent material\n  };\n  for (let y = 0; y < BH; y++) {\n    const fy = y / BH;\n    const wob = (fr(y * .37 + 11) - .5) * 3.2 + Math.sin(y * .013 + fr(3) * 6.28) * 2.1;\n    so.fill(0, 0, Math.max(2, Math.min(97, prof(fy) + wob)));\n    so.rect(0, y, BW, 1);\n  }\n  const U0 = BW / 900;\n  for (let i = 0; i < 7200; i++) {                          // grain + clasts\n    const x = fr(i * 5 + 1) * BW, fy = fr(i * 5 + 2);\n    const y = fy * BH, dep = fy;\n    const sz = (.7 + fr(i * 5 + 3) * (1.1 + dep * dep * 9)) * U0 * 1.5;\n    const dv = (fr(i * 5 + 4) - .42) * (14 + dep * 20);\n    so.fill(0, 0, Math.max(2, Math.min(97, prof(fy) + dv)), 46 + fr(i * 5 + 5) * 40);\n    so.ellipse(x, y, sz, sz * (.6 + fr(i * 7 + 2) * .7));\n  }\n  for (let i = 0; i < 1500; i++) {                          // peds: crumb aggregates\n    const x = fr(i * 9 + 3) * BW, fy = fr(i * 9 + 4), y = fy * BH;\n    const sz = (5 + fr(i * 9 + 5) * 16) * U0;\n    so.noFill(); so.strokeWeight(Math.max(.6, U0));\n    so.stroke(0, 0, Math.max(2, Math.min(97, prof(fy) - 9)), 26);\n    so.ellipse(x, y, sz, sz * (.7 + fr(i * 9 + 6) * .6));\n    so.noStroke();\n    so.fill(0, 0, Math.max(2, Math.min(97, prof(fy) + 7)), 12);\n    so.ellipse(x - sz * .12, y - sz * .12, sz * .7, sz * .55);\n  }\n  for (let i = 0; i < 900; i++) {                           // pores / voids\n    const x = fr(i * 11 + 5) * BW, fy = fr(i * 11 + 6), y = fy * BH;\n    const sz = (1.4 + fr(i * 11 + 7) * 5) * U0;\n    so.fill(0, 0, Math.max(1, prof(fy) * .38), 52 + fr(i * 11 + 8) * 34);\n    so.ellipse(x, y, sz, sz * (.5 + fr(i * 13 + 2) * .9));\n  }\n  for (let i = 0; i < 34; i++) {                            // horizon boundary flecks\n    const y = (.27 + (fr(i * 3 + 71) - .5) * .05) * BH;\n    so.fill(0, 0, Math.min(97, soilV * .6), 30);\n    so.ellipse(fr(i * 3 + 72) * BW, y, (24 + fr(i * 3 + 73) * 60) * U0, (4 + fr(i * 3 + 74) * 7) * U0);\n  }\n  S.rt.colorMode(HSB, 360, 100, 100, 100);\n  S.rt.image(S.soil, 0, 0);\n  S.w = new Float32Array(GW * GH); S.w2 = new Float32Array(GW * GH);\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) S.w[y * GW + x] = .18 + (y / GH) * .6 + fr(y * GW + x) * .1;\n  S.tx = new Float32Array(MAXT); S.ty = new Float32Array(MAXT); S.px = new Float32Array(MAXT); S.py = new Float32Array(MAXT);\n  S.td = new Float32Array(MAXT); S.ta = new Float32Array(MAXT); S.to = new Uint8Array(MAXT); S.tp = new Uint8Array(MAXT); S.al = new Uint8Array(MAXT);\n  S.plX = new Float32Array(MAXP); S.plA = new Float32Array(MAXP); S.plL = new Float32Array(MAXP); S.plAl = new Uint8Array(MAXP);\n}\n\nconst soil = S.soil, rt = S.rt, wg = S.wg, W = S.w, W2 = S.w2;\nconst tx = S.tx, ty = S.ty, ppx = S.px, ppy = S.py, td = S.td, ta = S.ta, to = S.to, tp = S.tp, al = S.al;\nconst plX = S.plX, plA = S.plA, plL = S.plL, plAl = S.plAl;\nS.tick = (S.tick || 0) + 1;\n// salted on S.step (not S.tick) so the burn-in below is not a degenerate loop\n// that grows every root in a perfectly straight line\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.step * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst U = BW / 900;\nconst TAU = Math.PI * 2;\n\n// ---- act: multi-minute climate --------------------------------------------\nlet clim;\nif (P.act === 'monsoon') clim = 1.85;\nelse if (P.act === 'drought') clim = .3;\nelse clim = .4 + 1.4 * (.5 + .5 * Math.sin(K.t * .0107 + .85 * Math.sin(K.t * .0039 + .6)));\n\n// ---- rain events on section change; water percolates downward -------------\nif (S.secUsed !== K.section) { S.secUsed = K.section; S.rainT = (70 + rnd(1) * 150) * clim; }\nif (S.rainT > 0) S.rainT -= 1;\nconst rainNow = (S.rainT > 0 ? .010 : .0013) * clim * (.6 + .5 * K.intensity + .5 * A.rms);\nW2.set(W);\nfor (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n  const i = y * GW + x;\n  if (y === 0) { W2[i] = Math.min(1.25, W[i] + rainNow); continue; }\n  if (y >= GH - 2) { W2[i] = W[i] + (1.05 - W[i]) * .02; continue; }   // water table recharge\n  const up = W[i - GW], dn = W[i + GW];\n  const xl = W[i - (x > 0 ? 1 : 0)], xr = W[i + (x < GW - 1 ? 1 : 0)];\n  const perc = Math.max(0, up - W[i]) * .16 + (xl + xr - 2 * W[i]) * .035;\n  W2[i] = Math.max(0, Math.min(1.25, W[i] + perc - Math.max(0, W[i] - dn) * .12 - .00035));\n}\nW.set(W2);\n\nconst aging = .4 + P.speed * .9;\nconst nWant = 2 + Math.round(P.density * 5);\nconst SP = (.42 + P.energy * .95) * (.45 + P.speed * .8) * U;\nconst brP = (.010 + P.branch * .045) * (.4 + P.speed * .8);\nconst wAt = (gx, gy) => {\n  let ix = Math.floor(gx), iy = Math.floor(gy);\n  if (ix < 0) ix = 0; if (iy < 0) iy = 0; if (ix >= GW) ix = GW - 1; if (iy >= GH) iy = GH - 1;\n  return W[iy * GW + ix];\n};\nconst spawnTip = (x, y, d, o, p) => {\n  for (let n = 0; n < MAXT; n++) {\n    S.cur = (S.cur + 1) % MAXT;\n    if (!al[S.cur]) { const k = S.cur; al[k] = 1; tx[k] = x; ty[k] = y; ppx[k] = x; ppy[k] = y; td[k] = d; ta[k] = 0; to[k] = o; tp[k] = p; return true; }\n  }\n  return false;\n};\nrt.strokeCap(ROUND);\n\n// ---- one step of the growth model (called once per frame, and 300x at init) --\nconst growStep = () => {\n  S.step = (S.step || 0) + 1;\n  // the old network fades back into the soil so the profile keeps churning\n  if (S.step % 36 === 0) { rt.push(); rt.tint(0, 0, 100, .6 + P.speed * .3); rt.image(soil, 0, 0); rt.pop(); }\n  // --- plant generations ---\n  let nAlivePl = 0;\n  for (let p = 0; p < MAXP; p++) {\n    if (!plAl[p]) continue;\n    nAlivePl++;\n    plA[p] += aging;\n    if (plA[p] > plL[p]) { plAl[p] = 0; for (let k = 0; k < MAXT; k++) if (al[k] && tp[k] === p) al[k] = 0; }\n  }\n  if (nAlivePl < nWant) {\n    for (let p = 0; p < MAXP; p++) if (!plAl[p]) {\n      let bx = .5, bd = -1;\n      for (let q = 0; q < 6; q++) {                              // germinate away from standing plants\n        const cx = .06 + rnd(p * 17 + q * 3 + 1) * .88;\n        let mn = 9;\n        for (let o = 0; o < MAXP; o++) if (plAl[o]) mn = Math.min(mn, Math.abs(plX[o] - cx));\n        const sc = mn - Math.abs(cx - P.x) * .5;                 // seed rain centred on the anchor\n        if (sc > bd) { bd = sc; bx = cx; }\n      }\n      plAl[p] = 1; plX[p] = bx; plA[p] = 0; plL[p] = 2600 + rnd(p * 23 + 5) * 2600;\n      // several primary axes, not a single taproot \u2014 this is a root SYSTEM\n      const nax = 2 + Math.round(rnd(p * 31 + 9) * 2);\n      for (let a2 = 0; a2 < nax; a2++)\n        spawnTip(bx * BW, P.y * BH, Math.PI / 2 + (a2 - (nax - 1) / 2) * .42 + (rnd(p * 29 + a2 * 7 + 3) - .5) * .22, 0, p);\n      break;\n    }\n  }\n  // --- root growth ---\n  let alive = 0;\n  for (let k = 0; k < MAXT; k++) {\n    if (!al[k]) continue;\n    alive++;\n    const o = to[k];\n    let d = td[k];\n    // gravitropism (order-graded) + hydrotropism + persistence noise\n    const grav = o === 0 ? .052 : o === 1 ? .0065 : .015;\n    let da = Math.PI / 2 - d; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;\n    d += da * grav;\n    const gx = tx[k] / BW * GW, gy = ty[k] / BH * GH, sd = 2.2 + P.scale * 1.6;\n    const wl = wAt(gx + Math.cos(d - .7) * sd, gy + Math.sin(d - .7) * sd);\n    const wr = wAt(gx + Math.cos(d + .7) * sd, gy + Math.sin(d + .7) * sd);\n    d += (wr - wl) * (.14 + P.energy * .22);\n    d += (rnd(k * 3 + 1) - .5) * (.06 + o * .05 + (1 - P.energy) * .07);\n    td[k] = d;\n    const spd = o === 0 ? 1.25 : o === 1 ? .95 : o === 2 ? .7 : .5;\n    const nx = tx[k] + Math.cos(d) * SP * spd;\n    const ny = ty[k] + Math.sin(d) * SP * spd;\n    if (nx < 3 || nx > BW - 3 || ny > BH - 3 || ny < 1) { al[k] = 0; continue; }\n    const gi = Math.min(GH - 1, Math.max(0, Math.floor(ny / BH * GH))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(nx / BW * GW)));\n    W[gi] = Math.max(0, W[gi] - (.0022 + P.energy * .0034) * (.4 + P.speed * .7));\n    const ww = Math.max(.6, (o === 0 ? 3.4 : o === 1 ? 1.9 : o === 2 ? 1.05 : .7) * (.6 + P.scale * .55) * U);\n    rt.strokeWeight(ww);\n    rt.stroke(0, 0, rootV, o === 0 ? 96 : 84 - o * 8);\n    rt.line(ppx[k], ppy[k], nx, ny);\n    if (o >= 2 && Math.floor(ta[k]) % 3 === 0) {                 // root hairs\n      const hl = (1.6 + rnd(k * 7 + 3) * 2.6) * U, pa = d + (rnd(k * 7 + 4) > .5 ? 1.57 : -1.57);\n      rt.strokeWeight(Math.max(.45, ww * .3)); rt.stroke(0, 0, rootV, 34);\n      rt.line(nx, ny, nx + Math.cos(pa) * hl, ny + Math.sin(pa) * hl);\n    }\n    if (o >= 1 && P.density > .25 && Math.floor(ta[k]) % 11 === 0) {   // mycorrhizal fuzz\n      rt.noStroke(); rt.fill(0, 0, rootV, 7);\n      const fz = (5 + rnd(k * 17 + 5) * 9) * U * (.6 + P.density * .8);\n      rt.ellipse(nx, ny, fz, fz * (.7 + rnd(k * 17 + 6) * .6));\n      rt.noFill();\n    }\n    ppx[k] = nx; ppy[k] = ny; tx[k] = nx; ty[k] = ny; ta[k]++;\n    // lateral branching at a fixed emergence angle from the parent axis\n    if (o < 4 && alive < MAXT - 8 && ta[k] > 10 && rnd(k * 9 + 5) < brP * (.35 + wAt(gx, gy)) * (o === 0 ? 1.6 : .85)) {\n      const side = rnd(k * 11 + 7) > .5 ? 1 : -1;\n      spawnTip(nx, ny, d + side * (o === 0 ? 1.05 + rnd(k * 13) * .4 : .55 + rnd(k * 13) * .5), o + 1, tp[k]);\n    }\n    const maxAge = o === 0 ? 4200 : o === 1 ? 1500 : 620;\n    if (ta[k] > maxAge || wAt(gx, gy) < .035) al[k] = 0;\n  }\n};\n\n// burn-in: arrive already grown\nif (!S.burned) { S.burned = 1; for (let q = 0; q < 300; q++) growStep(); }\ngrowStep();\n\n// ---- moisture wash: wet soil darkens; the wetting front is visible ---------\nwg.loadPixels(); const wp = wg.pixels;\nconst wetK = 52 + P.density * 62;\nfor (let i = 0; i < GW * GH; i++) {\n  const v = 255 - Math.min(1, W[i] * .92) * wetK;\n  const q = 4 * i; wp[q] = v; wp[q + 1] = v * .995; wp[q + 2] = v * (st === 'ink' ? 1 : .96); wp[q + 3] = 255;\n}\nwg.updatePixels();\n\nconst drift = .5 + .5 * Math.sin(K.t * .071 + .55 * Math.sin(K.t * .0263 + 1.2));\nconst expo = 64 + P.energy * 28 + K.intensity * 7 + A.rms * 16 + drift * 8;\npush();\ntint(P.hue + hOff, tSat, Math.min(100, expo + 22), P.alpha);\nimage(rt, 0, 0, width, height);\nblendMode(MULTIPLY);\ntint(0, 0, 100, P.alpha);\nimage(wg, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

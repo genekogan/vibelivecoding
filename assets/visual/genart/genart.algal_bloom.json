@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.algal_bloom",
+  "kind": "genart",
+  "name": "Algal Bloom",
+  "desc": "Filamentous green algae blooming and crashing in a lit water column \u2014 unbranched Spirogyra threads elongate by intercalary division with helical chloroplast ribbons winding inside their sheaths, trapped oxygen rafts the tangled mats toward the surface, then the nutrients run out, the filaments go yellow, fragment and sink as detritus that remineralises and starts the whole cycle again.",
+  "tags": [
+    "algae",
+    "alga",
+    "algal",
+    "bloom",
+    "filament",
+    "filamentous",
+    "spirogyra",
+    "chloroplast",
+    "helix",
+    "pond",
+    "water",
+    "aquatic",
+    "eutrophication",
+    "plankton",
+    "microscopy",
+    "bright-field",
+    "dark-field",
+    "specimen",
+    "slide",
+    "cyanotype",
+    "atkins",
+    "ink-wash",
+    "botanical",
+    "botany",
+    "growth",
+    "population",
+    "boom-bust",
+    "crash",
+    "detritus",
+    "bubbles",
+    "buoyancy",
+    "green",
+    "teal",
+    "underwater",
+    "depth",
+    "organic",
+    "process",
+    "emergence",
+    "decay",
+    "clinical",
+    "eerie",
+    "nature"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "current/stir amplitude + how fast the bloom-crash cycle runs"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "size of the filament population at full bloom (4 at 0 -> 40 at 1)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "magnification \u2014 0.35 is a wide low-power field, 2.2 is oil immersion"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "drift + growth + cycle rate multiplier"
+    },
+    "hue": {
+      "default": 96,
+      "min": 0,
+      "max": 360,
+      "doc": "healthy chloroplast hue (starvation always drifts it toward yellow)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field centre across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field centre down the water column"
+    },
+    "tangle": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the shear tangles the filaments \u2014 straight threads at 0, a matted raft at 1"
+    },
+    "style": {
+      "default": "microscopy",
+      "options": [
+        "microscopy",
+        "darkfield",
+        "cyanotype",
+        "ink_wash"
+      ],
+      "doc": "aesthetic \u2014 wet bright-field on a lit column; additive dark-field where only the specimen glows; Atkins algae photogram on Prussian blue; sumi tonal wash on paper"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds filament placement, depth planes, helix handedness and buoyancy"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the algae over the water column"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:51+00:00",
+    "fps": 59.2,
+    "motion": 0.0049,
+    "lum": 0.414
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:96, x:.5, y:.5, tangle:.55, style:'microscopy', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.35,2.2);\nconst TG = cl(P.tangle,0,1), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\n// slow current, incommensurate \u2014 the water is never still\nconst cur = .9*Math.sin(T*.31) + .5*Math.sin(T*.73+1.7) + .3*Math.sin(T*1.19);\nconst stir = (.3 + .9*EN)*cur + A.lowmid*.7 + K.pulse*.16*K.intensity;\n\n// ---- the bloom/crash nutrient cycle \u2014 the piece's whole dramaturgy (~80s) -\n// nutrients -> exponential bloom -> exhaustion -> starve -> sink as detritus ->\n// the detritus remineralises -> nutrients return -> bloom again. Never converges.\nif (S.nut == null) { S.nut = .5; S.pop = .5; }\nconst d0 = dt*SP;\nconst GR = .09*(.6 + .7*EN);                               // uptake per second\nconst upt = S.pop*S.nut*GR*d0;\nconst die = .10*S.pop*(1.15 - S.nut)*d0;\nS.pop = cl(S.pop + upt*1.5*(1 - S.pop) - die, .02, 1);\nS.nut = cl(S.nut - upt + die*.35 + (.05 + .012*Math.sin(T*.023))*(1 - S.nut)*d0, 0, 1);\nconst bloom = S.pop;                                       // 0.02 crashed .. 1 peak bloom\nconst health = cl(S.nut*2.4, .05, 1);                      // starving filaments go pale/yellow\nconst crash = 1 - health;\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet mode;\nif (sty === 'darkfield') mode = 1; else if (sty === 'cyanotype') mode = 2;\nelse if (sty === 'ink_wash') mode = 3; else mode = 0;\n\n// ---- water column ground -------------------------------------------------\nconst bgKey = [width,height,sd,sty,H].join('|');\nif (!S.g || S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const bw = Math.min(560, Math.max(220, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke();\n  for (let y=0;y<bh;y++){ const v = y/bh;                   // light attenuates with depth\n    if (mode === 2) g.fill(214, 84 - v*8, 34 - v*13);\n    else if (mode === 3) g.fill(40, 9 + v*5, 78 - v*22);\n    else if (mode === 1) g.fill(188 + v*8, 62 - v*10, 17 - v*7);\n    else g.fill(H + 62 - v*10, 26 + v*12, 62 - v*24);\n    g.rect(0, y, bw, 1.2); }\n  for (let i=0;i<2200;i++){ g.fill(0, 0, mode===0||mode===3 ? 30 : 90, 5 + fr(i*3.9)*8);\n    g.rect(fr(i*2.7)*bw, fr(i*6.3+2)*bh, 1.5, 1.5); }\n  const dc = g.drawingContext;\n  const rg = dc.createRadialGradient(bw*.5, bh*.06, bw*.02, bw*.5, bh*.5, bw*.95);\n  rg.addColorStop(0, mode===3 ? 'rgba(255,255,255,0.22)' : 'rgba(210,255,235,0.16)');\n  rg.addColorStop(1, 'rgba(0,0,0,0)'); dc.fillStyle = rg; dc.fillRect(0, 0, bw, bh);\n  const vg = dc.createRadialGradient(bw*.5, bh*.5, bw*.14, bw*.5, bh*.5, bw*.84);\n  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.38)');\n  dc.fillStyle = vg; dc.fillRect(0, 0, bw, bh);\n  g.pop();\n}\n\n// ---- filament pool -------------------------------------------------------\nconst NMAX = 40;\nconst reseed = (f, i) => {\n  const j = i*17.3 + (f.gen = (f.gen||0)+1)*23.9;\n  f.x = fr(j*1.3)*1.2 - .1; f.y = fr(j*2.7)*1.25 - .12;\n  f.len = .5 + fr(j*3.1)*.55;                              // relative to its full length\n  f.z = fr(j*4.3);                                          // depth plane -> blur/attenuation\n  f.ph = fr(j*5.9)*6.28;\n  f.wig = .55 + fr(j*6.1)*.9;\n  f.chir = fr(j*7.7) < .5 ? 1 : -1;                        // chloroplast helix handedness\n  f.hj = (fr(j*8.3)-.5)*26;\n  f.buoy = fr(j*9.1);                                       // trapped O2 -> this one rafts up\n  f.frag = 0; f.born = T;\n};\nif (!S.fil || S.fil.length !== NMAX || S.seedUsed !== sd) {\n  S.seedUsed = sd; S.fil = [];\n  for (let i=0;i<NMAX;i++){ const f = {}; reseed(f, i); f.born = T - fr(i*13.7)*40; S.fil.push(f); }\n}\n// filaments elongate by intercalary division while the bloom is on, fragment when it crashes\nfor (let i=0;i<NMAX;i++) {\n  const f = S.fil[i];\n  f.len = cl(f.len + dt*SP*(.028*health*(.5+.7*EN) - .05*crash*crash), .06, 1.25);\n  f.y -= dt*SP*(.006 + .03*f.buoy*bloom*health);           // O2 bubbles raft the mat to the surface\n  f.y += dt*SP*.05*crash*crash*(1 - f.buoy*.6);            // dead filaments sink as detritus\n  if (f.len <= .07 || f.y > 1.3 || f.y < -.25) reseed(f, i);\n}\n\n// ---- draw ----------------------------------------------------------------\nimage(S.g, 0, 0, width, height);\nconst active = (4 + DN*36)*(.35 + .65*bloom);              // recruitment ramps with the bloom\nconst nDraw = Math.min(NMAX, Math.ceil(active));\nif (mode === 1) blendMode(ADD);\nstrokeCap(ROUND); strokeJoin(ROUND); noFill();\nconst NV = 22;\n\nfor (let n=0;n<nDraw && n<NMAX;n++) {\n  const f = S.fil[n];\n  const av = cl(active - n, 0, 1);                          // the boundary filament fades in\n  if (av <= .01) continue;\n  const dep = .35 + .65*f.z;                               // near plane = big, crisp, saturated\n  const L = u*.42*SC*f.len*dep;\n  const bx = (f.x + (P.x-.5)*.5)*width, by = (f.y + (P.y-.5)*.5)*height;\n  const ang = f.ph*.7 + Math.sin(T*.13 + f.ph)*.5 + stir*.12;\n  const hh = ((P.hue + f.hj + crash*34) % 360 + 360) % 360;\n  const ss = (62 - crash*40)*(.55 + .45*f.z);\n  const bb = (30 + 34*f.z)*(1 - crash*.25) + crash*24;\n  const wid = u*.011*SC*dep*(.6 + .5*health);\n  const xs = [], ys = [];\n  for (let q=0;q<=NV;q++) {\n    const s = q/NV;\n    // an unbranched filament, tangled by the local shear\n    const tw = TG*2.4*(1 + f.wig);\n    const a2 = ang + Math.sin(s*tw + f.ph + T*.21)*1.25*TG + Math.sin(s*tw*2.3 + f.ph*1.7)*.5*TG;\n    const px2 = Math.cos(a2), py2 = Math.sin(a2);\n    const drift = Math.sin(T*(.83 + f.wig*.4) + s*3.1 + f.ph)*u*.012*(.4 + EN)*dep\n                + stir*u*.016*dep*(.3 + s*.7);\n    xs.push(bx + (s - .5)*L*px2*1.0 + drift);\n    ys.push(by + (s - .5)*L*py2*.9 + Math.cos(T*.67 + s*2.3 + f.ph)*u*.008*(.4+EN)*dep);\n  }\n  const alF = AL*av*(mode===1 ? (.24 + .5*f.z) : (.5 + .5*f.z))*(.5 + .5*health);\n  // sheath\n  if (mode === 2) stroke(214, 22 - f.z*14, 88 + f.z*10, 86*alF);\n  else if (mode === 3) stroke(32, 12, 30 + (1-f.z)*30, 70*alF);\n  else if (mode === 1) stroke(hh, ss*.9, bb + 34, 40*alF);\n  else stroke(hh, ss*.5, bb + 32, 74*alF);\n  strokeWeight(wid);\n  beginShape(); for (let q=0;q<=NV;q++) vertex(xs[q], ys[q]); endShape();\n  // helical chloroplast ribbon \u2014 the Spirogyra tell\n  if (f.z > .18 || nDraw < 14) {\n    if (mode === 2) stroke(214, 46, 60, 62*alF);\n    else if (mode === 3) stroke(30, 18, 22, 62*alF);\n    else stroke(hh, ss + 16, bb*(mode===1 ? 1.5 : .78), (mode===1?52:82)*alF);\n    strokeWeight(wid*.34);\n    beginShape();\n    for (let q=0;q<=NV*2;q++) {\n      const s = q/(NV*2), i2 = Math.min(NV, Math.round(s*NV));\n      const i3 = Math.min(NV, i2+1);\n      const dx = xs[i3]-xs[i2], dy = ys[i3]-ys[i2], dl = Math.max(1e-4, Math.hypot(dx,dy));\n      const nx = -dy/dl, ny = dx/dl;\n      const hel = Math.sin(s*38*f.chir + f.ph*2 + T*.09)*wid*.42*health;\n      vertex(xs[i2] + nx*hel, ys[i2] + ny*hel);\n    }\n    endShape();\n    // cross-walls: the cells the filament is built from\n    if (f.z > .5 && nDraw < 26) {\n      strokeWeight(wid*.2);\n      if (mode === 2) stroke(214, 40, 52, 40*alF); else stroke(hh, ss*.5, bb*.5 + 10, 40*alF);\n      for (let q=2;q<NV;q+=3) {\n        const dx = xs[q+1]-xs[q], dy = ys[q+1]-ys[q], dl = Math.max(1e-4, Math.hypot(dx,dy));\n        const nx = -dy/dl, ny = dx/dl;\n        line(xs[q] - nx*wid*.45, ys[q] - ny*wid*.45, xs[q] + nx*wid*.45, ys[q] + ny*wid*.45);\n      }\n    }\n  }\n}\n// ---- trapped oxygen: the bubbles that float the mat -----------------------\nconst nB = Math.round((6 + DN*26)*bloom*health);\nnoStroke();\nfor (let k=0;k<nB;k++) {\n  const ph = fr(k*3.7)*6.28;\n  const rise = ((T*(.035 + fr(k*5.1)*.05) + fr(k*7.3)) % 1);\n  const bx = (fr(k*2.1)*1.05 - .02 + Math.sin(T*.7 + ph)*.02 + stir*.012)*width;\n  const by = (1.05 - rise*1.1)*height;\n  const r = u*.006*SC*(.4 + fr(k*9.7)*1.1);\n  if (mode === 2) fill(214, 10, 96, 34*AL);\n  else if (mode === 3) fill(34, 6, 92, 30*AL);\n  else fill(H + 40, 14, 92, (mode===1?26:34)*AL);\n  ellipse(bx, by, r*2, r*2*(.85 + .3*Math.sin(T*3.1 + ph)));\n}\n// ---- detritus rain during the crash ---------------------------------------\nconst nD = Math.round(30*crash*crash*(.4 + DN));\nfor (let k=0;k<nD;k++) {\n  const ph = fr(k*11.1 + 3)*6.28;\n  const fallv = ((T*.028 + fr(k*4.9)) % 1);\n  const dx2 = (fr(k*6.7)*1.04 - .02 + Math.sin(T*.41 + ph)*.03 + stir*.02)*width;\n  const dy2 = (fallv*1.1 - .05)*height;\n  if (mode === 2) fill(216, 46, 52, 30*AL); else if (mode === 3) fill(32, 16, 40, 30*AL);\n  else fill(44, 40, mode===1 ? 40 : 46, 34*AL);\n  ellipse(dx2, dy2, u*.004*SC, u*.0065*SC);\n}\nblendMode(BLEND);"
+}
