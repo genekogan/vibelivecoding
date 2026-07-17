@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.ripples",
+  "kind": "fx",
+  "name": "Ripples",
+  "desc": "Concentric ripple rings spreading on a dark water surface \u2014 raindrops and beat-driven splashes nucleate expanding rings that overlap and fade, over a slow glinting specular sheen like moonlight on the water; turns any scene into a reflection on a pond.",
+  "tags": [
+    "ripples",
+    "ripple",
+    "rings",
+    "concentric",
+    "water",
+    "surface",
+    "pond",
+    "pool",
+    "lake",
+    "rain",
+    "raindrops",
+    "droplets",
+    "splash",
+    "interference",
+    "reflection",
+    "sheen",
+    "specular",
+    "glint",
+    "moonlight",
+    "moonlit",
+    "still-water",
+    "waterscape",
+    "oil-slick",
+    "calm",
+    "meditative",
+    "reflective",
+    "blue",
+    "silver",
+    "overlay",
+    "atmosphere",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "raindrop / ring spawn rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ring brightness + sheen intensity"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "ring + water hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "ring expansion + sheen drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "ring size / spacing"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rain centre bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rain centre bias y"
+    },
+    "sheen": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "specular water-glint strength"
+    },
+    "spread": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how far drops scatter across the frame"
+    },
+    "style": {
+      "default": "moonlit",
+      "options": [
+        "moonlit",
+        "pond",
+        "ink",
+        "oil"
+      ],
+      "doc": "moonlit=silver-blue on dark water / pond=grey daylight / ink=black water, white sumi rings / oil=iridescent oil-slick sheen"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:04+00:00",
+    "fps": 59.9,
+    "motion": 0.0804,
+    "lum": 0.137
+  },
+  "code": "const D = { density:.5, energy:.6, hue:205, speed:1, scale:1, x:.5, y:.5, sheen:.6, spread:.6, style:'moonlit', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\n// water sheen field (broad area element)\nconst BW=Math.max(400,Math.min(700,Math.round(width/2.6))), BH=Math.max(140,Math.round(BW*height/width));\nif(!S.g||S.bw!==BW||S.bh!==BH){ S.g=createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1); S.drops=[]; S.next=0;\n}\nconst sd=P.seed|0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; }\nfunction fbm(x,y){ return 0.6*vn(x,y)+0.3*vn(x*2.03+5.1,y*2.03-3.2)+0.15*vn(x*4.1-2.3,y*4.1+7.7); }\nfunction frnd(){ S.next=(S.next*1103515245+12345)&0x7fffffff; return S.next/0x7fffffff; }\n\nconst t=K.t;\nconst style=P.style;\nconst wc = style==='pond'?[0.10,0.13,0.15] : style==='ink'?[0.02,0.02,0.03] : style==='oil'?[0.05,0.04,0.10] : [0.03,0.06,0.13];\nconst gl = style==='pond'?[0.7,0.75,0.8] : style==='ink'?[1,1,1] : style==='oil'?[1.0,0.7,1.0] : [0.75,0.85,1.0];\nconst sst=(0.15+P.sheen*0.7)*(0.7+K.intensity*0.4);\nconst gg=S.g; gg.loadPixels(); const px=gg.pixels;\nfor(let j=0;j<BH;j++){ const yy=j/BH;\n  for(let i=0;i<BW;i++){ const xx=i/BW;\n    // slow glinting sheen (like moonlight streaking on water) \u2014 perpetual drift\n    const f=fbm(xx*3.0 + t*0.05, yy*5.0 - t*0.09 + S.hoff*6);\n    const glint=Math.pow(Math.max(0,f-0.42)*1.9,2.2);\n    let R=wc[0]+gl[0]*glint*sst, G=wc[1]+gl[1]*glint*sst, B=wc[2]+gl[2]*glint*sst;\n    if(style==='oil'){ const irid=0.5+0.5*Math.sin(f*12+xx*6); R+=irid*glint*sst*0.3; B+=(1-irid)*glint*sst*0.3; }\n    const o=4*(j*BW+i); px[o]=Math.min(255,R*255); px[o+1]=Math.min(255,G*255); px[o+2]=Math.min(255,B*255); px[o+3]=255;\n  }}\ngg.updatePixels();\npush(); if(P.alpha<100) tint(0,0,100,P.alpha); image(gg,0,0,width,height); pop();\n\n// --- spawn drops (rain) + big splash on pulse ---\nconst rate=(0.4+P.density*2.5)*(0.6+P.speed*0.6);\nif(!S.acc) S.acc=0; S.acc+= rate*0.06;\nwhile(S.acc>1){ S.acc-=1;\n  const px0=(0.5+(P.x-0.5)*0.6) + (frnd()-0.5)*P.spread*1.4;\n  const py0=(0.5+(P.y-0.5)*0.6) + (frnd()-0.5)*P.spread*1.0;\n  S.drops.push({x:px0,y:py0,t0:t,big:0.5+frnd()*0.6});\n}\nif(S.lastPulse==null||K.beat<S.lastPulse) S.lastPulse=K.beat;\nif(K.beat-S.lastPulse>=1){ S.lastPulse=Math.floor(K.beat);\n  S.drops.push({x:0.3+frnd()*0.4,y:0.3+frnd()*0.4,t0:t,big:1.4+frnd()*0.6});\n}\nif(S.drops.length>60) S.drops.splice(0,S.drops.length-60);\n\n// --- draw expanding concentric rings ---\npush(); blendMode(ADD); noFill();\nconst life=2.4+P.scale*2.2, cspd=u*(0.10+P.scale*0.14);\nfor(let d=S.drops.length-1; d>=0; d--){ const dr=S.drops[d]; const age=t-dr.t0;\n  if(age>life){ S.drops.splice(d,1); continue; }\n  const cxp=dr.x*width, cyp=dr.y*height;\n  const decay=1-age/life;\n  for(let ring=0; ring<3; ring++){\n    const rad=(age*cspd - ring*u*0.03*dr.big);\n    if(rad<=0) continue;\n    const amp=decay*Math.exp(-ring*0.5)*(0.5+P.energy*0.8)*dr.big;\n    const w=Math.max(1, u*0.004*(0.5+ring*0.4));\n    strokeWeight(w);\n    const rh=(style==='oil')?(200+age*50)%360:P.hue%360;\n    stroke(rh, style==='ink'?0:55, 100, Math.min(90, 60*amp));\n    ellipse(cxp,cyp, rad*2, rad*2*0.9);\n  }\n}\nblendMode(BLEND); pop();\n"
+}

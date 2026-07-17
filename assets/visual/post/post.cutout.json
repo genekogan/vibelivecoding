@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.cutout",
+  "kind": "post",
+  "name": "Paper Cut-out",
+  "desc": "The scene is rebuilt in torn coloured paper \u2014 layered organic cut-outs, each floating on its own soft drop-shadow so the picture reads as stacked collage, the whole matte drifting as a slow studio light rotates the shadows.",
+  "tags": [
+    "cutout",
+    "cut-out",
+    "paper-cut",
+    "papercut",
+    "collage",
+    "decoupage",
+    "kirigami",
+    "applique",
+    "matisse",
+    "gouaches-decoupees",
+    "construction-paper",
+    "craft-paper",
+    "kraft",
+    "scrapbook",
+    "torn-paper",
+    "deckle",
+    "layered",
+    "layers",
+    "stacked",
+    "depth",
+    "parallax",
+    "drop-shadow",
+    "cast-shadow",
+    "matte",
+    "montage",
+    "organic",
+    "biomorphic",
+    "blob",
+    "leaf",
+    "shapes",
+    "segments",
+    "botanical",
+    "childlike-but-refined",
+    "graphic",
+    "poster",
+    "design",
+    "overlay",
+    "post",
+    "pass",
+    "finish",
+    "re-render",
+    "texture",
+    "material",
+    "tactile",
+    "playful",
+    "bold",
+    "serene",
+    "warm"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "alpha": {
+      "default": 0.95,
+      "min": 0,
+      "max": 1
+    },
+    "depth": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1
+    },
+    "style": {
+      "default": "matisse",
+      "options": [
+        "matisse",
+        "kraft",
+        "kirigami",
+        "collage",
+        "botanical"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:48:17+00:00",
+    "fps": 61.7,
+    "motion": 0.037,
+    "lum": 0.501
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, hue:210, speed:1, x:.5, y:.5, alpha:.95, depth:.6, style:'matisse', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst t = K.t;\nconst drift = 0.9*Math.sin(t*0.61) + 0.5*Math.sin(t*1.43+1.7) + 0.32*Math.sin(t*2.29);\nconst swell = (K.swell!=null ? K.swell : 0.5+0.5*Math.sin(t*0.4));\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\n// paper palettes (HSB): return [h,s,b] for shape index\nfunction paper(i){\n  const r = fr(i*9+5), r2 = fr(i*9+6);\n  if (st==='kraft'){ const set=[[34,42,70],[28,55,58],[70,32,52],[14,58,60],[40,18,86],[30,12,26]]; return set[(r*set.length)|0]; }\n  if (st==='kirigami'){ return [ (P.hue+ (r-0.5)*20+360)%360, 6+8*r2, 90-14*r ]; }\n  if (st==='collage'){ return [ (r*360)|0, 22+30*r2, 55+30*r2 ]; }\n  if (st==='botanical'){ const g=[[120,55,48],[95,60,42],[142,48,58],[70,50,55],[40,60,72],[330,52,72]]; return g[(r*g.length)|0]; }\n  const set=[[P.hue,80,80],[(P.hue+150)%360,78,72],[(P.hue+40)%360,85,88],[(P.hue+300)%360,70,74],[20,80,78],[0,0,12]]; // matisse\n  return set[(r*set.length)|0];\n}\nconst ground = st==='kraft'?[36,26,80]: st==='kirigami'?[210,8,90]: st==='botanical'?[42,20,88]: st==='collage'?[40,10,82] : [P.hue,24,86];\n\n// build shapes cache\nconst bkey = P.seed+'|'+st+'|'+Math.round(P.density*20)+'|'+Math.round(P.hue)+'|'+Math.round(P.scale*10);\nif (!S.shapes || S.skey !== bkey){\n  S.skey = bkey;\n  const M = Math.round(7 + 30*P.density);\n  const arr = [];\n  for (let i=0;i<M;i++){\n    const np = 7 + (fr(i*4+1)*7|0);\n    const wob = [];\n    for (let a=0;a<np;a++) wob.push(0.62 + 0.5*fr(i*40+a));\n    arr.push({\n      bx: fr(i*4+2), by: fr(i*4+3),\n      r: (0.09 + 0.2*fr(i*4+4)) * P.scale,\n      col: paper(i),\n      leaf: fr(i*4+7) > 0.62,\n      rot0: fr(i*4+5)*Math.PI*2,\n      orb: 0.02+0.05*fr(i*4+6),\n      oph: fr(i*4+8)*6.283,\n      z: i/M, np, wob\n    });\n  }\n  arr.sort((a,b)=>a.r-b.r);   // big first (back), small last (front)\n  S.shapes = arr.reverse();\n}\n\nfunction blob(cx, cy, r, rot, np, wob){\n  beginShape();\n  const aa0 = rot + (np-1)/np*Math.PI*2, rr0=r*wob[np-1];\n  curveVertex(cx+Math.cos(aa0)*rr0, cy+Math.sin(aa0)*rr0);\n  for (let a=0;a<np;a++){\n    const aa = rot + a/np*Math.PI*2;\n    const rr = r*wob[a];\n    curveVertex(cx+Math.cos(aa)*rr, cy+Math.sin(aa)*rr);\n  }\n  for (let a=0;a<2;a++){ const aa=rot+a/np*Math.PI*2, rr=r*wob[a]; curveVertex(cx+Math.cos(aa)*rr, cy+Math.sin(aa)*rr); }\n  endShape(CLOSE);\n}\n\nconst lightAng = 0.9 + t*0.02*P.speed + 0.25*drift;   // slow light-direction rotation\nconst ldx = Math.cos(lightAng), ldy = Math.sin(lightAng);\nconst off = u*(0.012 + 0.05*P.depth);\n\npush();\n// paper ground\nblendMode(BLEND); noStroke();\nfill(ground[0], ground[1], ground[2], 100*P.alpha);\nrect(0,0,width,height);\n\nfor (const s of S.shapes){\n  const ph = t*s.orb*P.speed + s.oph;\n  const cx = width*(0.08 + 0.84*s.bx) + Math.cos(ph)*width*0.03*(0.4+s.z) + 0.01*drift*width;\n  const cy = height*(0.1 + 0.8*s.by) + Math.sin(ph*1.3)*height*0.03*(0.4+s.z);\n  const rot = s.rot0 + t*0.01*(s.leaf?1:0.4)*P.speed;\n  const r = u*s.r*(1 + 0.03*Math.sin(t*0.3+s.oph));\n  const zoff = off*(0.5 + s.z);   // nearer shapes cast longer shadows\n  // fake-blurred drop shadow: 3 offset dark copies\n  for (let k=3;k>=1;k--){\n    const o = zoff*k*0.9;\n    fill(ground[0], Math.min(60,ground[1]+20), ground[2]*(0.28), (10+22*P.energy)*P.alpha*(1.1-k*0.22));\n    blob(cx+ldx*o, cy+ldy*o, r, rot, s.np, s.wob);\n  }\n  // paper body (opaque)\n  fill(s.col[0], s.col[1], s.col[2], 100*P.alpha);\n  blob(cx, cy, r, rot, s.np, s.wob);\n  // subtle raking sheen on the lit edge (ADD, thin)\n  blendMode(ADD);\n  noFill(); stroke(s.col[0], s.col[1]*0.5, 100, (18+26*P.energy)*P.alpha*(0.6+0.4*swell)); strokeWeight(Math.max(1, r*0.04));\n  push(); translate(-ldx*r*0.04,-ldy*r*0.04); blob(cx, cy, r*0.97, rot, s.np, s.wob); pop();\n  noStroke(); blendMode(BLEND);\n}\n\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

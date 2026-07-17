@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.projection_morph",
+  "kind": "genart",
+  "name": "Projection Morph",
+  "desc": "The whole world endlessly reshaping itself as it morphs between map projections \u2014 a filled continents-and-ocean globe that unrolls from a sphere into Mercator, folds into an elliptical Mollweide and Hammer, splays into a sinusoidal, then balls back up and spins, its graticule of meridians and parallels flexing through every seam.",
+  "tags": [
+    "map",
+    "world-map",
+    "projection",
+    "map-projection",
+    "cartography",
+    "atlas",
+    "mercator",
+    "mollweide",
+    "hammer",
+    "sinusoidal",
+    "orthographic",
+    "globe",
+    "graticule",
+    "meridian",
+    "parallel",
+    "latitude",
+    "longitude",
+    "continents",
+    "coastline",
+    "geography",
+    "morph",
+    "unroll",
+    "tissot",
+    "survey",
+    "blueprint",
+    "thermal",
+    "antique",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 1.9,
+      "doc": "globe/map size vs frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "graticule brightness + glow + morph drive"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "ocean hue (atlas style)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "morph rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grid cell resolution"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "land": {
+      "default": 0.55,
+      "min": 0.25,
+      "max": 0.8,
+      "doc": "land fraction / sea level"
+    },
+    "spin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe rotation rate in ortho phase"
+    },
+    "style": {
+      "default": "atlas",
+      "options": [
+        "atlas",
+        "blueprint",
+        "thermal",
+        "ink",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "continent arrangement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:23+00:00",
+    "fps": 59.5,
+    "motion": 0.016,
+    "lum": 0.469
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 205, speed: 1, density: .5, x: .5, y: .5, style: 'atlas', seed: 0, land: .55, spin: .5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2, HALF = Math.PI / 2;\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = width * 0.47 * P.scale;\nconst NLON = 36 + Math.round(P.density * 36);\nconst NLAT = Math.round(NLON / 2);\n\n// ---- seeded continents (rebuild on seed/grid change) ----\nconst h2 = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7 + P.seed * 74.72) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const uu = xf * xf * (3 - 2 * xf), vv = yf * yf * (3 - 2 * yf);\n  const a = h2(xi, yi), b = h2(xi + 1, yi), c = h2(xi, yi + 1), d = h2(xi + 1, yi + 1);\n  return a * (1 - uu) * (1 - vv) + b * uu * (1 - vv) + c * (1 - uu) * vv + d * uu * vv; };\nconst fbm = (x, y) => { let f = 0, amp = .5, fq = 1; for (let o = 0; o < 4; o++) { f += amp * vn(x * fq, y * fq); fq *= 2; amp *= .5; } return f; };\n\nif (S.seed !== P.seed || S.nl !== NLON || S.land !== P.land) {\n  S.seed = P.seed; S.nl = NLON; S.land = P.land;\n  S.elev = new Float32Array((NLON + 1) * (NLAT + 1));\n  const sea = 0.50;\n  for (let j = 0; j <= NLAT; j++) for (let i = 0; i <= NLON; i++) {\n    const lonN = i / NLON, latN = j / NLAT;\n    let e = fbm(lonN * 3.7 + 0.5, latN * 3.2 + 0.5);\n    // taper toward poles a touch so caps read as land/ice\n    const pole = Math.abs(latN - 0.5) * 2; e += (pole - 0.55) * 0.18;\n    S.elev[j * (NLON + 1) + i] = e - sea + (P.land - 0.55) * 0.28;\n  }\n  S.px = new Float32Array((NLON + 1) * (NLAT + 1));\n  S.py = new Float32Array((NLON + 1) * (NLAT + 1));\n  S.pv = new Float32Array((NLON + 1) * (NLAT + 1));\n}\n\n// ---- projections: return normalized (nx,ny) in ~[-1,1]x[-.5,.5]; vis 0..1 ----\nconst tilt = 0.24;\nfunction proj(kind, lat, lon, lam0) {\n  let nx = 0, ny = 0, vis = 1;\n  if (kind === 0) { nx = lon / Math.PI; ny = lat / Math.PI; }\n  else if (kind === 1) { // mercator (clamped)\n    nx = lon / Math.PI;\n    const cl = Math.max(-1.36, Math.min(1.36, lat));\n    ny = Math.log(Math.tan(Math.PI / 4 + cl / 2)) / Math.PI;\n    vis = Math.abs(lat) > 1.37 ? 0 : 1;\n  } else if (kind === 2) { // mollweide\n    let th = lat; for (let k = 0; k < 5; k++) { const den = 2 + 2 * Math.cos(2 * th) || 1e-3; th -= (2 * th + Math.sin(2 * th) - Math.PI * Math.sin(lat)) / den; }\n    nx = lon * Math.cos(th) / Math.PI; ny = Math.sin(th) / 2;\n  } else if (kind === 3) { // hammer\n    const z = Math.sqrt(1 + Math.cos(lat) * Math.cos(lon / 2)) || 1e-3;\n    nx = Math.cos(lat) * Math.sin(lon / 2) / z; ny = Math.sin(lat) / z / 2;\n  } else if (kind === 4) { // sinusoidal\n    nx = lon * Math.cos(lat) / Math.PI; ny = lat / Math.PI;\n  } else { // ortho (globe), rotating lam0, tilted phi0\n    const dl = lon - lam0, sp = Math.sin(tilt), cp = Math.cos(tilt);\n    const cc = sp * Math.sin(lat) + cp * Math.cos(lat) * Math.cos(dl);\n    nx = 0.9 * Math.cos(lat) * Math.sin(dl);\n    ny = 0.9 * (cp * Math.sin(lat) - sp * Math.cos(lat) * Math.cos(dl));\n    vis = cc > 0.02 ? Math.min(1, cc * 6) : 0;\n  }\n  return [nx, ny, vis];\n}\n\nconst drift = 0.9 * Math.sin(K.t * 0.061) + 0.4 * Math.sin(K.t * 0.143 + 1.7);\nconst kinds = [0, 1, 2, 3, 5, 4]; // equirect, mercator, mollweide, hammer, ortho, sinusoidal\nconst nK = kinds.length;\nconst phase = K.t * (0.05 * P.speed) + drift * 0.05 + K.swell * 0.1 + A.bass * 0.15;\nlet seg = Math.floor(phase) % nK; if (seg < 0) seg += nK;\nlet mf = phase - Math.floor(phase);\nconst m = mf * mf * (3 - 2 * mf); // ease\nconst kA = kinds[seg], kB = kinds[(seg + 1) % nK];\nconst lam0 = K.t * (0.12 + P.spin * 0.28) + 0.6 * Math.sin(K.t * 0.05);\n\n// ---- palettes ----\nconst st = P.style;\nfunction pal() {\n  if (st === 'blueprint') return { bg: [215, 65, 12], sea: [205, 55, 26], seaHi: [200, 45, 40], land: [205, 40, 34], landHi: [200, 30, 52], grat: [190, 30, 92], major: [185, 45, 100], ice: [200, 15, 78], txt: [190, 25, 88], line: 0 };\n  if (st === 'thermal') return { bg: [235, 40, 8], sea: [230, 70, 30], seaHi: [200, 65, 52], land: [110, 55, 55], landHi: [45, 80, 88], grat: [230, 20, 70], major: [30, 30, 96], ice: [40, 8, 96], txt: [230, 20, 78], line: 0 };\n  if (st === 'ink') return { bg: [38, 22, 82], sea: [40, 16, 74], seaHi: [42, 14, 84], land: [36, 26, 62], landHi: [34, 30, 50], grat: [30, 30, 26], major: [28, 40, 16], ice: [40, 8, 90], txt: [28, 40, 20], line: 1 };\n  if (st === 'noir') return { bg: [220, 30, 8], sea: [215, 40, 16], seaHi: [205, 35, 28], land: [220, 20, 24], landHi: [210, 18, 38], grat: [200, 15, 58], major: [195, 25, 82], ice: [205, 10, 60], txt: [200, 15, 62], line: 0 };\n  // atlas (anchor)\n  return { bg: [38, 30, 40], sea: [P.hue, 46, 54], seaHi: [P.hue - 8, 40, 70], land: [70, 42, 60], landHi: [42, 46, 74], grat: [40, 20, 92], major: [30, 45, 100], ice: [45, 10, 94], txt: [30, 40, 82], line: 1 };\n}\nconst C = pal();\n\n// ---- background plate ----\nnoStroke();\nfor (let r = 0; r < 5; r++) { const t = r / 4; fill(C.bg[0], C.bg[1], C.bg[2] * (1 - t * 0.5), 100); rect(0, 0, width, height * (1 - t) ); }\nfill(C.bg[0], C.bg[1], C.bg[2]); rect(0, 0, width, height);\n\nfunction projPt(lat, lon) { const a = proj(kA, lat, lon, lam0), b = proj(kB, lat, lon, lam0); return [cx + (a[0] * (1 - m) + b[0] * m) * R, cy - (a[1] * (1 - m) + b[1] * m) * R, a[2] * (1 - m) + b[2] * m]; }\n\n// project all grid vertices once\nconst W1 = NLON + 1;\nfor (let j = 0; j <= NLAT; j++) { const lat = (j / NLAT - 0.5) * Math.PI * 0.998; for (let i = 0; i <= NLON; i++) { const lon = (i / NLON - 0.5) * TAU; const p = projPt(lat, lon); const id = j * W1 + i; S.px[id] = p[0]; S.py[id] = p[1]; S.pv[id] = p[2]; } }\n\n// ---- fill cells ----\nconst eg = P.energy;\nstrokeJoin(ROUND);\nfor (let j = 0; j < NLAT; j++) for (let i = 0; i < NLON; i++) {\n  const i00 = j * W1 + i, i10 = i00 + 1, i01 = i00 + W1, i11 = i01 + 1;\n  const v = (S.pv[i00] + S.pv[i10] + S.pv[i01] + S.pv[i11]) * 0.25;\n  if (v < 0.03) continue;\n  const e = (S.elev[i00] + S.elev[i10] + S.elev[i01] + S.elev[i11]) * 0.25;\n  const latN = (j + 0.5) / NLAT, pole = Math.abs(latN - 0.5) * 2;\n  let col;\n  if (e < 0) { const d = Math.min(1, -e / 0.35); col = [C.sea[0] + (C.seaHi[0] - C.sea[0]) * (1 - d), C.sea[1] + (C.seaHi[1] - C.sea[1]) * (1 - d), C.seaHi[2] + (C.sea[2] - C.seaHi[2]) * d]; }\n  else { const hgt = Math.min(1, e / 0.3); col = [C.land[0] + (C.landHi[0] - C.land[0]) * hgt, C.land[1] + (C.landHi[1] - C.land[1]) * hgt, C.land[2] + (C.landHi[2] - C.land[2]) * hgt]; }\n  if (pole > 0.82 && e > -0.05) col = [C.ice[0], C.ice[1], C.ice[2]];\n  // relief shading from x-gradient of elevation\n  const gx = (S.elev[i10] - S.elev[i00]); const sh = 1 + Math.max(-0.35, Math.min(0.35, gx * 2.2));\n  fill(col[0], col[1], Math.max(6, Math.min(100, col[2] * sh)), 100 * v);\n  if (C.line) { stroke(col[0], col[1] * 0.7, col[2] * 0.4, 22 * v); strokeWeight(0.5); } else noStroke();\n  quad(S.px[i00], S.py[i00], S.px[i10], S.py[i10], S.px[i11], S.py[i11], S.px[i01], S.py[i01]);\n}\n\n// ---- graticule ----\nnoFill();\nconst gw = (0.6 + eg * 1.2);\nfunction polyline(fn, n, major) {\n  stroke(major ? C.major[0] : C.grat[0], major ? C.major[1] : C.grat[1], major ? C.major[2] : C.grat[2], (major ? 90 : 55) + eg * 30);\n  strokeWeight(major ? gw * 1.7 : gw);\n  if (major) { drawingContext.shadowBlur = 8 * eg; drawingContext.shadowColor = 'rgba(255,255,255,' + (0.3 * eg) + ')'; } else drawingContext.shadowBlur = 0;\n  let started = false;\n  beginShape();\n  for (let s = 0; s <= n; s++) { const p = fn(s / n); if (p[2] < 0.12) { if (started) { endShape(); beginShape(); started = false; } continue; } vertex(p[0], p[1]); started = true; }\n  endShape();\n}\nfor (let mi = 0; mi < 12; mi++) { const lon = (mi / 12 - 0.5) * TAU; const major = mi === 6 || mi === 0; polyline(t => projPt((t - 0.5) * Math.PI * 0.998, lon), 64, major); }\nfor (let pi = 1; pi < 12; pi++) { const lat = (pi / 12 - 0.5) * Math.PI * 0.998; const major = pi === 6; polyline(t => projPt(lat, (t - 0.5) * TAU), 90, major); }\ndrawingContext.shadowBlur = 0;\n\n// ---- title cartouche ----\nif (st !== 'noir') {\n  const names = ['EQUIRECTANGULAR', 'MERCATOR', 'MOLLWEIDE', 'HAMMER', 'ORTHOGRAPHIC', 'SINUSOIDAL'];\n  const nm = m < 0.5 ? names[kA === 0 ? 0 : kA === 1 ? 1 : kA === 2 ? 2 : kA === 3 ? 3 : kA === 5 ? 4 : 5] : names[kB === 0 ? 0 : kB === 1 ? 1 : kB === 2 ? 2 : kB === 3 ? 3 : kB === 5 ? 4 : 5];\n  noStroke(); fill(C.txt[0], C.txt[1], C.txt[2], 70);\n  textAlign(LEFT, BOTTOM); textSize(Math.max(11, u * 0.02));\n  text('PROJECTION \u2014 ' + nm, width * 0.045, height * 0.955);\n}\n\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

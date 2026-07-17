@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.macrame",
+  "kind": "genart",
+  "name": "Macram\u00e9 Net",
+  "desc": "A macram\u00e9 wall-hanging \u2014 a diamond net of cords tied at square-knot nodes, hung from a top dowel and swaying as a whole pendulum while each cord sags in catenary and the fringe tassels drift at the bottom.",
+  "tags": [
+    "macrame",
+    "macram\u00e9",
+    "net",
+    "net-making",
+    "knotted",
+    "knots",
+    "square-knot",
+    "half-hitch",
+    "sinnet",
+    "lattice",
+    "diamond",
+    "cord",
+    "cordage",
+    "rope",
+    "fibre",
+    "fiber",
+    "craft",
+    "boho",
+    "wall-hanging",
+    "tapestry",
+    "weave",
+    "fringe",
+    "tassel",
+    "sway",
+    "drape",
+    "jute",
+    "monochrome",
+    "blueprint",
+    "neon",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "handmade"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "net size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "net resolution"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "cord weight & sway"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "sag": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cord catenary sag"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "cord hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "jute",
+      "options": [
+        "jute",
+        "boho",
+        "monochrome",
+        "blueprint",
+        "neon"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:33+00:00",
+    "fps": 60.2,
+    "motion": 0.0937,
+    "lum": 0.14
+  },
+  "code": "const D = { scale:1, density:.5, energy:.55, speed:1, sag:.5, hue:32, x:.5, y:.5, style:'jute', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), t=K.t, sty=P.style;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst cols = Math.max(5, Math.min(12, Math.round(6 + P.density*7)));\nconst Rr = Math.max(6, Math.min(13, Math.round(6 + P.density*8)));\nconst gridW = width*0.82, x0=width*0.09;\nconst spX = gridW/cols, rowH=(height*0.70)/Rr;\nconst cw = Math.max(2, (0.010+0.012*P.energy)*u*P.scale);\nconst pivX=width*0.5, pivY=height*0.06;\nconst swayA = (0.02+0.05*P.energy)*(0.8*Math.sin(t*(0.4+P.speed*0.5)) + 0.4*Math.sin(t*0.83+1.1));\nconst cs=Math.cos(swayA), sn=Math.sin(swayA);\nconst bass=Math.min(0.5,A.bass*0.6);\n\nif (sty==='blueprint') background(214,58,17);\nelse if (sty==='monochrome') background(32,10,55);\nelse background(28,34,9);\n\n// node positions with jitter + rigid pendulum sway about top anchor\nconst nodes=[];\nfor (let r=0;r<=Rr;r++){\n  nodes[r]=[];\n  for (let c=0;c<=cols;c++){\n    let bx=x0 + c*spX + (r%2)*spX*0.5;\n    let by=height*0.10 + r*rowH;\n    const j=0.02*u*P.scale;\n    bx += j*Math.sin(by*0.02 + t*1.1 + c*0.7);\n    by += j*0.5*Math.sin(bx*0.02 + t*0.9 + r*0.5);\n    const dx=bx-pivX, dy=by-pivY;\n    nodes[r][c]={ x: pivX + dx*cs - dy*sn, y: pivY + dx*sn + dy*cs };\n  }\n}\nfunction cordCol(hu){\n  if (sty==='monochrome') return {ca:[32,14,20], co:[32,8,78]};\n  if (sty==='blueprint') return {ca:[200,64,32], co:[192,22,90]};\n  if (sty==='boho') return {ca:[hu,60,26], co:[hu,44,72]};\n  if (sty==='neon') return {ca:[hu,80,26], co:[hu,45,92]};\n  return {ca:[(P.hue-4)%360,42,20+8*bass], co:[(P.hue+2)%360,30,66+8*bass]};\n}\nfunction cord(a,b,hu){\n  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2, len=Math.hypot(b.x-a.x,b.y-a.y), sag=len*(0.10+0.22*P.sag);\n  const cc=cordCol(hu);\n  if (sty==='blueprint'){ noFill(); stroke(cc.ca[0],cc.ca[1],cc.ca[2],P.alpha); strokeWeight(cw*0.7); beginShape(); vertex(a.x,a.y); quadraticVertex(mx,my+sag,b.x,b.y); endShape(); return; }\n  if (sty==='neon'){ blendMode(ADD); noFill(); stroke(cc.ca[0],cc.ca[1],cc.ca[2]*0.6,30*(P.alpha/100)); strokeWeight(cw*1.6); beginShape(); vertex(a.x,a.y); quadraticVertex(mx,my+sag,b.x,b.y); endShape(); stroke(cc.co[0],cc.co[1],cc.co[2],80*(P.alpha/100)); strokeWeight(cw*0.4); beginShape(); vertex(a.x,a.y); quadraticVertex(mx,my+sag,b.x,b.y); endShape(); blendMode(BLEND); return; }\n  noFill(); strokeCap(ROUND);\n  stroke(cc.ca[0],cc.ca[1]+6,cc.ca[2]*0.6,P.alpha); strokeWeight(cw*1.15); beginShape(); vertex(a.x,a.y); quadraticVertex(mx,my+sag,b.x,b.y); endShape();\n  stroke(cc.co[0],cc.co[1],cc.co[2],P.alpha); strokeWeight(cw*0.5); beginShape(); vertex(a.x,a.y); quadraticVertex(mx,my+sag,b.x,b.y); endShape();\n}\n// top anchor bar\nnoFill(); stroke(sty==='blueprint'?200:sty==='monochrome'?32:(P.hue-6)%360, sty==='blueprint'?50:44, sty==='monochrome'?30:46, P.alpha); strokeWeight(cw*1.6);\nline(width*0.14, nodes[0][0].y-rowH*0.4, width*0.86, nodes[0][cols].y-rowH*0.4);\nfor (let c=0;c<=cols;c++){ const n=nodes[0][c]; stroke((P.hue-4)%360,40,40,P.alpha*0.8); strokeWeight(cw*0.8); line(n.x, nodes[0][0].y-rowH*0.4, n.x, n.y); }\n\n// diamond net cords\nfor (let r=0;r<Rr;r++){\n  for (let c=0;c<=cols;c++){\n    const hu=(P.hue + (r*7 + c*23))%360;\n    const dir = (r%2)? 1 : -1;\n    if (nodes[r+1][c]) cord(nodes[r][c], nodes[r+1][c], hu);\n    const c2=c+dir;\n    if (c2>=0 && c2<=cols && nodes[r+1][c2]) cord(nodes[r][c], nodes[r+1][c2], hu);\n  }\n}\n// knot bumps at nodes\nfor (let r=0;r<=Rr;r++){ for (let c=0;c<=cols;c++){ const n=nodes[r][c];\n  if (sty==='blueprint'){ noStroke(); fill(190,30,88,80*(P.alpha/100)); ellipse(n.x,n.y,cw*1.4,cw*1.4); continue; }\n  const cc=cordCol((P.hue+c*17)%360); push(); translate(n.x,n.y); rotate((r+c)*0.5);\n  strokeCap(ROUND); stroke(cc.ca[0],cc.ca[1],cc.ca[2]*0.7,P.alpha); strokeWeight(cw*1.6); line(-cw*1.3,0,cw*1.3,0);\n  stroke(cc.co[0],cc.co[1],Math.min(100,cc.co[2]+10),P.alpha); strokeWeight(cw*0.7); line(-cw*1.1,-cw*0.3,cw*1.1,-cw*0.3);\n  pop();\n}}\n// fringe + tassels at bottom\nfor (let c=0;c<=cols;c++){ const n=nodes[Rr][c]; const fl=rowH*(1.1+0.6*hsh(c*3+1));\n  const sw=(0.06+0.10*P.energy)*fl*Math.sin(t*(0.6+P.speed*0.6)+c*0.6);\n  const ex=n.x+sw, ey=n.y+fl;\n  const cc=cordCol((P.hue+c*13)%360);\n  if (sty!=='blueprint'){ noFill(); strokeCap(ROUND); stroke(cc.ca[0],cc.ca[1],cc.ca[2]*0.7,P.alpha); strokeWeight(cw*0.9); beginShape(); vertex(n.x,n.y); quadraticVertex(n.x+sw*0.5,(n.y+ey)/2,ex,ey); endShape();\n    for (let k=-1;k<=1;k++){ stroke(cc.co[0],cc.co[1],cc.co[2],P.alpha*0.8); strokeWeight(cw*0.5); line(ex,ey, ex+k*cw*1.2, ey+fl*0.28); } }\n  else { stroke(200,50,60,P.alpha*0.7); strokeWeight(cw*0.5); line(n.x,n.y,ex,ey); }\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

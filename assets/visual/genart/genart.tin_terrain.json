@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.tin_terrain",
+  "kind": "genart",
+  "name": "TIN Terrain",
+  "desc": "A triangulated irregular network terrain model \u2014 an oblique mesh of irregular triangles lifted into low relief, each facet flat-shaded by its elevation through a hypsometric ramp and by its aspect under a low sun that slowly wheels, the whole surface heaving gently while bright ridge crests thread the summits; renders as shaded relief, bare wireframe, low-poly facets, blueprint or thermal.",
+  "tags": [
+    "tin",
+    "triangulated",
+    "irregular-network",
+    "mesh",
+    "terrain",
+    "relief",
+    "hypsometric",
+    "hillshade",
+    "aspect",
+    "surface-model",
+    "dem",
+    "gis",
+    "topographic",
+    "low-poly",
+    "faceted",
+    "wireframe",
+    "triangulation",
+    "delaunay",
+    "survey",
+    "cartography",
+    "3d",
+    "oblique",
+    "blueprint",
+    "thermal",
+    "sublime",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.7,
+      "doc": "relief lift / vertical exaggeration"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hillshade contrast"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "mid-elevation hue (relief)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "sun-sweep + heave rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mesh resolution / face count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "tilt": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "oblique lift amount"
+    },
+    "heave": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "surface heave amplitude"
+    },
+    "style": {
+      "default": "relief",
+      "options": [
+        "relief",
+        "wireframe",
+        "facet",
+        "blueprint",
+        "thermal"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "terrain + mesh jitter"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:39+00:00",
+    "fps": 59.5,
+    "motion": 0.0692,
+    "lum": 0.336
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 150, speed: 1, density: .5, x: .5, y: .5, style: 'relief', seed: 0, tilt: .5, heave: .5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst NX = 20 + Math.round(P.density * 14), NY = Math.round(NX * 0.62);\n\nconst st = P.style;\n// hypsometric HSB ramp [pos,h,s,b]\nfunction ramp() {\n  if (st === 'blueprint') return { stops: [[0, 210, 60, 20], [.5, 205, 45, 34], [1, 195, 40, 60]], edge: [190, 40, 92], eA: 60, fillA: 88, floor: 16 };\n  if (st === 'thermal') return { stops: [[0, 245, 65, 30], [.35, 210, 60, 50], [.6, 130, 55, 62], [.8, 45, 85, 90], [1, 20, 80, 92]], edge: [230, 20, 70], eA: 22, fillA: 92, floor: 20 };\n  if (st === 'wireframe') return { stops: [[0, 200, 45, 20], [.5, 195, 40, 30], [1, 190, 35, 44]], edge: [190, 45, 98], eA: 85, fillA: 55, floor: 14 };\n  if (st === 'facet') return { stops: [[0, 205, 50, 34], [.3, 160, 42, 52], [.55, 90, 40, 62], [.78, 40, 55, 76], [1, 30, 30, 92]], edge: [0, 0, 0], eA: 0, fillA: 100, floor: 22 };\n  // relief (anchor)\n  return { stops: [[0, 200, 48, 36], [.3, P.hue, 42, 54], [.52, 70, 40, 64], [.74, 36, 52, 72], [.9, 26, 40, 62], [1, 40, 8, 92]], edge: [30, 30, 30], eA: 28, fillA: 92, floor: 20 };\n}\nconst RM = ramp();\nfunction hyps(en) { const s = RM.stops; for (let i = 0; i < s.length - 1; i++) { if (en <= s[i + 1][0]) { const t = (en - s[i][0]) / (s[i + 1][0] - s[i][0] || 1); return [s[i][1] + (s[i + 1][1] - s[i][1]) * t, s[i][2] + (s[i + 1][2] - s[i][2]) * t, s[i][3] + (s[i + 1][3] - s[i][3]) * t]; } } const l = s[s.length - 1]; return [l[1], l[2], l[3]]; }\n\n// ---- build base mesh (seed/grid) ----\nif (S.seed !== P.seed || S.nx !== NX) {\n  S.seed = P.seed; S.nx = NX;\n  const h2 = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\n  const vn = (X, Y) => { const xi = Math.floor(X), yi = Math.floor(Y), xf = X - xi, yf = Y - yi, uu = xf * xf * (3 - 2 * xf), vv = yf * yf * (3 - 2 * yf); return h2(xi, yi) * (1 - uu) * (1 - vv) + h2(xi + 1, yi) * uu * (1 - vv) + h2(xi, yi + 1) * (1 - uu) * vv + h2(xi + 1, yi + 1) * uu * vv; };\n  const fbm = (x, y) => { let f = 0, a = .5, q = 1; for (let o = 0; o < 5; o++) { f += a * vn(x * q, y * q); q *= 2; a *= .5; } return f; };\n  S.jx = []; S.jy = []; S.hb = []; S.ph = [];\n  let mn = 9, mx = -9;\n  for (let j = 0; j <= NY; j++) for (let i = 0; i <= NX; i++) {\n    const idx = j * (NX + 1) + i;\n    S.jx[idx] = (h2(i * 3 + 1, j * 3) - 0.5) * 0.6;   // grid jitter -> irregular triangles\n    S.jy[idx] = (h2(i * 3 + 2, j * 3 + 1) - 0.5) * 0.6;\n    const e = fbm(i / NX * 4.2 + 0.5, j / NY * 4.2 + 0.5);\n    S.hb[idx] = e; S.ph[idx] = h2(i * 5, j * 7) * 6.28;\n    if (e < mn) mn = e; if (e > mx) mx = e;\n  }\n  S.mn = mn; S.mx = mx;\n}\nconst jx = S.jx, jy = S.jy, hb = S.hb, ph = S.ph, mn = S.mn, mx = S.mx, rng = (mx - mn) || 1;\n\n// palette bg\nconst bg = st === 'blueprint' ? [214, 60, 10] : st === 'thermal' ? [240, 40, 8] : st === 'facet' ? [220, 25, 12] : st === 'wireframe' ? [205, 45, 8] : [210, 30, 12];\nbackground(bg[0], bg[1], bg[2]);\n\n// ---- layout + oblique lift ----\nconst mx0 = width * 0.06, my0 = height * 0.08, W = width * 0.88, H = height * 0.8;\nconst cell = W / NX;\nconst lift = u * 0.16 * P.tilt * (0.6 + P.scale * 0.5);\nconst heaveA = 0.14 * P.heave;\nfunction hAt(i, j) { const idx = j * (NX + 1) + i; return hb[idx] + heaveA * (0.6 * Math.sin(K.t * 0.3 * P.speed + ph[idx]) + 0.4 * Math.sin(K.t * 0.47 + j * 0.5 + i * 0.2)); }\nfunction sx(i, j) { const idx = j * (NX + 1) + i; return mx0 + (i + jx[idx]) * (W / NX); }\nfunction sy(i, j, h) { const idx = j * (NX + 1) + i; return my0 + (j + jy[idx]) * (H / NY) - h * lift; }\n\n// sun\nconst az = K.t * (0.05 * P.speed) + 0.7 * Math.sin(K.t * 0.023) + 2;\nconst el = 0.7, lxx = Math.cos(az) * Math.cos(el), lyy = Math.sin(az) * Math.cos(el), lzz = Math.sin(el);\nconst zScale = lift * 3 + u * 0.2;\n\nstrokeJoin(ROUND);\n// draw back(top) to front(bottom)\nfor (let j = 0; j < NY; j++) {\n  for (let i = 0; i < NX; i++) {\n    // two triangles: (i,j)(i+1,j)(i,j+1) and (i+1,j)(i+1,j+1)(i,j+1)\n    for (let tI = 0; tI < 2; tI++) {\n      const va = tI === 0 ? [i, j] : [i + 1, j], vb = tI === 0 ? [i + 1, j] : [i + 1, j + 1], vc = tI === 0 ? [i, j + 1] : [i, j + 1];\n      const ha = hAt(va[0], va[1]), hb2 = hAt(vb[0], vb[1]), hc = hAt(vc[0], vc[1]);\n      const ax = sx(va[0], va[1]), ay = sy(va[0], va[1], ha), bx = sx(vb[0], vb[1]), by = sy(vb[0], vb[1], hb2), cx = sx(vc[0], vc[1]), cy = sy(vc[0], vc[1], hc);\n      // face normal from 3D (x,y,z*zScale)\n      const e1x = (vb[0] - va[0]) * cell, e1y = (vb[1] - va[1]) * cell, e1z = (hb2 - ha) * zScale;\n      const e2x = (vc[0] - va[0]) * cell, e2y = (vc[1] - va[1]) * cell, e2z = (hc - ha) * zScale;\n      let nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;\n      const nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1; nx /= nl; ny /= nl; nz /= nl; if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }\n      let hsh = nx * lxx + ny * lyy + nz * lzz; if (hsh < 0) hsh = 0;\n      const en = ((ha + hb2 + hc) / 3 - mn) / rng;\n      const col = hyps(Math.max(0, Math.min(1, en)));\n      const b = Math.max(RM.floor, Math.min(100, col[2] * (0.42 + (0.5 + P.energy * 0.35) * hsh)));\n      fill(col[0], col[1], b, RM.fillA);\n      if (RM.eA > 0) { stroke(RM.edge[0], RM.edge[1], RM.edge[2], RM.eA); strokeWeight(st === 'wireframe' ? 0.9 : 0.5); } else noStroke();\n      triangle(ax, ay, bx, by, cx, cy);\n    }\n  }\n}\n\n// ---- contour-crest accents (bright ridge lines where high) ----\nif (st !== 'facet') {\n  noFill(); strokeCap(ROUND);\n  for (let j = 0; j <= NY; j += 1) {\n    let started = false; stroke(RM.edge[0], 20, 96, 0);\n    beginShape();\n    for (let i = 0; i <= NX; i++) { const h = hAt(i, j); const en = (h - mn) / rng; if (en > 0.72) { stroke(40, 15, 96, 40 + P.energy * 30); strokeWeight(1.2); vertex(sx(i, j), sy(i, j, h)); started = true; } else if (started) { endShape(); beginShape(); started = false; } }\n    endShape();\n  }\n}\n\n// ---- frame + label ----\nnoFill(); stroke(RM.edge[0] || 30, 20, 60, 40); strokeWeight(1.6); rect(mx0 - u * 0.01, my0 - u * 0.01, W + u * 0.02, H + u * 0.02);\nnoStroke(); fill(40, 15, st === 'blueprint' ? 90 : 84, 70); textAlign(LEFT, BOTTOM); textSize(Math.max(9, u * 0.016));\ntext('TIN \u00b7 ' + (NX * NY * 2) + ' FACES', mx0, my0 + H + u * 0.05);\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeCap(ROUND); strokeJoin(ROUND);\n"
+}

@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.pipe_organ",
+  "kind": "set",
+  "name": "Pipe Organ",
+  "desc": "A pipe-organ facade \u2014 ranks of graduated metal flue pipes rising in towers and flats from a carved wooden plinth, an unseen light raking across the rank so the burnished pipes gleam in turn; stands as a centred instrument leaving margins open \u2014 burnished tin/pewter, gilded gold, deep chiaroscuro, a schematic, or an engraving.",
+  "tags": [
+    "pipe-organ",
+    "organ",
+    "pipes",
+    "flue-pipe",
+    "rank",
+    "ranks",
+    "stops",
+    "diapason",
+    "principal",
+    "facade",
+    "case",
+    "pipe-shade",
+    "tracery",
+    "cathedral",
+    "church",
+    "chapel",
+    "basilica",
+    "baroque",
+    "gothic",
+    "console",
+    "sacred",
+    "liturgical",
+    "hymn",
+    "music",
+    "instrument",
+    "metal",
+    "tin",
+    "pewter",
+    "burnished",
+    "polished",
+    "gilt",
+    "gilded",
+    "gold",
+    "cylinder",
+    "vertical",
+    "graduated",
+    "tower",
+    "flats",
+    "carved",
+    "wood",
+    "plinth",
+    "pilaster",
+    "set",
+    "scenery",
+    "midground",
+    "centred",
+    "raking-light",
+    "gleam",
+    "sweep",
+    "specular",
+    "chiaroscuro",
+    "blueprint",
+    "schematic",
+    "engraving",
+    "texture",
+    "austere",
+    "sacred",
+    "sublime",
+    "grey",
+    "silver"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how brightly the raking light gleams on the metal (master brightness)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "pipe size \u2014 min a compact chamber organ, max a towering cathedral instrument"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many pipes stand in the facade (12 to 28)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the raking light sweeps the rank"
+    },
+    "sweep": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far and fast the bright zone travels across the pipes"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "metal hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.08,
+      "max": 0.92,
+      "doc": "centre of the instrument across frame"
+    },
+    "y": {
+      "default": 0.68,
+      "min": 0.4,
+      "max": 0.9,
+      "doc": "the impost line the pipes stand on \u2014 pipes rise above it"
+    },
+    "style": {
+      "default": "pewter",
+      "options": [
+        "pewter",
+        "gilt",
+        "chiaroscuro",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "aesthetic: burnished tin/pewter pipes / gilded gold / deep chiaroscuro pulled out of black by the sweep / a cyan schematic / a hatched engraving plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rank lottery \u2014 per-pipe height jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark so it dissolves into the background rather than veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, sweep: .5, hue: 210, x: .5, y: .68, style: 'pewter', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A pipe-organ facade: ranks of graduated metal flue pipes in a carved case, an unseen\n// light raking across the rank so the burnished pipes gleam in turn. A SET: it stands as a\n// centred instrument and leaves margins open; alpha scales every mark. Not industrial\n// pipework (set.pipework), not a piano (set.piano). ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, en = cl(P.energy,0,1), dn = cl(P.density,0,1), swp = cl(P.sweep,0,1);\nconst HU = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', gilt = sty==='gilt', dk = sty==='chiaroscuro', eng = sty==='engraving';\nconst AL = cl(P.alpha,0,100);\nif (AL > 0.5) {\n\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst light = (.5+.5*en)*(.55+.5*K.intensity) + bass*.22;\n// the raking light azimuth drifts (incommensurate) -> a bright zone sweeps the rank\nconst az = 0.8*Math.sin(tt*.09*swp*P.speed) + 0.35*Math.sin(tt*.017*P.speed+1.2) + 0.2*Math.sin(tt*.23*swp+2.0);\n\n// metal ramp: v 0 shadow .. 1 hot specular\nfunction metal(v){\n  if (bp)   return [196,60,cl(14+v*12,8,32)];\n  if (eng)  return [34,6,cl(8+v*88,5,97)];\n  if (gilt) return [cl(44-v*8,0,60),cl(70-v*40,10,80),cl(24+v*70,8,98)];\n  if (dk)   return [HU,cl(10-v*8,0,14),cl(2+v*92,1,96)];\n  return [cl(HU-6+v*10,0,360),cl(12-v*8,2,18),cl(22+v*66,6,96)];    // tin/pewter\n}\nfunction wood(v){ if (bp) return [200,50,cl(10+v*8,6,26)]; if (eng) return [34,8,cl(12+v*40,6,60)];\n  return [cl(28,0,60),cl(gilt?54:40,10,66),cl(8+v*30,4,46)]; }\nfunction setF(c,a){ fill(c[0],c[1],c[2],a*AL/100); }\nfunction setS(c,a){ stroke(c[0],c[1],c[2],a*AL/100); }\n\nconst cx = cl(P.x,.08,.92)*width;\nconst footY = cl(P.y,.4,.9)*height;\nconst sc = cl(P.scale,.3,2.4);\nconst pw = u*.017*sc;                                     // pipe width\nconst NP = 12 + Math.round(dn*16);                        // number of facade pipes\nconst gap = pw*0.12;\nconst totalW = NP*(pw+gap);\nconst x0 = cx - totalW*0.5;\nconst maxH = u*.52*sc;\n// tower profile: a few gaussian peaks -> the classic organ silhouette (towers + flats)\nconst towers = [[0.5,1.0,0.14],[0.16,0.72,0.10],[0.84,0.72,0.10],[0.33,0.5,0.09],[0.67,0.5,0.09]];\nfunction heightAt(q){ let h=0.24; for(const T of towers){ h += T[1]*Math.exp(-Math.pow((q-T[0])/T[2],2)); } return cl(h,0.2,1.35); }\nconst brightC = 0.5 + az*0.5;                             // bright-zone centre in q-space\n\npush();\n// ---- carved wooden plinth the pipes stand on ----\nconst plH = u*.06*sc;\nsetF(wood(.5*light+.2), 92);\nrect(x0-pw*.8, footY, totalW+pw*1.6, plH, pw*.2);\n// plinth mouldings + grain\nsetS(wood(.9*light+.3), 40); strokeWeight(Math.max(1,u*.0011));\nline(x0-pw*.8, footY+plH*.28, x0+totalW+pw*.8, footY+plH*.28);\nsetS(wood(.2), 30);\nfor(let gx=0;gx<10;gx++){ const wx=x0+totalW*(gx/9); line(wx,footY+plH*.4,wx+pw*.3,footY+plH*.95); }\n\n// ---- the pipes (draw as shaded vertical cylinders; a bright zone sweeps across) ----\nconst NPX = 6;\nfor (let i=0;i<NP;i++){\n  const q=(i+.5)/NP;\n  const hh = heightAt(q)*maxH*(0.85+0.25*fr(i*3.1));\n  const px = x0 + i*(pw+gap) + gap*.5;\n  const topY = footY - hh;\n  const facing = Math.exp(-Math.pow((q-brightC)/0.28,2));  // how directly this pipe faces the light\n  const pipeLum = (0.34 + facing*0.62)*light;\n  const hxOff = az*pw*0.55;                                 // specular line shifts with the light\n  // cylinder body: vertical slivers shaded by angle from the highlight\n  for (let s2=0;s2<NPX;s2++){\n    const fx0 = -0.5 + s2/NPX, fx1 = -0.5 + (s2+1)/NPX, fxm=(fx0+fx1)*.5;\n    const ang = (fxm*pw - hxOff)/(pw*0.5);                  // -1..1 across the pipe\n    const cyl = cl(Math.cos(ang*1.35), 0, 1);              // Lambert-ish across the round body\n    const v = cl(pipeLum*(0.35+0.75*cyl), 0, 1.1);\n    setF(metal(v), (dk?86:90));\n    if (bp||eng){ noStroke(); }\n    noStroke();\n    rect(px + (fxm+0.5-1/(2*NPX))*pw, topY, pw/NPX+0.6, hh);\n  }\n  // rounded top + dark mouth (flue) + languid line (texture detail)\n  setF(metal(cl(pipeLum*0.7,0,1)), 90); noStroke();\n  ellipse(px+pw*.5, topY, pw*1.02, pw*.7);\n  setF(metal(cl(0.6+pipeLum*.5,0,1)), 80);\n  ellipse(px+pw*.5+hxOff*.6, topY, pw*.4, pw*.4);           // top gleam\n  // mouth\n  const mY = footY - hh*0.10;\n  setF(metal(0.03), 80);\n  rect(px+pw*.22, mY-pw*.5, pw*.56, pw*.55, pw*.1);\n  setS(metal(cl(0.4+pipeLum*.4,0,1)), 60); strokeWeight(Math.max(1,u*.0009));\n  line(px+pw*.22, mY-pw*.5, px+pw*.78, mY-pw*.5);          // languid highlight\n  // vertical seam highlight down the round of the pipe\n  if (!bp){ setS(metal(cl(0.5+pipeLum*.6,0,1)), 55*facing); strokeWeight(Math.max(1,u*.0012));\n    line(px+pw*.5+hxOff, topY+pw*.3, px+pw*.5+hxOff, footY-pw*.2); }\n  // rim outline\n  if (bp||eng){ noFill(); setS(metal(cl(pipeLum,0,1)),70); strokeWeight(Math.max(1,u*.001));\n    rect(px, topY, pw, hh); }\n}\n\n// ---- carved pipe-shades (tracery) over the tower tops + side pilasters ----\nsetS(wood(.7*light+.2), 55); strokeWeight(Math.max(1,u*.0016)); noFill();\nfor (const T of towers){\n  const q=T[0]; const px=x0+q*totalW; const hh=heightAt(q)*maxH; const ty=footY-hh;\n  for(let a=0;a<5;a++){ const off=(a-2)*pw*.9;\n    arc(px+off, ty-pw*.2, pw*1.7, pw*1.7, Math.PI, Math.PI*2); }\n}\n// side pilasters framing the case (keeps margins, reads as an instrument not a wall)\nsetF(wood(.45*light+.15), 90); noStroke();\nrect(x0-pw*1.3, footY-maxH*.72, pw*.9, maxH*.72+plH*.2, pw*.15);\nrect(x0+totalW+pw*.4, footY-maxH*.72, pw*.9, maxH*.72+plH*.2, pw*.15);\n\npop();\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0; strokeWeight(1);\n}\n"
+}

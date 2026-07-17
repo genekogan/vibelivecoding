@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.seifert_surface",
+  "kind": "genart",
+  "name": "Seifert Surface",
+  "desc": "A knot's spanning Seifert surface \u2014 nested Seifert circles bridged by half-twisted ribbon bands whose lit and shadowed faces flip through each twist, a topological membrane that turns and breathes on two incommensurate rotations.",
+  "tags": [
+    "seifert",
+    "surface",
+    "spanning-surface",
+    "knot-theory",
+    "topology",
+    "genus",
+    "ribbon",
+    "band",
+    "half-twist",
+    "twisted",
+    "membrane",
+    "orientable",
+    "circles",
+    "crossings",
+    "mathart",
+    "geometry",
+    "membrane",
+    "iridescent",
+    "engraving",
+    "blueprint",
+    "xray",
+    "wireframe",
+    "sublime",
+    "clinical",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "plate"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "surface size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "band width & glow"
+    },
+    "bands": {
+      "default": 9,
+      "min": 4,
+      "max": 16,
+      "doc": "twisted bands"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "twist": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "half-twists per band"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "band resolution"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "surface hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "membrane",
+      "options": [
+        "membrane",
+        "engraving",
+        "iridescent",
+        "blueprint",
+        "xray"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:23+00:00",
+    "fps": 59.9,
+    "motion": 0.0457,
+    "lum": 0.097
+  },
+  "code": "const D = { scale:1, energy:.6, bands:9, speed:1, twist:.6, density:.5, hue:280, x:.5, y:.5, style:'membrane', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx=width*P.x, cy=height*P.y, t=K.t, sty=P.style;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst nb = Math.max(4, Math.min(16, Math.round(P.bands)));\nconst M = Math.max(8, Math.min(16, Math.round(9 + P.density*6)));\nconst Ri = 0.10*u*P.scale, Ro = 0.44*u*P.scale;\nconst W = (0.055 + 0.05*P.energy)*u*P.scale;\nconst rot1 = t*(0.10 + P.speed*0.14), rot2 = t*(0.061 + P.speed*0.09)+1.3;\nconst twT = (1 + P.twist*2.0)*Math.PI;\nconst bass = Math.min(0.5, A.bass*0.6);\n\nif (sty==='blueprint') background(214,58,17);\nelse if (sty==='engraving') background(34,10,56);\nelse background(258,42,8);\n\n// soft central glow so the hole is not dead-black\nnoStroke();\nfor (let g=3;g>0;g--){ fill((P.hue+20)%360, 40, 8+5*g, 8); ellipse(cx,cy, Ro*2.1*(g/3), Ro*2.1*(g/3)); }\n\n// faint nested Seifert circles behind\nnoFill();\nfor (let s=0;s<3;s++){\n  const rr = Ri + (Ro-Ri)*((s+0.5)/3);\n  stroke((P.hue+40)%360, 30, sty==='engraving'?26:34, 26*(P.alpha/100)); strokeWeight(1.4);\n  const seg=48;\n  beginShape();\n  for(let a=0;a<=seg;a++){ const an=a/seg*Math.PI*2 + rot2*(s%2?-1:1); vertex(cx+rr*Math.cos(an), cy+rr*Math.sin(an)); }\n  endShape();\n}\n\nfunction faceCol(shade, tw){\n  const front = Math.cos(tw) >= 0;\n  if (sty==='iridescent'){ return [(P.hue + 120*Math.sin(tw)+360)%360, 70, 30+55*shade, 74]; }\n  if (sty==='engraving'){ return [30, 12, front? (24+40*shade) : (14+20*shade), 90]; }\n  if (sty==='blueprint'){ return [ front?198:210, 55, 26+40*shade, 60]; }\n  const h = front ? P.hue : (P.hue+40)%360;\n  const v = (front? 34 : 20) + 46*shade + 12*bass;\n  return [h, front?58:66, v, 80];\n}\n\nfor (let k=0;k<nb;k++){\n  const phi = k/nb*Math.PI*2 + rot1;\n  const lean = 0.5*Math.sin(phi*2 + t*0.2); // slight spiral lean per band\n  let prev=null;\n  for (let i=0;i<=M;i++){\n    const s = i/M;\n    const ang = phi + lean*s*0.6;\n    const rad = Ri + (Ro-Ri)*s;\n    const px = cx + rad*Math.cos(ang), py = cy + rad*Math.sin(ang);\n    const tw = twT*s + rot2 + phi*0.5;\n    const tx = -Math.sin(ang), ty = Math.cos(ang); // tangential (ribbon width dir)\n    const half = W*Math.cos(tw);\n    const cur = { ax:px+tx*half, ay:py+ty*half, bx:px-tx*half, by:py-ty*half, tw };\n    if (prev){\n      const shade = Math.max(0, Math.min(1, 0.5+0.5*Math.cos((prev.tw+cur.tw)*0.5)*Math.SQRT1_2 + 0.3*Math.sin((prev.tw+cur.tw)*0.5)));\n      const fc = faceCol(shade, (prev.tw+cur.tw)*0.5);\n      if (sty==='xray'){\n        noFill(); stroke((P.hue+30)%360,50,40+40*shade,55*(P.alpha/100)); strokeWeight(1.2);\n        line(prev.ax,prev.ay,cur.ax,cur.ay); line(prev.bx,prev.by,cur.bx,cur.by);\n      } else {\n        noStroke(); fill(fc[0],fc[1],fc[2], fc[3]*(P.alpha/100));\n        beginShape(); vertex(prev.ax,prev.ay); vertex(prev.bx,prev.by); vertex(cur.bx,cur.by); vertex(cur.ax,cur.ay); endShape(CLOSE);\n        if (sty==='engraving'){ // hatch the face\n          stroke(30,14,12,40*(P.alpha/100)); strokeWeight(0.8);\n          const hn=3; for(let hgt=1;hgt<=hn;hgt++){ const f=hgt/(hn+1); line(prev.ax+(prev.bx-prev.ax)*f, prev.ay+(prev.by-prev.ay)*f, cur.ax+(cur.bx-cur.ax)*f, cur.ay+(cur.by-cur.ay)*f); }\n        }\n      }\n    }\n    prev = cur;\n  }\n  // ribbon edge strands (the boundary of the surface)\n  noFill(); strokeCap(ROUND);\n  const ecol = sty==='engraving'?[30,20,18]:sty==='blueprint'?[196,30,90]:[(P.hue+10)%360,30,90];\n  for (let side=0; side<2; side++){\n    stroke(ecol[0],ecol[1],ecol[2], 70*(P.alpha/100)); strokeWeight(1.6);\n    beginShape();\n    for (let i=0;i<=M;i++){ const s=i/M, ang=phi+lean*s*0.6, rad=Ri+(Ro-Ri)*s; const tw=twT*s+rot2+phi*0.5; const tx=-Math.sin(ang),ty=Math.cos(ang); const half=W*Math.cos(tw)*(side?-1:1); vertex(cx+rad*Math.cos(ang)+tx*half, cy+rad*Math.sin(ang)+ty*half); }\n    endShape();\n  }\n}\ndrawingContext.shadowBlur = 0;\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cosmic_web",
+  "kind": "genart",
+  "name": "Cosmic Web",
+  "desc": "The large-scale structure of the universe rendered as a dark-matter simulation slice — luminous filaments of galaxies strung between massive halo nodes, threading around vast black voids, the whole web slowly shearing and drifting under gravity while the brightest clusters twinkle.",
+  "tags": [
+    "cosmic web",
+    "cosmology",
+    "large-scale structure",
+    "dark matter",
+    "filaments",
+    "voids",
+    "halos",
+    "nodes",
+    "clusters",
+    "n-body",
+    "galaxies",
+    "universe",
+    "supercluster",
+    "great wall",
+    "astrophysics",
+    "simulation",
+    "survey",
+    "false-color",
+    "density field",
+    "space",
+    "deep-space",
+    "violet",
+    "indigo",
+    "sublime",
+    "austere",
+    "scientific",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "halo count + filament particle load (structure richness)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "brightness / exposure of the density field + glints"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "shear + drift + rotation rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "node core / filament spread size"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how far halos wander (filament writhe amplitude)"
+    },
+    "hue": {
+      "default": 255,
+      "min": 0,
+      "max": 360,
+      "doc": "base web hue (darkmatter style)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field center y"
+    },
+    "style": {
+      "default": "darkmatter",
+      "options": [
+        "darkmatter",
+        "xray",
+        "webprint",
+        "contour"
+      ],
+      "doc": "false-color rendering discipline"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic halo + filament layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density:.6, energy:.62, speed:1, scale:1, drift:.5, hue:255, x:.5, y:.5, style:'darkmatter', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\n\n// ---- adaptive splat buffer (point-cloud: cap ~520, scale iterate count by area) ----\nconst BW = Math.max(360, Math.min(520, Math.round(width / 3.2)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.buf || S.bw !== BW || S.bh !== BH) {\n  S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1);\n  S.dens = new Float32Array(BW * BH);\n  S.bw = BW; S.bh = BH; S.built = false;\n}\nconst g = S.buf, dens = S.dens;\n\n// ---- seed-deterministic halo nodes (rebuild on seed / count change) ----\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst NN = Math.round(14 + P.density * 24);           // 14..38 halos\nif (!S.built || S.seedUsed !== sd || S.nnUsed !== NN) {\n  S.seedUsed = sd; S.nnUsed = NN;\n  S.nx = new Float32Array(NN); S.ny = new Float32Array(NN);\n  S.nm = new Float32Array(NN); S.ph = new Float32Array(NN);\n  for (let i = 0; i < NN; i++) {\n    // clustered placement: a few super-clusters, nodes gaussian around them\n    const cl = Math.floor(fr(i * 5 + 1) * 4);\n    const clx = 0.2 + fr(cl * 13 + 3) * 0.6, cly = 0.2 + fr(cl * 13 + 7) * 0.6;\n    const rr = fr(i * 5 + 2), th = fr(i * 5 + 4) * 6.28318;\n    S.nx[i] = Math.min(0.96, Math.max(0.04, clx + Math.cos(th) * rr * 0.28));\n    S.ny[i] = Math.min(0.96, Math.max(0.04, cly + Math.sin(th) * rr * 0.28));\n    S.nm[i] = 0.4 + fr(i * 5 + 6) * 0.6;               // halo mass\n    S.ph[i] = fr(i * 5 + 8) * 6.28318;                 // drift phase\n  }\n  // filament edges: connect each node to its 2 nearest neighbours\n  const E = [];\n  for (let i = 0; i < NN; i++) {\n    const d = [];\n    for (let j = 0; j < NN; j++) if (j !== i) {\n      const dx = S.nx[i] - S.nx[j], dy = S.ny[i] - S.ny[j];\n      d.push([dx * dx + dy * dy, j]);\n    }\n    d.sort((a, b) => a[0] - b[0]);\n    const kn = 2 + (fr(i * 3 + 9) < 0.4 ? 1 : 0);\n    for (let e = 0; e < kn && e < d.length; e++) if (i < d[e][1] || Math.hypot(S.nx[i]-S.nx[d[e][1]], S.ny[i]-S.ny[d[e][1]]) < 0.4) E.push([i, d[e][1]]);\n  }\n  S.edges = E;\n  S.rng = (sd * 2654435761 + 1013904223) >>> 0;\n  S.built = true; dens.fill(0);\n}\nconst edges = S.edges;\n// fast per-frame LCG (stochastic sampling -> never converges)\nfunction rr32() { S.rng = (S.rng * 1664525 + 1013904223) >>> 0; return S.rng / 4294967296; }\n\n// ---- clock-driven slow shear + node drift (incommensurate) ----\nconst tt = K.t * (0.14 + P.speed * 0.22);\nconst drift = P.drift * u * 0.03;\nconst shear = Math.sin(K.t * 0.11) * 0.05 + Math.sin(K.t * 0.047 + 1.3) * 0.03;\nconst rot = K.t * 0.012 + Math.sin(K.t * 0.031) * 0.04;   // slow whole-web rotation\nconst cs = Math.cos(rot), sn = Math.sin(rot);\nconst px = new Float32Array(NN), py = new Float32Array(NN);\nfor (let i = 0; i < NN; i++) {\n  let ax = (S.nx[i] - 0.5), ay = (S.ny[i] - 0.5);\n  ax += drift / u * Math.sin(tt * 0.6 + S.ph[i]);\n  ay += drift / u * Math.cos(tt * 0.53 + S.ph[i] * 1.7);\n  ax += ay * shear;                                        // large-scale shear flow\n  const rx = ax * cs - ay * sn, ry = ax * sn + ay * cs;\n  px[i] = (rx + 0.5) * BW; py[i] = (ry + 0.5) * BH;\n}\n\n// ---- fade + stochastic splat into density field ----\nconst fade = 0.86 - P.energy * 0.06;\nfor (let i = 0, n = dens.length; i < n; i++) dens[i] *= fade;\nconst areaScale = (BW * BH) / (440 * 260);\nlet N = Math.round((26000 + P.density * 34000) * areaScale * (0.7 + P.energy * 0.6));\nif (N > 90000) N = 90000;\nconst nE = edges.length;\nconst spreadN = 0.9 + (1 - P.energy) * 0.6;               // node core tightness\nfor (let s = 0; s < N; s++) {\n  const pick = rr32();\n  let x, y, w;\n  if (pick < 0.70 && nE) {\n    // filament: point along a random edge, gaussian across, denser near nodes\n    const ei = (rr32() * nE) | 0, a = edges[ei][0], b = edges[ei][1];\n    let tp = rr32();\n    // bias mass toward the endpoints (voids between filaments stay dark)\n    tp = tp * tp * tp < rr32() ? tp : (tp < 0.5 ? tp * 0.4 : 1 - (1 - tp) * 0.4);\n    const bx = px[a] + (px[b] - px[a]) * tp, by = py[a] + (py[b] - py[a]) * tp;\n    const gsp = (rr32() + rr32() + rr32() - 1.5) * (u * 0.010) * spreadN;\n    const dx = px[b] - px[a], dy = py[b] - py[a], dl = Math.hypot(dx, dy) + 1e-4;\n    x = bx + (-dy / dl) * gsp * (BW / u); y = by + (dx / dl) * gsp * (BH / u);\n    w = 0.6 + S.nm[a] * 0.6;\n  } else if (pick < 0.92) {\n    // dense halo core cluster\n    const ni = (rr32() * NN) | 0;\n    const gr = (rr32() + rr32() + rr32() - 1.5) * (u * 0.014) * S.nm[ni];\n    const ga = rr32() * 6.28318;\n    x = px[ni] + Math.cos(ga) * gr * (BW / u); y = py[ni] + Math.sin(ga) * gr * (BH / u);\n    w = 1.4 + S.nm[ni];\n  } else {\n    // sparse field galaxies scattered through the voids (never pure black)\n    x = rr32() * BW; y = rr32() * BH; w = 0.16;\n  }\n  const xi = x | 0, yi = y | 0;\n  if (xi >= 0 && xi < BW && yi >= 0 && yi < BH) dens[yi * BW + xi] += w;\n}\n\n// ---- map density -> false-color ----\ng.loadPixels(); const pix = g.pixels;\nconst gain = (1.5 + P.energy * 2.2);\nconst flr = 0.010 + P.energy * 0.006;                      // dim floor so voids aren't dead black\n// large-scale faint glow to lift voids a touch\nfor (let j = 0; j < BH; j++) {\n  const fy = j / BH - 0.5;\n  for (let i = 0; i < BW; i++) {\n    const fx = i / BW - 0.5;\n    const halo = flr * (1 + 0.9 * Math.exp(-(fx * fx + fy * fy) * 3.0));\n    let v = Math.log(1 + dens[j * BW + i] * gain) * 0.34 + halo;\n    if (v > 1) v = 1;\n    const t = v; const o = 4 * (j * BW + i);\n    let r, gg, b;\n    if (style === 'xray') {                                // Chandra teal->white\n      r = t * t * 255 * 0.7; gg = Math.pow(t, 0.75) * 255; b = Math.pow(t, 0.6) * 230;\n    } else if (style === 'webprint') {                     // amber web on indigo (survey plate)\n      const base = 0.06;\n      r = (base * 30 + t * 255) * (0.6 + t * 0.4); gg = (base * 24 + t * t * 210); b = (base * 60 + t * t * t * 90);\n    } else if (style === 'contour') {                      // iso-density banding, mono-cool\n      const band = 0.5 + 0.5 * Math.cos(t * 34.0);\n      const m = (0.12 + 0.88 * t) * (0.35 + 0.65 * band);\n      r = m * 150; gg = m * 190; b = m * 255;\n    } else {                                                // darkmatter: violet->blue->hot white\n      const hh = (P.hue - 25 + t * 40) % 360;\n      r = (60 + t * 200) * (0.35 + t * 0.65) * (0.7 + 0.5 * Math.cos((hh - 300) * 0.02));\n      gg = (20 + t * 170) * t; b = (90 + t * 165) * (0.55 + t * 0.45);\n      // hot cores go white\n      const hot = Math.max(0, t - 0.72) * 3.4;\n      r += hot * 90; gg += hot * 110; b += hot * 70;\n    }\n    pix[o] = r > 255 ? 255 : r; pix[o + 1] = gg > 255 ? 255 : gg; pix[o + 2] = b > 255 ? 255 : b; pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- upscale ----\npush();\nif (P.alpha < 100) { tint(0, 0, 100, P.alpha); }\nimage(g, 0, 0, width, height);\nnoTint();\n// bright node glints on top (few shapes) — brightest halos twinkle\nblendMode(ADD);\nnoStroke();\nfor (let i = 0; i < NN; i++) {\n  if (S.nm[i] < 0.72) continue;\n  const gx = px[i] / BW * width, gy = py[i] / BH * height;\n  const tw = 0.6 + 0.4 * Math.sin(K.t * (0.7 + i * 0.13) + S.ph[i]) + K.pulse * 0.3 + A.bass * 0.4;\n  const sz = u * 0.012 * S.nm[i] * (0.7 + P.energy * 0.6) * (0.7 + tw * 0.6);\n  fill(0, 0, 100, (10 + P.energy * 14) * (0.5 + tw * 0.5) * (P.alpha / 100));\n  circle(gx, gy, sz * 2.4);\n  fill(0, 0, 100, (24 + P.energy * 22) * (P.alpha / 100));\n  circle(gx, gy, sz);\n}\nblendMode(BLEND);\npop();\n"
+}

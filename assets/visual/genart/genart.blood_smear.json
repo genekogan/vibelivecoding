@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.blood_smear",
+  "kind": "genart",
+  "name": "Blood Smear",
+  "desc": "A peripheral blood film under the objective, stained Wright-Giemsa: the field packed with erythrocytes as salmon biconcave discs each carrying the pale central pallor that gives red cells their donut look, while the stage pans slowly and endlessly so the smear drifts and cells wrap across the frame. Scattered through them are leukocytes -- neutrophils with a dark multilobed nucleus, lymphocytes with one round nucleus, the odd eosinophil dusted orange -- larger cells crossing the field, plus tiny platelet flecks; the pan runs on incommensurate rates so it never re-phases and slow focus makes the discs breathe. Offered as classic Giemsa stain, glowing dark-field rings, a grey scanning-EM relief, or a false-colour oxygenation map.",
+  "tags": [
+    "blood",
+    "blood-smear",
+    "blood-film",
+    "haematology",
+    "hematology",
+    "erythrocyte",
+    "red-blood-cell",
+    "rbc",
+    "leukocyte",
+    "white-blood-cell",
+    "wbc",
+    "neutrophil",
+    "lymphocyte",
+    "eosinophil",
+    "platelet",
+    "biconcave",
+    "central-pallor",
+    "giemsa",
+    "wright-stain",
+    "histology",
+    "cytology",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "dark-field",
+    "scanning-em",
+    "sem",
+    "oxygenation",
+    "cell",
+    "cells",
+    "microbiology",
+    "clinical",
+    "laboratory",
+    "medical",
+    "pathology",
+    "salmon",
+    "purple",
+    "drift",
+    "pan",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "organic",
+    "eerie",
+    "clinical"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "stain saturation / dark-field glow brightness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification - fewer, larger cells, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the stage pans and cells breathe"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "cellularity - how densely the red cells are packed"
+    },
+    "wbc": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "white-cell count crossing the field"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "erythrocyte hue (salmon by default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, vertical"
+    },
+    "style": {
+      "default": "giemsa",
+      "options": [
+        "giemsa",
+        "darkfield",
+        "sem",
+        "pseudo"
+      ],
+      "doc": "aesthetic: classic Wright-Giemsa stain / glowing dark-field rings on black / grey scanning-EM 3D relief / false-colour oxygenation map"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-throws the whole cell population and white-cell types"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:54+00:00",
+    "fps": 59.9,
+    "motion": 0.051,
+    "lum": 0.516
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, wbc: .5, hue: 8, x: .5, y: .5, style: 'giemsa', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// A peripheral blood film under the objective, stained Wright-Giemsa. The field\n// is packed with erythrocytes -- salmon biconcave discs, each with the pale\n// central pallor that gives red cells their donut look -- and the stage pans\n// slowly so the smear drifts endlessly, cells wrapping across the field. Scattered\n// through them are leukocytes: neutrophils with a dark multilobed nucleus,\n// lymphocytes with one round nucleus and a thin rim, the odd eosinophil dusted\n// orange -- larger cells that cross the frame -- plus tiny platelet flecks. The\n// pan drifts on incommensurate rates so it never re-phases, and slow focus makes\n// the discs breathe. Offered as classic Giemsa stain, glowing dark-field rings,\n// a grey scanning-EM relief, or a false-colour oxygenation map.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 4.9) * 43758.5453; return s - Math.floor(s); };\n\nconst nRBC = Math.round(120 + P.density * 260);\nconst nWBC = Math.round(1 + P.wbc * 6);\nif (!S.rbc || S.seedUsed !== P.seed || S.nR !== nRBC || S.nW !== nWBC) {\n  S.seedUsed = P.seed; S.nR = nRBC; S.nW = nWBC;\n  S.rbc = [];\n  for (let k = 0; k < nRBC; k++) S.rbc.push({\n    x: fr(k * 3 + 1), y: fr(k * 5 + 2),\n    r: 0.021 + fr(k * 7 + 3) * 0.011,\n    asp: 0.82 + fr(k * 11 + 4) * 0.3, rot: fr(k * 13 + 5) * Math.PI,\n    ph: fr(k * 17 + 6) * 6.283, o2: fr(k * 19 + 7),\n    cren: fr(k * 23 + 8) < 0.12                       // occasional crenated (spiky) cell\n  });\n  S.wbc = [];\n  for (let k = 0; k < nWBC; k++) {\n    const kind = fr(k * 29 + 11);   // <.5 neutrophil, <.8 lymphocyte, else eosinophil\n    S.wbc.push({\n      x: fr(k * 31 + 12), y: fr(k * 37 + 13),\n      r: 0.05 + fr(k * 41 + 14) * 0.025,\n      kind: kind < 0.5 ? 'neutro' : (kind < 0.82 ? 'lymph' : 'eosino'),\n      lobes: 2 + Math.floor(fr(k * 43 + 15) * 4),\n      seedn: fr(k * 47 + 16) * 100, ph: fr(k * 53 + 17) * 6.283\n    });\n  }\n  S.plat = [];\n  const np = Math.round(30 + P.density * 60);\n  for (let k = 0; k < np; k++) S.plat.push({ x: fr(k * 3 + 301), y: fr(k * 5 + 302), r: 0.004 + fr(k * 7 + 303) * 0.005, ph: fr(k * 11 + 304) * 6.283 });\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.2 + A.rms * 0.3;\nconst focus = 0.94 + 0.06 * Math.sin(t * 0.28 * sp);\n// stage pan: net drift + wander on incommensurate rates\nconst panx = 0.03 * t * sp + 0.16 * Math.sin(t * 0.05 * sp) + 0.08 * Math.sin(t * 0.113 * sp + 1.1);\nconst pany = 0.022 * t * sp + 0.14 * Math.cos(t * 0.043 * sp) + 0.06 * Math.sin(t * 0.091 * sp + 0.4);\n\nlet bgH, bgS, bgB, mode;\nif (style === 'darkfield') { bgH = 250; bgS = 55; bgB = 9; mode = 'darkfield'; }\nelse if (style === 'sem') { bgH = 30; bgS = 4; bgB = 26; mode = 'sem'; }\nelse if (style === 'pseudo') { bgH = 230; bgS = 30; bgB = 12; mode = 'pseudo'; }\nelse { bgH = 285; bgS = 16; bgB = 66; mode = 'giemsa'; }\nconst pale = (mode === 'giemsa');\n\nconst cs = u * 1.15;              // cell field scale\npush();\nnoStroke(); rectMode(CORNER);\nfill(bgH, bgS, bgB); rect(0, 0, width, height);\nif (mode === 'giemsa') {\n  // mottled plasma stain background (broad, lifts + textures the pale ground)\n  for (let b = 0; b < 26; b++) { const bx = fr(b * 3 + 900), by = fr(b * 5 + 901); fill((bgH + (fr(b) - 0.5) * 30) % 360, 20 + fr(b * 2) * 16, 60 + fr(b * 4) * 10, 22); ellipse(bx * width, by * height, u * (0.2 + fr(b * 7) * 0.3), u * (0.2 + fr(b * 6) * 0.3)); }\n}\n\nfunction wrapDraw(cx, cy, drawFn) {\n  // draw at the toroidal position and edge-wrap copies so nothing pops at seams\n  const gx = (((cx + panx) % 1) + 1) % 1, gy = (((cy + pany) % 1) + 1) % 1;\n  for (let ex = -1; ex <= 1; ex++) for (let ey = -1; ey <= 1; ey++) {\n    const px = (gx + ex) * width, py = (gy + ey) * height;\n    if (px < -u * 0.1 || px > width + u * 0.1 || py < -u * 0.1 || py > height + u * 0.1) continue;\n    drawFn(px, py);\n  }\n}\n\nif (mode === 'darkfield' || mode === 'pseudo') blendMode(mode === 'darkfield' ? ADD : BLEND);\n\n// erythrocytes\nfor (let k = 0; k < S.rbc.length; k++) {\n  const c = S.rbc[k];\n  const R = c.r * cs * P.scale * focus;\n  if (R < 0.8) continue;\n  const wobR = R * (1 + 0.05 * Math.sin(t * 0.5 + c.ph));\n  const o2 = 0.5 + 0.5 * Math.sin(t * 0.2 * sp + c.o2 * 6.283);\n  wrapDraw(c.x, c.y, (px, py) => {\n    push(); translate(px, py); rotate(c.rot + Math.sin(t * 0.1 + c.ph) * 0.2); scale(1, c.asp);\n    if (mode === 'giemsa') {\n      noStroke(); fill((P.hue + 4) % 360, 42, 66, 92); ellipse(0, 0, wobR * 2, wobR * 2);           // salmon body\n      fill((P.hue + 350) % 360, 34, 78, 80); ellipse(0, 0, wobR * 1.1, wobR * 1.1);                  // central pallor\n      noFill(); stroke((P.hue) % 360, 48, 52, 60); strokeWeight(Math.max(0.5, R * 0.12)); ellipse(0, 0, wobR * 2, wobR * 2);\n    } else if (mode === 'darkfield') {\n      noFill(); stroke((P.hue + 20) % 360, 55, Math.min(100, 62 * glow), 70); strokeWeight(Math.max(0.6, R * 0.18)); ellipse(0, 0, wobR * 2, wobR * 2);\n      stroke((P.hue + 40) % 360, 40, Math.min(100, 40 * glow), 40); strokeWeight(Math.max(0.5, R * 0.08)); ellipse(0, 0, wobR * 1.1, wobR * 1.1);\n    } else if (mode === 'sem') {\n      noStroke(); fill(30, 4, 42, 100); ellipse(0, 0, wobR * 2, wobR * 2);\n      fill(30, 4, 26, 100); ellipse(0, 0, wobR * 1.05, wobR * 1.05);                                  // sunken centre shadow\n      fill(30, 3, 66, 60); ellipse(-wobR * 0.4, -wobR * 0.4, wobR * 0.7, wobR * 0.7);                  // rim highlight\n    } else {\n      noStroke(); const hh = 240 - o2 * 240;                                                          // blue(deox) -> red(ox)\n      fill((hh + 360) % 360, 70, Math.min(100, (40 + o2 * 40) * glow), 80); ellipse(0, 0, wobR * 2, wobR * 2);\n      fill((hh + 360) % 360, 40, Math.min(100, 30 * glow), 60); ellipse(0, 0, wobR * 1.05, wobR * 1.05);\n    }\n    if (c.cren && mode !== 'sem') { stroke(mode === 'giemsa' ? (P.hue % 360) : (P.hue + 20) % 360, 40, pale ? 48 : 60, 40); strokeWeight(Math.max(0.4, R * 0.08)); noFill(); for (let a = 0; a < 10; a++) { const th = a / 10 * 6.283; line(Math.cos(th) * wobR * 0.9, Math.sin(th) * wobR * 0.9, Math.cos(th) * wobR * 1.15, Math.sin(th) * wobR * 1.15); } }\n    pop();\n  });\n}\n\n// platelets\nfor (let k = 0; k < S.plat.length; k++) {\n  const c = S.plat[k]; const R = c.r * cs * P.scale;\n  wrapDraw(c.x, c.y, (px, py) => { noStroke(); fill(pale ? 288 : (P.hue + 40) % 360, pale ? 55 : 60, pale ? 40 : Math.min(100, 60 * glow), 80); ellipse(px, py, R * 2, R * 2); });\n}\n\n// leukocytes\nfor (let k = 0; k < S.wbc.length; k++) {\n  const c = S.wbc[k]; const R = c.r * cs * P.scale * focus;\n  const frn = i => { const s = Math.sin(i * 91.7 + c.seedn * 57.3) * 43758.5453; return s - Math.floor(s); };\n  wrapDraw(c.x, c.y, (px, py) => {\n    push(); translate(px, py);\n    // cytoplasm halo\n    noStroke();\n    if (mode === 'giemsa') fill(c.kind === 'eosino' ? 20 : 210, c.kind === 'eosino' ? 30 : 22, c.kind === 'lymph' ? 72 : 80, 88);\n    else if (mode === 'sem') fill(30, 4, 56, 100);\n    else fill((P.hue + 60) % 360, 40, Math.min(100, 44 * glow), 70);\n    ellipse(0, 0, R * 2, R * 2);\n    if (c.kind === 'eosino' && mode === 'giemsa') { for (let g = 0; g < 26; g++) { fill(22, 65, 66, 80); const a = frn(g) * 6.283, d = frn(g + 40) * R * 0.85; ellipse(Math.cos(a) * d, Math.sin(a) * d, R * 0.16, R * 0.16); } }\n    // nucleus: dark purple, lobed\n    const nH = mode === 'giemsa' ? 288 : (mode === 'sem' ? 30 : (P.hue + 200) % 360);\n    const nS = mode === 'sem' ? 4 : 58, nB = mode === 'giemsa' ? 30 : (mode === 'sem' ? 16 : Math.min(100, 50 * glow));\n    if (c.kind === 'lymph') { fill(nH, nS, nB, 92); ellipse(0, 0, R * 1.5, R * 1.5); }\n    else { const nl = c.lobes; for (let l = 0; l < nl; l++) { const a = l / nl * 6.283 + Math.sin(t * 0.4 * sp + c.ph) * 0.3; const d = R * 0.55; fill(nH, nS, nB, 90); ellipse(Math.cos(a) * d, Math.sin(a) * d, R * 0.95, R * 0.95); } }\n    pop();\n  });\n}\nif (mode === 'darkfield' || mode === 'pseudo') blendMode(BLEND);\n\n// vignette\nnoFill(); for (let vi = 0; vi < 4; vi++) { stroke(bgH, bgS, pale ? bgB * 0.6 : 0, 10); strokeWeight(u * (0.05 + vi * 0.02)); ellipse(width / 2, height / 2, width * (1.02 + vi * 0.03), height * (1.02 + vi * 0.03)); }\npop();\n\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

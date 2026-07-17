@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mitosis_wave",
+  "kind": "genart",
+  "name": "Mitosis Wave",
+  "desc": "A live-cell timelapse of a proliferating epithelium: cells tile the field as a jittered sheet of rounded membranes with visible junctions and a stained nucleus each, while a mitotic wave travels across on a moving diagonal front, running the division programme cell by cell -- interphase nucleus condensing to a metaphase plate, anaphase nuclei pulling apart as the cell elongates, a cleavage furrow pinching it into two daughters -- then relaxing back, so divisions ripple endlessly and never converge, with scattered apoptosis darkening the odd cell to keep the sheet churning. Offered as GFP/DAPI fluorescence, H&E histology, phase-contrast, or a flat segmentation label-map.",
+  "tags": [
+    "mitosis",
+    "cell-division",
+    "cytokinesis",
+    "metaphase",
+    "anaphase",
+    "telophase",
+    "cleavage-furrow",
+    "epithelium",
+    "epithelial",
+    "tissue",
+    "cell",
+    "cells",
+    "nucleus",
+    "chromosome",
+    "proliferation",
+    "apoptosis",
+    "live-cell",
+    "timelapse",
+    "fluorescence",
+    "gfp",
+    "dapi",
+    "histology",
+    "h&e",
+    "phase-contrast",
+    "segmentation",
+    "confocal",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "microbiology",
+    "membrane",
+    "junction",
+    "organelle",
+    "biology",
+    "wave",
+    "travelling-wave",
+    "morphogenesis",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "clinical",
+    "laboratory",
+    "organic",
+    "eerie"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "stain brightness and mitotic-flash glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification into the sheet - cells swell, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate the mitotic wave sweeps and cells cycle"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cell count - how fine the tissue is packed"
+    },
+    "division": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how strongly the wave drives division - elongation, furrow depth, nuclear separation"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "membrane / cytoskeleton stain hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, vertical"
+    },
+    "style": {
+      "default": "fluor",
+      "options": [
+        "fluor",
+        "histo",
+        "phase",
+        "segmented"
+      ],
+      "doc": "aesthetic: GFP/DAPI fluorescence on black / pink H&E histology / grey phase-contrast with bright halos / flat categorical segmentation mask"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-throws the cell packing, phases and division axes"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:33+00:00",
+    "fps": 59.5,
+    "motion": 0.1247,
+    "lum": 0.21
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .5, division: .6, hue: 135, x: .5, y: .5, style: 'fluor', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// A live-cell timelapse of a proliferating epithelium. Cells tile the field as a\n// jittered sheet of rounded membranes with visible junctions and a stained\n// nucleus each. A mitotic wave travels across the tissue on a moving diagonal\n// front: as it passes, cells run the division programme -- interphase nucleus ->\n// condensed metaphase plate -> anaphase nuclei pulling apart while the cell\n// elongates -> a cleavage furrow pinches it into two daughters -- then relax back.\n// Because the wave keeps moving and each cell carries its own rate, divisions\n// ripple endlessly and never converge; scattered apoptosis darkens and shrinks\n// the odd cell so the sheet keeps churning. Offered as GFP/DAPI fluorescence,\n// H&E histology, phase-contrast, or a flat segmentation label-map.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\nconst divAmt = 0.2 + P.division * 1.1;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 2.1) * 43758.5453; return s - Math.floor(s); };\n\n// build the cell sheet on seed / density change -------------------------------\nconst cols = Math.round(9 + P.density * 15);\nconst rows = Math.max(4, Math.round(cols * height / width));\nif (!S.cell || S.seedUsed !== P.seed || S.cols !== cols || S.rows !== rows) {\n  S.seedUsed = P.seed; S.cols = cols; S.rows = rows;\n  S.cell = [];\n  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {\n    const k = j * cols + i;\n    const stag = (j % 2) * 0.5;                       // brick offset -> tissue, not grid\n    S.cell.push({\n      gx: (i + 0.5 + stag) / cols, gy: (j + 0.5) / rows,\n      jx: (fr(k * 3 + 1) - 0.5) * 0.6 / cols, jy: (fr(k * 5 + 2) - 0.5) * 0.6 / rows,\n      sz: 0.78 + fr(k * 7 + 3) * 0.34,\n      off: fr(k * 11 + 4), rate: 0.02 + fr(k * 13 + 5) * 0.05,\n      axis: fr(k * 17 + 6) * Math.PI,\n      aoff: fr(k * 19 + 7), arate: 0.02 + fr(k * 23 + 8) * 0.03,\n      wob: fr(k * 29 + 9) * 6.283, hueJ: (fr(k * 31 + 10) - 0.5) * 30,\n      lab: fr(k * 37 + 11)\n    });\n  }\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.2 + A.rms * 0.3;\nconst waveK = 2.4 + P.density * 3;\nconst wavePhase = t * sp * 0.55;\n\n// palette / mode\nlet bgH, bgS, bgB, mode;\nif (style === 'histo') { bgH = 328; bgS = 20; bgB = 78; mode = 'histo'; }\nelse if (style === 'phase') { bgH = 210, bgS = 6; bgB = 46; mode = 'phase'; }\nelse if (style === 'segmented') { bgH = 220; bgS = 30; bgB = 11; mode = 'segmented'; }\nelse { bgH = 225; bgS = 55; bgB = 12; mode = 'fluor'; }\nconst pale = (mode === 'histo');\n\nconst cw = width / cols, chh = height / rows;\nconst cellR = Math.min(cw, chh) * 0.5 * P.scale;\n\npush();\nnoStroke(); rectMode(CENTER);\nfill(bgH, bgS, bgB); rect(width / 2, height / 2, width * 1.02, height * 1.02);\n\nif (mode === 'fluor' || mode === 'segmented') blendMode(mode === 'fluor' ? ADD : BLEND);\n\n// membrane / nucleus colours per style\nconst memH = mode === 'histo' ? 320 : (mode === 'phase' ? 210 : P.hue);\nfor (let ci = 0; ci < S.cell.length; ci++) {\n  const c = S.cell[ci];\n  // apoptosis window -> shrink + darken\n  const apo = (c.aoff + t * c.arate * sp) % 1;\n  const dying = apo < 0.09 ? (1 - apo / 0.09) : 0;\n  const alive = 1 - dying * 0.92;\n  // mitotic phase driven by own rate + the travelling wave\n  const wv = 0.5 * (1 + Math.sin(c.gx * 6.2831853 * waveK * 0.16 - wavePhase + c.gy * 2.1));\n  let p = (c.off + t * c.rate * sp + divAmt * 0.42 * wv) % 1;\n  const cx = c.gx * width + c.jx * width + Math.sin(t * 0.4 * sp + c.wob) * cw * 0.05;\n  const cy = c.gy * height + c.jy * height + Math.cos(t * 0.37 * sp + c.wob) * chh * 0.05;\n  const R = cellR * c.sz * alive;\n  if (R < 1.5) continue;\n\n  const hue = (memH + c.hueJ + 360) % 360;\n  let mS, mB, nucH, nucS, nucB;\n  if (mode === 'histo') { mS = 30; mB = 40; nucH = 285; nucS = 55; nucB = 34; }\n  else if (mode === 'phase') { mS = 4; mB = 70 * glow * (0.7 + 0.3 * wv); nucH = 210; nucS = 6; nucB = 22; }\n  else if (mode === 'segmented') { const lh = (c.lab * 360) | 0; mS = 55; mB = 60; nucH = lh; nucS = 40; nucB = 82; }\n  else { mS = 70; mB = Math.min(100, 50 * glow); nucH = 220; nucS = 65; nucB = Math.min(100, 62 * glow); }\n\n  push(); translate(cx, cy); rotate(c.axis);\n\n  // ---- membrane ----\n  const elong = 1 + Math.max(0, p - 0.62) * (p > 0.62 ? divAmt * 1.3 : 0);\n  const furrow = p > 0.8 ? (p - 0.8) / 0.2 : 0;             // cleavage furrow depth\n  const mw = Math.max(1, R * 1.86 * elong), mh = Math.max(1, R * 1.86 / Math.sqrt(elong));\n  const rad = R * 0.7;\n  if (mode === 'segmented') { noStroke(); fill(nucH, mS, mB, 100); }\n  else if (pale) { noStroke(); fill(hue, mS, mB + 34, 60); }\n  else { noStroke(); fill(hue, mS, mB * 0.5, 26 + glow * 8); }\n  // cell body (rounded)\n  if (furrow < 0.5) { rect(0, 0, mw, mh, rad); }\n  else { // two daughter lobes\n    const gap = furrow * R * 0.9;\n    rect(-gap - R * 0.5, 0, Math.max(1, R * 1.6), mh * 0.92, rad);\n    rect(gap + R * 0.5, 0, Math.max(1, R * 1.6), mh * 0.92, rad);\n  }\n  // membrane outline (junction)\n  noFill(); strokeWeight(Math.max(0.6, R * 0.09));\n  if (mode === 'segmented') stroke(0, 0, 100, 90);\n  else if (pale) stroke(hue, mS + 20, 24, 70);\n  else stroke(hue, mS, Math.min(100, mB * 1.5), 80);\n  if (furrow < 0.5) rect(0, 0, mw, mh, rad);\n  else { const gap = furrow * R * 0.9; rect(-gap - R * 0.5, 0, Math.max(1, R * 1.6), mh * 0.92, rad); rect(gap + R * 0.5, 0, Math.max(1, R * 1.6), mh * 0.92, rad); }\n\n  // ---- nucleus / chromosomes by phase ----\n  noStroke();\n  const flash = mode === 'fluor' ? (1 + (p > 0.62 && p < 0.92 ? 0.7 : 0)) : 1;\n  if (p < 0.62) {\n    // interphase: single round nucleus + faint nucleolus\n    for (let g2 = 3; g2 >= 1; g2--) { fill(nucH, nucS, nucB * flash, mode === 'fluor' ? 24 : (pale ? 80 : 60)); ellipse(0, 0, R * (0.5 + g2 * 0.12), R * (0.5 + g2 * 0.12)); }\n    if (R > u * 0.02) { fill(nucH, nucS + 15, nucB * 0.7, pale ? 70 : 50); ellipse(R * 0.08, -R * 0.06, R * 0.16, R * 0.16); }\n  } else if (p < 0.78) {\n    // prophase/metaphase: condensed chromosomes on a bright equatorial plate\n    const nc = 5;\n    for (let g2 = 0; g2 < nc; g2++) { const yy = (g2 / (nc - 1) - 0.5) * R * 0.7; fill(nucH, nucS + 10, Math.min(100, nucB * 1.2 * flash), pale ? 85 : 70); ellipse(0, yy, R * 0.22, R * 0.12); }\n  } else {\n    // anaphase/telophase: two nuclei pulling apart along the axis\n    const sepr = (p - 0.78) / 0.22 * R * (0.9 + divAmt * 0.4);\n    for (const dir of [-1, 1]) { for (let g2 = 2; g2 >= 1; g2--) { fill(nucH, nucS, nucB * flash, mode === 'fluor' ? 30 : (pale ? 82 : 62)); ellipse(dir * (sepr + R * 0.5), 0, R * (0.34 + g2 * 0.1), R * (0.34 + g2 * 0.1)); } }\n  }\n  pop();\n}\nif (mode === 'fluor' || mode === 'segmented') blendMode(BLEND);\n\n// travelling-wave sheen (broad, low-alpha -> carries motion + reads as the front)\nif (!pale) { noStroke(); blendMode(mode === 'segmented' ? BLEND : ADD);\n  for (let b = 0; b < 3; b++) { const wx = ((wavePhase * 0.5 + b * 0.33) % 1); fill(memH, 40, 40 * glow, 6); rect((wx) * width, height / 2, width * 0.16, height * 1.1); }\n  blendMode(BLEND); }\n\npop();\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

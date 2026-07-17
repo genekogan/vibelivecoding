@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.rain_window",
+  "kind": "fx",
+  "name": "Rain Window",
+  "desc": "Rain on the window of a moving vehicle at night \u2014 beads cling and vibrate then release into wind-sheared streaks, while big soft passing-light bokeh smears slide across a fogged pane; a cinematic night-drive glass over any scene.",
+  "tags": [
+    "rain",
+    "window",
+    "windshield",
+    "windscreen",
+    "car-window",
+    "train-window",
+    "vehicle",
+    "moving",
+    "night-drive",
+    "road",
+    "commute",
+    "glass",
+    "beads",
+    "droplets",
+    "streaks",
+    "sheared",
+    "wet",
+    "bokeh",
+    "passing-lights",
+    "headlights",
+    "streetlights",
+    "fogged",
+    "condensation",
+    "cinematic",
+    "noir",
+    "melancholy",
+    "cyberpunk",
+    "neon",
+    "blue",
+    "amber",
+    "overlay",
+    "atmosphere",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "bead + passing-light count"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light-smear brightness + motion"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "passing-light / fog hue bias"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "passing-light + bead rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "bead size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "shear": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "streak lean from vehicle motion (0.5=straight down)"
+    },
+    "fog": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "peripheral fogged-glass haze"
+    },
+    "style": {
+      "default": "night_drive",
+      "options": [
+        "night_drive",
+        "day_bus",
+        "neon_city",
+        "noir"
+      ],
+      "doc": "night_drive=dark, sodium+white bokeh / day_bus=grey overcast / neon_city=magenta-cyan bokeh / noir=high-contrast mono"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:04+00:00",
+    "fps": 61.3,
+    "motion": 0.0869,
+    "lum": 0.212
+  },
+  "code": "const D = { density:.55, energy:.6, hue:30, speed:1, scale:1, x:.5, y:.5, shear:.5, fog:.6, style:'night_drive', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\nif(!S.spr){ const R=64; const s=createGraphics(R*2,R*2); s.pixelDensity(1); s.noStroke();\n  for(let r=R;r>0;r--){ const a=Math.pow(1-r/R,1.6)*255; s.fill(255,255,255,a*0.9); s.ellipse(R,R,r*2,r*2); }\n  S.spr=s; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1);\n  S.bead=[]; for(let k=0;k<260;k++) S.bead.push([fr(k*4+2),fr(k*4+3),fr(k*4+4),fr(k*4+5)]);\n  S.lite=[]; for(let k=0;k<8;k++) S.lite.push([fr(k*5+50),fr(k*5+51),fr(k*5+52),0.4+fr(k*5+53)*0.9,fr(k*5+54)]);\n}\nconst t=K.t*(0.6+P.speed*0.8);\nconst style=P.style;\n// passing-light palette (h,s per light index via type)\nconst warm=[30,90], cool=[210,25], neon1=[315,85], neon2=[185,80];\nfunction litColor(k){ if(style==='neon_city') return (k%2)?neon1:neon2; if(style==='noir') return [0,0]; if(style==='day_bus') return [210,10]; return (k%3===0)?cool:warm; }\nconst fogCol = style==='neon_city'?[300,30] : style==='noir'?[0,0] : style==='day_bus'?[210,12] : [220,25];\n\n// --- fogged periphery (broad area element) ---\npush(); blendMode(ADD); noStroke();\nconst fstr=(0.1+P.fog*0.6);\nfor(let ring=0;ring<3;ring++){ const rr=u*(0.9+ring*0.35);\n  fill(fogCol[0], fogCol[1], style==='day_bus'?80:60, (style==='day_bus'?7:5)*fstr);\n  ellipse(width*0.5, height*0.5, rr*2.2, rr*2.2);\n}\n// faint uniform veiling so the whole pane reads wet+lit\nfill(fogCol[0], fogCol[1]*0.5, style==='day_bus'?85:55, 4*fstr + 2*K.intensity); rect(0,0,width,height);\nblendMode(BLEND); pop();\n\n// --- big passing lights, smeared horizontally (the key mover) ---\npush(); blendMode(ADD); imageMode(CENTER); noStroke();\nconst litN=2+Math.round(P.density*6);\nfor(let k=0;k<litN;k++){ const l=S.lite[k];\n  const dep=0.3+l[3];                       // depth -> speed & size\n  const spd=(0.06+dep*0.12)*(1+P.energy);\n  let lx=((l[0] + t*spd*(k%2?1:-1)) %1.3); if(lx<0)lx+=1.3; lx=(lx-0.15);\n  const ly=(0.2+l[1]*0.6 + 0.03*Math.sin(t*0.4+k));\n  const X=lx*width, Y=ly*height;\n  const sz=u*(0.12+dep*0.22)*P.scale;\n  const c=litColor(k);\n  const br=(0.5+0.5*Math.sin(t*0.7+l[4]*6.28))*(0.6+P.energy*0.7);\n  // elongated smear (motion blur of a passing light)\n  tint(c[0], c[1], 100, Math.min(100, 22*br)); image(S.spr, X, Y, sz*2.6, sz*1.1);\n  tint(c[0], c[1]*0.7, 100, Math.min(100, 60*br)); image(S.spr, X, Y, sz*1.0, sz*0.7);\n}\nimageMode(CORNER); blendMode(BLEND); pop();\n\n// --- rain beads on the glass, sheared backward by vehicle motion ---\nconst nb=Math.round(70+P.density*170);\nconst shearA=(P.shear-0.5)*1.3;               // streak lean\npush();\nfor(let k=0;k<nb;k++){ const b=S.bead[k];\n  const runner = b[3] < (0.18+P.energy*0.25);  // some beads release and streak\n  let by, bx;\n  if(runner){\n    const prog=(b[1] + t*0.14*(0.5+b[2]))%1;\n    by=prog; bx=(b[0] + shearA*prog*0.35 + 0.02*Math.sin(t*2+k))%1; if(bx<0)bx+=1;\n  } else {\n    by=b[1] + 0.004*Math.sin(t*3.0+k);          // static bead, tiny vibration\n    bx=b[0] + 0.003*Math.sin(t*2.3+k*1.7);\n  }\n  const X=bx*width, Y=by*height;\n  const sz=(1.2+b[2]*4.0)*P.scale*(u/700+0.5);\n  // bead = dark lens core + bright shoulder glint\n  noStroke();\n  fill(fogCol[0], 20, 22, 40); ellipse(X,Y,sz*(runner?1.0:1.4), sz*(runner?2.2:1.4));\n  if(runner){ // clear trail\n    stroke(fogCol[0], 12, 40, 12); strokeWeight(sz*0.5);\n    line(X - shearA*sz*3, Y - sz*6, X, Y);\n    noStroke();\n  }\n  fill(0,0,100, 55); ellipse(X - sz*0.28*(1+shearA), Y - sz*0.3, sz*0.4, sz*0.4);  // glint\n}\npop();\n"
+}

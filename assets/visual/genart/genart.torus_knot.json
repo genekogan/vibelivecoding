@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.torus_knot",
+  "kind": "genart",
+  "name": "Torus Knot",
+  "desc": "A single (p,q) torus knot \u2014 a metallic rope wound p times around and q times through a torus, its over-and-under crossings depth-sorted so the strand reads as solid cord, tumbling on two incommensurate axes while a highlight flows along its length.",
+  "tags": [
+    "torus",
+    "knot",
+    "torus-knot",
+    "(p,q)",
+    "trefoil",
+    "cinquefoil",
+    "winding",
+    "link",
+    "mathematical",
+    "knot-theory",
+    "topology",
+    "rope",
+    "cord",
+    "tube",
+    "braid",
+    "over-under",
+    "crossing",
+    "metallic",
+    "brass",
+    "gilt",
+    "engraving",
+    "blueprint",
+    "neon",
+    "wire",
+    "x-ray",
+    "3d",
+    "rotating",
+    "tumbling",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "mathart",
+    "plate",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "knot size"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "tube thickness & sheen"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "strand smoothness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "p": {
+      "default": 3,
+      "min": 2,
+      "max": 7,
+      "doc": "times around (winding p)"
+    },
+    "q": {
+      "default": 2,
+      "min": 1,
+      "max": 9,
+      "doc": "times through (winding q)"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "metal hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "brass",
+      "options": [
+        "brass",
+        "blueprint",
+        "neon",
+        "engraving",
+        "wire"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:50:43+00:00",
+    "fps": 30.4,
+    "motion": 0.0215,
+    "lum": 0.069
+  },
+  "code": "const D = { scale:1, energy:.62, density:.55, speed:1, p:3, q:2, hue:38, x:.5, y:.5, style:'brass', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx = width*P.x, cy = height*P.y, t = K.t;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst pp = Math.max(2, Math.round(P.p)), qq = Math.max(1, Math.round(P.q));\nconst en = P.energy, sc = P.scale;\nconst R0 = 0.30*u*sc, r0 = (0.10 + 0.03*en)*u*sc;\nconst N = Math.max(360, Math.min(760, Math.round(360 + P.density*360)));\nconst flow = t*(0.7 + P.speed*1.6);\nconst bass = Math.min(0.5, A.bass*0.6);\n\n// grounds\nif (sty==='blueprint') background(214, 55, 20);\nelse if (sty==='engraving') background(38, 12, 58);\nelse background(224, 40, 8);\n\n// two incommensurate rotations for perpetual, non-repeating tumble\nconst aX = t*0.13 + 0.4*Math.sin(t*0.061);\nconst aY = t*0.191 + 0.5*Math.sin(t*0.043+1.1);\nconst ca=Math.cos(aX), sa=Math.sin(aX), cb=Math.cos(aY), sb=Math.sin(aY);\n\nconst pts = [];\nfor (let i=0;i<=N;i++){\n  const th = i/N*Math.PI*2;\n  const ta = qq*th, ra = pp*th;\n  let X = (R0 + r0*Math.cos(ta))*Math.cos(ra);\n  let Y = (R0 + r0*Math.cos(ta))*Math.sin(ra);\n  let Z = r0*Math.sin(ta);\n  // rot X axis\n  let y1 = Y*ca - Z*sa, z1 = Y*sa + Z*ca;\n  // rot Y axis\n  let x2 = X*cb + z1*sb, z2 = -X*sb + z1*cb;\n  pts.push({x:cx+x2, y:cy+y1, z:z2, th});\n}\nconst segs = [];\nfor (let i=0;i<N;i++){\n  const a=pts[i], b=pts[i+1];\n  segs.push({a,b, z:(a.z+b.z)*0.5, th:a.th});\n}\nsegs.sort((m,n)=>m.z-n.z);\n\nconst zmax = r0+R0*0.02+ r0; // rough extent for normalisation\nconst ropeW = (0.030 + 0.020*en)*u*sc;\nstrokeCap(ROUND); strokeJoin(ROUND);\nconst near = N*0.80; // index threshold in sorted order for shadow\n\nfor (let k=0;k<segs.length;k++){\n  const s2 = segs[k];\n  const dn = (s2.z + R0)/(2*R0); // 0..1 depth, near=1\n  const lit = Math.max(0, Math.min(1, dn));\n  // flowing highlight band travelling along the cord length\n  const band = 0.5 + 0.5*Math.sin(s2.th*qq*1.0 - flow);\n  if (sty==='blueprint'){\n    stroke(198, 70, 40+45*lit, P.alpha); strokeWeight(ropeW*0.9);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    stroke(190, 30, 70+30*lit, P.alpha*0.9); strokeWeight(ropeW*0.28);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n  } else if (sty==='engraving'){\n    stroke(35, 18, 22+18*(1-lit), P.alpha); strokeWeight(ropeW*(0.8+0.5*lit));\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    if (band>0.62){ stroke(35,10,86,P.alpha*0.5); strokeWeight(ropeW*0.16); line(s2.a.x,s2.a.y,s2.b.x,s2.b.y); }\n  } else if (sty==='neon'){\n    blendMode(ADD);\n    stroke((P.hue+40*band)%360, 85, 26+40*lit, 34*(P.alpha/100)); strokeWeight(ropeW*1.5);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    stroke((P.hue+40*band)%360, 45, 88, 80*(P.alpha/100)); strokeWeight(ropeW*0.4);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    blendMode(BLEND);\n  } else if (sty==='wire'){\n    blendMode(ADD);\n    stroke((P.hue+30*lit)%360, 55, 30+55*lit, 70*(P.alpha/100)); strokeWeight(1.2+1.4*lit);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    blendMode(BLEND);\n  } else { // brass metallic\n    if (k>near){ drawingContext.shadowBlur = ropeW*0.9; drawingContext.shadowColor='rgba(0,0,0,0.55)'; }\n    stroke((P.hue-14)%360, 62, 14+26*lit + 12*bass, P.alpha); strokeWeight(ropeW*(0.9+0.3*lit));\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n    drawingContext.shadowBlur = 0;\n    const hb = 40 + 55*lit + 30*band;\n    stroke((P.hue+8)%360, 30 - 18*band, Math.min(100,hb+18*bass), P.alpha); strokeWeight(ropeW*0.34);\n    line(s2.a.x,s2.a.y,s2.b.x,s2.b.y);\n  }\n}\ndrawingContext.shadowBlur = 0;\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.kente",
+  "kind": "genart",
+  "name": "Kente Strip-Weave",
+  "desc": "Ashanti kente cloth built from narrow vertical strips, each alternating warp-stripe babadua bands with weft-float blocks of inlaid diamonds, combs and hollow squares, adjacent strips staggered so the blocks march in a bold gold-red-green-black checker as the cloth scrolls under a warm sheen.",
+  "tags": [
+    "kente",
+    "ashanti",
+    "asante",
+    "ewe",
+    "ghana",
+    "adinkra",
+    "strip-weave",
+    "narrow-strip",
+    "warp-stripe",
+    "weft-float",
+    "babadua",
+    "adweneasa",
+    "block",
+    "checker",
+    "gold",
+    "royal",
+    "african",
+    "cloth",
+    "fabric",
+    "textile",
+    "weave",
+    "woven",
+    "loom",
+    "bold",
+    "ceremonial",
+    "geometric",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen amplitude & scroll punch"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "strip / block size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "warp-stripe count per band"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "bolt-scroll & sheen rate"
+    },
+    "hue": {
+      "default": 46,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue (46 = kente gold)"
+    },
+    "motif": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "inlaid weft-float motif size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal phase / sheen origin"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen origin"
+    },
+    "style": {
+      "default": "adinkra_gold",
+      "options": [
+        "adinkra_gold",
+        "ewe_muted",
+        "kingdom_bold",
+        "mono_relief",
+        "indigo_ceremonial"
+      ],
+      "doc": "palette: royal gold / muted Ewe / maximal primaries / tonal monochrome relief / indigo ceremonial"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "strip layout & motif seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:16+00:00",
+    "fps": 59.9,
+    "motion": 0.1811,
+    "lum": 0.471
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .5, speed: 1, hue: 46, motif: .6, x: .5, y: .5, style: 'adinkra_gold', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\nfunction palette(style,hue){\n  if(style==='ewe_muted')        return {grd:[28,.30,.12], cols:[[42,.44,.66],[8,.40,.52],[150,.30,.44],[200,.26,.56],[40,.16,.82]]};\n  if(style==='kingdom_bold')     return {grd:[0,0,.06], cols:[[52,.92,.90],[2,.85,.68],[130,.80,.52],[214,.80,.60],[0,0,.95]]};\n  if(style==='mono_relief')      return {grd:[hue,.35,.07], cols:[[hue,.60,.66],[hue,.30,.40],[hue,.16,.82],[hue,.45,.24],[hue,.10,.92]]};\n  if(style==='indigo_ceremonial')return {grd:[220,.55,.10], cols:[[220,.55,.42],[0,0,.92],[46,.70,.78],[220,.30,.60],[46,.30,.86]]};\n  return {grd:[0,0,.07], cols:[[hue,.88,.86],[4,.82,.62],[135,.72,.46],[220,.60,.50],[0,0,.94]]}; // adinkra_gold\n}\nconst PL=palette(P.style,P.hue);\n\nfunction motifBlock(g,x0,y0,w,h,base,acc,typ,mo){\n  g.noStroke(); g.fill(base[0],base[1]*100,base[2]*100); g.rect(x0,y0,w,h);\n  // weft float lines (horizontal grain)\n  g.stroke(0,0,0,10); g.strokeWeight(1); for(let yy=y0+2;yy<y0+h;yy+=Math.max(3,h/26)) g.line(x0,yy,x0+w,yy); g.noStroke();\n  if(mo<0.05) return;\n  g.fill(acc[0],acc[1]*100,acc[2]*100);\n  const cx=x0+w/2, cy=y0+h/2, s=Math.min(w,h)*0.5*mo;\n  if(typ===0){ // stacked diamonds\n    for(let k=-1;k<=1;k++){ g.push(); g.translate(cx,cy+k*h*0.28); g.rotate(Math.PI/4); g.rect(-s*0.5,-s*0.5,s,s); g.pop(); }\n  } else if(typ===1){ // zigzag comb\n    g.stroke(acc[0],acc[1]*100,acc[2]*100); g.strokeWeight(Math.max(2,w*0.06)); g.noFill();\n    g.beginShape(); for(let xx=0;xx<=6;xx++) g.vertex(x0+ w*xx/6, cy + (xx&1? -h*0.22:h*0.22)); g.endShape(); g.noFill(); g.noStroke();\n  } else if(typ===2){ // checker eyes\n    const n=3; const cw=w/(n+1); for(let a=0;a<n;a++) for(let b=0;b<2;b++){ g.rect(x0+cw*(a+0.6), cy-h*0.2+b*h*0.32, cw*0.7, cw*0.7); }\n  } else { // hollow squares (nkyimkyim)\n    g.stroke(acc[0],acc[1]*100,acc[2]*100); g.strokeWeight(Math.max(2,w*0.05)); g.noFill();\n    g.rect(cx-s*0.7,cy-s*0.7,s*1.4,s*1.4); g.rect(cx-s*0.35,cy-s*0.35,s*0.7,s*0.7); g.noStroke();\n  }\n}\n\nconst key=[P.style,P.seed,Math.round(P.density*20),Math.round(P.hue),Math.round(P.motif*20),Math.round(P.scale*20)].join('_');\nif(S.key!==key || !S.g){\n  S.key=key;\n  const stripB=Math.round(Math.max(150,Math.min(300,uMin*0.24*P.scale)));\n  const bh=Math.round(stripB*1.12); const cyc=4; const tileW=stripB*2, tileH=bh*cyc;\n  const g=createGraphics(tileW,tileH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.fill(PL.grd[0],PL.grd[1]*100,PL.grd[2]*100); g.rect(0,0,tileW,tileH);\n  const nC=PL.cols.length;\n  for(let sidx=0;sidx<2;sidx++){\n    const x0=sidx*stripB; const off=sidx? 2:0; // stagger the block sequence\n    for(let b=0;b<cyc;b++){\n      const bi=(b+off)%cyc; const y0=b*bh;\n      const isWarp = (bi%2===0);\n      if(isWarp){\n        // warp-stripe (babadua): vertical thin stripes\n        const ns=Math.round(5+P.density*7); const cw=stripB/ns;\n        for(let k=0;k<ns;k++){ const c=PL.cols[(k + sidx + b)%nC]; g.fill(c[0],c[1]*100,c[2]*100); g.rect(x0+k*cw, y0, cw+1, bh); }\n        g.stroke(0,0,0,12); g.strokeWeight(1); for(let yy=y0+2;yy<y0+bh;yy+=4) g.line(x0,yy,x0+stripB,yy); g.noStroke();\n      } else {\n        const base=PL.cols[(bi+sidx)%nC]; const acc=PL.cols[(bi+sidx+2)%nC];\n        motifBlock(g,x0,y0,stripB,bh,base,acc,(b+sidx)%4,P.motif);\n      }\n    }\n    // strip seam\n    g.stroke(0,0,0,40); g.strokeWeight(2); g.line(x0,0,x0,tileH); g.noStroke();\n  }\n  S.g=g; S.tileW=tileW; S.tileH=tileH; S.stripB=stripB;\n  if(!S.sheen){ const sh=createGraphics(200,200); sh.pixelDensity(1); sh.noStroke();\n    for(let r=100;r>0;r--){ const a=Math.pow(1-r/100,1.7)*74; sh.fill(48,20,100,a); sh.ellipse(100,100,r*2,r*2);} S.sheen=sh; }\n}\n\nconst stripScreen=uMin*0.24*P.scale; const tsW=stripScreen*2, tsH=tsW*(S.tileH/S.tileW);\nS.scroll=(S.scroll||0)+(0.4+0.8*P.speed)*(1+0.4*A.bass*P.energy);\nconst ph=((S.scroll%tsH)+tsH)%tsH;\nconst xdr=(P.x-0.5)*0.2*width + 0.012*uMin*drift;\npush();\nimageMode(CORNER); noStroke();\nconst nx=Math.ceil(width/tsW)+2, ny=Math.ceil(height/tsH)+2;\nfor(let j=-1;j<ny;j++) for(let i=-1;i<nx;i++) image(S.g, i*tsW+(xdr%tsW), j*tsH-ph, tsW, tsH);\n// gold sheen sweep\nconst shA=(0.34)*(0.5+0.9*P.energy)*(0.6+0.6*K.swell);\nif(shA>0.02){ blendMode(ADD); imageMode(CENTER);\n  const cx=width*(0.5+0.42*Math.sin(t*0.18+P.x*3)), cy=height*(0.5+0.4*Math.sin(t*0.24+0.6));\n  tint(255,255*Math.min(1,shA)); image(S.sheen,cx,cy,uMin*1.5,uMin*1.0); noTint(); blendMode(BLEND); }\nif(P.alpha<100){ noStroke(); fill(PL.grd[0],PL.grd[1]*100,PL.grd[2]*100,100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}

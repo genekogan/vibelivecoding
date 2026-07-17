@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.supercoil",
+  "kind": "genart",
+  "name": "DNA Supercoil",
+  "desc": "Supercoiled DNA \u2014 a double helix whose two backbones wind around a writhing superhelical axis into a plectoneme, base-pair rungs depth-sorted between the strands, the linking number Lk = Tw + Wr traded between twist and writhe as it flows.",
+  "tags": [
+    "dna",
+    "supercoil",
+    "supercoiling",
+    "plectoneme",
+    "double-helix",
+    "helix",
+    "superhelix",
+    "twist",
+    "writhe",
+    "linking-number",
+    "topoisomerase",
+    "biophysics",
+    "molecular",
+    "topology",
+    "strands",
+    "backbone",
+    "base-pairs",
+    "rungs",
+    "interwound",
+    "coil",
+    "molecular",
+    "wire",
+    "engraving",
+    "neon",
+    "blueprint",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "helix size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tube thickness & glow"
+    },
+    "supercoil": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "writhe (superhelix turns)"
+    },
+    "twist": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "twist (helix turns)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "sample resolution"
+    },
+    "hue": {
+      "default": 178,
+      "min": 0,
+      "max": 360,
+      "doc": "strand hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "molecular",
+      "options": [
+        "molecular",
+        "wire",
+        "engraving",
+        "neon",
+        "blueprint"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:39+00:00",
+    "fps": 40,
+    "motion": 0.0324,
+    "lum": 0.077
+  },
+  "code": "const D = { scale:1, energy:.6, supercoil:.5, twist:.55, speed:1, density:.55, hue:178, x:.5, y:.5, style:'molecular', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx=width*P.x, t=K.t, sty=P.style;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst M = Math.max(90, Math.min(210, Math.round(110 + P.density*100)));\nconst top = height*0.07, len = height*0.86;\nconst Wturns = 1 + Math.round(P.supercoil*6);           // writhe (superhelix turns)\nconst Hturns = 5 + Math.round(P.twist*16);              // twist (double-helix turns)\nconst Wamp = (0.10 + 0.05*P.supercoil)*u*P.scale;\nconst Rh = (0.055 + 0.03*P.energy)*u*P.scale;\nconst tw = Math.max(2.5, (0.016+0.014*P.energy)*u*P.scale);\nconst phH = t*(1.0 + P.speed*1.6);\nconst phW = t*(0.22 + P.speed*0.18) + 0.6*Math.sin(t*0.13);\nconst bass = Math.min(0.5, A.bass*0.6);\n\nif (sty==='blueprint') background(214,58,17);\nelse if (sty==='engraving') background(34,10,56);\nelse background(206,45,8);\n\nconst h0 = P.hue, h1 = sty==='molecular' ? (P.hue+150)%360 : (P.hue+22)%360;\nfunction strandCol(k, lit, glow){\n  const h = k?h1:h0;\n  if (sty==='blueprint') return [k?208:196, 55, 26+42*lit, glow];\n  if (sty==='engraving') return [30, 14, k?(16+22*lit):(22+34*lit), glow];\n  return [h, 66, 22+50*lit + 10*bass, glow];\n}\n\n// build all drawable elements with depth\nconst els=[];\nconst sp=[[],[]];\nfor (let i=0;i<=M;i++){\n  const s=i/M, axisAng=s*Wturns*Math.PI*2 + phW;\n  const ax=cx + Wamp*Math.cos(axisAng), az=Wamp*Math.sin(axisAng), ay=top+s*len;\n  for (let k=0;k<2;k++){\n    const hel=s*Hturns*Math.PI*2 + k*Math.PI + phH;\n    const sx=ax + Rh*Math.cos(hel), sz=az + Rh*Math.sin(hel);\n    sp[k].push({x:sx, y:ay - sz*0.16, z:sz, s});\n  }\n}\nfor (let k=0;k<2;k++) for (let i=0;i<M;i++){ const a=sp[k][i], b=sp[k][i+1]; els.push({type:'s', k, a, b, z:(a.z+b.z)*0.5}); }\nconst rstep = Math.max(2, Math.round(M/ (Hturns*1.5)));\nfor (let i=0;i<=M;i+=rstep){ const a=sp[0][i], b=sp[1][i]; els.push({type:'r', a, b, z:(a.z+b.z)*0.5}); }\nels.sort((m,n)=>m.z-n.z);\n\nstrokeCap(ROUND); strokeJoin(ROUND); noFill();\nconst zN = Wamp+Rh;\nfor (const e of els){\n  const lit = Math.max(0,Math.min(1,(e.z+zN)/(2*zN)));\n  if (e.type==='r'){\n    if (sty==='wire'){ stroke((P.hue+60)%360,40,40+35*lit,40*(P.alpha/100)); strokeWeight(1); line(e.a.x,e.a.y,e.b.x,e.b.y); continue; }\n    stroke((P.hue+90)%360, 40, 20+40*lit, P.alpha*0.8); strokeWeight(tw*0.5);\n    line(e.a.x,e.a.y,e.b.x,e.b.y);\n    continue;\n  }\n  if (sty==='wire'){\n    const c=strandCol(e.k,lit,70*(P.alpha/100)); blendMode(ADD);\n    stroke(c[0],c[1],40+40*lit, c[3]); strokeWeight(1.4+1.2*lit); line(e.a.x,e.a.y,e.b.x,e.b.y); blendMode(BLEND); continue;\n  }\n  if (sty==='neon'){\n    const c=strandCol(e.k,lit,0); blendMode(ADD);\n    stroke(c[0],85,26+30*lit,30*(P.alpha/100)); strokeWeight(tw*1.7); line(e.a.x,e.a.y,e.b.x,e.b.y);\n    stroke(c[0],40,92,80*(P.alpha/100)); strokeWeight(tw*0.4); line(e.a.x,e.a.y,e.b.x,e.b.y); blendMode(BLEND); continue;\n  }\n  if (lit>0.7){ drawingContext.shadowBlur=tw*0.8; drawingContext.shadowColor='rgba(0,0,0,0.5)'; }\n  const cc=strandCol(e.k, lit*0.4, P.alpha); stroke(cc[0], cc[1]+6, cc[2]*0.5, P.alpha); strokeWeight(tw*1.2); // casing\n  line(e.a.x,e.a.y,e.b.x,e.b.y);\n  drawingContext.shadowBlur=0;\n  const cb=strandCol(e.k, 0.7+0.5*lit, P.alpha); stroke(cb[0], cb[1], Math.min(100,cb[2]+14), P.alpha); strokeWeight(tw*0.55); // core\n  line(e.a.x,e.a.y,e.b.x,e.b.y);\n}\n// Lk = Tw + Wr readout\nif (sty!=='neon' && sty!=='wire'){\n  noStroke(); textAlign(LEFT,TOP); textSize(Math.max(10,u*0.016));\n  fill(sty==='engraving'?30:(P.hue+40)%360, sty==='engraving'?16:30, sty==='engraving'?26:92, 78*(P.alpha/100));\n  text('Lk = Tw + Wr   '+(Hturns+Wturns)+' = '+Hturns+' + '+Wturns, u*0.03, u*0.03);\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

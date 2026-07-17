@@ -1,0 +1,168 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.carpet",
+  "kind": "floor",
+  "name": "Carpet",
+  "desc": "A patterned woven carpet running away to the vanishing point \u2014 cusped medallions, a boteh lattice and guard borders over a deep madder ground, the pile leaning so a drifting light sweeps broad bright and dark bands across the weave and the middle is walked flat; a Persian rug, a deco geometric, a flat-woven kilim, a threadbare runner worn to the jute, or a cyan setting-out plan.",
+  "tags": [
+    "carpet",
+    "rug",
+    "runner",
+    "broadloom",
+    "kilim",
+    "dhurrie",
+    "textile",
+    "woven",
+    "weave",
+    "weaving",
+    "pile",
+    "knot",
+    "knotted",
+    "hand-knotted",
+    "warp",
+    "weft",
+    "fibre",
+    "wool",
+    "persian",
+    "oriental",
+    "anatolian",
+    "turkmen",
+    "medallion",
+    "boteh",
+    "paisley",
+    "border",
+    "guard-stripe",
+    "field",
+    "motif",
+    "pattern",
+    "arabesque",
+    "damask",
+    "tapestry",
+    "fabric",
+    "hall",
+    "lobby",
+    "parlour",
+    "interior",
+    "domestic",
+    "opulent",
+    "ornate",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "recession",
+    "receding",
+    "depth",
+    "scroll",
+    "streaming",
+    "plane",
+    "ground",
+    "floor",
+    "raking-light",
+    "sheen",
+    "pile-sheen",
+    "band",
+    "worn",
+    "wear",
+    "threadbare",
+    "traffic",
+    "faded",
+    "deco",
+    "geometric",
+    "blueprint",
+    "schematic",
+    "texture",
+    "grain",
+    "warm",
+    "red",
+    "madder",
+    "indigo",
+    "material",
+    "surface"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "master amplitude \u2014 how brightly the drifting light bands sweep the pile, and the scroll rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "motif tile size in world units \u2014 min a fine repeating field, max huge medallions"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "loose fibres / lint drifting low over the pile"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "how fast the carpet streams toward the viewer"
+    },
+    "wear": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "traffic \u2014 how much the pile is crushed and matted down the middle, and (threadbare) worn to the backing"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "ground field hue (madder red by default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x as a canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.18,
+      "max": 0.78,
+      "doc": "horizon y as a canvas fraction \u2014 everything above stays fully transparent so the bg shows through"
+    },
+    "style": {
+      "default": "persian",
+      "options": [
+        "persian",
+        "deco",
+        "kilim",
+        "threadbare",
+        "blueprint"
+      ],
+      "doc": "aesthetic: richly-knotted Persian rug / a deco geometric field / a flat-woven kilim with matte weave / a threadbare runner worn to the jute backing / a cyan setting-out plan, the motifs as pure line"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "knot lottery \u2014 the hand-knotted grain and per-tile pile lean"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:14+00:00",
+    "fps": 60.6,
+    "motion": 0.0455,
+    "lum": 0.177
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .5, speed: 1, wear: .45, hue: 8, x: .5, y: .46, style: 'persian', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A patterned woven carpet running away to the vanishing point \u2014 a repeating rug\n// field of cusped medallions, a boteh lattice and guard borders, over a madder ground.\n// The pile has a lean, so a drifting light reads as broad bright/dark bands sweeping the\n// weave (the way a vacuum leaves tracks); the crushed pile down the middle is walked flat.\n// Painted BELOW the horizon only. No textile floor exists in the catalog. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nfunction hsh(ix,iy){ let h=(Math.imul(ix,374761393)+Math.imul(iy,668265263)+Math.imul(sd,1442695041))|0;\n  h=Math.imul(h^(h>>>13),1274126177)|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1);\n  return a+(b-a)*wx+(c-a)*wy+(a-b-c+d)*wx*wy; }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c;\n  let r,g2,b2;\n  if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}\n  else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx}\n  return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\n\nconst sty = P.style, en = cl(P.energy,0,1), wr = cl(P.wear,0,1), dn = cl(P.density,0,1);\nconst Hh = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', deco = sty==='deco', kilim = sty==='kilim', thread = sty==='threadbare';\n\nconst vy = cl(P.y,.18,.78)*height, vx = cl(P.x,.05,.95)*width;\nconst f = u*.92, H0 = 1;\nconst TU = .84*cl(P.scale,.35,2.6), TV = 1.14*cl(P.scale,.35,2.6);   // motif tile size (world)\n\nif (S.z == null) S.z = 0;\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z += dt * P.speed * (.055 + .09*K.intensity) * (.5 + .7*en);\nconst zoff = S.z;\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\n// pile-sheen light bands drifting on incommensurate rates (broad, carry the motion gate)\nconst shA = 1.8*Math.sin(tt*.061) + .9*Math.sin(tt*.151+1.2);\nconst shB = -1.5*Math.sin(tt*.043+2.1) - .8*Math.sin(tt*.113+.5);\nconst glow = (.4+.6*en)*(.55+.5*K.intensity) + bass*.2;\n\n// palette: ground, motif-light (ivory), motif-mid (indigo/teal), accent, border\nlet cg, cml, cmm, cac, cbd;\nif (bp)         { cg=[212,80,9]; cml=[190,40,70]; cmm=[200,60,26]; cac=[186,52,84]; cbd=[214,84,6]; }\nelse if (deco)  { cg=[Hh,20,16]; cml=[44,44,86]; cmm=[186,40,50]; cac=[44,60,78]; cbd=[Hh,30,10]; }\nelse if (kilim) { cg=[Hh+6,58,44]; cml=[40,26,84]; cmm=[28,64,58]; cac=[150,40,52]; cbd=[Hh-6,60,26]; }\nelse if (thread){ cg=[Hh+4,26,40]; cml=[40,10,78]; cmm=[210,20,42]; cac=[36,24,64]; cbd=[Hh,24,26]; }\nelse            { cg=[Hh,66,46]; cml=[40,18,88]; cmm=[224,54,40]; cac=[40,64,76]; cbd=[222,58,24]; }\nconst G  = hsv(cg[0],cg[1]/100,cg[2]/100);\nconst ML = hsv(cml[0],cml[1]/100,cml[2]/100);\nconst MM = hsv(cmm[0],cmm[1]/100,cmm[2]/100);\nconst AC = hsv(cac[0],cac[1]/100,cac[2]/100);\nconst BD = hsv(cbd[0],cbd[1]/100,cbd[2]/100);\n\nconst BW = Math.max(360,Math.min(720,Math.round(width/2.4))), BH = Math.max(44, Math.round(BW*height/width));\nif (!S.g || S.bk !== BW+'x'+BH){ if(S.g){ try{S.g.remove();}catch(e){} }\n  S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bk = BW+'x'+BH; }\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nconst AL = P.alpha/100;\nconst j0 = Math.max(0, Math.floor((vy/height)*BH));\nfor (let j=0;j<j0;j++) for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0;\n\n// cusped-diamond medallion mask in symmetric tile coords (su,sv in 0..1 from centre)\nfunction medallion(su,sv){\n  const cusp = 1 + .16*Math.cos(8*Math.atan2(sv+1e-4, su+1e-4));\n  const rr = (su*su + sv*sv*.86);\n  return cl((.30*cusp - rr)/.30, 0, 1);\n}\n\nfor (let j=j0;j<BH;j++){\n  const sy = (j+.5)/BH*height, dy = sy - vy;\n  if (dy < .35){ for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0; continue; }\n  const Z = f*H0/dy, wz = Z + zoff;\n  const far = cl((Z-1.1)/9, 0, 1);\n  const det = cl(1 - far*1.05, .05, 1);\n  for (let i=0;i<BW;i++){\n    const sx = (i+.5)/BW*width, X = (sx-vx)*Z/f;\n    const o = 4*(j*BW+i);\n    // ---- rug coordinates: tile + local, folded to 4-fold symmetry ----\n    const uu = X/TU + 100, vv = wz/TV + 100;\n    const fu = uu - Math.floor(uu), fv = vv - Math.floor(vv);\n    const su = Math.abs(fu-.5)*2, sv = Math.abs(fv-.5)*2;     // 0 centre -> 1 edge\n    // guard border between tiles\n    const bord = cl((Math.max(su,sv)-.80)/.20, 0, 1);\n    const bordIn = cl((Math.max(su,sv)-.70)/.06,0,1)*(1-cl((Math.max(su,sv)-.80)/.02,0,1));\n    // central medallion + surrounding field lattice (boteh diamonds)\n    const med = medallion(su,sv);\n    const medRing = cl(1-Math.abs(med-.5)/.10,0,1);\n    const latU = Math.abs(((fu*3+.5)%1)-.5)*2, latV = Math.abs(((fv*3+.5)%1)-.5)*2;\n    const boteh = cl(1-(latU*latU+latV*latV)/.16,0,1) * (1-med) * (1-bord);\n    const botehRing = cl(1-Math.abs((latU*latU+latV*latV)-.10)/.05,0,1)*(1-med)*(1-bord);\n    // ---- assemble region colour ----\n    let r=G[0], g2=G[1], b2=G[2];\n    // field fill motifs\n    r+=(MM[0]-r)*boteh*.9; g2+=(MM[1]-g2)*boteh*.9; b2+=(MM[2]-b2)*boteh*.9;\n    r+=(ML[0]-r)*botehRing*.8; g2+=(ML[1]-g2)*botehRing*.8; b2+=(ML[2]-b2)*botehRing*.8;\n    // medallion\n    r+=(MM[0]-r)*med*.85; g2+=(MM[1]-g2)*med*.85; b2+=(MM[2]-b2)*med*.85;\n    r+=(AC[0]-r)*medRing*.9; g2+=(AC[1]-g2)*medRing*.9; b2+=(AC[2]-b2)*medRing*.9;\n    // border band + guard stripe\n    r+=(BD[0]-r)*bord*.92; g2+=(BD[1]-g2)*bord*.92; b2+=(BD[2]-b2)*bord*.92;\n    r+=(ML[0]-r)*bordIn*.7; g2+=(ML[1]-g2)*bordIn*.7; b2+=(ML[2]-b2)*bordIn*.7;\n    // ---- pile weave: fine warp/weft texture so nothing is a flat fill ----\n    const warp = Math.sin(X*430) , weft = Math.sin(wz*430);\n    const weave = (.5+.5*warp*weft)*det + (1-det)*.5;\n    // knot noise breaks the pattern into hand-knotted grain\n    const knot = vn(X*140+7.3, wz*140)*det + (1-det)*.5;\n    // ---- pile sheen: drifting broad light bands (the motion) + per-tile lean two-tone ----\n    const lean = ((Math.floor(uu)+Math.floor(vv))&1) ? 1 : -1;\n    const band = Math.exp(-Math.pow((X-shA)/2.2,2))*1.0 + Math.exp(-Math.pow((X-shB)/2.8,2))*.7;\n    const sheen = .70 + .30*lean*Math.sin(wz*2.4 - X*.6) + band*glow*.5*(kilim?.4:1);\n    // wear: pile walked flat down the middle -> lighter, matted\n    const lane = cl(1-Math.abs(X)/(.55+ .3*Math.sin(wz*.3)),0,1)*wr;\n    let lum = (.72 + .46*weave*(kilim?.35:.7)) * sheen * (kilim?1:(.95+knot*.36));\n    lum *= 1 + lane*.35; lum -= lane*.06;\n    lum = cl(lum,0,1.7);\n    r*=lum; g2*=lum; b2*=lum;\n    // matte the crushed lane (desaturate toward grey)\n    if (lane>0){ const gy=(r+g2+b2)/3; r+=(gy-r)*lane*.35; g2+=(gy-g2)*lane*.35; b2+=(gy-b2)*lane*.35; }\n    if (thread){ // holes worn through to the jute backing\n      const hole = cl((vn(X*10+3.1,wz*10)-.62)*4.0,0,1)*wr;\n      const jb=hsv(34,.30,.28); r+=(jb[0]-r)*hole; g2+=(jb[1]-g2)*hole; b2+=(jb[2]-b2)*hole;\n    }\n    if (bp){\n      const line = cl(medRing+botehRing+bord*.6+bordIn,0,1);\n      const on = line>.30?1:0; const v2=.12+.10*(1-far);\n      r=on?74:v2*40; g2=on?196*det+34:v2*100; b2=on?244:v2*172;\n    }\n    const hazeK = far*far*.85;\n    const hc = bp? [40,120,190] : [G[0]*.5+70, G[1]*.5+60, G[2]*.5+70];\n    r+=(hc[0]-r)*hazeK; g2+=(hc[1]-g2)*hazeK; b2+=(hc[2]-b2)*hazeK;\n    px[o]=cl(r,0,255); px[o+1]=cl(g2,0,255); px[o+2]=cl(b2,0,255);\n    px[o+3]=255*AL*cl(1-far*far*.72,0,1)*cl(dy/2.2,0,1);\n  }\n}\ng.updatePixels();\npush(); image(g,0,0,width,height); pop();\n\n// ---- fibres / lint drifting low over the pile ----\npush(); blendMode(ADD); noStroke();\nconst NM = Math.round(4 + dn*26);\nfor (let i=0;i<NM;i++){\n  const a1=hsh(i*13+7,3), a2=hsh(i*13+8,5), a3=hsh(i*13+9,11);\n  const mz=((a2+tt*(.014+a3*.045)*P.speed)%1.05);\n  const my=vy+Math.pow(mz,2.0)*(height-vy)*1.02;\n  const mx=(a1+Math.sin(tt*(.12+a3*.3)+a1*6.28)*.04)*width;\n  const sz=u*(.001+a3*.003)*(.4+mz*1.6);\n  fill(Hh+30, bp?40:10, 100, (5+a3*9)*(.3+en)*AL*(1-mz*.4));\n  ellipse(mx,my,sz,sz*.7);\n}\nblendMode(BLEND); pop();\n\nblendMode(BLEND); drawingContext.shadowBlur=0; drawingContext.globalAlpha=1;\n"
+}
