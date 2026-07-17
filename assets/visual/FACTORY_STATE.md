@@ -67,6 +67,35 @@ at a time, never as a blind sweep. This is the likely cause of the recurring
 "near-black baseline / faint" family of failures the earlier sessions kept
 treating symptomatically.
 
+### SESSION 3b (2026-07-17 late morning) — RESOLUTION FIX + push toward 750
+
+Gene reviewed the catalog and flagged the **#1 defect: ~173 assets rendered into a
+~200px buffer upscaled ~10× → blocky/pixelated on a big screen.** Root cause: the
+"coarse buffer 128–200px" guidance I wrote. Perf was never the reason (expensive
+PDEs hold 60fps at 640–720px, measured).
+
+- **102 assets de-pixelated** (R1: 37, R2: 65) via a two-class fix, each re-snapped
+  + eyeballed on the canvas: FIELD/PDE → adaptive buffer `Math.max(360,Math.min(720,
+  round(width/2.4)))`; POINT-CLOUD → cap 520 + iterate count scaled by area. Zero
+  regressions. Recipe: `scratchpad/gf/res/RESOLUTION_FIX.md`.
+- **~70 correctly SKIPPED** — heuristic false-positives (buffer already adaptive) or
+  physics/grid-coupled (feature size / step-budget / advection tied to grid res) or
+  intentionally-blocky (pixel_sort/vhs). Listed in `scratchpad/gf/res/RESIDUAL_LOWRES.md`
+  for a future per-asset constant-rescaling pass. Only mildly soft, not broken.
+- **Docs reoriented** so it can't recur: p5.md, author-brief.md, W3_ADDENDUM all
+  mandate adaptive buffer sizing now.
+- **browse.html bed toggle** ('b' key): overlays (fx/post/…) render over a real
+  scene (world.cloud_sea) by default instead of black, so accents are judgeable.
+  Gene's 2nd note (dim fx) was confirmed a display artifact — they're accents.
+- **Drained the interrupted fleet's inbox:** +10 verified, 2 dups dropped, 4
+  twice-failed statics graveyarded. **Catalog now 554.**
+- **fps-under-concurrency lesson:** running 3 snap/validate cells at once depresses
+  fps readings for expensive assets (baker_mixing read 17 under load, 62 solo).
+  Re-check solo before graveyarding anything for low fps.
+- **Push toward 750 launched** (wave-4): new genart territories (topology/knots,
+  cartography, microbiology, cosmology, textile/weave) + lagging families
+  (world/fx/set/floor/post/palette). Authors read `scratchpad/gf/w4/PUSH_NOTE.md`.
+
 ### SESSION 3 RESULT — 334 → 544 (+210 verified), ~2.5 h
 
 | family | was | now | + | wave target |
