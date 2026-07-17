@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.planisphere",
+  "kind": "genart",
+  "name": "Planisphere",
+  "desc": "A printed planispheric star chart in stereographic projection \u2014 a circular celestial map ruled with radial hour circles and concentric declination rings, the ecliptic swinging across as an offset gold circle studded with zodiac marks, the galactic plane stippled as a soft Milky Way band, magnitude-scaled stars plotted and twinkling, an hour-lettered rim and cartouche, the whole plate slowly turning with the sidereal sky.",
+  "tags": [
+    "planisphere",
+    "star-chart",
+    "celestial",
+    "celestial-sphere",
+    "astronomy",
+    "uranography",
+    "stereographic",
+    "projection",
+    "graticule",
+    "right-ascension",
+    "declination",
+    "ecliptic",
+    "zodiac",
+    "milky-way",
+    "galactic-plane",
+    "constellation",
+    "sky-map",
+    "atlas",
+    "almanac",
+    "navigation",
+    "antique",
+    "engraving",
+    "blueprint",
+    "planetarium",
+    "sacred",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.7,
+      "doc": "chart radius vs frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "graticule + ecliptic brightness"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved accent hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "sidereal rotation + twinkle rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "chart center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "chart center y"
+    },
+    "stars": {
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "doc": "star count fraction"
+    },
+    "twinkle": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "twinkle amplitude"
+    },
+    "style": {
+      "default": "atlas",
+      "options": [
+        "atlas",
+        "nocturne",
+        "blueprint",
+        "planetarium",
+        "mono"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "star catalogue arrangement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:06+00:00",
+    "fps": 59.9,
+    "motion": 0.0094,
+    "lum": 0.403
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 220, speed: 1, density: .5, x: .5, y: .5, style: 'atlas', seed: 0, stars: .6, twinkle: .5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height), TAU = Math.PI * 2, PI = Math.PI;\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * 0.44 * P.scale;\nconst pLimit = 2.007; // ~115 deg colatitude -> down to dec -25\nconst eps = 0.4093;   // obliquity\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\nfunction pal() {\n  if (st === 'blueprint') return { plate: [214, 55, 14], disc: [212, 62, 20], grat: [195, 40, 88], major: [190, 45, 98], ecl: [45, 55, 90], mw: [200, 40, 60], star: [190, 20, 96], txt: [195, 35, 90], darkStar: 0 };\n  if (st === 'planetarium') return { plate: [235, 45, 8], disc: [230, 60, 14], grat: [200, 35, 66], major: [190, 45, 90], ecl: [45, 70, 88], mw: [220, 35, 50], star: [45, 25, 98], txt: [200, 30, 82], darkStar: 0 };\n  if (st === 'nocturne') return { plate: [30, 32, 11], disc: [35, 46, 17], grat: [40, 45, 60], major: [45, 60, 92], ecl: [45, 80, 92], mw: [40, 35, 46], star: [45, 40, 96], txt: [42, 55, 82], darkStar: 0 };\n  if (st === 'mono') return { plate: [210, 12, 16], disc: [210, 14, 22], grat: [210, 8, 66], major: [210, 10, 90], ecl: [210, 14, 78], mw: [210, 10, 46], star: [210, 6, 94], txt: [210, 8, 82], darkStar: 0 };\n  // atlas (anchor): engraved celestial chart on toned parchment, dark star dots\n  return { plate: [38, 28, 44], disc: [40, 24, 50], grat: [30, 42, 32], major: [28, 52, 20], ecl: [16, 72, 44], mw: [34, 28, 40], star: [26, 58, 18], txt: [28, 52, 22], darkStar: 1 };\n}\nconst C = pal();\n\nconst rot = K.t * (0.03 * P.speed) + 0.4 * Math.sin(K.t * 0.017);\nfunction proj(ra, dec) { const colat = PI / 2 - dec; if (colat > pLimit) return null; const r = R * Math.tan(colat / 2) / Math.tan(pLimit / 2); const th = ra + rot; return [cx + r * Math.sin(th), cy - r * Math.cos(th), r]; }\nconst rAt = dec => R * Math.tan((PI / 2 - dec) / 2) / Math.tan(pLimit / 2);\n\n// ---- plate + disc ----\nbackground(C.plate[0], C.plate[1], C.plate[2]);\nnoStroke();\nfor (let i = 8; i >= 0; i--) { const t = i / 8; fill(C.disc[0], C.disc[1], C.disc[2] * (0.8 + 0.35 * (1 - t)), 100); circle(cx, cy, R * 2 * (0.6 + t * 0.42)); }\n// vignette ring\ndrawingContext.save(); drawingContext.beginPath(); drawingContext.arc(cx, cy, R, 0, TAU); drawingContext.clip();\n\n// ---- Milky Way stipple band ----\nnoStroke();\nconst mwTilt = 1.05, mwNode = 1.9;\nfor (let i = 0; i < 520; i++) {\n  const f = i / 520 * TAU + fr(i) * 0.02;\n  const dec0 = Math.asin(Math.sin(mwTilt) * Math.sin(f));\n  const ra0 = mwNode + Math.atan2(Math.cos(mwTilt) * Math.sin(f), Math.cos(f));\n  const perp = (fr(i * 3) - 0.5) * 0.34;\n  const dec = dec0 + perp * Math.cos(f), ra = ra0 + perp * 0.5;\n  const p = proj(ra, dec); if (!p) continue;\n  fill(C.mw[0], C.mw[1], C.mw[2], 8 + fr(i * 7) * 14); circle(p[0], p[1], u * (0.006 + fr(i * 5) * 0.014));\n}\n\n// ---- declination circles ----\nnoFill(); strokeCap(ROUND);\nfor (let d = 75; d >= -20; d -= 15) { const dec = d * PI / 180; const rr = rAt(dec); const major = d === 0; stroke(major ? C.major[0] : C.grat[0], major ? C.major[1] : C.grat[1], major ? C.major[2] : C.grat[2], major ? 70 : 40 + P.energy * 20); strokeWeight(major ? 1.6 : 0.8); circle(cx, cy, rr * 2); }\n\n// ---- hour circles (radial meridians) ----\nfor (let h = 0; h < 24; h++) { const ra = h / 24 * TAU; const major = h % 6 === 0; stroke(major ? C.major[0] : C.grat[0], major ? C.major[1] : C.grat[1], major ? C.major[2] : C.grat[2], major ? 60 : 32 + P.energy * 18); strokeWeight(major ? 1.4 : 0.7); const p0 = proj(ra, PI / 2 - pLimit * 0.99); const th = ra + rot; line(cx, cy, cx + R * Math.sin(th), cy - R * Math.cos(th)); }\n\n// ---- ecliptic + zodiac ticks ----\nstroke(C.ecl[0], C.ecl[1], C.ecl[2], 80 + P.energy * 15); strokeWeight(2); noFill();\ndrawingContext.shadowBlur = C.darkStar ? 0 : 6 * P.energy; drawingContext.shadowColor = 'rgba(255,215,120,' + (0.4 * P.energy) + ')';\nbeginShape();\nfor (let k = 0; k <= 96; k++) { const lam = k / 96 * TAU; const dec = Math.asin(Math.sin(eps) * Math.sin(lam)); const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)); const p = proj(ra, dec); if (!p) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); }\nendShape();\ndrawingContext.shadowBlur = 0;\nfor (let z = 0; z < 12; z++) { const lam = z / 12 * TAU; const dec = Math.asin(Math.sin(eps) * Math.sin(lam)); const ra = Math.atan2(Math.cos(eps) * Math.sin(lam), Math.cos(lam)); const p = proj(ra, dec); if (!p) continue; noStroke(); fill(C.ecl[0], C.ecl[1], C.ecl[2], 90); circle(p[0], p[1], u * 0.011); }\n\n// ---- stars ----\nif (S.seed !== P.seed) { S.seed = P.seed; S.stars = []; for (let i = 0; i < 460; i++) { let ra = fr(i * 2) * TAU; let dec; const nearMW = fr(i * 5) > 0.5; if (nearMW) { const f = fr(i * 2 + 1) * TAU; dec = Math.asin(Math.sin(mwTilt) * Math.sin(f)) + (fr(i * 9) - 0.5) * 0.3; ra = mwNode + Math.atan2(Math.cos(mwTilt) * Math.sin(f), Math.cos(f)) + (fr(i * 11) - 0.5) * 0.2; } else { dec = Math.asin(fr(i * 2 + 1) * 1.6 - 0.6); } const mag = fr(i * 3); S.stars.push({ ra, dec, mag, tw: fr(i * 7) * TAU }); } }\nconst stars = S.stars, nS = Math.round(stars.length * (0.4 + P.stars * 0.6));\nfor (let i = 0; i < nS; i++) { const s = stars[i]; const p = proj(s.ra, s.dec); if (!p) continue; const tw = 1 + P.twinkle * 0.4 * Math.sin(K.t * 2.2 * P.speed + s.tw); const sz = (0.4 + (1 - s.mag) * (1 - s.mag) * 3.4) * tw * (0.7 + P.scale * 0.4); noStroke();\n  if (C.darkStar) { fill(C.star[0], C.star[1], C.star[2], 88); circle(p[0], p[1], u * 0.004 * sz); if (s.mag < 0.15) { stroke(C.star[0], C.star[1], C.star[2], 60); strokeWeight(0.7); noFill(); circle(p[0], p[1], u * 0.004 * sz + 3); } }\n  else { fill(C.star[0], Math.max(0, C.star[1] - (1 - s.mag) * 15), C.star[2], 70 + (1 - s.mag) * 30); circle(p[0], p[1], u * 0.005 * sz); if (s.mag < 0.12) { fill(C.star[0], C.star[1] * 0.5, 100, 25); circle(p[0], p[1], u * 0.005 * sz * 3); } }\n}\ndrawingContext.restore();\n\n// ---- rim ring + hour labels + dec labels ----\nnoFill(); stroke(C.major[0], C.major[1], C.major[2], 85); strokeWeight(2.4); circle(cx, cy, R * 2);\nstroke(C.major[0], C.major[1], C.major[2], 55); strokeWeight(1); circle(cx, cy, R * 2 + u * 0.02);\n// degree ticks\nfor (let a = 0; a < 360; a += 2) { const th = a * PI / 180; const inR = a % 30 === 0 ? R * 0.965 : a % 10 === 0 ? R * 0.978 : R * 0.988; strokeWeight(a % 30 === 0 ? 1.6 : 0.7); line(cx + Math.sin(th) * inR, cy - Math.cos(th) * inR, cx + Math.sin(th) * R, cy - Math.cos(th) * R); }\nnoStroke(); fill(C.txt[0], C.txt[1], C.txt[2], 88); textAlign(CENTER, CENTER); textSize(Math.max(9, u * 0.02));\nfor (let h = 0; h < 24; h += 2) { const ra = h / 24 * TAU, th = ra + rot; const rr = R + u * 0.045; text(h + '\u02b0', cx + Math.sin(th) * rr, cy - Math.cos(th) * rr); }\n\n// ---- corner cartouche ----\nnoStroke(); fill(C.txt[0], C.txt[1], C.txt[2], 78); textAlign(LEFT, TOP); textSize(Math.max(11, u * 0.024));\ntext('PLANISPH\u00c6RIUM', width * 0.04, height * 0.04);\ntextSize(Math.max(8, u * 0.014)); fill(C.txt[0], C.txt[1], C.txt[2], 55);\ntext('STEREOGRAPHIC \u00b7 EPOCH ' + (2000 + (P.seed % 100)), width * 0.04, height * 0.04 + u * 0.03);\ntextAlign(RIGHT, BOTTOM); text('N. CELESTIAL POLE \u00b7 ECLIPTIC \u00b7 GALACTIC PLANE', width * 0.96, height * 0.96);\n\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeCap(ROUND);\n"
+}

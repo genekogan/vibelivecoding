@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.turks_head",
+  "kind": "genart",
+  "name": "Turk's Head",
+  "desc": "A sailor's Turk's-head mat \u2014 one continuous rope woven cylindrically in a bights-by-leads pattern into a round mat, crossings depth-sorted for clean over-under, barber-pole strands flowing along the cord while a glint sweeps the weave.",
+  "tags": [
+    "turks-head",
+    "turk",
+    "turks",
+    "head",
+    "knot",
+    "rope",
+    "cord",
+    "mat",
+    "woggle",
+    "sailor",
+    "macrame",
+    "cordage",
+    "nautical",
+    "maritime",
+    "plait",
+    "interlace",
+    "weave",
+    "over-under",
+    "bights",
+    "leads",
+    "manila",
+    "hemp",
+    "gilt",
+    "candy",
+    "paracord",
+    "ink",
+    "monochrome",
+    "neon",
+    "barber-pole",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "craft"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "mat size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "rope thickness & sheen"
+    },
+    "bights": {
+      "default": 7,
+      "min": 3,
+      "max": 13,
+      "doc": "bights (outer scallops)"
+    },
+    "leads": {
+      "default": 3,
+      "min": 2,
+      "max": 7,
+      "doc": "leads (times around)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "cord smoothness"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "cord hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "manila",
+      "options": [
+        "manila",
+        "gilt",
+        "candy",
+        "ink",
+        "neon"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:48:00+00:00",
+    "fps": 62.1,
+    "motion": 0.0201,
+    "lum": 0.08
+  },
+  "code": "const D = { scale:1, energy:.6, bights:7, leads:3, speed:1, density:.55, hue:32, x:.5, y:.5, style:'manila', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx=width*P.x, cy=height*P.y, t=K.t, sty=P.style;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst B = Math.max(3, Math.min(13, Math.round(P.bights)));\nconst Lp = Math.max(2, Math.min(7, Math.round(P.leads)));\nconst N = Math.max(420, Math.min(720, Math.round(440 + P.density*260)));\nconst R = 0.29*u*P.scale, a = 0.12*u*P.scale;\nconst rw = (0.028 + 0.022*P.energy)*u*P.scale;\nconst rot = t*(0.06 + P.speed*0.05);\nconst flow = t*(0.9 + P.speed*1.4);\nconst glint = 0.5 + 0.42*Math.sin(t*0.23) + 0.1*Math.sin(t*0.47+1.7); // symmetry-breaking sweep\nconst bass = Math.min(0.5, A.bass*0.6);\n\nif (sty==='ink') background(36,10,58); else background(28,45,8);\n\n// cord palette\nfunction cordCol(bandV, hu){\n  if (sty==='ink') return [34, 12, 88-bandV*30];\n  if (sty==='gilt') return [46, 62, 30+bandV*55+10*bass];\n  if (sty==='candy') return [hu, 78, 30+bandV*55];\n  if (sty==='neon') return [hu, 85, 20+bandV*60];\n  return [(P.hue-6)%360, 46, 22+bandV*46+8*bass]; // manila\n}\n\nconst pts=[];\nfor (let i=0;i<=N;i++){\n  const th = i/N*Math.PI*2;\n  const rad = R + a*Math.cos(B*th);\n  const ang = Lp*th + rot;\n  pts.push({x:cx+rad*Math.cos(ang), y:cy+rad*Math.sin(ang), z:Math.sin(B*th), th, i});\n}\nconst segs=[];\nfor (let i=0;i<N;i++){ const p1=pts[i],p2=pts[i+1]; segs.push({p1,p2, z:(p1.z+p2.z)*0.5, i}); }\nsegs.sort((m,n)=>m.z-n.z);\nstrokeCap(ROUND); strokeJoin(ROUND); noFill();\nconst near = segs.length*0.78;\n\nfor (let k=0;k<segs.length;k++){\n  const sg=segs[k], lit=Math.max(0,Math.min(1,(sg.z+1)*0.5));\n  const sw = Math.max(0, 1 - Math.abs((sg.p1.x/width) - glint)*2.4); // glint sweep\n  const hu = (P.hue + sg.i/N*260)%360;\n  if (sty==='neon'){\n    blendMode(ADD);\n    const cc=cordCol(lit,hu); stroke(cc[0],cc[1],cc[2]*0.55, 30*(P.alpha/100)); strokeWeight(rw*1.6);\n    line(sg.p1.x,sg.p1.y,sg.p2.x,sg.p2.y);\n    stroke(cc[0],45,90, 80*(P.alpha/100)); strokeWeight(rw*0.4);\n    line(sg.p1.x,sg.p1.y,sg.p2.x,sg.p2.y);\n    blendMode(BLEND);\n    continue;\n  }\n  if (k>near){ drawingContext.shadowBlur=rw*0.8; drawingContext.shadowColor='rgba(0,0,0,0.5)'; }\n  const cc=cordCol(lit*0.5, hu);\n  stroke(cc[0], cc[1]+6, cc[2]*0.5, P.alpha); strokeWeight(rw*1.15); // casing\n  line(sg.p1.x,sg.p1.y,sg.p2.x,sg.p2.y);\n  drawingContext.shadowBlur=0;\n  const cb=cordCol(0.6+0.5*sw, hu);\n  stroke(cb[0], cb[1], Math.min(100, cb[2]+18*sw), P.alpha); strokeWeight(rw*0.7); // body\n  line(sg.p1.x,sg.p1.y,sg.p2.x,sg.p2.y);\n  // barber-pole twist stripe travelling along the cord length\n  const stripe = Math.sin(sg.i*0.9 - flow);\n  if (stripe > 0.55){\n    stroke((cc[0]+8)%360, Math.max(0,cc[1]-30), Math.min(100, 78+16*sw), P.alpha*0.85); strokeWeight(rw*0.22);\n    line(sg.p1.x,sg.p1.y,sg.p2.x,sg.p2.y);\n  }\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

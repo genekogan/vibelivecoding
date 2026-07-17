@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.bathymetric",
+  "kind": "genart",
+  "name": "Bathymetric Chart",
+  "desc": "An admiralty depth chart of a shoaling seabed \u2014 nested isobaths ring drifting banks and shoals in graded chart-blue, scattered soundings letter the depths across the water, a wreck and anchorage symbols dot the deeps, a great faint compass rose sits over it all, and a survey vessel trails its track as the tide slowly floods and ebbs the shallowest contour.",
+  "tags": [
+    "bathymetry",
+    "bathymetric",
+    "depth-chart",
+    "admiralty",
+    "nautical-chart",
+    "sea-chart",
+    "hydrographic",
+    "survey",
+    "soundings",
+    "isobath",
+    "isobaths",
+    "depth-contour",
+    "shoal",
+    "bank",
+    "seabed",
+    "seafloor",
+    "ocean",
+    "marine",
+    "compass-rose",
+    "wreck",
+    "anchorage",
+    "chart",
+    "map",
+    "cartography",
+    "blueprint",
+    "thermal",
+    "vintage",
+    "clinical",
+    "austere",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.9,
+      "doc": "chart zoom / feature size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "isobath count + line brightness"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "chart-blue hue (admiralty)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "survey vessel + drift rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "soundings + bank count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "tide": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tidal contour swing amplitude"
+    },
+    "banks": {
+      "default": 5,
+      "min": 3,
+      "max": 8,
+      "doc": "number of shoals/banks"
+    },
+    "style": {
+      "default": "admiralty",
+      "options": [
+        "admiralty",
+        "thermal",
+        "blueprint",
+        "vintage",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seabed arrangement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:37+00:00",
+    "fps": 62.9,
+    "motion": 0.0589,
+    "lum": 0.304
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 205, speed: 1, density: .5, x: .5, y: .5, style: 'admiralty', seed: 0, tide: .5, banks: 5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\nfunction pal() {\n  if (st === 'thermal') return { deep: [255, 60, 16], shal: [45, 85, 92], line: [40, 8, 96], land: [30, 40, 60], sound: [40, 10, 92], rose: [30, 50, 90], grid: [255, 25, 50] };\n  if (st === 'blueprint') return { deep: [215, 70, 12], shal: [195, 45, 46], line: [190, 40, 96], land: [205, 30, 30], sound: [190, 25, 88], rose: [185, 45, 96], grid: [205, 45, 40] };\n  if (st === 'vintage') return { deep: [30, 34, 46], shal: [40, 26, 82], line: [26, 45, 30], land: [40, 40, 66], sound: [26, 45, 30], rose: [22, 55, 40], grid: [30, 30, 58] };\n  if (st === 'noir') return { deep: [210, 40, 10], shal: [200, 30, 30], line: [195, 25, 74], land: [215, 20, 22], sound: [200, 18, 60], rose: [195, 20, 56], grid: [205, 30, 24] };\n  // admiralty\n  return { deep: [P.hue, 58, 30], shal: [P.hue - 12, 32, 66], line: [40, 12, 96], land: [46, 40, 76], sound: [220, 30, 20], rose: [330, 45, 60], grid: [P.hue, 30, 46] };\n}\nconst C = pal();\n\n// ---- banks (drifting shoals) ----\nconst nB = Math.round(P.banks + P.density * 2);\nif (S.seed !== P.seed || S.nB !== nB) {\n  S.seed = P.seed; S.nB = nB; S.B = [];\n  for (let b = 0; b < nB; b++) S.B.push({ x: 0.15 + fr(b * 3 + 1) * 0.7, y: 0.15 + fr(b * 3 + 2) * 0.7, r: 0.08 + fr(b * 3 + 3) * 0.16, ph: fr(b * 7) * TAU, wob: 0.5 + fr(b * 5) * 0.5 });\n}\nconst B = S.B;\n\nbackground(C.deep[0], C.deep[1], C.deep[2]);\n// deep sea faint texture band gradient\nnoStroke();\nfor (let r = 0; r < 4; r++) { fill(C.deep[0], C.deep[1], C.deep[2] * (1 + r * 0.06), 30); rect(0, height * r / 4, width, height / 4); }\n\nconst tideAmt = (0.9 + Math.sin(K.t * 0.11) * 0.5 + Math.sin(K.t * 0.047 + 1.2) * 0.3) * (0.6 + P.tide * 0.8);\nconst nLev = 5 + Math.round(P.energy * 3);\nstrokeJoin(ROUND);\n\n// draw each bank as nested isobaths, deepest first\nfor (let b = 0; b < nB; b++) {\n  const bk = B[b];\n  const bx = (bk.x + Math.sin(K.t * 0.05 + bk.ph) * 0.02) * width;\n  const by = (bk.y + Math.cos(K.t * 0.043 + bk.ph * 1.3) * 0.02) * height;\n  const R0 = bk.r * u * P.scale * (1.6 + tideAmt * 0.25);\n  for (let l = 0; l < nLev; l++) {\n    const t = 1 - l / nLev;                    // 1 outer(deep) .. small inner(shallow)\n    const rad = R0 * (0.28 + t * 0.72);\n    const shal = l / (nLev - 1);               // 0 deep .. 1 shallow\n    const col = [C.deep[0] + (C.shal[0] - C.deep[0]) * shal, C.deep[1] + (C.shal[1] - C.deep[1]) * shal, C.deep[2] + (C.shal[2] - C.deep[2]) * shal];\n    fill(col[0], col[1], col[2], 96);\n    stroke(C.line[0], C.line[1], C.line[2], 34 + P.energy * 26); strokeWeight(0.8 + P.energy * 0.5);\n    beginShape();\n    for (let a = 0; a <= 48; a++) {\n      const ang = a / 48 * TAU;\n      const w = 1 + bk.wob * 0.28 * (Math.sin(ang * 3 + bk.ph + K.t * 0.2) + 0.6 * Math.sin(ang * 5 - K.t * 0.13 + b));\n      const rr = rad * w * (l === 0 ? 1.05 : 1);\n      curveVertex(bx + Math.cos(ang) * rr, by + Math.sin(ang) * rr * 0.86);\n    }\n    endShape(CLOSE);\n  }\n}\n\n// ---- a corner landmass ----\nnoStroke(); fill(C.land[0], C.land[1], C.land[2], 100);\nconst lx = fr(99) > 0.5 ? width : 0;\nbeginShape();\nvertex(lx, 0); vertex(lx, height * 0.34);\nfor (let a = 0; a <= 20; a++) { const t = a / 20; const yy = height * (0.34 - t * 0.34); const push = (0.1 + 0.08 * Math.sin(t * 9 + 1) + 0.05 * Math.sin(t * 17 + K.t * 0.1)) * width; curveVertex(lx === 0 ? push : width - push, yy); }\nvertex(lx, 0); endShape(CLOSE);\n// coast hatch\nstroke(C.line[0], C.line[1], C.line[2], 40); strokeWeight(1);\nnoFill();\n\n// ---- soundings ----\nnoStroke(); fill(C.sound[0], C.sound[1], C.sound[2], 88);\ntextAlign(CENTER, CENTER); textStyle(ITALIC); textSize(Math.max(8, u * 0.016));\nconst nS = Math.round(40 + P.density * 70);\nfor (let i = 0; i < nS; i++) {\n  const sx = fr(i * 2 + 10) * width, sy = fr(i * 2 + 11) * height;\n  let dep = 999;\n  for (let b = 0; b < nB; b++) { const bk = B[b]; const dx = sx - bk.x * width, dy = (sy - bk.y * height) / 0.86; const d = Math.sqrt(dx * dx + dy * dy) / (bk.r * u * P.scale * 1.6); dep = Math.min(dep, Math.round(2 + d * d * 60 - tideAmt * 3)); }\n  dep = Math.max(1, Math.min(240, dep));\n  const jig = Math.sin(K.t * 0.5 + i) * 0.5;\n  text(dep + (dep < 20 && fr(i) > 0.6 ? '.' + Math.floor(fr(i * 3) * 9) : ''), sx, sy + jig);\n}\ntextStyle(NORMAL);\n\n// ---- symbols: wrecks + anchorages ----\nstroke(C.sound[0], C.sound[1], C.sound[2], 90); strokeWeight(1.3);\nfor (let i = 0; i < 4; i++) {\n  const wx = fr(i * 5 + 50) * width, wy = fr(i * 5 + 51) * height, s = u * 0.02;\n  line(wx - s, wy, wx + s, wy); line(wx, wy - s * 0.6, wx, wy + s * 0.6);\n  point(wx - s * 0.4, wy - s * 0.3); point(wx + s * 0.4, wy - s * 0.3);\n}\n\n// ---- compass rose ----\nconst rx = (0.5 + Math.sin(K.t * 0.02) * 0.02) * width, ry = 0.5 * height, rr = u * 0.26 * P.scale;\npush(); translate(rx, ry);\nstroke(C.rose[0], C.rose[1], C.rose[2], 40 + P.energy * 25); strokeWeight(0.8); noFill();\nellipse(0, 0, rr * 2, rr * 2); ellipse(0, 0, rr * 1.7, rr * 1.7);\nconst roseSpin = K.t * 0.008;\nfor (let a = 0; a < 360; a += 5) { const rad = (a % 30 === 0) ? rr * 0.9 : rr * 0.96; const th = (a - 90) * Math.PI / 180 + roseSpin; strokeWeight(a % 90 === 0 ? 1.4 : 0.7); line(Math.cos(th) * rad, Math.sin(th) * rad, Math.cos(th) * rr, Math.sin(th) * rr); }\nfor (let k = 0; k < 32; k++) { const th = k / 32 * TAU + roseSpin; const long = k % 8 === 0; const short = k % 4 === 0; strokeWeight(long ? 1.3 : short ? 0.9 : 0.5); stroke(C.rose[0], C.rose[1], C.rose[2], long ? 60 : 30); line(0, 0, Math.cos(th) * rr * (long ? 1 : short ? 0.7 : 0.5), Math.sin(th) * rr * (long ? 1 : short ? 0.7 : 0.5)); }\nnoStroke(); fill(C.rose[0], C.rose[1], C.rose[2], 80); textAlign(CENTER, CENTER); textSize(rr * 0.11);\ntext('N', Math.cos(-Math.PI / 2 + roseSpin) * rr * 1.12, Math.sin(-Math.PI / 2 + roseSpin) * rr * 1.12);\npop();\n\n// ---- survey vessel + fading track ----\nconst vt = (K.t * 0.05 * P.speed) % 1;\nconst vx = vt * width, vy = height * (0.5 + 0.28 * Math.sin(vt * 6.2 + K.t * 0.1));\nif (S.track == null) S.track = [];\nS.track.push([vx, vy]); if (S.track.length > 120) S.track.shift();\nnoFill(); stroke(C.line[0], C.line[1], C.line[2], 55); strokeWeight(1);\nbeginShape(); for (const p of S.track) vertex(p[0], p[1]); endShape();\nnoStroke(); fill(C.rose[0], 70, 92, 95); ellipse(vx, vy, u * 0.012, u * 0.012);\n\n// ---- neat-line border ----\nnoFill(); stroke(C.line[0], C.line[1], C.line[2], 60); strokeWeight(2);\nrect(width * 0.02, height * 0.02, width * 0.96, height * 0.96);\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

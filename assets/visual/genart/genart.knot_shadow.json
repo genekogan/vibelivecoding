@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.knot_shadow",
+  "kind": "genart",
+  "name": "Knot Shadow",
+  "desc": "A knot-theory plate \u2014 a wandering Fourier loop drawn as a single ink strand, every self-crossing punched with an over-under gap and numbered in Gauss-code, the projection slowly deforming while a pen glint traces the strand being drawn.",
+  "tags": [
+    "knot",
+    "shadow",
+    "diagram",
+    "projection",
+    "gauss-code",
+    "crossings",
+    "over-under",
+    "knot-theory",
+    "topology",
+    "fourier",
+    "loop",
+    "plate",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "chalk",
+    "phosphor",
+    "thermal",
+    "annotation",
+    "mathematical",
+    "scientific",
+    "clinical",
+    "austere",
+    "schematic",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "diagram"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "diagram size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "line weight"
+    },
+    "harmonics": {
+      "default": 4,
+      "min": 2,
+      "max": 5,
+      "doc": "curve harmonics (complexity)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "curve resolution"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "blueprint",
+      "options": [
+        "blueprint",
+        "plate",
+        "chalk",
+        "phosphor",
+        "thermal"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:33+00:00",
+    "fps": 59.9,
+    "motion": 0.0127,
+    "lum": 0.13
+  },
+  "code": "const D = { scale:1, energy:.6, harmonics:4, density:.5, speed:1, hue:200, x:.5, y:.5, style:'blueprint', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx=width*P.x, cy=height*P.y, t=K.t, sty=P.style;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst H = Math.max(2, Math.min(5, Math.round(P.harmonics)));\nconst N = Math.max(150, Math.min(240, Math.round(150 + P.density*90)));\nconst Rbase = 0.30*u*P.scale;\nconst lw = Math.max(2.5, (0.008 + 0.010*P.energy)*u*P.scale);\nconst bass = Math.min(0.5, A.bass*0.6);\n\n// palettes\nlet G=[214,60,20], INK=[196,80,86], PEN=[46,90,96], GRID=true, PAPER=false;\nif (sty==='plate'){ G=[36,12,58]; INK=[32,30,20]; PEN=[8,60,44]; PAPER=true; }\nelse if (sty==='chalk'){ G=[212,26,16]; INK=[200,10,92]; PEN=[50,55,96]; }\nelse if (sty==='phosphor'){ G=[150,40,7]; INK=[128,80,78]; PEN=[80,60,96]; GRID=false; }\nelse if (sty==='thermal'){ G=[250,50,8]; INK=[20,85,80]; PEN=[55,90,96]; GRID=false; }\nbackground(G[0],G[1],G[2]);\n\n// technical grid backing (raises coverage + reads as a plate)\nif (GRID){\n  stroke(G[0], G[1]*0.7, PAPER? G[2]-16 : G[2]+10, 26); strokeWeight(1);\n  const gs = u*0.075;\n  for (let gx=gs*0.5; gx<width; gx+=gs) line(gx,0,gx,height);\n  for (let gy=gs*0.5; gy<height; gy+=gs) line(0,gy,width,gy);\n}\n\n// seed-random Fourier coefficients (rebuild on seed)\nif (S.seedUsed !== P.seed || !S.co){\n  S.seedUsed = P.seed; S.co=[];\n  for (let h=2;h<=5;h++){ S.co.push({ax:(hsh(h*3.1)*2-1)*0.5/h, ay:(hsh(h*5.7+2)*2-1)*0.5/h, px:hsh(h*7.3)*6.28, py:hsh(h*9.1+1)*6.28, wx:0.11+hsh(h*2.2)*0.14, wy:0.09+hsh(h*4.4)*0.13}); }\n}\nconst pts=[];\nfor (let i=0;i<=N;i++){\n  const th=i/N*Math.PI*2;\n  let x=Math.cos(th), y=Math.sin(th);\n  for (let h=0;h<H-1;h++){ const c=S.co[h]; x+=c.ax*Math.cos((h+2)*th + c.px + t*c.wx); y+=c.ay*Math.sin((h+2)*th + c.py + t*c.wy); }\n  pts.push({x:cx+x*Rbase, y:cy+y*Rbase});\n}\n// depth for over/under decision (smooth, slowly drifting)\nconst depth = i => Math.sin(i/N*Math.PI*2*3 + t*0.3) + 0.5*Math.sin(i/N*Math.PI*2*2 - t*0.21);\n\n// draw the full strand (over-colour, continuous)\nnoFill(); strokeCap(ROUND); strokeJoin(ROUND);\nstroke(INK[0],INK[1],INK[2], P.alpha); strokeWeight(lw);\nbeginShape(); for (const p of pts) vertex(p.x,p.y); endShape();\n\n// find self-crossings, punch gaps on the UNDER strand, annotate\nfunction xsect(ax,ay,bx,by,cxx,cyy,dx,dy){\n  const r1=bx-ax, r2=by-ay, s1=dx-cxx, s2=dy-cyy, den=r1*s2-r2*s1;\n  if (Math.abs(den)<1e-9) return null;\n  const tt=((cxx-ax)*s2-(cyy-ay)*s1)/den, uu=((cxx-ax)*r2-(cyy-ay)*r1)/den;\n  if (tt>0.02&&tt<0.98&&uu>0.02&&uu<0.98) return {x:ax+r1*tt, y:ay+r2*tt, i:0, j:0};\n  return null;\n}\nconst cross=[];\nfor (let i=0;i<N && cross.length<24;i++){\n  for (let j=i+2;j<N;j++){\n    if (i===0 && j===N-1) continue;\n    const X=xsect(pts[i].x,pts[i].y,pts[i+1].x,pts[i+1].y, pts[j].x,pts[j].y,pts[j+1].x,pts[j+1].y);\n    if (X){ X.i=i; X.j=j; cross.push(X); if(cross.length>=24) break; }\n  }\n}\n// gap punch (ground colour) on under strand\nfor (const X of cross){\n  const under = depth(X.i) < depth(X.j) ? X.i : X.j;\n  const dx=pts[under+1].x-pts[under].x, dy=pts[under+1].y-pts[under].y, dl=Math.hypot(dx,dy)||1;\n  const ux=dx/dl, uy=dy/dl, gap=lw*1.9;\n  stroke(G[0],G[1],G[2],100); strokeWeight(lw*2.1); strokeCap(PROJECT);\n  line(X.x-ux*gap, X.y-uy*gap, X.x+ux*gap, X.y+uy*gap);\n}\nstrokeCap(ROUND);\n// travelling \"pen\" glint (proves it is being drawn) + symmetry break\nconst pk = ((t*(6+P.speed*10))|0) % N;\nfor (let d=0; d<8; d++){ const p=pts[(pk+d)%N]; stroke(PEN[0],PEN[1],PEN[2], (90-d*10)*(P.alpha/100)); strokeWeight(lw*0.9); point(p.x,p.y); }\nnoStroke(); fill(PEN[0],PEN[1],PEN[2],90); ellipse(pts[pk].x,pts[pk].y, lw*2.2, lw*2.2);\n\n// Gauss-code annotation\nif (sty!=='thermal'){\n  textAlign(CENTER,CENTER); textSize(Math.max(9, u*0.014)); fill(INK[0],INK[1]*0.7, PAPER?30:96, 70*(P.alpha/100)); noStroke();\n  for (let c=0;c<Math.min(cross.length,16);c++){ const X=cross[c]; text((c+1), X.x+lw*2.2, X.y-lw*2.2); }\n  // title block\n  textAlign(LEFT,TOP); textSize(Math.max(9,u*0.015));\n  fill(INK[0],INK[1]*0.6, PAPER?26:92, 80*(P.alpha/100));\n  text('KNOT DIAGRAM  \u2022  crossings '+cross.length, u*0.03, u*0.03);\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

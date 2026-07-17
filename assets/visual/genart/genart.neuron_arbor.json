@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.neuron_arbor",
+  "kind": "genart",
+  "name": "Neuron Arbor",
+  "desc": "Neurons under the objective, the way calcium imaging or a Golgi stain shows them: each cell a soma with a nucleus, a recursively branching dendritic arbor that tapers and forks to fine spined tips, and one long axon trailing terminal boutons. The cells fire -- a wave of brightness, a back-propagating action potential and calcium transient, keeps sweeping outward from every soma along its arbor while a spike runs the axon and flashes each synaptic bouton as it passes, all on incommensurate per-cell rates so the firing never re-phases, over a faint drifting neuropil of out-of-focus background processes. Offered as GCaMP fluorescence, a sepia Golgi silver stain, electric neon, or a connectome schematic.",
+  "tags": [
+    "neuron",
+    "neurons",
+    "neurone",
+    "dendrite",
+    "dendritic",
+    "arbor",
+    "arborisation",
+    "axon",
+    "soma",
+    "bouton",
+    "synapse",
+    "synaptic",
+    "spike",
+    "action-potential",
+    "firing",
+    "calcium-imaging",
+    "gcamp",
+    "golgi",
+    "cajal",
+    "silver-stain",
+    "neuropil",
+    "connectome",
+    "neuroscience",
+    "brain",
+    "cortex",
+    "pyramidal",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "fluorescence",
+    "histology",
+    "cell",
+    "microbiology",
+    "branching",
+    "tree",
+    "network",
+    "neon",
+    "schematic",
+    "electric",
+    "bioluminescent",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "clinical",
+    "eerie",
+    "sublime",
+    "organic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "arbor brightness and firing glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification - arbors swell, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "drift, sway and firing-wave rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of neurons and neuropil background processes"
+    },
+    "firing": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "firing rate and brightness of the action-potential / calcium waves and bouton flashes"
+    },
+    "hue": {
+      "default": 145,
+      "min": 0,
+      "max": 360,
+      "doc": "arbor stain hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, vertical"
+    },
+    "style": {
+      "default": "fluor",
+      "options": [
+        "fluor",
+        "golgi",
+        "neon",
+        "schematic"
+      ],
+      "doc": "aesthetic: GCaMP calcium fluorescence on black / sepia Golgi silver stain / electric neon synapses / connectome schematic linework"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-grows every arbor, axon path and bouton placement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:50+00:00",
+    "fps": 58.5,
+    "motion": 0.029,
+    "lum": 0.13
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .5, firing: .6, hue: 145, x: .5, y: .5, style: 'fluor', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// Neurons under the objective, drawn the way a calcium-imaging or Golgi-stain\n// preparation shows them. Each cell is a soma with a nucleus, a recursively\n// branching dendritic arbor that tapers and forks to fine tips studded with\n// spines, and one long axon trailing terminal boutons. The cells FIRE: a wave of\n// brightness -- a back-propagating action potential / calcium transient -- keeps\n// sweeping outward from every soma along its arbor, and a spike runs the axon,\n// flashing each synaptic bouton as it passes. The waves run on incommensurate\n// rates per cell so the firing never re-phases; a faint out-of-focus neuropil of\n// background processes fills the field and drifts. Offered as GCaMP fluorescence,\n// a sepia Golgi silver stain, electric neon, or a connectome schematic.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\nconst fireRate = 0.5 + P.firing * 1.6;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 3.7) * 43758.5453; return s - Math.floor(s); };\n\nconst nCell = Math.round(3 + P.density * 5);\nif (!S.cells || S.seedUsed !== P.seed || S.nUsed !== nCell) {\n  S.seedUsed = P.seed; S.nUsed = nCell;\n  S.cells = [];\n  S.maxDist = 1;\n  for (let k = 0; k < nCell; k++) {\n    let kk = k * 100;\n    const rk = () => fr(kk++);\n    const segs = [];        // {x1,y1,x2,y2,w,d0,d1}\n    const boutons = [];     // axon path points {x,y,d}\n    let maxd = 0.001;\n    // recursive dendrite growth in soma-local units (~ unit radius)\n    let budget = 60;\n    function grow(x, y, ang, len, wdt, depth, dist) {\n      if (depth > 4 || budget <= 0) return;\n      const steps = 2 + (depth < 2 ? 1 : 0);\n      let cx = x, cy = y, cd = dist;\n      for (let s2 = 0; s2 < steps && budget > 0; s2++) {\n        ang += (rk() - 0.5) * 0.9;\n        const nx = cx + Math.cos(ang) * len, ny = cy + Math.sin(ang) * len;\n        const nd = cd + len;\n        segs.push({ x1: cx, y1: cy, x2: nx, y2: ny, w: wdt, d0: cd, d1: nd });\n        budget--;\n        if (nd > maxd) maxd = nd;\n        cx = nx; cy = ny; cd = nd;\n      }\n      // fork\n      const nb = depth < 3 ? (rk() < 0.85 ? 2 : 1) : (rk() < 0.4 ? 1 : 0);\n      for (let b = 0; b < nb; b++) {\n        const da = (b === 0 ? -1 : 1) * (0.4 + rk() * 0.6);\n        grow(cx, cy, ang + da, len * (0.72 + rk() * 0.14), wdt * 0.66, depth + 1, cd);\n      }\n    }\n    const nPrim = 4 + Math.floor(rk() * 3);\n    for (let p2 = 0; p2 < nPrim; p2++) {\n      const a0 = p2 / nPrim * 6.2831853 + rk() * 0.5;\n      grow(0, 0, a0, 0.2 + rk() * 0.06, 0.05, 0, 0);\n    }\n    // axon: a long meandering path in one direction, with boutons\n    const axDir = rk() * 6.2831853;\n    let ax = 0, ay = 0, aa = axDir, ad = 0;\n    const axLen = 0.9 + rk() * 0.7, seg = 0.12;\n    for (let s2 = 0; s2 * seg < axLen; s2++) {\n      aa += (rk() - 0.5) * 0.5;\n      const nx = ax + Math.cos(aa) * seg, ny = ay + Math.sin(aa) * seg;\n      segs.push({ x1: ax, y1: ay, x2: nx, y2: ny, w: 0.028, d0: ad, d1: ad + seg, axon: 1 });\n      ad += seg; ax = nx; ay = ny;\n      if (s2 % 2 === 1) boutons.push({ x: nx, y: ny, d: ad });\n      if (ad > maxd) maxd = ad;\n    }\n    S.cells.push({\n      cx: 0.12 + fr(k * 13 + 3) * 0.76, cy: 0.14 + fr(k * 17 + 4) * 0.72,\n      rad: 0.14 + fr(k * 19 + 5) * 0.14,\n      segs, boutons, maxd,\n      foff: fr(k * 23 + 6), frate: 0.16 + fr(k * 29 + 7) * 0.14,\n      sway: fr(k * 31 + 8) * 6.283,\n      hueJ: (fr(k * 37 + 9) - 0.5) * 34,\n      dph: fr(k * 41 + 10) * 6.283, drate: 0.03 + fr(k * 43 + 11) * 0.05\n    });\n  }\n  // neuropil: faint out-of-focus background processes\n  S.neuro = [];\n  const nn = 90 + Math.round(P.density * 80);\n  for (let k = 0; k < nn; k++) S.neuro.push({ x: fr(k * 3 + 201), y: fr(k * 5 + 202), a: fr(k * 7 + 203) * 6.283, l: 0.02 + fr(k * 11 + 204) * 0.05, ph: fr(k * 13 + 205) * 6.283, br: 0.3 + fr(k * 17 + 206) * 0.6 });\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.3 + A.rms * 0.35;\n\nlet bgH, bgS, bgB, mode;\nif (style === 'golgi') { bgH = 36; bgS = 22; bgB = 68; mode = 'golgi'; }\nelse if (style === 'neon') { bgH = 268; bgS = 40; bgB = 8; mode = 'neon'; }\nelse if (style === 'schematic') { bgH = 214; bgS = 60; bgB = 22; mode = 'schematic'; }\nelse { bgH = 155; bgS = 45; bgB = 8; mode = 'fluor'; }\nconst pale = (mode === 'golgi');\n\npush();\nnoStroke(); rectMode(CENTER);\nfill(bgH, bgS, bgB); rect(width / 2, height / 2, width * 1.02, height * 1.02);\n// faint condenser lift\nfor (let ri = 5; ri >= 1; ri--) { const rr = u * (0.35 + ri * 0.14); if (pale) fill(bgH, bgS * 0.6, bgB + (6 - ri) * 2.4 * (0.7 + glow * 0.3), 22); else fill(bgH, bgS * 0.6, Math.min(60, bgB + (6 - ri) * 2.6), 16); ellipse(width * 0.5, height * 0.5, rr * 2.2, rr * 2); }\n\n// neuropil haze (broad low-alpha element carrying luminance + drift) ----------\nstrokeCap(ROUND);\nfor (let k = 0; k < S.neuro.length; k++) {\n  const p = S.neuro[k];\n  const dx = (p.x + 0.02 * Math.sin(t * 0.05 * sp + p.ph)) * width;\n  const dy = (p.y + 0.02 * Math.cos(t * 0.045 * sp + p.ph)) * height;\n  const b = p.br * (0.5 + 0.5 * Math.sin(t * 0.4 + p.ph * 2));\n  strokeWeight(Math.max(0.6, u * 0.003));\n  if (pale) stroke(bgH, 24, 40 + b * 16, 18);\n  else stroke((P.hue + 20) % 360, 40, 14 + b * 16, 26);\n  const ll = p.l * u;\n  line(dx, dy, dx + Math.cos(p.a) * ll, dy + Math.sin(p.a) * ll);\n}\n\nif (mode === 'fluor' || mode === 'neon') blendMode(ADD);\n\nfor (let ci = 0; ci < S.cells.length; ci++) {\n  const c = S.cells[ci];\n  const R = c.rad * u * P.scale;\n  const swx = Math.sin(t * c.drate * sp + c.dph) * u * 0.012;\n  const swy = Math.cos(t * (c.drate * 0.8) * sp + c.dph) * u * 0.012;\n  const ox = c.cx * width + swx, oy = c.cy * height + swy;\n  const hue = (P.hue + c.hueJ + 360) % 360;\n  // firing wave front travels outward, looping -> perpetual back-propagation\n  const front = ((t * c.frate * sp * fireRate) % 1) * c.maxd * 1.15;\n  const somaFlash = Math.max(0, Math.exp(-Math.pow(((t * c.frate * sp * fireRate) % 1) - 0.02, 2) * 40));\n  const spread = c.maxd * 0.16 + 0.06;\n\n  push(); translate(ox, oy);\n  // slight arbor sway\n  const swa = Math.sin(t * 0.3 * sp + c.sway) * 0.03;\n  rotate(swa);\n\n  // dendrites + axon\n  for (let s2 = 0; s2 < c.segs.length; s2++) {\n    const g2 = c.segs[s2];\n    const md = (g2.d0 + g2.d1) * 0.5;\n    const wave = Math.exp(-Math.pow((md - front) / spread, 2));   // AP/Ca transient\n    let b, sat, hh = hue;\n    if (pale) { b = 16 + (1 - wave) * 6 + wave * 4; sat = 30; hh = 34; }         // Golgi: near-black ink, faint focus shimmer\n    else if (mode === 'schematic') { b = 55 + wave * 40; sat = 26; hh = 205; }\n    else { b = (g2.axon ? 22 : 30) + wave * 55 * fireRate + somaFlash * 25; b = Math.min(100, b * (0.7 + glow * 0.5)); sat = mode === 'neon' ? 80 : 66; hh = (hue + (g2.axon ? 30 : 0)) % 360; }\n    strokeWeight(Math.max(0.5, R * g2.w * (g2.axon ? 1.1 : 1.5) * (1 + wave * 0.5)));\n    stroke(hh, sat, b, pale ? 88 : (60 + wave * 35));\n    line(g2.x1 * R, g2.y1 * R, g2.x2 * R, g2.y2 * R);\n  }\n  // boutons flash as the spike passes\n  noStroke();\n  for (let b2 = 0; b2 < c.boutons.length; b2++) {\n    const bt = c.boutons[b2];\n    const wave = Math.exp(-Math.pow((bt.d - front) / (spread * 0.6), 2));\n    const br = pale ? 20 : Math.min(100, (26 + wave * 70 * fireRate) * (0.7 + glow * 0.5));\n    fill(pale ? 34 : (hue + 40) % 360, pale ? 30 : 70, br, pale ? 85 : (40 + wave * 55));\n    const sz = R * (0.035 + wave * 0.05);\n    ellipse(bt.x * R, bt.y * R, sz, sz);\n  }\n  // soma with nucleus\n  noStroke();\n  const sB = pale ? 14 : Math.min(100, (34 + somaFlash * 55) * (0.7 + glow * 0.5));\n  if (!pale) for (let g3 = 3; g3 >= 1; g3--) { fill(hue, 60, sB, mode === 'schematic' ? 60 : (18 + somaFlash * 22)); ellipse(0, 0, R * (0.22 + g3 * 0.07), R * (0.22 + g3 * 0.07)); }\n  fill(pale ? 34 : hue, pale ? 34 : 55, sB, pale ? 90 : 70); ellipse(0, 0, R * 0.24, R * 0.22);\n  fill(pale ? 34 : (hue + 20) % 360, pale ? 20 : 40, pale ? 30 : Math.min(100, sB * 0.7), pale ? 70 : 55); ellipse(R * 0.03, -R * 0.02, R * 0.1, R * 0.1);  // nucleus/nucleolus\n  pop();\n}\nif (mode === 'fluor' || mode === 'neon') blendMode(BLEND);\n\npop();\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

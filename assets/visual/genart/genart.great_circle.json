@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.great_circle",
+  "kind": "genart",
+  "name": "Great-Circle Web",
+  "desc": "A slowly turning orthographic globe of continents and ocean, laced with a web of great-circle flight paths that arc between glowing city nodes and dip out of sight behind the limb, pulses of light running the routes like tracked aircraft, a day/night terminator sweeping the sphere and a soft atmosphere glowing at the rim against a dust of stars.",
+  "tags": [
+    "globe",
+    "great-circle",
+    "geodesic",
+    "flight-path",
+    "route",
+    "airline",
+    "network",
+    "orthographic",
+    "world",
+    "earth",
+    "planet",
+    "terminator",
+    "day-night",
+    "cartography",
+    "map",
+    "navigation",
+    "graticule",
+    "continents",
+    "atmosphere",
+    "spinning",
+    "space",
+    "blueprint",
+    "antique",
+    "thermal",
+    "sublime",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 1.7,
+      "doc": "globe radius vs frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "route glow + pulse size"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "route/ocean hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "pulse travel rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe cell resolution + land"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe center y"
+    },
+    "routes": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "number of flight paths"
+    },
+    "spin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe rotation rate"
+    },
+    "style": {
+      "default": "flightpath",
+      "options": [
+        "flightpath",
+        "blueprint",
+        "antique",
+        "thermal",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "continents + city placement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:00+00:00",
+    "fps": 60.2,
+    "motion": 0.0735,
+    "lum": 0.163
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 190, speed: 1, density: .5, x: .5, y: .5, style: 'flightpath', seed: 0, routes: .6, spin: .5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2, PI = Math.PI;\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst Rg = u * 0.42 * P.scale;\nconst tilt = 0.4;\nconst lam0 = K.t * (0.05 + P.spin * 0.14) + 0.4 * Math.sin(K.t * 0.03);\nconst sunLon = K.t * 0.06 + 1;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\nfunction pal() {\n  if (st === 'blueprint') return { space: [214, 60, 8], sea: [205, 55, 26], land: [200, 40, 40], grat: [190, 40, 70], route: [190, 55, 96], pulse: [185, 40, 100], city: [190, 30, 92], rim: [195, 60, 60], night: 0.35 };\n  if (st === 'antique') return { space: [30, 34, 12], sea: [200, 30, 30], land: [40, 40, 52], grat: [40, 40, 60], route: [42, 70, 88], pulse: [45, 55, 100], city: [40, 55, 84], rim: [40, 45, 46], night: 0.4 };\n  if (st === 'thermal') return { space: [235, 45, 7], sea: [225, 65, 26], land: [110, 45, 50], grat: [220, 20, 55], route: [30, 80, 96], pulse: [45, 70, 100], city: [40, 30, 92], rim: [20, 70, 55], night: 0.35 };\n  if (st === 'noir') return { space: [220, 30, 6], sea: [212, 35, 18], land: [215, 22, 30], grat: [200, 18, 52], route: [195, 25, 82], pulse: [190, 20, 96], city: [200, 18, 70], rim: [200, 35, 40], night: 0.4 };\n  // flightpath (anchor)\n  return { space: [225, 55, 8], sea: [P.hue + 15, 55, 30], land: [155, 40, 42], grat: [P.hue, 30, 60], route: [P.hue - 10, 65, 98], pulse: [40, 75, 100], city: [45, 40, 96], rim: [P.hue, 70, 62], night: 0.36 };\n}\nconst C = pal();\n\nbackground(C.space[0], C.space[1], C.space[2]);\n// faint star dust in space\nnoStroke();\nif (S.seed !== P.seed) { S.seed = P.seed; S.stars = []; for (let i = 0; i < 130; i++) S.stars.push([fr(i * 2), fr(i * 2 + 1), fr(i * 3)]); S.cities = null; }\nfor (const s of S.stars) { const dx = s[0] * width - cx, dy = s[1] * height - cy; if (dx * dx + dy * dy < Rg * Rg * 1.1) continue; fill(C.grat[0], C.grat[1] * 0.5, 90, 20 + s[2] * 30); circle(s[0] * width, s[1] * height, 1 + s[2] * 1.5); }\n\n// ---- projection ----\nfunction orth(lat, lon) { const dl = lon - lam0, sp = Math.sin(tilt), cp = Math.cos(tilt); const cc = sp * Math.sin(lat) + cp * Math.cos(lat) * Math.cos(dl); return [cx + Rg * Math.cos(lat) * Math.sin(dl), cy - Rg * (cp * Math.sin(lat) - sp * Math.cos(lat) * Math.cos(dl)), cc]; }\nconst fbmH = (x, y) => { let f = 0, a = .5, q = 1; const h2 = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); }; const vn = (X, Y) => { const xi = Math.floor(X), yi = Math.floor(Y), xf = X - xi, yf = Y - yi, uu = xf * xf * (3 - 2 * xf), vv = yf * yf * (3 - 2 * yf); return h2(xi, yi) * (1 - uu) * (1 - vv) + h2(xi + 1, yi) * uu * (1 - vv) + h2(xi, yi + 1) * (1 - uu) * vv + h2(xi + 1, yi + 1) * uu * vv; }; for (let o = 0; o < 4; o++) { f += a * vn(x * q, y * q); q *= 2; a *= .5; } return f; };\n\n// ---- globe fill cells ----\nconst NLON = 40 + Math.round(P.density * 16), NLAT = Math.round(NLON * 0.5);\nstrokeJoin(ROUND); noStroke();\nfor (let j = 0; j < NLAT; j++) {\n  const lat0 = (j / NLAT - 0.5) * PI, lat1 = ((j + 1) / NLAT - 0.5) * PI, latc = (lat0 + lat1) / 2;\n  for (let i = 0; i < NLON; i++) {\n    const lon0 = (i / NLON - 0.5) * TAU, lon1 = ((i + 1) / NLON - 0.5) * TAU, lonc = (lon0 + lon1) / 2;\n    const p0 = orth(lat0, lon0), p1 = orth(lat0, lon1), p2 = orth(lat1, lon1), p3 = orth(lat1, lon0);\n    if (p0[2] < 0 && p1[2] < 0 && p2[2] < 0 && p3[2] < 0) continue;\n    const e = fbmH((lonc + PI) / TAU * 3.6 + 0.5, (latc + PI / 2) / PI * 3.1 + 0.5) - 0.5 + (P.density - 0.5) * 0.05;\n    const isLand = e > 0.02;\n    const pole = Math.abs(latc) / (PI / 2);\n    const illum = Math.max(0, Math.cos(latc) * Math.cos(lonc - sunLon) * 0.5 + 0.5);\n    const dayF = C.night + (1 - C.night) * illum;\n    let col = isLand ? [C.land[0], C.land[1], C.land[2]] : [C.sea[0], C.sea[1], C.sea[2]];\n    if (pole > 0.86) col = [C.sea[0], 8, 82];\n    const b = Math.max(5, col[2] * dayF);\n    fill(col[0], col[1], b, 100);\n    quad(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1]);\n  }\n}\n\n// ---- graticule ----\nnoFill(); stroke(C.grat[0], C.grat[1], C.grat[2], 34 + P.energy * 20); strokeWeight(0.7);\nfor (let mi = 0; mi < 12; mi++) { const lon = mi / 12 * TAU; beginShape(); for (let s = 0; s <= 48; s++) { const p = orth((s / 48 - 0.5) * PI * 0.98, lon); if (p[2] < 0) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); } endShape(); }\nfor (let pi = 1; pi < 6; pi++) { const lat = (pi / 6 - 0.5) * PI; beginShape(); for (let s = 0; s <= 64; s++) { const p = orth(lat, s / 64 * TAU); if (p[2] < 0) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); } endShape(); }\n\n// ---- cities + routes ----\nif (!S.cities) {\n  S.cities = []; for (let i = 0; i < 18; i++) { const lat = (fr(i * 2 + 5) - 0.5) * PI * 0.78; const lon = (fr(i * 2 + 6) - 0.5) * TAU; S.cities.push({ lat, lon, v: [Math.cos(lat) * Math.cos(lon), Math.cos(lat) * Math.sin(lon), Math.sin(lat)] }); }\n  S.routes = []; const nR = Math.round(8 + P.routes * 14);\n  for (let r = 0; r < nR; r++) { const a = Math.floor(fr(r * 3 + 20) * 18), b = Math.floor(fr(r * 3 + 21) * 18); if (a === b) continue; S.routes.push({ a, b, ph: fr(r * 5) }); }\n}\nconst cities = S.cities, routes = S.routes;\nfunction toLL(v) { return [Math.asin(Math.max(-1, Math.min(1, v[2]))), Math.atan2(v[1], v[0])]; }\nstrokeCap(ROUND);\nfor (const rt of routes) {\n  const a = cities[rt.a].v, b = cities[rt.b].v;\n  let dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; dot = Math.max(-0.9999, Math.min(0.9999, dot));\n  const om = Math.acos(dot), so = Math.sin(om) || 1e-3;\n  stroke(C.route[0], C.route[1], C.route[2], 24 + P.energy * 34); strokeWeight(0.9 + P.energy * 0.9);\n  drawingContext.shadowBlur = 6 * P.energy; drawingContext.shadowColor = 'rgba(180,220,255,' + (0.3 * P.energy) + ')';\n  beginShape();\n  for (let s = 0; s <= 40; s++) { const t = s / 40; const w0 = Math.sin((1 - t) * om) / so, w1 = Math.sin(t * om) / so; const vx = a[0] * w0 + b[0] * w1, vy = a[1] * w0 + b[1] * w1, vz = a[2] * w0 + b[2] * w1; const ll = toLL([vx, vy, vz]); const p = orth(ll[0], ll[1]); if (p[2] < 0) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); }\n  endShape();\n  drawingContext.shadowBlur = 0;\n  // traveling pulses\n  for (let k = 0; k < 2; k++) { const t = ((K.t * (0.08 + P.speed * 0.05) + rt.ph + k * 0.5) % 1); const w0 = Math.sin((1 - t) * om) / so, w1 = Math.sin(t * om) / so; const vx = a[0] * w0 + b[0] * w1, vy = a[1] * w0 + b[1] * w1, vz = a[2] * w0 + b[2] * w1; const ll = toLL([vx, vy, vz]); const p = orth(ll[0], ll[1]); if (p[2] > 0.02) { noStroke(); fill(C.pulse[0], C.pulse[1], C.pulse[2], 90); circle(p[0], p[1], u * 0.008 + u * 0.006 * P.energy); } }\n}\n// city nodes\nnoStroke();\nfor (const ct of cities) { const p = orth(ct.lat, ct.lon); if (p[2] < 0.02) continue; fill(C.city[0], C.city[1], C.city[2], 90); circle(p[0], p[1], u * 0.009); fill(C.city[0], C.city[1], C.city[2], 22); circle(p[0], p[1], u * 0.02); }\n\n// ---- atmosphere rim glow ----\nblendMode(ADD); noFill();\nfor (let r = 0; r < 5; r++) { stroke(C.rim[0], C.rim[1], C.rim[2], 16 - r * 2); strokeWeight(3 + r * 3); circle(cx, cy, Rg * 2 + r * u * 0.02); }\nblendMode(BLEND);\n// disc edge\nstroke(C.grat[0], C.grat[1] * 0.7, 88, 40); strokeWeight(1); noFill(); circle(cx, cy, Rg * 2);\ndrawingContext.shadowBlur = 0; strokeCap(ROUND);\n"
+}

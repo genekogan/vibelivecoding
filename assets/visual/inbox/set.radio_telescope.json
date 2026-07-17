@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.radio_telescope",
+  "kind": "set",
+  "name": "Radio Telescope",
+  "desc": "An array of parabolic dish antennas standing on a ridge, slowly slewing in azimuth and nodding in elevation to track across the sky while an unseen light rakes the panelled reflectors; the dishes stand along a lower band and leave the sky open \u2014 cool brushed steel, a dusk rim-lit silhouette, thermal false-colour, an engraving, or a schematic.",
+  "tags": [
+    "radio-telescope",
+    "telescope",
+    "dish",
+    "dishes",
+    "antenna",
+    "antennae",
+    "parabolic",
+    "reflector",
+    "paraboloid",
+    "array",
+    "vla",
+    "observatory",
+    "satellite",
+    "ground-station",
+    "receiver",
+    "feed",
+    "quadripod",
+    "mount",
+    "alt-az",
+    "pedestal",
+    "slew",
+    "slewing",
+    "tracking",
+    "steerable",
+    "astronomy",
+    "seti",
+    "signal",
+    "science",
+    "research",
+    "industrial",
+    "engineering",
+    "steel",
+    "metal",
+    "panelled",
+    "structure",
+    "silhouette",
+    "ridge",
+    "horizon",
+    "skyline",
+    "set",
+    "scenery",
+    "midground",
+    "installation",
+    "dusk",
+    "thermal",
+    "blueprint",
+    "schematic",
+    "engraving",
+    "austere",
+    "clinical",
+    "sublime",
+    "sci-fi",
+    "grey",
+    "cool"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how brightly the light rakes the metal and the amplitude of the slew"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "dish size \u2014 min a distant far-off array, max huge foreground dishes"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many dishes stand in the array (3 to 6)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the dishes slew and nod"
+    },
+    "sweep": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how fast the raking light drifts across the reflectors"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "metal / sky-light hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "centre of the array across frame"
+    },
+    "y": {
+      "default": 0.66,
+      "min": 0.35,
+      "max": 0.85,
+      "doc": "ridge line height so the sky above stays open"
+    },
+    "style": {
+      "default": "steel",
+      "options": [
+        "steel",
+        "dusk",
+        "thermal",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "aesthetic: cool brushed steel raked by light / a dusk rim-lit silhouette against a glowing sky / thermal false-colour / a cyan schematic / a hatched engraving plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "array lottery \u2014 per-dish depth, placement and slew phase"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark so it dissolves into the background rather than veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, sweep: .5, hue: 210, x: .5, y: .66, style: 'steel', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- An array of parabolic dish antennas on a ridge, slowly slewing to track across the\n// sky, an unseen light raking the panelled reflectors. A SET: dishes stand along a lower\n// band and leave the sky open; alpha scales every mark. Not a crane/pylon/lighthouse. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, en = cl(P.energy,0,1), dn = cl(P.density,0,1), swp = cl(P.sweep,0,1);\nconst HU = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', dusk = sty==='dusk', therm = sty==='thermal', eng = sty==='engraving';\nconst AL = cl(P.alpha,0,100);\nif (AL > 0.5) {\n\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst light = (.5+.5*en)*(.55+.5*K.intensity) + bass*.2;\n// an unseen sun/beacon whose direction drifts -> a raking highlight travels the metal\nconst sunA = tt*.06*swp + .6*Math.sin(tt*.11+1.0);\nconst sunV = [Math.cos(sunA-1.2), Math.sin(sunA-1.2)];\n\n// colour ramp helper for the metal\nfunction metal(v){                                        // v: 0 shadow .. 1 hot highlight\n  if (bp)   return [196, 60, cl(14+v*10,8,30)];\n  if (eng)  return [34, 5, cl(10+v*84,6,96)];\n  if (therm)return [cl(250-v*250,0,300), 80, cl(24+v*70,8,98)];\n  if (dusk) return [cl(HU+18-v*30,0,360), cl(40-v*24,4,60), cl(8+v*74,5,86)];\n  return [cl(HU-4+v*8,0,360), cl(16-v*10,2,26), cl(20+v*62,6,92)];    // cool brushed steel\n}\nfunction setF(c,a){ fill(c[0],c[1],c[2],a*AL/100); }\nfunction setS(c,a){ stroke(c[0],c[1],c[2],a*AL/100); }\n\nconst ridgeY = cl(P.y,.35,.85)*height;\nconst baseS = u*.16*cl(P.scale,.3,2.4);\nconst nD = 3 + Math.round(dn*3);\n\nfor (let i=0; i<nD; i++){\n  const depth = fr(i*5.7);                                // 0 far .. 1 near\n  const dishS = baseS*(0.45 + depth*0.85);\n  const jitterX = (fr(i*3.1)-.5);\n  const dx = cl(P.x,.05,.95)*width + (i-(nD-1)/2)*width*0.19 + jitterX*width*0.05;\n  const dy = ridgeY - dishS*0.15 + (1-depth)*u*0.05;      // far dishes sit a touch higher/back\n  const dim = 0.55 + depth*0.45;                          // atmospheric fade for far dishes\n  const ph = fr(i*7.7)*6.28;\n  // slew: azimuth swings the dish, elevation nods it (incommensurate real-time drift)\n  const az = 0.5*Math.sin(tt*(.05+.02*i)*P.speed + ph) + 0.2*Math.sin(tt*.13*P.speed+ph*1.7);\n  const el = 0.55 + 0.30*Math.sin(tt*(.037+.015*i)*P.speed + ph*1.3) + 0.12*Math.sin(tt*.09*P.speed);\n  push();\n  translate(dx, dy);\n  // ---- pedestal / alt-az mount on the ridge ----\n  const pedH = dishS*0.9;\n  setF(metal(.30*light+.1), 88*dim);\n  noStroke();\n  quad(-dishS*.16, 0, dishS*.16, 0, dishS*.10, -pedH, -dishS*.10, -pedH);    // tapered column\n  setF(metal(.5*light+.15), 90*dim);\n  rect(-dishS*.16, -pedH-dishS*.10, dishS*.32, dishS*.14, dishS*.03);        // yoke/turret\n  // ---- the dish assembly, rotated by azimuth about the pivot ----\n  translate(0, -pedH-dishS*.05);\n  rotate(az*0.7);\n  // reflector rim: an ellipse foreshortened by elevation\n  const Dw = dishS*1.5;\n  const Dh = Dw*(0.30 + 0.55*cl(el,0,1));                 // nods -> minor axis changes\n  const cyO = -Dh*0.55;                                   // dish centre above pivot\n  // concave face: nested ellipses, brighter where the paraboloid faces the sun\n  const faceUp = [Math.sin(az*0.7), -Math.cos(az*0.7)*el - (1-el)*0.4];\n  const facing = cl(faceUp[0]*sunV[0] + faceUp[1]*sunV[1], -1, 1);\n  const faceLum = cl(0.42 + facing*0.5, 0.1, 1)*light;\n  for (let r=6;r>=0;r--){\n    const rr = r/6;\n    const cc = metal(cl(faceLum*(0.5+0.5*rr) - (1-rr)*0.15, 0, 1));\n    setF(cc, (dusk? 78: 88)*dim);\n    if (bp || eng){ noFill(); setS(metal(cl(faceLum,0,1)), 60*dim); strokeWeight(Math.max(1,u*.0011)); }\n    else noStroke();\n    ellipse(0, cyO, Dw*rr, Dh*rr);\n  }\n  // panel structure: concentric arcs + radial ribs (texture over flat fill)\n  noFill(); setS(metal(cl(faceLum*.5,0,1)), 42*dim); strokeWeight(Math.max(1,u*.0009));\n  for (let rr=0.35;rr<1.0;rr+=0.22) ellipse(0,cyO,Dw*rr,Dh*rr);\n  for (let a=0;a<12;a++){ const an=a/12*6.283; line(0,cyO, Math.cos(an)*Dw*.5, cyO+Math.sin(an)*Dh*.5); }\n  // rim edge highlight\n  noFill(); setS(metal(cl(0.6+faceLum*.5,0,1)), 70*dim); strokeWeight(Math.max(1,u*.0016));\n  ellipse(0,cyO,Dw,Dh);\n  // ---- feed support: a quadripod converging to a feed cabin at the focus ----\n  const foX = faceUp[0]*Dh*1.15, foY = cyO + faceUp[1]*Dh*1.15;\n  setS(metal(.4*light+.1), 66*dim); strokeWeight(Math.max(1,u*.0011));\n  for (let leg=0; leg<4; leg++){ const an=(leg/4)*6.283+.6;\n    line(Math.cos(an)*Dw*.42, cyO+Math.sin(an)*Dh*.42, foX, foY); }\n  setF(metal(.55*light+.2), 88*dim); noStroke();\n  ellipse(foX, foY, dishS*.16, dishS*.16);\n  // counterweight arm behind\n  setS(metal(.35*light+.05), 60*dim); strokeWeight(Math.max(1,u*.0016));\n  line(0,cyO, -faceUp[0]*Dh*.5, cyO-faceUp[1]*Dh*.5);\n  pop();\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0; strokeWeight(1);\n}\n"
+}

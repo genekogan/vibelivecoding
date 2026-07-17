@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.watershed",
+  "kind": "genart",
+  "name": "Watershed",
+  "desc": "A drainage-basin map derived from real flow physics \u2014 a hypsometric-tinted, hillshaded terrain whose steepest-descent flow accumulation carves a dendritic river network that branches and merges downstream into a thickening trunk, water shimmering along the channels while a low sun slowly wheels across the relief, spot heights and a north arrow lettering the survey.",
+  "tags": [
+    "watershed",
+    "drainage",
+    "drainage-basin",
+    "river",
+    "river-network",
+    "dendritic",
+    "tributary",
+    "hydrology",
+    "flow-accumulation",
+    "strahler",
+    "catchment",
+    "topographic",
+    "hypsometric",
+    "hillshade",
+    "relief",
+    "terrain",
+    "contour",
+    "survey",
+    "map",
+    "cartography",
+    "usgs",
+    "quad",
+    "blueprint",
+    "thermal",
+    "ink",
+    "sublime",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "heavy",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.9,
+      "doc": "terrain zoom (rebuilds basin)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hillshade contrast"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "river hue (relief style)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "sun-sweep + flow rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "relief": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "hillshade slope exaggeration"
+    },
+    "rivers": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "river width + brightness"
+    },
+    "style": {
+      "default": "relief",
+      "options": [
+        "relief",
+        "blueprint",
+        "thermal",
+        "ink",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "terrain / basin arrangement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:48:01+00:00",
+    "fps": 58.1,
+    "motion": 0.0508,
+    "lum": 0.395
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 205, speed: 1, density: .5, x: .5, y: .5, style: 'relief', seed: 0, relief: .6, rivers: .6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst BW = Math.max(340, Math.min(520, Math.round(width / 3.0)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nconst skey = BW + 'x' + BH + '_' + Math.round(P.scale * 4) + '_' + P.seed + '_' + Math.round(P.relief * 4);\n\nconst st = P.style;\n// hypsometric RGB ramps for the raster relief + HSB overlay colors\nfunction ramp() {\n  if (st === 'blueprint') return { stops: [[0, 14, 26, 58], [.4, 22, 44, 88], [.7, 40, 70, 120], [1, 120, 165, 205]], rivH: [195, 60, 96], lineH: [200, 35, 88], txtH: [200, 30, 92], bgLo: .5 };\n  if (st === 'thermal') return { stops: [[0, 20, 20, 70], [.3, 20, 90, 130], [.55, 40, 150, 90], [.75, 220, 200, 60], [.9, 220, 90, 40], [1, 245, 240, 230]], rivH: [190, 55, 96], lineH: [40, 25, 90], txtH: [40, 20, 92], bgLo: .5 };\n  if (st === 'ink') return { stops: [[0, 120, 110, 88], [.35, 168, 150, 116], [.6, 150, 120, 84], [.8, 110, 86, 62], [1, 210, 198, 176]], rivH: [24, 55, 26], lineH: [28, 45, 28], txtH: [26, 50, 24], bgLo: .55 };\n  if (st === 'noir') return { stops: [[0, 20, 26, 34], [.4, 34, 42, 52], [.7, 58, 66, 78], [1, 150, 158, 170]], rivH: [205, 40, 76], lineH: [205, 25, 66], txtH: [205, 22, 78], bgLo: .5 };\n  // relief (anchor)\n  return { stops: [[0, 66, 108, 96], [.28, 118, 150, 96], [.5, 190, 178, 122], [.72, 150, 112, 72], [.88, 122, 104, 96], [1, 236, 236, 240]], rivH: [P.hue + 5, 62, 82], lineH: [30, 40, 40], txtH: [28, 45, 34], bgLo: .5 };\n}\nconst RM = ramp();\nfunction hyps(en) { const s = RM.stops; for (let i = 0; i < s.length - 1; i++) { if (en <= s[i + 1][0]) { const t = (en - s[i][0]) / (s[i + 1][0] - s[i][0] || 1); return [s[i][1] + (s[i + 1][1] - s[i][1]) * t, s[i][2] + (s[i + 1][2] - s[i][2]) * t, s[i][3] + (s[i + 1][3] - s[i][3]) * t]; } } const l = s[s.length - 1]; return [l[1], l[2], l[3]]; }\n\n// ---- build terrain + hydrology (cached) ----\nif (S.key !== skey) {\n  S.key = skey;\n  if (!S.buf || S.bw !== BW || S.bh !== BH) { S.buf = createGraphics(BW, BH); S.bw = BW; S.bh = BH; }\n  const N = BW * BH;\n  const h2 = (i, j) => { const s = Math.sin(i * 127.1 + j * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\n  const vn = (X, Y) => { const xi = Math.floor(X), yi = Math.floor(Y), xf = X - xi, yf = Y - yi, uu = xf * xf * (3 - 2 * xf), vv = yf * yf * (3 - 2 * yf); return h2(xi, yi) * (1 - uu) * (1 - vv) + h2(xi + 1, yi) * uu * (1 - vv) + h2(xi, yi + 1) * (1 - uu) * vv + h2(xi + 1, yi + 1) * uu * vv; };\n  const fbm = (x, y) => { let f = 0, a = .5, q = 1; for (let o = 0; o < 5; o++) { f += a * vn(x * q, y * q); q *= 2; a *= .5; } return f; };\n  const E = new Float32Array(N); const freq = 5 / P.scale;\n  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) { let e = fbm(x / BW * freq + 0.3, y / BH * freq * 0.6 + 0.7); e += (y / BH) * 0.5; e -= Math.exp(-Math.pow((x - BW / 2) / (BW * 0.13), 2)) * (y / BH) * 0.22; E[y * BW + x] = e; }\n  const nX = new Float32Array(N), nY = new Float32Array(N), nZ = new Float32Array(N);\n  const zk = 90 * (0.4 + P.relief);\n  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) { const id = y * BW + x; const xm = x > 0 ? id - 1 : id, xp = x < BW - 1 ? id + 1 : id, ym = y > 0 ? id - BW : id, yp = y < BH - 1 ? id + BW : id; const gx = (E[xp] - E[xm]) * zk, gy = (E[yp] - E[ym]) * zk; const l = Math.sqrt(gx * gx + gy * gy + 1); nX[id] = -gx / l; nY[id] = -gy / l; nZ[id] = 1 / l; }\n  const dirx = [-1, 0, 1, -1, 1, -1, 0, 1], diry = [-1, -1, -1, 0, 0, 1, 1, 1];\n  const down = new Int32Array(N);\n  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) { const id = y * BW + x; let best = E[id], bi = -1; for (let k = 0; k < 8; k++) { const xx = x + dirx[k], yy = y + diry[k]; if (xx < 0 || yy < 0 || xx >= BW || yy >= BH) continue; const nid = yy * BW + xx; if (E[nid] < best) { best = E[nid]; bi = nid; } } down[id] = bi; }\n  const order = Array.from({ length: N }, (_, i) => i).sort((a, b) => E[b] - E[a]);\n  const acc = new Float32Array(N).fill(1);\n  for (const id of order) { const d = down[id]; if (d >= 0) acc[d] += acc[id]; }\n  let mn = 1e9, mx = -1e9; for (let i = 0; i < N; i++) { if (E[i] < mn) mn = E[i]; if (E[i] > mx) mx = E[i]; }\n  S.mn = mn; S.mx = mx; const rng = mx - mn || 1;\n  S.baseR = new Uint8Array(N); S.baseG = new Uint8Array(N); S.baseB = new Uint8Array(N);\n  for (let i = 0; i < N; i++) { const en = (E[i] - mn) / rng; const c = hyps(en); S.baseR[i] = c[0]; S.baseG[i] = c[1]; S.baseB[i] = c[2]; }\n  S.nX = nX; S.nY = nY; S.nZ = nZ; S.E = E;\n  let accMax = 1; for (let i = 0; i < N; i++) if (acc[i] > accMax) accMax = acc[i];\n  const cand = []; for (let i = 0; i < N; i++) { if (acc[i] > 45 && down[i] >= 0) cand.push(i); }\n  cand.sort((a, b) => acc[b] - acc[a]);\n  const rivers = []; const cap = 1600; const lg = Math.log(accMax) || 1;\n  for (let q = 0; q < Math.min(cap, cand.length); q++) { const id = cand[q]; const d = down[id]; const x0 = id % BW, y0 = (id / BW) | 0, x1 = d % BW, y1 = (d / BW) | 0; rivers.push([x0 / BW, y0 / BH, x1 / BW, y1 / BH, Math.min(1, Math.log(acc[id]) / lg)]); }\n  S.rivers = rivers; S.styleUsed = st;\n}\nif (S.styleUsed !== st) { S.styleUsed = st; const N = BW * BH, rng = S.mx - S.mn || 1; for (let i = 0; i < N; i++) { const en = (S.E[i] - S.mn) / rng; const c = hyps(en); S.baseR[i] = c[0]; S.baseG[i] = c[1]; S.baseB[i] = c[2]; } }\n\n// ---- per-frame hillshade (rotating sun = motion) ----\nconst az = K.t * (0.045 * P.speed) + 0.6 * Math.sin(K.t * 0.021) + 1.2;\nconst el = 0.72, lx = Math.cos(az) * Math.cos(el), ly = Math.sin(az) * Math.cos(el), lz = Math.sin(el);\nconst buf = S.buf, N = BW * BH; buf.loadPixels();\nconst px = buf.pixels, cont = 0.5 + P.energy * 0.35, cloud = K.t * 0.03;\nfor (let i = 0; i < N; i++) {\n  let hs = S.nX[i] * lx + S.nY[i] * ly + S.nZ[i] * lz; if (hs < 0) hs = 0;\n  const y = (i / BW) | 0, x = i - y * BW;\n  const shadow = 0.9 + 0.1 * Math.sin((x / BW) * 6 + (y / BH) * 2 + cloud * 6);\n  const sh = (RM.bgLo + (1 - RM.bgLo) * hs * (1 + cont * 0.4)) * shadow;\n  const o = i * 4;\n  px[o] = Math.min(255, S.baseR[i] * sh); px[o + 1] = Math.min(255, S.baseG[i] * sh); px[o + 2] = Math.min(255, S.baseB[i] * sh); px[o + 3] = 255;\n}\nbuf.updatePixels();\nimage(buf, 0, 0, width, height);\n\n// ---- rivers (vector, downstream shimmer) ----\nstrokeCap(ROUND); noFill();\nconst rv = S.rivers, flow = K.t * (1.2 * P.speed);\nfor (let i = 0; i < rv.length; i++) { const r = rv[i]; const w = 0.4 + r[4] * (3 + P.rivers * 3.5); const shim = 0.78 + 0.22 * Math.sin(flow - r[1] * 14 - i * 0.05); stroke(RM.rivH[0], RM.rivH[1], RM.rivH[2], (48 + 42 * P.rivers) * shim); strokeWeight(w); line(r[0] * width, r[1] * height, r[2] * width, r[3] * height); }\n\n// ---- spot elevations ----\nconst frr = i => { const s = Math.sin(i * 91.7 + P.seed * 57.3) * 43758.5453; return s - Math.floor(s); };\nnoStroke(); fill(RM.txtH[0], RM.txtH[1], RM.txtH[2], 82); textAlign(CENTER, CENTER); textSize(Math.max(8, u * 0.014));\nfor (let i = 0; i < 10; i++) { const sx = (0.1 + frr(i * 2) * 0.8) * width, sy = (0.1 + frr(i * 2 + 1) * 0.8) * height; const bx = Math.min(BW - 1, Math.floor(sx / width * BW)), by = Math.min(BH - 1, Math.floor(sy / height * BH)); const en = (S.E[by * BW + bx] - S.mn) / ((S.mx - S.mn) || 1); text('\u25b2 ' + Math.round(200 + (1 - en) * 1400), sx, sy); }\n\n// ---- north arrow + scale bar + neat-line ----\nconst nx0 = width * 0.93, ny0 = height * 0.11, ns = u * 0.032;\nstroke(RM.lineH[0], RM.lineH[1], RM.lineH[2], 85); strokeWeight(1.6); noFill();\nline(nx0, ny0 + ns, nx0, ny0 - ns); line(nx0 - ns * 0.4, ny0 - ns * 0.5, nx0, ny0 - ns); line(nx0 + ns * 0.4, ny0 - ns * 0.5, nx0, ny0 - ns);\nnoStroke(); fill(RM.txtH[0], RM.txtH[1], RM.txtH[2], 88); text('N', nx0, ny0 - ns * 1.5);\nconst sbx = width * 0.06, sby = height * 0.93;\nfor (let k = 0; k < 6; k++) { if (k % 2) { fill(RM.lineH[0], RM.lineH[1], RM.lineH[2], 80); rect(sbx + k * u * 0.03, sby, u * 0.03, u * 0.011); } }\nnoFill(); stroke(RM.lineH[0], RM.lineH[1], RM.lineH[2], 65); strokeWeight(1); rect(sbx, sby, u * 0.18, u * 0.011);\nstrokeWeight(2); rect(2, 2, width - 4, height - 4);\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeCap(ROUND);\n"
+}

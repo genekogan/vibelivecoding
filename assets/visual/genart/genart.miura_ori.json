@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.miura_ori",
+  "kind": "genart",
+  "name": "Miura-Ori Fold",
+  "desc": "A Miura-ori paper tessellation of parallelogram facets that perpetually actuates between flat and folded, its zigzag herringbone corrugation deepening and compressing as a raking light rakes the mountain and valley creases, rendered as kraft paper, blueprint crease diagram, metallic foil, concrete relief, or indigo washi.",
+  "tags": [
+    "origami",
+    "miura-ori",
+    "miura",
+    "fold",
+    "folded",
+    "crease",
+    "tessellation",
+    "paper",
+    "parallelogram",
+    "corrugation",
+    "herringbone",
+    "mountain-valley",
+    "rigid-foldable",
+    "kirigami",
+    "geometric",
+    "facets",
+    "relief",
+    "kraft",
+    "washi",
+    "foil",
+    "blueprint",
+    "engineering",
+    "deployable",
+    "austere",
+    "sculptural",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fold-actuation amplitude (open/close depth)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "overall size of the folded sheet"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of facets (fold resolution)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "actuation & light-drift rate"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "paper hue"
+    },
+    "tilt": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "viewing tilt (how much depth shows)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheet center X"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheet center Y"
+    },
+    "style": {
+      "default": "kraft_paper",
+      "options": [
+        "kraft_paper",
+        "blueprint_crease",
+        "foil_metallic",
+        "concrete_relief",
+        "washi_indigo"
+      ],
+      "doc": "material: warm kraft / technical blueprint crease diagram / metallic foil / concrete relief / indigo washi"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "fiber-grain seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:50+00:00",
+    "fps": 59.9,
+    "motion": 0.093,
+    "lum": 0.638
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, hue: 34, tilt: .5, x: .5, y: .5, style: 'kraft_paper', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\n\nfunction look(style,hue){\n  if(style==='blueprint_crease') return {paper:[214,.50,.22], hi:[190,.30,.80], lo:[220,.55,.14], crease:[188,.60,.92], mv:true, spec:.0, amb:.5, wire:true};\n  if(style==='foil_metallic')    return {paper:[hue,.22,.62], hi:[hue+10,.30,.98], lo:[hue-20,.40,.22], crease:[0,0,.20], mv:false, spec:.9, amb:.35, wire:false};\n  if(style==='concrete_relief')  return {paper:[36,.06,.50], hi:[36,.05,.78], lo:[220,.10,.14], crease:[0,0,.12], mv:false, spec:.05, amb:.28, wire:false};\n  if(style==='washi_indigo')     return {paper:[220,.40,.44], hi:[212,.24,.74], lo:[224,.55,.18], crease:[220,.30,.30], mv:false, spec:.1, amb:.42, wire:false};\n  return {paper:[hue,.30,.66], hi:[hue+6,.30,.92], lo:[hue-6,.40,.30], crease:[hue-8,.35,.34], mv:false, spec:.12, amb:.42, wire:false}; // kraft_paper\n}\nconst L=look(P.style,P.hue);\n\n// fold actuation \u2014 always-on breathing floor + energy adds; incommensurate => never repeats\nconst sp=P.speed;\nlet theta = 0.62 + (0.14 + 0.34*P.energy)*Math.sin(t*0.23*sp) + 0.10*Math.sin(t*0.61*sp+1.1) + 0.06*Math.sin(t*1.09*sp);\ntheta = Math.max(0.16, Math.min(1.28, theta));\nconst w = Math.cos(theta), amp = Math.sin(theta)*0.62, skew = Math.sin(theta)*0.42;\nconst tiltA = 0.62*P.tilt + 0.10*Math.sin(t*0.31*sp+0.4); // viewing tilt, gentle drift\nconst cT=Math.cos(tiltA), sT=Math.sin(tiltA);\nconst spin = 0.05*Math.sin(t*0.17*sp) + 0.03*Math.sin(t*0.43*sp+2.0);\nconst cS=Math.cos(spin), sS=Math.sin(spin);\n// light dir (drifts)\nlet lx=Math.sin(t*0.19*sp+0.5)*0.5, ly=-0.55, lz=0.75; const ll=Math.hypot(lx,ly,lz); lx/=ll; ly/=ll; lz/=ll;\n\nconst C=Math.round(10+P.density*22), R=Math.round((10+P.density*22)*0.72);\nconst cellW=(uMin*1.7*P.scale)/C, cellH=(uMin*1.5*P.scale)/R;\nconst cx=P.x*width, cy=P.y*height;\n\n// build vertex screen positions + depths\nconst VX=[],VY=[],VZ=[];\nfor(let i=0;i<=R;i++){ VX[i]=[];VY[i]=[];VZ[i]=[];\n  for(let j=0;j<=C;j++){\n    let mx=(j-C/2)*cellW*w + ((i&1)? skew:-skew)*cellW*0.9;\n    let my=(i-R/2)*cellH;\n    let mz=((j&1)?-1:1)*amp*cellW;\n    // gentle field spin in-plane\n    const rx=mx*cS - my*sS, ry=mx*sS + my*cS;\n    const sy=ry*cT - mz*sT;\n    VX[i][j]=cx+rx; VY[i][j]=cy+sy; VZ[i][j]=ry*sT+mz*cT;\n  }\n}\n\npush();\nnoStroke();\n// backing so no bg shows through gaps\nconst bg=L.lo; background(bg[0],bg[1]*100,bg[2]*100*0.7);\nfor(let i=0;i<R;i++) for(let j=0;j<C;j++){\n  const ax=VX[i][j],ay=VY[i][j], bx=VX[i][j+1],by=VY[i][j+1];\n  const dx=VX[i+1][j+1],dy=VY[i+1][j+1], ex=VX[i+1][j],ey=VY[i+1][j];\n  // 3D normal via two edges (use z)\n  const e1=[bx-ax,by-ay,VZ[i][j+1]-VZ[i][j]], e2=[ex-ax,ey-ay,VZ[i+1][j]-VZ[i][j]];\n  let nx=e1[1]*e2[2]-e1[2]*e2[1], ny=e1[2]*e2[0]-e1[0]*e2[2], nz=e1[0]*e2[1]-e1[1]*e2[0];\n  const nl=Math.hypot(nx,ny,nz)||1; nx/=nl;ny/=nl;nz/=nl;\n  let diff=nx*lx+ny*ly+nz*lz; diff=Math.abs(diff);\n  let sh=L.amb + (1-L.amb)*Math.pow(diff,0.9);\n  // specular for foil\n  if(L.spec>0){ const rzv=Math.pow(Math.max(0,diff),18); sh+=L.spec*rzv; }\n  sh=Math.max(0.12,Math.min(1.5,sh));\n  // pick paper vs hi/lo by shade, fiber noise\n  const fib=0.96+0.06*fr(i*97+j*7);\n  let col;\n  const m=Math.min(1,sh);\n  col=[ L.lo[0]+(L.hi[0]-L.lo[0])*m, L.lo[1]+(L.hi[1]-L.lo[1])*m, L.lo[2]+(L.hi[2]-L.lo[2])*m ];\n  // blend toward base paper hue\n  col=[ col[0]*0.5+L.paper[0]*0.5, col[1]*0.55+L.paper[1]*0.45, (col[2]*0.6+L.paper[2]*0.4)*fib ];\n  if(!L.wire){\n    fill(col[0], col[1]*100, Math.min(100,col[2]*100));\n    beginShape(); vertex(ax,ay); vertex(bx,by); vertex(dx,dy); vertex(ex,ey); endShape(CLOSE);\n  }\n  // crease lines / mountain-valley coloring\n  if(L.wire){\n    const mtn=((i+j)&1)===0;\n    stroke(L.crease[0], L.crease[1]*100, L.crease[2]*100, mtn?95:60);\n    strokeWeight(mtn?Math.max(1.2,uMin*0.0016):Math.max(0.8,uMin*0.0011));\n    if(!mtn) drawingContext.setLineDash([6,5]); else drawingContext.setLineDash([]);\n    noFill(); beginShape(); vertex(ax,ay); vertex(bx,by); vertex(dx,dy); vertex(ex,ey); endShape(CLOSE);\n  } else {\n    stroke(L.crease[0], L.crease[1]*100, L.crease[2]*100, 40);\n    strokeWeight(Math.max(0.6,uMin*0.0009)); noFill();\n    line(ax,ay,bx,by); line(ax,ay,ex,ey);\n  }\n  noStroke();\n}\nif(L.wire) drawingContext.setLineDash([]);\nif(P.alpha<100){ noStroke(); fill(L.lo[0],L.lo[1]*100,L.lo[2]*100,100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}

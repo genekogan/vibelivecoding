@@ -1,0 +1,117 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cmb_sky",
+  "kind": "genart",
+  "name": "CMB Sky",
+  "desc": "The cosmic microwave background painted as a full-sky Mollweide oval \u2014 the faint temperature anisotropies of the infant universe rendered as a slowly boiling false-color mottle, hot and cold spots drifting under a thin graticule of meridians and parallels.",
+  "tags": [
+    "cmb",
+    "cosmic microwave background",
+    "planck",
+    "wmap",
+    "anisotropy",
+    "temperature map",
+    "full-sky",
+    "mollweide",
+    "all-sky",
+    "power spectrum",
+    "recombination",
+    "big bang",
+    "early universe",
+    "cosmology",
+    "astrophysics",
+    "false-color",
+    "survey",
+    "mottle",
+    "fluctuations",
+    "graticule",
+    "scientific",
+    "slow",
+    "meditative",
+    "sublime",
+    "deep-space",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "temperature contrast / exposure of the anisotropy"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "angular size of hot/cold spots (feature scale)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "boil / morph rate (kept slow, non-strobe)"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "deep-space ground tint outside the oval"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "unused-anchor reserved (map is centered)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "unused-anchor reserved (map is centered)"
+    },
+    "style": {
+      "default": "planck",
+      "options": [
+        "planck",
+        "wmap",
+        "thermal",
+        "contour"
+      ],
+      "doc": "false-color colormap discipline (contour = schematic iso-temperature bands)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic anisotropy realization"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    },
+    "warp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "domain-warp amplitude of the slow boil"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:45:27+00:00",
+    "fps": 63.3,
+    "motion": 0.0178,
+    "lum": 0.467
+  },
+  "code": "const D = { energy:.6, scale:1, speed:1, hue:30, x:.5, y:.5, style:'planck', seed:0, alpha:100, warp:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\n\n// ---- adaptive field buffer ----\nconst BW = Math.max(360, Math.min(560, Math.round(width / 3.0)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nconst LC = Math.max(3, 9 / (0.5 + P.scale));            // lattice cells across width (feature size)\nconst buildKey = BW + 'x' + BH + '|' + sd + '|' + LC.toFixed(2);\nif (!S.gfx || S.bw !== BW || S.bh !== BH) { S.gfx = createGraphics(BW, BH); S.gfx.pixelDensity(1); S.bw = BW; S.bh = BH; S.buildKey = null; }\nconst g = S.gfx;\n\n// ---- build 3 static gaussian-random temperature fields once per (seed,scale,size) ----\nif (S.buildKey !== buildKey) {\n  S.buildKey = buildKey;\n  const hash = (ix, iy, so) => { const s = Math.sin(ix * 127.1 + iy * 311.7 + so * 74.7) * 43758.5453; return s - Math.floor(s); };\n  const smooth = t => t * t * (3 - 2 * t);\n  const lat = (x, y, so) => { const x0 = Math.floor(x), y0 = Math.floor(y), fx = smooth(x - x0), fy = smooth(y - y0);\n    const a = hash(x0, y0, so), b = hash(x0 + 1, y0, so), c = hash(x0, y0 + 1, so), d = hash(x0 + 1, y0 + 1, so);\n    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy; };\n  S.fld = [];\n  for (let k = 0; k < 3; k++) {\n    const F = new Float32Array(BW * BH);\n    const so = sd * 3 + k * 97;\n    let mn = 1e9, mx = -1e9;\n    for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n      const fx = i / BW, fy = j / BW; // keep isotropic cells\n      let v = 0, amp = 1, f = LC, norm = 0;\n      for (let o = 0; o < 4; o++) { v += amp * lat(fx * f + o * 13.7, fy * f + o * 9.1, so + o * 31); norm += amp; amp *= 0.52; f *= 2.05; }\n      v /= norm; F[j * BW + i] = v;\n      if (v < mn) mn = v; if (v > mx) mx = v;\n    }\n    const inv = 1 / (mx - mn + 1e-6);\n    for (let i = 0; i < F.length; i++) F[i] = (F[i] - mn) * inv - 0.5; // centered ~[-0.5,0.5]\n    S.fld.push(F);\n  }\n}\nconst F0 = S.fld[0], F1 = S.fld[1], F2 = S.fld[2];\n\n// ---- per-frame slow boil: incommensurate weights + tiny domain warp (NON-STROBE) ----\nconst T = K.t * (0.5 + P.speed * 0.6);\nlet wa = 0.5 + 0.5 * Math.sin(T * 0.041), wb = 0.5 + 0.5 * Math.sin(T * 0.057 + 2.1), wc = 0.5 + 0.5 * Math.sin(T * 0.069 + 4.0);\nconst ws = 1 / (wa + wb + wc + 1e-6); wa *= ws; wb *= ws; wc *= ws;\nconst warpAmp = (1.5 + P.warp * 6) ;\nconst ox0 = warpAmp * Math.sin(T * 0.033), oy0 = warpAmp * Math.cos(T * 0.028);\nconst ox1 = warpAmp * Math.sin(T * 0.023 + 1.7), oy1 = warpAmp * Math.cos(T * 0.037 + 0.4);\nconst ox2 = warpAmp * Math.sin(T * 0.045 + 3.1), oy2 = warpAmp * Math.cos(T * 0.019 + 2.2);\nconst contrast = 1.4 + P.energy * 1.8;\nconst gain = 0.9 + K.swell * 0.08 + A.rms * 0.15;\n\n// bilinear sampler over a field\nfunction samp(F, x, y) {\n  if (x < 0) x = 0; else if (x > BW - 1.001) x = BW - 1.001;\n  if (y < 0) y = 0; else if (y > BH - 1.001) y = BH - 1.001;\n  const xi = x | 0, yi = y | 0, fx = x - xi, fy = y - yi, o = yi * BW + xi;\n  return (F[o] * (1 - fx) + F[o + 1] * fx) * (1 - fy) + (F[o + BW] * (1 - fx) + F[o + BW + 1] * fx) * fy;\n}\n\ng.loadPixels(); const pix = g.pixels;\n// hue tints the deep-space ground outside the oval (subtle)\nconst hrad = P.hue * Math.PI / 180;\nconst gr0 = 4 + 7 * (0.5 + 0.5 * Math.cos(hrad));\nconst gg0 = 5 + 7 * (0.5 + 0.5 * Math.cos(hrad - 2.094));\nconst gb0 = 10 + 7 * (0.5 + 0.5 * Math.cos(hrad - 4.188));\nfor (let j = 0; j < BH; j++) {\n  const ny = (j / BH - 0.5) * 2;            // -1..1\n  for (let i = 0; i < BW; i++) {\n    const nx = (i / BW - 0.5) * 2;\n    const o = 4 * (j * BW + i);\n    // Mollweide-ish oval mask (full-sky ellipse)\n    const enx = nx / 0.95, eny = ny / 0.93;\n    const ee = enx * enx + eny * eny;\n    if (ee > 1.0) {\n      // outside sky: dark deep ground (never pure black), hue-tinted\n      pix[o] = gr0; pix[o + 1] = gg0; pix[o + 2] = gb0; pix[o + 3] = 255; continue;\n    }\n    let v = samp(F0, i + ox0, j + oy0) * wa + samp(F1, i + ox1, j + oy1) * wb + samp(F2, i + ox2, j + oy2) * wc;\n    v = Math.max(-1, Math.min(1, v * contrast * gain));   // temperature -1..1\n    const t = (v + 1) * 0.5;                               // 0 cold ..1 hot\n    let r, gg, b;\n    if (style === 'wmap') {                                // cold blue -> white -> hot red\n      if (t < 0.5) { const s = t * 2; r = 40 + s * 200; gg = 40 + s * 200; b = 200 + s * 55; }\n      else { const s = (t - 0.5) * 2; r = 240; gg = 240 - s * 190; b = 255 - s * 205; }\n    } else if (style === 'thermal') {                      // black-body dark-red -> orange -> white\n      r = Math.min(255, t * 340); gg = Math.min(255, Math.max(0, (t - 0.28) * 300)); b = Math.min(255, Math.max(0, (t - 0.62) * 380));\n      r += 18; gg += 6; b += 10;\n    } else if (style === 'contour') {                      // iso-temperature bands (schematic mono)\n      const band = 0.5 + 0.5 * Math.cos(v * 22.0);\n      const line = Math.pow(band, 6);\n      const m = 0.16 + 0.5 * (t) + line * 0.5;\n      r = m * 120; gg = m * 210; b = m * 255;\n    } else {                                                // planck: blue-cyan-green-yellow-red\n      const x5 = t * 4;\n      if (x5 < 1) { const s = x5; r = 8 + s * 20; gg = 20 + s * 120; b = 120 + s * 135; }\n      else if (x5 < 2) { const s = x5 - 1; r = 28 + s * 30; gg = 140 + s * 100; b = 255 - s * 175; }\n      else if (x5 < 3) { const s = x5 - 2; r = 58 + s * 197; gg = 240 - s * 20; b = 80 - s * 60; }\n      else { const s = x5 - 3; r = 255; gg = 220 - s * 200; b = 20 + s * 10; }\n    }\n    pix[o] = r > 255 ? 255 : (r < 0 ? 0 : r); pix[o + 1] = gg > 255 ? 255 : (gg < 0 ? 0 : gg); pix[o + 2] = b > 255 ? 255 : (b < 0 ? 0 : b); pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\nnoTint();\npop();\n\n// faint graticule (meridians / parallels) over the oval \u2014 survey-plate look\nif (style !== 'contour') {\n  push();\n  const cx = width * 0.5, cy = height * 0.5;\n  const RX = width * 0.47, RY = height * 0.47;\n  stroke(0, 0, 100, 7 * (P.alpha / 100)); noFill(); strokeWeight(Math.max(1, u * 0.0012));\n  for (let m = -2; m <= 2; m++) {                          // meridians (vertical ellipse arcs)\n    beginShape();\n    for (let a = -90; a <= 90; a += 6) {\n      const la = a * Math.PI / 180; const k = m / 3;\n      const xx = cx + RX * k * Math.cos(la); const yy = cy + RY * Math.sin(la);\n      vertex(xx, yy);\n    }\n    endShape();\n  }\n  for (let p2 = -2; p2 <= 2; p2++) {                        // parallels (horizontal chords)\n    const yy = cy + RY * (p2 / 3) * 0.95;\n    const half = RX * Math.sqrt(Math.max(0, 1 - (p2 / 3) * (p2 / 3)));\n    line(cx - half, yy, cx + half, yy);\n  }\n  pop();\n}\n"
+}

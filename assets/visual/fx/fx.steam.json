@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.steam",
+  "kind": "fx",
+  "name": "Steam",
+  "desc": "Soft white vapour rising and dissipating \u2014 buoyant billows sway up from a source line and grow translucent as they cool, lit by a backlight glow; the hot-spring, manhole, kettle or sauna steam to lay over any scene.",
+  "tags": [
+    "steam",
+    "vapour",
+    "vapor",
+    "mist",
+    "billow",
+    "billows",
+    "hot-spring",
+    "onsen",
+    "manhole",
+    "street-steam",
+    "kettle",
+    "sauna",
+    "hot",
+    "condensation",
+    "evaporate",
+    "rising",
+    "plume",
+    "white",
+    "soft",
+    "diffuse",
+    "buoyant",
+    "serene",
+    "cosy",
+    "noir",
+    "ectoplasm",
+    "backlit",
+    "overlay",
+    "atmosphere",
+    "particles",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "puff count (30..110)"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "rise speed + puff glow"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "vapour + backlight hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "rise rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "puff size / plume height"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "source x"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0,
+      "max": 1,
+      "doc": "source y (bottom by default)"
+    },
+    "turb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "turbulence / sway of the plume"
+    },
+    "backlight": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glow behind the source"
+    },
+    "style": {
+      "default": "hotspring",
+      "options": [
+        "hotspring",
+        "manhole",
+        "sauna",
+        "ectoplasm"
+      ],
+      "doc": "hotspring=cool white-blue / manhole=warm sodium-lit street steam / sauna=dense soft white / ectoplasm=eerie green-white"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:21+00:00",
+    "fps": 59.5,
+    "motion": 0.067,
+    "lum": 0.223
+  },
+  "code": "const D = { density:.55, energy:.55, hue:200, speed:1, scale:1, x:.5, y:.86, turb:.5, backlight:.5, style:'hotspring', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\nif(!S.spr){ const R=72; const s=createGraphics(R*2,R*2); s.pixelDensity(1); s.noStroke();\n  for(let r=R;r>0;r--){ const a=Math.pow(1-r/R,2.1)*255; s.fill(255,255,255,a*0.8); s.ellipse(R,R,r*2,r*2); }\n  S.spr=s; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1); S.pf=[]; for(let k=0;k<120;k++) S.pf.push([fr(k*4+2),fr(k*4+3),fr(k*4+4),fr(k*4+5)]);\n}\nconst sd=P.seed|0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; }\n\nconst t=K.t*(0.5+P.speed*0.6);\nconst style=P.style;\nconst col = style==='manhole'?[1.0,0.78,0.5] : style==='ectoplasm'?[0.55,1.0,0.7] : style==='sauna'?[0.95,0.97,1.0] : [0.8,0.92,1.0];\nconst srcx=P.x, srcy=P.y;\n\n// --- soft backlight glow behind the source (broad area element) ---\npush(); blendMode(ADD); imageMode(CENTER); noStroke();\nconst bl=(0.2+P.backlight*0.8)*(0.6+K.intensity*0.4+A.rms*0.4);\ntint(style==='manhole'?35:(style==='ectoplasm'?130:205), style==='sauna'?6:22, 100, Math.min(100, 18*bl));\nimage(S.spr, srcx*width, srcy*height - u*0.12, u*1.4*P.scale, u*1.0*P.scale);\n\n// --- rising vapor puffs ---\nconst np=Math.round(30+P.density*80);\nconst rise=(0.05+P.speed*0.06);\nconst turb=(0.3+P.turb*1.1);\n// rising vapor puffs: buoyant sway + slow curl advection, grow+fade as they rise\nfor(let k=0;k<np;k++){ const pf=S.pf[k];\n  const life=(pf[1] + t*rise*(0.6+pf[2]))%1;\n  const sway= turb*0.10*Math.sin(t*(0.6+pf[2]) + pf[0]*6.28) + 0.06*vn(pf[0]*4 + t*0.2, life*5)*turb;\n  const spreadX=(pf[0]-0.5)*0.16*(0.4+life);\n  const X=(srcx + spreadX + sway)*width;\n  const Y=(srcy - life*(0.55+P.scale*0.25))*height;\n  const grow=0.5+life*1.6;\n  const sz=u*(0.10+pf[3]*0.10)*P.scale*grow;\n  const a=(1-life)*life*4.0*(0.4+P.energy*0.7);\n  if(a<=0.02) continue;\n  const hh=style==='manhole'?35:(style==='ectoplasm'?130:200);\n  const ss=style==='sauna'?5:(style==='ectoplasm'?35:18);\n  tint(hh, ss, 100, Math.min(80, 14*a)); image(S.spr, X, Y, sz*1.4, sz*1.4);\n  tint(hh, ss*0.5, 100, Math.min(80, 26*a)); image(S.spr, X, Y, sz*0.7, sz*0.8);\n}\nimageMode(CORNER); blendMode(BLEND); pop();\n"
+}

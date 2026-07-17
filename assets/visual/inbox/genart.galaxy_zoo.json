@@ -1,0 +1,115 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.galaxy_zoo",
+  "kind": "genart",
+  "name": "Galaxy Zoo",
+  "desc": "A deep-field plate scattered with galaxies of every morphology — grand-design spirals, smooth ellipticals, dust-laned edge-on disks, clumpy blue irregulars and barred spirals — each drifting and slowly turning across the black at its own scale, a whole Hubble morphology classification adrift.",
+  "tags": [
+    "galaxy",
+    "galaxies",
+    "galaxy zoo",
+    "morphology",
+    "spiral galaxy",
+    "elliptical galaxy",
+    "irregular",
+    "edge-on",
+    "barred spiral",
+    "deep field",
+    "hubble",
+    "classification",
+    "tuning fork",
+    "cosmology",
+    "universe",
+    "astronomy",
+    "astrophysics",
+    "survey",
+    "false-color",
+    "nebula",
+    "stars",
+    "deep-space",
+    "drift",
+    "blue",
+    "gold",
+    "sublime",
+    "scientific",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "galaxy brightness / glow exposure"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "number of galaxies (10..40)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "galaxy size multiplier"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "drift + spin rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "deep-field ground tint (subtle)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field pan y"
+    },
+    "style": {
+      "default": "plate",
+      "options": [
+        "plate",
+        "survey",
+        "xray",
+        "nocturne",
+        "isophote"
+      ],
+      "doc": "natural vs false-color vs hot-teal vs deep-indigo vs isophote-contour rendering"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic morphologies + placements"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy:.6, density:.55, scale:1, speed:1, hue:210, x:.5, y:.5, style:'plate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- cached faint deep-field starfield (luminance floor, never pure black) ----\nconst bgKey = width + 'x' + height + '|' + style + '|' + sd;\nif (S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const BW = Math.max(360, Math.min(640, Math.round(width / 2.6)));\n  const BH = Math.max(120, Math.round(BW * height / width));\n  if (!S.bg || S.bgw !== BW || S.bgh !== BH) { S.bg = createGraphics(BW, BH); S.bg.pixelDensity(1); S.bgw = BW; S.bgh = BH; }\n  const bg = S.bg; bg.loadPixels(); const pb = bg.pixels;\n  const fg = i => { const s = Math.sin(i * 71.3 + sd * 51.7) * 33417.2; return s - Math.floor(s); };\n  // toned deep-field ground per style\n  let gr, gg, gb;\n  if (style === 'xray') { gr = 4; gg = 10; gb = 14; }\n  else if (style === 'nocturne') { gr = 6; gg = 7; gb = 18; }\n  else if (style === 'isophote') { gr = 8; gg = 9; gb = 12; }\n  else if (style === 'survey') { gr = 5; gg = 6; gb = 12; }\n  else { gr = 7; gg = 8; gb = 14; }\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const o = 4 * (j * BW + i);\n    // very faint large-scale gradient so it's never flat/dead\n    const fx = i / BW - 0.5, fy = j / BH - 0.5;\n    const grad = 1 + 0.5 * Math.exp(-(fx*fx+fy*fy)*2.2);\n    pb[o] = gr*grad; pb[o+1] = gg*grad; pb[o+2] = gb*grad; pb[o+3] = 255;\n  }\n  // scatter faint background stars\n  const NS = Math.round(BW * BH * 0.012);\n  for (let k = 0; k < NS; k++) {\n    const ii = (fg(k*3+1)*BW)|0, jj = (fg(k*3+2)*BH)|0, a = fg(k*3+3);\n    const v = 60 + a*a*180; const o = 4*(jj*BW+ii);\n    pb[o] = Math.min(255, pb[o]+v*0.9); pb[o+1] = Math.min(255, pb[o+1]+v*0.95); pb[o+2] = Math.min(255, pb[o+2]+v);\n  }\n  bg.updatePixels();\n}\n\n// ---- seed-deterministic galaxy sprite templates (7), rebuilt on seed/style ----\nconst TS = 128, NTPL = 7;\nif (S.tplKey !== bgKey) {\n  S.tplKey = bgKey; S.tpl = [];\n  for (let ti = 0; ti < NTPL; ti++) {\n    const gph = createGraphics(TS, TS); gph.pixelDensity(1);\n    gph.loadPixels(); const q = gph.pixels;\n    const morph = ti % 5; // 0 spiral,1 elliptical,2 edge-on,3 irregular,4 barred\n    const rot = fr(ti*7+1) * 6.28318, arms = 2 + Math.floor(fr(ti*7+2)*3);\n    const wind = 2.2 + fr(ti*7+3)*1.6, ell = 0.45 + fr(ti*7+4)*0.5;\n    const clx = [], cly = [], clr = [];\n    for (let c = 0; c < 5; c++) { clx.push((fr(ti*20+c*3+5)*2-1)*0.4); cly.push((fr(ti*20+c*3+6)*2-1)*0.4); clr.push(0.12+fr(ti*20+c*3+7)*0.18); }\n    const ct = Math.cos(rot), st = Math.sin(rot);\n    for (let j = 0; j < TS; j++) for (let i = 0; i < TS; i++) {\n      let ex = (i/TS-0.5)*2, ey = (j/TS-0.5)*2;\n      // rotate into galaxy frame\n      let gx = ex*ct+ey*st, gy = -ex*st+ey*ct;\n      const rr = Math.sqrt(gx*gx+gy*gy);\n      let emit = 0, warm = 0.5;\n      if (morph === 0 || morph === 4) {                    // spiral / barred\n        const bulge = Math.exp(-rr*rr*7)*1.4; emit += bulge; warm = 0.8;\n        const th = Math.atan2(gy, gx);\n        let arm = 0;\n        for (let a = 0; a < arms; a++) {\n          const spiralTh = wind * Math.log(rr+0.06) + a*(6.2831/arms) + rot;\n          let d = Math.cos(th - spiralTh); d = (d+1)*0.5; d = Math.pow(d, 8);\n          arm = Math.max(arm, d);\n        }\n        const disk = Math.exp(-rr*3.0);\n        emit += arm * disk * 1.3 * (rr>0.06?1:0);\n        if (morph === 4) emit += Math.exp(-(gy*gy)*60 - Math.max(0,rr-0.35)*6)*0.9; // bar\n        warm = 0.35 + bulge*0.5;                            // arms blue, bulge yellow\n      } else if (morph === 1) {                            // elliptical (smooth, warm)\n        const r2 = gx*gx + (gy/ell)*(gy/ell);\n        emit = Math.exp(-r2*4.5)*1.6; warm = 0.85;\n      } else if (morph === 2) {                            // edge-on disk + dust lane\n        emit = Math.exp(-(gy*gy)*22 - (gx*gx)*2.4)*1.6;\n        emit *= (1 - 0.7*Math.exp(-(gy*gy)*120));          // dark dust lane\n        emit += Math.exp(-rr*rr*30)*0.7;                    // bulge\n        warm = 0.7;\n      } else {                                             // irregular clumps (blue)\n        for (let c = 0; c < 5; c++) { const dx = gx-clx[c], dy = gy-cly[c]; emit += Math.exp(-(dx*dx+dy*dy)/(clr[c]*clr[c]))*0.8; }\n        warm = 0.25;\n      }\n      // vignette to keep sprite circular\n      emit *= Math.max(0, 1 - rr*rr*1.05);\n      if (style === 'isophote') { const lv = 0.5+0.5*Math.cos(Math.min(1,emit)*20.0); emit = (emit>0.03?1:0)*(0.15+0.85*lv)*Math.min(1,emit*2.2); }\n      let cr, cg, cb;\n      if (style === 'xray') { const t = Math.min(1,emit); cr = t*t*160; cg = Math.pow(t,0.7)*230; cb = Math.pow(t,0.6)*255; }\n      else if (style === 'nocturne') { const t = Math.min(1,emit); cr = t*90; cg = t*110; cb = t*t*255+t*40; }\n      else if (style === 'survey') { const t = Math.min(1,emit); cr = (warm)*t*255; cg = t*t*180; cb = (1-warm)*t*255 + t*40; }\n      else if (style === 'isophote') { const t = Math.min(1,emit); cr = t*130; cg = t*200; cb = t*255*0.9; }\n      else { const t = Math.min(1,emit); // plate (natural)\n        cr = t*(160+warm*95); cg = t*(150+warm*70); cb = t*(150+(1-warm)*105); }\n      const o = 4*(j*TS+i);\n      q[o] = Math.min(255,cr); q[o+1] = Math.min(255,cg); q[o+2] = Math.min(255,cb); q[o+3] = 255;\n    }\n    gph.updatePixels(); S.tpl.push(gph);\n  }\n}\n\n// ---- seed-deterministic placements (rebuild on seed/count) ----\nconst NG = Math.round(10 + P.density * 30);\nif (!S.gal || S.galSeed !== sd || S.galN !== NG) {\n  S.galSeed = sd; S.galN = NG; S.gal = [];\n  for (let i = 0; i < NG; i++) {\n    S.gal.push({\n      tpl: Math.floor(fr(i*9+1)*NTPL),\n      bx: fr(i*9+2), by: fr(i*9+3),\n      sz: 0.05 + Math.pow(fr(i*9+4), 1.8) * 0.28,          // few big, many small\n      ang: fr(i*9+5)*6.28318,\n      spin: (fr(i*9+6)-0.5)*0.16,\n      dvx: (fr(i*9+7)-0.5)*0.5, dvy: (fr(i*9+8)-0.5)*0.5,\n      dph: fr(i*9+9)*6.28318, twp: fr(i*9+10)*6.28318,\n      br: 0.6 + fr(i*9+11)*0.5\n    });\n  }\n}\n\n// ---- draw ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha); image(S.bg, 0, 0, width, height); noTint();\npop();\n\nconst T = K.t * (0.4 + P.speed * 0.6);\npush();\nblendMode(ADD);\nimageMode(CENTER);\nconst gal = S.gal;\nfor (let i = 0; i < gal.length; i++) {\n  const G = gal[i];\n  // slow drifting position (incommensurate) + gentle wander; wrap around frame\n  let gx = (G.bx + (Math.sin(T*0.05*G.dvx + G.dph)*0.06 + T*0.006*G.dvx)) % 1.2;\n  let gy = (G.by + (Math.cos(T*0.045*G.dvy + G.dph)*0.06 + T*0.005*G.dvy)) % 1.2;\n  gx = ((gx % 1) + 1) % 1; gy = ((gy % 1) + 1) % 1;\n  const cxp = (gx * 1.1 - 0.05 + (P.x - 0.5) * 0.2) * width;\n  const cyp = (gy * 1.1 - 0.05 + (P.y - 0.5) * 0.2) * height;\n  const sz = G.sz * u * (0.7 + P.scale * 0.9);\n  const tw = 0.75 + 0.25*Math.sin(T*(0.5+G.twp*0.1) + G.twp) + K.pulse*0.12 + A.rms*0.3;\n  const al = Math.min(100, (34 + P.energy*55) * G.br * tw) * (P.alpha/100);\n  push();\n  translate(cxp, cyp);\n  rotate(G.ang + G.spin*T);\n  tint(0, 0, 100, al);\n  image(S.tpl[G.tpl], 0, 0, sz, sz);\n  pop();\n}\nimageMode(CORNER);\nblendMode(BLEND);\npop();\n"
+}

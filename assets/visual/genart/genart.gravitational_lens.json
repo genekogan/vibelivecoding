@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gravitational_lens",
+  "kind": "genart",
+  "name": "Gravitational Lens",
+  "desc": "A foreground galaxy warps spacetime and bends the light of everything behind it into a luminous Einstein ring and stretched giant arcs \u2014 a general-relativity light-bending simulation where background galaxies smear into curved crescents around the deflector, the arcs writhing as the source field drifts.",
+  "tags": [
+    "gravitational lens",
+    "lensing",
+    "einstein ring",
+    "general relativity",
+    "spacetime",
+    "light bending",
+    "arcs",
+    "giant arcs",
+    "deflection",
+    "cluster lens",
+    "dark matter",
+    "cosmology",
+    "astrophysics",
+    "hubble",
+    "abell",
+    "distortion",
+    "warp",
+    "optics",
+    "caustic",
+    "critical curve",
+    "false-color",
+    "deep-space",
+    "blue",
+    "sublime",
+    "scientific",
+    "simulation",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / brightness of the lensed field + ring glow"
+    },
+    "mass": {
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1.0,
+      "doc": "lens mass = Einstein-radius size (bigger ring)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "focal length / background zoom"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "drift + pan + shear-rotation rate"
+    },
+    "shear": {
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "external shear (arc stretch / lens ellipticity)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "deep-space field tint (subtle)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lens center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lens center y"
+    },
+    "style": {
+      "default": "einstein",
+      "options": [
+        "einstein",
+        "cluster",
+        "chromatic",
+        "wire"
+      ],
+      "doc": "point-ring vs cluster arcs vs dispersion vs schematic critical-curve"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic background galaxy/star field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:45:43+00:00",
+    "fps": 60.2,
+    "motion": 0.0843,
+    "lum": 0.362
+  },
+  "code": "const D = { energy:.62, mass:.6, scale:1, speed:1, shear:.35, hue:210, x:.5, y:.5, style:'einstein', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\n\n// ---- adaptive image buffer (field remap) ----\nconst BW = Math.max(360, Math.min(560, Math.round(width / 3.0)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.img || S.bw !== BW || S.bh !== BH) {\n  S.img = createGraphics(BW, BH); S.img.pixelDensity(1); S.bw = BW; S.bh = BH;\n}\nconst g = S.img;\n\n// ---- seed-deterministic BACKGROUND source plane (rebuild on seed) ----\n// square src covering source coords [-R,R]^2 in units of Einstein radius\nconst SR = 2.4, SW = 480;\nif (!S.src || S.srcSeed !== sd) {\n  S.srcSeed = sd; S.SW = SW; S.SR = SR;\n  const src = new Float32Array(SW * SW * 3);\n  const fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n  // 1) soft nebula: sum of low-freq gaussian blobs\n  const NB = 7;\n  const bx = [], by = [], br = [], bh = [], bs = [];\n  for (let k = 0; k < NB; k++) { bx.push((fr(k*4+1)*2-1)*SR); by.push((fr(k*4+2)*2-1)*SR); br.push(0.5+fr(k*4+3)*1.4); bh.push(fr(k*4+4)); bs.push(0.3+fr(k*9+5)*0.6); }\n  for (let j = 0; j < SW; j++) {\n    const sy = (j / SW * 2 - 1) * SR;\n    for (let i = 0; i < SW; i++) {\n      const sx = (i / SW * 2 - 1) * SR;\n      let r = 0.02, gg = 0.03, b = 0.06;                    // deep-space floor (never pure black)\n      for (let k = 0; k < NB; k++) {\n        const dx = sx - bx[k], dy = sy - by[k];\n        const a = bs[k] * Math.exp(-(dx*dx+dy*dy) / (br[k]*br[k]));\n        const hh = bh[k];\n        r += a * (0.35 + 0.5*Math.cos(6.2831*hh)); gg += a * (0.25 + 0.4*Math.cos(6.2831*(hh+0.33))); b += a * (0.45 + 0.5*Math.cos(6.2831*(hh+0.66)));\n      }\n      const o = 3 * (j * SW + i); src[o] = r; src[o+1] = gg; src[o+2] = b;\n    }\n  }\n  // 2) extended background galaxies (elliptical gaussians \u2014 these become the arcs)\n  const NG = 34;\n  for (let k = 0; k < NG; k++) {\n    const gx = (fr(k*6+11)*2-1)*SR*0.92, gy = (fr(k*6+12)*2-1)*SR*0.92;\n    const ga = 0.05 + fr(k*6+13)*0.11, gel = 0.4 + fr(k*6+14)*0.5, gth = fr(k*6+15)*3.14159;\n    const ch = fr(k*6+16); const cr = 0.7+0.3*Math.cos(6.2831*ch), cg = 0.55+0.35*Math.cos(6.2831*(ch+0.3)), cb = 0.6+0.4*Math.cos(6.2831*(ch+0.62));\n    const ct = Math.cos(gth), st = Math.sin(gth);\n    const rad = Math.ceil(ga/ (2*SR/SW) * 3.2);\n    const px0 = ((gx/SR+1)/2*SW)|0, py0 = ((gy/SR+1)/2*SW)|0;\n    for (let dj = -rad; dj <= rad; dj++) for (let di = -rad; di <= rad; di++) {\n      const ii = px0+di, jj = py0+dj; if (ii<0||ii>=SW||jj<0||jj>=SW) continue;\n      const ex = di*(2*SR/SW), ey = dj*(2*SR/SW);\n      const rx = (ex*ct+ey*st)/ga, ry = (-ex*st+ey*ct)/(ga*gel);\n      const a = Math.exp(-(rx*rx+ry*ry)*2.2)*1.2;\n      const o = 3*(jj*SW+ii); src[o]+=a*cr; src[o+1]+=a*cg; src[o+2]+=a*cb;\n    }\n  }\n  // 3) faint background stars\n  const NS = 900;\n  for (let k = 0; k < NS; k++) {\n    const ii = (fr(k*3+21)*SW)|0, jj = (fr(k*3+22)*SW)|0, a = 0.4+fr(k*3+23)*0.9;\n    const o = 3*(jj*SW+ii); src[o]+=a; src[o+1]+=a; src[o+2]+=a*1.05;\n  }\n  S.src = src;\n}\nconst src = S.src;\n\n// ---- lens params ----\nconst T = K.t * (0.5 + P.speed * 0.7);                      // speed-scaled clock\nconst zoom = 0.55 + P.scale * 0.75;                         // background focal length (source zoom)\nconst rE = (0.24 + P.mass * 0.16) * BW;                     // Einstein radius in buffer px\nconst cx = P.x * BW + Math.sin(T * 0.09) * BW * 0.03;       // lens center drifts (incommensurate)\nconst cy = P.y * BH + Math.cos(T * 0.071) * BH * 0.03;\n// external shear (cluster style) rotates slowly\nconst gAng = T * 0.05;\nconst gmag = (style === 'cluster' ? 0.32 : 0.10) * (0.4 + P.shear);\nconst g1 = gmag * Math.cos(2 * gAng), g2 = gmag * Math.sin(2 * gAng);\n// slow pan of the source plane behind the lens (keeps arcs writhing -> motion floor)\nconst panx = Math.sin(T * 0.043) * 0.5 + Math.sin(T * 0.017 + 1.1) * 0.35;\nconst pany = Math.cos(T * 0.037) * 0.5 + Math.sin(T * 0.023 + 0.6) * 0.32;\nconst expo = 190 * (0.5 + P.energy) * (0.85 + K.swell * 0.2 + A.rms * 0.3);\nconst sc = SW / (2 * SR);\n\ng.loadPixels(); const pix = g.pixels;\nconst wire = style === 'wire';\nconst chrom = style === 'chromatic';\nfor (let j = 0; j < BH; j++) {\n  const ty0 = (j - cy) / rE;\n  for (let i = 0; i < BW; i++) {\n    const tx0 = (i - cx) / rE;\n    const rr = Math.sqrt(tx0*tx0 + ty0*ty0) + 1e-4;\n    // SIS deflection (constant magnitude 1) + external shear\n    let ax = tx0 - tx0/rr, ay = ty0 - ty0/rr;\n    ax -= g1*tx0 + g2*ty0; ay -= g2*tx0 - g1*ty0;\n    const bx = ax + panx, by = ay + pany;                  // source position (+pan)\n    // tangential magnification near the ring (rr -> 1)\n    const mag = 1 / (Math.abs(rr - 1) + 0.06);\n    const ring = Math.min(1.6, (mag - 0.9) * 0.18);\n    const o = 4 * (j * BW + i);\n    if (wire) {\n      // schematic: critical curve (rr~1) + radial caustic web on dark\n      const crit = Math.exp(-Math.pow((rr-1)/0.05, 2)) ;\n      const caust = Math.exp(-Math.pow((Math.sqrt(bx*bx+by*by))/0.10, 2)*0.5);\n      const grid = 0.5 + 0.5*Math.cos(bx*10) * Math.cos(by*10);\n      const m = 0.10 + crit*0.9 + caust*0.5 + grid*0.06;\n      pix[o] = Math.min(255, m*120 + crit*120); pix[o+1] = Math.min(255, m*200); pix[o+2] = Math.min(255, m*255 + caust*80); pix[o+3] = 255;\n      continue;\n    }\n    // sample background at source position (bilinear, zoomed by focal length)\n    const fx = ((bx/zoom)/SR*0.5+0.5)*SW, fy = ((by/zoom)/SR*0.5+0.5)*SW;\n    let r, gg, b;\n    if (fx < 0 || fx >= SW-1 || fy < 0 || fy >= SW-1) { r = 0.02; gg = 0.03; b = 0.06; }\n    else {\n      const xi = fx|0, yi = fy|0, ux = fx-xi, uy = fy-yi;\n      const o00 = 3*(yi*SW+xi), o10 = o00+3, o01 = o00+3*SW, o11 = o01+3;\n      const w00=(1-ux)*(1-uy), w10=ux*(1-uy), w01=(1-ux)*uy, w11=ux*uy;\n      r = src[o00]*w00+src[o10]*w10+src[o01]*w01+src[o11]*w11;\n      gg = src[o00+1]*w00+src[o10+1]*w10+src[o01+1]*w01+src[o11+1]*w11;\n      b = src[o00+2]*w00+src[o10+2]*w10+src[o01+2]*w01+src[o11+2]*w11;\n    }\n    // magnification brightening (arcs + ring glow)\n    const boost = 1 + Math.min(3.2, ring);\n    r *= boost; gg *= boost; b *= boost;\n    // luminous Einstein ring highlight\n    const rg = Math.exp(-Math.pow((rr-1)/0.055, 2)) * (0.5 + P.energy*0.7);\n    if (chrom) {\n      // chromatic dispersion on the ring (color-fringed)\n      const dr = Math.exp(-Math.pow((rr-0.96)/0.05,2)), db = Math.exp(-Math.pow((rr-1.05)/0.05,2));\n      r += (rg + dr*0.6); gg += rg*0.85; b += (rg + db*0.7);\n    } else {\n      r += rg*0.9; gg += rg*0.95; b += rg;\n    }\n    r *= expo; gg *= expo; b *= expo;\n    pix[o] = r>255?255:r; pix[o+1] = gg>255?255:gg; pix[o+2] = b>255?255:b; pix[o+3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\nnoTint();\n// bright lensing-galaxy core at the deflector center (few shapes)\nblendMode(ADD); noStroke();\nconst gx = cx/BW*width, gy = cy/BH*height;\nconst tw = 0.7 + 0.3*Math.sin(K.t*0.6) + K.pulse*0.25 + A.bass*0.3;\nif (!wire) {\n  fill(45, 22, 100, (10 + P.energy*10) * (P.alpha/100));\n  circle(gx, gy, u*0.10*(0.7+P.mass*0.5)*tw);\n  fill(48, 12, 100, (20 + P.energy*14) * (P.alpha/100));\n  circle(gx, gy, u*0.035*(0.7+P.mass*0.5));\n}\nblendMode(BLEND);\npop();\n"
+}

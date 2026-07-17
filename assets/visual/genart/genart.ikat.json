@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ikat",
+  "kind": "genart",
+  "name": "Ikat",
+  "desc": "Resist-dyed warp-and-weft ikat cloth scrolling up an endless bolt, its diamond and arrow motifs blurred into the signature feathered edges by weft-to-warp mis-registration, a soft silk sheen sweeping across the weave.",
+  "tags": [
+    "ikat",
+    "kasuri",
+    "adras",
+    "abr",
+    "resist",
+    "tie-dye",
+    "warp",
+    "weft",
+    "feathered",
+    "blurred",
+    "double-ikat",
+    "central-asia",
+    "uzbek",
+    "silk",
+    "indigo",
+    "madder",
+    "cloth",
+    "fabric",
+    "textile",
+    "weave",
+    "woven",
+    "bolt",
+    "thread",
+    "loom",
+    "ombre",
+    "suzani",
+    "jewel",
+    "antique",
+    "pattern",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen amplitude, feathering vigor, scroll punch"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "motif size (fewer, larger repeats at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "colour bands & motif frequency"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "bolt-scroll & sheen rate"
+    },
+    "hue": {
+      "default": 25,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "feather": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "resist mis-registration blur (the ikat signature)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal phase / sheen origin"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen origin"
+    },
+    "style": {
+      "default": "silk_adras",
+      "options": [
+        "silk_adras",
+        "indigo_double",
+        "ombre_warp",
+        "shadow_ink",
+        "faded_antique"
+      ],
+      "doc": "aesthetic: lustrous jewel silk / matte indigo cotton / ombre rainbow warp / near-mono chiaroscuro / tea-stained antique"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "feather pattern seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:00+00:00",
+    "fps": 60.2,
+    "motion": 0.084,
+    "lum": 0.425
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, hue: 25, feather: .55, x: .5, y: .5, style: 'silk_adras', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin = Math.min(width, height);\nconst t = K.t || 0;\nconst drift = 0.9*Math.sin(t*0.61) + 0.5*Math.sin(t*1.43+1.7) + 0.32*Math.sin(t*2.29);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n\nfunction h2r(h,s,v){ h=((h%360)+360)%360; const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b; const hp=h/60;\n  if(hp<1){r=c;g=x;b=0;}else if(hp<2){r=x;g=c;b=0;}else if(hp<3){r=0;g=c;b=x;}else if(hp<4){r=0;g=x;b=c;}else if(hp<5){r=x;g=0;b=c;}else{r=c;g=0;b=x;}\n  return [(r+m)*255,(g+m)*255,(b+m)*255]; }\n\n// palette: [ground, ...motif colors]; s,v in 0..1\nfunction palette(style, hue){\n  const H = hue;\n  if(style==='indigo_double') return { sheen:.12, grd:[H+205,.30,.24], cols:[[H+205,.62,.72],[H+205,.72,.46],[40,.14,.86],[H+205,.30,.34]] };\n  if(style==='ombre_warp')    return { sheen:.35, grd:[42,.16,.80], cols:[[H,.68,.78],[H+40,.66,.72],[H+90,.60,.66],[H+150,.55,.64],[H-50,.66,.70]] };\n  if(style==='shadow_ink')    return { sheen:.5,  grd:[H+210,.22,.16], cols:[[H+210,.30,.40],[H+30,.20,.52],[H,.10,.66],[H+210,.28,.26]] };\n  if(style==='faded_antique') return { sheen:.20, grd:[36,.20,.66], cols:[[16,.34,.52],[H+200,.26,.46],[44,.30,.62],[8,.30,.44]] };\n  // silk_adras (default) \u2014 lustrous central-asian jewel\n  return { sheen:.42, grd:[38,.24,.72], cols:[[H+200,.70,.50],[H,.78,.62],[42,.80,.78],[178,.52,.52],[330,.55,.50]] };\n}\n\nconst pal = palette(P.style, P.hue);\nconst nCols = Math.max(2, Math.round(2 + P.density*(pal.cols.length-2)));\n\n// tile sizing \u2014 keep on-screen upscale near 1x\nconst reps = Math.max(2, Math.round(width / (uMin*0.46*P.scale)));\nconst tsW = width/reps, asp = 1.4, tsH = tsW*asp;\nconst tbw = Math.round(Math.max(240, Math.min(600, tsW)));\nconst tbh = Math.round(tbw*asp);\n\nconst key = [tbw,tbh,P.style,P.seed,nCols,Math.round(P.density*30),Math.round(P.feather*30),Math.round(P.hue)].join('_');\nif(S.key!==key || !S.g){\n  S.key = key;\n  const g = createGraphics(tbw,tbh); g.pixelDensity(1); g.loadPixels();\n  // seeded periodic feather noise (wraps in v and u)\n  const rowA=[], rowP=[], colA=[], colP=[];\n  for(let k=0;k<5;k++){ rowA[k]=fr(11+k)*0.5/(k+1); rowP[k]=fr(21+k)*6.283; colA[k]=fr(31+k)*0.5/(k+1); colP[k]=fr(41+k)*6.283; }\n  const rowN = v=>{ let s=0; for(let k=1;k<=5;k++) s+=rowA[k-1]*Math.sin(6.283*k*v+rowP[k-1]); return s; };\n  const colN = uu=>{ let s=0; for(let k=1;k<=5;k++) s+=colA[k-1]*Math.sin(6.283*k*uu+colP[k-1]); return s; };\n  const mx = Math.round(1.5 + P.density*3.5), my = Math.round(2 + P.density*4.5);\n  const rgb = pal.cols.map(c=>h2r(c[0],c[1],c[2]));\n  const grd = h2r(pal.grd[0],pal.grd[1],pal.grd[2]);\n  const feath = P.feather;\n  for(let y=0;y<tbh;y++){\n    const vv=y/tbh;\n    for(let x=0;x<tbw;x++){\n      const uu=x/tbw;\n      const du = feath*0.09*rowN(vv);          // warp-boundary feathering (per weft row)\n      const dv = feath*0.05*colN(uu);\n      const su = uu+du, sv = vv+dv;\n      // warp band index\n      let band = Math.floor(((su%1)+1)%1 * nCols);\n      // ikat diamond/arrow motif\n      const dx = Math.abs(((su*mx)%1) - 0.5), dy = Math.abs(((sv*my)%1) - 0.5);\n      const dm = dx+dy;\n      let col;\n      if(dm < 0.30){ col = rgb[(band+1)%nCols]; }\n      else if(dm < 0.40){ col = grd; }          // resist gap ring\n      else { col = rgb[band%nCols]; }\n      // fine warp-thread tooth (subtle vertical grain) + weft over/under\n      const tooth = 0.90 + 0.10*(0.5+0.5*Math.sin(uu*tbw*3.14159));\n      const weft  = (((x>>1)+(y>>1))&1) ? 1.03 : 0.97;\n      const idx=4*(y*tbw+x);\n      g.pixels[idx]   = Math.max(0,Math.min(255, col[0]*tooth*weft));\n      g.pixels[idx+1] = Math.max(0,Math.min(255, col[1]*tooth*weft));\n      g.pixels[idx+2] = Math.max(0,Math.min(255, col[2]*tooth*weft));\n      g.pixels[idx+3] = 255;\n    }\n  }\n  g.updatePixels();\n  S.g = g; S.tsWc = tsW; S.tsHc = tsH;\n  // sheen sprite (soft radial) built once\n  if(!S.sheen){ const sh=createGraphics(200,200); sh.pixelDensity(1); sh.noStroke();\n    for(let r=100;r>0;r--){ const a=Math.pow(1-r/100,1.6)*90; sh.fill(45,20,100,a); sh.ellipse(100,100,r*2,r*2); }\n    S.sheen=sh; }\n}\n\nconst tsWd = width/reps, tsHd = tsWd*asp;\nS.scroll = (S.scroll||0) + (0.6 + 1.1*P.speed)*(1 + 0.5*A.bass*P.energy);\nconst ph = ((S.scroll % tsHd)+tsHd)%tsHd;\nconst xdr = (P.x-0.5)*width + 0.02*uMin*drift;\n\npush();\nimageMode(CORNER); noStroke();\nconst nx = Math.ceil(width/tsWd)+2, ny = Math.ceil(height/tsHd)+2;\nfor(let j=-1;j<ny;j++) for(let i=-1;i<nx;i++){\n  image(S.g, i*tsWd + (xdr%tsWd), j*tsHd - ph, tsWd, tsHd);\n}\n// silk sheen \u2014 broad soft highlight sweeping on incommensurate rates\nconst shA = pal.sheen*(0.5+0.9*P.energy)*(0.7+0.6*K.swell);\nif(shA>0.02){\n  blendMode(ADD);\n  const cx = width*(0.5 + 0.42*Math.sin(t*0.19+P.x*3)) ;\n  const cy = height*(0.5 + 0.40*Math.sin(t*0.27+1.1));\n  const sz = uMin*(1.4+0.5*Math.sin(t*0.11));\n  tint(255, 255*Math.min(1,shA)); imageMode(CENTER);\n  image(S.sheen, cx, cy, sz, sz*0.7);\n  noTint(); blendMode(BLEND);\n}\n// global alpha veil (fade toward ground tone)\nif(P.alpha<100){ noStroke(); fill(pal.grd[0], pal.grd[1]*100, pal.grd[2]*100, 100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}

@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mud_cloth",
+  "kind": "genart",
+  "name": "Mud Cloth",
+  "desc": "Malian bogolanfini mud cloth \u2014 strip-woven cotton dyed dark with fermented mud, hand-painted in bands of bold cream geometry: zigzags, ladders, crosses, concentric diamonds, dot grids and combs, each mark irregular by hand, the ground perpetually deepening in slow mud-development waves as the bolt scrolls.",
+  "tags": [
+    "mud-cloth",
+    "bogolan",
+    "bogolanfini",
+    "bamana",
+    "mali",
+    "malian",
+    "african",
+    "mud-dye",
+    "fermented",
+    "hand-painted",
+    "geometric",
+    "symbol",
+    "zigzag",
+    "ladder",
+    "chevron",
+    "strip-woven",
+    "earth",
+    "brown",
+    "ochre",
+    "indigo",
+    "cream",
+    "matte",
+    "folk",
+    "tribal",
+    "cloth",
+    "fabric",
+    "textile",
+    "bold",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mud-development & glow amplitude, scroll punch"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "band / motif size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of motif bands"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "bolt-scroll & development rate"
+    },
+    "hue": {
+      "default": 26,
+      "min": 0,
+      "max": 360,
+      "doc": "ground hue (26 = mud brown)"
+    },
+    "wobble": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hand-painted irregularity of marks"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glow origin"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glow origin"
+    },
+    "style": {
+      "default": "bamana_brown",
+      "options": [
+        "bamana_brown",
+        "bogolan_black",
+        "ochre_earth",
+        "indigo_mud",
+        "negative_paint"
+      ],
+      "doc": "classic brown / high-contrast black / ochre earth / indigo-black / reverse painted brown-on-cream"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "band-motif & hand-jitter seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:50+00:00",
+    "fps": 59.9,
+    "motion": 0.1437,
+    "lum": 0.245
+  },
+  "code": "const D = { energy: .5, scale: 1, density: .5, speed: 1, hue: 26, wobble: .5, x: .5, y: .5, style: 'bamana_brown', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\nfunction look(style,hue){\n  if(style==='bogolan_black')  return {grd:[hue,.30,.10], mark:[42,.10,.94], acc:[18,.55,.60], reverse:false};\n  if(style==='ochre_earth')    return {grd:[26,.55,.24], mark:[40,.16,.88], acc:[14,.62,.52], reverse:false};\n  if(style==='indigo_mud')     return {grd:[222,.50,.12], mark:[210,.10,.92], acc:[36,.40,.62], reverse:false};\n  if(style==='negative_paint') return {grd:[38,.20,.72], mark:[24,.55,.20], acc:[8,.55,.34], reverse:true};\n  return {grd:[26,.52,.20], mark:[40,.14,.90], acc:[16,.58,.52], reverse:false}; // bamana_brown\n}\nconst L=look(P.style,P.hue);\n\nconst key=[P.style,P.seed,Math.round(P.density*20),Math.round(P.hue),Math.round(P.wobble*20),Math.round(P.scale*20)].join('_');\nif(S.key!==key || !S.g){\n  S.key=key;\n  const nAcross=Math.max(2,Math.round(3.4/Math.max(0.5,P.scale)));\n  const tileW=Math.round(Math.max(300,Math.min(720, width/nAcross)));\n  const nBands=Math.round(4+P.density*4); const bandH=Math.round(tileW*0.34); const tileH=nBands*bandH;\n  const g=createGraphics(tileW,tileH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100);\n  g.noStroke(); g.fill(L.grd[0],L.grd[1]*100,L.grd[2]*100); g.rect(0,0,tileW,tileH);\n  // fabric grain + strip seams\n  g.stroke(L.grd[0],L.grd[1]*100,Math.max(0,L.grd[2]*100-5),30); g.strokeWeight(1);\n  for(let yy=0;yy<tileH;yy+=3) g.line(0,yy,tileW,yy);\n  const nStrip=Math.round(tileW/ (uMin*0.18) +1);\n  g.stroke(0,0,0,26); g.strokeWeight(2); for(let s=1;s<nStrip;s++) g.line(s*tileW/nStrip,0,s*tileW/nStrip,tileH);\n  g.noStroke();\n  const mk=L.mark, ac=L.acc, wob=P.wobble;\n  const W=(i)=>(fr(i)-0.5)*bandH*0.10*wob;\n  function hstroke(c,wt){ g.stroke(c[0],c[1]*100,c[2]*100, 92); g.strokeWeight(wt); g.noFill(); g.strokeCap(ROUND); g.strokeJoin(ROUND); }\n  for(let b=0;b<nBands;b++){\n    const y0=b*bandH, yc=y0+bandH/2; const typ=Math.floor(fr(b*7+3)*7); const useAcc=fr(b*5+1)<0.28;\n    const col=useAcc?ac:mk; const wt=Math.max(2,bandH*0.045*(0.8+wob*0.5));\n    const cells=Math.max(3,Math.round(tileW/(bandH*0.7)));\n    const cw=tileW/cells;\n    // border: double line + dot row\n    hstroke(mk, Math.max(1.4,bandH*0.02));\n    g.line(0,y0+bandH*0.06,tileW,y0+bandH*0.06); g.line(0,y0+bandH*0.10,tileW,y0+bandH*0.10);\n    g.noStroke(); g.fill(mk[0],mk[1]*100,mk[2]*100,88);\n    for(let k=0;k<cells*2;k++) g.ellipse(k*cw*0.5+cw*0.25, y0+bandH*0.16, wt*0.5, wt*0.5);\n    // motif row\n    if(typ===0){ // zigzag\n      hstroke(col,wt); g.beginShape();\n      for(let k=0;k<=cells*2;k++){ const x=k*cw*0.5; g.vertex(x, yc + (k&1? -1:1)*bandH*0.16 + W(b*99+k)); } g.endShape();\n    } else if(typ===1){ // X row\n      hstroke(col,wt);\n      for(let k=0;k<cells;k++){ const cx=k*cw+cw/2; const s=bandH*0.18;\n        g.line(cx-s+W(b+k),yc-s+W(b+k*2),cx+s+W(b+k*3),yc+s+W(b+k*4));\n        g.line(cx+s+W(b+k*5),yc-s+W(b+k*6),cx-s+W(b+k*7),yc+s+W(b+k*8)); }\n    } else if(typ===2){ // ladder\n      hstroke(col,wt); g.line(0,yc-bandH*0.16,tileW,yc-bandH*0.16); g.line(0,yc+bandH*0.16,tileW,yc+bandH*0.16);\n      for(let k=0;k<=cells*2;k++){ const x=k*cw*0.5; g.line(x,yc-bandH*0.16,x,yc+bandH*0.16); }\n    } else if(typ===3){ // concentric diamonds\n      hstroke(col,wt*0.8);\n      for(let k=0;k<cells;k++){ const cx=k*cw+cw/2; for(let r=1;r<=2;r++){ const s=bandH*0.10*r;\n        g.beginShape(); g.vertex(cx,yc-s); g.vertex(cx+s,yc); g.vertex(cx,yc+s); g.vertex(cx-s,yc); g.endShape(CLOSE);} }\n    } else if(typ===4){ // dot grid\n      g.noStroke(); g.fill(col[0],col[1]*100,col[2]*100,90);\n      for(let r=-1;r<=1;r++)for(let k=0;k<cells*2;k++){ g.ellipse(k*cw*0.5+cw*0.25+W(b+k), yc+r*bandH*0.14, wt*0.7,wt*0.7);}\n    } else if(typ===5){ // comb teeth\n      hstroke(col,wt); g.line(0,yc+bandH*0.16,tileW,yc+bandH*0.16);\n      for(let k=0;k<=cells*2;k++){ const x=k*cw*0.5; g.line(x,yc-bandH*0.16+W(b+k),x,yc+bandH*0.16); }\n    } else { // nested chevrons\n      hstroke(col,wt*0.85);\n      for(let k=0;k<cells;k++){ const cx=k*cw+cw/2; for(let r=0;r<2;r++){ const s=bandH*0.09*(r+1);\n        g.beginShape(); g.vertex(cx-s,yc+s*0.6); g.vertex(cx,yc-s*0.6); g.vertex(cx+s,yc+s*0.6); g.endShape(); } }\n    }\n    g.noStroke();\n  }\n  S.g=g; S.tileW=tileW; S.tileH=tileH;\n}\n\nconst tsW=S.tileW, tsH=S.tileH;\nS.scroll=(S.scroll||0)+(0.22+0.5*P.speed)*(1+0.4*A.bass*P.energy);\nconst ph=((S.scroll%tsH)+tsH)%tsH;\nconst xdr=0.01*uMin*drift;\npush();\nimageMode(CORNER); noStroke();\nconst nx=Math.ceil(width/tsW)+2, ny=Math.ceil(height/tsH)+2;\nfor(let j=-1;j<ny;j++) for(let i=-1;i<nx;i++) image(S.g, i*tsW+(xdr%tsW), j*tsH-ph, tsW, tsH);\n// mud-development wave \u2014 ground deepens in a slow travelling band (BURN-ish via MULTIPLY)\nblendMode(MULTIPLY);\nconst fx=(0.5+0.55*Math.sin(t*0.14*P.speed))*height;\nfor(let k=0;k<20;k++){ const h=height/20, y0=k*h; const dd=Math.abs(y0+h/2-fx)/height; const a=Math.max(0,1-dd*2.2)*(6+9*P.energy);\n  fill(L.grd[0],L.grd[1]*100,24,a); rect(0,y0,width,h+1); }\n// faint warm depth glow (matte)\nblendMode(ADD);\nconst cx=width*(0.5+0.4*Math.sin(t*0.12*P.speed+1.0)), cy=height*(0.5+0.4*Math.sin(t*0.17*P.speed));\nnoStroke(); fill(30,26,90, (5+8*P.energy)*(0.5+0.5*K.swell)); ellipse(cx,cy,uMin*1.7,uMin*1.3);\nblendMode(BLEND);\nif(P.alpha<100){ noStroke(); fill(L.grd[0],L.grd[1]*100,L.grd[2]*100,100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}
