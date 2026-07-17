@@ -1,0 +1,176 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.blacklight",
+  "kind": "fx",
+  "name": "Blacklight",
+  "desc": "Ultraviolet over the scene, done the way UV actually behaves \u2014 the lamp itself is nearly invisible and contributes only its weak violet tail, so what you see is everything else giving the light back at a longer wavelength: crystal faces igniting calcite-red, willemite-green and fluorite-blue as the tube crawls over them, drifting lint and fibres blazing white, and the things with no fluorophore in them staying stubbornly dark no matter how hard they are lit.",
+  "tags": [
+    "blacklight",
+    "black light",
+    "black-light",
+    "ultraviolet",
+    "uv",
+    "uv-a",
+    "365nm",
+    "wood's lamp",
+    "fluorescence",
+    "fluoresce",
+    "fluorescent",
+    "phosphor",
+    "stokes shift",
+    "luminescence",
+    "glow",
+    "glowing",
+    "mineral",
+    "minerals",
+    "crystal",
+    "crystals",
+    "calcite",
+    "willemite",
+    "fluorite",
+    "scheelite",
+    "hyalite",
+    "aragonite",
+    "cabinet",
+    "specimen",
+    "geology",
+    "inspection",
+    "forensic",
+    "forensics",
+    "quality control",
+    "clinical",
+    "lint",
+    "fibres",
+    "fibers",
+    "dust",
+    "residue",
+    "brightener",
+    "detergent",
+    "club",
+    "rave",
+    "nightclub",
+    "neon",
+    "dayglo",
+    "psychedelic",
+    "violet",
+    "purple",
+    "magenta",
+    "cyan",
+    "eerie",
+    "austere",
+    "uncanny",
+    "clandestine",
+    "dark-key",
+    "nocturne",
+    "negative",
+    "plate",
+    "overlay",
+    "atmosphere",
+    "fx",
+    "effect",
+    "additive",
+    "composite",
+    "sweep",
+    "scan",
+    "lamp"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp output \u2014 field brightness, throw radius and how hard everything fluoresces"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "size of the fluorescing bodies and the lamp's footprint vs design size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much of the scene has a fluorophore in it (10\u201390 bodies, 24\u2013190 airborne fibres)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 4,
+      "doc": "sweep + drift rate multiplier"
+    },
+    "sweep": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the tube travels from its home position \u2014 0 pins it, 1 works the whole frame"
+    },
+    "alpha": {
+      "default": 0.75,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overall overlay opacity"
+    },
+    "hue": {
+      "default": 276,
+      "min": 0,
+      "max": 360,
+      "doc": "the lamp's visible violet tail \u2014 the fluorescence colours are set by the style, not by this"
+    },
+    "x": {
+      "default": 0.5,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "lamp home x"
+    },
+    "y": {
+      "default": 0.42,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "lamp home y"
+    },
+    "style": {
+      "default": "mineral",
+      "options": [
+        "mineral",
+        "inspection",
+        "club",
+        "negative"
+      ],
+      "doc": "aesthetic \u2014 mineral: a UV mineral cabinet, angular crystal faces in the real short-wave colours with cleavage planes catching the light \u00b7 inspection: cold clinical near-monochrome, a hard-edged lamp footprint, residue and fibres only \u00b7 club: dayglo blooms and hot lint over a saturated violet room \u00b7 negative: the whole read inverted onto a pale violet plate where everything that glows prints black"
+    },
+    "act": {
+      "default": "sweep",
+      "options": [
+        "sweep",
+        "scan",
+        "hold"
+      ],
+      "doc": "multi-minute programme \u2014 sweep: the tube wanders the whole frame \u00b7 scan: a slow systematic raster, inspecting \u00b7 hold: the lamp sits still and the specimens drift through its field instead"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "body placement, mineral species, quantum yields, fibre paths (int)"
+    }
+  },
+  "acts": [
+    "sweep",
+    "scan",
+    "hold"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:11:32+00:00",
+    "fps": 57.1,
+    "motion": 0.0241,
+    "lum": 0.151
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, sweep:.55, alpha:.75, hue:276, x:.5, y:.42, style:'mineral', act:'sweep', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst rgbs=(h,s,v,a)=>{const H2=md(h,360)/60,S2=clp(s,0,1),V2=clp(v,0,1);const c=V2*S2,x=c*(1-Math.abs(H2%2-1)),m=V2-c;let r=0,g=0,b=0;\n  if(H2<1){r=c;g=x;}else if(H2<2){r=x;g=c;}else if(H2<3){g=c;b=x;}else if(H2<4){g=x;b=c;}else if(H2<5){r=x;b=c;}else{r=c;b=x;}\n  return 'rgba('+(((r+m)*255)|0)+','+(((g+m)*255)|0)+','+(((b+m)*255)|0)+','+clp(a,0,1).toFixed(3)+')';};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'sweep';\nconst isIns=st==='inspection', isClb=st==='club', isNeg=st==='negative';\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1), sw=clp(P.sweep,0,1);\nconst sc=clp(P.scale,0.4,2.0), sp=clp(P.speed,0.1,4);\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// mineral fluorescence: the real short-wave UV colours (calcite, willemite, fluorite,\n// scheelite, hyalite, aragonite) \u2014 this is why the anchor style is a cabinet, not a party\nconst MIN_H=[8,108,250,205,90,45], MIN_S=[0.92,0.95,0.74,0.34,0.52,0.36];\nconst CLB_H=[55,145,320,190,28], DEAD=0.16;\n\nconst MAXP=90, MAXM=190;\nif(S.seedUsed!==P.seed||!S.pt){\n  S.seedUsed=P.seed;\n  S.pt=[];\n  for(let i=0;i<MAXP;i++){\n    const nv=5+Math.floor(fr(i*41+9)*4);\n    const rr=[];\n    for(let j=0;j<nv;j++) rr.push(0.52+fr(i*71+j*13+3)*0.62);\n    S.pt.push({\n      x: fr(i*3+1), y: fr(i*5+2),\n      r: 0.022+Math.pow(fr(i*7+3),1.8)*0.10,\n      rot: fr(i*11+4)*6.2832,\n      spin: (0.008+fr(i*13+5)*0.030)*(fr(i*17+6)>0.5?1:-1),\n      yield: fr(i*19+7)<DEAD ? 0.05+fr(i*23+8)*0.10 : 0.42+fr(i*29+10)*0.62,   // some things just don't glow\n      m: Math.floor(fr(i*31+11)*6),\n      dx: (fr(i*37+12)-0.5)*0.032, dy: (fr(i*43+13)-0.5)*0.024,\n      wr: 0.23+fr(i*47+14)*0.51,\n      nv: nv, rr: rr\n    });\n  }\n  S.mt=[];\n  for(let i=0;i<MAXM;i++) S.mt.push({\n    x: fr(i*53+21), y: fr(i*59+22),\n    len: 0.006+Math.pow(fr(i*61+23),2)*0.048,\n    ang: fr(i*67+24)*6.2832,\n    dr: (0.004+fr(i*71+25)*0.016)*(fr(i*73+26)>0.5?1:-1),\n    fall: 0.003+fr(i*79+27)*0.014,\n    bow: (fr(i*83+28)-0.5)*1.5,\n    yield: 0.35+fr(i*89+29)*0.65,\n    m: Math.floor(fr(i*97+30)*6),\n    ph: fr(i*101+31)*6.2832\n  });\n}\nconst t=K.t*sp;\n\n// ---- where the tube is pointing (incommensurate; act sets the path) ----\nlet LX, LY, RM=1;\nconst hx=clp(P.x,-0.2,1.2), hy=clp(P.y,-0.2,1.2);\nif(act==='scan'){\n  const row=frc(t*0.021), col=frc(t*0.137);\n  LX=hx+(col*2-1)*0.46*sw+0.03*Math.sin(t*0.53);\n  LY=hy+(row*2-1)*0.34*sw+0.02*Math.sin(t*0.31+1.1);\n  RM=0.82;\n} else if(act==='hold'){\n  LX=hx+0.05*sw*Math.sin(t*0.067)+0.03*sw*Math.sin(t*0.157+2.1);\n  LY=hy+0.04*sw*Math.sin(t*0.089+0.7)+0.02*sw*Math.sin(t*0.193+1.4);\n  RM=1.22;\n} else {\n  LX=hx+sw*(0.32*Math.sin(t*0.083)+0.15*Math.sin(t*0.211+1.7)+0.07*Math.sin(t*0.397+0.3));\n  LY=hy+sw*(0.22*Math.sin(t*0.061+0.9)+0.11*Math.sin(t*0.163+2.4)+0.05*Math.sin(t*0.311+1.1));\n  RM=1;\n}\nconst driftM = act==='hold' ? 7 : act==='scan' ? 1.7 : 1;   // in 'hold' the lamp sits still and the stuff drifts past it instead\nconst lx=LX*W, ly=LY*Hh;\nconst R=u*(0.42+0.40*en)*sc*RM*(1+0.07*Math.sin(t*0.127)+0.04*Math.sin(t*0.283+1.9));\nconst OUT=(0.42+0.78*en)*(0.74+0.5*K.intensity)*(1+A.rms*0.28);\n// the tube is a UV-A source: what you see is almost all Stokes-shifted re-emission,\n// plus the lamp's weak visible violet tail. So the field itself stays dim and the GLOW does the work.\nconst uvAt=(px,py)=>{\n  const dx=px-lx, dy=py-ly, rn=Math.sqrt(dx*dx+dy*dy)/R;\n  return isIns ? clp(1-Math.pow(rn,4.5),0,1)*OUT : clp(1/(1+rn*rn*1.7),0,1)*OUT;\n};\n\n// ---- the visible violet tail: broad, additive, sweeping \u2014 this is the area element ----\nblendMode(ADD);\n{\n  const vc=rgbs(isNeg?H+8:H, isIns?0.62:isNeg?0.30:0.80, 1, 1);\n  const base=rgbs(H-6, 0.86, 1, 1);\n  const ga=clp((isNeg?0.28:0.24)*al*(0.4+0.85*en),0,0.32);\n  const gr=drawingContext.createRadialGradient(lx,ly,0,lx,ly,Math.max(8,R*(isIns?1.15:2.5)));\n  gr.addColorStop(0,vc.replace(/[\\d.]+\\)$/,ga.toFixed(3)+')'));\n  gr.addColorStop(isIns?0.86:0.4,vc.replace(/[\\d.]+\\)$/,(ga*(isIns?0.9:0.42)).toFixed(3)+')'));\n  gr.addColorStop(1,vc.replace(/[\\d.]+\\)$/,'0)'));\n  drawingContext.fillStyle=gr;\n  drawingContext.fillRect(0,0,W,Hh);\n  // a faint floor of violet so even the unlit corners read as a UV room, never as a spotlight\n  drawingContext.fillStyle=base.replace(/[\\d.]+\\)$/,(clp((isNeg?0.115:0.085)*al*(0.3+0.7*en),0,0.15)).toFixed(3)+')');\n  drawingContext.fillRect(0,0,W,Hh);\n}\nblendMode(BLEND);\n\n// ---- fluorescing bodies: they light up only where the UV lands, in sequence as it sweeps ----\nconst nP=Math.max(4,Math.round(lrp(10,MAXP,dn)));\nif(isNeg) blendMode(BLEND); else blendMode(ADD);\nnoStroke();\nfor(let i=0;i<nP;i++){\n  const p=S.pt[i];\n  const px=(frc(p.x+p.dx*t*driftM)*1.1-0.05)*W;\n  const py=(frc(p.y+p.dy*t*driftM)*1.1-0.05)*Hh;\n  const uv=uvAt(px,py);\n  const gl=clp(uv*p.yield*(0.85+0.3*Math.sin(t*p.wr+p.rot)),0,1.3);\n  if(gl<0.02) continue;\n  const rad=p.r*u*sc*(0.85+0.25*Math.sin(t*p.wr*0.7+p.x*9));\n  const e=clp(gl,0,1);\n  let hh,ss,vv,aa;\n  if(isClb){ hh=CLB_H[p.m%5]; ss=0.86; vv=lrp(0.35,1,Math.pow(e,0.55)); aa=clp(e*74,0,74); }\n  else if(isIns){ hh=185+p.m*3; ss=lrp(0.30,0.06,e); vv=lrp(0.28,1,Math.pow(e,0.6)); aa=clp(e*66,0,68); }\n  else if(isNeg){ hh=H+10; ss=lrp(0.35,0.05,e); vv=lrp(0.46,0.03,Math.pow(e,0.5)); aa=clp(28+e*66,0,92); }\n  else { hh=MIN_H[p.m]; ss=MIN_S[p.m]*lrp(1.05,0.7,e); vv=lrp(0.30,1,Math.pow(e,0.5)); aa=clp(e*78,0,78); }\n  push();\n  translate(px,py);\n  rotate(p.rot+p.spin*t);\n  if(!isNeg&&e>0.34){ drawingContext.shadowBlur=rad*0.55*e; drawingContext.shadowColor=rgbs(hh,ss*0.7,1,0.5*e); }\n  fill(hh,ss*100,vv*100,aa*al);\n  if(isClb||isIns){\n    // soft residue blooms \u2014 detergent brightener in cloth, adhesive, salt\n    beginShape();\n    for(let j=0;j<=p.nv;j++){ const a2=j/p.nv*6.2832, rr=rad*p.rr[j%p.nv]*(1+0.14*Math.sin(a2*3+t*0.4+p.rot)); curveVertex(Math.cos(a2)*rr,Math.sin(a2)*rr); }\n    endShape(CLOSE);\n  } else {\n    // crystal faces \u2014 angular, with a brighter cleavage plane catching the light\n    beginShape();\n    for(let j=0;j<p.nv;j++){ const a2=j/p.nv*6.2832, rr=rad*p.rr[j]; vertex(Math.cos(a2)*rr,Math.sin(a2)*rr); }\n    endShape(CLOSE);\n    drawingContext.shadowBlur=0;\n    if(e>0.22){\n      fill(hh,ss*68,Math.min(100,vv*118),clp(aa*0.55,0,52)*al);\n      beginShape();\n      for(let j=0;j<Math.max(3,p.nv-2);j++){ const a2=j/(p.nv-2)*6.2832+0.6, rr=rad*p.rr[j%p.nv]*0.46; vertex(Math.cos(a2)*rr,Math.sin(a2)*rr); }\n      endShape(CLOSE);\n    }\n  }\n  drawingContext.shadowBlur=0;\n  pop();\n}\nblendMode(BLEND);\n\n// ---- airborne lint & fibres: fine detail riding on the field ----\n{\n  const nM=Math.round(lrp(24,MAXM,dn));\n  blendMode(isNeg?BLEND:ADD);\n  for(let i=0;i<nM;i++){\n    const m=S.mt[i];\n    const mx=(frc(m.x+m.dr*t*driftM*1.4)*1.12-0.06)*W;\n    const my=(frc(m.y+m.fall*t*driftM*1.4+0.03*Math.sin(t*0.7+m.ph))*1.12-0.06)*Hh;\n    const uv=uvAt(mx,my);\n    const gl=clp(uv*m.yield,0,1.2);\n    if(gl<0.05) continue;\n    const e=clp(gl,0,1);\n    const L=m.len*u*sc*(0.6+0.8*e);\n    const a2=m.ang+t*m.dr*3.1+0.5*Math.sin(t*0.63+m.ph);\n    let hh,ss;\n    if(isClb){ hh=CLB_H[m.m%5]; ss=70; } else if(isIns){ hh=186; ss=10; } else if(isNeg){ hh=H+10; ss=14; } else { hh=MIN_H[m.m]; ss=MIN_S[m.m]*58; }\n    stroke(hh,ss,isNeg?lrp(48,4,e):lrp(46,100,Math.pow(e,0.55)),clp((isNeg?40+e*52:12+72*e)*al,0,84));\n    strokeWeight(Math.max(0.4,u*0.0011*sc*(0.5+e)));\n    noFill();\n    beginShape();\n    for(let j=0;j<=3;j++){\n      const f=j/3;\n      const bx=mx+Math.cos(a2)*L*(f-0.5)-Math.sin(a2)*m.bow*L*0.3*Math.sin(f*3.1416);\n      const by=my+Math.sin(a2)*L*(f-0.5)+Math.cos(a2)*m.bow*L*0.3*Math.sin(f*3.1416);\n      vertex(bx,by);\n    }\n    endShape();\n  }\n  noStroke();\n  blendMode(BLEND);\n}\n\n// ---- the tube itself: dim, because a UV-A lamp barely shows ----\nif(!isNeg&&lx>-R&&lx<W+R&&ly>-R&&ly<Hh+R){\n  blendMode(ADD);\n  noStroke();\n  drawingContext.shadowBlur=u*0.05*sc;\n  drawingContext.shadowColor=rgbs(H,0.9,1,0.5);\n  fill(H,86,lrp(60,100,en),clp(26*al,0,32));\n  push(); translate(lx,ly); rotate(0.4*Math.sin(t*0.13)+0.2*Math.sin(t*0.29+1.2));\n  rect(-u*0.10*sc,-u*0.006*sc,u*0.20*sc,u*0.012*sc,u*0.006*sc);\n  pop();\n  drawingContext.shadowBlur=0;\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint();"
+}
