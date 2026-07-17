@@ -280,6 +280,7 @@ const p5Layers = new Map();
 const layerOrder = [];
 window.state = {};
 window.state.audio = { bass: 0, lowmid: 0, mid: 0, treble: 0, rms: 0, fft: [] };
+window.state.P = {};   // per-slot param overrides, pushed via POST /p5/state {"key":"P.<slot>"}
 const errorTimestamps = new Map();
 
 // ── Audio-reactive bridge ───────────────────────────────────
@@ -566,9 +567,29 @@ function checkAllReady() {
 checkAllReady();
 
 // ── p5 Layer management ─────────────────────────────────────
-function setLayer(name, code) {
+// Frees a slot's private state (window.state.<name>). Assets self-init from
+// undefined, but only for keys they own — a different asset taking over the
+// slot would otherwise inherit the previous one's keys forever, leaking its
+// cached createGraphics buffers and risking same-name/wrong-type collisions.
+function disposeSlotState(name) {
+    const S = window.state[name];
+    if (!S || typeof S !== "object") return;
+    for (const k of Object.keys(S)) {
+        const v = S[k];
+        if (v && v.elt && typeof v.remove === "function") {
+            try { v.remove(); } catch (e) { /* already detached */ }
+        }
+    }
+    delete window.state[name];
+}
+
+function setLayer(name, code, dispose = true) {
     try {
         const fn = new Function(code);
+        // Only wipe when the slot's asset actually changes — re-deploying the
+        // same code to a slot must preserve continuity (autopilot doctrine).
+        const prev = p5Layers.get(name);
+        if (dispose && prev && prev.code !== code) disposeSlotState(name);
         p5Layers.set(name, { fn, code });
         if (!layerOrder.includes(name)) {
             layerOrder.push(name);
@@ -582,6 +603,7 @@ function setLayer(name, code) {
 }
 
 function removeLayer(name) {
+    disposeSlotState(name);
     p5Layers.delete(name);
     const idx = layerOrder.indexOf(name);
     if (idx !== -1) layerOrder.splice(idx, 1);
@@ -590,7 +612,8 @@ function removeLayer(name) {
     updateCodeOverlay();
 }
 
-function clearAllLayers() {
+function clearAllLayers(dispose = true) {
+    if (dispose) for (const name of layerOrder) disposeSlotState(name);
     p5Layers.clear();
     layerOrder.length = 0;
     errorTimestamps.clear();
@@ -619,9 +642,11 @@ function hardRecompile(setupCode) {
 
     new p5();
 
-    clearAllLayers();
+    // dispose=false throughout: hardRecompile deliberately carries state across
+    // the rebuild (savedState above), and re-deploys identical code per slot.
+    clearAllLayers(false);
     for (const { name, code } of savedLayers) {
-        setLayer(name, code);
+        setLayer(name, code, false);
     }
 }
 
