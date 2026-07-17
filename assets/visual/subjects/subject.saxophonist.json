@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.saxophonist",
+  "kind": "subject",
+  "name": "Saxophonist",
+  "desc": "Noir-blue saxophonist swaying in venetian-lit haze, leaning back to wail on section peaks with brass glints on the treble and smoke curling off the bell.",
+  "tags": [
+    "saxophonist",
+    "saxophone",
+    "sax",
+    "jazz",
+    "noir",
+    "blue",
+    "musician",
+    "player",
+    "smoke",
+    "brass",
+    "club",
+    "night",
+    "moody",
+    "character",
+    "blues",
+    "soul",
+    "horn",
+    "smoky",
+    "fedora"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sway/dip amplitude + glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "figure size vs design"
+    },
+    "hue": {
+      "default": 215,
+      "min": 0,
+      "max": 360,
+      "doc": "rim-light / haze hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "groove rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "smoke / fleck amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "sway",
+        "wail",
+        "idle"
+      ],
+      "doc": "pose \u2014 auto sways and wails on section peaks"
+    },
+    "style": {
+      "default": "noir",
+      "options": [
+        "noir",
+        "riso",
+        "neon",
+        "sepia"
+      ],
+      "doc": "aesthetic: blue noir rim-light / duotone overprint / glow tubes / vintage poster"
+    },
+    "act": {
+      "default": "late_set",
+      "options": [
+        "late_set",
+        "after_hours"
+      ],
+      "doc": "multi-minute program: late_set = wails on hot sections, after_hours = slow smoky simmer"
+    },
+    "lean": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lean-back depth during wail"
+    },
+    "smoke": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "smoke curl amount"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "fleck layout / fingering pattern"
+    }
+  },
+  "acts": [
+    "late_set",
+    "after_hours"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:38:06+00:00",
+    "fps": 59.9,
+    "motion": 0.0055,
+    "lum": 0.091
+  },
+  "code": "const D = { energy:.6, scale:1, hue:215, speed:1, density:.5, x:.5, y:.8, pose:'auto', style:'noir', act:'late_set', lean:.6, smoke:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst md = (a, n) => ((a % n) + n) % n;\nconst frc = v => v - Math.floor(v);\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst sn = (tt, off) => { const f = Math.floor(tt), xq = tt - f; return (fr(f + off) * (1 - xq) + fr(f + 1 + off) * xq - .5) * 2; };\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nconst u = Math.min(width, height);\nconst sc = u * P.scale / 330;\nconst bt = K.beat * P.speed;\nconst sub = frc(bt);\nconst kick = K.pulse * .6 + A.bass * .85;\nconst en = P.energy * (.5 + .5 * K.intensity);\nconst H = md(P.hue, 360);\nconst riso = P.style === 'riso', neon = P.style === 'neon', sepia = P.style === 'sepia';\nconst noir = !riso && !neon && !sepia;\n\n// ---- caches ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.fleck = [];\n  for (let i = 0; i < 26; i++) S.fleck.push({\n    x: (fr(i * 3 + 12) - .5) * 320, y: -20 - fr(i * 3 + 13) * 240,\n    s: .8 + fr(i * 5 + 14) * 2, ph: fr(i * 7 + 15) * 6.2832\n  });\n}\nif (!S.spr) {\n  S.spr = createGraphics(64, 64);\n  S.spr.noStroke();\n  for (let r = 30; r > 0; r--) { S.spr.fill(255, 6); S.spr.ellipse(32, 32, r * 2.1, r * 2.1); }\n}\n\n// ---- pose program: sway groove, wail on the peaks ----\nlet pose = P.pose;\nif (pose === 'auto') {\n  const hot = P.act === 'after_hours' ? (K.section === 6) : (K.intensity > .72);\n  pose = hot ? 'wail' : 'sway';\n}\nconst wTgt = pose === 'wail' ? 1 : 0;\nif (S.wail == null || !isFinite(S.wail)) S.wail = wTgt;\nS.wail += (wTgt - S.wail) * .06;\nconst W = clp(S.wail, 0, 1);\nconst idle = pose === 'idle';\nconst tempoMul = P.act === 'after_hours' ? .6 : 1;\n\nconst rock = Math.sin(bt * Math.PI * tempoMul) * .06 * en * (idle ? .3 : 1);\nconst dip = kick * 4 * en * (idle ? .4 : 1);\nconst leanB = -.5 * P.lean * W + rock;\nconst vib = Math.sin(K.t * 26) * .014 * W * en;\nconst breath = Math.sin(K.t * .24) * .5 + K.swell * .5;\nconst tap = Math.max(0, Math.sin(sub * 6.2832)) * (2.5 * en);\nconst headYaw = idle ? sn(K.t * .15, 61) * .2 : 0;\n\nconst hipY = -58 + dip * .4;\nconst saxA = (idle ? .9 : .16) - W * .8 + vib;   // sax angle at mouth anchor\nconst rot2 = (px, py, th) => [px * Math.cos(th) - py * Math.sin(th), px * Math.sin(th) + py * Math.cos(th)];\n\n// sax centerline (local: mouthpiece at origin, +y down the tube)\nconst PTS = [[0,0],[1,9],[2,20],[3,32],[4,42],[7,50],[12,54],[17,53],[21,47],[23,38],[23,30]];\n\n// ---- style plumbing ----\nlet PASS = 1;\nfunction FC(h, s, b, a) {\n  if (PASS === 0) { noFill(); return; }\n  if (PASS === 3) { fill(18, 78, 96, a * .8); return; }\n  if (PASS === 4) { fill(202, 62, 88, a * .8); return; }\n  if (neon) { fill(240, 45, 12, a); return; }\n  if (sepia) { fill(32, 42, 34, a); return; }\n  fill(h, s, b, a);\n}\nfunction SC(h, s, b, a, w) {\n  if (PASS === 0) { stroke(H, 70, 100, 16); strokeWeight(w * 3); noFill(); return; }\n  if (PASS === 3) { stroke(18, 78, 96, a * .8); }\n  else if (PASS === 4) { stroke(202, 62, 88, a * .8); }\n  else if (neon) { stroke(md(H + 30, 360), 75, 100, a); }\n  else if (sepia) { stroke(28, 50, 26, a); }\n  else stroke(h, s, b, a);\n  strokeWeight(w);\n}\nconst detailPass = () => PASS === 1 || PASS === 4;\n\n// two-segment limb whose hand is GUARANTEED to land on target\nfunction limbTo(sx, sy, hx, hy, bend, w, h2, s2, b2) {\n  const mx2 = (sx + hx) / 2, my2 = (sy + hy) / 2;\n  const dx = hx - sx, dy2 = hy - sy;\n  const L = Math.sqrt(dx * dx + dy2 * dy2) + .001;\n  const ex = mx2 - dy2 / L * bend, ey2 = my2 + dx / L * bend;\n  SC(h2, s2, b2, 100, w);\n  line(sx, sy, ex, ey2);\n  line(ex, ey2, hx, hy);\n}\n\nfunction drawPlayer() {\n  push();\n  // legs + shoes (below coat hem)\n  SC(235, 30, noir ? 22 : 30, 100, 6);\n  line(-8, -30, -9, -2);\n  line(8, -30, 9 - tap * .2, -2 - tap);\n  noStroke(); FC(0, 0, 8, 100);\n  rect(-15, -4, 13, 5, 2);\n  push(); translate(9 - tap * .2, -2 - tap); rotate(-tap * .06); rect(-2, -2, 13, 5, 2); pop();\n  // upper body pivots at the hip\n  push();\n  translate(0, hipY);\n  rotate(leanB);\n  // overcoat\n  noStroke(); FC(232, 42, noir ? 15 : 40, 100);\n  beginShape();\n  vertex(-19, 30); vertex(19, 30);\n  bezierVertex(16, 8, 14, -18, 13, -38);\n  vertex(-13, -38);\n  bezierVertex(-14, -18, -16, 8, -19, 30);\n  endShape(CLOSE);\n  // lapels\n  if (detailPass()) {\n    FC(232, 48, noir ? 24 : 55, 90);\n    triangle(-2, -36, -12, -36, -5, -12);\n    triangle(2, -36, 12, -36, 5, -12);\n  }\n  // head + fedora at shoulder top\n  push();\n  translate(headYaw * 6, -38);\n  rotate(-W * .3 + headYaw * .3 + vib * 2);\n  SC(22, 30, noir ? 55 : 70, 100, 3.4); line(0, 0, 0, -6);\n  noStroke(); FC(22, 32, noir ? 62 : 78, 100);\n  ellipse(0, -13, 15, 16);\n  if (detailPass()) {   // jaw working + cheek puff while blowing\n    FC(20, 34, noir ? 52 : 68, 95);\n    ellipse(2.5, -8.5, 6 + kick * 2.5 * (idle ? 0 : 1), 5 + kick * 2 * (idle ? 0 : 1));\n    fill(0, 0, 95, 55 + A.treble * 30);\n    ellipse(-3.4, -14.5, 1.6, 1.8);   // one glint eye under the brim\n  }\n  // fedora\n  FC(235, 35, noir ? 10 : 24, 100);\n  ellipse(0, -18.5, 30, 7);\n  arc(0, -19, 19, 17, Math.PI, 6.2832, CHORD);\n  if (detailPass()) { FC(H, 45, noir ? 40 : 60, 90); rect(-9.5, -23.5, 19, 3.4, 1); }\n  pop();\n  // ---- the saxophone (anchored at the mouth) ----\n  const mAx = 5, mAy = -46;\n  push();\n  translate(mAx, mAy);\n  rotate(saxA);\n  // main tube (double-stroked brass)\n  SC(sepia ? 38 : 44, sepia ? 45 : 60, sepia ? 55 : 70, 100, 6.4);\n  if (neon) SC(md(H + 40, 360), 80, 100, 95, 4);\n  noFill();\n  beginShape();\n  curveVertex(PTS[0][0], PTS[0][1]);\n  for (let i = 0; i < PTS.length; i++) curveVertex(PTS[i][0], PTS[i][1]);\n  curveVertex(PTS[10][0], PTS[10][1]);\n  endShape();\n  if (detailPass() && !neon) {\n    SC(46, 30, 92, 60, 2.2);\n    beginShape();\n    curveVertex(PTS[0][0] - 1, PTS[0][1]);\n    for (let i = 0; i < PTS.length; i++) curveVertex(PTS[i][0] - 1, PTS[i][1]);\n    curveVertex(PTS[10][0] - 1, PTS[10][1]);\n    endShape();\n  }\n  noStroke();\n  // bell\n  push();\n  translate(23, 26); rotate(-.18);\n  FC(sepia ? 38 : 45, sepia ? 45 : 55, sepia ? 60 : 76, 100);\n  ellipse(0, -1, 17, 21);\n  if (detailPass() && !neon) { FC(46, 25, 90, 55); ellipse(-2.5, -3, 6, 11); }\n  pop();\n  // keys + fingering pattern (16th-note runs)\n  for (let i = 0; i < 4; i++) {\n    const kx = 2 + i * .7, ky = 20 + i * 6.4;\n    const press = !idle && fr(Math.floor(bt * 4) * 13 + i * 7) > .45;\n    if (press) { FC(46, 20, 96, 100); ellipse(kx, ky, 3.6, 3.6); }\n    else { SC(46, 30, 88, 90, 1.1); noFill(); ellipse(kx, ky, 3.4, 3.4); noStroke(); }\n  }\n  // glint sweeping the tube (baseline sweep, flares on treble)\n  const gi = frc(K.beat * .125) * (PTS.length - 1.01);\n  const g0 = Math.floor(gi), gf = gi - g0;\n  const gx2 = PTS[g0][0] * (1 - gf) + PTS[g0 + 1][0] * gf;\n  const gy2 = PTS[g0][1] * (1 - gf) + PTS[g0 + 1][1] * gf;\n  blendMode(ADD); noStroke();\n  fill(48, 15, 100, clp(16 + A.treble * 60, 0, 70));\n  ellipse(gx2, gy2, 5 + A.treble * 6, 2.4);\n  // bell breath glow\n  const [bwx, bwy] = [23, 30];\n  fill(md(H + 20, 360), 30, 100, clp(6 + kick * 16 + W * 12, 0, 32));\n  ellipse(bwx, bwy - 4, 26 + kick * 12 + W * 10, 30 + kick * 14);\n  blendMode(BLEND);\n  pop();\n  // ---- arms: hands land on the horn (rotate key/bow points into body frame) ----\n  const hand1 = rot2(3, 26, saxA);   // left hand on upper keys\n  const hand2 = rot2(12, 52, saxA);  // right hand at the bow\n  limbTo(-10, -34, mAx + hand1[0], mAy + hand1[1], 7, 5.2, 232, 42, noir ? 20 : 45);\n  limbTo(11, -33, mAx + hand2[0], mAy + hand2[1], -8, 5.2, 232, 42, noir ? 20 : 45);\n  noStroke(); FC(22, 32, noir ? 60 : 76, 100);\n  ellipse(mAx + hand1[0], mAy + hand1[1], 7, 7);\n  ellipse(mAx + hand2[0], mAy + hand2[1], 7.5, 7.5);\n  // rim light (noir signature: one cold edge)\n  if (noir && PASS === 1) {\n    SC(H, 35, 95, 45 + kick * 20, 2);\n    noFill();\n    beginShape();\n    vertex(-19, 30);\n    bezierVertex(-16, 8, -14, -18, -13, -38);\n    endShape();\n    line(-13, -38, -6, -44);\n    noStroke();\n  }\n  pop(); // upper body\n  pop();\n}\n\n// ---- render ----\npush();\ntranslate(P.x * width + Math.sin(K.t * .13) * 8 * sc, P.y * height);\nscale(sc);\n\n// venetian-blind light bars (noir) / paper flecks (sepia+riso)\nif (noir || neon) {\n  push(); rotate(-.55);\n  noStroke();\n  const off = Math.sin(K.t * .05) * 30;\n  for (let i = 0; i < 3; i++) {\n    fill(H, 25, 70, 4 + K.swell * 2.5);\n    rect(-250 + i * 95 + off, -260, 30, 440);\n  }\n  pop();\n}\nif (sepia || riso) {\n  noStroke();\n  for (let i = 0; i < 18; i++) {\n    const fx2 = S.fleck[i];\n    fill(38, 20, 80, 6 + (Math.sin(K.t * .4 + fx2.ph) * .5 + .5) * 6);\n    ellipse(fx2.x, fx2.y, fx2.s, fx2.s);\n  }\n}\n\n// spotlight pool on the floor\nblendMode(ADD);\ntint(neon ? H : noir ? H : 40, noir || neon ? 30 : 35, 90, clp(8 + K.intensity * 8 + A.rms * 20, 0, 26));\nimage(S.spr, -95, -60, 190, 90);\nnoTint();\nblendMode(BLEND);\n\n// shadow\nnoStroke(); fill(0, 0, 0, 45);\nellipse(2, 2, 74, 12);\n\n// figure \u2014 style passes\nif (neon) {\n  PASS = 0; blendMode(ADD); drawPlayer(); blendMode(BLEND);\n  PASS = 1; drawPlayer();\n} else if (riso) {\n  PASS = 3; push(); translate(-2.2, -1.5); drawPlayer(); pop();\n  PASS = 4; push(); translate(2.2, 1.5); drawPlayer(); pop();\n  PASS = 1;\n} else {\n  PASS = 1; drawPlayer();\n}\n\n// smoke curls off the bell (always drifting \u2014 the room breathes)\nconst bellW = rot2(23, 26, saxA);\nconst smX = 5 + bellW[0], smY = hipY - 46 + bellW[1];\nconst nsm = Math.floor(3 + P.density * 7 + P.smoke * 6);\nnoStroke();\nfor (let i = 0; i < nsm; i++) {\n  const ag = frc(K.t * (.05 + .025 * fr(i + 60)) * (P.speed * .5 + .5) + fr(i * 3 + 7));\n  const rise2 = ag * 105;\n  const sway2 = Math.sin(ag * 5 + fr(i) * 6.283 + K.t * .2) * (5 + ag * 20);\n  const al = Math.sin(ag * Math.PI) * (9 + P.smoke * 8 + A.rms * 25) * (1 - ag * .4);\n  const sz = 7 + ag * 26;\n  fill(md(H + 10, 360), 8, 92, clp(al, 0, 20));\n  ellipse(smX + sway2, smY - 12 - rise2, sz, sz * .8);\n  fill(md(H + 10, 360), 6, 96, clp(al * .6, 0, 14));\n  ellipse(smX + sway2 * 1.2 + 4, smY - 16 - rise2, sz * .55, sz * .5);\n}\n\n// breath sparkle on hard blows\nif (A.treble > .12 || K.pulse > .9) {\n  blendMode(ADD);\n  for (let i = 0; i < 5; i++) {\n    const aa = fr(i * 19 + 3) * 6.2832 + K.t * .8;\n    fill(48, 20, 100, clp((A.treble * 90 + 10) * fr(i + K.bar), 0, 50));\n    ellipse(smX + Math.cos(aa) * (10 + i * 4), smY - 10 + Math.sin(aa) * 8, 2, 2);\n  }\n  blendMode(BLEND);\n}\nnoStroke();\nblendMode(BLEND);\npop();\n"
+}

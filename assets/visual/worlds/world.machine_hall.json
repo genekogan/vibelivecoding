@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.machine_hall",
+  "kind": "world",
+  "name": "Machine Hall",
+  "desc": "A Victorian engine hall receding into its own soot \u2014 rank after rank of mill engines turning their great spoked flywheels, connecting rods driving crossheads into cylinders, belts running up to a line shaft under the roof trusses, and dust turning slowly in the clerestory light four planes deep.",
+  "tags": [
+    "machine-hall",
+    "engine-hall",
+    "engine",
+    "mill",
+    "factory",
+    "workshop",
+    "foundry",
+    "industrial",
+    "victorian",
+    "steam",
+    "flywheel",
+    "crank",
+    "connecting-rod",
+    "crosshead",
+    "piston",
+    "cylinder",
+    "governor",
+    "line-shaft",
+    "shafting",
+    "belt",
+    "pulley",
+    "column",
+    "truss",
+    "clerestory",
+    "gaslight",
+    "soot",
+    "haze",
+    "fog",
+    "dust",
+    "depth",
+    "parallax",
+    "layers",
+    "receding",
+    "interior",
+    "architecture",
+    "mechanism",
+    "mechanical",
+    "machinery",
+    "engineering",
+    "engraving",
+    "cyanotype",
+    "blueprint",
+    "xray",
+    "ghost",
+    "chiaroscuro",
+    "austere",
+    "eerie",
+    "sublime",
+    "decayed",
+    "backdrop",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "engine speed + glow + how far the hall parallaxes"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "hall size \u2014 2.0 puts you down among the flywheels, 0.5 is a distant vista"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "engines per rank (2..4 near, more with depth) and dust"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "line-shaft rpm \u2014 every engine is geared off it at its own ratio"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "the hall's tint \u2014 gaslight amber by default; push cold for a dead works"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "which way you are facing down the hall"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0.3,
+      "max": 0.8,
+      "doc": "eye level \u2014 the horizon the whole hall converges on"
+    },
+    "haze": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "atmospheric density between the four depth planes"
+    },
+    "anno": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "engraved detail: floor hatching, column fluting, plate border and annotation"
+    },
+    "style": {
+      "default": "gaslight",
+      "options": [
+        "gaslight",
+        "engraving",
+        "cyanotype",
+        "ghost",
+        "schematic"
+      ],
+      "doc": "aesthetic: sooty gaslit chiaroscuro / aged engraved Admiralty plate / prussian cyanotype / additive x-ray ghost / schematic (the hall reduces to bare kinematic circles and lines)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "engine placement, sizes, gear ratios, rotation senses"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "opacity of everything above the tonal ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:09:20+00:00",
+    "fps": 59.9,
+    "motion": 0.0096,
+    "lum": 0.327
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:32, x:.5, y:.56, haze:.55, anno:.55, style:'gaslight', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst lp = (a,b,s) => a+(b-a)*s;\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\nconst HZ = cl(P.haze,0,1);\n\nfunction pal(){\n  if (sty==='engraving') return { g:[38,16,74], fog:[38,10,86], iron:[34,14,54], dark:[28,32,22], line:[28,38,11], hatch:[30,28,28], hot:[38,44,96], win:[44,12,99], dust:[36,14,44], add:false };\n  if (sty==='cyanotype') return { g:[213,74,15], fog:[208,54,34], iron:[210,56,30], dark:[214,72,10], line:[200,6,99], hatch:[204,46,56], hot:[192,26,96], win:[196,14,100], dust:[198,26,86], add:false };\n  if (sty==='ghost')     return { g:[234,62,7], fog:[H,54,26], iron:[H,58,22], dark:[H,66,10], line:[H,26,98], hatch:[H,44,50], hot:[H+18,66,100], win:[H,20,100], dust:[H,30,88], add:true };\n  if (sty==='schematic') return { g:[198,40,8], fog:[192,44,18], iron:[194,44,15], dark:[198,48,6], line:[178,64,92], hatch:[186,42,42], hot:[52,64,92], win:[178,40,88], dust:[178,30,80], add:false };\n  return { g:[H,40,15], fog:[H,32,30], iron:[H,24,36], dark:[H,50,10], line:[H,12,84], hatch:[H,28,46], hot:[H+6,74,98], win:[H+8,28,100], dust:[H,24,80], add:false };\n}\nconst C = pal();\nconst hw = q => ((q%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst schem = (sty==='schematic');\n\n// ---- clocks -----------------------------------------------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst wob = 1 + .19*Math.sin(K.t*.127) + .12*Math.sin(K.t*.313+1.4) + .06*Math.sin(K.t*.749+2.7);\nconst shRate = P.speed*(.55 + 1.5*NRG)*wob*(.55+.75*K.intensity);        // rad/s of the line shaft\nS.sh = (S.sh||0) + dt*shRate;                                            // main shaft angle, monotonic\nconst pan = .9*Math.sin(K.t*.047) + .48*Math.sin(K.t*.113+1.7) + .27*Math.sin(K.t*.191+.4);\nconst bob = .7*Math.sin(K.t*.061+2.1) + .4*Math.sin(K.t*.149+.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- hall geometry ----------------------------------------------------------\nconst SCA = cl(P.scale,.5,2.0);\nconst ey = cl(P.y,.30,.80)*height;                 // eye level / horizon\nconst FH = height*.30*SCA;                         // floor distance below the eye, nearest plane\nconst CH = height*.46*SCA;                         // ceiling height above the eye, nearest plane\nconst NP = 4;\nconst PANX = u*.055*NRG;\n\n// ---- machines ---------------------------------------------------------------\nconst NM = Math.round(2 + cl(P.density,0,1)*2.4);\nconst mkey = sd+'|'+NM;\nif (S.mk !== mkey){\n  S.mk = mkey; S.pl = [];\n  for (let p=0;p<NP;p++){\n    const ms = [];\n    const n = NM + p;\n    for (let i=0;i<n;i++){\n      ms.push({ fx: (i + .5)/n + (fr(p*13.7+i*3.1)-.5)*.30/n,\n                R: .72 + fr(p*7.3+i*5.9)*.42,\n                rate: .55 + fr(p*11.1+i*2.7)*1.05,      // incommensurate per machine\n                dir: fr(p*3.3+i*9.7) < .5 ? -1 : 1,\n                ph: fr(p*17.9+i*4.3)*T2,\n                col: fr(p*5.5+i*7.7) < .45 });\n    }\n    S.pl.push(ms);\n  }\n}\nconst planes = S.pl || [];\n\n// ---- cached hall texture ----------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=180, gh=Math.max(60, Math.round(180*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.pixelDensity(1); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.42 + .34*fr(Math.floor(x/7)*13.71+Math.floor(y/7)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\n\n// ---- ground: a vertical tonal wash, dark at the floor, lit at the clerestory -\nnoStroke();\nfor (let i=0;i<26;i++){\n  const t = i/25;\n  const b2 = lp(C.g[2]*.72, C.g[2]*2.9, Math.pow(1-Math.abs(t - .18)*1.15, 2));\n  fill(hw(C.g[0]), C.g[1]*lp(1.1,.72,t), cl(b2,2,60), 100);\n  rect(0, height*t*1.02, width, height/25+2);\n}\npush(); blendMode(MULTIPLY); tint(0,0,100, sty==='engraving'?30:24); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\n\n// ---- helpers ----------------------------------------------------------------\nfunction beltTangents(x1,y1,r1,x2,y2,r2){\n  const dx=x2-x1, dy=y2-y1, Dd=Math.hypot(dx,dy);\n  if (Dd < Math.abs(r1-r2)+1e-3) return null;\n  const al = Math.atan2(dy,dx), be = Math.acos(cl((r1-r2)/Dd,-1,1));\n  return [[x1+Math.cos(al+be)*r1, y1+Math.sin(al+be)*r1, x2+Math.cos(al+be)*r2, y2+Math.sin(al+be)*r2],\n          [x1+Math.cos(al-be)*r1, y1+Math.sin(al-be)*r1, x2+Math.cos(al-be)*r2, y2+Math.sin(al-be)*r2]];\n}\nfunction flywheel(cx,cy,r,ang,dim,lit){\n  const spokes = 6;\n  if (schem){ noFill(); sc(C.line, 60*dim); strokeWeight(Math.max(.5,u*.0010)); ellipse(cx,cy,r*2,r*2);\n    for (let i=0;i<spokes;i++){ const a=ang+i*T2/spokes; line(cx,cy, cx+Math.cos(a)*r, cy+Math.sin(a)*r); } return; }\n  noStroke(); fc(C.iron, (C.add?18:92)*dim); ellipse(cx,cy,r*2,r*2);\n  noStroke(); fc(C.dark, (C.add?12:92)*dim); ellipse(cx,cy,r*1.72,r*1.72);\n  noFill(); sc(C.line, (56+30*lit)*dim); strokeWeight(Math.max(.6,u*.0016));\n  ellipse(cx,cy,r*2,r*2); ellipse(cx,cy,r*1.72,r*1.72);\n  sc(C.line, (44+26*lit)*dim); strokeWeight(Math.max(.5,u*.0013));\n  for (let i=0;i<spokes;i++){ const a=ang+i*T2/spokes;\n    line(cx+Math.cos(a)*r*.16, cy+Math.sin(a)*r*.16, cx+Math.cos(a)*r*.85, cy+Math.sin(a)*r*.85); }\n  noStroke(); fc(C.iron, (C.add?22:94)*dim); ellipse(cx,cy,r*.30,r*.30);\n  noFill(); sc(C.line, 60*dim); strokeWeight(Math.max(.4,u*.0009)); ellipse(cx,cy,r*.30,r*.30);\n  // rim specular: a short bright arc that slides round as the wheel turns\n  sc(C.hot, (26+40*lit*glow)*dim); strokeWeight(Math.max(.6,u*.0018));\n  arc(cx,cy,r*1.86,r*1.86, ang*.3-.6, ang*.3+.25);\n}\n\n// ---- draw the hall, far plane first, veiling between ------------------------\nif (C.add) blendMode(ADD);\nfor (let p=NP-1; p>=0; p--){\n  const sp = 1/(1 + p*.62);                      // perspective foreshortening\n  const fy = ey + FH*sp;                         // floor line for this plane\n  const cy2 = ey - CH*sp;                        // ceiling / shafting line\n  const dim = cl(.30 + .70*sp, .26, 1);\n  const ox = width*.5 + pan*PANX*sp + (cl(P.x,.2,.8)-.5)*width*.5;\n  const spanW = width*(1.02 + p*.22);\n  const ms = planes[p] || [];\n  const lit = cl(.25 + .75*sp, .2, 1);\n\n  // clerestory: the lit windows the whole hall is lit by\n  const wh = CH*sp*.30, ww = spanW/(6+p*2)*.52;\n  for (let i=0;i<6+p*2;i++){\n    const wx = ox - spanW/2 + (i+.5)*spanW/(6+p*2) + (bob*u*.004*sp);\n    noStroke(); fc(C.win, (16 + 30*glow)*dim*(sty==='engraving'?.5:1));\n    rect(wx-ww/2, cy2 - wh*1.15, ww, wh);\n    noFill(); sc(C.line, 34*dim); strokeWeight(Math.max(.4,u*.0008));\n    rect(wx-ww/2, cy2 - wh*1.15, ww, wh);\n    sc(C.line, 26*dim); line(wx, cy2-wh*1.15, wx, cy2-wh*.15);\n  }\n  // roof trusses\n  if (!schem){\n    sc(C.line, 40*dim); strokeWeight(Math.max(.4,u*.0009));\n    for (let i=0;i<5+p*2;i++){\n      const tx = ox - spanW/2 + (i+.5)*spanW/(5+p*2);\n      const tw = spanW/(5+p*2)*.5, tht = CH*sp*.13;\n      line(tx-tw, cy2-wh*1.2, tx, cy2-wh*1.2-tht); line(tx, cy2-wh*1.2-tht, tx+tw, cy2-wh*1.2);\n      line(tx-tw, cy2-wh*1.2, tx+tw, cy2-wh*1.2);\n      line(tx, cy2-wh*1.2, tx, cy2-wh*1.2-tht);\n      line(tx-tw*.5, cy2-wh*1.2, tx, cy2-wh*1.2-tht*.55);\n      line(tx+tw*.5, cy2-wh*1.2, tx, cy2-wh*1.2-tht*.55);\n    }\n  }\n  // the line shaft that drives the whole hall\n  const shY = cy2 + CH*sp*.16;\n  const shR = u*.011*sp*SCA;\n  sc(C.iron, 70*dim); strokeWeight(Math.max(1.2, shR*1.5));\n  line(ox-spanW/2, shY, ox+spanW/2, shY);\n  sc(C.line, 46*dim); strokeWeight(Math.max(.4,u*.0008));\n  line(ox-spanW/2, shY-shR*.7, ox+spanW/2, shY-shR*.7);\n  // hangers holding the shaft up to the trusses\n  for (let i=0;i<7+p*2;i++){\n    const hx = ox - spanW/2 + (i+.5)*spanW/(7+p*2);\n    sc(C.line, 40*dim); strokeWeight(Math.max(.4,u*.0009));\n    line(hx, cy2-wh*1.2, hx, shY);\n    line(hx-shR*1.2, shY-shR, hx+shR*1.2, shY-shR);\n  }\n\n  // floor line + engraved floor hatching\n  sc(C.line, 34*dim); strokeWeight(Math.max(.5,u*.0011));\n  line(0, fy, width, fy);\n  if (!schem && anno > .1){\n    sc(C.hatch, (10+16*anno)*dim); strokeWeight(Math.max(.4,u*.0007));\n    for (let i=0;i<9;i++){ const yy = fy + (i*i)*u*.0035*sp + u*.004;\n      if (yy > height) break; line(0, yy, width, yy); }\n  }\n\n  // the engines\n  for (const m of ms){\n    const mx = ox - spanW/2 + m.fx*spanW;\n    const R = u*.085*sp*SCA*m.R;\n    const wy = fy - R*1.12;\n    const ang = S.sh*m.rate*m.dir + m.ph;\n\n    // cast-iron column behind the engine\n    if (!schem && m.col){\n      const colW = u*.020*sp*SCA, colX = mx + R*1.7;\n      noStroke(); fc(C.dark, (C.add?14:92)*dim);\n      rect(colX-colW/2, cy2+CH*sp*.2, colW, fy-(cy2+CH*sp*.2));\n      noFill(); sc(C.line, 44*dim); strokeWeight(Math.max(.4,u*.0009));\n      rect(colX-colW/2, cy2+CH*sp*.2, colW, fy-(cy2+CH*sp*.2));\n      rect(colX-colW*.85, fy-colW*.5, colW*1.7, colW*.5);\n      sc(C.hatch, 30*dim); strokeWeight(Math.max(.4,u*.0006));\n      for (let i=0;i<5;i++) line(colX-colW*.3+i*colW*.14, cy2+CH*sp*.2, colX-colW*.3+i*colW*.14, fy-colW*.5);\n    }\n    // bedplate\n    if (!schem){\n      noStroke(); fc(C.dark, (C.add?16:94)*dim);\n      rect(mx-R*2.0, fy-R*.20, R*4.0, R*.20);\n      noFill(); sc(C.line, 48*dim); strokeWeight(Math.max(.4,u*.0010));\n      rect(mx-R*2.0, fy-R*.20, R*4.0, R*.20);\n    }\n    // belt from the line shaft down to the flywheel (real external tangents)\n    const puR = R*.30;\n    const tg = beltTangents(mx, shY, puR, mx, wy, R*.86);\n    if (tg){\n      sc(C.iron, 60*dim); strokeWeight(Math.max(1, u*.0022*sp*SCA));\n      for (const t of tg) line(t[0],t[1],t[2],t[3]);\n      // the belt is moving: dashes scroll along it at the surface speed\n      sc(C.hot, (20+26*glow)*dim); strokeWeight(Math.max(.5,u*.0011*sp*SCA));\n      for (const t of tg){\n        const bl = Math.hypot(t[2]-t[0], t[3]-t[1]);\n        const ux=(t[2]-t[0])/bl, uy=(t[3]-t[1])/bl;\n        const off = ((S.sh*m.rate*m.dir*R*.86) % (u*.026)+u*.026) % (u*.026);\n        for (let s=off; s<bl; s+=u*.026) line(t[0]+ux*s, t[1]+uy*s, t[0]+ux*Math.min(bl,s+u*.010), t[1]+uy*Math.min(bl,s+u*.010));\n      }\n      // shaft pulley\n      noStroke(); fc(C.iron, (C.add?20:94)*dim); ellipse(mx, shY, puR*2, puR*2);\n      noFill(); sc(C.line, 56*dim); strokeWeight(Math.max(.4,u*.0009)); ellipse(mx, shY, puR*2, puR*2);\n    }\n    flywheel(mx, wy, R, ang, dim, lit);\n\n    // crank-slider: piston x = r cos(t) + sqrt(l^2 - (r sin t)^2). Real geometry.\n    const cr = R*.42, rod = R*1.55;\n    const cpx = mx + Math.cos(ang)*cr, cpy = wy + Math.sin(ang)*cr;\n    const sinT = Math.sin(ang)*cr;\n    const chx = mx - (Math.sqrt(Math.max(1e-4, rod*rod - sinT*sinT)) - Math.cos(ang)*cr);\n    const chy = wy;\n    sc(C.line, (62+24*lit)*dim); strokeWeight(Math.max(.8, u*.0022*sp*SCA));\n    line(cpx, cpy, chx, chy);                                  // connecting rod\n    noStroke(); fc(C.hot, (44+30*lit)*dim); ellipse(cpx, cpy, R*.16, R*.16);   // crank pin\n    if (!schem){\n      noStroke(); fc(C.iron, (C.add?22:94)*dim); rect(chx-R*.12, chy-R*.13, R*.24, R*.26);\n      noFill(); sc(C.line, 66*dim); strokeWeight(Math.max(.4,u*.0009)); rect(chx-R*.12, chy-R*.13, R*.24, R*.26);\n      // piston rod running back into the cylinder\n      const cylX = mx - rod - cr*1.25, cylW = R*.62, cylH = R*.42;\n      sc(C.line, (58+20*lit)*dim); strokeWeight(Math.max(.6, u*.0016*sp*SCA));\n      line(chx-R*.12, chy, cylX+cylW, chy);\n      noStroke(); fc(C.dark, (C.add?14:94)*dim); rect(cylX, chy-cylH/2, cylW, cylH);\n      noFill(); sc(C.line, 62*dim); strokeWeight(Math.max(.5,u*.0011)); rect(cylX, chy-cylH/2, cylW, cylH);\n      sc(C.line, 40*dim); strokeWeight(Math.max(.4,u*.0007));\n      line(cylX+cylW*.18, chy-cylH/2, cylX+cylW*.18, chy+cylH/2);\n      line(cylX+cylW*.82, chy-cylH/2, cylX+cylW*.82, chy+cylH/2);\n      // governor: two flyballs that lift with the shaft speed\n      const gvx = mx + R*.9, gvy = fy - R*.85, gl = R*.34;\n      const ga = .5 + .5*cl(P.speed*(.4+.6*NRG)*.5, 0, 1);\n      sc(C.line, 54*dim); strokeWeight(Math.max(.4,u*.0008));\n      line(gvx, gvy, gvx, gvy+gl*1.5);\n      for (const s2 of [-1,1]){\n        const bxx = gvx + s2*Math.sin(ga)*gl, byy = gvy + Math.cos(ga)*gl;\n        line(gvx, gvy, bxx, byy);\n        noStroke(); fc(C.iron, 92*dim); ellipse(bxx, byy, R*.11, R*.11);\n        noFill(); sc(C.line, 54*dim); strokeWeight(Math.max(.4,u*.0008));\n      }\n    }\n  }\n\n  // haze veil in front of this plane -> atmospheric perspective\n  if (p > 0){\n    noStroke();\n    const va = (5 + 16*HZ) * (1 - sp) * (sty==='engraving' ? .8 : 1);\n    for (let i=0;i<5;i++){\n      const t=i/4;\n      fill(hw(C.fog[0]), C.fog[1]*lp(1,.6,t), C.fog[2]*lp(.75,1.25,t), va*AL*lp(1.25,.6,t));\n      rect(0, height*t*.25 + ey - CH*.9, width, height*.30);\n    }\n    fill(hw(C.fog[0]), C.fog[1], C.fog[2], va*.55*AL);\n    rect(0,0,width,height);\n  }\n}\nblendMode(BLEND);\n\n// ---- dust turning in the clerestory light -----------------------------------\n{\n  const ND = Math.round(30 + cl(P.density,0,1)*50);\n  push(); blendMode(sty==='engraving' ? BLEND : ADD); noStroke();\n  for (let i=0;i<ND;i++){\n    const sp2 = lp(.35, 1, fr(i*3.1+5));\n    const dxr = ((fr(i*7.7+2) + K.t*(.006 + .016*fr(i*5.3+9))*sp2*P.speed) % 1.2) - .1;\n    const dyr = fr(i*11.3+7) + .05*Math.sin(K.t*(.19+fr(i*2.7)*.4) + i);\n    const px2 = dxr*width + pan*PANX*sp2;\n    const py2 = (ey - CH*.85) + dyr*(FH+CH)*.92;\n    const r = u*.0016*sp2*(1+SCA*.4);\n    fc(C.dust, (10 + 30*fr(i*13.1+3)) * (.35+.65*glow) * sp2);\n    ellipse(px2, py2, r*2.6, r*2.6);\n    fc(C.dust, (26 + 46*fr(i*13.1+3)) * (.35+.65*glow) * sp2);\n    ellipse(px2, py2, r, r);\n  }\n  pop(); blendMode(BLEND);\n}\n\n// ---- the clerestory wash, swaying -------------------------------------------\npush(); blendMode(SCREEN); noStroke();\nconst lx = width*(.5 + .30*Math.sin(K.t*.053) + .12*Math.sin(K.t*.137+2.2));\nconst ly = (ey - CH*.62) + u*.05*Math.sin(K.t*.089+1.1);\nfor (let i=5;i>=1;i--){ fill(hw(C.hot[0]), C.hot[1]*.5, C.hot[2], (2.0+2.2*glow)*AL); const rw=u*(.26+i*.22); ellipse(lx, ly, rw*2.4, rw*1.5); }\npop(); blendMode(BLEND);\n\n// ---- plate annotation --------------------------------------------------------\nif (anno > .35){\n  const mgn = u*.026;\n  noFill(); sc(C.line, 20+18*anno); strokeWeight(Math.max(.6,u*.0016));\n  rect(mgn, mgn, width-mgn*2, height-mgn*2);\n  textFont('monospace'); noStroke(); textSize(Math.max(6,u*.0125));\n  textAlign(RIGHT, BOTTOM); fc(C.line, 42+30*anno);\n  text('ENGINE HALL - '+(NM*NP + (NP*(NP-1)/2))+' SETS ON ONE LINE SHAFT', width-mgn*1.9, height-mgn*1.7);\n  textAlign(LEFT, BOTTOM);\n  text('LINE SHAFT '+(shRate*60/(Math.PI*2)*13).toFixed(0)+' RPM   SEED '+sd, mgn*1.9, height-mgn*1.7);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

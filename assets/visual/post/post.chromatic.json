@@ -1,0 +1,102 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.chromatic",
+  "kind": "post",
+  "name": "Chromatic Aberration",
+  "desc": "RGB channels split apart toward the frame edge with drifting chroma scanlines \u2014 a lens-fringe / CRT glitch pass that pumps on the bass.",
+  "tags": [
+    "chromatic",
+    "aberration",
+    "rgb",
+    "fringe",
+    "glitch",
+    "vhs",
+    "crt",
+    "prism",
+    "scanline",
+    "lens",
+    "split",
+    "distortion",
+    "analog",
+    "datamosh",
+    "xray",
+    "post",
+    "overlay",
+    "retro",
+    "dispersion"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "offset": {
+      "default": 0.013,
+      "min": 0,
+      "max": 0.09,
+      "doc": "channel separation amount (fraction of min dim)"
+    },
+    "edge": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "how far the fringe reaches in from the edge (1 = full frame)"
+    },
+    "grain": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "scanline intensity"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "vhs bar / tint hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved reactive amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "scanline scroll + offset rate"
+    },
+    "sat": {
+      "default": 80,
+      "min": 0,
+      "max": 100,
+      "doc": "scanline saturation"
+    },
+    "style": {
+      "default": "fringe",
+      "options": [
+        "fringe",
+        "vhs",
+        "glitch",
+        "prism",
+        "xray"
+      ],
+      "doc": "aesthetic: clean split / analog VHS / block datamosh / spectral prism / clinical negative"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic glitch/scanline seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:33:46+00:00",
+    "fps": 62.9,
+    "motion": 0.0345,
+    "lum": 0.101
+  },
+  "code": "const D = { offset:.013, edge:.55, grain:.5, hue:200, energy:.6, speed:1, sat:80, style:'fringe', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W,H), cx = W/2, cy = H/2, dg = drawingContext;\nconst clamp = (v,a,b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst st = P.style;\n\n// downsample buffers keyed on size\nconst md = 560, dsc = md / Math.max(W,H);\nconst bw = Math.max(2, Math.round(W*dsc)), bh = Math.max(2, Math.round(H*dsc));\nconst key = bw + 'x' + bh;\nif (!S.buf || S.key !== key) {\n  S.buf = createGraphics(bw, bh); S.scr = createGraphics(bw, bh);\n  S.buf.colorMode(HSB,360,100,100,100); S.scr.colorMode(HSB,360,100,100,100);\n  S.key = key;\n}\n\nconst beatKick = clamp(K.pulse*.6 + A.bass*.9, 0, 1.4);\n// offset breathes on real-time K.t (never re-phases) + beat + bass\nconst breathe = 0.6 + 0.4*Math.sin(K.t*1.4);\nlet ox = u * clamp(P.offset,0,0.09) * (0.4 + 0.9*beatKick + 0.5*breathe) * P.speed;\nlet oy = ox * 0.35 * Math.sin(K.t*0.7);\nif (st === 'prism') ox *= 1.4;\n\n// 1) capture the current scene into buf (downsampled)\ntry { S.buf.drawingContext.drawImage(dg.canvas, 0, 0, bw, bh); } catch(e) {}\nconst sx = ox*dsc, sy = oy*dsc;\n\n// 2) reconstruct an RGB-split copy in scratch (tinted ADD copies \u2014 no filter())\nconst scx = S.scr.drawingContext;\nS.scr.push();\nS.scr.clear();\nS.scr.blendMode(ADD);\nS.scr.imageMode(CORNER);\nif (st === 'prism') {\n  // spectral smear: several hue-stepped copies fanned across the offset\n  const cols = [[0,100],[40,100],[120,100],[190,100],[240,100],[300,90]];\n  cols.forEach((c,i)=>{ const f=(i/(cols.length-1))-0.5; S.scr.tint(c[0],c[1],100,60); S.scr.image(S.buf, sx*f*2, sy*f*2); });\n} else if (st === 'glitch') {\n  // channel copies jump per horizontal band (seeded), harder shifts on the beat\n  const bands = 7;\n  for (let b=0;b<bands;b++){\n    const y0 = Math.floor(b*bh/bands), y1 = Math.ceil((b+1)*bh/bands);\n    const jitter = (fr(b + Math.floor(K.beat*2))*2-1) * (1 + 3*beatKick);\n    scx.save(); scx.beginPath(); scx.rect(0,y0,bw,y1-y0); scx.clip();\n    S.scr.tint(0,100,100,100);   S.scr.image(S.buf, sx*jitter, 0);\n    S.scr.tint(120,100,100,100); S.scr.image(S.buf, 0, 0);\n    S.scr.tint(240,100,100,100); S.scr.image(S.buf, -sx*jitter, 0);\n    scx.restore();\n  }\n} else {\n  // fringe / vhs / xray: clean R / G / B triad\n  S.scr.tint(0,100,100,100);   S.scr.image(S.buf,  sx,  sy);\n  S.scr.tint(120,100,100,100); S.scr.image(S.buf,  0,   0 );\n  S.scr.tint(240,100,100,100); S.scr.image(S.buf, -sx, -sy);\n}\nif (st === 'xray') { // invert to a clinical negative\n  scx.save(); scx.globalCompositeOperation = 'difference';\n  scx.fillStyle = '#ffffff'; scx.fillRect(0,0,bw,bh); scx.restore();\n}\n// 3) edge-weight: keep the aberrated copy only toward the frame edge\nconst edge = clamp(P.edge, 0.05, 1);\nscx.save();\nscx.globalCompositeOperation = 'destination-in';\nconst r0 = Math.hypot(bw,bh)*0.5*(1-edge);\nconst gm = scx.createRadialGradient(bw/2,bh/2, r0, bw/2,bh/2, Math.hypot(bw,bh)*0.5*1.02);\ngm.addColorStop(0,'rgba(255,255,255,0)');\ngm.addColorStop(0.7,'rgba(255,255,255,'+(edge*0.85).toFixed(3)+')');\ngm.addColorStop(1,'rgba(255,255,255,1)');\nscx.fillStyle = gm; scx.fillRect(0,0,bw,bh);\nscx.restore();\nS.scr.blendMode(BLEND);\nS.scr.pop();\n\n// 4) lay the aberrated edge copy over the scene\nblendMode(BLEND);\nimageMode(CORNER);\nimage(S.scr, 0, 0, W, H);\n\n// 5) self-driven chroma scanlines + tracking bands \u2014 the real-time motion floor\n//    (the aberration is invisible over a flat field, so this MUST carry motion alone)\nblendMode(ADD);\nconst gAmt = clamp(P.grain,0,1) * (st==='vhs' ? 1.6 : st==='xray' ? 0.6 : 1) + 0.28;\nconst rsat = clamp(P.sat,0,100);\n// broad soft tracking bands scrolling at their own rate \u2014 big-area motion for the gate\nfor (let b=0;b<3;b++){\n  const by = ((b/3)*H + K.t*(34+b*9)*P.speed) % (H+u*0.2) - u*0.1;\n  const bh2 = u*(0.05+0.03*b);\n  const g = dg.createLinearGradient(0,by-bh2,0,by+bh2);\n  const bhue = (st==='xray')?0:(P.hue+b*40)%360, bsa=(st==='xray')?0:rsat*0.5;\n  g.addColorStop(0,'hsla('+bhue+','+bsa+'%,80%,0)');\n  g.addColorStop(0.5,'hsla('+bhue+','+bsa+'%,86%,'+(0.045+0.06*gAmt).toFixed(3)+')');\n  g.addColorStop(1,'hsla('+bhue+','+bsa+'%,80%,0)');\n  dg.save(); dg.fillStyle=g; dg.fillRect(0,by-bh2,W,bh2*2); dg.restore();\n}\n// fine RGB-split scanlines\nconst nL = 22, ls = ox*0.9 + u*0.006;\nfor (let i=0;i<nL;i++){\n  const yy = ((i/nL)*H + K.t*26*P.speed + fr(i)*20) % (H+2) - 1;\n  const a = (6 + 9*gAmt) * (0.55 + 0.45*Math.sin(K.t*2 + i)) * (0.8 + 0.4*beatKick);\n  strokeWeight(1.4 + gAmt*1.4);\n  stroke(0, (st==='xray')?0:rsat, (st==='xray')?92:100, a);\n  line(-ls, yy, W-ls, yy);\n  if (st!=='xray'){ stroke(240,rsat,100,a); line(ls, yy+1, W+ls, yy+1); }\n}\n// vhs rolling bright bar\nif (st === 'vhs') {\n  const by = (K.t*70*P.speed) % (H+u*0.3) - u*0.15;\n  const g = dg.createLinearGradient(0,by-u*0.12,0,by+u*0.12);\n  g.addColorStop(0,'hsla('+P.hue+',40%,80%,0)');\n  g.addColorStop(0.5,'hsla('+P.hue+',30%,90%,'+(0.10+0.10*gAmt).toFixed(3)+')');\n  g.addColorStop(1,'hsla('+P.hue+',40%,80%,0)');\n  dg.save(); dg.fillStyle=g; dg.fillRect(0,by-u*0.12,W,u*0.24); dg.restore();\n}\n\nblendMode(BLEND);\nnoTint();\ndg.shadowBlur = 0;\n"
+}

@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lorenz96",
+  "kind": "genart",
+  "name": "Lorenz-96 Ring",
+  "desc": "A scrolling Hovmoller space-time diagram of the Lorenz-96 toy-climate: a ring of coupled variables breeds travelling wavefronts of spatiotemporal chaos that sweep and merge across the frame, forcing drifting from ordered waves into full turbulence as the sections build.",
+  "tags": [
+    "lorenz96",
+    "lorenz-96",
+    "hovmoller",
+    "space-time",
+    "spatiotemporal",
+    "chaos",
+    "climate",
+    "dynamical-system",
+    "ode",
+    "reaction-diffusion",
+    "ring",
+    "coupled-oscillators",
+    "travelling-waves",
+    "wavefront",
+    "scrolling",
+    "diverging",
+    "rdbu",
+    "blue-red",
+    "thermal",
+    "viridis",
+    "ice",
+    "field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "scientific",
+    "turbulence",
+    "flow",
+    "chaotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "gain": {
+      "default": 1.1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "value contrast (higher = more saturated blue/red, less white)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 3.0,
+      "doc": "vertical zoom of the ring (higher = thicker wave bands)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "scroll / integration rate"
+    },
+    "force": {
+      "default": 8,
+      "min": 3,
+      "max": 16,
+      "doc": "Lorenz-96 forcing F baseline (low=ordered waves, high=chaos)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ring resolution N (finer wavefronts) \u2014 rebuilds sim"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure + audio bloom amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "diverging palette base hue (hovmoller style)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wavefront shear / lean"
+    },
+    "y": {
+      "default": 0,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ring rotation offset"
+    },
+    "style": {
+      "default": "hovmoller",
+      "options": [
+        "hovmoller",
+        "thermal",
+        "viridis",
+        "ice",
+        "mono"
+      ],
+      "doc": "colormap / render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic initial condition"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:01:27+00:00",
+    "fps": 65.4,
+    "motion": 0.1464,
+    "lum": 0.487
+  },
+  "code": "const D = { gain: 1.1, scale: 1, speed: 1, force: 8, density: 0.55, energy: 0.6, hue: 210, x: 0.5, y: 0, style: 'hovmoller', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse space-time buffer (time = horizontal, ring site = vertical) ----\nconst BW = 240, BH = Math.max(80, Math.min(200, Math.round(BW * height / width)));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; S.needSim = true; }\n\n// ring size N driven by density (rebuild sim only when it actually changes)\nconst N = 40 + Math.round((P.density < 0 ? 0 : P.density > 1 ? 1 : P.density) * 56);\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nfunction deriv(x, out, F, n) {\n  for (let i = 0; i < n; i++) {\n    const ip1 = x[(i + 1) % n], im2 = x[(i - 2 + n) % n], im1 = x[(i - 1 + n) % n];\n    out[i] = (ip1 - im2) * im1 - x[i] + F;\n  }\n}\nfunction stepRK4(x, F, n, dt, k1, k2, k3, k4, tmp) {\n  deriv(x, k1, F, n);\n  for (let i = 0; i < n; i++) tmp[i] = x[i] + 0.5 * dt * k1[i];\n  deriv(tmp, k2, F, n);\n  for (let i = 0; i < n; i++) tmp[i] = x[i] + 0.5 * dt * k2[i];\n  deriv(tmp, k3, F, n);\n  for (let i = 0; i < n; i++) tmp[i] = x[i] + dt * k3[i];\n  deriv(tmp, k4, F, n);\n  for (let i = 0; i < n; i++) x[i] += (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);\n}\nfunction pushColumn(F) {\n  const x = S.x, n = S.n, dt = 0.025;\n  stepRK4(x, F, n, dt, S.k1, S.k2, S.k3, S.k4, S.tmp);\n  stepRK4(x, F, n, dt, S.k1, S.k2, S.k3, S.k4, S.tmp);\n  let mean = 0; for (let i = 0; i < n; i++) mean += x[i]; mean /= n;\n  const base = S.head * n;\n  for (let i = 0; i < n; i++) S.hist[base + i] = x[i] - mean; // store anomaly\n  S.head = (S.head + 1) % BW;\n}\n\n// ---- (re)build simulation: new size / seed / ring-size ----\nif (S.needSim || S.seedUsed !== P.seed || S.n !== N) {\n  S.seedUsed = P.seed; S.n = N; S.needSim = false;\n  S.x = new Float64Array(N); S.k1 = new Float64Array(N); S.k2 = new Float64Array(N);\n  S.k3 = new Float64Array(N); S.k4 = new Float64Array(N); S.tmp = new Float64Array(N);\n  S.hist = new Float32Array(BW * N); S.head = 0; S.acc = 0; S.lastT = null;\n  S.hoff = fr(5); S.shear = fr(7);\n  const Fb = P.force;\n  for (let i = 0; i < N; i++) S.x[i] = Fb + (fr(i + 11) - 0.5) * 0.8;\n  S.x[(N / 2) | 0] += 1.0; // symmetry-breaking kick\n  for (let c = 0; c < BW; c++) pushColumn(Fb); // warm the whole history so frame-1 is full\n}\n\n// ---- forcing F drifts with section: ordered waves <-> full chaos ----\nconst secF = 3.0 * Math.sin(K.section * 0.7 + 0.6) + 1.6 * Math.sin(K.section * 1.9 + 2.0);\nconst Flive = Math.max(2.6, Math.min(18, P.force + secF + K.intensity * 1.4 + A.bass * 3.0));\n\n// ---- advance scroll from continuous K.t (never re-phases) ----\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nconst colsPerT = 58 * (0.4 + P.speed * 0.8);\nS.acc += Math.max(0, K.t - S.lastT) * colsPerT; S.lastT = K.t;\nlet toPush = Math.floor(S.acc); if (toPush > 6) toPush = 6; S.acc -= toPush;\nfor (let p = 0; p < toPush; p++) pushColumn(Flive);\n\n// ---- palette / colormap setup (per-frame, cheap) ----\nfunction hsb2rgb(h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, xx = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r = c; g = xx; b = 0; } else if (h < 120) { r = xx; g = c; b = 0; }\n  else if (h < 180) { r = 0; g = c; b = xx; } else if (h < 240) { r = 0; g = xx; b = c; }\n  else if (h < 300) { r = xx; g = 0; b = c; } else { r = c; g = 0; b = xx; }\n  return [r + m, g + m, b + m];\n}\nconst hb = (P.hue + S.hoff * 36 + K.section * 16) % 360;\nconst cold = hsb2rgb(hb, 0.78, 0.60), warm = hsb2rgb((hb + 152) % 360, 0.80, 0.58), mid = [0.84, 0.84, 0.79];\nconst inferno = [[0.02,0.01,0.07],[0.30,0.05,0.42],[0.68,0.12,0.32],[0.92,0.42,0.10],[0.99,0.85,0.30],[1.0,0.98,0.90]];\nconst viridis = [[0.267,0.005,0.329],[0.254,0.265,0.53],[0.164,0.47,0.558],[0.31,0.66,0.45],[0.65,0.84,0.28],[0.993,0.906,0.144]];\nconst ice     = [[0.02,0.04,0.13],[0.03,0.20,0.40],[0.08,0.45,0.62],[0.28,0.72,0.82],[0.72,0.94,1.0],[0.95,0.99,1.0]];\nfunction ramp(st, t) { t = t < 0 ? 0 : t > 1 ? 1 : t; const n = st.length - 1, f = t * n; let i = Math.floor(f); if (i >= n) i = n - 1; const g = f - i, a = st[i], b = st[i + 1]; return [a[0] + (b[0] - a[0]) * g, a[1] + (b[1] - a[1]) * g, a[2] + (b[2] - a[2]) * g]; }\nconst k = 0.24 * P.gain;\nconst style = P.style;\nfunction col(anom) {\n  const a = Math.tanh(anom * k); // -1..1\n  if (style === 'thermal') return ramp(inferno, (a + 1) * 0.5);\n  if (style === 'viridis') return ramp(viridis, (a + 1) * 0.5);\n  if (style === 'ice') return ramp(ice, (a + 1) * 0.5);\n  if (style === 'mono') { const t = Math.pow((a + 1) * 0.5, 0.85); return [t * 0.98, t * 0.99, t]; }\n  // hovmoller diverging: cold(neg) -> white -> warm(pos)\n  if (a < 0) { const t = -a; return [mid[0] + (cold[0] - mid[0]) * t, mid[1] + (cold[1] - mid[1]) * t, mid[2] + (cold[2] - mid[2]) * t]; }\n  const t = a; return [mid[0] + (warm[0] - mid[0]) * t, mid[1] + (warm[1] - mid[1]) * t, mid[2] + (warm[2] - mid[2]) * t];\n}\n\n// ---- render Hovmoller from history ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst n = S.n, hist = S.hist, head = S.head;\nconst sitesShown = n / (P.scale < 0.5 ? 0.5 : P.scale);\nconst y0 = P.y * n;\nconst shear = (P.x - 0.5) * sitesShown * 0.6;\nconst expo = 0.84 + P.energy * 0.20 + K.swell * 0.10 * P.energy;\nfor (let xp = 0; xp < BW; xp++) {\n  const hc = (head + xp) % BW, base = hc * n;\n  const sh = y0 + shear * (xp / BW - 0.5);\n  for (let yp = 0; yp < BH; yp++) {\n    let sp = sh + (yp / BH) * sitesShown;\n    let i0 = Math.floor(sp); const f = sp - i0; i0 = ((i0 % n) + n) % n; const i1 = (i0 + 1) % n;\n    const anom = hist[base + i0] + (hist[base + i1] - hist[base + i0]) * f;\n    const c = col(anom);\n    const o = 4 * (yp * BW + xp);\n    px[o] = Math.max(0, Math.min(255, c[0] * expo * 255));\n    px[o + 1] = Math.max(0, Math.min(255, c[1] * expo * 255));\n    px[o + 2] = Math.max(0, Math.min(255, c[2] * expo * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// ---- audio shimmer ON TOP of the clk baseline (partial, never full-frame flash) ----\nif (P.energy > 0.02 && (A.treble > 0.02 || A.rms > 0.02)) {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.treble * 0.5 + A.rms * 0.35) * P.energy;\n  fill((hb + 30) % 360, 24, 100, glow * 20);\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

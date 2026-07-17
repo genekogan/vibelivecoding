@@ -1,0 +1,168 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.eeg_montage",
+  "kind": "genart",
+  "name": "EEG Montage",
+  "desc": "A twenty-channel polysomnogram drawing itself across the chart paper: posterior alpha waxes and dies as the patient drops from wake into N2, sleep spindles and K-complexes fire under the pen, eye-movement channels swing hard in REM and blink artifacts punch through the frontals \u2014 the whole montage restaging itself every section.",
+  "tags": [
+    "eeg",
+    "electroencephalogram",
+    "polysomnogram",
+    "polysomnography",
+    "psg",
+    "ecg",
+    "ekg",
+    "emg",
+    "eog",
+    "montage",
+    "strip-chart",
+    "chart-recorder",
+    "polygraph",
+    "trace",
+    "channel",
+    "multichannel",
+    "brainwave",
+    "alpha",
+    "theta",
+    "delta",
+    "beta",
+    "spindle",
+    "k-complex",
+    "rem",
+    "sleep",
+    "sleep-stage",
+    "hypnogram",
+    "seizure",
+    "spike-and-wave",
+    "epilepsy",
+    "artifact",
+    "blink",
+    "medical",
+    "clinical",
+    "hospital",
+    "neurology",
+    "diagnostic",
+    "laboratory",
+    "instrument",
+    "measurement",
+    "signal",
+    "data",
+    "telemetry",
+    "chart-paper",
+    "monitor",
+    "blueprint",
+    "austere",
+    "eerie",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "amplifier sensitivity \u2014 trace amplitude (channels start colliding at max)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "channel count in the montage (6 to 20)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "paper speed / timebase \u2014 horizontal zoom of the trace"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rate multiplier for events and staging"
+    },
+    "artifact": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "eye-blink, electrode-pop and mains-hum contamination"
+    },
+    "grid": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "chart grid printing strength"
+    },
+    "hue": {
+      "default": 24,
+      "min": 0,
+      "max": 360,
+      "doc": "paper + ink hue (offset from the style anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "montage vertical offset"
+    },
+    "style": {
+      "default": "chart",
+      "options": [
+        "chart",
+        "monitor",
+        "blueprint",
+        "raster"
+      ],
+      "doc": "aesthetic: aged paper polygraph with red grid and black ink / dark ICU monitor with luminous traces / white-on-cyanotype / radically abstracted \u2014 every channel collapses to a false-colour amplitude density band, no wiggle at all"
+    },
+    "act": {
+      "default": "sleep",
+      "options": [
+        "sleep",
+        "awake",
+        "seizure"
+      ],
+      "doc": "multi-minute programme: a full descent W\u2192N1\u2192N2\u2192N3\u2192REM / quiet wakefulness with alpha and muscle tone / recurring 3 Hz spike-and-wave seizure runs"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "noise, event and artifact seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "sleep",
+    "awake",
+    "seizure"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:46:22+00:00",
+    "fps": 60.2,
+    "motion": 0.0629,
+    "lum": 0.369
+  },
+  "code": "const D = { energy: .6, density: .55, scale: 1, speed: 1, artifact: .45, grid: .55, hue: 24, x: .5, y: .5, style: 'chart', act: 'sleep', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction vn1(x, r) { const ix = Math.floor(x), fx = x - ix, ux = fx*fx*(3-2*fx); const a = h2(ix, r), b = h2(ix+1, r); return a + (b-a)*ux; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), art = clp(P.artifact, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 24;\n\nconst ST = {\n  // paper is TONED, not white: a near-white ground lands the frame ~0.59 and reads as\n  // blank paper (the copperplate failure). [38,28,50] puts the frame at ~0.39.\n  chart:   { pap:[38,28,50], ink:[26,30,10], grd:[8,62,44],  lbl:[26,26,16], gut:[36,20,38], glow:0 },\n  monitor: { pap:[222,42,9], ink:[150,70,92],grd:[210,40,30], lbl:[190,18,78], gut:[222,38,14], glow:1 },\n  blueprint:{pap:[212,60,28],ink:[200,7,97], grd:[200,32,52], lbl:[200,16,84], gut:[214,50,20], glow:0 },\n  raster:  { pap:[240,30,8], ink:[20,90,96], grd:[240,24,22], lbl:[200,12,74], gut:[240,26,12], glow:1 }\n};\nconst st = ST[P.style] || ST.chart;\nconst PAH = md(st.pap[0] + hs, 360), INH = md(st.ink[0] + hs, 360), GRH = md(st.grd[0] + hs, 360), LBH = md(st.lbl[0] + hs, 360), GUH = md(st.gut[0] + hs, 360);\n\nconst CH = ['Fp1-F3','F3-C3','C3-P3','P3-O1','Fp2-F4','F4-C4','C4-P4','P4-O2','Fp1-F7','F7-T3','T3-T5','T5-O1','Fp2-F8','F8-T4','T4-T6','T6-O2','EOG-L','EOG-R','EMG','ECG'];\nconst NCH = clp(6 + Math.round(dens * 14), 6, 20);\n\n// ---- sleep staging: the multi-minute dramaturgy, indexed off K.section ----\nconst STAGES = ['W','N1','N2','N2','N3','N3','REM','N1'];\nlet stage = STAGES[md(K.section, 8)];\nif (P.act === 'awake') stage = md(K.section, 8) < 4 ? 'W' : 'N1';\nelse if (P.act === 'seizure') stage = md(K.section, 8) === 3 || md(K.section, 8) === 6 ? 'SZ' : 'W';\nconst stIdx = { W:0, N1:1, N2:2, N3:3, REM:4, SZ:5 }[stage];\n\n// per-stage character: [alphaAmp, thetaAmp, deltaAmp, betaAmp, spindleRate, kRate, emg, eog]\nconst CHAR = {\n  W:   [.85,.18,.06,.42, 0,   0,   .9, .5],\n  N1:  [.32,.62,.16,.20, 0,   .06, .5, .3],\n  N2:  [.10,.48,.42,.14, .55, .30, .3, .05],\n  N3:  [.05,.30,1.15,.08,.10, .10, .2, .02],\n  REM: [.20,.55,.10,.30, 0,   0,   .06,1.6],\n  SZ:  [.10,.35,.55,.95, 0,   0,   .8, .4]\n};\nconst ch = CHAR[stage] || CHAR.W;\n\n// ---- the signal: pure function of channel + absolute time ----\nfunction sig(c, t) {\n  const post = (c === 3 || c === 11 || c === 15 || c === 2 || c === 6);   // posterior: alpha lives here\n  const front = c < 2 || c === 4 || c === 8 || c === 12;\n  let v = 0;\n  v += 0.55 * (vn1(t * 46 + c * 91.3, 11) - .5);                                  // broadband EEG noise\n  v += ch[1] * 0.85 * Math.sin(t * 6.2 * 6.28 + c * 1.7) * (0.6 + 0.6 * vn1(t * 2.3 + c * 7, 3));  // theta\n  v += ch[2] * 1.35 * Math.sin(t * 1.15 * 6.28 + c * .9 + 2.1 * vn1(t * .6, 5));  // delta\n  if (post) v += ch[0] * 1.05 * Math.sin(t * 10.1 * 6.28 + c * 2.3) * clp(vn1(t * 1.1 + c, 7) * 2.4 - .5, 0, 1);  // posterior alpha, waxing/waning\n  v += ch[3] * 0.30 * Math.sin(t * 21 * 6.28 + c * 3.1);                          // beta\n  // sleep spindles: 12-14 Hz bursts, central channels\n  if (ch[4] > 0) {\n    const per = 2.2 / Math.max(ch[4], .01), i = Math.floor(t / per);\n    const t0 = i * per + h2(i, 21) * per * .7, dt = t - t0;\n    if (dt > 0 && dt < .85 && (c === 1 || c === 2 || c === 5 || c === 6)) v += 0.95 * Math.sin(dt * 13.2 * 6.28) * Math.sin(Math.PI * dt / .85);\n  }\n  // K-complexes: a big biphasic slow wave\n  if (ch[5] > 0) {\n    const per = 3.4 / Math.max(ch[5], .01), i = Math.floor(t / per);\n    const t0 = i * per + h2(i, 33) * per * .8, dt = t - t0;\n    if (dt > 0 && dt < 1.1) { const e = Math.sin(Math.PI * dt / 1.1); v += 2.3 * e * (-Math.sin(dt * 1.35 * 6.28)); }\n  }\n  if (stage === 'SZ') {                                                            // spike-and-wave 3 Hz\n    const ph = md(t * 3.0, 1);\n    v += 2.1 * (Math.exp(-ph * 26) * 1.6 - 0.55 * Math.sin(ph * 6.28));\n  }\n  if (c === 16 || c === 17) {                                                      // EOG: eye movements\n    v = 0.25 * (vn1(t * 20 + c * 5, 13) - .5);\n    const rem = ch[7];\n    v += rem * 1.7 * Math.tanh(6 * Math.sin(t * (stage === 'REM' ? 1.9 : .35) * 6.28 + c * 3.14)) * clp(vn1(t * .8 + c, 17) * 2.2 - .6, 0, 1) * (c === 17 ? -1 : 1);\n  } else if (c === 18) {                                                           // EMG: chin tone\n    v = ch[6] * 1.5 * (vn1(t * 160, 19) - .5) * (0.7 + 0.9 * vn1(t * 1.7, 23));\n  } else if (c === 19) {                                                           // ECG: QRS\n    const ph = md(t * (1.05 + .16 * Math.sin(t * .13)), 1);\n    v = 2.6 * Math.exp(-Math.pow((ph - .12) / .014, 2)) - 0.5 * Math.exp(-Math.pow((ph - .09) / .03, 2)) + 0.42 * Math.exp(-Math.pow((ph - .30) / .05, 2));\n    v -= 0.35;\n  } else {\n    // artifacts: frontal eye-blinks + wandering electrode pop\n    if (front && art > 0) {\n      const per = 3.1, i = Math.floor(t / per), t0 = i * per + h2(i, 41) * per * .8, dt = t - t0;\n      if (dt > 0 && dt < .42) v += art * 3.4 * Math.sin(Math.PI * dt / .42);\n    }\n    if (art > 0 && h2(Math.floor(t * 1.4) + c * 7, 51) > 0.985) v += art * 2.2 * (vn1(t * 90, 53) - .5);\n    v += art * 0.22 * Math.sin(t * 50 * 6.28 + c);                                 // mains hum\n  }\n  return v;\n}\n\n// ---- scrolling buffer: paper + grid + trace, written a column at a time ----\nconst BW = Math.max(64, Math.min(Math.round(W), 1600)), BH = Math.max(64, Math.min(Math.round(H), 1000));\nconst PXPS = 34 * clp(P.scale, .3, 2.2);              // paper mm/s -> px/s\nconst GUT = 0.11;                                     // left gutter (labels) as a frame fraction\nconst bkey = BW + 'x' + BH + '|' + P.style + '|' + Math.round(P.hue) + '|' + NCH + '|' + (P.seed | 0);\nif (!S.buf || S.bkey !== bkey) { if (S.buf && S.buf.remove) S.buf.remove(); S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1); S.buf.colorMode(S.buf.HSB, 360, 100, 100, 100); S.bkey = bkey; S.fill = true; }\nconst buf = S.buf;\nconst chH = BH / NCH;\nconst chY = c => (c + .5) * chH;\n\nfunction column(x, t, prev) {\n  buf.noStroke();\n  buf.fill(PAH, st.pap[1], st.pap[2]);\n  buf.rect(x, 0, 1.3, BH);\n  // chart grid printed on the paper, scrolling with it: 1 s major, 0.2 s minor\n  const gA = clp(P.grid, 0, 1);\n  const maj = Math.floor(t / 1) !== Math.floor((t - 1 / PXPS) / 1);\n  const min5 = Math.floor(t / .2) !== Math.floor((t - 1 / PXPS) / .2);\n  if (maj) { buf.fill(GRH, st.grd[1], st.grd[2], 62 * gA); buf.rect(x, 0, 1.2, BH); }\n  else if (min5) { buf.fill(GRH, st.grd[1], st.grd[2], 26 * gA); buf.rect(x, 0, 1, BH); }\n  buf.fill(GRH, st.grd[1], st.grd[2], 34 * gA);\n  for (let c = 0; c < NCH; c++) buf.rect(x, chY(c), 1.2, 1);\n  const amp = chH * .40 * (0.42 + en * 1.5);\n  if (P.style === 'raster') {                    // radically abstracted: amplitude density band\n    for (let c = 0; c < NCH; c++) {\n      let mx = 0;\n      for (let k = 0; k < 4; k++) mx = Math.max(mx, Math.abs(sig(c, t + k * 0.004)));\n      const a = clp(mx / 3.2, 0, 1);\n      buf.fill(md(INH + 150 - 150 * a, 360), st.ink[1] * (.4 + .6 * a), st.ink[2] * (.25 + .75 * a), 92);\n      buf.rect(x, c * chH + 1, 1.3, chH - 2);\n    }\n    return;\n  }\n  buf.stroke(INH, st.ink[1], st.ink[2], 94); buf.strokeWeight(1.15);\n  for (let c = 0; c < NCH; c++) {\n    const y0 = chY(c) - clp(prev[c], -3.6, 3.6) * amp;\n    const v = sig(c, t);\n    const y1 = chY(c) - clp(v, -3.6, 3.6) * amp;\n    buf.line(x - 1.3, y0, x, y1);\n    prev[c] = v;\n  }\n}\n\nlet want = Math.floor(K.t * PXPS);\nif (S.col == null || want < S.col || want - S.col > BW) { S.col = want - 1; S.fill = true; }\nif (!S.prev || S.prev.length !== NCH) { S.prev = new Float32Array(NCH); S.fill = true; }\nif (S.fill) {\n  for (let i = 0; i < BW; i++) { const t = (want - (BW - 1 - i)) / PXPS; column(i, t, S.prev); }\n  S.head = md(want, BW); S.col = want; S.fill = false;\n} else {\n  let n = clp(want - S.col, 0, 40);\n  for (let i = 0; i < n; i++) { const c0 = md(S.col + 1 + i, BW), t = (S.col + 1 + i) / PXPS; column(c0, t, S.prev); }\n  if (n > 0) { S.col = want; S.head = md(want, BW); }\n}\n\n// =================== composite ===================\nnoStroke();\nbackground(PAH, st.pap[1], st.pap[2] * .5);\n// newest column sits at the right edge: blit the ring buffer in two pieces\nconst gx = GUT * W, gw = W - gx;\nconst hd = (S.head + 1) % BW;\nconst w1 = BW - hd;\npush();\ntranslate(0, (P.y - .5) * H * .12);\nimage(buf, gx, 0, gw * (w1 / BW), H, hd, 0, w1, BH);\nimage(buf, gx + gw * (w1 / BW), 0, gw * (hd / BW), H, 0, 0, hd, BH);\npop();\n\nif (st.glow) {   // monitor styles get a soft bloom on FEW shapes (shadowBlur reset below)\n  const dcx = drawingContext;\n  blendMode(ADD); noStroke(); fill(INH, st.ink[1] * .6, st.ink[2], 4.5 * en);\n  rect(gx, 0, gw, H);\n  blendMode(BLEND); dcx.shadowBlur = 0;\n}\n\n// left gutter: channel montage labels + a calibration pulse\nfill(GUH, st.gut[1], st.gut[2]); rect(0, 0, gx, H);\ntextFont('Courier New');\nconst ts = clp(Math.min(u * .0125, chH * (H / BH) * .5), 6, 20);\ntextSize(ts); textAlign(RIGHT, CENTER);\nfor (let c = 0; c < NCH; c++) {\n  const yy = chY(c) * (H / BH) + (P.y - .5) * H * .12;\n  noStroke(); fill(LBH, st.lbl[1], st.lbl[2], 90);\n  text(CH[c], gx - u * .028, yy);\n  stroke(LBH, st.lbl[1], st.lbl[2], 46); strokeWeight(1);        // 50 \u00b5V calibration square\n  const ch2 = (H / NCH) * .18 * (0.42 + en * 1.5);\n  noFill(); beginShape();\n  vertex(gx - u * .020, yy + ch2); vertex(gx - u * .014, yy + ch2);\n  vertex(gx - u * .014, yy - ch2); vertex(gx - u * .006, yy - ch2); vertex(gx - u * .006, yy + ch2);\n  endShape();\n}\nnoStroke(); fill(LBH, st.lbl[1], st.lbl[2], 92);\ntextAlign(LEFT, TOP); textSize(clp(u * .014, 7, 26));\ntext('POLYSOMNOGRAM', u * .016, u * .022);\ntextSize(clp(u * .0105, 6, 19)); fill(LBH, st.lbl[1], st.lbl[2] * .8, 66);\ntext('10-20  \u00b7  30 mm/s', u * .016, u * .044);\ntext('50 \u00b5V', u * .016, u * .062);\n\n// stage banner + epoch clock \u2014 the arc made legible\nconst el = K.t + 0;\nconst ep = Math.floor(el / 30);\ntextAlign(RIGHT, TOP); textSize(clp(u * .0125, 6, 22));\nfill(LBH, st.lbl[1], st.lbl[2] * .8, 70);\ntext('EPOCH ' + String(ep % 10000).padStart(4, '0') + '   ' + String(Math.floor(md(el / 60, 60))).padStart(2, '0') + ':' + String(Math.floor(md(el, 60))).padStart(2, '0'), W - u * .024, u * .022);\nconst SC = { W:[45,80,88], N1:[190,55,74], N2:[210,62,80], N3:[250,58,72], REM:[330,70,86], SZ:[8,88,92] }[stage] || [45,80,88];\nnoStroke(); fill(md(SC[0] + hs, 360), SC[1], SC[2], 26 + 16 * K.swell);\nrect(W - u * .115, u * .046, u * .091, u * .030, 2);\nfill(md(SC[0] + hs, 360), SC[1] * .5, 100, 96);\ntextAlign(CENTER, CENTER); textSize(clp(u * .015, 7, 27));\ntext('STAGE ' + stage, W - u * .115 + u * .0455, u * .046 + u * .015);\n\n// the pen bar: a bright edge where the trace is being laid down\nstroke(md(SC[0] + hs, 360), SC[1] * .6, 96, 62); strokeWeight(1.6);\nline(W - 1.5, 0, W - 1.5, H);\n\n// paper vignette (broad, soft)\nblendMode(MULTIPLY);\nnoFill(); stroke(0, 0, 46, 26); strokeWeight(u * .085);\nrect(-u * .043, -u * .043, W + u * .086, H + u * .086);\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\nif (P.alpha < 100) { noStroke(); fill(PAH, st.pap[1], st.pap[2] * .5, 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

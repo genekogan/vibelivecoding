@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.attractor",
+  "kind": "genart",
+  "name": "Strange Attractor",
+  "desc": "A luminous Clifford strange-attractor point-cloud whose coefficients morph over minutes, leaving additive glow trails; energy sets exposure, with plasma, thermal false-color, wireframe-contour, blueprint and sumi-ink render modes.",
+  "tags": [
+    "attractor",
+    "strange attractor",
+    "clifford",
+    "chaos",
+    "chaotic",
+    "generative",
+    "genart",
+    "particles",
+    "point cloud",
+    "fractal",
+    "math",
+    "dynamical system",
+    "plasma",
+    "glow",
+    "additive",
+    "thermal",
+    "blueprint",
+    "wireframe",
+    "ink",
+    "abstract",
+    "psychedelic",
+    "swirl",
+    "nebula",
+    "dark",
+    "backdrop",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure: trail brightness + point count + dot size (primary look control)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "attractor zoom vs design size"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "iterated point count per frame (cloud density)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "coefficient-morph + rotation rate"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue (plasma/wire/blueprint base)"
+    },
+    "morph": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.4,
+      "doc": "amplitude of coefficient oscillation (shape change)"
+    },
+    "trail": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "trail persistence (low=long smears, high=crisp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "cloud anchor x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "cloud anchor y fraction"
+    },
+    "style": {
+      "default": "plasma",
+      "options": [
+        "plasma",
+        "thermal",
+        "wire",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy: additive glow / heat false-color / continuous contour line / schematic dots / sumi stipple"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "attractor family + hue base seed"
+    },
+    "act": {
+      "default": "breathe",
+      "options": [
+        "breathe",
+        "surge",
+        "drift"
+      ],
+      "doc": "multi-minute dramaturgy: gentle breath / section-driven surges / slow steady drift"
+    }
+  },
+  "acts": [
+    "breathe",
+    "surge",
+    "drift"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy:.65, scale:1, density:.55, speed:1, hue:280, morph:.7, trail:.5, x:.5, y:.5, style:'plasma', act:'breathe', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst st = P.style, ink = (st==='ink');\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.ba = -1.7 + fr(1)*1.3;\n  S.bb =  1.2 + fr(2)*1.5;\n  S.bc =  0.7 + fr(3)*1.1;\n  S.bd =  0.6 + fr(4)*1.2;\n  S.hbase = fr(5)*360;\n  S.rot0 = fr(6)*6.283;\n}\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst expo = 0.4 + P.energy*1.15;\nlet morphAmp = P.morph, breath = 0.8 + K.swell*0.4;\nif (P.act==='surge') { morphAmp = P.morph*(0.55+intn*0.9); breath = 0.5+intn*1.1; }\nelse if (P.act==='drift') { morphAmp = P.morph*0.7; breath = 0.85; }\nconst kick = K.pulse*0.5 + A.bass*0.7;\n// crisper cloud (faster trail fade) so the spinning/drifting cloud registers as motion\nlet fadeA = (11 + P.trail*20) - kick*4; if (fadeA < 4) fadeA = 4;\nnoStroke(); blendMode(BLEND);\nif (st==='ink') fill(34,10,90,fadeA+3);\nelse if (st==='blueprint') fill(218,72,15,fadeA);\nelse if (st==='thermal') fill(250,32,4,fadeA);\nelse if (st==='wire') fill(210,45,4,fadeA);\nelse fill(248,58,5,fadeA);\nrect(0,0,width,height);\n// slow parameter DRIFT (base coeffs wander over minutes) + faster morph oscillation\nconst T = K.t*P.speed;\nconst drift = Math.sin(K.t*0.021)*0.35 + Math.cos(K.t*0.013)*0.25;\nconst a = S.ba + drift*0.6 + Math.sin(T*0.17)*morphAmp*1.2;\nconst b = S.bb - drift*0.5 + Math.cos(T*0.13)*morphAmp*1.1;\nconst c = S.bc + Math.sin(T*0.097)*morphAmp*0.9;\nconst d = S.bd + Math.cos(T*0.079)*morphAmp*1.0;\nconst sc = (u/4.6) * P.scale;\nconst glow = 0.4 + P.energy*0.6 + intn*0.35 + A.rms*1.2;\nconst hueDrift = K.t*9 + S.hbase + P.hue;\nconst dotSz = (1.2 + P.energy*1.7);\nconst alphaMul = expo;\nconst N = Math.floor((380 + P.density*1420) * (0.6 + P.energy*0.7) * (st==='wire'?0.55:1) * Math.min(1.2, breath));\npush();\n// continuous precession of the WHOLE cloud + gentle position drift across the frame\nconst px0 = P.x*width + Math.sin(K.t*0.061)*u*0.12 + A.lowmid*u*0.05;\nconst py0 = P.y*height + Math.cos(K.t*0.048)*u*0.10;\ntranslate(px0, py0);\nrotate(S.rot0 + K.t*0.16*P.speed + K.swell*0.15);\nif (!ink && st!=='blueprint') blendMode(ADD);\nif (st==='wire'){ noFill(); strokeWeight(0.8 + P.energy*1.4); } else noStroke();\nlet x=0.1, y=0.1, px=null, py=null;\nfor (let i=0;i<N;i++){\n  const nx = Math.sin(a*y) + c*Math.cos(a*x);\n  const ny = Math.sin(b*x) + d*Math.cos(b*y);\n  x=nx; y=ny;\n  const sx=x*sc, sy=y*sc;\n  if (st==='plasma'){\n    fill((hueDrift + i*0.03)%360, 78, Math.min(100,55+glow*40), 7*alphaMul);\n    ellipse(sx,sy,dotSz,dotSz);\n  } else if (st==='thermal'){\n    const r = Math.min(1, Math.sqrt(x*x+y*y)/2.3);\n    fill((250 - r*250 + 360)%360, 88, Math.min(100,42+r*56), 8*alphaMul);\n    ellipse(sx,sy,dotSz+0.2,dotSz+0.2);\n  } else if (st==='wire'){\n    if (px!==null){ stroke((hueDrift + i*0.02)%360, 62, 88, Math.min(60,11*alphaMul)); line(px,py,sx,sy); }\n    px=sx; py=sy;\n  } else if (st==='blueprint'){\n    fill(196, 66, 94, Math.min(80,20*alphaMul)); ellipse(sx,sy,dotSz-0.1,dotSz-0.1);\n  } else {\n    const j = fr(i);\n    const isz=(1.3+j*0.9)*(0.85+P.energy*0.5);\n    fill(228, 14, 8, Math.min(80,(12+j*24)*alphaMul*0.8)); ellipse(sx,sy,isz,isz);\n  }\n}\nblendMode(BLEND);\npop();\ndrawingContext.shadowBlur = 0;\n",
+  "last_fail": {
+    "at": "2026-07-11T18:54:02+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0017 <= 0.004"
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.papercraft",
+  "kind": "world",
+  "name": "Paper Daylight",
+  "desc": "A torn-construction-paper landscape of layered rolling hills under drifting cotton clouds, visible paper grain and a cut-out sun whose shadows sweep slowly as the day passes.",
+  "tags": [
+    "paper",
+    "papercraft",
+    "paper-craft",
+    "collage",
+    "cutout",
+    "construction-paper",
+    "hills",
+    "landscape",
+    "clouds",
+    "daylight",
+    "daytime",
+    "craft",
+    "handmade",
+    "diorama",
+    "layered",
+    "torn",
+    "pastoral",
+    "countryside",
+    "sky",
+    "sun",
+    "tactile",
+    "blueprint",
+    "riso",
+    "charcoal",
+    "stipple",
+    "cozy",
+    "world",
+    "backdrop"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hill layer count + cloud count"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cloud drift speed + bob + shadow sweep amount"
+    },
+    "hue": {
+      "default": 130,
+      "min": 0,
+      "max": 360,
+      "doc": "paper base hue (130 = green hills)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "reserved rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.8,
+      "doc": "sun disc size vs design"
+    },
+    "roll": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2,
+      "doc": "hill undulation amplitude"
+    },
+    "fluff": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "cloud size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic hills, clouds, grain, torn edges"
+    },
+    "style": {
+      "default": "paper",
+      "options": [
+        "paper",
+        "blueprint",
+        "riso",
+        "charcoal",
+        "stipple"
+      ],
+      "doc": "render philosophy: torn construction-paper collage / cyanotype blueprint / 2-ink riso / monochrome charcoal / stippled engraving"
+    },
+    "act": {
+      "default": "noon",
+      "options": [
+        "noon",
+        "morning",
+        "dusk"
+      ],
+      "doc": "multi-minute daylight arc: steady noon / morning light / long dusk shadows"
+    }
+  },
+  "acts": [
+    "noon",
+    "morning",
+    "dusk"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:14:58+00:00",
+    "fps": 57.1,
+    "motion": 0.0066,
+    "lum": 0.61
+  },
+  "code": "const D = { density:.5, energy:.5, hue:130, speed:1, scale:1, x:.5, y:.5, roll:1, fluff:1, seed:0, style:'paper', act:'noon' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst lp=(a,b,t)=>a+(b-a)*t;\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=((P.hue%360)+360)%360;\nconst styles=['paper','blueprint','riso','charcoal','stipple'];\nconst st = styles.includes(P.style)?P.style:'paper';\nconst dens=P.density;\nconst eAmp=P.energy*(.5+.6*K.intensity);\nS.rms=(S.rms||0)*.85+(A.rms||0)*.15; S.mid=(S.mid||0)*.85+(A.mid||0)*.15;\nconst nH=3+Math.round(dens*5);\nconst NS=52;\n\n// slow daytime sun sweep \u2014 shadows shift (real-time, minutes)\nconst actDir=P.act==='dusk'?0.35:(P.act==='morning'?-0.35:0);\nconst dayp=K.t*0.02 + actDir*Math.sin(K.t*0.04);\nconst sunAng=Math.PI*(0.5) + Math.sin(dayp)*0.7; // sweeps across\nconst sunXf=0.5 - Math.sin(dayp)*0.34;\nconst sunYf=0.16 + Math.abs(Math.sin(dayp))*0.06;\nconst shDx=Math.cos(sunAng)*u*0.02*(0.6+eAmp);\n\n// \u2500\u2500 build hill silhouettes (seed/size/density) \u2500\u2500\nif(!S.hills || S.hKey!==W+'x'+Hh+P.seed+nH){\n  S.hills=[];\n  for(let i=0;i<nH;i++){ const f=nH>1?i/(nH-1):0; const baseY=lp(0.46,0.98,f)*Hh;\n    const amp=u*(0.05+ (1-f)*0.13)*P.roll; const pts=[];\n    const s1=1.2+fr(i*4)*2, s2=2.5+fr(i*4+1)*3, ph1=fr(i*4+2)*6.283, ph2=fr(i*4+3)*6.283;\n    for(let j=0;j<=NS;j++){ const x=j/NS*W; const nx=j/NS;\n      let y=baseY - (Math.sin(nx*s1*6.283+ph1)*0.6 + Math.sin(nx*s2*6.283+ph2)*0.4)*amp;\n      y += (fr(i*97+j)-0.5)*u*0.006; // torn jitter\n      pts.push([x,y]); }\n    S.hills.push({baseY, pts, f}); }\n  S.hKey=W+'x'+Hh+P.seed+nH;\n}\n\n// \u2500\u2500 grain buffer (paper tooth) \u2500\u2500\nif(!S.grain || S.gKey!==W+'x'+Hh+st+P.seed){\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.noStroke();\n  const n=Math.min(2200,Math.floor(W*Hh/900));\n  for(let i=0;i<n;i++){ const gx=fr(i*2+1)*W, gy=fr(i*2+2)*Hh, b=fr(i*3+5);\n    g.stroke(0,0,b<.5?0:100, 5+b*7); g.strokeWeight(0.8); const an=fr(i+9)*6.283, ln=1+fr(i+3)*2.5;\n    g.line(gx,gy,gx+Math.cos(an)*ln,gy+Math.sin(an)*ln); }\n  S.grain=g; S.gKey=W+'x'+Hh+st+P.seed;\n}\n\n// palette per style\nfunction skyTop(){ if(st==='blueprint')return[210,80,26]; if(st==='charcoal')return[0,0,80]; if(st==='riso')return[190,30,92]; return[(H+80)%360,32,90]; }\nfunction skyBot(){ if(st==='blueprint')return[205,70,34]; if(st==='charcoal')return[0,0,92]; if(st==='riso')return[42,45,96]; return[(H+70)%360,20,97]; }\nconst sT=skyTop(), sB=skyBot();\n\nnoStroke();\n// \u2500\u2500 SKY \u2500\u2500\nfor(let i=0;i<26;i++){ const v=i/26; fill(lp(sT[0],sB[0],v),lp(sT[1],sB[1],v),lp(sT[2],sB[2],v)); rect(0,v*Hh,W+1,Hh/26+1.5); }\n\n// \u2500\u2500 SUN (torn paper disc) \u2500\u2500\nconst sx=sunXf*W, sy=sunYf*Hh, sr=u*0.075*P.scale;\nif(st==='blueprint'){ stroke(196,30,100,80); strokeWeight(1.4); noFill(); ellipse(sx,sy,sr*2);\n  for(let a=0;a<20;a++){ const an=a/20*6.283+dayp; line(sx+Math.cos(an)*sr*1.25, sy+Math.sin(an)*sr*1.25, sx+Math.cos(an)*sr*(1.55+0.2*Math.sin(K.t+a)), sy+Math.sin(an)*sr*(1.55+0.2*Math.sin(K.t+a))); } noStroke();\n} else {\n  // paper rays\n  push(); translate(sx,sy); rotate(dayp*0.5+K.t*0.03);\n  const rc = st==='charcoal'?[0,0,100]:(st==='riso'?[42,70,100]:[(H+55)%360,60,100]);\n  noStroke();\n  for(let a=0;a<12;a++){ fill(rc[0],rc[1],rc[2], st==='charcoal'?18:26); push(); rotate(a/12*6.283); triangle(0,0, sr*0.5, -sr*2.1, -sr*0.5, -sr*2.1); pop(); }\n  pop();\n  const dc = st==='charcoal'?[0,0,98]:(st==='riso'?[45,65,100]:[(H+52)%360,55,100]);\n  fill(dc[0],dc[1],dc[2]); ellipse(sx,sy,sr*2);\n  // torn rim\n  fill(dc[0],Math.max(0,dc[1]-15),Math.min(100,dc[2])); beginShape();\n  for(let a=0;a<=26;a++){ const an=a/26*6.283; const rr=sr*(1+(fr(a+40)-0.5)*0.08); vertex(Math.cos(an)*rr+sx, Math.sin(an)*rr+sy);} endShape(CLOSE);\n}\n\n// \u2500\u2500 CLOUDS (cotton, drift = real-time motion floor) \u2500\u2500\nconst nC=Math.round(2+dens*6);\nfunction cloud(cx,cy,cs,idx){\n  if(st==='blueprint'){ stroke(196,30,100,60); strokeWeight(1.2); noFill();\n    for(let b=0;b<5;b++){ ellipse(cx+(b-2)*cs*0.42, cy+(fr(idx*7+b)-0.5)*cs*0.3, cs*(0.7+fr(idx+b)*0.5), cs*0.62);} noStroke(); return; }\n  const cc = st==='charcoal'?[0,0,99]:(st==='riso'?[300,10,99]:[(H+70)%360,6,99]);\n  const sc = st==='charcoal'?[0,0,72]:(st==='riso'?[210,20,80]:[(H+60)%360,14,80]);\n  // shadow underside\n  noStroke(); for(let b=0;b<6;b++){ fill(sc[0],sc[1],sc[2],32); ellipse(cx+(b-2.5)*cs*0.4+shDx*0.4, cy+cs*0.28, cs*(0.6+fr(idx+b*2)*0.6), cs*0.5);}\n  for(let b=0;b<6;b++){ fill(cc[0],cc[1],cc[2], st==='stipple'?0:96); const bx=cx+(b-2.5)*cs*0.4, by=cy+(fr(idx*7+b)-0.5)*cs*0.22, bs=cs*(0.6+fr(idx+b*3)*0.6);\n    if(st==='stipple'){ fill(cc[0],cc[1],cc[2],96); for(let d=0;d<26;d++){ const an=fr(idx*13+b*5+d)*6.283, rr=Math.sqrt(fr(idx*11+d))*bs*0.5; circle(bx+Math.cos(an)*rr, by+Math.sin(an)*rr*0.62, 1.6);} }\n    else ellipse(bx,by,bs,bs*0.62); }\n  if(st==='riso'){ blendMode(MULTIPLY); fill(320,40,95,16); ellipse(cx+cs*0.1,cy-cs*0.05,cs*2,cs*0.9); blendMode(BLEND); }\n}\nfor(let i=0;i<nC;i++){ const spd=(0.4+fr(i+5)*0.8)*(0.35+eAmp);\n  let cx=(fr(i)*(W+u*0.6)+K.t*spd*u*0.09)%(W+u*0.6); if(cx<0)cx+=(W+u*0.6); cx-=u*0.3;\n  const cy=(0.1+fr(i+2)*0.28)*Hh + Math.sin(K.t*0.5+i)*u*0.01*eAmp; const cs=u*(0.055+fr(i+9)*0.07)*P.fluff;\n  cloud(cx,cy,cs,i); }\n\n// \u2500\u2500 HILLS (torn paper, back to front, with shifting drop shadow) \u2500\u2500\nfunction hillShape(pts,dx,dy){ beginShape(); vertex(pts[0][0]+dx, Hh+dy+2); for(const p of pts) vertex(p[0]+dx,p[1]+dy); vertex(pts[pts.length-1][0]+dx, Hh+dy+2); endShape(CLOSE); }\nfor(let i=0;i<nH;i++){ const h=S.hills[i]; const f=h.f;\n  // drop shadow onto hill behind (soft, offset toward sun-opposite)\n  if(st!=='blueprint'){ noStroke();\n    for(let s2=3;s2>=1;s2--){ const off=s2/3; fill(st==='charcoal'?0:(H+10)%360, st==='charcoal'?0:35, st==='charcoal'?18:22, 14);\n      hillShape(h.pts, shDx*off, -u*0.02*off*(0.6+eAmp)); } }\n  // body\n  const hb = st==='charcoal'? [0,0,lp(64,30,f)] : (st==='riso'? [(f<.5?190:150),lp(45,70,f),lp(80,55,f)] : [(H+ (f-0.5)*30)%360, lp(35,62,f), lp(78,44,f)]);\n  if(st==='blueprint'){ stroke(196,40,100,70); strokeWeight(1.4); noFill();\n    beginShape(); for(const p of h.pts) vertex(p[0],p[1]); endShape();\n    stroke(196,25,100,20); strokeWeight(1); for(let k=1;k<4;k++){ beginShape(); for(const p of h.pts) vertex(p[0],p[1]+k*u*0.03); endShape(); } noStroke();\n  } else if(st==='stipple'){ noStroke(); fill(hb[0],hb[1],hb[2]); hillShape(h.pts,0,0);\n    // engraving hatch density by tone\n    stroke(hb[0],Math.min(100,hb[1]+10),Math.max(0,hb[2]-30),50); strokeWeight(0.7);\n    for(let x=0;x<W;x+=u*0.02){ const j=Math.round(x/W*NS); const ty=h.pts[Math.min(NS,j)][1]; for(let yy=ty+u*0.02;yy<Hh;yy+=u*0.03){ if(fr(Math.floor(x)+Math.floor(yy))>0.6) point(x,yy);} } noStroke();\n  } else { noStroke(); fill(hb[0],hb[1],hb[2]); hillShape(h.pts,0,0);\n    // torn-edge highlight (lit rim)\n    stroke((hb[0])%360, Math.max(0,hb[1]-10), Math.min(100,hb[2]+16), 70); strokeWeight(Math.max(1.5,u*0.004)); noFill();\n    beginShape(); for(const p of h.pts) vertex(p[0],p[1]); endShape(); noStroke();\n    // subtle tonal blush\n    blendMode(MULTIPLY); noStroke(); fill((hb[0]+15)%360, hb[1], 78, 12); const bx=lp(0.2,0.8,fr(i+3))*W; ellipse(bx, h.baseY+u*0.05, W*0.5, u*0.2); blendMode(BLEND);\n  }\n}\n\n// \u2500\u2500 grain overlay (paper tooth) \u2500\u2500\nif(S.grain){ blendMode(MULTIPLY); tint(0,0,100, st==='charcoal'?60:34); image(S.grain,0,0); noTint(); blendMode(BLEND);\n  blendMode(ADD); tint(0,0,100, 10); image(S.grain,0,0); noTint(); blendMode(BLEND); }\n\nblendMode(BLEND); noStroke();\n"
+}

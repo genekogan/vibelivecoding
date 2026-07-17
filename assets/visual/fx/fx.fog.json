@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.fog",
+  "kind": "fx",
+  "name": "Fog Machine",
+  "desc": "Low banks of haze roll horizontally across the stage floor, injecting expanding puffs on section changes and thinning out when the music peaks.",
+  "tags": [
+    "fog",
+    "haze",
+    "mist",
+    "smoke",
+    "banks",
+    "atmosphere",
+    "low-fog",
+    "rolling",
+    "volumetric",
+    "dry-ice",
+    "stage",
+    "ambient",
+    "weather",
+    "cloud",
+    "vapour",
+    "murk",
+    "noir",
+    "sumi",
+    "thermal",
+    "halftone",
+    "eerie",
+    "moody",
+    "desaturated",
+    "overlay",
+    "fx",
+    "cover"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "number of fog banks"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "opacity / body of the haze"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "fog tint hue (210=cold blue-grey; used as heat base in thermal)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "horizontal roll + puff rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "bank size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "nozzle x (puff origin)"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0.3,
+      "max": 1,
+      "doc": "fog band base y"
+    },
+    "cover": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1,
+      "doc": "vertical extent of the fog band"
+    },
+    "turb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bob + wander turbulence"
+    },
+    "style": {
+      "default": "volumetric",
+      "options": [
+        "volumetric",
+        "sumi",
+        "noir",
+        "thermal",
+        "halftone"
+      ],
+      "doc": "volumetric=soft translucent banks / sumi=ink-wash tonal smoke with dry-brush tendrils / noir=chiaroscuro dark mass + raking light edge / thermal=false-color heat ramp (abstract) / halftone=dot-matrix cluster field (abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "bank layout seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:22:23+00:00",
+    "fps": 59.9,
+    "motion": 0.0403,
+    "lum": 0.138
+  },
+  "code": "const D = { density:.5, energy:.6, hue:210, speed:1, scale:1, x:.5, y:.86, cover:.55, turb:.5, style:'volumetric', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst volumetric=st==='volumetric',sumi=st==='sumi',noir=st==='noir',thermal=st==='thermal',halftone=st==='halftone';\n\n// fog THINS as musical intensity rises\nconst thin=clp(1-K.intensity*0.55,0.3,1);\nconst en=clp(P.energy,0,1);\nconst bandTop=(P.y - P.cover*0.95)*Hh;\nconst bandH=clp(P.cover,0.15,1)*Hh*1.15;\n\n// t0 reset guard\nif(S.lastSec==null||K.section<S.lastSec)S.lastSec=K.section;\n\n// seeded blobs\nif(S.seedUsed!==P.seed){\n  S.seedUsed=P.seed; S.bl=[]; S.puffs=[];\n  for(let i=0;i<48;i++){\n    S.bl.push({x0:fr(i*3+1),yy:fr(i*3+2),r:0.5+fr(i*3+3),sp:0.35+fr(i*3+4)*1.3,ph:fr(i*3+5)*6.2832,up:fr(i*3+6)});\n  }\n}\n// section-change puff injection near nozzle\nif(K.section!==S.lastSec){\n  S.lastSec=K.section;\n  S.puffs.push({t0:K.t, x:P.x + (fr(K.section*7+1)-0.5)*0.1});\n  if(S.puffs.length>4)S.puffs.shift();\n}\n\nconst nB=Math.round(lrp(10,44,clp(P.density,0,1)));\nconst drift=0.028*P.speed*(0.75+en*0.7);\nconst baseA=lrp(6,17,en)*thin;\nconst gust=A.bass*0.5+A.lowmid*0.3;\nconst wobT=0.4+P.turb*1.1;\nconst span=W+2*u*0.35;\n\nfunction fogCol(f,yy){\n  if(thermal){ const h=md(H+lrp(210,-30,f),360); return [md(h,360), lrp(30,88,f), lrp(58,95,f)]; }\n  if(sumi){ return [md(H,360), 5, lrp(78,34,yy)]; }\n  if(noir){ return [md(H,360), 8, lrp(88,20,yy)]; }\n  return [md(H+lrp(-12,14,yy),360), lrp(10,24,1-yy), lrp(62,86,1-yy)];\n}\n\nnoStroke();\nfor(let i=0;i<nB;i++){\n  const b=S.bl[i];\n  const dx=frc(b.x0 + K.t*drift*b.sp + Math.sin(K.t*0.22*wobT+b.ph)*0.025);\n  const bx=dx*span-u*0.35;\n  const bob=Math.sin(K.t*0.5*b.sp+b.ph*1.3)*bandH*0.09*wobT;\n  const by=bandTop+b.yy*bandH*0.8+bob - gust*u*0.05*b.up;\n  const pulseR=1+0.16*Math.sin(K.t*0.6*P.speed+b.ph)+K.swell*0.06;\n  const rr=u*(0.09+0.15*b.r)*P.scale*pulseR;\n  const f=1-b.yy;\n  const col=fogCol(f,b.yy);\n\n  if(halftone){\n    // dot-matrix abstraction: cluster of falloff-sized dots\n    const nd=7; const gx=Math.max(2,rr/3);\n    for(let d=0;d<nd;d++){\n      const ang=d/nd*6.2832+b.ph;\n      const rad=gx*(0.4+d*0.16);\n      const px=bx+Math.cos(ang)*rad, py=by+Math.sin(ang)*rad*0.6;\n      const dsz=gx*0.9*(1-d/nd)*(0.6+0.5*Math.sin(K.t*1.2+b.ph+d));\n      fill(col[0],clp(col[1]+15,0,100),col[2], baseA*3.2);\n      ellipse(px,py,Math.max(1.5,dsz),Math.max(1.5,dsz));\n    }\n    // center dot\n    fill(col[0],col[1],col[2], baseA*3.5); ellipse(bx,by,gx*1.1,gx*1.1);\n  } else if(noir){\n    // chiaroscuro: dark mass + bright raking edge (light from left)\n    fill(col[0],col[1],lrp(10,30,b.yy), baseA*1.4); ellipse(bx,by,rr*2.1,rr*1.25);\n    blendMode(ADD);\n    fill(md(H+8,360),12,95, baseA*0.9); ellipse(bx-rr*0.5,by-rr*0.25,rr*1.2,rr*0.7);\n    blendMode(BLEND);\n  } else if(sumi){\n    // ink-wash tonal smoke: soft body + upward dry-brush tendril\n    for(let r=0;r<3;r++){ const tt=1-r/3; fill(col[0],col[1],col[2], baseA*tt*0.9); ellipse(bx,by,rr*(1+r*0.6),rr*(0.55+r*0.28)); }\n    const wsp=0.5+en*0.6;\n    fill(col[0],col[1],lrp(70,40,b.yy), baseA*0.5); ellipse(bx+Math.sin(K.t*0.9+b.ph)*rr*0.4,by-rr*0.8,rr*0.35,rr*1.3*wsp);\n  } else {\n    // volumetric / thermal: layered translucent banks\n    for(let r=0;r<3;r++){ const tt=1-r/3; fill(col[0],col[1],col[2], baseA*tt); ellipse(bx,by,rr*(1+r*0.55),rr*(0.55+r*0.3)); }\n  }\n}\n\n// puffs: expanding rings from section changes\nblendMode(BLEND); noStroke();\nfor(let p=0;p<S.puffs.length;p++){\n  const pf=S.puffs[p]; const age=clp((K.t-pf.t0)*0.35*P.speed,0,1);\n  if(age>=1)continue;\n  const pr=u*(0.05+age*0.5)*P.scale; const pa=(1-age)*baseA*2.2;\n  const px=pf.x*W + age*u*0.12; const py=bandTop+bandH*0.35;\n  const c=fogCol(0.6,0.35);\n  if(halftone){ for(let d=0;d<10;d++){ const a2=d/10*6.2832; fill(c[0],c[1],c[2],pa); const rr2=pr*(0.7+0.3*Math.sin(K.t*2+d)); ellipse(px+Math.cos(a2)*pr,py+Math.sin(a2)*pr*0.6,Math.max(2,rr2*0.18),Math.max(2,rr2*0.18)); } }\n  else { fill(c[0],c[1],c[2],pa); ellipse(px,py,pr*2,pr*1.1); fill(c[0],c[1],clp(c[2]+10,0,100),pa*0.7); ellipse(px,py,pr*1.2,pr*0.7); }\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

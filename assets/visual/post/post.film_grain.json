@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.film_grain",
+  "kind": "post",
+  "name": "Film Grain",
+  "desc": "A projected-celluloid pass: reshuffling silver grain, drifting hair-thin scratches, gate weave, exposure flicker and rare dust specks over a breathing vignette.",
+  "tags": [
+    "film",
+    "grain",
+    "celluloid",
+    "analog",
+    "analogue",
+    "vintage",
+    "retro",
+    "noise",
+    "scratches",
+    "dust",
+    "projector",
+    "cinema",
+    "movie",
+    "8mm",
+    "16mm",
+    "super8",
+    "texture",
+    "overlay",
+    "nostalgia",
+    "decay",
+    "old",
+    "monochrome",
+    "flicker",
+    "weave",
+    "post",
+    "grunge",
+    "xerox",
+    "photocopy",
+    "halftone",
+    "silver-gelatin"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "amount": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grain / scratch / flicker strength"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "grain speck count"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gate-weave amplitude + vignette breathe"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "projector reshuffle cadence + scratch drift"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "grain / paper tint hue"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 3,
+      "doc": "grain size + matte weight"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vignette centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vignette centre y"
+    },
+    "dust": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "scratch count + hair/speck frequency"
+    },
+    "style": {
+      "default": "celluloid",
+      "options": [
+        "celluloid",
+        "silver",
+        "nitrate",
+        "ash",
+        "xerox"
+      ],
+      "doc": "aesthetic: warm b/w movie grain / cold high-contrast silver-gelatin / decayed sepia nitrate / dark heavy ash / abstract xerox halftone-dither on paper wash"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "grain / scratch / dust layout"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:34:15+00:00",
+    "fps": 59.9,
+    "motion": 0.0072,
+    "lum": 0.086
+  },
+  "code": "const D = { amount:.5, density:.6, energy:.5, speed:1, hue:35, scale:1, x:.5, y:.5, dust:.35, style:'celluloid', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), frc=v=>v-Math.floor(v), TAU=Math.PI*2;\nconst fr=(i)=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst style=P.style;\nconst amt=clp(P.amount,0,1), dens=clp(P.density,0,1), en=clp(P.energy,0,1), spd=clp(P.speed,.1,6), sc=clp(P.scale,.3,3);\nconst isX=style==='xerox', isNit=style==='nitrate', isSilver=style==='silver', isAsh=style==='ash';\n\n// grain colour discipline per style\nlet gH=P.hue, gS=10, gB=98;\nif(style==='celluloid'){ gH=clp(P.hue,0,55); gS=14; gB=96; }\nelse if(isSilver){ gH=210; gS=3; gB=100; }\nelse if(isNit){ gH=28; gS=44; gB=88; }\nelse if(isAsh){ gH=P.hue; gS=6; gB=68; }\n\n// temporal token \u2014 projector cadence (12..24 \"fps\" reshuffle)\nconst cad = 9 + 15*clp(spd/2,0,1);\nconst tk = Math.floor(K.t*cad);\n\n// gate weave: sub-2px whole-pass sway, irrational real-time (never re-phases)\nconst weaveA = (0.5+2.6*en)*sc;\nconst wx = weaveA*Math.sin(K.t*2.3+1.7) + weaveA*0.4*Math.sin(K.t*5.1+0.3);\nconst wy = weaveA*Math.sin(K.t*1.9+0.6) + weaveA*0.4*Math.sin(K.t*4.3+1.9);\n\npush();\ntranslate(wx,wy);\n\n// xerox lays a light paper wash so dark halftone reads as photocopy\nif(isX){ noStroke(); fill(P.hue,4,94, clp(46+30*amt,0,86)); rect(-weaveA-2,-weaveA-2,W+2*weaveA+4,Hh+2*weaveA+4); }\n\n// exposure flicker \u2014 subtle, partial, smoothly signed (celluloid breathing, never a full strobe)\nconst flick=(fr(tk*1.7)+fr(tk*1.7+9))*0.5-0.5;\nconst fa=clp((3+7*en)*(0.5+0.5*amt),0,13);\nnoStroke();\nif(flick>0) fill(isNit?38:0,isNit?30:0,100, fa*flick*2);\nelse fill(0,0,0, fa*(-flick)*2);\nrect(-weaveA-2,-weaveA-2,W+2*weaveA+4,Hh+2*weaveA+4);\n\n// GRAIN sprinkle \u2014 point budget, reshuffled every temporal token\nconst gN=Math.floor(90 + 300*dens);\nconst base=(isX? u*0.011 : u*0.0042)*sc;\nnoStroke();\nif(isX){\n  fill(P.hue,0,7, clp(64*amt,0,86));\n  for(let i=0;i<gN;i++){\n    const gx=frc(fr(i*0.37)+0.02*Math.sin(K.t*1.1+i))*W;\n    const gy=frc(fr(i*0.71)+0.02*Math.cos(K.t*0.9+i))*Hh;\n    if(fr(i*3.3+tk)<0.45+0.45*amt){ const d=base*(0.5+fr(i*2.1+tk)); rect(gx,gy,d,d); }\n  }\n} else {\n  for(let i=0;i<gN;i++){\n    const gx=fr(i*1.3+tk*7.1)*W, gy=fr(i*2.7+tk*3.3)*Hh, b=fr(i*4.1+tk*2.0);\n    const a=clp((13+42*amt)*(0.35+b),0,92);\n    if(b>0.5) fill(gH,gS,gB,a); else fill(gH,gS*0.3,isAsh?22:6,a*0.8);\n    const d=base*(0.55+b); rect(gx,gy,d,d);\n  }\n}\n\n// vertical scratches \u2014 drift horizontally, flicker on/off, broken segments (real-time)\nconst scN=Math.floor(1+3*clp(P.dust,0,1));\nstrokeCap(ROUND);\nfor(let i=0;i<scN;i++){\n  const onSeed=Math.floor(K.t*0.6)+i*7;\n  if(fr(onSeed)<0.45){\n    const sx=frc(fr(i*5.5)+0.5+0.015*Math.sin(K.t*3+i))*W;\n    const br=isX?12:96, saa=clp(28+42*amt,0,82);\n    stroke(gH,gS*0.4,br,saa); strokeWeight((0.6+1.2*fr(i*3))*sc);\n    let yy=0; while(yy<Hh){ const seg=Hh*(0.08+0.28*fr(yy*0.01+i)); if(fr(yy*0.02+i+tk*0.01)>0.16) line(sx+(fr(yy+i)*2-1),yy,sx+(fr(yy+i+1)*2-1),yy+seg); yy+=seg+2; }\n  }\n}\n\n// dust hairs + specks \u2014 rare, spawn per slow token, brief life\nconst hairChance=0.14+0.5*clp(P.dust,0,1);\nnoFill();\nfor(let i=0;i<7;i++){\n  const sh=Math.floor(K.t*cad*0.4)+i*97;\n  if(fr(sh)<hairChance*0.4){\n    const hx=fr(sh*1.3)*W, hy=fr(sh*2.1)*Hh, hl=u*(0.02+0.06*fr(sh*3)), ang=fr(sh*4)*TAU;\n    stroke(gH,gS*0.3,isX?8:98,clp(48+40*amt,0,90)); strokeWeight(0.8*sc); noFill();\n    beginShape();\n    for(let s=0;s<=6;s++){ const tt=s/6, bend=(fr(sh*5+s)-0.5)*hl*0.5; vertex(hx+Math.cos(ang)*hl*tt-Math.sin(ang)*bend, hy+Math.sin(ang)*hl*tt+Math.cos(ang)*bend); }\n    endShape();\n  }\n  if(fr(sh*7)<hairChance){ const px=fr(sh*8)*W, py=fr(sh*9)*Hh; noStroke(); fill(gH,gS,isX?7:(fr(sh)<0.5?98:6),clp(58*amt,0,90)); rect(px,py,base*(1+2*fr(sh*2)),base*(1+2*fr(sh*2))); }\n}\n\n// vignette \u2014 cached radial, breathes, partial darkening\nif(!S.vig||S.vigKey!==W+'x'+Hh){\n  S.vigKey=W+'x'+Hh; const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.clear();\n  const ctx=g.drawingContext, r=Math.hypot(W,Hh)*0.62;\n  const grd=ctx.createRadialGradient(W*P.x,Hh*P.y,r*0.32,W*P.x,Hh*P.y,r);\n  grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,'rgba(0,0,0,0.62)');\n  ctx.fillStyle=grd; ctx.fillRect(0,0,W,Hh); S.vig=g;\n}\ntint(0,0,100, clp((34+38*en)*(0.7+0.3*Math.sin(K.t*0.7)),0,96)); image(S.vig,0,0); noTint();\n\npop();\n\n// gate matte \u2014 thin dark border straddling edges, swaying = visible weave\nnoFill(); stroke(0,0,isAsh?6:2,92); strokeWeight(u*0.014*sc);\nrect(wx*1.6, wy*1.6, W, Hh);\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

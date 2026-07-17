@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ising",
+  "kind": "genart",
+  "name": "Ising Spin Domains",
+  "desc": "A 2D Ising ferromagnet flickering near its critical temperature \u2014 indigo and gold spin domains nucleate, coarsen and dissolve behind glowing writhing walls as the lattice is slowly swept from frozen order through fractal criticality into hot noise.",
+  "tags": [
+    "ising",
+    "spin",
+    "spins",
+    "magnet",
+    "magnetism",
+    "ferromagnet",
+    "domain",
+    "domains",
+    "domain-wall",
+    "phase-transition",
+    "critical",
+    "criticality",
+    "metropolis",
+    "monte-carlo",
+    "statistical-mechanics",
+    "physics",
+    "lattice",
+    "cellular-automata",
+    "ca",
+    "simulation",
+    "duotone",
+    "indigo",
+    "gold",
+    "thermal",
+    "coarsening",
+    "fractal",
+    "filigree",
+    "boiling",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "science"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "temp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "temperature bias around Tc (0=frozen order, .5=critical, 1=hot noise)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "lattice coarseness (higher = chunkier domains / fewer cells)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / wall-glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "Metropolis sweep rate (domain writhe speed)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "domain-wall brightness / detail"
+    },
+    "hue": {
+      "default": 250,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (down-spin color; up-spin is +155)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view anchor x (gentle parallax)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view anchor y (gentle parallax)"
+    },
+    "style": {
+      "default": "duotone-walls",
+      "options": [
+        "duotone-walls",
+        "thermal",
+        "monochrome",
+        "neon",
+        "copper"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic initial spin field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:33:30+00:00",
+    "fps": 64.9,
+    "motion": 0.1328,
+    "lum": 0.477
+  },
+  "code": "const D = { temp: .5, scale: 1, energy: .6, speed: 1, density: .5, hue: 250, x: .5, y: .5, style: 'duotone-walls', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse spin grid: scale -> cell size (bigger scale = chunkier domains / coarser lattice) ----\nconst CW = Math.max(60, Math.min(200, Math.round(170 / Math.max(0.4, P.scale))));\nconst CH = Math.max(40, Math.min(200, Math.round(CW * height / Math.max(1, width))));\nconst NC = CW * CH;\nconst seedI = P.seed | 0;\n\n// deterministic uniform hash for the initial random spin field (no p5 random -> no global pollution)\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\n// ---- (re)build lattice on size / seed change ----\nconst buildSig = CW + 'x' + CH + '_' + seedI;\nif (S.buildSig !== buildSig || !S.sp) {\n  S.buildSig = buildSig;\n  S.sp = new Int8Array(NC);\n  for (let k = 0; k < NC; k++) S.sp[k] = gh(k, 7777) < 0.5 ? -1 : 1;\n  S.rng = ((seedI * 2654435761) ^ 0x9e3779b9) >>> 0; if (S.rng === 0) S.rng = 0x1234567;\n  S.done = null;\n}\n\n// ---- temperature: drift slowly through the critical point Tc~2.269 on K.section (order -> filigree -> noise) ----\nconst Tc = 2.269;\nconst drift = Math.sin(K.t * 0.05 + K.section * 0.35) * 0.85; // continuous slow sweep through Tc (morph over ~60-120s)\nlet T = Tc + (P.temp - 0.5) * 2.6 + drift + (K.intensity - 0.5) * 0.5;\nT = Math.max(0.6, Math.min(4.2, T));\nconst p4 = Math.exp(-4 / T), p8 = Math.exp(-8 / T); // Boltzmann accept probs for the only positive dE values\n\n// ---- Metropolis sweeps, gated on continuous K.t (never re-phases; pauses only if the clock pauses) ----\nconst rate = NC * (0.7 + P.speed * 1.5 + K.intensity * 1.0);\nconst target = Math.floor(K.t * rate);\nif (S.done == null || target < S.done) S.done = target;\nlet need = target - S.done;\nif (need > NC * 3) need = NC * 3;\nlet r = S.rng >>> 0;\nconst sp = S.sp;\nfor (let a = 0; a < need; a++) {\n  r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0;\n  const i = (r % CW);\n  r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0;\n  const j = (r % CH);\n  const rj = j * CW, idx = rj + i;\n  const s = sp[idx];\n  const l = sp[rj + (i ? i - 1 : CW - 1)];\n  const rr = sp[rj + (i + 1 < CW ? i + 1 : 0)];\n  const u = sp[(j ? j - 1 : CH - 1) * CW + i];\n  const d = sp[(j + 1 < CH ? j + 1 : 0) * CW + i];\n  const dE = 2 * s * (l + rr + u + d); // -8..8\n  if (dE <= 0) sp[idx] = -s;\n  else {\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0;\n    const rnd = r / 4294967296;\n    if (dE === 4) { if (rnd < p4) sp[idx] = -s; }\n    else { if (rnd < p8) sp[idx] = -s; }\n  }\n}\nS.rng = r >>> 0;\nS.done = target;\n\n// ---- coarse render buffer ----\nif (!S.g || S.gw !== CW || S.gh !== CH) { S.g = createGraphics(CW, CH); S.g.pixelDensity(1); S.gw = CW; S.gh = CH; }\n\n// ---- HSV -> rgb 0..255 into a shared triple (no per-pixel allocation) ----\nconst OUT = [0, 0, 0];\nfunction setHSV(o, h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let rr, gg, bb;\n  if (h < 60) { rr = c; gg = x; bb = 0; } else if (h < 120) { rr = x; gg = c; bb = 0; } else if (h < 180) { rr = 0; gg = c; bb = x; }\n  else if (h < 240) { rr = 0; gg = x; bb = c; } else if (h < 300) { rr = x; gg = 0; bb = c; } else { rr = c; gg = 0; bb = x; }\n  o[0] = (rr + m) * 255; o[1] = (gg + m) * 255; o[2] = (bb + m) * 255;\n}\n\nconst eexp = Math.min(1.35, 0.52 + P.energy * 0.72 + K.intensity * 0.22 + A.rms * 0.45);\nconst hb = P.hue + K.section * 6 + Math.sin(K.t * 0.04) * 10; // slow palette drift for dramaturgy\nconst goldH = hb + 155;\nconst wallV = Math.min(0.9, (0.46 + P.density * 0.34) * eexp + 0.05);\nconst style = P.style;\nconst mode = style === 'thermal' ? 1 : style === 'monochrome' ? 2 : style === 'neon' ? 3 : style === 'copper' ? 4 : 0;\n\n// ---- paint every cell (sim advances each frame, so redraw each frame; ~16k px = cheap) ----\n{\n  const g = S.g; g.loadPixels(); const px = g.pixels;\n  for (let j = 0; j < CH; j++) {\n    const jp = (j + 1 < CH ? j + 1 : 0), rj = j * CW, rjp = jp * CW;\n    const jm = (j ? j - 1 : CH - 1) * CW;\n    for (let i = 0; i < CW; i++) {\n      const ip = (i + 1 < CW ? i + 1 : 0), im = (i ? i - 1 : CW - 1);\n      const idx = rj + i, s = sp[idx];\n      const sR = sp[rj + ip], sD = sp[rjp + i];\n      const wall = (sR !== s) || (sD !== s);\n      if (mode === 1) { // thermal: false-color heat by local disorder (ordered interior cool, writhing walls hot)\n        const dis = (sp[rj + im] !== s) + (sR !== s) + (sp[jm + i] !== s) + (sD !== s);\n        const heat = dis * 0.25;\n        setHSV(OUT, 260 - heat * 255, 0.92 - heat * 0.5, Math.min(1, (0.12 + heat * heat * 0.55 + heat * 0.35) * eexp));\n      } else if (mode === 2) { // monochrome: black/white spins, white domain walls\n        const v = wall ? 1 : (s > 0 ? 0.82 : 0.16);\n        setHSV(OUT, 0, 0, Math.min(1, v * (0.85 + P.energy * 0.3)));\n      } else if (mode === 3) { // neon: domain walls only, glowing on near-black (abstract contour of the boundaries)\n        if (wall) setHSV(OUT, (hb + (s > 0 ? 0 : 45) + K.t * 8) % 360, 0.85, Math.min(1, 0.95 * eexp));\n        else { OUT[0] = 3; OUT[1] = 3; OUT[2] = 9; }\n      } else if (mode === 4) { // copper: verdigris vs copper-orange patina, dark oxidized seams\n        if (wall) setHSV(OUT, 32, 0.55, Math.min(1, 0.16 * eexp));\n        else if (s > 0) setHSV(OUT, 26, 0.72, Math.min(1, 0.52 * eexp));\n        else setHSV(OUT, 152, 0.42, Math.min(1, 0.44 * eexp));\n      } else { // duotone-walls (default): indigo down-spin, gold up-spin, glowing domain walls\n        if (wall) setHSV(OUT, hb + 88, 0.16, wallV);\n        else if (s > 0) setHSV(OUT, goldH, 0.82, Math.min(1, 0.52 * eexp));\n        else setHSV(OUT, hb, 0.70, Math.min(1, 0.40 * eexp));\n      }\n      const o = 4 * idx; px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\n// ---- draw: bilinear upscale (walls bloom softly) with slow continuous rotation + zoom breath = motion floor ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2 + (P.x - 0.5) * width * 0.16, height / 2 + (P.y - 0.5) * height * 0.16);\nrotate(K.t * 0.012 + K.section * 0.02);\nconst zoom = 1.62 + Math.sin(K.t * 0.09) * 0.06 + A.rms * 0.12;\nimageMode(CENTER);\nimage(S.g, 0, 0, width * zoom, height * zoom);\nimageMode(CORNER);\npop();\n\n// ---- audio glow ON TOP of the clk baseline (all-zero during validation; partial alpha, never strobes) ----\nif (A.bass > 0.01 || A.treble > 0.01 || A.rms > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  fill((hb + 155) % 360, 45, 100, (A.bass * 0.6 + A.rms * 0.4) * P.energy * 16);\n  rect(0, 0, width, height);\n  fill((hb + 200) % 360, 30, 100, A.treble * P.energy * 12);\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

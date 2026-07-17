@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.detective",
+  "kind": "subject",
+  "name": "Noir Detective",
+  "desc": "Trench-coated detective under a hard cone of light, fedora brim shadowing his eyes, cigarette ember and smoke ribbon rising through rain, shifting weight as he leans, scans and walks.",
+  "tags": [
+    "detective",
+    "noir",
+    "film-noir",
+    "gumshoe",
+    "trench",
+    "coat",
+    "fedora",
+    "hat",
+    "cigarette",
+    "smoke",
+    "rain",
+    "spotlight",
+    "chiaroscuro",
+    "silhouette",
+    "mystery",
+    "crime",
+    "1940s",
+    "monochrome",
+    "moody",
+    "cinematic",
+    "character",
+    "human",
+    "figure"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "weight-shift / stride amplitude"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "key-light / rim-light hue (neon style tints)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "movement rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rain streak count in the beam"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "lean",
+      "options": [
+        "lean",
+        "look",
+        "walk"
+      ],
+      "doc": "pose \u2014 lean auto-cycles lean/scan/walk over 32 beats"
+    },
+    "style": {
+      "default": "noir",
+      "options": [
+        "noir",
+        "neon",
+        "xray",
+        "chalk"
+      ],
+      "doc": "aesthetic: chiaroscuro form-from-light / neon rim-lit / x-ray wireframe schematic / pale chalk-on-slate"
+    },
+    "act": {
+      "default": "stakeout",
+      "options": [
+        "stakeout",
+        "chase",
+        "reveal"
+      ],
+      "doc": "multi-minute program: stakeout = lean & scan, chase = walking, reveal = slow turn into the light"
+    },
+    "throw": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "coat length & hem-swing morph"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rain / grain / smoke-drift layout"
+    }
+  },
+  "acts": [
+    "stakeout",
+    "chase",
+    "reveal"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:04:56+00:00",
+    "fps": 56.8,
+    "motion": 0.0062,
+    "lum": 0.091
+  },
+  "code": "const D = { scale:1, energy:.55, hue:32, speed:1, density:.5, x:.5, y:.86, pose:'lean', style:'noir', act:'stakeout', throw:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\nconst sn=(tt,off)=>{const f=Math.floor(tt),xq=tt-f; return (fr(f+off)*(1-xq)+fr(f+1+off)*xq-.5)*2;};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u=Math.min(width,height);\nconst sc=u*P.scale/460;            // figure ~215 local tall -> ~0.47u\nconst bt=K.beat*P.speed;\nconst en=P.energy*(.5+.6*K.intensity);\nconst H=md(P.hue,360);\nconst chiaro=P.style==='noir', neon=P.style==='neon', xray=P.style==='xray', chalk=P.style==='chalk';\n\n// ---- seed caches ----\nif (S.seedUsed!==P.seed){\n  S.seedUsed=P.seed;\n  S.grain=[];\n  for(let i=0;i<70;i++) S.grain.push({x:(fr(i*3+1)-.5), y:(fr(i*3+2)-.5), r:.4+fr(i*5+3)*1.3});\n  S.smoke=[];\n  for(let i=0;i<7;i++) S.smoke.push({ph:fr(i*7+4)*6.2832, sp:.5+fr(i*9+5)*.7, drift:(fr(i*11+6)-.5), w:6+fr(i*13+7)*5});\n  S.rain=[];\n  for(let i=0;i<80;i++) S.rain.push({x:fr(i*3+40), y:fr(i*5+41), sp:.6+fr(i*7+42)*.7, ln:8+fr(i*9+43)*14});\n}\n\n// ---- pose program ----\nlet pose=P.pose;\nconst base=P.pose;\nif(base==='walk'){\n  // continuous walk cycle\n} else if(base==='lean'){\n  const ph=md(bt,32);\n  if(P.act==='chase'){\n    pose = ph<20 ? 'walk' : ph<26 ? 'look' : 'lean';\n  } else if(P.act==='reveal'){\n    pose = ph<10 ? 'lean' : ph<18 ? 'look' : ph<24 ? 'walk' : 'lean';\n  } else { // stakeout\n    pose = ph<22 ? 'lean' : ph<28 ? 'look' : 'lean';\n  }\n}\n\n// ---- motion ----\nconst breath=Math.sin(K.t*.45)*.5 + K.swell*.35;\nconst wob=sn(K.t*.55,20);\nlet step=0, bob=0, sway=0, lookT=0, leanA=0, shoulder=0, gaitX=0;\nconst bass=K.pulse*.5*en + A.bass*.7;\nif(pose==='walk'){\n  const c=md(bt,2)/2;                          // 2-beat stride\n  step=Math.sin(c*Math.PI*2);\n  bob=Math.abs(Math.cos(c*Math.PI*2))*(6+5*en);\n  gaitX=Math.sin(bt*Math.PI*.5)*(10+8*en);     // travels across pool\n  shoulder=step*.12;\n  leanA=.05+step*.03;\n} else if(pose==='look'){\n  lookT=Math.sin(bt*Math.PI*.5)*(.5+.3*en);    // scanning head turn\n  sway=wob*3 + breath*2;\n  bob=breath*2 + bass*3;\n  shoulder=Math.sin(bt*Math.PI*.5)*.05;\n} else { // lean (against wall / smoking)\n  leanA=.14+breath*.02;\n  sway=Math.sin(bt*Math.PI*.5)*3.4*en + wob*2.4 + bass*2.6;\n  bob=breath*3 + bass*3 + Math.abs(Math.sin(bt*Math.PI*.5))*3.4*en;\n  shoulder=breath*.03 + bass*.02;\n}\n\n// cigarette ember + drag cycle (glows on a slow phrase)\nconst drag = clp(Math.sin(md(bt,8)/8*Math.PI*2)*.5+.5,0,1);\nconst ember = .35 + drag*.5 + A.treble*.3;\n\n// ================= DRAW =================\npush();\ntranslate(P.x*width, (P.y)*height);        // feet anchor\nscale(sc);\n\n// --- light cone from above (layered, cheap) ---\n(function(){\n  const beamH=250, topW=18, botW=118;\n  noStroke();\n  for(let g=4;g>=0;g--){\n    fill(neon?192:46, neon?24:13, 100, (neon?9:7)-g);\n    beginShape();\n    vertex(-(topW+g*3)*.5, -beamH);\n    vertex((topW+g*3)*.5, -beamH);\n    vertex((botW+g*10)*.5, 6);\n    vertex(-(botW+g*10)*.5, 6);\n    endShape(CLOSE);\n  }\n  // floor pool of light\n  for(let r=0;r<4;r++){ fill(neon?192:44,18,100, 9-r*2); ellipse(0, 4, botW+r*40, 30+r*10); }\n})();\n\n// --- rain streaks (in the beam) ---\nif(P.density>.02){\n  const nR=Math.round(P.density*70);\n  stroke(neon?192:44, 12, 100, 26);\n  for(let i=0;i<nR;i++){ const R=S.rain[i];\n    const yy=frc(R.y + K.t*R.sp*.9)*260-250;\n    const xx=(R.x-.5)*150 + wob*4;\n    strokeWeight(1);\n    line(xx, yy, xx-2, yy+R.ln);\n  }\n}\n\n// ================= FIGURE =================\n// silhouette-first: the detective is a dark mass shaped by the light\nfunction bodyFill(a){\n  if(xray){ noFill(); return; }\n  if(neon){ fill(H,10,7,a); return; }        // near-black, rim added later\n  if(chalk){ fill(210,8,20,a); return; }\n  fill(230,30,5,a);                           // deep noir black-blue\n}\nfunction rim(a,w){\n  // edge light catching the form\n  if(xray){ stroke(190,50,96,a); strokeWeight(w); noFill(); return; }\n  if(neon){ stroke(H,80,100,a); strokeWeight(w); noFill(); return; }\n  if(chalk){ stroke(210,10,96,a); strokeWeight(w); noFill(); return; }\n  stroke(44,20,98,a*.9); strokeWeight(w); noFill();\n}\n\npush();\ntranslate(sway+gaitX, -bob);\nrotate(leanA*.5);\n\nconst legSpread=pose==='walk'?step*16:6;\nconst hipY=-96, shY=-186;\n\n// ---- legs (trousers) ----\n(function(){\n  const sw=13;\n  // back leg\n  push();\n  bodyFill(100); if(xray){ rim(80,2);}\n  // left/back\n  rimLeg(-legSpread*.5, pose==='walk'? step*.4:.06, sw);\n  rimLeg(legSpread*.5, pose==='walk'? -step*.4:-.06, sw);\n  pop();\n})();\nfunction rimLeg(dx,ang,sw){\n  push(); translate(dx, hipY); rotate(ang);\n  if(!xray){ bodyFill(100); noStroke();\n    beginShape(); vertex(-sw*.5,0); vertex(sw*.5,0); vertex(sw*.42,86); vertex(-sw*.5,86); endShape(CLOSE);\n    // shoe\n    bodyFill(100); ellipse(2,92,sw*1.7,10);\n  } else { rim(85,2); line(0,0,ang*10,88); }\n  // rim light on outer edge\n  rim(neon?90:60,1.6); line(-sw*.5,4,-sw*.5,84);\n  pop();\n}\n\n// ---- long coat / trench (the signature mass) ----\n(function(){\n  const flare=P.throw*18;\n  const coatW=52;\n  if(!xray){ bodyFill(100); noStroke(); }\n  else { rim(88,2); }\n  beginShape();\n  vertex(-coatW*.5, shY+8);                         // left shoulder\n  bezierVertex(-coatW*.7,-150,-coatW*.75,-70, -coatW*.6-flare*(.6+.6*Math.abs(step)), -6);\n  vertex(coatW*.6+flare*(.6+.6*Math.abs(step)), -6); // hem swings with stride\n  bezierVertex(coatW*.75,-70, coatW*.7,-150, coatW*.5, shY+8);\n  bezierVertex(coatW*.3, shY-4, -coatW*.3, shY-4, -coatW*.5, shY+8);\n  endShape(CLOSE);\n  // coat front seam + lapels (form-from-shadow, not outline)\n  if(!xray){\n    rim(neon?70:46,1.6);\n    line(0,shY+6,0,-10);                              // center seam catches light\n    // lapel triangles\n    noStroke();\n    if(neon){ fill(H,70,90,50);} else if(chalk){ fill(210,10,92,55);} else { fill(44,18,96,42);}\n    beginShape(); vertex(-3,shY+4); vertex(-16,shY-2); vertex(-6,-40); endShape(CLOSE);\n    beginShape(); vertex(3,shY+4); vertex(16,shY-2); vertex(6,-40); endShape(CLOSE);\n    // belt\n    if(neon){ stroke(H,80,100,70);} else if(chalk){ stroke(210,12,96,70);} else stroke(44,22,98,60);\n    strokeWeight(3); line(-coatW*.42,-70, coatW*.42,-70);\n  } else {\n    // x-ray: ribs/spine schematic\n    rim(70,1.2);\n    line(0,shY+6,0,-12);\n    for(let i=0;i<5;i++){ const yy=shY+30+i*22; line(-16,yy,16,yy); }\n  }\n})();\n\n// ---- arms ----\n(function(){\n  const armDrop=pose==='look'? lookT*6 : 0;\n  // near arm (holding cigarette up when lean, or swinging when walk)\n  let hxr, hyr;\n  if(pose==='walk'){ hxr=18+step*10; hyr=-96; }\n  else { hxr=16; hyr=-150; } // hand near face for cigarette\n  if(!xray){\n    if(neon){ stroke(H,12,10);} else if(chalk){ stroke(210,8,22);} else stroke(230,30,6);\n    strokeWeight(15); noFill(); }\n  else { rim(85,2); }\n  // far arm (down, behind coat) - subtle\n  strokeCap && strokeCap(ROUND);\n  line(-16,shY+14, -20+shoulder*20, -104);\n  // near arm to hand\n  const ex=(16+hxr)*.5+6, ey=(shY+14+hyr)*.5+shoulder*10;\n  beginShape(); vertex(16,shY+14); if(typeof quadraticVertex==='function'){ quadraticVertex(ex,ey,hxr,hyr);} else { vertex(ex,ey); vertex(hxr,hyr);} endShape();\n  // rim on near arm\n  rim(neon?80:52,1.6); line(20,shY+18,hxr+2,hyr);\n  // hand\n  if(!xray){ if(neon){ fill(28,20,20);} else if(chalk){ fill(210,8,30);} else fill(24,26,16);} noStroke();\n  if(!xray) ellipse(hxr,hyr,10,10);\n  S.hx=hxr; S.hy=hyr;\n})();\n\n// ---- head + fedora ----\npush();\ntranslate(lookT*10, shY-4);\nrotate(lookT*.5 + wob*.02);\n// head\nif(!xray){ if(neon){ fill(28,18,18);} else if(chalk){ fill(210,8,32);} else fill(24,25,15);} noStroke();\nif(!xray){\n  beginShape();\n  vertex(-9,2); bezierVertex(-11,-10,-8,-20,0,-20); bezierVertex(8,-20,11,-10,9,2);\n  bezierVertex(8,10,-8,10,-9,2); endShape(CLOSE);\n} else { rim(85,2); ellipse(0,-8,20,26); }\n// jaw/cheek rim light (chiaroscuro \u2014 the face is half-lit)\nrim(neon?85:58,1.8);\nnoFill(); beginShape(); vertex(9,2); bezierVertex(8,10,2,12,-2,11); endShape();\n// hat brim (wide fedora shadow)\nif(!xray){ if(neon){ fill(H,10,8);} else if(chalk){ fill(210,8,18);} else fill(230,30,4);} noStroke();\nif(!xray){\n  ellipse(0,-14, 46, 12);                     // brim\n  // crown\n  beginShape(); vertex(-13,-15); bezierVertex(-12,-30,12,-30,13,-15); endShape(CLOSE);\n  // hatband\n  if(neon){ fill(H,70,80,70);} else if(chalk){ fill(210,10,88,60);} else fill(44,16,90,42);\n  rect(-13,-17,26,3);\n} else {\n  rim(70,1.4); ellipse(0,-14,46,12); line(-12,-15,-12,-28); line(12,-15,12,-28);\n}\n// brim front dips over eyes \u2014 a hard shadow slash\nif(!xray){ if(neon){ fill(H,10,6,90);} else if(chalk){ fill(210,8,14,88);} else fill(230,30,3,92);} noStroke();\nif(!xray) quad(-16,-13, 16,-13, 12,-6, -12,-6);\npop(); // head\n\npop(); // figure translate\n\n// ---- cigarette smoke ribbon (rises from hand) ----\n(function(){\n  if(xray) return;\n  const baseX=(S.hx!=null?S.hx:16)+sway+gaitX, baseY=(S.hy!=null?S.hy:-150)-bob-4;\n  // ember\n  noStroke();\n  fill(14,90,100, 70+ember*30); ellipse(baseX+4, baseY, 3+ember*2,3+ember*2);\n  fill(20,60,100, 30); ellipse(baseX+4, baseY, 7,7);\n  // smoke\n  noFill();\n  for(let i=0;i<S.smoke.length;i++){ const M=S.smoke[i];\n    const life=M.sp;\n    if(neon) stroke(H,30,100, 14); else stroke(0,0,100, 12+drag*8);\n    strokeWeight(M.w*.5);\n    beginShape();\n    for(let s=0;s<=6;s++){\n      const yy=baseY - s*16 - frc(K.t*.15*life+M.ph)*10;\n      const amp=(s*s)*.5*(1+drag*.6);\n      const xx=baseX+4 + Math.sin(K.t*.6*M.sp + M.ph + s*.6)*amp*.14 + M.drift*s*1.4;\n      if(s===0) vertex(xx,yy); else curveVertex(xx,yy);\n    }\n    endShape();\n  }\n})();\n\npop(); // root\n\n// --- film grain (full-frame, seed-fixed jitter) ---\n(function(){\n  const gj=Math.floor(K.t*12);\n  noStroke();\n  for(let i=0;i<S.grain.length;i++){ const G=S.grain[i];\n    const a=fr(i*2+gj)*(chalk?10:15);\n    fill(0,0, fr(i)>.5?100:0, a);\n    const gx2=frc(G.x+.5+ i*0.013)*width + sn(K.t*3+i,i)*3;\n    const gy2=frc(G.y+.5+ i*0.017)*height;\n    ellipse(gx2, gy2, G.r*u*.006+.6, G.r*u*.006+.6);\n  }\n})();\n"
+}

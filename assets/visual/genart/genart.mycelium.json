@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mycelium",
+  "kind": "genart",
+  "name": "Mycelium",
+  "desc": "A fungal colony feeding \u2014 apical hyphae split, fuse and thread outward through a nutrient field, then autolyse behind the advancing margin as the medium is exhausted, so the network perpetually colonises, starves, dies back and recolonises the plate.",
+  "tags": [
+    "mycelium",
+    "fungus",
+    "fungal",
+    "hyphae",
+    "hypha",
+    "mould",
+    "mold",
+    "mushroom",
+    "network",
+    "anastomosis",
+    "branching",
+    "filament",
+    "colony",
+    "petri",
+    "agar",
+    "culture",
+    "microscopy",
+    "darkfield",
+    "specimen",
+    "biology",
+    "organic",
+    "clinical",
+    "eerie",
+    "growth",
+    "process",
+    "emergence",
+    "decay"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hyphal extension rate, nutrient uptake and exposure"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tip population and depletion wash"
+    },
+    "hue": {
+      "default": 96,
+      "min": 0,
+      "max": 360,
+      "doc": "culture hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on growth and process time"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "sensing distance and inoculum calibre"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "inoculation focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "inoculation focus y"
+    },
+    "branch": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "apical tip-splitting rate"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "colonise",
+        "starve"
+      ],
+      "doc": "multi-minute program"
+    },
+    "style": {
+      "default": "microscopy",
+      "options": [
+        "microscopy",
+        "brightfield",
+        "stain",
+        "schematic"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "colonise",
+    "starve"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:13:53+00:00",
+    "fps": 65.4,
+    "motion": 0.1624,
+    "lum": 0.41
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 96, speed: 1, scale: 1, x: .5, y: .5, branch: .5, act: 'cycle', style: 'microscopy', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = Math.max(360, Math.min(1180, Math.round(width * .68)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst GW = 128, GH = Math.max(48, Math.round(GW * height / width));\nconst MAXT = 1100;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- style ground constants (baked grayscale; hue stays live via tint) -----\nconst st = P.style;\nconst agarV = st === 'brightfield' ? 84 : st === 'stain' ? 89 : st === 'schematic' ? 25 : 21;\nconst filV = st === 'brightfield' ? 13 : st === 'stain' ? 18 : st === 'schematic' ? 90 : 97;\nconst hOff = st === 'brightfield' ? -46 : st === 'stain' ? 118 : st === 'schematic' ? 112 : 0;\nconst tSat = st === 'brightfield' ? 34 : st === 'stain' ? 50 : st === 'schematic' ? 62 : 52;\n\nif (!S.bio || S.bw !== BW || S.bh !== BH || S.styleUsed !== st || S.seedUsed !== P.seed) {\n  if (S.bio && S.bio.remove) S.bio.remove();\n  if (S.nug && S.nug.remove) S.nug.remove();\n  S.bio = createGraphics(BW, BH); S.bio.pixelDensity(1);\n  S.nug = createGraphics(GW, GH); S.nug.pixelDensity(1);\n  S.bw = BW; S.bh = BH; S.styleUsed = st; S.seedUsed = P.seed; S.tick = 0; S.cur = 0; S.nodes = [];\n  const b = S.bio; b.colorMode(HSB, 360, 100, 100, 100); b.noStroke(); b.background(0, 0, agarV);\n  for (let i = 0; i < 260; i++) {\n    const x = fr(i * 4 + 1) * BW, y = fr(i * 4 + 2) * BH, r = (12 + fr(i * 4 + 3) * 90) * (BW / 900);\n    const dv = (fr(i * 4 + 4) - .5) * (st === 'schematic' ? 5 : 11);\n    b.fill(0, 0, Math.max(2, Math.min(98, agarV + dv)), 26);\n    b.ellipse(x, y, r * 2, r * 2 * (.7 + fr(i * 7 + 5) * .6));\n  }\n  if (st === 'schematic') {\n    b.stroke(0, 0, agarV + 13, 40); b.strokeWeight(1);\n    const gs = BW / 16;\n    for (let i = 1; i < 16; i++) { b.line(i * gs, 0, i * gs, BH); b.line(0, i * gs, BW, i * gs); }\n    b.noStroke();\n  }\n  if (st === 'stain') for (let i = 0; i < 26; i++) { b.fill(0, 0, agarV - 22, 4); b.ellipse(BW / 2, BH / 2, BW * (2.5 - i * .05), BH * (2.7 - i * .055)); }\n  S.nu = new Float32Array(GW * GH); S.occ = new Float32Array(GW * GH);\n  for (let i = 0; i < GW * GH; i++) S.nu[i] = .55 + fr(i * 1.7 + 3) * .45;\n  S.tx = new Float32Array(MAXT); S.ty = new Float32Array(MAXT); S.px = new Float32Array(MAXT); S.py = new Float32Array(MAXT);\n  S.td = new Float32Array(MAXT); S.ta = new Float32Array(MAXT); S.tw = new Float32Array(MAXT); S.al = new Uint8Array(MAXT);\n}\n\nconst bio = S.bio, nug = S.nug, nu = S.nu, occ = S.occ;\nconst tx = S.tx, ty = S.ty, ppx = S.px, ppy = S.py, td = S.td, ta = S.ta, tw = S.tw, al = S.al;\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst U = BW / 900;\n\n// ---- act: multi-minute medium richness (boom / bust) -----------------------\nlet rich;\nif (P.act === 'colonise') rich = 1.9;\nelse if (P.act === 'starve') rich = .32;\nelse rich = .45 + 1.4 * (.5 + .5 * Math.sin(K.t * .0129 + .8 * Math.sin(K.t * .0043 + 1.7)));\n\n// ---- autolysis: old biomass fades back into the medium ---------------------\nif (S.tick % 30 === 0) { bio.noStroke(); bio.fill(0, 0, agarV, 1.05 + P.speed * .5); bio.rect(0, 0, BW, BH); }\n\n// ---- growth constants ------------------------------------------------------\nconst target = Math.round(90 + P.density * 470);\nconst SP = (.22 + P.energy * .62) * (.45 + P.speed * .75) * U;\nconst SDb = (8 + P.scale * 10) * U;\nconst SDx = SDb / BW * GW, SDy = SDb / BH * GH;\nconst SA = .62;\nconst brP = (.0016 + P.branch * .011) * (.4 + P.speed * .8);\nconst wetG = .5 + .5 * Math.sin(K.t * .083 + .6 * Math.sin(K.t * .0291 + .5));\nconst clampG = (gx, gy, f) => {\n  let ix = Math.floor(gx), iy = Math.floor(gy);\n  if (ix < 0) ix = 0; if (iy < 0) iy = 0; if (ix >= GW) ix = GW - 1; if (iy >= GH) iy = GH - 1;\n  return f[iy * GW + ix];\n};\nconst spawn = (x, y, d, w) => {\n  for (let n = 0; n < MAXT; n++) {\n    S.cur = (S.cur + 1) % MAXT;\n    if (!al[S.cur]) { const k = S.cur; al[k] = 1; tx[k] = x; ty[k] = y; ppx[k] = x; ppy[k] = y; td[k] = d; ta[k] = 0; tw[k] = w; return true; }\n  }\n  return false;\n};\n\nbio.strokeCap(ROUND);\nlet alive = 0;\nfor (let k = 0; k < MAXT; k++) {\n  if (!al[k]) continue;\n  alive++;\n  const gx = tx[k] / BW * GW, gy = ty[k] / BH * GH, d = td[k];\n  const c = clampG(gx + Math.cos(d) * SDx, gy + Math.sin(d) * SDy, nu);\n  const l = clampG(gx + Math.cos(d - SA) * SDx, gy + Math.sin(d - SA) * SDy, nu);\n  const r = clampG(gx + Math.cos(d + SA) * SDx, gy + Math.sin(d + SA) * SDy, nu);\n  let nd = d;\n  const turn = .05 + P.energy * .075;\n  if (l > c && l >= r) nd -= turn; else if (r > c && r > l) nd += turn;\n  nd += (rnd(k * 3 + 1) - .5) * (.05 + (1 - P.energy) * .11);\n  td[k] = nd;\n  const nx = tx[k] + Math.cos(nd) * SP, ny = ty[k] + Math.sin(nd) * SP;\n  if (nx < 5 || nx > BW - 5 || ny < 5 || ny > BH - 5) {\n    td[k] = Math.atan2(BH * .5 - ty[k], BW * .5 - tx[k]) + (rnd(k * 5 + 9) - .5) * .9;\n    ta[k] += 5; if (ta[k] > 3400) al[k] = 0;\n    continue;\n  }\n  const ngx = nx / BW * GW, ngy = ny / BH * GH;\n  const gi = Math.min(GH - 1, Math.max(0, Math.floor(ngy))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(ngx)));\n  // anastomosis: a mature tip meeting OTHER established mycelium ahead fuses.\n  // sampling 2+ cells forward keeps a tip from fusing with its own fresh trail.\n  if (ta[k] > 60 && clampG(ngx + Math.cos(nd) * 2.3, ngy + Math.sin(nd) * 2.3, occ) > 3.2) {\n    al[k] = 0;\n    if (S.nodes.length < 90) S.nodes.push([nx, ny, tw[k]]);\n    bio.stroke(0, 0, filV, 100); bio.strokeWeight(Math.max(.7, tw[k] * U)); bio.line(ppx[k], ppy[k], nx, ny);\n    continue;\n  }\n  if (nu[gi] < .07) { ta[k] += 7; if (ta[k] > 3400) { al[k] = 0; continue; } }\n  nu[gi] -= (.0026 + P.energy * .0042) * (.4 + P.speed * .7);\n  if (nu[gi] < 0) nu[gi] = 0;\n  occ[gi] += .35;\n  const ww = Math.max(.65, tw[k] * U * (st === 'schematic' ? .8 : 1));\n  bio.strokeWeight(ww);\n  bio.stroke(0, 0, filV, st === 'microscopy' ? 74 : 82);\n  bio.line(ppx[k], ppy[k], nx, ny);\n  if (st === 'stain' && Math.floor(ta[k]) % 41 === 0) { bio.strokeWeight(ww * 2.1); bio.stroke(0, 0, filV - 6, 55); bio.point(nx, ny); }\n  ppx[k] = nx; ppy[k] = ny; tx[k] = nx; ty[k] = ny; ta[k]++;\n  if (alive < MAXT - 12 && ta[k] > 24 && rnd(k * 9 + 3) < brP * (.25 + nu[gi]) * rich) {\n    const side = rnd(k * 11 + 5) > .5 ? 1 : -1;\n    spawn(nx, ny, nd + side * (.5 + rnd(k * 13 + 7) * .75), Math.max(.55, tw[k] * .78));\n  }\n  if (ta[k] > 5200) al[k] = 0;\n}\n\n// ---- re-inoculation into the richest unclaimed medium ---------------------\nif (alive < target) {\n  const want = Math.min(6, target - alive);\n  for (let s = 0; s < want; s++) {\n    let bx = GW * .5, by = GH * .5, best = -1e9;\n    for (let q = 0; q < 7; q++) {\n      const cx = rnd(s * 31 + q * 3 + 1) * GW, cy = rnd(s * 31 + q * 3 + 2) * GH;\n      const v = clampG(cx, cy, nu) - clampG(cx, cy, occ) * .16\n        - Math.hypot(cx / GW - P.x, cy / GH - P.y) * .6;      // inoculum drawn toward the anchor\n      if (v > best) { best = v; bx = cx; by = cy; }\n    }\n    const a0 = rnd(s * 41 + 7) * 6.283;\n    for (let q = 0; q < 3; q++) spawn(bx / GW * BW, by / GH * BH, a0 + q * 2.094, 1.5 + P.scale * .9);\n  }\n}\n\n// ---- nutrient regrowth + network memory decay ------------------------------\nconst regen = (.00012 + .00046 * rich) * (.4 + P.speed * .8);\nfor (let i = 0; i < GW * GH; i++) { const v = nu[i]; nu[i] = v + regen * (1 - v); occ[i] *= .9993; }\n\n// ---- fusion knots ----------------------------------------------------------\nif (S.nodes.length) {\n  for (let i = S.nodes.length - 1; i >= 0; i--) {\n    const q = S.nodes[i];\n    if (st === 'schematic') { bio.noFill(); bio.stroke(0, 0, filV, 70); bio.strokeWeight(1); bio.ellipse(q[0], q[1], 7 * U, 7 * U); }\n    else { bio.noStroke(); bio.fill(0, 0, filV, st === 'microscopy' ? 90 : 78); bio.ellipse(q[0], q[1], q[2] * 2.4 * U, q[2] * 2.4 * U); }\n    S.nodes.splice(i, 1);\n  }\n}\n\n// ---- depletion / exudate wash ---------------------------------------------\nnug.loadPixels(); const np = nug.pixels;\nconst wash = 40 + P.density * 52;\nfor (let i = 0; i < GW * GH; i++) {\n  const v = 255 - (1 - Math.min(1, nu[i])) * wash;\n  const o = 4 * i; np[o] = v; np[o + 1] = v * (st === 'brightfield' ? .985 : 1); np[o + 2] = v * .97; np[o + 3] = 255;\n}\nnug.updatePixels();\n\n// ---- composite -------------------------------------------------------------\nconst expo = 62 + P.energy * 30 + K.intensity * 8 + A.rms * 20 + wetG * 9;\npush();\ntint(P.hue + hOff, tSat, Math.min(100, expo + 22), P.alpha);\nimage(bio, 0, 0, width, height);\nblendMode(MULTIPLY);\ntint(0, 0, 100, P.alpha);\nimage(nug, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

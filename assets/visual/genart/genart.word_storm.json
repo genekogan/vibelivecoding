@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.word_storm",
+  "kind": "genart",
+  "name": "Word Storm",
+  "desc": "A swarm of typographic particles that wanders a dark field and periodically coalesces to spell a word before scattering again, rendered as motion-streaked type, sumi ink, CMYK halftone, wireframe, RGB glitch or thermal false-color.",
+  "tags": [
+    "type",
+    "typography",
+    "letters",
+    "word",
+    "text",
+    "kinetic",
+    "kinetic type",
+    "swarm",
+    "particles",
+    "assemble",
+    "scatter",
+    "storm",
+    "flock",
+    "glitch",
+    "halftone",
+    "ink",
+    "sumi",
+    "thermal",
+    "wireframe",
+    "riso",
+    "cmyk",
+    "motion",
+    "generative",
+    "genart",
+    "title",
+    "lyric",
+    "phrase",
+    "dark",
+    "experimental"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swarm particle count (extra floaters beyond the word letters)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "glyph size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "jitter / vibration amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "assemble-breath + typewriter rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "primary type + field hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "assembled word center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "assembled word center y"
+    },
+    "style": {
+      "default": "kinetic",
+      "options": [
+        "kinetic",
+        "ink",
+        "halftone",
+        "wireframe",
+        "glitch",
+        "thermal"
+      ],
+      "doc": "rendering philosophy: streaked sans mass / brushed sumi on paper / CMYK misregister print / schematic outline / RGB-split datamosh / speed-mapped heat false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "swarm layout + wander pattern seed"
+    },
+    "act": {
+      "default": "assemble",
+      "options": [
+        "assemble",
+        "swarm",
+        "typewriter"
+      ],
+      "doc": "dramaturgy: breathe between scatter and spelled word / never resolve (pure swarm) / letters fly in one at a time"
+    },
+    "word": {
+      "default": "LIVE",
+      "doc": "phrase to spell (uppercased, <=16 chars)"
+    }
+  },
+  "acts": [
+    "assemble",
+    "swarm",
+    "typewriter"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:33:12+00:00",
+    "fps": 60.6,
+    "motion": 0.0643,
+    "lum": 0.089
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, speed:1, hue:210, x:.5, y:.5, style:'kinetic', seed:0, act:'assemble', word:'LIVE' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst TAU=6.28318530718, u=Math.min(width,height);\nconst fr = i => { const q=Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q-Math.floor(q); };\nconst style=P.style, H=((P.hue%360)+360)%360;\nlet word=((''+P.word).toUpperCase()).slice(0,16); if(!/[^ ]/.test(word)) word='LIVE';\nconst paper = (style==='ink'||style==='halftone');\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// ---- background cache (owns the frame) ----\nconst bgKey = width+'x'+height+'|'+style+'|'+P.seed+'|'+(H|0);\nif (!S.bg || S.bgKey!==bgKey){\n  const g = S.bg || (S.bg = createGraphics(width,height));\n  g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.clear();\n  if (paper){\n    g.background((H+30)%360, 8, 84);\n    g.noStroke();\n    for (let i=0;i<1600;i++){ const x=fr(i*2)*width, y=fr(i*2+1)*height; g.fill((H+20)%360, 6, 74+fr(i*3)*12, 12); g.rect(x,y,1.6,1.6); }\n    for (let r=0;r<6;r++){ g.noFill(); g.stroke(30,10,55,4); g.strokeWeight(u*0.02*(6-r)); g.rect(0,0,width,height); }\n  } else {\n    g.background((H+200)%360, 42, 6);\n    g.noStroke();\n    for (let r=12;r>0;r--){ g.fill((H+180)%360, 45, 5+r*0.55, 5); g.ellipse(width/2,height/2, u*0.16*r, u*0.16*r); }\n    for (let i=0;i<900;i++){ const x=fr(i*5)*width, y=fr(i*5+2)*height; g.fill(0,0,92,fr(i*7)*9); g.rect(x,y,1,1); }\n  }\n  S.bgKey=bgKey;\n}\nimage(S.bg,0,0);\n\n// ---- layout / homes ----\ntextStyle(BOLD); textAlign(CENTER,CENTER);\nconst ts=u*0.15*P.scale; textSize(ts);\nconst gap=ts*0.05;\nlet total=0;\nfor (let i=0;i<word.length;i++){ const c=word[i]; total += ((c===' ')?ts*0.5:textWidth(c)) + gap; }\ntotal-=gap;\nlet cx=P.x*width - total/2;\nconst homeX=[], homeC=[];\nfor (let i=0;i<word.length;i++){ const c=word[i]; const w=(c===' ')?ts*0.5:textWidth(c); if(c!==' '){ homeX.push(cx+w/2); homeC.push(c);} cx += w+gap; }\nconst nSlots=Math.max(1,homeC.length);\nconst homeY=P.y*height;\n\n// ---- particle rebuild ----\nconst extras=Math.round(P.density*64);\nconst N=Math.min(90, nSlots+extras);\nconst pKey=nSlots+'|'+N+'|'+P.seed+'|'+word;\nif (!S.parts || S.pKey!==pKey){\n  S.parts=[];\n  for (let i=0;i<N;i++){\n    const slot = i<nSlots? i : -1;\n    let c = slot>=0? homeC[slot] : word[Math.floor(fr(i*9+1)*word.length)];\n    if (c===' ') c=homeC[i%nSlots];\n    S.parts.push({ id:i, slot, c,\n      fx:0.3+fr(i*3)*0.9, fy:0.3+fr(i*4+2)*0.9,\n      ph:fr(i*5)*TAU, ph2:fr(i*6+1)*TAU,\n      ax:0.30+fr(i*7)*0.17, ay:0.28+fr(i*8+3)*0.17,\n      px:P.x*width, py:P.y*height, ppx:P.x*width, ppy:P.y*height });\n  }\n  S.pKey=pKey;\n}\n\n// ---- assemble dramaturgy ----\nconst sp=P.speed, act=P.act;\nconst breath=0.5+0.5*Math.sin(K.t*0.12*sp + 1.3);\nconst twProg=(K.beat*sp)%(nSlots+3);\nfunction slotAsm(p){\n  if (p.slot<0) return 0;\n  if (act==='swarm') return 0.06*breath;\n  if (act==='typewriter') return constrain(twProg - p.slot, 0, 1);\n  return constrain(0.45*breath + 0.55*constrain((K.intensity-0.25)/0.6,0,1), 0, 1);\n}\n\n// ---- per-glyph render by style ----\nfunction drawG(c,x,y,vx,vy,lit,id,gs){\n  if (style==='wireframe'){\n    noFill(); stroke(H,55,95, 42+lit*48); strokeWeight(Math.max(1,gs*0.018));\n    text(c,x,y); noStroke(); return;\n  }\n  if (style==='glitch'){\n    blendMode(ADD); noStroke();\n    const o=gs*0.06*(1+(A.treble||0)*3);\n    const sl=(fr(id+Math.floor(K.t*20))<0.12)? gs*0.28 : 0;\n    fill(0,80,100,58); text(c,x-o,y);\n    fill(150,80,100,58); text(c,x+o+sl,y);\n    fill(225,80,100,58); text(c,x,y-o);\n    blendMode(BLEND); return;\n  }\n  if (style==='thermal'){\n    const s=constrain((Math.abs(vx)+Math.abs(vy))/(gs*0.6),0,1);\n    const hh=(240 - s*240 + 360)%360;\n    const bb=52 + s*46;\n    const ss=(s>0.9)? Math.max(0,(1-(s-0.9)*9))*100 : 100;\n    noStroke(); fill(hh, ss, bb, 58+lit*38); text(c,x,y);\n    if (s>0.62){ fill(58,18,100,55*lit); text(c,x,y); }\n    return;\n  }\n  if (style==='ink'){\n    noStroke(); const ink=(H+15)%360;\n    for (let q=0;q<3;q++){ const ox=(fr(id*7+q)-0.5)*gs*0.05, oy=(fr(id*7+q+9)-0.5)*gs*0.05;\n      fill(ink, 32, 12+q*4, 24 - q*5 + lit*24); text(c,x+ox,y+oy); }\n    fill(ink,42,8, 28+lit*28); text(c,x+gs*0.01,y);\n    return;\n  }\n  if (style==='halftone'){\n    blendMode(MULTIPLY); noStroke();\n    const o=gs*0.03*(1+(A.treble||0)*2);\n    fill(190,80,90,72); text(c,x-o,y-o*0.5);\n    fill(320,80,90,72); text(c,x+o,y);\n    fill(55,85,95,72);  text(c,x,y+o);\n    blendMode(BLEND); return;\n  }\n  // kinetic (default): clean mass + additive motion streaks\n  blendMode(ADD); noStroke();\n  for (let q=1;q<=2;q++){ const f=q*0.55; fill(H,55,100, 9+lit*11); text(c,x-vx*f,y-vy*f); }\n  blendMode(BLEND);\n  fill(H, 28+lit*16, 100, 68+lit*30); text(c,x,y);\n}\n\n// ---- update + draw ----\nconst eng=P.energy;\nfor (let k=0;k<S.parts.length;k++){\n  const p=S.parts[k];\n  const a=slotAsm(p);\n  const wx=(0.5+p.ax*Math.sin(K.t*p.fx*0.33 + p.ph))*width;\n  const wy=(0.5+p.ay*Math.cos(K.t*p.fy*0.29 + p.ph2))*height;\n  const hx=p.slot>=0?homeX[p.slot]:wx;\n  const hy=p.slot>=0?homeY:wy;\n  const jitS=ts*(0.015+0.05*(1-a))*(0.6+eng);\n  const jx=Math.sin(K.t*6*p.fx+p.ph)*jitS + (A.treble||0)*ts*0.12*(fr(p.id*3+Math.floor(K.t*24))-0.5)*2;\n  const jy=Math.cos(K.t*5*p.fy+p.ph2)*jitS + (1-a)*K.pulse*ts*0.2*Math.sin(p.ph*2);\n  p.ppx=p.px; p.ppy=p.py;\n  p.px=lerp(wx,hx,a)+jx;\n  p.py=lerp(wy,hy,a)+jy;\n  const vx=p.px-p.ppx, vy=p.py-p.ppy;\n  const gs=ts*(p.slot>=0?1:(0.5+0.4*fr(p.id)));\n  textSize(gs);\n  const lit=p.slot>=0?(0.5+0.5*a):0.42;\n  drawG(p.c, p.px, p.py, vx, vy, lit, p.id, gs);\n}\ntextSize(ts);\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

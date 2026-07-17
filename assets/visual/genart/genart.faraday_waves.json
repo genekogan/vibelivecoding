@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.faraday_waves",
+  "kind": "genart",
+  "name": "Faraday Waves",
+  "desc": "A vertically-vibrated fluid surface that spontaneously patterns into a shimmering lattice of standing-wave cells \u2014 squares, hexagons, stripes and quasicrystal tilings pulse and re-tile under backlit teal-and-indigo water with bright caustic crests.",
+  "tags": [
+    "faraday",
+    "waves",
+    "standing-wave",
+    "fluid",
+    "surface",
+    "water",
+    "caustics",
+    "lattice",
+    "cymatics",
+    "vibration",
+    "oscillation",
+    "interference",
+    "hexagon",
+    "square",
+    "stripe",
+    "quasicrystal",
+    "teal",
+    "indigo",
+    "iridescent",
+    "mercury",
+    "thermal",
+    "physics",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "shimmer",
+    "ripple",
+    "ocean",
+    "backlit",
+    "liquid"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "cell size / lattice frequency (higher = smaller, denser cells)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wave relief + caustic contrast (higher = brighter, sharper crests)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice richness (extra wave modes / finer tiling)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "drift + parametric-drive rate"
+    },
+    "drive": {
+      "default": 0.35,
+      "min": 0.0,
+      "max": 0.9,
+      "doc": "parametric vibration depth (pulsing of the caustic crests)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base water hue (backlit-water/oil styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice origin x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice origin y"
+    },
+    "style": {
+      "default": "water",
+      "options": [
+        "water",
+        "mercury",
+        "thermal",
+        "oil",
+        "mono"
+      ],
+      "doc": "render philosophy: backlit-water / silver mercury / thermal false-color / iridescent oil-film / height greyscale"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic mode phases / jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:43:14+00:00",
+    "fps": 61.0,
+    "motion": 0.0767,
+    "lum": 0.254
+  },
+  "code": "const D = { scale: 1, energy: .6, density: .5, speed: 1, drive: .35, hue: 200, x: .5, y: .5, style: 'water', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse buffer ----\nconst BW = 184, BH = Math.max(48, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\n\n// ---- seed-dependent per-mode phase / jitter ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph0 = []; S.aj = []; S.cj = []; S.dr = [];\n  for (let m = 0; m < 6; m++) { S.ph0[m] = fr(m + 1) * 6.2831853; S.aj[m] = (fr(m + 11) - 0.5) * 0.16; S.cj[m] = 0.9 + fr(m + 21) * 0.22; S.dr[m] = 0.08 + fr(m + 31) * 0.22; }\n}\n\n// ---- helpers ----\nfunction hsv(h, s, v) { h = (((h % 360) + 360) % 360) / 60; const c = v * s, x = c * (1 - Math.abs(h % 2 - 1)), mm = v - c; let r, g, b; if (h < 1) { r = c; g = x; b = 0; } else if (h < 2) { r = x; g = c; b = 0; } else if (h < 3) { r = 0; g = c; b = x; } else if (h < 4) { r = 0; g = x; b = c; } else if (h < 5) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; } return [r + mm, g + mm, b + mm]; }\nfunction cl(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }\nfunction lp(a, b, t) { return a + (b - a) * t; }\n\n// ---- pattern lattice (6 mode directions) blended on section ----\nconst ANG = [0, 90, 60, 120, 30, 150];\nconst PAT = {\n  squares: [1, 1, 0, 0, 0, 0],\n  hex:     [1, 0, 1, 1, 0, 0],\n  stripes: [1, 0, 0, 0, 0, 0],\n  quasi:   [.82, .82, .82, .82, .82, .82],\n  rhombic: [1, 0, 0, 0, 1, 1]\n};\nconst SEQ = [PAT.squares, PAT.hex, PAT.stripes, PAT.quasi, PAT.squares, PAT.rhombic, PAT.hex, PAT.quasi];\nconst tgt = SEQ[((K.section | 0) % 8 + 8) % 8];\nif (!S.w) S.w = tgt.slice();\nfor (let m = 0; m < 6; m++) S.w[m] = lp(S.w[m], tgt[m], 0.05);\n\n// ---- time driven parameters (all from K.t \u2192 perpetual, never re-phases) ----\nconst spd = P.speed;\nconst rot = K.t * 0.014 * spd;                                  // lattice slowly re-tiles\nconst cellN = 3 + P.scale * 4.6 + K.intensity * 1.6 + P.density * 2.2;\nconst driveEnv = 1 - P.drive * 0.5 + P.drive * 0.5 * Math.sin(K.t * (0.9 + spd * 0.6)); // parametric vibration [1-drive,1]\nconst envC = cl(driveEnv + A.bass * 0.55);                      // caustic drive + kick\nconst caGain = (0.5 + P.energy * 1.15) * (0.55 + 0.45 * envC) + A.rms * 0.6;\nconst contrast = 0.5 + P.energy * 0.55;\nconst style = P.style, hueBase = P.hue;\n\n// precompute per-mode wave vectors + traveling phase\nconst kx = [], ky = [], ph = [], wv = [];\nlet totW = 0;\nfor (let m = 0; m < 6; m++) {\n  const we = S.w[m] * (m < 2 ? 1 : (0.3 + P.density * 0.7));\n  wv[m] = we; totW += we;\n  const a = (ANG[m] * Math.PI / 180) + rot + S.aj[m];\n  const kk = 6.2831853 * cellN * S.cj[m];\n  kx[m] = kk * Math.cos(a); ky[m] = kk * Math.sin(a);\n  ph[m] = K.t * S.dr[m] * spd + S.ph0[m];\n}\nif (totW < 0.001) totW = 0.001;\nconst invW = 1 / totW;\n\n// ---- render coarse height field ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst ox = P.x, oy = P.y;\nfor (let j = 0; j < BH; j++) {\n  const vv = (j / BW - oy * BH / BW);\n  for (let i = 0; i < BW; i++) {\n    const uu = (i / BW - ox);\n    let h = 0, dhx = 0, dhy = 0;\n    for (let m = 0; m < 6; m++) {\n      const w = wv[m]; if (w < 0.01) continue;\n      const arg = kx[m] * uu + ky[m] * vv + ph[m];\n      const c = Math.cos(arg), s = Math.sin(arg);\n      h += w * c; dhx += w * kx[m] * s; dhy += w * ky[m] * s;\n    }\n    const hn = h * invW;                                  // -1..1\n    const slopeN = cl(Math.sqrt(dhx * dhx + dhy * dhy) * invW / (6.2831853 * cellN));\n    const crest = cl(hn * contrast * 0.5 + 0.5);\n    const spec = Math.pow(cl((crest - 0.6) / 0.4), 3) * caGain;   // sharp caustic on crests\n    const edge = Math.pow(slopeN, 1.4);\n    let r, gg, b;\n    if (style === 'mercury') {\n      const base = 0.10 + 0.52 * crest;\n      const sp = Math.pow(crest, 5) * (0.7 + envC) + spec * 0.5;\n      r = base * 0.94 + sp; gg = base + sp; b = base * 1.08 + sp * 1.05;\n      r -= edge * 0.10; gg -= edge * 0.10; b -= edge * 0.08;\n    } else if (style === 'thermal') {\n      const t01 = cl(crest * 0.9 + spec * 0.3);\n      r = cl(1.7 * t01 - 0.12);\n      gg = cl(2.1 * t01 - 0.95);\n      b = cl(3.2 * t01 - 2.3) + (t01 < 0.28 ? (0.28 - t01) * 1.5 : 0);\n      const w2 = spec * 0.5; r += w2; gg += w2; b += w2 * 0.7;\n    } else if (style === 'oil') {\n      const hh = hueBase + crest * 190 + slopeN * 150 + driveEnv * 34;\n      const co = hsv(hh, 0.62, 0.34 + 0.55 * crest);\n      const w2 = spec * 0.55;\n      r = co[0] + w2; gg = co[1] + w2 * 1.05; b = co[2] + w2 * 1.1;\n    } else if (style === 'mono') {\n      const gv = Math.pow(crest, 1.15);\n      const sp = spec * 0.6;\n      r = gv + sp; gg = gv + sp; b = gv + sp;\n    } else { // water (default, backlit teal/indigo + caustics)\n      const deep = hsv(hueBase + 34, 0.86, 0.17);\n      const teal = hsv(hueBase, 0.82, 0.46);\n      const pale = hsv(hueBase - 26, 0.42, 0.95);\n      let br, bg, bb;\n      if (crest < 0.6) { const t = crest / 0.6; br = lp(deep[0], teal[0], t); bg = lp(deep[1], teal[1], t); bb = lp(deep[2], teal[2], t); }\n      else { const t = (crest - 0.6) / 0.4; br = lp(teal[0], pale[0], t); bg = lp(teal[1], pale[1], t); bb = lp(teal[2], pale[2], t); }\n      r = br + spec * 0.72 + edge * 0.10 * 0.3;\n      gg = bg + spec * 0.95 + edge * 0.14 * 0.5;\n      b = bb + spec * 1.0 + edge * 0.16 * 0.6;\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = cl(r) * 255; px[o + 1] = cl(gg) * 255; px[o + 2] = cl(b) * 255; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- composite ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// ---- treble caustic sparkle overlay (partial, ADD, never full-frame flash) ----\nif (A.treble > 0.02 || A.rms > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  const gl = (A.treble * 0.6 + A.rms * 0.35) * (0.4 + P.energy);\n  fill((hueBase - 20 + 360) % 360, 40, 100, cl(gl) * 20);\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

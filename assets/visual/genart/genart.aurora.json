@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.aurora",
+  "kind": "genart",
+  "name": "Aurora Ribbons",
+  "desc": "Full-bleed polar-night sky where layered noise waves luminous aurora curtains that drift and shimmer above a seeded starfield.",
+  "tags": [
+    "aurora",
+    "borealis",
+    "northern lights",
+    "curtains",
+    "ribbons",
+    "polar",
+    "night",
+    "sky",
+    "stars",
+    "glow",
+    "ambient",
+    "cold",
+    "green",
+    "eerie",
+    "atmospheric",
+    "generative",
+    "backdrop",
+    "ethereal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "curtain count (3..11)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness / glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "ribbon width & wave size vs design"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "drift + shimmer rate"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "base aurora hue (green~150, magenta~300)"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hue spread top->bottom fringe"
+    },
+    "wave": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal wave amplitude"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.3,
+      "max": 0.98,
+      "doc": "curtain bottom / horizon height"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field horizontal bias"
+    },
+    "style": {
+      "default": "polar night",
+      "options": [
+        "polar night",
+        "spectral",
+        "thermal",
+        "ink",
+        "schematic"
+      ],
+      "doc": "render philosophy: soft night curtains / vivid neon bands / false-color heat ramp / desaturated sumi wash / schematic vector-field isolines (non-representational)"
+    },
+    "act": {
+      "default": "curtain",
+      "options": [
+        "curtain",
+        "storm",
+        "corona"
+      ],
+      "doc": "multi-minute dramaturgy: steady curtains / substorm surges / overhead corona"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "starfield + curtain layout seed"
+    }
+  },
+  "acts": [
+    "curtain",
+    "storm",
+    "corona"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:36:58+00:00",
+    "fps": 59.9,
+    "motion": 0.0251,
+    "lum": 0.068
+  },
+  "code": "const D = { density:.5, energy:.6, scale:1, speed:1, hue:150, spread:.5, wave:.5, y:.82, x:.5, style:'polar night', act:'curtain', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H), TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst st = P.style, sd = (P.seed | 0);\nconst key = W + 'x' + H + '_' + sd;\nconst hsh = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- cached night sky + stars (size + seed keyed) ----\nif (!S.sky || S.skyKey !== key) {\n  S.skyKey = key;\n  if (S.sky && S.sky.remove) S.sky.remove();\n  const g = createGraphics(W, H);\n  g.colorMode(HSB, 360, 100, 100, 100); g.noStroke();\n  const topH = 228, botH = 252, bands = 46;\n  for (let i = 0; i < bands; i++) {\n    const f = i / bands;\n    const h = topH + (botH - topH) * f;\n    const b = 4 + f * 9;\n    g.fill(h, 58 - f * 20, b); g.rect(0, H * f - 1, W, H / bands + 2);\n  }\n  const ns = Math.floor(80 + (W * H) / 10000);\n  for (let i = 0; i < ns; i++) {\n    const sx = hsh(i * 2 + 1) * W, sy = hsh(i * 2 + 2) * H * 0.92;\n    const mag = hsh(i * 3 + 5);\n    g.fill(210, 18, 55 + mag * 45, 25 + mag * 65);\n    g.circle(sx, sy, 0.4 + mag * 1.5);\n  }\n  S.sky = g;\n}\nimage(S.sky, 0, 0, W, H);\n\nconst intn = (K.intensity != null ? K.intensity : 0.6);\nconst swell = (K.swell != null ? K.swell : 0);\n\n// ---- subtle live star twinkle (keeps sky itself in motion) ----\nnoStroke(); blendMode(ADD);\nfor (let i = 0; i < 7; i++) {\n  const sx = hsh(i * 7 + 3) * W, sy = hsh(i * 7 + 4) * H * 0.55;\n  const a = Math.sin(K.t * (1.1 + i * 0.27) + i * 1.3) * 0.5 + 0.5;\n  fill(200, 14, 100, a * 16);\n  circle(sx, sy, 1.4 + a * 2.6);\n}\nblendMode(BLEND);\n\n// ---- aurora curtains ----\nconst en = clp(P.energy, 0, 1);\nconst sc = clp(P.scale, 0.4, 2.4);\nconst nC = Math.round(3 + P.density * 8);          // 3..11 curtains\nconst R = 20;                                       // rows per curtain\nconst top = H * 0.02, bot = H * clp(P.y, 0.3, 0.98);\nconst span = bot - top;\nconst zt = K.t * (0.06 + P.speed * 0.05);           // continuous noise evolution\nconst drift = K.t * (5 + P.speed * 9);              // px/s horizontal slide (real-time motion floor)\nconst waveAmp = (0.03 + P.wave * 0.14) * W * sc;    // horizontal wave amplitude\nconst audioB = A.mid * 0.6 + A.treble * 0.4 + A.rms * 0.5;\nconst hueBase = P.hue;\nconst spread = 30 + P.spread * 170;                 // hue spread top -> bottom fringe\n\n// act dramaturgy: steady curtain / substorm surges / overhead corona\nlet ampMul = 1, briMul = 1, driftMul = 1;\nif (P.act === 'storm') {\n  const su = Math.sin(K.section * 1.3 + K.t * 0.08) * 0.5 + 0.5;\n  ampMul = 1 + su * 0.9; briMul = 0.7 + su * 1.0 + K.pulse * 0.3; driftMul = 1 + su * 1.3;\n} else if (P.act === 'corona') {\n  ampMul = 1.3; briMul = 1.12; driftMul = 0.45;\n}\nconst bright = (0.5 + en * 0.7) * (0.55 + intn * 0.7) * briMul;\nconst useAdd = (st === 'polar night' || st === 'spectral' || st === 'thermal');\n\nfunction bandColor(rr, hueOff, cB) {\n  const prof = Math.pow(Math.sin(Math.PI * Math.min(1, rr * 1.04)), 0.7);\n  const glow = bright * cB * (0.8 + audioB * 0.7 + swell * 0.3);\n  let h, s, b, al;\n  if (st === 'thermal') {\n    const m = clp(prof * glow * 0.95, 0, 1);\n    h = (250 - 235 * m + 360) % 360; s = 92 - m * 34; b = 38 + 62 * m; al = prof * glow * 34;\n  } else if (st === 'ink') {\n    h = 220; s = 5 + 9 * rr; b = 66 + 24 * prof; al = prof * glow * 52;\n  } else if (st === 'spectral') {\n    h = (hueBase + hueOff + rr * spread + K.t * 8) % 360; s = 95; b = 100; al = prof * glow * 32;\n  } else {\n    h = (hueBase + hueOff + rr * spread + K.t * 4) % 360; s = 66 + 18 * rr; b = 78 + 22 * prof; al = prof * glow * 34;\n  }\n  return [((h % 360) + 360) % 360, clp(s, 0, 100), clp(b, 0, 100), clp(al, 0, 90)];\n}\n\nif (useAdd) blendMode(ADD);\nfor (let c = 0; c < nC; c++) {\n  const cseed = c * 17.3;\n  let bx = (hsh(c * 4 + 11) * 1.2 - 0.1) * W\n    + drift * driftMul * (0.6 + hsh(c * 4 + 12) * 0.8)\n    + (P.x - 0.5) * W * 0.3;\n  bx = ((bx % (W * 1.2)) + W * 1.2) % (W * 1.2) - W * 0.1;\n  const hueOff = (hsh(c * 4 + 13) - 0.5) * spread * 0.6;\n  const cB = 0.6 + hsh(c * 4 + 14) * 0.6;\n  const baseHW = (0.02 + P.density * 0.02) * W * sc * (0.7 + hsh(c * 4 + 15) * 0.9);\n  const lx = [], rx = [], ys = [];\n  for (let r = 0; r <= R; r++) {\n    const rr = r / R, y = top + span * rr;\n    const nz = noise(rr * 2.2 + cseed, zt + cseed * 0.1);\n    const nz2 = noise(rr * 5.0 + cseed * 1.7, zt * 1.4 + 30);\n    const cx = bx + (nz - 0.5) * 2 * waveAmp * ampMul\n      + Math.sin(rr * TAU * 1.5 + K.t * 0.5 + cseed) * waveAmp * 0.25;\n    const hw = baseHW * (0.5 + nz2) * (0.6 + rr * 0.7);\n    lx.push(cx - hw); rx.push(cx + hw); ys.push(y);\n  }\n  if (st === 'schematic') {\n    const lh = (hueBase + hueOff + 120) % 360;\n    noFill(); strokeWeight(1);\n    stroke(lh, 55, 92, 72);\n    beginShape(); for (let r = 0; r <= R; r++) vertex((lx[r] + rx[r]) * 0.5, ys[r]); endShape();\n    stroke(lh, 42, 72, 46);\n    beginShape(); for (let r = 0; r <= R; r++) vertex(lx[r], ys[r]); endShape();\n    beginShape(); for (let r = 0; r <= R; r++) vertex(rx[r], ys[r]); endShape();\n    stroke(lh, 30, 60, 30);\n    for (let r = 0; r <= R; r += 3) line(lx[r], ys[r], rx[r], ys[r]);\n    continue;\n  }\n  noStroke();\n  for (let r = 0; r < R; r++) {\n    const rr = (r + 0.5) / R, col = bandColor(rr, hueOff, cB);\n    fill(col[0], col[1], col[2], col[3]);\n    beginShape();\n    vertex(lx[r], ys[r]); vertex(rx[r], ys[r]);\n    vertex(rx[r + 1], ys[r + 1]); vertex(lx[r + 1], ys[r + 1]);\n    endShape(CLOSE);\n  }\n  // bright vertical shimmer strands (add live striation via K.t)\n  if (useAdd) {\n    noFill(); strokeWeight(1.1 + en * 1.3);\n    const strands = 3 + Math.round(P.density * 4);\n    for (let sI = 0; sI < strands; sI++) {\n      const f = (sI + 0.5) / strands;\n      const shim = 0.5 + 0.5 * Math.sin(K.t * (1.4 + sI * 0.6) + c * 2 + f * 6);\n      const col = bandColor(0.55, hueOff, cB);\n      stroke(col[0], col[1] * 0.8, 100, 16 * shim * (0.6 + en));\n      beginShape();\n      for (let r = 0; r <= R; r += 2) vertex(lx[r] + (rx[r] - lx[r]) * f, ys[r]);\n      endShape();\n    }\n  }\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

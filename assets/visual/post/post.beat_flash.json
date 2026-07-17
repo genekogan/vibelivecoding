@@ -1,0 +1,95 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.beat_flash",
+  "kind": "post",
+  "name": "Beat Flash",
+  "desc": "Edge-hugging brightness kick that flares on the beat with a slow aurora shimmer crawling the frame border \u2014 never a full-frame strobe.",
+  "tags": [
+    "flash",
+    "strobe",
+    "beat",
+    "kick",
+    "pulse",
+    "bloom",
+    "glow",
+    "edge",
+    "vignette",
+    "aurora",
+    "luminance",
+    "thermal",
+    "rave",
+    "club",
+    "post",
+    "overlay",
+    "light",
+    "bright"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "amount": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flash intensity"
+    },
+    "reach": {
+      "default": 0.42,
+      "min": 0.08,
+      "max": 0.85,
+      "doc": "how far the edge glow reaches inward"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "flash/aurora primary hue"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "aurora blob size/motion"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "aurora drift + bar scan rate"
+    },
+    "sat": {
+      "default": 38,
+      "min": 0,
+      "max": 100,
+      "doc": "flash saturation"
+    },
+    "style": {
+      "default": "luminance",
+      "options": [
+        "luminance",
+        "thermal",
+        "signal",
+        "bars",
+        "ritual"
+      ],
+      "doc": "aesthetic: warm bloom / heat false-color / RGB-split / scan bars / inverse darkness"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic aurora seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:33:29+00:00",
+    "fps": 57.8,
+    "motion": 0.0176,
+    "lum": 0.106
+  },
+  "code": "const D = { amount:.6, reach:.42, hue:32, energy:.7, speed:1, sat:38, style:'luminance', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H), cx = W/2, cy = H/2;\nconst dg = drawingContext;\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst clamp = (v,a,b) => v < a ? a : v > b ? b : v;\n\n// --- kick: beat + bass, floored by continuous real-time breathing so it never\n// re-phases exactly at t+8s (8s = 16 beats at cps .5 would otherwise realign) ---\nconst beatKick = clamp(K.pulse*.7 + A.bass*.9, 0, 1.4);\nconst breathe  = .5 + .5*Math.sin(K.t*1.27);           // real-time floor\nconst secGain  = .45 + .55*(K.intensity==null?.6:K.intensity);\nlet amt = P.amount * (0.20 + 0.80*beatKick) * (0.55 + 0.45*breathe) * secGain;\namt = clamp(amt, 0, 1);\n\nconst reach = clamp(P.reach, .08, .85);\nconst rot   = K.t*0.16 * P.speed;                       // continuous aurora drift\nconst maxR  = Math.hypot(W, H) * 0.5;\nconst r0    = maxR * (1 - reach);\nconst style = P.style;\n\nnoStroke();\n\n// ---------- edge-weighted vignette pass (partial frame: center stays clear) ----------\nfunction radialFill(stops, mode){\n  blendMode(mode);\n  const g = dg.createRadialGradient(cx, cy, r0*0.55, cx, cy, maxR*1.05);\n  for (const s of stops) g.addColorStop(s[0], s[1]);\n  dg.save(); dg.fillStyle = g; dg.fillRect(0,0,W,H); dg.restore();\n}\n\nif (style === 'ritual') {\n  // inverse: darkness closes in from the edges on the beat \u2014 austere / menacing\n  const a = clamp(amt*0.92, 0, 0.95);\n  radialFill([[0,'rgba(0,0,0,0)'],[0.6,'rgba(0,0,0,'+(a*0.3).toFixed(3)+')'],[1,'hsla('+((P.hue+220)%360)+',60%,4%,'+a.toFixed(3)+')']], MULTIPLY);\n} else if (style === 'thermal') {\n  const a = clamp(amt, 0, 0.9);\n  radialFill([[0,'rgba(0,0,0,0)'],[0.45,'hsla(230,80%,40%,'+(a*0.35).toFixed(3)+')'],[0.8,'hsla(30,95%,55%,'+(a*0.8).toFixed(3)+')'],[1,'hsla(55,90%,92%,'+a.toFixed(3)+')']], ADD);\n} else if (style === 'signal') {\n  const a = clamp(amt*0.7, 0, 0.8);\n  const o = u*0.012*(1+beatKick);\n  blendMode(ADD);\n  [[ -o,0,'0,100%,55%'],[o*0.5,-o,'120,100%,55%'],[0,o,'240,100%,60%']].forEach(c=>{\n    const g = dg.createRadialGradient(cx+c[0],cy+c[1], r0*0.55, cx+c[0],cy+c[1], maxR*1.05);\n    g.addColorStop(0,'hsla('+c[2]+',0)'); g.addColorStop(1,'hsla('+c[2].replace(/[^,]+$/,'')+a.toFixed(3)+')');\n    dg.save(); dg.fillStyle=g; dg.fillRect(0,0,W,H); dg.restore();\n  });\n} else if (style === 'bars') {\n  // horizontal light bars scanning vertically \u2014 geometric, non-radial\n  blendMode(ADD);\n  const nb = 5, a = clamp(amt, 0, 0.85);\n  for (let i=0;i<nb;i++){\n    const y = ((fr(i)*H + (K.t*40*P.speed + i*H/nb)) % (H+80)) - 40;\n    const bh = u*(0.02+0.05*fr(i+3))*(0.6+0.8*amt);\n    const g = dg.createLinearGradient(0,y-bh,0,y+bh);\n    const col = (P.hue + i*20)%360;\n    g.addColorStop(0,'hsla('+col+',60%,80%,0)');\n    g.addColorStop(0.5,'hsla('+col+',55%,88%,'+(a*(0.4+0.6*beatKick)).toFixed(3)+')');\n    g.addColorStop(1,'hsla('+col+',60%,80%,0)');\n    dg.save(); dg.fillStyle=g; dg.fillRect(0,y-bh,W,bh*2); dg.restore();\n  }\n} else {\n  // luminance (default): warm near-white bloom hugging the frame edge\n  const a = clamp(amt*0.9, 0, 0.9);\n  radialFill([[0,'rgba(0,0,0,0)'],[0.7,'hsla('+P.hue+','+P.sat+'%,86%,'+(a*0.35).toFixed(3)+')'],[1,'hsla('+P.hue+','+Math.max(10,P.sat-15)+'%,92%,'+a.toFixed(3)+')']], ADD);\n}\n\n// ---------- aurora floor: seeded blobs orbiting the frame edge (always moving) ----------\nif (style !== 'ritual') {\n  blendMode(ADD);\n  const na = 7;\n  for (let i=0;i<na;i++){\n    const sp  = 0.25 + fr(i)*0.9;\n    const ang = rot*sp + fr(i+9)*6.283;\n    const rr  = u*(0.44 + 0.05*Math.sin(K.t*0.7 + i));\n    const ex  = cx + Math.cos(ang)*rr*1.34;\n    const ey  = cy + Math.sin(ang)*rr*1.02;\n    const flare = 0.35 + 0.65*beatKick + 0.3*Math.sin(K.t*1.1 + i*1.7);\n    const sz  = u*(0.09 + 0.06*flare) * (0.5 + 0.9*P.energy) * (0.5 + 0.6*amt);\n    let hh, ss = 62, bb = 92;\n    if (style === 'thermal') { hh = clamp(30 + 220*(1-flare), 0, 360); ss = 90; }\n    else if (style === 'signal') { hh = [0,120,240][i%3]; ss = 90; }\n    else hh = (P.hue + i*13 + K.t*6) % 360;\n    for (let r=3;r>=1;r--){\n      fill(hh, ss, bb, 5*flare*r);\n      circle(ex, ey, sz*r*0.55);\n    }\n  }\n}\n\nblendMode(BLEND);\ndg.shadowBlur = 0;\n"
+}

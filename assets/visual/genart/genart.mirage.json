@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mirage",
+  "kind": "genart",
+  "name": "Mirage",
+  "desc": "A landscape seen through air that will not hold a straight line \u2014 a scorching floor thins the layer above it until light skims up off nothing and lays a sheet of false water across the ground, or a cold inversion bends the rays down over the horizon and hauls distant ridges up into the towering stacked and inverted castles of a Fata Morgana; every ray is traced through the actual refractivity profile, and thermal turbulence shreds the image into shimmer.",
+  "tags": [
+    "mirage",
+    "fata-morgana",
+    "inferior-mirage",
+    "superior-mirage",
+    "refraction",
+    "atmospheric-refraction",
+    "atmospheric-optics",
+    "ray-bending",
+    "ray-tracing",
+    "snell",
+    "gradient-index",
+    "temperature-inversion",
+    "thermal",
+    "heat",
+    "heat-haze",
+    "shimmer",
+    "looming",
+    "towering",
+    "desert",
+    "salt-flat",
+    "highway",
+    "false-water",
+    "arctic",
+    "ice",
+    "horizon",
+    "landscape",
+    "vista",
+    "haze",
+    "optics",
+    "physics",
+    "scientific",
+    "eerie",
+    "austere",
+    "melancholy",
+    "sublime",
+    "ink",
+    "sumi",
+    "ironbow",
+    "blueprint",
+    "grid",
+    "bg",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "thermal turbulence \u2014 how hard the shimmer shreds the image \u2014 plus exposure (master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "telephoto compression \u2014 high narrows the field of view onto the mirage layer itself"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "shimmer + thermal breathing + horizon drift rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "depth of the anomalous layer (its scale height) and atmospheric haze"
+    },
+    "grad": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "thermal gradient. Above ~0.35 the floor is hot and rays bend up into an inferior mirage (false water); below, the air inverts and rays bend down into a superior mirage / Fata Morgana"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "ground hue \u2014 the sky and ridge are derived from it (34 = desert ochre; try 200 for a cold flat)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "azimuth pan across the backdrop"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "eye height above the surface \u2014 low puts you down in the mirage layer where it is strongest"
+    },
+    "style": {
+      "default": "desert",
+      "options": [
+        "desert",
+        "arctic",
+        "ink",
+        "ironbow",
+        "grid"
+      ],
+      "doc": "aesthetic; 'grid' shows the mechanism by refracting a blueprint reference target instead of a landscape"
+    },
+    "act": {
+      "default": "noon",
+      "options": [
+        "noon",
+        "inversion",
+        "breathe"
+      ],
+      "doc": "multi-minute programme: 'noon' holds a hot-floor inferior mirage, 'inversion' holds a cold Fata Morgana, 'breathe' walks the gradient through zero so the mirage inverts from one to the other across sections"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seed \u2014 the ridge/skyline profile, drift phases, sensor grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "noon",
+    "inversion",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:12+00:00",
+    "fps": 60.2,
+    "motion": 0.0626,
+    "lum": 0.235
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, grad: .6, hue: 34, x: .5, y: .5, style: 'desert', act: 'noon', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 200, BH = Math.max(60, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.p1 = fr(1) * 6.283; S.p2 = fr(2) * 6.283; S.p3 = fr(3) * 6.283; S.gof = fr(4) * 977;\n  S.rg = []; for (let i = 0; i < 9; i++) S.rg.push([fr(i * 4 + 31), fr(i * 4 + 32), fr(i * 4 + 33)]);\n}\nconst sd = P.seed | 0;\nconst hsh = (ix, iy) => { let h = (ix * 374761393 + iy * 668265263 + sd * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };\nconst vn = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };\n\nconst sp = P.speed, style = P.style;\n// ---- the thermal profile. eps(y) = eps_inf -/+ A*exp(-y/hs) so y'' = G*exp(-y/hs):\n// G > 0 is a hot floor bending rays UP (inferior mirage \u2014 the false water on a road),\n// G < 0 is a temperature inversion bending them DOWN (superior mirage / Fata Morgana).\nlet gsign = (P.grad - 0.35) * 2.4;\nif (P.act === 'breathe') gsign = (P.grad - 0.35) * 2.4 * Math.cos(K.section * 0.7854);  // walks through zero: the mirage inverts\nelse if (P.act === 'inversion') gsign = -Math.abs((P.grad - 0.15) * 2.0);\nconst G = gsign * 0.0075 * (1 + 0.46 * Math.sin(K.t * 0.083 * sp + S.p1) + 0.23 * Math.sin(K.t * 0.191 * sp) + 0.12 * Math.sin(K.t * 0.317 * sp));\nconst hs = 0.85 + P.density * 2.2;                    // scale height of the anomalous layer\nconst yObs = 2.0 + 3.0 * (0.5 - P.y);                 // eye height above the surface\nconst fov = 0.075 / (0.35 + P.scale * 0.85);\nconst tilt = (0.5 - P.y) * 0.012 + 0.0105 * Math.sin(K.t * 0.089 * sp + S.p2) + 0.0062 * Math.sin(K.t * 0.211 * sp) + 0.0031 * Math.sin(K.t * 0.347 * sp + 1.1);\nconst XMAX = 420, NST = 90, dx = XMAX / NST;\n\n// ---- one ray trace per ROW: in a horizontally stratified atmosphere refraction\n// depends only on elevation angle, so azimuth is free. 90 traces, not 18000.\nif (!S.rHit || S.rHit.length !== BH) { S.rHit = new Float64Array(BH); S.rY = new Float64Array(BH); S.rG = new Uint8Array(BH); }\nfor (let j = 0; j < BH; j++) {\n  let th = (0.5 - (j + 0.5) / BH) * fov + tilt, y = yObs, x = 0, hit = 0;\n  for (let s = 0; s < NST; s++) {\n    th += G * Math.exp(-Math.max(0, y) / hs) * dx;    // y'' = eps'(y)\n    y += th * dx; x += dx;\n    if (y <= 0) { hit = 1; break; }\n  }\n  S.rG[j] = hit; S.rHit[j] = x; S.rY[j] = y;\n}\n\nconst turb = (0.45 + P.energy * 1.85) * (0.6 + Math.abs(gsign) * 0.7);\nconst haze = 0.35 + P.density * 0.4;\nconst hu = P.hue, ex = (0.62 + P.energy * 0.36) * (0.92 + K.intensity * 0.12 + A.rms * 0.16);\nconst sunx = 0.5 + 0.32 * Math.sin(K.t * 0.023 * sp + S.p3);\nconst cw = (h, s2, b2) => { const hh = ((h % 360) + 360) % 360 / 60, c = b2 * s2, xx = c * (1 - Math.abs(hh % 2 - 1)), m = b2 - c;\n  let r, g2, bl; if (hh < 1) { r = c; g2 = xx; bl = 0; } else if (hh < 2) { r = xx; g2 = c; bl = 0; }\n  else if (hh < 3) { r = 0; g2 = c; bl = xx; } else if (hh < 4) { r = 0; g2 = xx; bl = c; }\n  else if (hh < 5) { r = xx; g2 = 0; bl = c; } else { r = c; g2 = 0; bl = xx; }\n  return [r + m, g2 + m, bl + m]; };\n// palette per style: [sky-zenith, sky-horizon, ground, ridge]\nconst PAL = style === 'arctic' ? [cw(hu + 175, .46, .34), cw(hu + 168, .18, .64), cw(hu + 172, .12, .56), cw(hu + 180, .34, .26)]\n  : style === 'ink' ? [cw(hu + 195, .09, .46), cw(hu + 195, .05, .60), cw(hu + 195, .07, .30), cw(hu + 195, .12, .13)]\n  : style === 'grid' ? [cw(205, .70, .14), cw(205, .55, .22), cw(205, .60, .10), cw(198, .40, .46)]\n  : [cw(hu + 172, .52, .40), cw(hu + 30, .20, .74), cw(hu, .52, .44), cw(hu - 12, .40, .21)];\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  const hitG = S.rG[j], xh = S.rHit[j], ye = S.rY[j];\n  for (let i = 0; i < BW; i++) {\n    const az = (i + 0.5) / BW - (P.x - 0.5);\n    // thermal turbulence: the shimmer. Cheap per-pixel jitter of the sample point\n    // rather than a per-pixel retrace \u2014 visually the same, 200x cheaper.\n    const tb = (vn(az * 26 + K.t * 1.30 * sp, j * 0.30 + K.t * 2.1 * sp) - 0.5) * turb\n      + (vn(az * 61 - K.t * 0.74 * sp, j * 0.61 + K.t * 3.3 * sp) - 0.5) * turb * 0.5\n      + (vn(az * 140 + K.t * 2.7 * sp, j * 1.3 - K.t * 1.9 * sp) - 0.5) * turb * 0.28;\n    let R, G2, B;\n    if (hitG) {\n      const d = Math.max(0.6, xh + tb * 13);\n      const fogf = Math.min(1, Math.pow(d / XMAX, 0.75) * haze * 2.1);\n      let tex = vn(az * 34 + d * 0.02, d * 0.09) * 0.5 + vn(az * 90, d * 0.3) * 0.28;\n      if (style === 'grid') { const gx = Math.abs(((az * 22) % 1) - 0.5), gy = Math.abs(((d * 0.14) % 1) - 0.5);\n        tex = (gx > 0.44 || gy > 0.44) ? 1.4 : 0.15; }\n      const gr = PAL[2], sk = PAL[1];\n      const sh = 0.62 + tex * 0.5;\n      R = (gr[0] * sh) * (1 - fogf) + sk[0] * fogf; G2 = (gr[1] * sh) * (1 - fogf) + sk[1] * fogf; B = (gr[2] * sh) * (1 - fogf) + sk[2] * fogf;\n    } else {\n      const yy = ye + tb * 3.4;\n      // the backdrop the mirage mangles: a seeded ridge line under a graded sky\n      let rh = 0; for (let k = 0; k < S.rg.length; k++) { const rr = S.rg[k];\n        const dxr = Math.abs(az - (rr[0] * 1.6 - 0.3)); if (dxr < 0.16 + rr[2] * 0.14) rh = Math.max(rh, (1 - dxr / (0.16 + rr[2] * 0.14)) * (1.6 + rr[1] * 7.5)); }\n      rh += 1.1 + vn(az * 7.5, 3.3) * 2.4;\n      const dR = Math.max(0.0, XMAX);\n      const fogf = Math.min(0.92, Math.pow(dR / XMAX, 0.8) * haze * 1.5);\n      if (yy < rh) {                                   // a distant ridge / tower, stretched and stacked by the bending\n        const rg = PAL[3], sk = PAL[1], sh = 0.7 + vn(az * 40, yy * 3) * 0.6;\n        if (style === 'grid') { const gy = Math.abs(((yy * 1.6) % 1) - 0.5), gx = Math.abs(((az * 22) % 1) - 0.5);\n          const ln = (gx > 0.44 || gy > 0.42) ? 1.5 : 0.2;\n          R = PAL[3][0] * ln; G2 = PAL[3][1] * ln; B = PAL[3][2] * ln;\n        } else { R = rg[0] * sh * (1 - fogf) + sk[0] * fogf; G2 = rg[1] * sh * (1 - fogf) + sk[1] * fogf; B = rg[2] * sh * (1 - fogf) + sk[2] * fogf; }\n      } else {\n        const u2 = Math.min(1, Math.max(0, (yy - rh) / 26));\n        const zn = PAL[0], hz = PAL[1];\n        const glow = Math.exp(-Math.pow((az - sunx) * 2.6, 2) - u2 * 2.2) * (style === 'grid' ? 0.1 : 0.42);\n        R = hz[0] + (zn[0] - hz[0]) * u2 + glow; G2 = hz[1] + (zn[1] - hz[1]) * u2 + glow * 0.9; B = hz[2] + (zn[2] - hz[2]) * u2 + glow * 0.7;\n        if (style === 'grid') { const gy = Math.abs(((yy * 1.6) % 1) - 0.5), gx = Math.abs(((az * 22) % 1) - 0.5);\n          const ln = (gx > 0.44 || gy > 0.42) ? 1 : 0;\n          R += ln * 0.30; G2 += ln * 0.62; B += ln * 0.72; }\n      }\n    }\n    if (style === 'ironbow') { const v = Math.min(1.15, (0.299 * R + 0.587 * G2 + 0.114 * B) * ex);\n      R = Math.min(1, v * 1.55 + 0.03); G2 = Math.max(0, Math.min(1, v * 1.25 - 0.3)); B = Math.max(0, Math.min(1, v * 1.6 - Math.max(0, v - 0.5) * 2.0)); }\n    else { R *= ex; G2 *= ex; B *= ex; }\n    let hg = Math.sin((i * 12.9898 + j * 78.233 + S.gof) * 43758.5453); hg -= Math.floor(hg);\n    const gn = 0.95 + 0.10 * hg;\n    const o = 4 * (j * BW + i);\n    px[o] = Math.min(255, R * gn * 255); px[o + 1] = Math.min(255, G2 * gn * 255); px[o + 2] = Math.min(255, B * gn * 255); px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

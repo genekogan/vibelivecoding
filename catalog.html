@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en" data-section="three">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="data:,">
+  <title>Livecode Catalog</title>
+  <style>
+    :root {
+      --bg: #08090c;
+      --panel: rgba(15, 16, 21, .94);
+      --line: rgba(255, 255, 255, .1);
+      --muted: #858995;
+      --text: #f4f3ef;
+      --three: #b7ff5a;
+      --p5: #ff5f8f;
+      --strudel: #8b7cff;
+      --accent: var(--three);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); color: var(--text); }
+    button { font: inherit; }
+
+    #catalog-app {
+      display: grid;
+      grid-template-rows: 58px minmax(0, 1fr);
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 18% -20%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 36%),
+        var(--bg);
+    }
+
+    .topbar {
+      z-index: 10;
+      display: grid;
+      grid-template-columns: minmax(190px, .75fr) minmax(360px, auto) minmax(190px, .75fr);
+      align-items: center;
+      gap: 16px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+    .brand strong { letter-spacing: -.02em; white-space: nowrap; }
+    .brand span { color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+
+    .section-nav { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 6px; }
+    .section-tab {
+      position: relative;
+      min-height: 38px;
+      padding: 7px 14px 8px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .16s ease, border-color .16s ease, background .16s ease;
+    }
+    .section-tab::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 12px currentColor;
+    }
+    .section-tab:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
+    .section-tab[aria-selected="true"] {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+      background: color-mix(in srgb, var(--accent) 9%, transparent);
+    }
+
+    .actions { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .status {
+      max-width: 150px;
+      overflow: hidden;
+      color: var(--muted);
+      font: 11px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .status.ready { color: #7cebb4; }
+    .status.error { color: #ff7085; }
+    .action-button {
+      min-height: 34px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, .035);
+      color: #d8d7d2;
+      cursor: pointer;
+    }
+    .action-button:hover { border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .075); }
+    .action-button.primary { border-color: color-mix(in srgb, var(--strudel) 45%, transparent); color: #d6d1ff; }
+    .action-button:disabled { opacity: .5; cursor: wait; }
+    .action-button[hidden] { display: none; }
+
+    .viewport { position: relative; min-width: 0; min-height: 0; }
+    #catalog-frame { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+    #engine-frame {
+      position: fixed;
+      left: -10px;
+      bottom: -10px;
+      width: 2px;
+      height: 2px;
+      border: 0;
+      opacity: .001;
+      pointer-events: none;
+    }
+
+    .load-shade {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: grid;
+      place-items: center;
+      background: #08090c;
+      transition: opacity .22s ease, visibility .22s ease;
+    }
+    .load-shade.done { opacity: 0; visibility: hidden; pointer-events: none; }
+    .load-card { display: grid; justify-items: center; gap: 14px; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    .load-mark { width: 34px; height: 34px; border: 1px solid var(--accent); border-radius: 50%; border-top-color: transparent; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 850px) {
+      #catalog-app { grid-template-rows: 96px minmax(0, 1fr); }
+      .topbar { grid-template-columns: 1fr auto; grid-template-rows: 36px 42px; gap: 4px 10px; padding: 7px 10px; }
+      .section-nav { grid-column: 1 / -1; grid-row: 2; }
+      .brand span, .status { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="catalog-app">
+    <header class="topbar">
+      <div class="brand"><strong>Livecode Catalog</strong><span id="section-kicker">Three-dimensional scenes</span></div>
+      <nav class="section-nav" aria-label="Catalog sections">
+        <button class="section-tab" data-section="three" aria-selected="true" aria-controls="catalog-frame">Three.js</button>
+        <button class="section-tab" data-section="p5" aria-selected="false" aria-controls="catalog-frame">p5.js</button>
+        <button class="section-tab" data-section="strudel" aria-selected="false" aria-controls="catalog-frame">Strudel</button>
+      </nav>
+      <div class="actions">
+        <span id="server-status" class="status" aria-live="polite">one server · checking engine</span>
+        <button id="audio-start" class="action-button primary" type="button" disabled>Audio loading…</button>
+        <button id="hush" class="action-button" type="button" hidden>Hush</button>
+        <button id="reload" class="action-button" type="button" aria-label="Reload current catalog">↻</button>
+      </div>
+    </header>
+
+    <main class="viewport">
+      <iframe id="catalog-frame" title="Three.js catalog" src="/threejs/browser/index.html?forceWebGL=1" allow="autoplay; clipboard-write"></iframe>
+      <div id="load-shade" class="load-shade" aria-live="polite">
+        <div class="load-card"><div class="load-mark"></div><span id="load-label">Opening Three.js catalog</span></div>
+      </div>
+    </main>
+  </div>
+
+  <iframe id="engine-frame" title="Livecode audio engine" src="/livecode.html?embedded=1" allow="autoplay" aria-hidden="true"></iframe>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const sections = {
+      three: {
+        label: 'Three.js',
+        kicker: 'Three-dimensional scenes',
+        title: 'Three.js catalog',
+        url: '/threejs/browser/index.html?forceWebGL=1',
+        accent: '--three'
+      },
+      p5: {
+        label: 'p5.js',
+        kicker: 'Generative visual sketches',
+        title: 'p5.js catalog',
+        url: '/assets/browse.html',
+        accent: '--p5'
+      },
+      strudel: {
+        label: 'Strudel',
+        kicker: 'Musical stems, kits and arcs',
+        title: 'Strudel music catalog',
+        url: '/assets/music/browse.html',
+        accent: '--strudel'
+      }
+    };
+
+    const root = document.documentElement;
+    const frame = document.getElementById('catalog-frame');
+    const engine = document.getElementById('engine-frame');
+    const shade = document.getElementById('load-shade');
+    const loadLabel = document.getElementById('load-label');
+    const status = document.getElementById('server-status');
+    const audioStart = document.getElementById('audio-start');
+    const hush = document.getElementById('hush');
+    const rememberedUrls = new Map();
+    let current = 'three';
+    let engineLoaded = false;
+    let engineStarted = false;
+
+    function requestedSection() {
+      const value = new URLSearchParams(location.search).get('section');
+      return Object.hasOwn(sections, value) ? value : 'three';
+    }
+
+    function rememberCurrentUrl() {
+      try {
+        const url = frame.contentWindow.location.href;
+        if (url && url !== 'about:blank') rememberedUrls.set(current, url);
+      } catch (_) { /* every catalog is same-origin; keep the canonical fallback */ }
+    }
+
+    function showSection(name, { replace = false } = {}) {
+      if (!Object.hasOwn(sections, name)) return;
+      if (name !== current) rememberCurrentUrl();
+      current = name;
+      const section = sections[name];
+      root.dataset.section = name;
+      root.style.setProperty('--accent', `var(${section.accent})`);
+      document.title = `${section.label} · Livecode Catalog`;
+      document.getElementById('section-kicker').textContent = section.kicker;
+      document.querySelectorAll('.section-tab').forEach((button) => {
+        button.setAttribute('aria-selected', String(button.dataset.section === name));
+      });
+      shade.classList.remove('done');
+      loadLabel.textContent = `Opening ${section.label} catalog`;
+      frame.title = section.title;
+      frame.src = rememberedUrls.get(name) || section.url;
+      const url = new URL(location.href);
+      url.searchParams.set('section', name);
+      history[replace ? 'replaceState' : 'pushState']({ section: name }, '', url);
+    }
+
+    function pollStatus() {
+      fetch('/status', { cache: 'no-store' })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then((data) => {
+          const localReady = engineStarted && engine.contentWindow?.__livecodeAudioReady === true;
+          if (localReady && data.ready) {
+            status.textContent = `engine ready · ${data.tracks.length} track${data.tracks.length === 1 ? '' : 's'}`;
+            status.className = 'status ready';
+            audioStart.hidden = true;
+            hush.hidden = false;
+          } else if (data.ready) {
+            status.textContent = 'engine connected elsewhere · enable this window';
+            status.className = 'status';
+            audioStart.hidden = false;
+            hush.hidden = true;
+          } else {
+            status.textContent = 'one server · audio sleeping';
+            status.className = 'status';
+            audioStart.hidden = false;
+            hush.hidden = true;
+          }
+        })
+        .catch(() => {
+          status.textContent = 'server unavailable';
+          status.className = 'status error';
+        });
+    }
+
+    function markEngineLoaded(attempt = 0) {
+      const childButton = engine.contentDocument?.getElementById('start-btn');
+      if (childButton && !childButton.disabled) {
+        engineLoaded = true;
+        audioStart.disabled = false;
+        audioStart.textContent = 'Enable audio';
+        status.textContent = 'audio ready to enable';
+        status.className = 'status';
+        return;
+      }
+      if (attempt >= 180) {
+        status.textContent = engine.contentWindow?.__livecodeAudioError || 'audio engine failed to load';
+        status.className = 'status error';
+        audioStart.textContent = 'Audio unavailable';
+        return;
+      }
+      setTimeout(() => markEngineLoaded(attempt + 1), 250);
+    }
+
+    function observeAudioStartup(attempt = 0) {
+      const child = engine.contentWindow;
+      if (child?.__livecodeAudioReady === true) {
+        engineStarted = true;
+        audioStart.hidden = true;
+        hush.hidden = false;
+        pollStatus();
+        return;
+      }
+      if (child?.__livecodeAudioReady === false && child?.__livecodeAudioError) {
+        engineStarted = false;
+        status.textContent = child.__livecodeAudioError;
+        status.className = 'status error';
+        audioStart.disabled = false;
+        audioStart.textContent = 'Retry audio';
+        return;
+      }
+      if (attempt >= 180) {
+        status.textContent = 'audio startup timed out';
+        status.className = 'status error';
+        audioStart.disabled = false;
+        audioStart.textContent = 'Retry audio';
+        return;
+      }
+      setTimeout(() => observeAudioStartup(attempt + 1), 250);
+    }
+
+    function enableAudio() {
+      if (!engineLoaded) return;
+      audioStart.disabled = true;
+      audioStart.textContent = 'Starting…';
+      status.textContent = 'starting audio engine';
+      status.className = 'status';
+      try {
+        const button = engine.contentDocument && engine.contentDocument.getElementById('start-btn');
+        if (!button) throw new Error('engine start control unavailable');
+        // Keep this click synchronous with the user's click. Awaiting iframe load
+        // here loses transient user activation and leaves AudioContext suspended.
+        button.click();
+        observeAudioStartup();
+      } catch (error) {
+        status.textContent = error.message;
+        status.className = 'status error';
+        audioStart.disabled = false;
+        audioStart.textContent = 'Retry audio';
+      }
+    }
+
+    document.querySelectorAll('.section-tab').forEach((button) => {
+      button.addEventListener('click', () => showSection(button.dataset.section));
+    });
+    frame.addEventListener('load', () => shade.classList.add('done'));
+    engine.addEventListener('load', () => markEngineLoaded());
+    try {
+      if (engine.contentWindow?.location.pathname === '/livecode.html'
+          && engine.contentDocument?.readyState === 'complete') markEngineLoaded();
+    } catch (_) { /* same-origin engine will report through its load event */ }
+    document.getElementById('reload').addEventListener('click', () => {
+      shade.classList.remove('done');
+      try { frame.contentWindow.location.reload(); }
+      catch (_) { frame.src = sections[current].url; }
+    });
+    audioStart.addEventListener('click', enableAudio);
+    hush.addEventListener('click', async () => {
+      await fetch('/strudel/hush', { method: 'POST', body: '{}' });
+      pollStatus();
+    });
+    addEventListener('popstate', () => showSection(requestedSection(), { replace: true }));
+    addEventListener('keydown', (event) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const name = { '1': 'three', '2': 'p5', '3': 'strudel' }[event.key];
+      if (name) { event.preventDefault(); showSection(name); }
+    });
+
+    const initial = requestedSection();
+    if (initial !== 'three') showSection(initial, { replace: true });
+    else history.replaceState({ section: initial }, '', '?section=three');
+    pollStatus();
+    setInterval(pollStatus, 3000);
+  })();
+  </script>
+</body>
+</html>

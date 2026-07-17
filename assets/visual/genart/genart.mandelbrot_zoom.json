@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mandelbrot_zoom",
+  "kind": "genart",
+  "name": "Mandelbrot Deep Zoom",
+  "desc": "A perpetual slow-rotating deep zoom into the Mandelbrot boundary that continuously magnifies toward a seeded interesting point, revealing ever-new self-similar filigree as a cycling spectral palette descends with it, rendered as electric spectra, molten ember, glacial ice, saturated psychedelia, or a mono copperplate engraving.",
+  "tags": [
+    "mandelbrot",
+    "fractal",
+    "deep-zoom",
+    "zoom",
+    "escape-time",
+    "complex",
+    "self-similar",
+    "boundary",
+    "seahorse",
+    "filigree",
+    "spectral",
+    "electric",
+    "ember",
+    "ice",
+    "psychedelic",
+    "engraving",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "math",
+    "infinite",
+    "spiral",
+    "recursive",
+    "iridescent",
+    "cosmic",
+    "hypnotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "detail": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "iteration depth + zoom reach (more filigree)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "zoom + palette-cycle rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "palette band frequency (color richness)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "maximum zoom depth before it ascends"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan within the zoom frame (x)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan within the zoom frame (y)"
+    },
+    "style": {
+      "default": "electric",
+      "options": [
+        "electric",
+        "ember",
+        "ice",
+        "psychedelic",
+        "etched"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "picks the target point + palette offset"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:43:48+00:00",
+    "fps": 59.9,
+    "motion": 0.1687,
+    "lum": 0.382
+  },
+  "code": "const D = { energy: .6, detail: .5, speed: 1, density: .55, scale: 1, hue: 210, x: .5, y: .5, style: 'electric', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 168, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\n\n// pre-chosen interesting Mandelbrot boundary targets (seahorse valley, mini-brots, spirals)\nconst TARGETS = [\n  [-0.743643887037, 0.131825904205],\n  [-0.745428, 0.113009],\n  [-0.16070135, 1.0375665],\n  [0.001643721971153, -0.822467633298876],\n  [-1.2500966, 0.0201200],\n  [-0.235125, 0.827215],\n  [0.2929859, 0.6117848],\n  [-0.77568377, 0.13646737],\n  [-0.7453, 0.1127],\n  [-0.10109636, 0.95628651]\n];\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst sec = K.section | 0;\nconst pick = (((P.seed | 0) * 7 + sec * 3) % TARGETS.length + TARGETS.length) % TARGETS.length;\nconst tgt = TARGETS[pick];\nconst jx = (fr(pick + 1) - 0.5) * 0.0015, jy = (fr(pick + 2) - 0.5) * 0.0015;\n\n// perpetual zoom: slow triangle ramp in log-space (descend then ascend) \u2014 never pixelates, never re-phases, never strobes\nconst zr = 0.006 + P.speed * 0.004;\nconst ph = (K.t * zr) % 2;\nconst tri = ph < 1 ? ph : 2 - ph;\nconst depthMax = 9.0 + P.scale * 2.0 + P.detail * 1.6;\nconst lz = tri * depthMax;\nconst halfw = 1.3 * Math.exp(-lz);\nconst halfwA = halfw * (BW / BH);\nconst maxIter = Math.min(230, Math.floor(58 + tri * 120 + P.detail * 90));\n\nconst cx0 = tgt[0] + jx + (P.x - 0.5) * halfw * 0.9;\nconst cy0 = tgt[1] + jy + (P.y - 0.5) * halfw * 0.9;\nconst rot = K.t * (0.012 + P.speed * 0.006);\nconst ca = Math.cos(rot), sa = Math.sin(rot);\n\nconst expo = 0.55 + P.energy * 0.95 + K.intensity * 0.22 + A.rms * 0.5;\nconst cyc = K.t * (0.09 + P.speed * 0.07) + A.treble * 0.35;\nconst hb = ((P.hue + sec * 21 + fr(pick) * 40) % 360 + 360) % 360;\nconst hph = hb / 360;\nconst bands = 0.012 + P.density * 0.026;\nconst style = P.style;\nconst LOG2 = Math.LN2;\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  const v = (j / BH - 0.5) * 2 * halfw;\n  for (let i = 0; i < BW; i++) {\n    const u = (i / BW - 0.5) * 2 * halfwA;\n    const cx = cx0 + u * ca - v * sa;\n    const cy = cy0 + u * sa + v * ca;\n    let zx = 0, zy = 0, it = 0, m2 = 0;\n    while (it < maxIter) { const x2 = zx * zx, y2 = zy * zy; m2 = x2 + y2; if (m2 > 256) break; zy = 2 * zx * zy + cy; zx = x2 - y2 + cx; it++; }\n    let r, gg, b;\n    if (it >= maxIter) {\n      // interior lake: dark but tinted (never pure black), faint drift shimmer so it stays alive\n      const w = 0.05 + 0.025 * (0.5 + 0.5 * Math.sin(K.t * 0.7 + (i + j) * 0.05));\n      if (style === 'ember') { r = w * 1.4; gg = w * 0.4; b = w * 0.15; }\n      else if (style === 'ice') { r = w * 0.25; gg = w * 0.65; b = w * 1.4; }\n      else if (style === 'etched') { r = 0.13; gg = 0.115; b = 0.09; }\n      else if (style === 'psychedelic') { r = w * 1.0; gg = w * 0.3; b = w * 1.2; }\n      else { r = w * 0.5; gg = w * 0.6; b = w * 1.3; } // electric deep indigo\n    } else {\n      const mu = it + 1 - Math.log(0.5 * Math.log(m2)) / LOG2;\n      if (style === 'ember') {\n        let vv = mu * bands * 1.0 + cyc * 0.7; vv = vv - Math.floor(vv);\n        const sh = 0.30 + Math.min(1.1, expo) * 0.35;\n        r = Math.min(1, 0.10 + Math.min(1, vv * 2.6) * sh);\n        gg = Math.min(1, 0.05 + Math.max(0, vv * 2.6 - 0.9) * sh);\n        b = Math.min(1, 0.04 + Math.max(0, vv * 2.6 - 1.9) * sh);\n      } else if (style === 'ice') {\n        let vv = mu * bands * 1.0 + cyc * 0.65; vv = vv - Math.floor(vv);\n        const sh = 0.30 + Math.min(1.1, expo) * 0.32;\n        b = Math.min(1, 0.16 + (0.35 + vv * 0.75) * sh);\n        gg = Math.min(1, 0.10 + Math.max(0, vv * 1.5 - 0.3) * sh);\n        r = Math.min(1, 0.07 + Math.max(0, vv * 1.9 - 1.0) * sh);\n      } else if (style === 'psychedelic') {\n        const t2 = mu * bands * 1.5 + cyc * 1.9;\n        let pr = 0.5 + 0.5 * Math.cos(6.2831 * (t2 + 0.00));\n        let pgg = 0.5 + 0.5 * Math.cos(6.2831 * (t2 + 0.33));\n        let pb = 0.5 + 0.5 * Math.cos(6.2831 * (t2 + 0.66));\n        const sh = 0.30 + Math.min(1.1, expo) * 0.36;\n        r = Math.min(1, 0.08 + pr * pr * sh * 1.25);\n        gg = Math.min(1, 0.08 + pgg * pgg * sh * 1.25);\n        b = Math.min(1, 0.08 + pb * pb * sh * 1.25);\n      } else if (style === 'etched') {\n        const band = Math.abs(((mu * bands * 5.0) % 1) - 0.5);\n        const line = 1 - Math.min(1, band * 3.4);\n        const tone = 0.86 - line * 0.68;\n        r = tone * 0.97; gg = tone * 0.9; b = tone * 0.76;\n      } else { // electric \u2014 cycling spectral iq cosine (default)\n        const tc = mu * bands + cyc;\n        let er = 0.5 + 0.5 * Math.cos(6.2831 * (tc + hph + 0.00));\n        let egg = 0.5 + 0.5 * Math.cos(6.2831 * (tc + hph + 0.35));\n        let eb = 0.5 + 0.5 * Math.cos(6.2831 * (tc + hph + 0.72));\n        const sh = 0.28 + Math.min(1.15, expo) * 0.30;\n        r = Math.min(1, 0.12 + er * sh);\n        gg = Math.min(1, 0.12 + egg * sh);\n        b = Math.min(1, 0.14 + eb * sh);\n      }\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = r * 255; px[o + 1] = gg * 255; px[o + 2] = b * 255; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio bloom on top of the clk baseline (audio all-zero during validation \u2192 baseline zoom carries motion)\nif (A.rms > 0.02 || A.bass > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass * 0.5 + A.rms * 0.4) * P.energy;\n  fill((hb + 20) % 360, 40, 100, Math.min(24, glow * 26));\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

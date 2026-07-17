@@ -1,0 +1,156 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.grade",
+  "kind": "post",
+  "name": "Grade",
+  "desc": "The colourist's pass \u2014 the whole frame is re-inked through a film process using separable blend ops that keep luminosity intact: sodium-vapour monochrome, day-for-night, two-strip Technicolor or a punched-up Velvia transparency, finished with a turning graduated ND filter, a drifting power window and a lamp density that never sits perfectly still.",
+  "tags": [
+    "grade",
+    "grading",
+    "colour grade",
+    "color grade",
+    "lut",
+    "colourist",
+    "colorist",
+    "film stock",
+    "stock",
+    "process",
+    "sodium",
+    "vapour",
+    "day for night",
+    "nuit americaine",
+    "two strip",
+    "technicolor",
+    "velvia",
+    "transparency",
+    "slide film",
+    "saturated",
+    "punchy",
+    "duotone",
+    "monochrome",
+    "split tone",
+    "cast",
+    "tint",
+    "cinematic",
+    "cinematography",
+    "print",
+    "emulsion",
+    "nd grad",
+    "graduated",
+    "power window",
+    "contrast",
+    "bleach",
+    "crush",
+    "milky",
+    "lifted",
+    "post",
+    "overlay",
+    "eerie",
+    "austere",
+    "nocturnal"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "grade strength \u2014 how far the frame travels toward the stock"
+    },
+    "contrast": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "print contrast: 0.5 neutral, above crushes into the stock, below lifts the blacks milky"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "power window \u2014 a soft drifting pool of exposure and its roll-off"
+    },
+    "grad": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "graduated ND filter \u2014 warm lift one side, cool density the other, axis turning"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "size of the power window and the grad falloff"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "the stock's ink (34 = sodium amber); every style derives its cast from it"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "axis + window drift rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "power-window centre x (it wanders around this)"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0,
+      "max": 1,
+      "doc": "power-window centre y"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity of the whole pass"
+    },
+    "style": {
+      "default": "sodium",
+      "options": [
+        "sodium",
+        "day_for_night",
+        "two_strip",
+        "velvia"
+      ],
+      "doc": "the colour process"
+    },
+    "act": {
+      "default": "hold",
+      "options": [
+        "hold",
+        "breathe",
+        "sweep"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "grad axis phase"
+    }
+  },
+  "acts": [
+    "hold",
+    "breathe",
+    "sweep"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:14+00:00",
+    "fps": 59.9,
+    "motion": 0.0068,
+    "lum": 0.105
+  },
+  "code": "const D = { energy: .6, contrast: .5, density: .5, grad: .5, scale: 1, hue: 34, speed: 1, x: .5, y: .46, alpha: .85, style: 'sodium', act: 'hold', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), con=cl(P.contrast,0,1), dns=cl(P.density,0,1);\nconst grd=cl(P.grad,0,1), sc=cl(P.scale,.3,2.6), H0=md(P.hue,360);\nconst spd=cl(P.speed,.1,4), ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\n\nS.rms=(S.rms||0)*.93+(A.rms||0)*.07;\nS.bass=(S.bass||0)*.93+(A.bass||0)*.07;\n\n// ---- dramaturgy: a colourist working the shot over minutes ----\nlet gM=1, axisR=.011;\nif(act==='breathe'){ gM=.52+.72*(.5+.5*Math.sin(T*.028))+.16*Math.sin(T*.067+1.3); }\nelse if(act==='sweep'){ axisR=.052; gM=.82+.28*Math.sin(T*.037); }\nelse { gM=.88+.16*Math.sin(T*.019)+.07*Math.sin(T*.047+2.1); }\ngM*=.74+.42*K.intensity;\nconst E=cl(en*gM,0,1.25)*al;\n\nconst fill=(op,c,a)=>{ if(a<=.0015) return; dc.globalCompositeOperation=op; dc.globalAlpha=cl(a,0,1);\n  dc.fillStyle=rs(c,1); dc.fillRect(0,0,W,Hh); dc.globalAlpha=1; dc.globalCompositeOperation=oldOp; };\n\n// the stock's hue drifts a few degrees the way a real grade never sits perfectly still\nconst hd=6.5*Math.sin(T*.023)+3*Math.sin(T*.059+1.1);\nconst HG=md(H0+hd,360);\n\n// ---- 1. saturation: how much colour the process leaves alive ----\nlet satTgt, castC, castA, mulC, mulA, scrC, scrA;\nif(sty==='day_for_night'){ satTgt=.42; castC=hsb(md(HG+188,360),62,60); castA=.44*E;\n  mulC=hsb(md(HG+192,360),58,52); mulA=.34*E; scrC=hsb(md(HG+196,360),40,26); scrA=.30*E; }\nelse if(sty==='two_strip'){ satTgt=.34; castC=hsb(md(HG+2,360),52,72); castA=.20*E;\n  mulC=hsb(md(HG+168,360),46,74); mulA=.24*E; scrC=hsb(md(HG-6,360),64,52); scrA=.26*E; }\nelse if(sty==='velvia'){ satTgt=1; castC=hsb(md(HG+6,360),64,70); castA=.07*E;\n  mulC=hsb(md(HG+188,360),34,80); mulA=.26*E; scrC=hsb(md(HG+2,360),50,34); scrA=.10*E; }\nelse { satTgt=0; castC=hsb(md(HG,360),82,64); castA=.94*E;                       // sodium vapour\n  mulC=hsb(md(HG+4,360),44,88); mulA=.09*E; scrC=hsb(md(HG+10,360),58,26); scrA=.16*E; }\n\n// velvia is the one stock here that ADDS colour: a fully-saturated source under the\n// 'saturation' op pushes the frame's chroma up instead of bleeding it out\nif(sty==='velvia') fill('saturation',hsb(md(HG,360),100,60),cl(.66*E,0,.82));\nelse fill('saturation',[128,128,128],cl((1-satTgt)*E*.9,0,.92));\n// 'color' keeps the backdrop's luminosity \u2014 the frame is re-inked, never dimmed\nfill('color',castC,cl(castA,0,.94));\n\n// ---- 2. print contrast: >.5 crushes with the stock, <.5 lifts the blacks milky ----\nconst crush=cl((con-.5)*2,0,1), milk=cl((.5-con)*2,0,1);\nfill('multiply',mulC,cl(mulA+crush*.42*E,0,.5));\nfill('screen',scrC,cl(scrA+milk*.30*E,0,.42));\n\n// ---- 3. the graduated filter: a real ND grad, its axis slowly turning ----\nif(grd>.01){\n  const th=T*axisR+fr(1)*TAU+.5*Math.sin(T*.013);\n  const dx=Math.cos(th)*u*.85*sc, dy=Math.sin(th)*u*.85*sc;\n  const wc=hsb(md(HG+16,360),46,96), cc2=hsb(md(HG+186,360),52,58);\n  const gg=dc.createLinearGradient(W*.5-dx,Hh*.5-dy,W*.5+dx,Hh*.5+dy);\n  gg.addColorStop(0,rs(wc,cl(.13*grd*E,0,.14))); gg.addColorStop(.5,rs(wc,0)); gg.addColorStop(1,rs(wc,0));\n  dc.globalCompositeOperation='screen'; dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n  const g2=dc.createLinearGradient(W*.5-dx,Hh*.5-dy,W*.5+dx,Hh*.5+dy);\n  g2.addColorStop(0,rs(cc2,0)); g2.addColorStop(.5,rs(cc2,0)); g2.addColorStop(1,rs(cc2,cl(.30*grd*E,0,.34)));\n  dc.globalCompositeOperation='multiply'; dc.fillStyle=g2; dc.fillRect(0,0,W,Hh);\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 4. power window: a soft pool of exposure the colourist keeps re-tracking ----\nif(dns>.01){\n  const wx=(ax+.20*Math.sin(T*.061)+.09*Math.sin(T*.143+1.7)+.05*Math.sin(T*.229))*W;\n  const wy=(ay+.16*Math.cos(T*.053+.6)+.08*Math.sin(T*.127+2.3)+.04*Math.sin(T*.191))*Hh;\n  const wr=u*(.40+.16*Math.sin(T*.031))*sc;\n  const wc=hsb(md(HG+12,360),40,98);\n  const gg=dc.createRadialGradient(wx,wy,0,wx,wy,wr);\n  const wa=cl((.10+.09*dns)*E*(1+.22*S.rms),0,.15);\n  gg.addColorStop(0,rs(wc,wa)); gg.addColorStop(.55,rs(wc,wa*.42)); gg.addColorStop(1,rs(wc,0));\n  dc.globalCompositeOperation='screen'; dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n  // and its inverse \u2014 the edges roll off the way any real window does\n  const dc2=hsb(md(HG+184,360),44,66);\n  const g2=dc.createRadialGradient(wx,wy,wr*.45,wx,wy,wr*1.9);\n  g2.addColorStop(0,rs(dc2,0)); g2.addColorStop(1,rs(dc2,cl(.20*dns*E,0,.24)));\n  dc.globalCompositeOperation='multiply'; dc.fillStyle=g2; dc.fillRect(0,0,W,Hh);\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 5. gate density: the lamp is never perfectly steady (slow, ~\u00b13%, cannot read as flicker) ----\n{ const dv=.030*Math.sin(T*.083)+.016*Math.sin(T*.197+1.4)+.009*Math.sin(T*.331+2.9);\n  if(dv>0) fill('screen',hsb(md(HG+8,360),30,90),cl(dv*E*.9,0,.05));\n  else fill('multiply',hsb(md(HG+6,360),24,86),cl(-dv*E*1.5,0,.07)); }\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

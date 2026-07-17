@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.interference",
+  "kind": "genart",
+  "name": "Wave Interference",
+  "desc": "Overlapping ripple sources bloom concentric rings that collide into shimmering moire lattices; the sources orbit slowly while ring spacing breathes on the swell and treble sets the fringes vibrating, in moire / thermal-false-color / blueprint-contour / iridescent-plasma / posterized-duotone renderings.",
+  "tags": [
+    "interference",
+    "moire",
+    "wave",
+    "ripple",
+    "concentric",
+    "rings",
+    "fringe",
+    "lattice",
+    "generative",
+    "genart",
+    "abstract",
+    "pattern",
+    "optical",
+    "op-art",
+    "hypnotic",
+    "thermal",
+    "blueprint",
+    "schematic",
+    "plasma",
+    "iridescent",
+    "duotone",
+    "phase",
+    "diffraction",
+    "physics",
+    "shimmer",
+    "background",
+    "fullbleed",
+    "psychedelic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "source count (2-4) + ring frequency"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.3,
+      "max": 3.0,
+      "doc": "ring spacing / zoom (band frequency multiplier)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "band contrast / fringe amplitude"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 4.0,
+      "doc": "orbit + phase-drift rate"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "primary tint (ignored by blueprint/thermal)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "orbit-center x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "orbit-center y fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "source layout seed"
+    },
+    "style": {
+      "default": "moire",
+      "options": [
+        "moire",
+        "thermal",
+        "blueprint",
+        "plasma",
+        "duotone"
+      ],
+      "doc": "rendering philosophy"
+    },
+    "act": {
+      "default": "orbit",
+      "options": [
+        "orbit",
+        "pulse",
+        "converge"
+      ],
+      "doc": "source-motion dramaturgy"
+    }
+  },
+  "acts": [
+    "orbit",
+    "pulse",
+    "converge"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:31:00+00:00",
+    "fps": 59.9,
+    "motion": 0.1843,
+    "lum": 0.389
+  },
+  "code": "const D = { density:.5, scale:1, energy:.6, speed:1, hue:200, x:.5, y:.5, seed:0, style:'moire', act:'orbit' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst TAU = 6.28318530718, cl = (v,a,b)=>v<a?a:v>b?b:v;\nconst fr = i=>{ const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\n\n// ---- working buffer keyed on aspect bucket ----\nconst asp = width/height;\nconst LS = 190;\nlet bw, bh;\nif (asp>=1){ bw=LS; bh=Math.max(8,Math.round(LS/asp)); } else { bh=LS; bw=Math.max(8,Math.round(LS*asp)); }\nconst bkey = bw+'x'+bh;\nif (!S.buf || S.bkey!==bkey){ if (S.buf && S.buf.remove) S.buf.remove(); S.buf = createGraphics(bw,bh); S.buf.pixelDensity(1); S.bkey = bkey; }\nconst g = S.buf;\n\n// ---- seeded wave sources ----\nconst nS = 2 + Math.round(cl(P.density,0,1)*2);\nif (S.seedUsed!==P.seed || S.nS!==nS){\n  S.seedUsed = P.seed; S.nS = nS;\n  const src = [];\n  for (let i=0;i<nS;i++){\n    src.push({\n      ang: fr(i*7)*TAU,\n      rad: .08 + fr(i*7+1)*.20,\n      orb: (.25 + fr(i*7+2)*.6) * (fr(i*7+6)<.5?-1:1),\n      ph:  fr(i*7+3)*TAU,\n      phR: (.6 + fr(i*7+4)*1.4) * (fr(i*7+7)<.5?-1:1),\n      w:   .7 + fr(i*7+5)*.6\n    });\n  }\n  S.src = src;\n}\n\n// ---- color LUT keyed on style+hue ----\nconst lkey = P.style+'|'+Math.round(P.hue);\nif (S.lkey!==lkey){\n  S.lkey = lkey; const N=128;\n  const R=new Uint8Array(N), Gc=new Uint8Array(N), B=new Uint8Array(N);\n  for (let i=0;i<N;i++){\n    const t=i/(N-1); let h,s,b;\n    if (P.style==='thermal'){ h=(270*(1-cl(t,0,1)))%360; s = t>.85 ? 90-(t-.85)/.15*70 : 90; b = 15+80*t; }\n    else if (P.style==='blueprint'){ if (t<.8){ h=215; s=72; b=14+t*8; } else { const bt=(t-.8)/.2; h=200; s=80-45*bt; b=28+66*bt; } }\n    else if (P.style==='plasma'){ h=(P.hue+t*300)%360; s=68; b=42+34*Math.sin(t*TAU); }\n    else if (P.style==='duotone'){ h = t<.5 ? P.hue : (P.hue+165)%360; s=62; b=22+66*t; }\n    else { const tt=Math.pow(t,.85); h=(P.hue+t*24)%360; s=60-25*tt; b=8+88*tt; }\n    const c=color(h,s,b); R[i]=c.levels[0]; Gc[i]=c.levels[1]; B[i]=c.levels[2];\n  }\n  S.R=R; S.Gc=Gc; S.B=B;\n}\n\n// ---- per-frame source positions ----\nconst spd = cl(P.speed,.2,4), en = cl(P.energy,0,1);\nconst sec = .5 + .5*Math.sin(K.section/8*TAU + K.t*.03);\nconst freqBase = (2.5 + cl(P.density,0,1)*4) * cl(P.scale,.3,3) * (1 + .12*K.swell + .15*(A.treble||0));\nconst src = S.src;\nconst SX=new Float32Array(nS), SY=new Float32Array(nS), PH=new Float32Array(nS), WT=new Float32Array(nS);\nlet radMod=1, rot=0;\nif (P.act==='pulse'){ radMod = .6 + .7*sec; }\nelse if (P.act==='converge'){ radMod = .35 + .65*(.5+.5*Math.sin(K.t*.05*spd)); rot = K.t*.1*spd; }\nfor (let i=0;i<nS;i++){\n  const s=src[i];\n  const a = s.ang + K.t*spd*s.orb*.25 + rot;\n  const r = s.rad*radMod*(1 + .25*Math.sin(K.t*.07*spd + i));\n  SX[i] = cl(P.x,0,1) + Math.cos(a)*r;\n  SY[i] = cl(P.y,0,1) + Math.sin(a)*r;\n  PH[i] = s.ph + K.t*spd*s.phR + K.pulse*.5*i;\n  WT[i] = s.w;\n}\n\n// ---- render field ----\ng.loadPixels();\nconst px = g.pixels, invW = 1/(bw-1), invH = 1/(bh-1);\nconst cN=127, R=S.R, Gc=S.Gc, B=S.B, invNs=1/nS;\nconst contrast = .6 + en*1.2;\nconst levels = P.style==='duotone' ? 5 : 0;\nlet idx=0;\nfor (let yy=0; yy<bh; yy++){\n  const ny = yy*invH;\n  for (let xx=0; xx<bw; xx++){\n    const nx = xx*invW;\n    let s=0;\n    for (let i=0;i<nS;i++){\n      const dx=(nx-SX[i])*asp, dy=ny-SY[i];\n      const d=Math.sqrt(dx*dx+dy*dy);\n      s += Math.cos(d*freqBase*TAU - PH[i])*WT[i];\n    }\n    let u = (s*invNs)*.5 + .5;\n    u = .5 + (u-.5)*contrast;\n    if (u<0) u=0; else if (u>1) u=1;\n    if (levels) u = Math.floor(u*levels)/(levels-1);\n    let li = (u*cN)|0; if (li<0) li=0; else if (li>cN) li=cN;\n    px[idx]=R[li]; px[idx+1]=Gc[li]; px[idx+2]=B[li]; px[idx+3]=255; idx+=4;\n  }\n}\ng.updatePixels();\n\ndrawingContext.imageSmoothingEnabled = true;\nimage(g,0,0,width,height);\nblendMode(BLEND);\n"
+}

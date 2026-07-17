@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cloud_chamber",
+  "kind": "genart",
+  "name": "Cloud Chamber",
+  "desc": "A Wilson cloud chamber raked by a sheet of light \u2014 ionizing particles condense their paths out of supersaturated vapour: fat alpha stubs fanning off a source pin, thin cosmic muons falling clean through, and low-momentum electrons curling into tight spirals in the magnetic field, every track fattening and diffusing away seconds after it is born.",
+  "tags": [
+    "cloud chamber",
+    "wilson",
+    "bubble chamber",
+    "particle",
+    "physics",
+    "ionization",
+    "track",
+    "vapour",
+    "vapor",
+    "condensation",
+    "supersaturated",
+    "cosmic ray",
+    "muon",
+    "electron",
+    "positron",
+    "alpha",
+    "radiation",
+    "radioactive",
+    "decay",
+    "spiral",
+    "curl",
+    "magnetic",
+    "field",
+    "detector",
+    "cern",
+    "laboratory",
+    "science",
+    "emulsion",
+    "schematic",
+    "clinical",
+    "austere",
+    "eerie",
+    "sublime",
+    "monochrome",
+    "mist",
+    "air",
+    "filament",
+    "wisp",
+    "trace"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "particle energy \u2014 track length, brightness, straightness (less multiple scattering)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "chamber magnification \u2014 track size and step length"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flux: how many tracks are alive at once"
+    },
+    "field": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "magnetic field \u2014 how tightly low-momentum tracks curl and spiral"
+    },
+    "diffuse": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "droplet diffusion \u2014 how fast a track fattens, softens and fades away"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "light-sheet hue (196 = cold vapour blue); plate and ink derive from it"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "event rate multiplier"
+    },
+    "x": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "source pin x \u2014 alpha tracks fan from here"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0,
+      "max": 1,
+      "doc": "source pin y, and the centre of the raking light sheet"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity"
+    },
+    "style": {
+      "default": "chamber",
+      "options": [
+        "chamber",
+        "bubble",
+        "schematic",
+        "emulsion"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "source",
+        "shower"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "event seeding \u2014 every track incarnation rehashes from it"
+    }
+  },
+  "acts": [
+    "drift",
+    "source",
+    "shower"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:27+00:00",
+    "fps": 65.4,
+    "motion": 0.0445,
+    "lum": 0.252
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .5, field: .5, diffuse: .5, hue: 196, speed: 1, x: .3, y: .56, alpha: 1, style: 'chamber', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst h2=(a,b)=>{const s=Math.sin(a*12.9898+b*78.233+P.seed*37.719)*43758.5453;return s-Math.floor(s);};\nconst sm=(e0,e1,x)=>{const t=cl((x-e0)/((e1-e0)||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dens=cl(P.density,0,1);\nconst fld=cl(P.field,0,1), dif=cl(P.diffuse,0,1), H0=md(P.hue,360);\nconst spd=cl(P.speed,.1,4), ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\nconst MODE = sty==='bubble'?1 : sty==='schematic'?2 : sty==='emulsion'?3 : 0;\nconst DARKINK = (MODE===1||MODE===3);\n\nS.bass=(S.bass||0)*.9+(A.bass||0)*.1;\nS.tre=(S.tre||0)*.9+(A.treble||0)*.1;\n\n// ---- flux dramaturgy ----\nlet flux;\nif(act==='source') flux=.72+.34*(.5+.5*Math.sin(K.t*.037))+.18*K.intensity;\nelse if(act==='shower'){ const q=md(T*.021,1); flux=.30+1.35*Math.pow(sm(.55,.80,q)*(1-sm(.86,1,q)),1.2)+.22*K.intensity; }\nelse flux=.52+.30*(.5+.5*Math.sin(K.t*.023+1.1))+.24*K.intensity;\nflux=cl(flux,.12,1.9);\n\n// ---- cached chamber: light sheet raking through the vapour, plate texture ----\nlet BW,BH;\nif(W>=Hh){ BW=170; BH=Math.max(64,Math.round(170*Hh/Math.max(1,W))); }\nelse { BH=170; BW=Math.max(64,Math.round(170*W/Math.max(1,Hh))); }\nconst bk=BW+'x'+BH+'|'+sty+'|'+Math.round(H0)+'|'+P.seed+'|'+Math.round(ay*200);\nif(!S.bg||S.bk!==bk){\n  if(S.bg&&S.bg.remove)S.bg.remove();\n  const g=createGraphics(BW,BH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.loadPixels(); const q=g.pixels;\n  for(let j=0;j<BH;j++){\n    const yn=j/BH, dy=(yn-ay)/.34;\n    const sheet=Math.exp(-dy*dy*1.25);\n    for(let i2=0;i2<BW;i2++){\n      const xn=i2/BW;\n      const vap=.5+.5*Math.sin(xn*7.3+yn*4.1)*Math.sin(yn*9.7-xn*3.3)+.3*Math.sin(xn*17.1+yn*13.9);\n      const nz=Math.sin(i2*12.9898+j*78.233+P.seed*3.71)*43758.5453;\n      const gn=(nz-Math.floor(nz)-.5);\n      let hh,ss,bb;\n      if(MODE===1){ hh=md(H0+152,360); ss=10+6*sheet; bb=cl(78+10*sheet+5*vap+gn*7,0,100); }\n      else if(MODE===2){ hh=md(H0+16,360); ss=54; bb=cl(6+5*sheet+2*vap,0,100); }\n      else if(MODE===3){ hh=md(H0+150,360); ss=8; bb=cl(58+8*sheet+4*vap+gn*11,0,100); }\n      else { hh=md(H0-6+10*sheet,360); ss=cl(46-24*sheet,0,100); bb=cl(6+34*sheet+9*vap*sheet+gn*5,0,100); }\n      const c=hsb(hh,ss,bb), o=(j*BW+i2)*4;\n      q[o]=c[0]; q[o+1]=c[1]; q[o+2]=c[2]; q[o+3]=255;\n    }\n  }\n  g.updatePixels();\n  if(MODE===1){ g.stroke(md(H0+152,360),22,26,70); g.strokeWeight(.7);\n    for(let j=0;j<5;j++) for(let i2=0;i2<7;i2++){ const cx=(i2+.5)/7*BW, cy=(j+.5)/5*BH;\n      g.line(cx-2.5,cy,cx+2.5,cy); g.line(cx,cy-2.5,cx,cy+2.5); } g.noStroke(); }\n  if(MODE===2){ g.stroke(md(H0+10,360),58,26,52); g.strokeWeight(.5);\n    for(let i2=0;i2<=16;i2++) g.line(i2/16*BW,0,i2/16*BW,BH);\n    for(let j=0;j<=10;j++) g.line(0,j/10*BH,BW,j/10*BH);\n    g.stroke(md(H0+10,360),58,44,80); g.strokeWeight(.9);\n    for(let i2=0;i2<=16;i2+=4) g.line(i2/16*BW,0,i2/16*BW,BH); g.noStroke(); }\n  S.bg=g; S.bk=bk;\n}\ndc.imageSmoothingEnabled=true;\nimage(S.bg,0,0,W,Hh);\n\n// ---- churning vapour: slow, large, low-alpha (the motion floor if flux ever lulls) ----\n{ const nv=3;\n  dc.globalCompositeOperation=DARKINK?'multiply':'lighter';\n  for(let i=0;i<nv;i++){\n    const w1=.021+fr(i*3.7)*.030, w2=.047+fr(i*3.7+1)*.055, ph=fr(i*3.7+2)*TAU;\n    const vx=(.5+.34*Math.sin(K.t*w1*7.1+ph)+.14*Math.sin(K.t*w2*4.3+ph*1.7))*W;\n    const vy=(ay+.26*Math.cos(K.t*w1*5.3+ph*.7)+.11*Math.sin(K.t*w2*6.1+ph))*Hh;\n    const rr=u*(.34+.22*fr(i*9.1))*sc*(.8+.2*Math.sin(K.t*.031+i));\n    const c=DARKINK?hsb(md(H0+150,360),14,72):hsb(md(H0+6,360),24,96);\n    const gg=dc.createRadialGradient(vx,vy,0,vx,vy,rr);\n    gg.addColorStop(0,rs(c,(DARKINK?.10:.075)*al)); gg.addColorStop(.55,rs(c,(DARKINK?.05:.030)*al)); gg.addColorStop(1,rs(c,0));\n    dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n  }\n  dc.globalCompositeOperation='source-over'; }\n\n// ---- the tracks ----\nconst MAXP=34;\nif(!S.px){ S.px=new Float64Array(MAXP); S.py=new Float64Array(MAXP); }\nconst px=S.px, py=S.py;\nconst N=Math.min(64,Math.round((12+dens*44)*cl(flux,.2,1.5)));\nlet cTrk;\nif(MODE===1) cTrk=hsb(md(H0+160,360),34,10);\nelse if(MODE===2) cTrk=hsb(md(H0-6,360),72,98);\nelse if(MODE===3) cTrk=hsb(md(H0+164,360),22,14);\nelse cTrk=hsb(md(H0,360),10,100);\ndc.lineCap='round'; dc.lineJoin='round';\ndc.globalCompositeOperation=DARKINK?'multiply':'lighter';\nfor(let i=0;i<N;i++){\n  const life=(2.0+4.4*fr(i*1.7))*(1.25-.45*dif);\n  const uu=T/Math.max(.2,life)+fr(i*1.7+1)*11.3;\n  const nn=Math.floor(uu), a=uu-nn;\n  let kr=h2(i*3.1+.5,nn);\n  if(act==='source') kr*=.42;\n  const kind = kr<.20?0 : kr<.34?1 : 2;\n  let x0,y0,th0;\n  if(kind===0){ const aa=h2(i*5.3,nn)*TAU; x0=ax*W+Math.cos(aa)*u*.012; y0=ay*Hh+Math.sin(aa)*u*.012; th0=aa; }\n  else if(kind===1){ th0=Math.PI*.5+(h2(i*5.3+1,nn)-.5)*.95; x0=h2(i*5.3+2,nn)*W*1.3-W*.15; y0=-u*.06; }\n  else { x0=h2(i*5.3+3,nn)*W; y0=h2(i*5.3+4,nn)*Hh; th0=h2(i*5.3+5,nn)*TAU; }\n  const ds=u*(.012+.020*fr(i*2.3))*sc*(.5+1.05*en)*(kind===0?.42:kind===1?1.6:.85);\n  const M=kind===0?8:(kind===1?Math.min(MAXP,30):Math.min(MAXP,14+Math.round(fr(i*9.1)*16)));\n  const sgn=h2(i*13.7,nn)<.5?-1:1;\n  let kap=(kind===0?.020:kind===1?.004:(.055+.30*h2(i*11.3,nn)))*(.25+1.7*fld)*sgn;\n  const kgrow=kind===2?1.058:1.004;\n  const scat=(kind===0?.012:kind===1?.004:.048)*(1.25-.6*en);\n  let x=x0,y=y0,th=th0;\n  for(let m=0;m<M;m++){\n    px[m]=x; py[m]=y;\n    th+=kap+(h2(i*7.7+m*1.13,nn)-.5)*scat;\n    kap*=kgrow;\n    x+=Math.cos(th)*ds; y+=Math.sin(th)*ds;\n  }\n  const w0=(kind===0?.0115:kind===1?.0034:.0044)*u*sc*(.7+.6*en);\n  const wid=w0*(1+(2.0+4.2*dif)*a);\n  const br=Math.pow(1-a,1.3)*sm(0,.06,a)*cl(.55+.6*flux,0,1.5);\n  if(br<=.012) continue;\n  if(MODE===3){\n    dc.fillStyle=rs(cTrk,1);\n    for(let m=0;m<M;m+=2){\n      if(h2(i*17.3+m,nn)>.62) continue;\n      const gr=wid*(.5+1.1*h2(i*19.1+m,nn));\n      dc.globalAlpha=cl(br*.72*al,0,.92);\n      dc.beginPath(); dc.arc(px[m],py[m],gr,0,TAU); dc.fill();\n    }\n    continue;\n  }\n  dc.strokeStyle=rs(cTrk,1);\n  if(MODE!==2){\n    dc.globalAlpha=cl(br*(DARKINK?.16:.13+.15*en)*al,0,.5);\n    dc.lineWidth=Math.max(.6,wid*2.9);\n    dc.beginPath(); dc.moveTo(px[0],py[0]); for(let m=1;m<M;m++) dc.lineTo(px[m],py[m]); dc.stroke();\n  }\n  dc.globalAlpha=cl(br*(MODE===2?.78:(DARKINK?.62:.45+.42*en))*al,0,.95);\n  dc.lineWidth=Math.max(.5,wid*(MODE===2?.6:.95));\n  dc.beginPath(); dc.moveTo(px[0],py[0]); for(let m=1;m<M;m++) dc.lineTo(px[m],py[m]); dc.stroke();\n}\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\n\n// ---- the source pin: a needle of radioisotope the alphas fan out of ----\n{ const sx=ax*W, sy=ay*Hh, pl=u*.05*sc;\n  const c=DARKINK?hsb(md(H0+160,360),40,14):hsb(md(H0+30,360),42,88);\n  dc.globalAlpha=cl(.85*al,0,1);\n  dc.fillStyle=rs(c,1);\n  dc.beginPath(); dc.moveTo(sx-pl*.09,sy); dc.lineTo(sx-pl*.22,sy+pl*2.6); dc.lineTo(sx+pl*.22,sy+pl*2.6); dc.lineTo(sx+pl*.09,sy); dc.closePath(); dc.fill();\n  if(!DARKINK){ const gl=dc.createRadialGradient(sx,sy,0,sx,sy,pl*(.9+.25*Math.sin(K.t*.19)));\n    const gc=hsb(md(H0+16,360),24,100);\n    gl.addColorStop(0,rs(gc,cl((.30+.34*en)*(.7+.4*S.bass)*al,0,.8))); gl.addColorStop(1,rs(gc,0));\n    dc.fillStyle=gl; dc.fillRect(sx-pl*2,sy-pl*2,pl*4,pl*4); }\n  dc.globalAlpha=1; }\nblendMode(BLEND); dc.globalAlpha=1; dc.globalCompositeOperation='source-over'; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

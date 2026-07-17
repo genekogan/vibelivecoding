@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.conductor",
+  "kind": "subject",
+  "name": "Conductor",
+  "desc": "A tailcoated conductor drawn in dusty white chalk, back to the hall, the baton carving the 4/4 ictus pattern and leaving a fading chalk trail while both arms lift with the swell and the coat-tails sway.",
+  "tags": [
+    "conductor",
+    "maestro",
+    "orchestra",
+    "symphony",
+    "philharmonic",
+    "classical",
+    "baton",
+    "conducting",
+    "tempo",
+    "ictus",
+    "music",
+    "musician",
+    "band leader",
+    "tailcoat",
+    "elegant",
+    "gesture",
+    "arms",
+    "chalkboard",
+    "chalk",
+    "blackboard",
+    "sketch",
+    "graphite",
+    "silhouette",
+    "neon",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "baton arc size / sway / bob amplitude"
+    },
+    "hue": {
+      "default": 48,
+      "min": 0,
+      "max": 360,
+      "doc": "chalk tint (neon/noir) accent hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "conducting rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "chalk-dust motes off the baton"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1,
+      "doc": "floor anchor y (canvas fraction)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "shoulder / coat girth morph"
+    },
+    "sweep": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.5,
+      "doc": "coat-tail sway amount"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "chalk grain / hair hatch layout"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "conduct",
+        "flourish",
+        "rest"
+      ],
+      "doc": "auto flourishes on peaks; flourish = big arcs, arms high; rest = small low pattern"
+    },
+    "style": {
+      "default": "chalkboard",
+      "options": [
+        "chalkboard",
+        "sketch",
+        "silhouette",
+        "neon",
+        "noir"
+      ],
+      "doc": "aesthetic: white chalk on green board / graphite on paper / pure black silhouette / glowing tube-chalk / near-monochrome noir"
+    },
+    "act": {
+      "default": "concert",
+      "options": [
+        "concert",
+        "crescendo",
+        "largo"
+      ],
+      "doc": "multi-minute program: concert = steady 4/4; crescendo = arms climb section by section; largo = half-tempo broad strokes"
+    }
+  },
+  "acts": [
+    "concert",
+    "crescendo",
+    "largo"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:06:15+00:00",
+    "fps": 60.2,
+    "motion": 0.0064,
+    "lum": 0.1
+  },
+  "code": "const D = { scale:1, energy:.6, hue:48, speed:1, density:.5, x:.5, y:.9, chub:.5, sweep:.6, seed:0, pose:'auto', style:'chalkboard', act:'concert' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI*2;\nconst md = (a,n)=>((a%n)+n)%n;\nconst frc = v=>v-Math.floor(v);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr = i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u = Math.min(width,height);\nconst sc = u*P.scale/360;\nconst bt = K.beat*P.speed;\nconst H = md(P.hue,360);\nconst en = P.energy*(.55+.5*K.intensity);\nconst chub = .85+P.chub*.55;\n\nconst style=P.style;\nconst isBoard=style==='chalkboard', isSketch=style==='sketch', isSilh=style==='silhouette', isNeon=style==='neon', isNoir=style==='noir';\n\nlet chalkH=0, chalkS=0, chalkB=95, glow=false;\nlet boardBg=[150,22,13];\nif(isSketch){ chalkH=28; chalkS=14; chalkB=26; boardBg=[38,12,88]; }\nelse if(isNeon){ chalkH=H; chalkS=72; chalkB=100; glow=true; boardBg=[240,45,7]; }\nelse if(isNoir){ chalkH=md(H+4,360); chalkS=8; chalkB=94; boardBg=[228,26,6]; }\nelse if(isSilh){ chalkH=0; chalkS=0; chalkB=8; boardBg=[40,9,88]; }\n\n// ---- program ----\nlet pose=P.pose;\nif(pose==='auto') pose = (K.intensity>.72)?'flourish':'conduct';\nlet poseAmp=1, poseLift=1;\nif(pose==='flourish'){ poseAmp=1.35; poseLift=1.5; }\nelse if(pose==='rest'){ poseAmp=0.5; poseLift=0.3; }\n\nconst patternBeat = (P.act==='largo')? bt*0.5 : bt;\nconst beatInBar = md(patternBeat,4);\nconst seg = Math.floor(beatInBar)%4;\nconst f = frc(beatInBar);\nconst ease = f<.5 ? 2*f*f : 1-Math.pow(-2*f+2,2)/2;\nlet ps = (19 + en*11) * poseAmp;\nif(P.act==='crescendo') ps *= (0.72+0.5*K.intensity);\nif(P.act==='largo') ps *= 0.85;\n\n// 4/4 ictus pattern: down, left, right, up\nconst PAT=[[0,1],[-1.12,.15],[1.15,.12],[0,-1.18]];\nconst a0=PAT[seg], a1=PAT[(seg+1)%4];\nconst rx=(a0[0]*(1-ease)+a1[0]*ease)*ps;\nconst ry=(a0[1]*(1-ease)+a1[1]*ease)*ps + K.pulse*2.2;\n\nlet armLift = clp(K.intensity*0.7+K.swell*0.5,0,1)*24*poseLift;\nif(P.act==='crescendo') armLift += K.section*2.2;\narmLift = clp(armLift,0,60);\n\nconst CRx=34, CRy=-138-armLift;\nconst CLx=-34, CLy=-138-armLift;\nconst handRx=CRx+rx, handRy=CRy+ry;\nconst batonTx=CRx+rx*1.7, batonTy=CRy+ry*1.7;\nconst handLx=CLx - rx*0.5, handLy=CLy + ry*0.5 - armLift*0.4;\n\nconst tailSway = Math.sin(bt*Math.PI)*8*en*P.sweep + A.lowmid*6;\nconst bodyLean = Math.sin(bt*Math.PI*0.5)*0.02*en;\nconst headBob = Math.sin(bt*Math.PI)*2.2*en;\nconst shW=46*chub;\n\n// ---- trail ----\nif(!S.trail || S.trail.length>240) S.trail=[];\nS.trail.push([batonTx,batonTy]);\nif(S.trail.length>46) S.trail.shift();\n\n// ---- chalk helpers ----\nfunction chalk(x1,y1,x2,y2,w,a){\n  const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy), n=Math.max(1,Math.floor(L/5));\n  const key=Math.floor(x1*0.7+y2*1.3);\n  for(let i=0;i<n;i++){\n    if(fr(i+key)<0.13) continue;\n    const t0=i/n, t1=(i+1)/n, j=w*0.55;\n    const jx=(fr(i*2.3+key)-.5)*j, jy=(fr(i*2.7+key+5)-.5)*j;\n    strokeWeight(w*(0.55+0.6*fr(i+3+key)));\n    stroke(chalkH,chalkS,chalkB,a*(0.5+0.5*fr(i*1.7+key)));\n    line(x1+dx*t0+jx,y1+dy*t0+jy,x1+dx*t1+jx,y1+dy*t1+jy);\n  }\n}\nfunction cpath(pts,closed,w,a){\n  if(glow){ push(); blendMode(ADD); noFill(); stroke(chalkH,chalkS,100,a*0.35); strokeWeight(w*3.4); strokeJoin(ROUND);\n    beginShape(); for(const p of pts) vertex(p[0],p[1]); if(closed) endShape(CLOSE); else endShape(); pop(); }\n  const m=pts.length;\n  for(let i=0;i<m-1;i++) chalk(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],w,a);\n  if(closed) chalk(pts[m-1][0],pts[m-1][1],pts[0][0],pts[0][1],w,a);\n}\nfunction fillPath(pts){ noStroke(); beginShape(); for(const p of pts) vertex(p[0],p[1]); endShape(CLOSE); }\n\n// ---- geometry ----\nfunction coatPts(){\n  return [\n    [-shW/2,-150],[-shW/2-5,-118],[-shW*0.44,-96],\n    [-shW*0.52+tailSway*0.7,-52],[-8+tailSway*0.5,-90],[0,-70],[8+tailSway*0.5,-90],\n    [shW*0.52+tailSway*0.7,-52],[shW*0.44,-96],[shW/2+5,-118],[shW/2,-150]\n  ];\n}\nconst HC=[0,-170+headBob], HR=14;\nfunction legs(){ return [[[-11,-96],[-10,-48],[-11,-2]],[[11,-96],[10,-48],[11,-2]]]; }\n\n// ---- render ----\npush();\ntranslate(P.x*width,P.y*height);\nscale(sc);\n\n// board / ground panel\nnoStroke();\nfill(boardBg[0],boardBg[1],boardBg[2], isSilh?96:100);\nrect(-132,-206,264,224,10);\nif(isBoard||isNoir){ // chalk tray + faint ghost scribbles\n  fill(28,30,22,100); rect(-132,14,264,8,2);\n  stroke(chalkH,chalkS,chalkB,7); strokeWeight(1);\n  for(let i=0;i<5;i++){ const gy=-190+i*8; line(-118,gy,-118+40+fr(i*9)*30,gy); }\n  noStroke();\n}\n// vignette so figure reads\nif(!isSilh){ push(); blendMode(MULTIPLY); noStroke(); fill(0,0,0,22); rect(-132,-206,264,20); rect(-132,-2,264,20); pop(); }\n\npush();\nrotate(bodyLean);\n\nif(isSilh){\n  fill(chalkH,chalkS,chalkB,100);\n  fillPath(coatPts());\n  const lg=legs();\n  for(const p of lg){ strokeWeight(7); stroke(chalkH,chalkS,chalkB,100); noFill(); line(p[0][0],p[0][1],p[1][0],p[1][1]); line(p[1][0],p[1][1],p[2][0],p[2][1]); }\n  noStroke(); ellipse(HC[0],HC[1],HR*2,HR*2.15);\n  // arms as thick capsules\n  strokeCap(ROUND);\n  stroke(chalkH,chalkS,chalkB,100); strokeWeight(9); noFill();\n  line(shW/2-4,-150,handRx,handRy); line(handRx,handRy,batonTx,batonTy);\n  line(-shW/2+4,-150,handLx,handLy);\n  strokeCap(ROUND);\n} else {\n  // legs\n  const lg=legs();\n  for(const p of lg) cpath(p,false,4.2,80);\n  chalk(-15,-2,-6,-2,5,80); chalk(6,-2,15,-2,5,80);\n  // coat\n  cpath(coatPts(),true,4.6,90);\n  // back seam + hatching for volume\n  chalk(0,-148,0,-96,2.4,55);\n  for(let i=0;i<4;i++){ const hy=-140+i*11; chalk(-shW*0.3,hy,-shW*0.12,hy+7,1.6,34*en+20); }\n  // collar\n  cpath([[-11,-150],[-7,-158],[7,-158],[11,-150]],false,3.4,85);\n  // head (back) + hair hatch\n  cpath([[HC[0]-HR,HC[1]],[HC[0]-HR*0.8,HC[1]-HR*0.8],[HC[0],HC[1]-HR*1.05],[HC[0]+HR*0.8,HC[1]-HR*0.8],[HC[0]+HR,HC[1]]],false,3.4,88);\n  cpath([[HC[0]-HR,HC[1]],[HC[0]-HR*0.7,HC[1]+HR*0.9],[HC[0],HC[1]+HR*1.05],[HC[0]+HR*0.7,HC[1]+HR*0.9],[HC[0]+HR,HC[1]]],false,3.4,88);\n  for(let i=0;i<5;i++){ const hx=HC[0]-9+i*4.5; chalk(hx,HC[1]-HR*0.6,hx-1.5,HC[1]-HR*1.02,1.4,60); }\n  // arms\n  cpath([[shW/2-4,-150],[ (shW/2-4+handRx)/2 + 6,(-150+handRy)/2 ],[handRx,handRy]],false,4,88);\n  cpath([[-shW/2+4,-150],[ (-shW/2+4+handLx)/2 - 6,(-150+handLy)/2 ],[handLx,handLy]],false,4,88);\n  // hands\n  push(); noFill(); stroke(chalkH,chalkS,chalkB,90); strokeWeight(2); ellipse(handRx,handRy,7,7); ellipse(handLx,handLy,6,6); pop();\n}\n\n// baton + trail (all styles)\npush();\nif(isNeon||glow){ push(); blendMode(ADD); stroke(chalkH,chalkS,100,25); strokeWeight(8); noFill();\n  beginShape(); for(let i=0;i<S.trail.length;i++){ const p=S.trail[i]; curveVertex(p[0],p[1]); } endShape(); blendMode(BLEND); pop(); }\n// trail as fading chalk dashes\nfor(let i=1;i<S.trail.length;i++){\n  const p0=S.trail[i-1], p1=S.trail[i]; const fade=i/S.trail.length;\n  strokeWeight((0.6+fade*2.4));\n  const th = isNeon? chalkH : (isSilh?0:chalkH);\n  stroke(isSilh?0:th, isSilh?0:(isNeon?60:chalkS), isSilh?45:chalkB, fade*70);\n  line(p0[0],p0[1],p1[0],p1[1]);\n}\n// baton stick\nstroke(isSilh?0:chalkH,isSilh?0:(chalkS*0.6),isSilh?30:100, 95); strokeWeight(2.6);\nline(handRx,handRy,batonTx,batonTy);\nnoStroke(); fill(isSilh?0:48,isSilh?0:30,isSilh?30:100,95); ellipse(batonTx,batonTy,5,5);\n// ictus spark on the beat\nif(K.pulse>0.35 && !isSilh){ push(); blendMode(ADD); noStroke(); fill(chalkH,chalkS*0.5,100,clp(K.pulse*55+A.treble*30,0,70)); ellipse(batonTx,batonTy,10+K.pulse*10,10+K.pulse*10); blendMode(BLEND); pop(); }\npop();\n\npop(); // bodyLean\n\n// chalk dust drifting from baton (density) \u2014 baseline shimmer\nconst nd=Math.floor(P.density*12);\nnoStroke();\nfor(let i=0;i<nd;i++){ const ph=frc(K.t*(.18+.06*fr(i))+fr(i*3)); const dx=batonTx+(fr(i*5)-.5)*26, dy=batonTy+ph*40; fill(isSilh?0:chalkH,isSilh?0:chalkS*0.5,isSilh?40:chalkB, clp(30*(1-ph),0,34)); ellipse(dx+Math.sin(K.t*2+i)*4,dy,1.8,1.8); }\n\nblendMode(BLEND);\npop();\n"
+}

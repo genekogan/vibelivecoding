@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.dither",
+  "kind": "genart",
+  "name": "Animated Dither",
+  "desc": "A slow smooth field of drifting sine terrain rendered through an ordered 8x8 Bayer matrix into crisp chunky print dots, coverage pumping with rms and the pattern boiling / drifting / rippling, in 1-bit / amber-phosphor / blueprint / newsprint / thermal-false-color inks.",
+  "tags": [
+    "dither",
+    "bayer",
+    "ordered-dither",
+    "1-bit",
+    "halftone",
+    "print",
+    "dots",
+    "stipple",
+    "retro",
+    "terminal",
+    "phosphor",
+    "amber",
+    "blueprint",
+    "newsprint",
+    "thermal",
+    "generative",
+    "genart",
+    "abstract",
+    "monochrome",
+    "pattern",
+    "field",
+    "lo-fi",
+    "pixel",
+    "risograph",
+    "texture",
+    "background",
+    "fullbleed",
+    "grain"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1.0,
+      "min": 0.3,
+      "max": 3.0,
+      "doc": "field feature fineness (dot pattern frequency)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ink coverage / threshold bias"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field contrast + pump amplitude"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 4.0,
+      "doc": "field drift/boil rate"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "ink tint (amber default; styles may fix it)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "ripple-center x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "ripple-center y fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "wave-field seed"
+    },
+    "style": {
+      "default": "1bit",
+      "options": [
+        "1bit",
+        "amber",
+        "blueprint",
+        "newsprint",
+        "thermal"
+      ],
+      "doc": "ink duotone / false-color"
+    },
+    "act": {
+      "default": "boil",
+      "options": [
+        "boil",
+        "drift",
+        "ripple"
+      ],
+      "doc": "field-motion dramaturgy"
+    }
+  },
+  "acts": [
+    "boil",
+    "drift",
+    "ripple"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:30:10+00:00",
+    "fps": 59.5,
+    "motion": 0.1439,
+    "lum": 0.339
+  },
+  "code": "const D = { scale:1, density:.55, energy:.6, speed:1, hue:35, x:.5, y:.5, seed:0, style:'1bit', act:'boil' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst TAU = 6.28318530718, cl = (v,a,b)=>v<a?a:v>b?b:v;\nconst fr = i=>{ const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\n\n// ---- working buffer keyed on aspect bucket ----\nconst asp = width/height;\nconst LS = 180;\nlet bw, bh;\nif (asp>=1){ bw=LS; bh=Math.max(8,Math.round(LS/asp)); } else { bh=LS; bw=Math.max(8,Math.round(LS*asp)); }\nconst bkey = bw+'x'+bh;\nif (!S.buf || S.bkey!==bkey){ if (S.buf && S.buf.remove) S.buf.remove(); S.buf = createGraphics(bw,bh); S.buf.pixelDensity(1); S.bkey = bkey; }\nconst g = S.buf;\n\n// ---- 8x8 Bayer ----\nif (!S.bay){\n  const b=[0,32,8,40,2,34,10,42,48,16,56,24,50,18,58,26,12,44,4,36,14,46,6,38,60,28,52,20,62,30,54,22,3,35,11,43,1,33,9,41,51,19,59,27,49,17,57,25,15,47,7,39,13,45,5,37,63,31,55,23,61,29,53,21];\n  const bb=new Float32Array(64); for (let i=0;i<64;i++) bb[i]=(b[i]+.5)/64; S.bay=bb;\n}\n\n// ---- seeded wave field ----\nconst nW=4;\nif (S.seedUsed!==P.seed){\n  S.seedUsed=P.seed; const W=[]; let sw=0;\n  for (let i=0;i<nW;i++){\n    const ang=fr(i*9)*TAU, f=1.2+fr(i*9+1)*3.5, w=.6+fr(i*9+5)*.6;\n    W.push({ fx:Math.cos(ang)*f, fy:Math.sin(ang)*f, ph:fr(i*9+2)*TAU, sp:(fr(i*9+3)*.8+.3)*(fr(i*9+4)<.5?-1:1), w:w });\n    sw+=w;\n  }\n  S.W=W; S.sumW=sw;\n}\n\n// ---- ink/paper palette keyed style+hue ----\nconst style=P.style, hue=cl(P.hue,0,360);\nconst ckey=style+'|'+Math.round(hue);\nif (S.ckey!==ckey){\n  S.ckey=ckey;\n  const rgb=(h,s,b)=>{ const c=color(h,s,b); return [c.levels[0],c.levels[1],c.levels[2]]; };\n  if (style==='amber'){ S.ink=rgb(hue||35,92,96); S.pap=rgb(30,80,5); }\n  else if (style==='blueprint'){ S.pap=rgb(212,78,26); S.ink=rgb(200,16,96); }\n  else if (style==='newsprint'){ S.pap=rgb(44,14,92); S.ink=rgb(0,0,9); }\n  else if (style==='xray'){ S.pap=rgb(216,60,5); S.ink=rgb(205,12,97); }\n  else if (style==='thermal'){ const hp=[[240,90,20],[210,90,55],[300,70,60],[10,90,75],[45,95,96]]; S.heat=hp.map(a=>rgb(a[0],a[1],a[2])); }\n  else { S.pap=rgb(0,0,95); S.ink=rgb(0,0,7); }\n}\n\n// ---- per-frame field params ----\nconst spd=cl(P.speed,.2,4), en=cl(P.energy,0,1), sc=cl(P.scale,.3,3);\nconst freqScale = .5 + sc*1.1;\nconst cover = cl(P.density,0,1);\nconst bias = (cover-.5)*.9;\nconst contrast = .7 + en*1.6;\nconst pump = K.pulse*.05*en + (A.rms||0)*.22 + (A.bass||0)*.1;\nconst drift = P.act==='drift' ? K.t*spd*.06 : 0;\nconst ripple = P.act==='ripple';\nconst rf = 8 + sc*6;\nconst rph = K.t*spd*2;\nconst W=S.W, bay=S.bay;\nconst norm = .5 / (S.sumW + (ripple?.9:0));\nconst px0 = cl(P.x,0,1), py0 = cl(P.y,0,1);\n\n// ---- render dither ----\ng.loadPixels();\nconst px=g.pixels, invW=1/(bw-1), invH=1/(bh-1);\nconst ink=S.ink, pap=S.pap, heat=S.heat;\nlet idx=0;\nfor (let yy=0; yy<bh; yy++){\n  const ny=yy*invH, row=(yy&7)*8;\n  for (let xx=0; xx<bw; xx++){\n    const nx=xx*invW, ax=nx+drift;\n    let raw=0;\n    for (let i=0;i<nW;i++){ const w=W[i]; raw += Math.sin(ax*w.fx*freqScale + ny*w.fy*freqScale + w.ph + K.t*spd*w.sp)*w.w; }\n    if (ripple){ const dx=(nx-px0)*asp, dy=ny-py0; const d=Math.sqrt(dx*dx+dy*dy); raw += Math.sin(d*rf - rph)*.9; }\n    let f = .5 + raw*norm;\n    f = .5 + (f-.5)*contrast + bias + pump;\n    if (f<0) f=0; else if (f>1) f=1;\n    const th = bay[row + (xx&7)];\n    let r,gg,bb2;\n    if (style==='thermal'){\n      let q = f + (th-.5)/5; if (q<0) q=0; else if (q>.999) q=.999;\n      const lvl=(q*5)|0; const c=heat[lvl]; r=c[0]; gg=c[1]; bb2=c[2];\n    } else {\n      const c = f>th ? ink : pap; r=c[0]; gg=c[1]; bb2=c[2];\n    }\n    px[idx]=r; px[idx+1]=gg; px[idx+2]=bb2; px[idx+3]=255; idx+=4;\n  }\n}\ng.updatePixels();\n\ndrawingContext.imageSmoothingEnabled = false;\nimage(g,0,0,width,height);\ndrawingContext.imageSmoothingEnabled = true;\nblendMode(BLEND);\n"
+}

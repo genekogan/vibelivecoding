@@ -1,0 +1,158 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.varnish",
+  "kind": "post",
+  "name": "Varnish & Craquelure",
+  "desc": "The conservation-lab pass: the frame goes under aged amber varnish with an uneven drifting film that both dims the picture and scatters its own plate tone back out, foxing spots bloom and catch the room, canvas weave tooth breaks the surface, a craquelure net opens across it, and a gallery lamp wanders the gloss so the raised crack lips ignite wherever it rakes.",
+  "tags": [
+    "varnish",
+    "glaze",
+    "craquelure",
+    "crack",
+    "cracks",
+    "crazing",
+    "canvas",
+    "linen",
+    "weave",
+    "tooth",
+    "panel",
+    "painting",
+    "oil",
+    "old-master",
+    "gallery",
+    "museum",
+    "conservation",
+    "restoration",
+    "raking",
+    "lamp",
+    "gloss",
+    "sheen",
+    "specular",
+    "plate tone",
+    "bloom",
+    "foxing",
+    "foxed",
+    "mould",
+    "tide-line",
+    "stain",
+    "paper",
+    "aged",
+    "age",
+    "patina",
+    "amber",
+    "xray",
+    "survey",
+    "desaturate",
+    "post",
+    "overlay",
+    "finish",
+    "texture",
+    "material",
+    "surface",
+    "subtle"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "strength of everything the panel emits \u2014 plate tone, blooms, the lamp and the sheen"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the weave pitch, the craquelure cells, the blooms and the lamp"
+    },
+    "glaze": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1.3,
+      "doc": "how heavy the aged varnish film is \u2014 both how much it dims the picture and how much plate tone it scatters back"
+    },
+    "craze": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.3,
+      "doc": "how far the craquelure net has opened, and how hard its lips catch the lamp"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of varnish blooms and foxing spots"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "overall pass opacity"
+    },
+    "hue": {
+      "default": 36,
+      "min": 0,
+      "max": 360,
+      "doc": "varnish hue (36 = aged amber)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the lamp and the film drift"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre the lamp wanders about, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre the lamp wanders about, y (also the foxed tide-line height)"
+    },
+    "style": {
+      "default": "varnish",
+      "options": [
+        "varnish",
+        "foxed",
+        "wet",
+        "xray"
+      ],
+      "doc": "varnish: aged amber film on canvas, cracked and lit \u00b7 foxed: paper gone mouldy, brown spots and a water tide-line \u00b7 wet: fresh varnish just brushed on \u2014 saturated, glossy, uncracked \u00b7 xray: the conservator's radiograph \u2014 desaturated, the crack net wide open"
+    },
+    "act": {
+      "default": "gallery",
+      "options": [
+        "gallery",
+        "raking",
+        "age"
+      ],
+      "doc": "gallery: a lamp wandering the gloss \u00b7 raking: the conservator's lamp sweeps hard across the surface \u00b7 age: the varnish yellows and the crack net opens over minutes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 weave, crack net, foxing and bloom placement"
+    }
+  },
+  "acts": [
+    "gallery",
+    "raking",
+    "age"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:30+00:00",
+    "fps": 59.9,
+    "motion": 0.0152,
+    "lum": 0.124
+  },
+  "code": "const D = { energy: .55, scale: 1, glaze: .45, craze: .5, density: .5, alpha: .85, hue: 36, speed: 1, x: .5, y: .5, style: 'varnish', act: 'gallery', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 was effectively a NO-OP \u2014 lum .084 over a .088 bed, motion\n// .0084. The cause was structural, not cosmetic: every single effect was\n// MULTIPLY (the glaze, the foxing) or OVERLAY (the weave, the craquelure), and\n// both are mathematical no-ops on a near-black frame. Multiplying dark navy by\n// amber gives dark navy; overlaying anything onto ~0 gives ~0. So the pass\n// contributed nothing at all. The fix is to add the parts of a real varnished\n// panel that EMIT rather than absorb: plate tone, varnish bloom, foxing lit by\n// the lamp, and crack lips that ignite additively where the lamp rakes them.\n// It still reads as a pass OVER content \u2014 the multiply chain is all still here.\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=(((h%360)+360)%360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [((r+m)*255)|0,((g+m)*255)|0,((l+m)*255)|0]; };\nconst rgba=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst gz=cl(P.glaze,0,1.3), cz=cl(P.craze,0,1.3), al=cl(P.alpha,0,1);\nconst sc=cl(P.scale,.5,2.2), dens=cl(P.density,0,1), spd=cl(P.speed,.2,4);\nconst en=cl(P.energy,0,1)*(.55+.55*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1);\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nconst kick=Math.min(1,K.pulse*.38+S.bass*.5);\n\n// ---- the panel: what kind of surface the light is falling on ----\nconst foxed=(sty==='foxed'), wet=(sty==='wet'), xray=(sty==='xray');\nlet glH,glS,glB, crazeE=cz, weave=!foxed&&!wet, gloss=1.0, foxE;\nif(foxed){ glH=md(H+52,360); glS=22; glB=64; crazeE=cz*.55; gloss=.5; foxE=1; }\nelse if(wet){ glH=md(H+4,360); glS=30; glB=90; crazeE=cz*.12; gloss=2.0; foxE=0; }\nelse if(xray){ glH=md(H+164,360); glS=24; glB=72; crazeE=cz*1.7; gloss=.6; foxE=.2; }\nelse { glH=H; glS=62; glB=62; gloss=1.0; foxE=.34; }   // every aged panel has some foxing\n\nlet glazeE=gz, sheenE=1;\nif(act==='raking'){ sheenE=2.3; glazeE*=.7; gloss*=1.3; }\nelse if(act==='age'){ const q=.5+.5*Math.sin(T*.019); glazeE*=.55+1.1*q; crazeE*=.5+1.0*q; foxE*=.5+1.2*q; }\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// ---- 1. what fresh varnish / a bleach bath does to the colour under it ----\nif(wet){\n  dc.globalCompositeOperation='saturation'; dc.globalAlpha=cl(.18+.26*en,0,.55)*al;\n  dc.fillStyle='rgb(255,0,0)'; dc.fillRect(0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n} else if(xray){\n  dc.globalCompositeOperation='saturation'; dc.globalAlpha=cl(.44+.30*(1-en),0,.86)*al;\n  dc.fillStyle='rgb(128,128,128)'; dc.fillRect(0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 2. the glaze: an uneven, drifting film of aged varnish (absorbs) ----\nif(glazeE>.01){\n  const gc=hsb2rgb(glH,glS,glB);\n  dc.globalCompositeOperation='multiply';\n  const lg=dc.createLinearGradient(0,0,W*.35,Hh);\n  lg.addColorStop(0,rgba(gc,cl(.30*glazeE*al,0,.85)));\n  lg.addColorStop(.55,rgba(gc,cl(.19*glazeE*al,0,.85)));\n  lg.addColorStop(1,rgba(gc,cl(.28*glazeE*al,0,.85)));\n  dc.fillStyle=lg; dc.fillRect(0,0,W,Hh);\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 3. PLATE TONE + varnish bloom: the parts that EMIT ----\n// A lit varnished panel scatters light back out of the film \u2014 it does not only\n// darken what is under it. This is what gives the pass presence on a dark frame,\n// and the drift is a second motion floor under the lamp.\n{\n  const tc=hsb2rgb(md(glH+6,360),Math.min(100,glS*.7),100);\n  dc.globalCompositeOperation='lighter';\n  const tx=(.5+.18*Math.sin(T*.017)+.07*Math.sin(T*.041))*W;\n  const ty=(.5+.14*Math.cos(T*.013)+.06*Math.sin(T*.037))*Hh;\n  const tg=dc.createRadialGradient(tx,ty,0,tx,ty,u*(1.05+.15*Math.sin(T*.023)));\n  const ta=cl((.050+.075*glazeE)*(.45+.7*en)*al,0,.17);\n  tg.addColorStop(0,rgba(tc,ta));\n  tg.addColorStop(.6,rgba(tc,ta*.5));\n  tg.addColorStop(1,rgba(tc,ta*.14));\n  dc.fillStyle=tg; dc.fillRect(0,0,W,Hh);\n  // varnish bloom: the cloudy patches where the film went off, catching light\n  const NBL=4+Math.round(dens*4);\n  for(let i=0;i<NBL;i++){\n    const bx=(fr(i*13)+.10*Math.sin(T*.029+i*1.7)+.05*Math.sin(T*.071+i))*W;\n    const by=(fr(i*13+1)+.08*Math.cos(T*.023+i*2.3)+.04*Math.sin(T*.061+i))*Hh;\n    const rr=u*(.20+fr(i*13+2)*.34)*sc;\n    const bc=hsb2rgb(md(glH+(fr(i*13+3)-.5)*30,360), glS*(.4+fr(i*13+4)*.5), 100);\n    const rg=dc.createRadialGradient(bx,by,0,bx,by,rr);\n    rg.addColorStop(0,rgba(bc,cl(.055*glazeE*(.4+.8*en)*al,0,.13)));\n    rg.addColorStop(1,rgba(bc,0));\n    dc.fillStyle=rg; dc.fillRect(bx-rr,by-rr,rr*2,rr*2);\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 4. foxing: brown mould bloom + a tide-line where the water stopped ----\nif(foxE>.01){\n  const NFX=Math.round((10+dens*30)*foxE);\n  // the stain absorbs...\n  dc.globalCompositeOperation='multiply';\n  for(let i=0;i<NFX;i++){\n    const bx=(fr(i*17)+.012*Math.sin(T*.11+i))*W, by=(fr(i*17+1)+.010*Math.cos(T*.09+i*1.3))*Hh;\n    const gr2=.5+.5*Math.sin(T*.037+fr(i*17+4)*TAU);\n    const rr=u*(.008+fr(i*17+2)*.030)*(.6+.7*gr2)*sc;\n    const bc=hsb2rgb(md(H-8+fr(i*17+3)*26,360),58,54);\n    const rg=dc.createRadialGradient(bx,by,0,bx,by,rr);\n    rg.addColorStop(0,rgba(bc,cl(.34*glazeE*al,0,.7)));\n    rg.addColorStop(.6,rgba(bc,cl(.16*glazeE*al,0,.5)));\n    rg.addColorStop(1,rgba(bc,0));\n    dc.fillStyle=rg; dc.fillRect(bx-rr,by-rr,rr*2,rr*2);\n  }\n  // ...but the raised rim of each spot still catches the room\n  dc.globalCompositeOperation='lighter';\n  for(let i=0;i<NFX;i++){\n    const bx=(fr(i*17)+.012*Math.sin(T*.11+i))*W, by=(fr(i*17+1)+.010*Math.cos(T*.09+i*1.3))*Hh;\n    const gr2=.5+.5*Math.sin(T*.037+fr(i*17+4)*TAU);\n    const rr=u*(.008+fr(i*17+2)*.030)*(.6+.7*gr2)*sc;\n    const bc=hsb2rgb(md(H+14+fr(i*17+3)*20,360),30,100);\n    const rg=dc.createRadialGradient(bx,by,rr*.5,bx,by,rr);\n    rg.addColorStop(0,rgba(bc,0));\n    rg.addColorStop(.75,rgba(bc,cl(.10*foxE*(.4+.8*en)*al,0,.16)));\n    rg.addColorStop(1,rgba(bc,0));\n    dc.fillStyle=rg; dc.fillRect(bx-rr,by-rr,rr*2,rr*2);\n  }\n  if(foxed){\n    const tc=hsb2rgb(md(H+4,360),52,52);\n    dc.globalCompositeOperation='multiply';\n    dc.strokeStyle=rgba(tc,cl(.26*glazeE*al,0,.6)); dc.lineWidth=Math.max(2,u*.006);\n    dc.beginPath();\n    for(let x=0;x<=W;x+=W/24){\n      const y=(ay*.72+.14)*Hh + Math.sin(x*.004+T*.031)*u*.045 + Math.sin(x*.011-T*.017)*u*.02;\n      if(x===0) dc.moveTo(x,y); else dc.lineTo(x,y); }\n    dc.stroke();\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 5. the surface: canvas weave + craquelure, baked once as a relief plate --\n// S.surf is a 128-grey OVERLAY plate (works over real content); S.lip holds the\n// lit crack lips ALONE on transparent, for the additive pass that is the only\n// thing that survives on a dark frame.\nconst skey=W+'x'+Hh+'|'+sty+'|'+P.seed+'|'+Math.round(sc*10);\nif(!S.surf||S.sk!==skey){\n  const g=(S.surf&&S.surf.width===W&&S.surf.height===Hh)?S.surf:createGraphics(W,Hh);\n  const lp=(S.lip&&S.lip.width===W&&S.lip.height===Hh)?S.lip:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.noStroke(); g.background(0,0,50.2);\n  lp.colorMode(HSB,360,100,100,100); lp.clear(); lp.noStroke();\n  const pit=Math.max(3,u*.0042*sc);\n  if(weave){\n    g.strokeWeight(1);\n    for(let y=0;y<Hh;y+=pit){ g.stroke(0,0,58,58); g.line(0,y,W,y); }\n    for(let x=0;x<W;x+=pit){ g.stroke(0,0,43,52); g.line(x,0,x,Hh); }\n    g.noStroke();\n    for(let i=0;i<1400;i++){ const x=fr(i*23)*W, y=fr(i*23+1)*Hh;\n      g.fill(0,0,fr(i*23+2)>.5?62:39,26); g.circle(x,y,.9+fr(i*23+3)*2.2); }\n    lp.strokeWeight(1);                                  // the weave tooth catches light too\n    for(let y=0;y<Hh;y+=pit){ lp.stroke(0,0,100,13); lp.line(0,y,W,y); }\n    lp.noStroke();\n  } else {\n    g.strokeWeight(1);\n    for(let x=0;x<W;x+=pit*6){ g.stroke(0,0,54,30); g.line(x,0,x,Hh); }\n    for(let y=0;y<Hh;y+=pit*1.3){ g.stroke(0,0,52,22); g.line(0,y,W,y); }\n    g.noStroke();\n    for(let i=0;i<1000;i++){ const x=fr(i*29)*W, y=fr(i*29+1)*Hh;\n      g.fill(0,0,fr(i*29+2)>.5?60:41,22); g.circle(x,y,.8+fr(i*29+3)*2.4); }\n  }\n  // craquelure: a jittered mesh of age-cracks, each with a raised lit lip\n  const cs=Math.max(11,u*.055*sc);\n  const cols=Math.ceil(W/cs)+2, rows=Math.ceil(Hh/cs)+2;\n  const NX=(i,j)=>(i-1)*cs+(fr(i*97+j*13)-.5)*cs*.66;\n  const NY=(i,j)=>(j-1)*cs+(fr(i*31+j*57+7)-.5)*cs*.66;\n  const seg=(x0,y0,x1,y1,jit,dark,lite,wd)=>{\n    const dx=x1-x0, dy=y1-y0, L=Math.sqrt(dx*dx+dy*dy)+1e-5, px2=-dy/L, py2=dx/L;\n    const N=4, xs=[], ys=[];\n    for(let k=0;k<=N;k++){ const t=k/N, w=(k===0||k===N)?0:(fr(x0*.7+y0*.31+k*3.7)-.5)*jit;\n      xs.push(x0+dx*t+px2*w); ys.push(y0+dy*t+py2*w); }\n    g.noFill(); g.strokeWeight(wd*1.5); g.stroke(0,0,dark,88);\n    g.beginShape(); for(let k=0;k<=N;k++) g.vertex(xs[k],ys[k]); g.endShape();\n    g.strokeWeight(wd*.85); g.stroke(0,0,lite,66);\n    g.beginShape(); for(let k=0;k<=N;k++) g.vertex(xs[k]+px2*wd*1.5,ys[k]+py2*wd*1.5); g.endShape();\n    lp.noFill(); lp.strokeWeight(wd*.85); lp.stroke(0,0,100,74);\n    lp.beginShape(); for(let k=0;k<=N;k++) lp.vertex(xs[k]+px2*wd*1.5,ys[k]+py2*wd*1.5); lp.endShape();\n  };\n  const dk=xray?18:26, lt=xray?96:78, wd=Math.max(1,u*.0013);\n  for(let j=0;j<rows;j++) for(let i=0;i<cols;i++){\n    const x0=NX(i,j), y0=NY(i,j);\n    if(fr(i*7+j*11+3)>.13) seg(x0,y0,NX(i+1,j),NY(i+1,j),cs*.30,dk,lt,wd);\n    if(fr(i*7+j*11+5)>.13) seg(x0,y0,NX(i,j+1),NY(i,j+1),cs*.30,dk,lt,wd);\n  }\n  g.noStroke(); lp.noStroke(); S.surf=g; S.lip=lp; S.sk=skey; }\n\nif(crazeE>.01){\n  dc.globalCompositeOperation='overlay';\n  dc.globalAlpha=cl(crazeE*.42*al,0,.9);\n  image(S.surf,0,0);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 6. the gallery lamp: a gloss reflection wandering over the varnish ----\nconst lx=ax+.34*Math.sin(T*.055)+.16*Math.sin(T*.118+1.3)+.07*Math.sin(T*.0193);\nconst ly=ay+.26*Math.cos(T*.047)+.13*Math.sin(T*.101+.7);\nconst mw=cl(Math.round(W/2),120,760), mh=cl(Math.round(mw*Hh/Math.max(1,W)),80,520);\nif(!S.mk||S.mw!==mw||S.mh!==mh){ if(S.mk&&S.mk.remove)S.mk.remove(); S.mk=createGraphics(mw,mh); S.mw=mw; S.mh=mh; }\n// the raised crack lips ignite where the lamp rakes across them\nif(crazeE>.01 && S.lip){\n  const m=S.mk, mc=m.drawingContext;\n  m.clear(); mc.globalCompositeOperation='source-over';\n  mc.drawImage(S.lip.canvas||S.lip.elt,0,0,mw,mh);\n  mc.globalCompositeOperation='destination-in';\n  const rg=mc.createRadialGradient(lx*mw,ly*mh,0,lx*mw,ly*mh,mw*(.30+.10*Math.sin(T*.053)));\n  rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(.5,'rgba(255,255,255,0.55)'); rg.addColorStop(1,'rgba(255,255,255,0)');\n  mc.fillStyle=rg; mc.fillRect(0,0,mw,mh);\n  mc.globalCompositeOperation='source-over';\n  dc.globalCompositeOperation='lighter';\n  dc.globalAlpha=cl(crazeE*.42*(.45+.7*en)*gloss*al,0,.55);\n  image(S.mk,0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n}\n// the lamp itself, reflected in the varnish film\ndc.globalCompositeOperation='lighter';\nconst gc2=hsb2rgb(md(H+(xray?168:2),360), xray?10:26, 100);\nconst gr3=u*(.28+.12*Math.sin(T*.061))*(.6+.5*gloss)*sc;\nconst rg2=dc.createRadialGradient(lx*W,ly*Hh,0,lx*W,ly*Hh,gr3);\nrg2.addColorStop(0,rgba(gc2,cl(.175*gloss*(.45+.8*en)*(1+.25*kick*en)*al,0,.40)));\nrg2.addColorStop(.4,rgba(gc2,cl(.070*gloss*al,0,.26)));\nrg2.addColorStop(1,rgba(gc2,0));\ndc.fillStyle=rg2; dc.fillRect(lx*W-gr3,ly*Hh-gr3,gr3*2,gr3*2);\n\n// ---- 7. raking sheen: the slow pass of a conservator's lamp across the panel --\nconst sa=.28+.12*Math.sin(T*.027), ux=Math.cos(sa), uy=Math.sin(sa);\nconst L2=Math.abs(W*ux)+Math.abs(Hh*uy)+1;\nconst cpos=(((T*.034*sheenE)%1)+1)%1*L2, bw=u*.19*sc;\nconst ox=W/2-(L2/2-cpos)*ux, oy=Hh/2-(L2/2-cpos)*uy;\nconst lg2=dc.createLinearGradient(ox-bw*ux,oy-bw*uy,ox+bw*ux,oy+bw*uy);\nlg2.addColorStop(0,'rgba(255,255,255,0)');\nlg2.addColorStop(.5,rgba(gc2,cl((.045+.075*gloss*en)*al,0,.20)));\nlg2.addColorStop(1,'rgba(255,255,255,0)');\ndc.fillStyle=lg2; dc.fillRect(0,0,W,Hh);\ndc.globalCompositeOperation=oldOp;\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

@@ -1,0 +1,176 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.leadlight",
+  "kind": "post",
+  "name": "Leadlight",
+  "desc": "The frame is re-glazed \u2014 a came net is laid over it and every pane takes the colour of whatever sits behind it, pulled toward its own bottle-glass tint and streaked with reamy texture, while a light moves slowly outside the window and fires each pane in turn as it passes.",
+  "tags": [
+    "leadlight",
+    "lead light",
+    "leaded",
+    "leaded glass",
+    "stained glass",
+    "glass",
+    "glazing",
+    "glazier",
+    "came",
+    "cames",
+    "lead",
+    "quarry",
+    "quarries",
+    "rose window",
+    "rosette",
+    "tracery",
+    "window",
+    "pane",
+    "panes",
+    "lattice",
+    "mosaic",
+    "tessellation",
+    "cell",
+    "cells",
+    "cathedral",
+    "church",
+    "chapel",
+    "basilica",
+    "abbey",
+    "gothic",
+    "medieval",
+    "ecclesiastical",
+    "sacred",
+    "liturgical",
+    "reverent",
+    "jewel",
+    "jewelled",
+    "bottle glass",
+    "reamy",
+    "antique glass",
+    "dalle",
+    "cutline",
+    "cartoon",
+    "blueprint",
+    "schematic",
+    "backlit",
+    "luminous",
+    "transmitted light",
+    "light through",
+    "sun",
+    "clerestory",
+    "re-render",
+    "overlay",
+    "post",
+    "finish",
+    "texture",
+    "segments"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the light outside fires the glass, plus the came lip and net breathing"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of panes in the net"
+    },
+    "glass": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how far each pane pulls the scene toward its own glass tint (0 clear glazing that just shows the frame, 1 fully coloured glass)"
+    },
+    "alpha": {
+      "default": 0.88,
+      "min": 0,
+      "max": 1,
+      "doc": "opacity of the glazing over the scene"
+    },
+    "lead": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "came weight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "sun-travel and net-breathe rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "rose diameter and the size of the light falling outside"
+    },
+    "hue": {
+      "default": 212,
+      "min": 0,
+      "max": 360,
+      "doc": "centre of the glass palette"
+    },
+    "spread": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "how far the pane tints scatter either side of hue (0 a single-colour window, 360 the full jewel box)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rose centre x"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "rose centre y"
+    },
+    "style": {
+      "default": "cathedral",
+      "options": [
+        "cathedral",
+        "quarry",
+        "rose",
+        "cutline"
+      ],
+      "doc": "aesthetic: irregular jewel-toned cathedral glazing in heavy black came / restrained domestic diamond quarries, pale glass and thin lead / a radial rose window with an open boss / abstract glazier's cutline \u2014 the net as a cyan working drawing over an almost untouched frame"
+    },
+    "act": {
+      "default": "sun",
+      "options": [
+        "sun",
+        "vespers",
+        "storm"
+      ],
+      "doc": "multi-minute program: sun tracks steadily across the outside / vespers crawls a low hard light along the window over minutes / storm hurries the light and agitates the net"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "came layout + pane tints"
+    }
+  },
+  "acts": [
+    "sun",
+    "vespers",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:18+00:00",
+    "fps": 57.5,
+    "motion": 0.0303,
+    "lum": 0.209
+  },
+  "code": "const D = { energy:.6, density:.5, glass:.55, alpha:.88, lead:.5, speed:1, scale:1, hue:212, spread:150, x:.5, y:.42, style:'cathedral', act:'sun', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const sg=Math.floor(h/60)%6;if(sg===0){r=c;g=x;b=0;}else if(sg===1){r=x;g=c;b=0;}else if(sg===2){r=0;g=c;b=x;}else if(sg===3){r=0;g=x;b=c;}else if(sg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [((r+m)*255)|0,((g+m)*255)|0,((b+m)*255)|0];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H),t=K.t,dc=drawingContext;\nconst en=clp(P.energy,0,1);\nconst sp=0.45+clp(P.speed,.15,4)*0.55;\nconst style=P.style, hue=((P.hue%360)+360)%360, alpha=clp(P.alpha,0,1);\nconst isRose=style==='rose', isQuarry=style==='quarry', isCut=style==='cutline';\n\nconst cols=Math.max(3,Math.round((isRose?7:4)+clp(P.density,0,1)*(isRose?11:9)));\nconst rows=Math.max(2,Math.round(3+clp(P.density,0,1)*7));\nconst key=W+'x'+H+':'+cols+'x'+rows+':'+style+':'+P.seed+':'+P.scale.toFixed(2);\n\n// ---- the came net: a seeded lattice, cached until size/seed/style/density change\nif(!S.net||S.key!==key){\n  const pts=[];\n  for(let r=0;r<=rows;r++){\n    const row=[];\n    for(let c=0;c<=cols;c++){\n      const id=r*97+c*13+1;\n      let bx,by;\n      if(isRose){\n        const rad=(r/rows), ang=(c/cols)*TAU;\n        const rr=u*0.62*Math.max(0.35,P.scale)*(rad+0.06*fr(id*3.1));\n        bx=P.x*W+Math.cos(ang)*rr; by=P.y*H+Math.sin(ang)*rr*0.94;\n      } else {\n        const jx=isQuarry?0.10:(style==='cathedral'?0.30:0.22);\n        bx=(c/cols)*W + (fr(id*3.1)-0.5)*(W/cols)*jx;\n        by=(r/rows)*H + (fr(id*7.7)-0.5)*(H/rows)*jx;\n        if(isQuarry) bx += (r%2)*(W/cols)*0.5;     // diamond offset courses\n      }\n      row.push({bx,by,p1:fr(id*11)*TAU,p2:fr(id*17)*TAU});\n    }\n    pts.push(row);\n  }\n  const tints=[];\n  for(let i=0;i<rows*cols;i++) tints.push({h:fr(i*23+5),s:fr(i*29+6),v:fr(i*31+7),tx:fr(i*37+8),rm:fr(i*41+9)});\n  S.net=pts; S.tints=tints; S.key=key;\n}\nconst pts=S.net, tints=S.tints;\n\n// ---- sample the scene behind the window\nif(!S.cap||S.ckey!==W+'x'+H){\n  let cw,ch;\n  if(W>=H){ cw=96; ch=Math.max(8,Math.round(96*H/W)); } else { ch=96; cw=Math.max(8,Math.round(96*W/H)); }\n  if(S.cap&&S.cap.remove)S.cap.remove();\n  S.cap=createGraphics(cw,ch); S.cap.pixelDensity(1); S.ckey=W+'x'+H;\n}\nconst cap=S.cap, cw=cap.width, chh=cap.height;\ncap.clear(); cap.drawingContext.drawImage(dc.canvas,0,0,cw,chh);\ncap.loadPixels();\nconst cp=cap.pixels;\n\n// ---- act: multi-minute programs\nlet sunSpd=0.031, sunAmp=1.5, breathe=1;\nif(P.act==='vespers'){ sunSpd=0.013; sunAmp=2.1; breathe=1.5; }\nelse if(P.act==='storm'){ sunSpd=0.062; sunAmp=1.1; breathe=2.4; }\n\n// ---- the light behind the window sweeps continuously and wraps: a motion floor that\n// cannot cancel on any 8s window, and the reason the glass reads as lit rather than painted\nconst lgx=(md(fr(2)+t*sunSpd*sp,1.5)-0.25)*W;\nconst lgy=H*(0.30+0.26*Math.sin(t*0.047*sp+1.1));\nconst lgR=u*(0.55+0.22*Math.sin(t*0.083*sp))*Math.max(0.5,P.scale);\nconst kick=K.pulse*0.10*en+A.bass*0.12*en;\n\n// ---- lattice drift: the net itself breathes on two incommensurate rates\nconst dr=u*0.010*breathe*(0.4+0.6*en);\nconst px=(q)=>q.bx+Math.sin(t*0.061*sp+q.p1)*dr+Math.sin(t*0.143*sp+q.p2)*dr*0.5;\nconst py=(q)=>q.by+Math.cos(t*0.053*sp+q.p2)*dr+Math.sin(t*0.117*sp+q.p1)*dr*0.5;\n\nconst glassMix=clp(P.glass,0,1);\nconst leadW=Math.max(0.8,u*0.0045*(0.35+clp(P.lead,0,1)*1.5));\nconst leadC=isCut?hsb2rgb(196,60,74):hsb2rgb(hue,24,7);\nnoStroke();\n\nlet pi=-1;\nfor(let r=0;r<rows;r++){\n  for(let c=0;c<cols;c++){\n    pi++;\n    const a=pts[r][c], b=pts[r][(c+1)%(cols+1)], d=pts[r+1][(c+1)%(cols+1)], e=pts[r+1][c];\n    const bb = isRose && c===cols-1 ? pts[r][0] : b;\n    const dd = isRose && c===cols-1 ? pts[r+1][0] : d;\n    const ax=px(a),ay=py(a), bx2=px(bb),by2=py(bb), dx2=px(dd),dy2=py(dd), ex=px(e),ey=py(e);\n    const cx=(ax+bx2+dx2+ex)*0.25, cy=(ay+by2+dy2+ey)*0.25;\n    if(isRose && r===0) continue;                       // leave the rose's boss open\n    // sample the scene at the pane centre\n    const si=clp(Math.round(cx/W*cw-0.5),0,cw-1), sj=clp(Math.round(cy/H*chh-0.5),0,chh-1);\n    const o=(sj*cw+si)*4;\n    const sr=cp[o],sg=cp[o+1],sb=cp[o+2];\n    // this pane's own glass\n    const T=tints[pi%tints.length];\n    const gh=hue+(T.h*2-1)*clp(P.spread,0,360)*0.5;\n    const gc=hsb2rgb(gh, isQuarry?18+T.s*26:(isCut?0:46+T.s*44), isQuarry?74+T.v*22:(38+T.v*52));\n    // light behind\n    const ddx=(cx-lgx)/lgR, ddy=(cy-lgy)/lgR;\n    const lit=1+ (sunAmp*en+kick)*Math.max(0,1-(ddx*ddx+ddy*ddy));\n    const mixv=isCut?0.06:glassMix;\n    const R=clp((sr*(1-mixv)+gc[0]*mixv)*lit,0,255);\n    const G=clp((sg*(1-mixv)+gc[1]*mixv)*lit,0,255);\n    const B=clp((sb*(1-mixv)+gc[2]*mixv)*lit,0,255);\n    dc.beginPath(); dc.moveTo(ax,ay); dc.lineTo(bx2,by2); dc.lineTo(dx2,dy2); dc.lineTo(ex,ey); dc.closePath();\n    dc.fillStyle=`rgba(${R|0},${G|0},${B|0},${(alpha*(isCut?0.30:0.92)).toFixed(3)})`;\n    dc.fill();\n    // reamy streaks: glass is never a flat fill\n    if(!isCut && T.tx>0.42){\n      dc.save(); dc.clip();\n      dc.strokeStyle=`rgba(255,255,255,${(0.05+0.10*T.rm)*alpha})`;\n      dc.lineWidth=Math.max(0.8,u*0.004*(0.4+T.rm));\n      const sa=T.tx*TAU;\n      for(let k=-1;k<=1;k++){\n        dc.beginPath();\n        dc.moveTo(cx-Math.cos(sa)*u*0.09+k*Math.sin(sa)*u*0.012, cy-Math.sin(sa)*u*0.09-k*Math.cos(sa)*u*0.012);\n        dc.lineTo(cx+Math.cos(sa)*u*0.09+k*Math.sin(sa)*u*0.012, cy+Math.sin(sa)*u*0.09-k*Math.cos(sa)*u*0.012);\n        dc.stroke();\n      }\n      dc.restore();\n    }\n    // the came, with a lit lip along its top edge\n    dc.beginPath(); dc.moveTo(ax,ay); dc.lineTo(bx2,by2); dc.lineTo(dx2,dy2); dc.lineTo(ex,ey); dc.closePath();\n    dc.strokeStyle=`rgba(${leadC[0]},${leadC[1]},${leadC[2]},${(alpha*(isCut?0.8:0.9)).toFixed(3)})`;\n    dc.lineWidth=leadW; dc.stroke();\n    if(!isCut){\n      dc.strokeStyle=`rgba(210,214,220,${(0.16+0.20*en)*alpha})`;\n      dc.lineWidth=Math.max(0.5,leadW*0.34);\n      dc.beginPath(); dc.moveTo(ax,ay-leadW*0.3); dc.lineTo(bx2,by2-leadW*0.3); dc.stroke();\n    }\n  }\n}\n\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\nblendMode(BLEND); dc.shadowBlur=0; noStroke();\n"
+}

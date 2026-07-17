@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.marine_snow",
+  "kind": "fx",
+  "name": "Marine Snow",
+  "desc": "The endless fall of the deep sea \u2014 ragged organic aggregates, not tidy specks, tumbling down through a teal water column with mucus wisps trailing off the big ones, flaring white as they pass the dive light at x/y and dying into the murk beyond it; drops any scene to a thousand metres.",
+  "tags": [
+    "marine snow",
+    "detritus",
+    "deep sea",
+    "abyss",
+    "abyssal",
+    "underwater",
+    "submarine",
+    "ocean",
+    "sea",
+    "water",
+    "column",
+    "plankton",
+    "aggregate",
+    "sinking",
+    "drifting",
+    "dive light",
+    "backscatter",
+    "murk",
+    "teal",
+    "cyan",
+    "cold",
+    "eerie",
+    "silent",
+    "sublime",
+    "melancholy",
+    "documentary",
+    "atmosphere",
+    "overlay",
+    "nature"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "backscatter brightness, aggregate size and how far the dive light reaches"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "flake count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "sink + tumble rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.4,
+      "doc": "aggregate size vs design size"
+    },
+    "current": {
+      "default": 0.3,
+      "min": -1,
+      "max": 1,
+      "doc": "lateral current shear (negative drifts left)"
+    },
+    "alpha": {
+      "default": 0.6,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity \u2014 governs the murk veil too"
+    },
+    "hue": {
+      "default": 186,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue (186 teal, 210 cold blue, 150 green shelf water)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dive light X \u2014 flakes near it flare"
+    },
+    "y": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "dive light Y"
+    },
+    "style": {
+      "default": "detritus",
+      "options": [
+        "detritus",
+        "abyssal",
+        "xray",
+        "sonar"
+      ],
+      "doc": "aesthetic: pale ragged organic aggregates in teal water / crushing-depth cold monochrome, murk dominant / wireframe hulls with interior chords, anatomical / false-colour instrument returns, concentric rings coded by depth"
+    },
+    "act": {
+      "default": "sink",
+      "options": [
+        "sink",
+        "bloom",
+        "upwell"
+      ],
+      "doc": "dramaturgy: steady endless fall / density swells and thins over minutes as a bloom dies down / the current reverses and the snow rises again"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "aggregate shapes + fall rates"
+    }
+  },
+  "acts": [
+    "sink",
+    "bloom",
+    "upwell"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:22+00:00",
+    "fps": 59.9,
+    "motion": 0.0267,
+    "lum": 0.113
+  },
+  "code": "const D = { energy:.55, density:.55, speed:1, scale:1, current:.3, alpha:.6, hue:186, x:.5, y:.35, style:'detritus', act:'sink', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2=(h,s,v)=>{h=md(h,360)/60;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,x=c*(1-Math.abs(h%2-1)),m=v-c;let r=0,g2=0,b=0;\n  if(h<1){r=c;g2=x;}else if(h<2){r=x;g2=c;}else if(h<3){g2=c;b=x;}else if(h<4){g2=x;b=c;}else if(h<5){r=x;b=c;}else{r=c;b=x;}\n  return [(r+m)*255,(g2+m)*255,(b+m)*255];};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'sink';\nconst isAby=st==='abyssal', isX=st==='xray', isSon=st==='sonar';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.4);\nconst lx=P.x*W, ly=P.y*Hh;\nlet envD=1, dir=1;\nif(act==='bloom'){ envD=0.45+1.15*Math.pow(clp(0.5+0.5*Math.sin(K.t*0.029+1.1),0,1),1.4); }\nelse if(act==='upwell'){ dir=Math.sin(K.t*0.041)>0?1:-1; }\n// slow incommensurate current shear \u2014 the whole column breathes sideways, never re-phasing\nconst cur=(P.current+0.30*Math.sin(K.t*0.073*sp)+0.16*Math.sin(K.t*0.181*sp+2.4)+0.09*Math.sin(K.t*0.037*sp))*(0.5+en);\n\n// ---- water-column murk (gives the composite its \"we are underwater\" read) ----\n{\n  const ma=clp((isAby?0.26:isSon?0.10:0.15)*al*(0.55+0.5*en),0,0.45);\n  const c1=hsb2(md(H+(isAby?8:0),360), isSon?0.30:0.62, isAby?0.16:0.30);\n  const c2=hsb2(md(H-14,360), 0.52, isAby?0.05:0.10);\n  const g2=drawingContext.createLinearGradient(0,0,0,Hh);\n  g2.addColorStop(0,'rgba('+(c1[0]|0)+','+(c1[1]|0)+','+(c1[2]|0)+','+(ma*0.7).toFixed(3)+')');\n  g2.addColorStop(1,'rgba('+(c2[0]|0)+','+(c2[1]|0)+','+(c2[2]|0)+','+ma.toFixed(3)+')');\n  drawingContext.fillStyle=g2; drawingContext.fillRect(0,0,W,Hh);\n}\n// ---- backscatter bloom around the dive light ----\nif(!isX){\n  blendMode(ADD);\n  const br=0.6+0.4*Math.sin(K.t*0.117*sp)+0.18*Math.sin(K.t*0.293*sp+1.4);\n  const rr=u*lrp(0.34,0.70,en)*sc*(0.9+0.1*br);\n  const ba=clp(0.22*al*(0.3+0.9*en)*(0.6+0.4*br)*(1+A.rms*0.6),0,0.46);\n  const bc=hsb2(md(H+(isSon?150:6),360),isSon?0.55:0.30,0.94);\n  const dxb=Math.sin(K.t*0.061*sp)*u*0.05+Math.sin(K.t*0.143*sp+1.7)*u*0.025;\n  const dyb=Math.sin(K.t*0.089*sp+0.6)*u*0.04+Math.sin(K.t*0.211*sp)*u*0.018;\n  const rg=drawingContext.createRadialGradient(lx+dxb,ly+dyb,0,lx+dxb,ly+dyb,rr);\n  rg.addColorStop(0,'rgba('+(bc[0]|0)+','+(bc[1]|0)+','+(bc[2]|0)+','+ba.toFixed(3)+')');\n  rg.addColorStop(1,'rgba('+(bc[0]|0)+','+(bc[1]|0)+','+(bc[2]|0)+',0)');\n  drawingContext.fillStyle=rg; drawingContext.fillRect(lx+dxb-rr,ly+dyb-rr,rr*2,rr*2);\n  blendMode(BLEND);\n}\n\n// ---- the snow: irregular organic aggregates sinking through the column ----\nconst nF=Math.round(lrp(70,260,dn)*envD);\nconst diag=Math.hypot(W,Hh);\nfor(let i=0;i<nF;i++){\n  const j=i*17;\n  const dep=fr(j+1);                                   // 0 far .. 1 near\n  const fall=lrp(0.024,0.095,dep)*sp*(0.45+0.9*en)*dir;\n  const ph=frc(fr(j+2)+K.t*fall);\n  const sway=Math.sin(K.t*(0.23+dep*0.51)*sp+fr(j+3)*6.283)*u*0.03*(0.4+en)*sc;\n  const fy=ph*(Hh*1.16)-Hh*0.08;\n  const fx=frc(fr(j+4)+cur*ph*0.34)*1.14*W-0.07*W+sway;\n  const rad=u*lrp(0.0024,0.020,dep)*sc*(0.55+0.85*en);\n  // backscatter falls off away from the dive light \u2014 near flakes flare, far ones die into the murk\n  const lit=clp(1-Math.hypot(fx-lx,fy-ly)/(diag*lrp(0.42,0.95,en)),0.05,1);\n  const bright=lrp(0.42,1,dep)*lrp(0.45,1,lit);\n  const aa=al*(isAby?lrp(0.22,0.78,bright):lrp(0.38,1,bright));\n  if(aa<0.02||rad<0.25) continue;\n  const tumble=K.t*(0.09+fr(j+5)*0.31)*sp+fr(j+6)*6.283; // aggregates rotate slowly as they sink\n  if(isSon){\n    noFill(); strokeWeight(Math.max(0.4,u*0.0011));\n    for(let r2=1;r2<=3;r2++){\n      stroke(md(H+150-dep*130,360),72,lrp(50,100,dep),clp((88/r2)*aa,0,92));\n      circle(fx,fy,rad*r2*2.1);\n    }\n    stroke(md(H+150-dep*130,360),40,100,72*aa); point(fx,fy);\n    continue;\n  }\n  push(); translate(fx,fy); rotate(tumble);\n  const nv=5+Math.floor(fr(j+7)*3);\n  if(isX){ // wireframe hull + interior chords \u2014 anatomical read of the aggregate\n    noFill(); stroke(md(H+8,360),44,100,clp(58*aa*1.4,0,90)); strokeWeight(Math.max(0.4,u*0.0008));\n    const vx=[],vy=[];\n    for(let v=0;v<nv;v++){ const a2=v/nv*6.283, rr2=rad*lrp(0.5,1.6,fr(j*3+v+20)); vx.push(Math.cos(a2)*rr2); vy.push(Math.sin(a2)*rr2); }\n    beginShape(); for(let v=0;v<nv;v++) vertex(vx[v],vy[v]); endShape(CLOSE);\n    for(let v=0;v<nv;v+=2){ const w2=(v+Math.floor(nv/2))%nv; line(vx[v],vy[v],vx[w2],vy[w2]); }\n  } else {\n    // soft mucus halo (few shapes, near flakes only) then the ragged aggregate body\n    noStroke();\n    if(dep>0.55){ fill(md(H+10,360),lrp(38,10,bright),lrp(48,100,bright),18*aa); circle(0,0,rad*3.2); }\n    fill(md(H+lrp(-10,16,bright),360), isAby?lrp(30,12,bright):lrp(44,8,bright), lrp(isAby?26:34,100,bright), clp(88*aa,0,96));\n    beginShape();\n    for(let v=0;v<nv;v++){ const a2=v/nv*6.283, rr2=rad*lrp(0.42,1.7,fr(j*3+v+20)); vertex(Math.cos(a2)*rr2,Math.sin(a2)*rr2); }\n    endShape(CLOSE);\n    // a couple of trailing mucus wisps off the bigger aggregates \u2014 the organic tell\n    if(dep>0.7&&rad>u*0.003){\n      stroke(md(H+6,360),24,lrp(50,100,bright),34*aa); strokeWeight(Math.max(0.35,rad*0.14)); noFill();\n      const wl=rad*lrp(1.4,3.4,fr(j+8));\n      beginShape();\n      vertex(0,0);\n      bezierVertex(rad*0.6,wl*0.3, -rad*0.5,wl*0.66, rad*0.25+Math.sin(K.t*0.9+fr(j+9)*6.283)*rad*0.4, wl);\n      endShape();\n      noStroke();\n    }\n  }\n  pop();\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

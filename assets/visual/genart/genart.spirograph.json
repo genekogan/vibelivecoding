@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spirograph",
+  "kind": "genart",
+  "name": "Spirograph Roulettes",
+  "desc": "Four to seven scattered hypotrochoid and epitrochoid roulettes each wind hundreds of loops into dense rosettes, their gear ratios drifting so the luminous multi-hue flowers bloom, precess and interlock into edge-to-edge moire on a dark field.",
+  "tags": [
+    "spirograph",
+    "roulette",
+    "hypotrochoid",
+    "epitrochoid",
+    "trochoid",
+    "rosette",
+    "gear",
+    "curve",
+    "parametric",
+    "moire",
+    "petal",
+    "flower",
+    "rose",
+    "guilloche",
+    "geometry",
+    "geometric",
+    "line-art",
+    "neon",
+    "glow",
+    "gold",
+    "pastel",
+    "blueprint",
+    "ink",
+    "spiral",
+    "math",
+    "kinetic",
+    "hypnotic",
+    "meditative",
+    "luminous",
+    "multicolor",
+    "rainbow",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.58,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pen count (4..7) + rosette line detail"
+    },
+    "energy": {
+      "default": 0.72,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "line brightness / glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "flower radius / zoom"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "precession + ratio-drift rate"
+    },
+    "warp": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ratio-detune amplitude (how fast petals morph)"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center anchor y"
+    },
+    "style": {
+      "default": "neon-rosette",
+      "options": [
+        "neon-rosette",
+        "gold-guilloche",
+        "pastel-spiro",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "gear ratios, pen distances, centers, hue offsets"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:07:22+00:00",
+    "fps": 60.6,
+    "motion": 0.0751,
+    "lum": 0.694
+  },
+  "code": "const D = { density: .58, energy: .72, scale: 1, speed: 1, warp: .55, hue: 280, x: .5, y: .5, style: 'neon-rosette', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst wh = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst diag = Math.hypot(width, height);\nconst style = P.style;\nconst glow = (style === 'neon-rosette' || style === 'gold-guilloche');\n\nfunction hcss(h, s, b, a) {\n  h = wh(h); s /= 100; b /= 100;\n  const c = b * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = b - c;\n  let r, g2, bl;\n  if (h < 60) { r = c; g2 = x; bl = 0; } else if (h < 120) { r = x; g2 = c; bl = 0; }\n  else if (h < 180) { r = 0; g2 = c; bl = x; } else if (h < 240) { r = 0; g2 = x; bl = c; }\n  else if (h < 300) { r = x; g2 = 0; bl = c; } else { r = c; g2 = 0; bl = x; }\n  return 'rgba(' + ((r + m) * 255 | 0) + ',' + ((g2 + m) * 255 | 0) + ',' + ((bl + m) * 255 | 0) + ',' + a + ')';\n}\n\n// ----- pen count from density (4..7 roulettes) -----\nconst NP = Math.max(4, Math.min(7, 4 + Math.round(P.density * 3)));\n\n// ----- seed / pen-count rebuild (inline hash, NOT p5 random) -----\nif (S.seedUsed !== P.seed || S.NP !== NP) {\n  S.seedUsed = P.seed; S.NP = NP;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.pen = [];\n  for (let k = 0; k < NP; k++) {\n    const p = 3 + Math.floor(fr(k * 9 + 1) * 5);            // petal integer 3..7\n    S.pen.push({\n      p,\n      type: fr(k * 9 + 2) < 0.45 ? 1 : -1,                 // +1 epitrochoid / -1 hypotrochoid\n      B: 0.34 + fr(k * 9 + 3) * 0.6,                       // pen-hole distance ratio (dense rosette)\n      d0: 0.02 + fr(k * 9 + 4) * 0.035,                    // base ratio detune (keeps figure open)\n      turns: 26 + Math.floor(fr(k * 9 + 5) * 22),          // base windings (many loops)\n      oa: fr(k * 9 + 6) * TAU,                             // center scatter angle\n      orr: 0.03 + fr(k * 9 + 7) * 0.15,                    // center scatter radius (*u)\n      hoff: (k / NP) * 300 + fr(k * 9 + 8) * 44,           // hue spread around wheel\n      dir: fr(k * 9 + 3) < 0.5 ? 1 : -1,\n      dph: fr(k * 9 + 2) * TAU,\n      bph: fr(k * 9 + 5) * TAU,\n      _f: 0, _Bl: 0, _norm: 0, _inner: 1, _cr: 1, _sr: 0, _pcx: 0, _pcy: 0, _hue: 0\n    });\n  }\n  S.hoff2 = (fr(701) - 0.5) * 40;\n  S.PX = new Float32Array(2200); S.PY = new Float32Array(2200);\n}\n\n// ----- full-canvas render buffer (cached on size) -----\nif (!S.fb || S.fbKey !== width + 'x' + height) {\n  S.fb = createGraphics(width, height); S.fb.pixelDensity(1);\n  S.fb.colorMode(HSB, 360, 100, 100, 100); S.fbKey = width + 'x' + height;\n}\nconst g = S.fb;\n\n// ----- radial glow sprite (grayscale, built once) -----\nif (!S.rg) {\n  const RG = 200; S.rg = createGraphics(RG, RG); S.rg.pixelDensity(1); S.rg.noStroke();\n  const gc = S.rg.drawingContext;\n  const grd = gc.createRadialGradient(RG / 2, RG / 2, RG * 0.02, RG / 2, RG / 2, RG * 0.5);\n  grd.addColorStop(0, 'rgba(255,255,255,1)');\n  grd.addColorStop(0.32, 'rgba(150,150,150,1)');\n  grd.addColorStop(1, 'rgba(4,4,4,1)');\n  gc.fillStyle = grd; gc.fillRect(0, 0, RG, RG);\n}\n\n// ----- live parameters (all rhythm from K; linear-in-K.t drift never re-phases) -----\nconst sec = K.section;\nconst isec = 0.4 + 0.6 * K.intensity;\nconst hb = wh(P.hue + S.hoff2 + sec * 15);                 // palette drifts across the arc\nconst eg = 0.45 + P.energy * 0.9;\nconst cx = width * P.x, cy = height * P.y;\nconst baseR = diag * 0.5 * (0.30 + P.scale * 0.40);        // reach toward the corners\nconst prec = K.t * (0.04 + P.speed * 0.06);                // global precession\nconst buildF = 0.5 + 0.5 * Math.min(1, sec / 4 + K.intensity * 0.5); // dramaturgy: extra flowers bloom in\n\n// ================= GROUND =================\ng.push();\nif (style === 'pastel-spiro') g.background(wh(hb + 20), 12, 92);\nelse if (style === 'ink') g.background(38, 12, 90);\nelse if (style === 'blueprint') g.background(214, 80, 17);\nelse if (style === 'gold-guilloche') g.background(34, 60, 6);\nelse g.background(wh(hb), 62, 8);\ng.pop();\n\n// ================= AMBIENT AURA (lift midtones / bloom) =================\nconst cov = Math.max(width, height) * 1.6;\ng.push(); g.imageMode(CENTER);\nif (style === 'pastel-spiro' || style === 'ink') {\n  g.blendMode(MULTIPLY); g.tint(wh(hb), 10, 100); g.image(S.rg, cx, cy, cov * 1.3, cov * 1.3); g.blendMode(BLEND);\n} else if (style === 'blueprint') {\n  g.blendMode(ADD); g.tint(205, 55, 22 * (0.7 + 0.4 * isec)); g.image(S.rg, cx, cy, cov, cov); g.blendMode(BLEND);\n} else {\n  g.blendMode(ADD);\n  const ah = style === 'gold-guilloche' ? 40 : wh(hb + 10);\n  const asat = style === 'gold-guilloche' ? 68 : 58;\n  g.tint(ah, asat, (style === 'gold-guilloche' ? 26 : 34) * (0.7 + 0.5 * isec) + A.rms * 22);\n  g.image(S.rg, cx, cy, cov, cov);\n  g.blendMode(BLEND);\n}\ng.pop();\n\n// ================= ROULETTE FLOWERS =================\nconst Ncap = Math.min(1400, Math.round(5200 / NP));\nfor (let k = 0; k < NP; k++) {\n  const pen = S.pen[k];\n  const drift = (0.008 + P.warp * 0.05) * Math.sin(K.t * (0.03 + 0.02 * k) + pen.dph) + A.bass * 0.04;\n  const f = pen.p + pen.d0 + drift;                        // drifting ratio -> blooms / re-patterns\n  const Bl = pen.B * (0.85 + 0.28 * Math.sin(K.t * 0.09 + pen.bph)); // pen distance breathes\n  const norm = baseR / (1 + Bl);\n  const rotk = prec * pen.dir + pen.dph * 0.1;\n  const cr = Math.cos(rotk), sr = Math.sin(rotk);\n  const orbA = pen.oa + prec * 0.25 * pen.dir;\n  const pcx = cx + Math.cos(orbA) * pen.orr * u;\n  const pcy = cy + Math.sin(orbA) * pen.orr * u;\n  const inner = pen.type;\n  let N = Math.round(pen.turns * (5 + pen.p * 3) * (0.7 + 0.5 * P.density));\n  N = Math.max(240, Math.min(Ncap, N));\n  for (let i = 0; i <= N; i++) {\n    const t = (i / N) * TAU * pen.turns;\n    const bx = Math.cos(t) + Bl * Math.cos(f * t);\n    const by = Math.sin(t) + inner * Bl * Math.sin(f * t);\n    const vx = bx * norm, vy = by * norm;\n    S.PX[i] = pcx + vx * cr - vy * sr;\n    S.PY[i] = pcy + vx * sr + vy * cr;\n  }\n  const hue = wh(hb + pen.hoff + prec * 16 * pen.dir);\n  const penVis = k < 3 ? 1 : (0.5 + 0.5 * buildF);         // later flowers build in over the arc\n  pen._f = f; pen._Bl = Bl; pen._norm = norm; pen._inner = inner; pen._cr = cr; pen._sr = sr; pen._pcx = pcx; pen._pcy = pcy; pen._hue = hue;\n\n  if (glow) {\n    g.blendMode(ADD); g.noStroke();\n    g.fill(hue, style === 'gold-guilloche' ? 62 : 74, 55, (style === 'gold-guilloche' ? 4 : 6) * eg * penVis);\n    g.beginShape(); for (let i = 0; i <= N; i += 6) g.vertex(S.PX[i], S.PY[i]); g.endShape(CLOSE);\n    g.noFill();\n    const wG = (style === 'gold-guilloche' ? 3.2 : 5.5) * (0.6 + eg * 0.6);\n    g.stroke(hue, style === 'gold-guilloche' ? 64 : 82, 100, (style === 'gold-guilloche' ? 7 : 8) * penVis);\n    g.strokeWeight(wG);\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n    g.drawingContext.shadowBlur = (style === 'gold-guilloche' ? 7 : 13) * (0.5 + eg);\n    g.drawingContext.shadowColor = hcss(hue, style === 'gold-guilloche' ? 60 : 74, 100, 0.85);\n    g.stroke(wh(hue + (style === 'gold-guilloche' ? 4 : 8)), style === 'gold-guilloche' ? 70 : 52, 100, (style === 'gold-guilloche' ? 50 : 42) * Math.min(1, penVis + 0.15));\n    g.strokeWeight(style === 'gold-guilloche' ? 0.9 : 1.3);\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n    g.drawingContext.shadowBlur = 0;\n  } else if (style === 'blueprint') {\n    g.blendMode(BLEND); g.noFill();\n    g.stroke(200, 42, 100, 15); g.strokeWeight(0.7);\n    g.ellipse(pcx, pcy, norm * (1 + Bl) * 2, norm * (1 + Bl) * 2);\n    g.ellipse(pcx, pcy, norm * Math.abs(1 - Bl) * 2, norm * Math.abs(1 - Bl) * 2);\n    g.stroke(wh(200 + 8 * Math.sin(k)), 30, 100, 48 * penVis); g.strokeWeight(1.0);\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n  } else if (style === 'pastel-spiro') {\n    g.blendMode(BLEND); g.noFill();\n    g.stroke(wh(hue), 26, 96, 20 * penVis); g.strokeWeight(3.2 * (0.7 + eg * 0.5));\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n    g.stroke(wh(hue + 6), 42, 90, 34 * penVis); g.strokeWeight(1.3);\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n  } else {\n    g.blendMode(BLEND); g.noFill();\n    const dry = 0.5 + 0.5 * Math.sin(k * 1.7 + pen.bph);\n    g.stroke(28, 22, 12, 40 + 30 * dry); g.strokeWeight(0.8 + 1.6 * dry);\n    g.beginShape(); for (let i = 0; i <= N; i++) g.vertex(S.PX[i], S.PY[i]); g.endShape();\n  }\n}\ng.blendMode(BLEND);\n\n// ================= COMPOSITE (tint carries VJ alpha; no bg clear) =================\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n\n// ================= AUDIO SPARKLE PENS (on top; baseline-independent) =================\nif (glow && (A.treble > 0.02 || A.rms > 0.02 || K.pulse > 0.02)) {\n  push(); blendMode(ADD); noStroke();\n  const th = K.t * (0.5 + P.speed * 0.6);\n  for (let k = 0; k < NP; k++) {\n    const pen = S.pen[k];\n    const a = th * pen.dir + pen.dph;\n    const bx = Math.cos(a) + pen._Bl * Math.cos(pen._f * a);\n    const by = Math.sin(a) + pen._inner * pen._Bl * Math.sin(pen._f * a);\n    const vx = bx * pen._norm, vy = by * pen._norm;\n    const hx = pen._pcx + vx * pen._cr - vy * pen._sr;\n    const hy = pen._pcy + vx * pen._sr + vy * pen._cr;\n    drawingContext.shadowBlur = 8 + A.rms * 20;\n    drawingContext.shadowColor = 'rgba(220,235,255,0.7)';\n    fill(wh(pen._hue + 20), 30, 100, 80);\n    circle(hx, hy, 3 + A.treble * 8 + K.pulse * 2);\n  }\n  drawingContext.shadowBlur = 0;\n  blendMode(BLEND); pop();\n}\n"
+}

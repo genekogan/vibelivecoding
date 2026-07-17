@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.plasma_globe",
+  "kind": "genart",
+  "name": "Plasma Globe",
+  "desc": "A Tesla plasma globe crackling with 8-14 white-hot branching lightning bolts that fork and re-strike to new angles across a glowing violet-cyan orb, filaments reaching edge-to-edge over a near-black void.",
+  "tags": [
+    "plasma",
+    "globe",
+    "tesla",
+    "lightning",
+    "electricity",
+    "bolt",
+    "arc",
+    "spark",
+    "filament",
+    "branching",
+    "fractal",
+    "dielectric",
+    "static",
+    "electric",
+    "storm",
+    "discharge",
+    "violet",
+    "cyan",
+    "neon",
+    "glow",
+    "energy",
+    "orb",
+    "sphere",
+    "science",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "crimson",
+    "toxic",
+    "ice",
+    "blueprint",
+    "high-voltage",
+    "zap"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.72,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bolt brightness, glow width & thickness (dramatic)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of bolts 8..14 + fork richness (dramatic)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "re-strike rate + flicker frequency"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "sphere radius / how far bolts reach"
+    },
+    "chaos": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bolt jaggedness / path jitter"
+    },
+    "fork": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "branching probability & spread"
+    },
+    "hue": {
+      "default": 272,
+      "min": 0,
+      "max": 360,
+      "doc": "bolt base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "electrode anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "electrode anchor y"
+    },
+    "style": {
+      "default": "violet-arc",
+      "options": [
+        "violet-arc",
+        "crimson-tesla",
+        "neon-green",
+        "ice",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:10:06+00:00",
+    "fps": 62.1,
+    "motion": 0.0392,
+    "lum": 0.194
+  },
+  "code": "const D = { energy: .72, density: .5, speed: 1, scale: 1, chaos: .5, fork: .55, hue: 272, x: .5, y: .5, style: 'violet-arc', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * 0.44 * P.scale;\nconst er = u * 0.03;                       // electrode radius\nconst AL = Math.max(0, Math.min(1, P.alpha / 100));\n\n// deterministic seed hue jitter\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst dH = (P.hue - 272) + fr(9) * 16 - 8 + K.section * 9; // hue shift + seed jitter + slow per-section palette drift\n\n// ---------- style config ----------\nconst style = P.style;\nlet glowH, midH, coreH, coreS, glowWm, coreWm, glowA, midA, coreA;\nlet bgc, atmoC, atmoA, orbIn, orbInA, orbMid, orbMidA, rimC, rimA, grid;\nif (style === 'crimson-tesla') {\n  glowH = 6; midH = 34; coreH = 44; coreS = 10; glowWm = 1.15; coreWm = 0.95; glowA = 15; midA = 18; coreA = 94;\n  bgc = [16,4,5]; atmoC = [160,50,26]; atmoA = 0.22; orbIn = [245,135,90]; orbInA = 0.66; orbMid = [160,52,30]; orbMidA = 0.36; rimC = [255,155,95]; rimA = 0.5; grid = false;\n} else if (style === 'neon-green') {\n  glowH = 128; midH = 88; coreH = 96; coreS = 12; glowWm = 0.95; coreWm = 0.9; glowA = 14; midA = 16; coreA = 92;\n  bgc = [4,14,7]; atmoC = [45,130,48]; atmoA = 0.2; orbIn = [140,245,130]; orbInA = 0.6; orbMid = [45,150,58]; orbMidA = 0.32; rimC = [155,255,145]; rimA = 0.45; grid = false;\n} else if (style === 'ice') {\n  glowH = 200; midH = 214; coreH = 205; coreS = 6; glowWm = 0.6; coreWm = 0.8; glowA = 9; midA = 11; coreA = 96;\n  bgc = [7,12,20]; atmoC = [120,158,218]; atmoA = 0.26; orbIn = [200,224,255]; orbInA = 0.62; orbMid = [98,138,208]; orbMidA = 0.38; rimC = [220,238,255]; rimA = 0.6; grid = false;\n} else if (style === 'blueprint') {\n  glowH = 205; midH = 195; coreH = 200; coreS = 4; glowWm = 0.42; coreWm = 1.12; glowA = 6; midA = 7; coreA = 92;\n  bgc = [7,20,58]; atmoC = [24,66,148]; atmoA = 0.34; orbIn = [70,132,228]; orbInA = 0.5; orbMid = [34,88,190]; orbMidA = 0.4; rimC = [175,214,255]; rimA = 0.7; grid = true;\n} else { // violet-arc (default)\n  glowH = 272; midH = 190; coreH = 205; coreS = 8; glowWm = 1.0; coreWm = 1.0; glowA = 13; midA = 17; coreA = 90;\n  bgc = [11,6,22]; atmoC = [100,58,165]; atmoA = 0.44; orbIn = [175,150,252]; orbInA = 0.78; orbMid = [100,58,190]; orbMidA = 0.44; rimC = [195,165,255]; rimA = 0.55; grid = false;\n}\nglowH = ((glowH + dH) % 360 + 360) % 360; midH = ((midH + dH) % 360 + 360) % 360; coreH = ((coreH + dH) % 360 + 360) % 360;\n\n// ---------- strike clock + seeded rng ----------\nconst si = 0.24 / (0.35 + P.speed * 0.9 + K.intensity * 0.4);\nconst sIdx = Math.floor(K.t / Math.max(0.03, si));\nlet ri = 0;\nconst sBase = P.seed * 131.7 + sIdx * 677.3;\nconst rn = () => { ri++; const s = Math.sin(ri * 12.9898 + sBase * 0.7137) * 43758.5453; return s - Math.floor(s); };\n\nconst flickFreq = 15 + P.speed * 24;\nconst flAmp = R * (0.006 + P.energy * 0.016);\nconst amp = R * (0.05 + P.chaos * 0.14 + K.intensity * 0.03); // sections get more jagged as intensity builds\nconst segSpacing = Math.max(6, R * 0.075);\nconst forkProb = 0.10 + P.fork * 0.30 + K.intensity * 0.08; // more branching in high-intensity sections\nconst forkSpread = 0.5 + P.fork * 1.1;\nconst depth0 = 3 + (P.fork > 0.55 ? 1 : 0);\nconst segCap = 900;\nconst nB = Math.round(8 + P.density * 6);\n\n// ---------- build branching bolts (guaranteed to reach the rim) ----------\nconst segs = [];\nfunction buildBolt(exx, eyy, txx, tyy, depth, w) {\n  const ddx = txx - exx, ddy = tyy - eyy, dist = Math.hypot(ddx, ddy);\n  if (dist < 4) return;\n  const npx = -ddy / dist, npy = ddx / dist; // unit perpendicular\n  const N = Math.max(3, Math.round(dist / segSpacing));\n  let prevx = exx, prevy = eyy;\n  for (let i = 1; i <= N; i++) {\n    const f = i / N, taper = Math.sin(Math.PI * f);\n    const off = ((rn() - 0.5) * amp + Math.sin(K.t * flickFreq + ri * 1.31) * flAmp) * taper;\n    const bx = exx + ddx * f + npx * off;\n    const by = eyy + ddy * f + npy * off;\n    segs.push([prevx, prevy, bx, by, w, f]);\n    if (depth > 0 && i > 1 && i < N - 1 && segs.length < segCap && rn() < forkProb) {\n      const ang = Math.atan2(by - prevy, bx - prevx) + (rn() - 0.5) * forkSpread;\n      const flen = dist * (1 - f) * (0.3 + rn() * 0.5);\n      buildBolt(bx, by, bx + Math.cos(ang) * flen, by + Math.sin(ang) * flen, depth - 1, w * 0.62);\n    }\n    prevx = bx; prevy = by;\n  }\n}\nconst rot = rn() * 6.2831;\nfor (let b = 0; b < nB; b++) {\n  const baseA = (b / nB) * 6.2831 + rot + (rn() - 0.5) * (6.2831 / nB * 0.8);\n  const tr = R * (0.9 + rn() * 0.12);\n  const ex = cx + Math.cos(baseA) * er, ey = cy + Math.sin(baseA) * er;\n  buildBolt(ex, ey, cx + Math.cos(baseA) * tr, cy + Math.sin(baseA) * tr, depth0, 1);\n}\n\n// ---------- envelopes ----------\nconst flick = 0.8 + 0.2 * Math.sin(K.t * 31 + sIdx * 1.7) + 0.06 * Math.sin(K.t * 53 + 1.3);\nconst beatF = 1 + Math.max(0, K.pulse) * 0.35 + A.bass * 0.5;\nconst eGain = (0.55 + P.energy * 0.8) * flick * beatF * AL;\nconst wGain = 0.7 + P.energy * 0.85;\n\n// ---------- background + orb glow (raw canvas gradients) ----------\nconst rgba = (r, g, b, a) => 'rgba(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ',' + a + ')';\nconst ctx = drawingContext;\nctx.save();\nctx.globalCompositeOperation = 'source-over';\nconst veilA = P.alpha >= 99.5 ? 1 : (0.12 + 0.18 * (1 - AL));\nctx.fillStyle = rgba(bgc[0], bgc[1], bgc[2], veilA);\nctx.fillRect(0, 0, width, height);\n// outer atmosphere wash\nconst g1 = ctx.createRadialGradient(cx, cy, er, cx, cy, u * 1.20);\ng1.addColorStop(0, rgba(atmoC[0], atmoC[1], atmoC[2], atmoA * AL * (0.8 + 0.3 * K.swell)));\ng1.addColorStop(1, rgba(atmoC[0], atmoC[1], atmoC[2], 0));\nctx.fillStyle = g1; ctx.fillRect(0, 0, width, height);\n// inner orb haze\nconst g2 = ctx.createRadialGradient(cx, cy, er * 0.5, cx, cy, R * 1.35);\ng2.addColorStop(0, rgba(orbIn[0], orbIn[1], orbIn[2], orbInA * AL * (0.85 + 0.25 * K.swell)));\ng2.addColorStop(0.55, rgba(orbMid[0], orbMid[1], orbMid[2], orbMidA * AL));\ng2.addColorStop(1, rgba(orbMid[0], orbMid[1], orbMid[2], 0));\nctx.fillStyle = g2; ctx.beginPath(); ctx.arc(cx, cy, R * 1.35, 0, 6.2831); ctx.fill();\n// blueprint schematic grid (clipped to sphere)\nif (grid) {\n  ctx.save();\n  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2831); ctx.clip();\n  ctx.strokeStyle = rgba(120, 170, 255, 0.10 * AL); ctx.lineWidth = 1;\n  const gs = u * 0.05;\n  for (let gx = cx % gs; gx < width; gx += gs) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, height); ctx.stroke(); }\n  for (let gy = cy % gs; gy < height; gy += gs) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(width, gy); ctx.stroke(); }\n  ctx.restore();\n}\n// glass rim (additive)\nctx.globalCompositeOperation = 'lighter';\nctx.strokeStyle = rgba(rimC[0], rimC[1], rimC[2], rimA * 0.5 * AL); ctx.lineWidth = u * 0.010;\nctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2831); ctx.stroke();\nctx.strokeStyle = rgba(rimC[0], rimC[1], rimC[2], rimA * AL); ctx.lineWidth = Math.max(1, u * 0.0025);\nctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2831); ctx.stroke();\nctx.restore();\n\n// ---------- bolts (two-pass wide glow + white-hot core) ----------\nblendMode(ADD);\n// wide colored glow\nfor (const s of segs) { const w = s[4]; strokeWeight(u * 0.020 * glowWm * wGain * (0.5 + 0.5 * w)); stroke(glowH, 90, 100, glowA * eGain * (0.5 + 0.7 * w)); line(s[0], s[1], s[2], s[3]); }\n// mid secondary colored glow\nfor (const s of segs) { const w = s[4]; strokeWeight(u * 0.010 * glowWm * wGain * (0.5 + 0.5 * w)); stroke(midH, 92, 100, midA * eGain * (0.5 + 0.6 * w)); line(s[0], s[1], s[2], s[3]); }\n// thin white-hot core\nfor (const s of segs) { const w = s[4], f = s[5]; strokeWeight(Math.max(1.0, u * 0.0035 * coreWm * wGain * (0.55 + 0.45 * w))); stroke(coreH, coreS, 100, coreA * eGain * (0.5 + 0.5 * w) * (0.6 + 0.4 * Math.sin(Math.PI * f))); line(s[0], s[1], s[2], s[3]); }\n\n// ---------- central electrode ----------\nconst kick = Math.max(0, K.pulse) * 0.5 + A.bass * 0.9;\nconst ez = 0.7 + 0.3 * Math.sin(K.t * 20) + kick;\nnoStroke();\nfor (let k = 0; k < 4; k++) { const rr = er * (2.4 - k * 0.5); fill(coreH, coreS + 12, 100, (9 + k * 6) * Math.min(1.4, eGain) * (0.8 + 0.4 * ez)); ellipse(cx, cy, rr * 2); }\nfill(coreH, 4, 100, 92 * Math.min(1, eGain * (0.7 + 0.4 * ez))); ellipse(cx, cy, er * 1.1);\n\nblendMode(BLEND);\n"
+}

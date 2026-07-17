@@ -1,0 +1,156 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.animal_parade",
+  "kind": "crowd",
+  "name": "Animal Parade",
+  "desc": "A mixed procession of storybook animals \u2014 ducks, dogs, cats and an elephant \u2014 plodding across the page and thumping down together on every beat.",
+  "tags": [
+    "animals",
+    "animal",
+    "parade",
+    "march",
+    "procession",
+    "crowd",
+    "line",
+    "menagerie",
+    "ark",
+    "herd",
+    "duck",
+    "dog",
+    "cat",
+    "elephant",
+    "bird",
+    "pet",
+    "zoo",
+    "farm",
+    "safari",
+    "storybook",
+    "picture-book",
+    "gouache",
+    "woodcut",
+    "linocut",
+    "silhouette",
+    "chalk",
+    "riso",
+    "stomp",
+    "walk",
+    "cute"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "per-animal size vs design (each ~0.22*min-dim tall at 1)"
+    },
+    "n": {
+      "default": 8,
+      "min": 4,
+      "max": 16,
+      "doc": "number of animals in the procession"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "walk/tail/ear amplitude + audio gain"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "palette anchor hue (30 = warm earthy gouache)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative march + step rate"
+    },
+    "density": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient pollen/dust motes"
+    },
+    "gap": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spacing feel (reserved spread morph)"
+    },
+    "stomp": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "collective beat-stomp dip + dust puff strength"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "line center x (unused for wrap, kept for contract)"
+    },
+    "y": {
+      "default": 0.74,
+      "min": 0,
+      "max": 1,
+      "doc": "feet/ground line as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic species mix / depth / jitter seed"
+    },
+    "species": {
+      "default": "mix",
+      "options": [
+        "mix",
+        "farm",
+        "duck",
+        "dog",
+        "cat",
+        "elephant"
+      ],
+      "doc": "which species walk (mix = seeded assortment)"
+    },
+    "style": {
+      "default": "storybook",
+      "options": [
+        "storybook",
+        "woodcut",
+        "silhouette",
+        "chalk",
+        "riso"
+      ],
+      "doc": "render philosophy: textured gouache / carved linocut / cut-paper silhouette / chalkboard line / 2-ink print"
+    },
+    "act": {
+      "default": "parade",
+      "options": [
+        "parade",
+        "amble",
+        "stampede"
+      ],
+      "doc": "multi-minute dramaturgy: steady parade / slow amble / fast stomping stampede"
+    }
+  },
+  "acts": [
+    "parade",
+    "amble",
+    "stampede"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:59:24+00:00",
+    "fps": 60.2,
+    "motion": 0.0308,
+    "lum": 0.188
+  },
+  "code": "const D = { scale:1, n:8, energy:.6, hue:30, speed:1, density:.35, gap:.5, stomp:.6, x:.5, y:.74, seed:0, species:'mix', style:'storybook', act:'parade' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, PI = Math.PI;\nconst u = Math.min(width, height);\nconst N = Math.max(1, Math.round(P.n));\nlet bt = K.beat * P.speed;\nif (S.lastBeat == null || bt < S.lastBeat) S.lastBeat = bt;\nS.lastBeat = bt;\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\n\nconst eAmp = (.4 + .6*P.energy) * (.6 + .5*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5 + .5*K.intensity) + S.bass*.75);\n\nconst styles = ['storybook','woodcut','silhouette','chalk','riso'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'storybook';\nconst chalk = st === 'chalk';\nconst sil = st === 'silhouette';\nconst wood = st === 'woodcut';\n\nconst SPECIES = ['duck','dog','cat','elephant'];\nfunction speciesFor(i){\n  if (P.species !== 'mix' && SPECIES.indexOf(P.species) >= 0) return P.species;\n  if (P.species === 'farm') return ['duck','dog','cat','duck'][((Math.floor(fr(i+2)*4))%4+4)%4];\n  return SPECIES[((Math.floor(fr(i+2)*4))%4+4)%4];\n}\n\n// species muted-gouache palette hues (offset from P.hue for variety)\nfunction hueFor(sp, i){\n  const j = ((P.hue%360)+360)%360;\n  const map = { duck: 44, dog: 24, cat: 14, elephant: 210 };\n  return ( (map[sp]||j) + (j-30)*0.5 + (fr(i+40)-0.5)*16 + 360 ) % 360;\n}\n\n// ---- act dramaturgy ----\nconst ACT = P.act;\nlet marchRate, stompBias;\nif (ACT === 'stampede') { marchRate = .04*P.speed*(.7+K.intensity); stompBias = P.stomp*1.3; }\nelse if (ACT === 'amble') { marchRate = .015*P.speed*(.5+K.intensity); stompBias = P.stomp*0.6; }\nelse { marchRate = .024*P.speed*(.55+.6*K.intensity); stompBias = P.stomp; }\nconst globalScroll = bt*marchRate + K.t*P.speed*.011;\n\nconst M = u*0.2;\nconst spanW = width + 2*M;\n\n// collective stomp: whole herd dips on the beat\nconst stompDip = kick * stompBias;\n\n// ---- textured ground band (cached buffer, muted paper) ----\nif (S.gKey !== (width+'x'+height+st+((P.hue%360)|0))){\n  S.gKey = width+'x'+height+st+((P.hue%360)|0);\n  const gy0 = Math.round(P.y*height + u*0.02);\n  const gh = Math.max(2, height - gy0);\n  const g = createGraphics(width, gh);\n  g.colorMode(HSB,360,100,100,100); g.noStroke(); g.clear();\n  const gj = ((P.hue%360)+360)%360;\n  if (sil){ g.fill(gj,30,12); g.rect(0,0,width,gh); }\n  else if (chalk){ g.fill(gj,14,10); g.rect(0,0,width,gh); }\n  else {\n    const base = wood ? [gj,20,26] : st==='riso' ? [42,20,84] : [38,26,70];\n    for (let y=0;y<gh;y+=2){ const t=y/gh; g.fill(base[0], base[1], base[2]*(1-0.28*t)); g.rect(0,y,width,2); }\n    // grain speckle (seeded, static)\n    for (let s=0;s<Math.min(700, width*0.9);s++){\n      const rx = (Math.sin(s*91.7)*0.5+0.5)*width;\n      const ry = (Math.sin(s*57.3)*0.5+0.5)*gh;\n      const d = (Math.sin(s*12.9)*0.5+0.5);\n      g.fill(base[0], base[1]*0.7, base[2]*(0.6+0.4*d), 22);\n      g.rect(rx, ry, 1.6, 1.6);\n    }\n  }\n  S.ground = g; S.gy0 = gy0;\n}\nif (S.ground) { push(); tint(0,0,100, chalk?70:sil?85:80); image(S.ground, 0, S.gy0); noTint(); pop(); }\n\n// ---- build list ----\nconst list = [];\nfor (let i=0;i<N;i++){\n  const off = i/N;\n  let ph = (off + globalScroll) % 1; if (ph<0) ph+=1;\n  const dep = .72 + .5*fr(i+5);\n  const px = -M + ph*spanW;\n  const hgt = u*0.22*P.scale*dep;\n  const py = P.y*height + (dep-1)*u*0.05;\n  list.push({i,off,px,py,hgt,dep,sp:speciesFor(i)});\n}\nlist.sort((a,b)=>a.dep-b.dep);\n\nfunction ink(role, hue){\n  noStroke();\n  if (chalk){ noFill(); stroke(role==='eye'?0:role==='detail'?(hue+20)%360:0, 0, role==='eye'?100:88, 82); strokeWeight(Math.max(1.1, u*0.0018)); return; }\n  if (sil){ fill(((P.hue%360)+360)%360, 30, 11); return; }\n  if (wood){\n    if (role==='eye') fill(0,0,96);\n    else if (role==='detail') fill(hue,30,20);\n    else fill(hue, 26, 14);\n    return;\n  }\n  if (st==='riso'){\n    if (role==='body') fill(hue,55,86,92);\n    else if (role==='detail') fill((hue+18)%360,60,70,90);\n    else if (role==='eye') fill(hue,60,20,95);\n    else fill(hue,50,80,92);\n    return;\n  }\n  // storybook gouache\n  if (role==='body') fill(hue, 46, 74);\n  else if (role==='detail') fill(hue, 54, 54);\n  else if (role==='eye') fill(hue, 70, 16);\n  else if (role==='light') fill(hue, 28, 88);\n  else fill(hue, 44, 70);\n}\n\n// generic leg pair with alternating walk\nfunction legs(hgt, bw, phB, sp, hue, legLift){\n  const sw = Math.sin(phB*PI);\n  const back = sp==='elephant'?4:2;\n  ink('detail', hue);\n  const lw = sp==='elephant'? bw*0.16 : bw*0.09;\n  const legY = -hgt*0.02;\n  const spread = sp==='elephant'? bw*0.3 : bw*0.26;\n  // front-back pairs simplified to two visible legs with opposite phase\n  for (let s=-1;s<=1;s+=2){\n    const lift = (s>0? Math.max(0,sw): Math.max(0,-sw)) * legLift * hgt*0.08;\n    push(); translate(s*spread, legY - lift);\n      if (wood||chalk||sil){ rect(-lw*0.5, -hgt*0.16, lw, hgt*0.18); }\n      else { rect(-lw*0.5, -hgt*0.16, lw, hgt*0.18, lw*0.3); }\n      if (!sil&&!chalk){ ink('detail',hue); ellipse(0,-hgt*0.005, lw*1.5, lw*0.9); }\n    pop();\n    ink('detail', hue);\n  }\n}\n\nfunction drawAnimal(a, phB, stomp){\n  const hgt = a.hgt;\n  const hue = hueFor(a.sp, a.i);\n  const sw = Math.sin(phB*PI);\n  const bw = hgt*0.7;\n\n  // silhouette drop shadow\n  if (!chalk){ noStroke(); fill(0,0,0, sil?24:16); ellipse(a.px, a.py+hgt*0.02, bw*1.1, hgt*0.07); }\n\n  push();\n  translate(a.px, a.py - stomp*hgt*0.04);\n  rotate(Math.sin(phB*PI*2)*0.015*eAmp);\n\n  if (a.sp === 'elephant'){\n    legs(hgt, bw, phB, 'elephant', hue, 0.7);\n    // body\n    ink('body', hue);\n    ellipse(0, -hgt*0.42, bw*1.05, hgt*0.6);\n    // head\n    push(); translate(-bw*0.5, -hgt*0.5);\n      ink('body', hue); ellipse(0,0, bw*0.5, hgt*0.42);\n      // ear\n      ink('detail', hue); ellipse(bw*0.06,0, bw*0.34, hgt*0.34);\n      // trunk swings\n      ink('body', hue);\n      const tr = Math.sin(phB*PI + a.i)*0.4*eAmp + stomp*0.3;\n      push(); translate(-bw*0.16, hgt*0.02);\n        beginShape();\n        vertex(0,-hgt*0.06); vertex(-bw*0.06,-hgt*0.02);\n        vertex(-bw*0.02 - tr*bw*0.2, hgt*0.16);\n        vertex(-bw*0.12 - tr*bw*0.24, hgt*0.3);\n        vertex(-bw*0.04 - tr*bw*0.24, hgt*0.31);\n        vertex(bw*0.06 - tr*bw*0.2, hgt*0.16);\n        vertex(bw*0.06,-hgt*0.02);\n        endShape(CLOSE);\n      pop();\n      // eye\n      ink('eye', hue); ellipse(-bw*0.02,-hgt*0.02, bw*0.07, bw*0.07);\n      if (chalk){ ink('light',hue); }\n    pop();\n  } else if (a.sp === 'duck'){\n    legs(hgt, bw*0.7, phB, 'duck', 30, 0.9);\n    // body\n    ink('body', hue);\n    ellipse(hgt*0.02, -hgt*0.38, bw*0.9, hgt*0.5);\n    // tail flip\n    push(); translate(bw*0.42,-hgt*0.42); rotate(0.3+Math.sin(phB*PI)*0.1*eAmp);\n      ink('detail',hue); triangle(0,-hgt*0.06,0,hgt*0.06,bw*0.24,0); pop();\n    // neck+head\n    push(); translate(-bw*0.34,-hgt*0.52); rotate(Math.sin(phB*PI*2)*0.06*eAmp);\n      ink('body',hue); rect(-bw*0.06,0,bw*0.14,hgt*0.28, bw*0.05);\n      ink('body',hue); ellipse(0,-hgt*0.02, bw*0.34, hgt*0.3);\n      // bill\n      ink('detail', 34); ellipse(-bw*0.2,hgt*0.0, bw*0.26, hgt*0.09);\n      ink('eye',hue); ellipse(-bw*0.02,-hgt*0.05, bw*0.07,bw*0.07);\n    pop();\n  } else if (a.sp === 'dog'){\n    legs(hgt, bw, phB, 'dog', hue, 1.0);\n    ink('body', hue);\n    ellipse(hgt*0.04, -hgt*0.4, bw*1.0, hgt*0.42);\n    // tail wag\n    push(); translate(bw*0.46,-hgt*0.5); rotate(-0.5 + Math.sin(phB*TAU + a.i)*0.5*(0.5+eAmp));\n      ink('body',hue); rect(0,-bw*0.05, bw*0.34, bw*0.1, bw*0.05); pop();\n    // head\n    push(); translate(-bw*0.44,-hgt*0.52); rotate(Math.sin(phB*PI)*0.04*eAmp);\n      ink('body',hue); ellipse(0,0, bw*0.42, hgt*0.36);\n      // snout\n      ink('detail',hue); ellipse(-bw*0.18,hgt*0.04, bw*0.26, hgt*0.18);\n      // ear flops\n      push(); rotate(0.2+Math.sin(phB*PI*2)*0.14*eAmp);\n        ink('detail',hue); ellipse(bw*0.12,hgt*0.02, bw*0.14, hgt*0.26); pop();\n      ink('eye',hue); ellipse(-bw*0.04,-hgt*0.04, bw*0.08,bw*0.08);\n      ink('eye',24); ellipse(-bw*0.2,hgt*0.02, bw*0.06,bw*0.06);\n    pop();\n  } else { // cat\n    legs(hgt, bw*0.9, phB, 'cat', hue, 0.9);\n    ink('body', hue);\n    ellipse(hgt*0.03, -hgt*0.4, bw*0.92, hgt*0.4);\n    // arched tail\n    push(); translate(bw*0.44,-hgt*0.46);\n      ink('body',hue); noFill();\n      if (!chalk){ strokeWeight(bw*0.12); stroke(chalk?0:hue, sil?30:46, sil?11:70, sil?100:100); }\n      const tw = Math.sin(phB*TAU + a.i)*0.3*(0.4+eAmp);\n      beginShape(); vertex(0,0); vertex(bw*0.18, -hgt*0.1); vertex(bw*0.28+tw*bw*0.2, -hgt*0.28); vertex(bw*0.16+tw*bw*0.3,-hgt*0.4); endShape();\n      noStroke();\n    pop();\n    // head\n    push(); translate(-bw*0.4,-hgt*0.5); rotate(Math.sin(phB*PI)*0.03*eAmp);\n      ink('body',hue); ellipse(0,0, bw*0.4, hgt*0.34);\n      // ears (triangles)\n      ink('body',hue);\n      triangle(-bw*0.12,-hgt*0.14,-bw*0.02,-hgt*0.14,-bw*0.08,-hgt*0.3);\n      triangle(bw*0.02,-hgt*0.14,bw*0.12,-hgt*0.14,bw*0.08,-hgt*0.3);\n      ink('eye',hue); ellipse(-bw*0.08,-hgt*0.02,bw*0.07,bw*0.09); ellipse(bw*0.06,-hgt*0.02,bw*0.07,bw*0.09);\n      ink('detail',14); ellipse(-bw*0.01,hgt*0.06,bw*0.06,bw*0.05);\n    pop();\n  }\n\n  pop();\n}\n\nfor (let k=0;k<list.length;k++){\n  const a = list[k];\n  const phB = bt + a.off*4 + fr(a.i+9)*2;\n  const stomp = stompDip * (0.6 + 0.4*Math.sin(phB*PI));\n  drawAnimal(a, phB, stomp);\n}\n\n// dust puffs on collective stomp\nif (!chalk && stompDip > 0.15){\n  noStroke();\n  for (let k=0;k<list.length;k+=2){\n    const a = list[k];\n    const pf = stompDip;\n    fill(38, 22, 80, 30*pf);\n    ellipse(a.px, a.py + a.hgt*0.02, a.hgt*(0.4+pf*0.5), a.hgt*0.12*pf);\n  }\n}\n\n// ambient float motes / pollen (density)\nif (P.density > 0.02){\n  const n = Math.round(P.density*22);\n  noStroke();\n  for (let i=0;i<n;i++){\n    const drift = (K.t*(0.08+fr(i+50)*0.12) + fr(i+70)) % 1;\n    const fx = ((fr(i+90) + globalScroll*0.4)%1)*width;\n    const fyv = ((drift + fr(i+110))%1)*u*0.7 + (P.y*height - u*0.62);\n    const tw = 0.5 + 0.5*Math.sin(K.t*2.4 + i);\n    fill(chalk?0:46, chalk?0:34, chalk?96:98, (10+18*tw)*(0.4+0.6*P.density));\n    ellipse(fx, fyv, u*0.0035*(0.8+tw), u*0.0035*(0.8+tw));\n  }\n}\n"
+}

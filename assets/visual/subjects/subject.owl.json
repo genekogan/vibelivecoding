@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.owl",
+  "kind": "subject",
+  "name": "Owl",
+  "desc": "A stage-scale owl rendered as moonlit chiaroscuro, swiveling its head and blinking huge eyes with beat-synced body bob, wing shuffle and hooting puff.",
+  "tags": [
+    "owl",
+    "bird",
+    "animal",
+    "raptor",
+    "nocturnal",
+    "night",
+    "owlet",
+    "wise",
+    "hoot",
+    "feathers",
+    "forest",
+    "predator",
+    "creature",
+    "character",
+    "nocturne",
+    "engraving",
+    "woodcut",
+    "spooky",
+    "mystic",
+    "wings"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "plumage hue (32=barn brown)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting feather/dust motes"
+    },
+    "chub": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "body plumpness morph"
+    },
+    "tuft": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "ear-tuft length morph"
+    },
+    "disc": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "facial-disc & eye size morph"
+    },
+    "style": {
+      "default": "nocturne",
+      "options": [
+        "nocturne",
+        "woodcut",
+        "ember",
+        "wire"
+      ],
+      "doc": "aesthetic: chiaroscuro / engraved ink / thermal false-color / wireframe"
+    },
+    "pose": {
+      "default": "perch",
+      "options": [
+        "perch",
+        "hoot",
+        "flap",
+        "swivel",
+        "hunt"
+      ],
+      "doc": "posture / choreography"
+    },
+    "act": {
+      "default": "watch",
+      "options": [
+        "watch",
+        "hunt",
+        "roost"
+      ],
+      "doc": "multi-minute dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (feet/branch) as canvas fraction"
+    }
+  },
+  "acts": [
+    "watch",
+    "hunt",
+    "roost"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:57:48+00:00",
+    "fps": 60.2,
+    "motion": 0.014,
+    "lum": 0.104
+  },
+  "code": "const D = { scale:1, energy:.6, hue:32, speed:1, density:.4, chub:.4, tuft:1, disc:1, style:'nocturne', pose:'perch', act:'watch', seed:0, x:.5, y:.82 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst u = Math.min(width,height);\nconst en = P.energy, spd = P.speed;\nconst bt = K.beat*spd;\nif (S.lb==null || bt < S.lb) S.lb = bt;\nS.lb = bt;\nconst puls = Math.max(0, K.pulse||0);\nconst swell = K.swell||0;\nconst sect = K.section||0, inten = (K.intensity!=null?K.intensity:.6);\nconst rms = Math.min(1, (A.rms||0)*2.2);\nconst bassv = Math.min(1, A.bass||0);\nconst air = Math.min(1, A.treble||0);\nconst H = ((P.hue%360)+360)%360;\nconst st = P.style;\nlet outline=false, hatch=false, wire=false, thermal=false;\nlet cBody,cBelly,cShade,cDisc,cRim,cBeak,cEye,cPup;\nif (st==='woodcut'){ outline=true; hatch=true;\n  cBody=[H,16,15]; cBelly=[H,9,26]; cShade=[H,22,7]; cDisc=[H,7,92]; cRim=[H,18,9]; cBeak=[H,26,12]; cEye=[H,7,96]; cPup=[H,25,6];\n} else if (st==='ember'){ thermal=true;\n  cBody=[H%360,88,58]; cBelly=[(H+22)%360,78,86]; cShade=[(H+345)%360,96,30]; cDisc=[(H+30)%360,66,92]; cRim=[(H+38)%360,55,100]; cBeak=[(H+16)%360,88,92]; cEye=[200,55,96]; cPup=[210,45,42];\n} else if (st==='wire'){ wire=true;\n  cBody=[H,55,82]; cBelly=[H,42,92]; cShade=[H,66,58]; cDisc=[H,48,96]; cRim=[H,30,100]; cBeak=[(H+20)%360,72,96]; cEye=[H,18,100]; cPup=[H,82,62];\n} else {\n  cBody=[H,42,34]; cBelly=[(H+8)%360,28,60]; cShade=[(H+352)%360,56,15]; cDisc=[(H+6)%360,26,66]; cRim=[46,28,98]; cBeak=[40,82,90]; cEye=[46,82,98]; cPup=[H,60,9];\n}\nconst chub=P.chub, disc=P.disc, tuftz=P.tuft;\nlet energyMul=1, sleep=0, leanAct=0;\nif (P.act==='roost'){ energyMul=0.55; sleep=0.6; }\nelse if (P.act==='hunt'){ leanAct=0.12+inten*0.5; energyMul=1+inten*0.45; }\nelse { energyMul=0.85+inten*0.5; }\nconst eM = (0.5+en)*energyMul;\nconst bobLocal = -( swell*.5 + puls*.5 )*205*0.09*(0.55+en*0.95)*energyMul - rms*9;\nconst swayLocal = Math.sin(bt*Math.PI*0.5)*9*(0.4+en)*energyMul;\nconst hAmp = 0.42*eM;\nconst pose=P.pose;\nlet headRot=0, headX=0, headY=0, beakOpen=0, wingBase=0.04, flap=0, hop=0, lean=leanAct, puff=swell*0.05;\nif (pose==='hoot'){ headY=-puls*12*eM; beakOpen=Math.pow(puls,0.7); puff=puls*0.4+0.08; headRot=Math.sin(bt*Math.PI*0.5)*hAmp*0.55; flap=puls*0.14; wingBase=0.05; }\nelse if (pose==='flap'){ wingBase=0.18; flap=Math.sin(bt*Math.PI)*0.95*eM; headRot=Math.sin(bt*Math.PI*0.5)*hAmp*0.5; hop=Math.max(0,Math.sin(bt*Math.PI))*18*eM; beakOpen=Math.max(0,Math.sin(bt*Math.PI+0.6))*0.4; }\nelse if (pose==='swivel'){ const seg=Math.floor(bt*0.5); const tg=(fr(seg)*2-1)*0.95; if(S.hr==null)S.hr=0; S.hr += (tg-S.hr)*0.12; headRot=S.hr; headX=headRot*10; wingBase=0.03; flap=puls*0.05; }\nelse if (pose==='hunt'){ lean=0.18+inten*0.4+leanAct; headRot=Math.sin(bt*Math.PI*0.9)*hAmp*0.7; headX=Math.sin(bt*Math.PI*0.45)*8; wingBase=0.08+inten*0.15; flap=puls*0.2; beakOpen=(sect>=6?puls*0.6:0); }\nelse { headRot=Math.sin(bt*Math.PI*0.33 + fr(3)*6)*hAmp + Math.sin(bt*Math.PI*0.12)*0.16*eM; headX=Math.sin(bt*Math.PI*0.22)*7*energyMul; wingBase=0.03; flap=puls*0.05; puff=swell*0.06+puls*0.03; }\nconst bp=(bt*0.37 + fr(5))%1; const blink=bp<0.05?(1-bp/0.05):0;\nconst eyeOpen=Math.max(0.06, 1 - blink*0.9 - sleep*0.55);\n\nconst bodyH=u*0.48*P.scale; const k=bodyH/205;\nconst ax=P.x*width, ay=P.y*height;\nconst rx=48*(0.75+chub*0.6), ry=66;\nconst setFill=(c)=>{ if(wire){noFill();stroke(c[0],c[1],c[2],90);strokeWeight(1.6/k);} else {fill(c[0],c[1],c[2]); if(outline){stroke(cShade[0],cShade[1],cShade[2],95);strokeWeight(2.4/k);} else noStroke();} };\n\npush();\ntranslate(ax, ay + bobLocal*k - hop*k);\ntranslate(swayLocal*k, 0);\nscale(k);\nrotate(lean*0.35);\nnoStroke();\n\n// branch\nif(wire){noFill();stroke(H,40,70,80);strokeWeight(1.6/k);} else {noStroke();fill((H+10)%360,35,thermal?24:13);}\nellipse(0,6,150,15);\n\n// back wing\n{ const side=1; push(); translate(side*rx*0.6,-72); rotate(side*(0.15+wingBase)+side*flap*0.7);\n  setFill(cShade);\n  beginShape(); vertex(0,-30); bezierVertex(side*34,-6,side*40,54,side*10,86); bezierVertex(side*2,60,side*-6,10,0,-30); endShape(CLOSE);\n  pop(); }\n\n// body\nsetFill(cBody);\nellipse(0,-70, rx*2, ry*2*(1+puff*0.15));\nsetFill(cBelly);\nellipse(0,-58, rx*1.2, ry*1.5);\nif(thermal){ blendMode(ADD); noStroke(); for(let r=0;r<3;r++){ fill(cRim[0],cRim[1],100,16); ellipse(0,-66, rx*(1.2-r*0.32), ry*(1.3-r*0.32)); } blendMode(BLEND); }\nif(hatch){ stroke(cDisc[0],cDisc[1],cDisc[2],72); strokeWeight(1.1/k); const n=17; for(let i=0;i<n;i++){ const yy=-ry+(i+0.5)*(2*ry/n); const hw=rx*Math.sqrt(Math.max(0,1-(yy/ry)*(yy/ry)))*0.94; const jit=(fr(i*3+1)-0.5)*4; line(-hw+jit,-70+yy,hw+jit,-70+yy); } strokeWeight(0.9/k); for(let i=0;i<10;i++){ const yy=-ry*0.7+i*(ry*1.2/10); const hw=rx*Math.sqrt(Math.max(0,1-(yy/ry)*(yy/ry)))*0.9; line(-hw*0.15,-70+yy,-hw,-70+yy-6); } noStroke(); }\n\n// front wing\n{ const side=-1; push(); translate(side*rx*0.62,-72); rotate(side*(0.15+wingBase)+side*flap);\n  setFill(cBody);\n  beginShape(); vertex(0,-30); bezierVertex(side*34,-6,side*40,54,side*10,86); bezierVertex(side*2,60,side*-6,10,0,-30); endShape(CLOSE);\n  if(hatch){ stroke(cDisc[0],cDisc[1],cDisc[2],60); strokeWeight(1/k); for(let i=0;i<6;i++){ line(side*4,-14+i*16, side*30,-4+i*16); } noStroke(); }\n  pop(); }\n\n// feet\nfor(const sx of [-1,1]){ push(); translate(sx*15,-2); if(wire){noFill();stroke(cBeak[0],cBeak[1],cBeak[2],90);strokeWeight(1.6/k);} else {noFill();stroke(cShade[0],cShade[1],cShade[2]);strokeWeight(3/k);} line(0,-8,0,6); line(0,6,-6,12); line(0,6,0,13); line(0,6,6,12); pop(); }\nnoStroke();\n\n// head\npush();\ntranslate(0,-112);\nrotate(headRot*0.5);\ntranslate(headX, headY-38);\nconst hr=42;\n// ear tufts\nsetFill(cBody);\nfor(const sx of [-1,1]){ push(); translate(sx*hr*0.66,-hr*0.62); rotate(sx*0.28); triangle(0,10, sx*7,10, sx*2,-24*tuftz); pop(); }\n// head dome\nsetFill(cBody);\nellipse(0,0, hr*2.1, hr*2.0);\n// facial disc\nsetFill(cDisc);\nellipse(0,4, hr*1.7*disc, hr*1.9*disc);\n// eyes\nconst ex=hr*0.5*disc, ey=-2, er=hr*0.52*disc;\nfor(const sx of [-1,1]){\n  if(wire){noFill();stroke(cRim[0],cRim[1],cRim[2],90);strokeWeight(1.4/k);} else {noStroke();fill(cRim[0],cRim[1],Math.min(100,cRim[2]));}\n  ellipse(sx*ex,ey, er*2, er*2*eyeOpen);\n  if(wire){stroke(cEye[0],cEye[1],cEye[2],90);} else {fill(cEye[0],cEye[1],cEye[2]);}\n  ellipse(sx*ex,ey, er*1.35, er*1.35*eyeOpen);\n  const gc=color(cRim[0],cRim[1],cRim[2]); drawingContext.shadowColor=gc.toString(); drawingContext.shadowBlur=16;\n  if(wire){stroke(cPup[0],cPup[1],cPup[2],95);} else {fill(cPup[0],cPup[1],cPup[2]);}\n  ellipse(sx*ex,ey, er*0.72, er*0.72*eyeOpen);\n  drawingContext.shadowBlur=0;\n  if(!wire){ noStroke(); fill(0,0,100,80); ellipse(sx*ex-er*0.18, ey-er*0.2, er*0.22, er*0.22*eyeOpen); }\n}\n// beak\nif(wire){noFill();stroke(cBeak[0],cBeak[1],cBeak[2],90);strokeWeight(1.6/k);} else {noStroke();fill(cBeak[0],cBeak[1],cBeak[2]);}\npush(); translate(0, hr*0.55);\ntriangle(-5,-beakOpen*3, 5,-beakOpen*3, 0, 9+beakOpen*4);\nif(beakOpen>0.02){ triangle(-4,9+beakOpen*2, 4,9+beakOpen*2, 0, 9+beakOpen*10); }\npop();\npop();\npop();\n\n// ambient motes\nconst nm=Math.floor(P.density*11);\nif(nm>0){ blendMode(ADD); noStroke(); for(let i=0;i<nm;i++){ const ang=fr(i*7+2)*6.28; const rr=(0.3+fr(i*7+3)*0.5)*u*0.4; const dr=(K.t*(0.2+fr(i*7+4)*0.4)+fr(i*7)*6.28); const px=ax+Math.cos(ang+dr*0.3)*rr; const py=ay-u*0.24-Math.sin(ang+dr)*rr*0.5+Math.sin(K.t+i)*8; const sz=(1+fr(i*7+5)*2)*u*0.004*(1+air); fill((H+30)%360,30,100,20+air*30); ellipse(px,py,sz,sz); } blendMode(BLEND); }\nblendMode(BLEND);\n"
+}

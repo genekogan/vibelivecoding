@@ -1,0 +1,162 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "genart.punch_tape",
+ "kind": "genart",
+ "name": "Punched Tape Reader",
+ "desc": "Eight-track paper tape streaming through a photoelectric reader: the sprocket line ticks past like a heartbeat, lamplight pours up through every punched hole as it crosses the gate, the reels breathe and turn at their own radius-dependent rates, and the decoded program spills out as ASCII under the head.",
+ "tags": [
+  "punched-tape",
+  "paper-tape",
+  "punch-tape",
+  "ticker-tape",
+  "tape-reader",
+  "teletype",
+  "teleprinter",
+  "telex",
+  "sprocket",
+  "perforation",
+  "hole",
+  "punch",
+  "reel",
+  "spool",
+  "photocell",
+  "photoelectric",
+  "reader",
+  "ascii",
+  "baudot",
+  "byte",
+  "bit",
+  "binary",
+  "program",
+  "code",
+  "computing",
+  "mainframe",
+  "minicomputer",
+  "pdp",
+  "eniac",
+  "vintage-computing",
+  "machine",
+  "mechanism",
+  "deck",
+  "enamel",
+  "bakelite",
+  "oiled",
+  "paper",
+  "manila",
+  "instrument",
+  "data",
+  "signal",
+  "telemetry",
+  "archive",
+  "industrial",
+  "retrofuture",
+  "clinical",
+  "austere",
+  "xray",
+  "generative",
+  "genart",
+  "abstract",
+  "fullbleed",
+  "background",
+  "bg"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "lamp intensity through the holes and specular sheen"
+  },
+  "density": {
+   "default": 0.55,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "entropy of the byte stream \u2014 sparse opcodes to dense random punch"
+  },
+  "scale": {
+   "default": 1.0,
+   "min": 0.35,
+   "max": 2.2,
+   "doc": "tape width and reel size vs design size"
+  },
+  "speed": {
+   "default": 1.0,
+   "min": 0.0,
+   "max": 3.0,
+   "doc": "transport speed \u2014 characters per second"
+  },
+  "wear": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "oil bloom, staining and scuffing on the deck and stock"
+  },
+  "tilt": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "angle of the tape run across the deck"
+  },
+  "hue": {
+   "default": 42,
+   "min": 0,
+   "max": 360,
+   "doc": "deck + tape hue (offset from the style anchor)"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "reader centre x"
+  },
+  "y": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "reader centre y"
+  },
+  "style": {
+   "default": "oiled",
+   "options": [
+    "oiled",
+    "manila",
+    "xray",
+    "fanfold"
+   ],
+   "doc": "aesthetic: oiled buff tape on green machine enamel / dry manila stock on a warm deck / radically abstracted \u2014 a negative X-ray where the holes are the only light and the tape is a ghost / cold violet fanfold"
+  },
+  "act": {
+   "default": "read",
+   "options": [
+    "read",
+    "header",
+    "scramble"
+   ],
+   "doc": "multi-minute programme: a running program / long leader runs and sprocket-only stretches between blocks / dense random punch, maximum entropy"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "program, stock and deck seed"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "layer opacity"
+  }
+ },
+ "acts": [
+  "read",
+  "header",
+  "scramble"
+ ],
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy: .6, density: .55, scale: 1, speed: 1, wear: .5, tilt: .5, hue: 42, x: .5, y: .5, style: 'oiled', act: 'read', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction h1(i) { return h2(i | 0, 0x6d1f); }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), wear = clp(P.wear, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 42;\n\nconst ST = {\n  oiled:   { deck:[150,22,17], tape:[41,30,60], edge:[34,36,38], hole:[30,50,7],  lamp:[42,88,99], metal:[40,10,44], txt:[44,26,72], glow:.9 },\n  manila:  { deck:[24,14,24],  tape:[38,34,58], edge:[30,40,36], hole:[26,52,8],  lamp:[36,84,97], metal:[32,12,50], txt:[36,28,68], glow:.7 },\n  xray:    { deck:[206,54,13], tape:[202,34,30], edge:[200,30,22], hole:[196,10,92], lamp:[192,66,98], metal:[204,26,40], txt:[198,16,84], glow:1 },\n  fanfold: { deck:[268,26,14], tape:[268,10,54], edge:[268,16,34], hole:[268,30,8], lamp:[300,70,96], metal:[268,10,42], txt:[280,14,72], glow:.5 }\n};\nconst st = ST[P.style] || ST.oiled;\nconst DEH = md(st.deck[0] + hs, 360), TAH = md(st.tape[0] + hs, 360), EDH = md(st.edge[0] + hs, 360), HOH = md(st.hole[0] + hs, 360), LAH = md(st.lamp[0] + hs, 360), MEH = md(st.metal[0] + hs, 360), TXH = md(st.txt[0] + hs, 360);\nconst neg = P.style === 'xray';\n\n// ---- the program on the tape: an infinite procedural byte stream ----\nconst WORDS = ['LOAD','STOR','JMP ','ADD ','SUB ','SHFT','ROT ','NAND','HALT','READ','PNCH','TAPE','CORE','ACC ','IDX ','LINK'];\nlet ent = 0.5 + dens * 0.5, runs = 1;\nif (P.act === 'header') { ent = 0.12; runs = 3; }        // long leader runs + sprocket-only stretches\nelse if (P.act === 'scramble') { ent = 1; runs = 0; }\nfunction byteAt(i) {\n  if (runs && md(Math.floor(i / 96), 5) === 0) return i % 2 ? 0x00 : 0x7f;   // leader / trailer runs\n  const r = h1(i * 3 + 1);\n  if (r > ent) { const w = WORDS[Math.floor(h1(i * 3 + 2) * WORDS.length)]; return w.charCodeAt(md(i, 4)) & 0x7f; }\n  return Math.floor(h1(i * 3 + 5) * 128) & 0x7f;\n}\nfunction chAt(i) { const b = byteAt(i); return (b >= 32 && b < 127) ? String.fromCharCode(b) : '\u00b7'; }\n\n// ---- tape geometry: a diagonal run across the deck, head at the middle ----\nconst sc = clp(P.scale, .35, 2.2);\nconst ang = (clp(P.tilt, 0, 1) - .5) * 0.62;             // tape run angle\nconst TW = 0.30 * u * sc;                                // tape width (8 tracks + sprocket)\nconst PITCH = TW * 0.115;                                // hole pitch along the tape\nconst cx = P.x * W, cy = P.y * H;\nconst feed = K.t * (2.4 + clp(P.speed, 0, 3) * 6.2) * PITCH * 8;   // px/s along the tape\nconst dc = drawingContext;\n\n// ---- cached deck plate + tape stock texture ----\nconst pkey = P.style + '|' + Math.round(P.hue) + '|' + (P.seed | 0) + '|' + wear.toFixed(2);\nif (!S.deck || S.pkey !== pkey) {\n  if (S.deck && S.deck.remove) S.deck.remove();\n  if (S.stock && S.stock.remove) S.stock.remove();\n  const g = createGraphics(384, 288); g.pixelDensity(1); g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.noStroke(); g.background(DEH, st.deck[1], st.deck[2]);\n  for (let i = 0; i < 1500; i++) {                       // crackle enamel / cast texture\n    g.fill(DEH, st.deck[1] * (.7 + h1(i * 2 + 3)), st.deck[2] * (h1(i * 2 + 4) > .5 ? 1.45 : .6), 10);\n    g.ellipse(h1(i * 2 + 5) * 384, h1(i * 2 + 6) * 288, 2 + h1(i * 2 + 7) * 9, 2 + h1(i * 2 + 8) * 7);\n  }\n  for (let i = 0; i < 140; i++) {                        // oil bloom + wear patches\n    g.fill(DEH, st.deck[1] * 1.5, st.deck[2] * (h1(i * 3 + 11) > .5 ? 1.6 : .5), 4 + h1(i * 3 + 12) * 10 * wear);\n    g.ellipse(h1(i * 3 + 13) * 384, h1(i * 3 + 14) * 288, 20 + h1(i * 3 + 15) * 90 * wear, 14 + h1(i * 3 + 16) * 60 * wear);\n  }\n  S.deck = g;\n  const s2 = createGraphics(256, 64); s2.pixelDensity(1); s2.colorMode(s2.HSB, 360, 100, 100, 100);\n  s2.noStroke(); s2.background(TAH, st.tape[1], st.tape[2]);\n  for (let i = 0; i < 1800; i++) {                       // paper fibre + oil staining\n    s2.fill(TAH, st.tape[1] * (.6 + h1(i * 2 + 21) * .9), st.tape[2] * (h1(i * 2 + 22) > .5 ? 1.22 : .74), 11);\n    s2.rect(h1(i * 2 + 23) * 256, h1(i * 2 + 24) * 64, 3 + h1(i * 2 + 25) * 14, 1);\n  }\n  for (let i = 0; i < 60; i++) {\n    s2.fill(TAH, st.tape[1] * 1.7, st.tape[2] * .68, 5 + h1(i * 3 + 31) * 9 * wear);\n    s2.ellipse(h1(i * 3 + 32) * 256, h1(i * 3 + 33) * 64, 10 + h1(i * 3 + 34) * 50 * wear, 6 + h1(i * 3 + 35) * 22 * wear);\n  }\n  S.stock = s2; S.pkey = pkey;\n}\n\n// =================== deck ===================\nnoStroke();\nbackground(DEH, st.deck[1], st.deck[2] * .6);\nimage(S.deck, 0, 0, W, H);\n// a broad raking light across the deck \u2014 slow, incommensurate, carries the motion floor\nblendMode(ADD);\nconst sweep = md(K.t * 0.037, 1);\nfor (let i = 0; i < 7; i++) { noStroke(); fill(LAH, 14, 100, 2.4);\n  push(); translate((sweep * 1.7 - .35) * W, H * .5); rotate(-0.42);\n  rect(-u * .09 + i * u * .028, -H, u * .024, H * 2); pop(); }\nblendMode(BLEND);\n\n// ---- reels: feed (left) and take-up (right), turning at radius-dependent rates ----\nfunction reel(rx, ry, rad, spin, full) {\n  noStroke();\n  fill(MEH, st.metal[1] * .8, st.metal[2] * .45); ellipse(rx, ry, rad * 2.16);\n  fill(TAH, st.tape[1] * .9, st.tape[2] * .62); ellipse(rx, ry, rad * 2 * full);   // wound tape\n  for (let k = 0; k < 26; k++) {                                                    // wound layers\n    noFill(); stroke(TAH, st.tape[1], st.tape[2] * (k % 2 ? .5 : .78), 40); strokeWeight(1);\n    ellipse(rx, ry, rad * 2 * full * (0.42 + 0.58 * k / 26));\n  }\n  noStroke(); fill(MEH, st.metal[1] * .6, st.metal[2] * 1.35); ellipse(rx, ry, rad * .78);\n  push(); translate(rx, ry); rotate(spin);\n  for (let k = 0; k < 3; k++) {                                                     // hub spokes\n    push(); rotate(k * TAU / 3);\n    fill(MEH, st.metal[1] * .5, st.metal[2] * 1.7); rect(-rad * .055, -rad * .36, rad * .11, rad * .36, 2);\n    pop();\n  }\n  fill(MEH, st.metal[1] * .4, st.metal[2] * 2.0); ellipse(0, 0, rad * .20);\n  pop();\n  noFill(); stroke(MEH, st.metal[1] * .5, st.metal[2] * 1.5, 60); strokeWeight(Math.max(1, u * .0016));\n  ellipse(rx, ry, rad * 2.16);\n}\nconst rr = u * .17 * sc;\n// radii breathe on long incommensurate cycles \u2014 the reels never \"run out\" (no convergence)\nconst fullA = 0.58 + 0.30 * Math.sin(K.t * 0.021), fullB = 0.58 + 0.30 * Math.sin(K.t * 0.021 + Math.PI);\nconst rlx = cx - Math.cos(ang) * u * .40 * sc, rly = cy - Math.sin(ang) * u * .40 * sc;\nconst rrx = cx + Math.cos(ang) * u * .40 * sc, rry = cy + Math.sin(ang) * u * .40 * sc;\nreel(rlx, rly, rr, -feed / (rr * fullA), fullA);\nreel(rrx, rry, rr, feed / (rr * fullB), fullB);\n\n// ---- the tape: a band running corner to corner through the head ----\npush();\ntranslate(cx, cy);\nrotate(ang);\nconst L = u * sc * 0.80 + rr * 2.2;   // reel-to-reel, so column count is scale-invariant\n// stock, tiled along the run\ndc.save(); dc.beginPath(); dc.rect(-L * .5, -TW * .5, L, TW); dc.clip();\nconst tileW = TW * 4;\nconst off = md(-feed, tileW);\nfor (let x = -L * .5 + off - tileW; x < L * .5; x += tileW) image(S.stock, x, -TW * .5, tileW, TW);\n// edges: the tape's darkened, worn margins\nnoStroke();\nfill(EDH, st.edge[1], st.edge[2], 70); rect(-L * .5, -TW * .5, L, TW * .055); rect(-L * .5, TW * .445, L, TW * .055);\n\n// ---- the read window: a backlit slot; light pours through every hole ----\nconst winW = TW * 1.35;\nblendMode(BLEND);\nfill(LAH, st.lamp[1] * .25, st.lamp[2], 16 * (0.5 + en));\nrect(-winW * .5, -TW * .5, winW, TW);\n\n// ---- holes ----\nconst i0 = Math.floor((feed - L * .5) / PITCH) - 1, i1 = Math.floor((feed + L * .5) / PITCH) + 1;\nconst TRK = 8, sprkT = 3;      // sprocket sits between tracks 3 and 4, and is smaller\nconst trkY = t => (t + (t >= sprkT ? 1 : 0) + 1) / (TRK + 2) * TW * .84 - TW * .42;\nconst holeR = TW * .052, sprkR = TW * .022;\nfor (let i = i0; i <= i1; i++) {\n  const x = i * PITCH - feed;\n  if (x < -L * .5 - PITCH || x > L * .5 + PITCH) continue;\n  const inWin = Math.abs(x) < winW * .5;\n  const b = byteAt(i);\n  // sprocket hole: always present, the tape's heartbeat\n  noStroke();\n  fill(HOH, st.hole[1], st.hole[2], neg ? 30 : 92);\n  ellipse(x, (sprkT + 1) / (TRK + 2) * TW * .84 - TW * .42, sprkR * 2);\n  if (inWin) { blendMode(ADD); fill(LAH, st.lamp[1] * .5, 100, 46 * st.glow); ellipse(x, (sprkT + 1) / (TRK + 2) * TW * .84 - TW * .42, sprkR * 2.9); blendMode(BLEND); }\n  for (let t = 0; t < TRK; t++) {\n    if (!((b >> t) & 1)) continue;\n    const y = trkY(t);\n    noStroke(); fill(HOH, st.hole[1], st.hole[2], neg ? 24 : 94);\n    ellipse(x, y, holeR * 2);\n    if (inWin) {                       // photocell lamp shines through\n      blendMode(ADD);\n      fill(LAH, st.lamp[1] * .45, 100, 62 * st.glow * (0.5 + en * .6));\n      ellipse(x, y, holeR * 2.0);\n      fill(LAH, st.lamp[1] * .7, 100, 15 * st.glow);\n      ellipse(x, y, holeR * 4.4);\n      blendMode(BLEND);\n    }\n  }\n}\n// tape sheen: a specular band along the run\nblendMode(ADD); noStroke();\nfill(0, 0, 100, 4 + 3 * en); rect(-L * .5, -TW * .30, L, TW * .10);\nblendMode(BLEND);\ndc.restore();\n\n// ---- read head: the gate, guide rollers, lamp housing ----\nnoStroke();\nfill(MEH, st.metal[1] * .7, st.metal[2] * .5, 92);\nrect(-winW * .5 - u * .012, -TW * .78, u * .012, TW * 1.56, 2);\nrect(winW * .5, -TW * .78, u * .012, TW * 1.56, 2);\nfill(MEH, st.metal[1] * .5, st.metal[2] * 1.5, 84);\nrect(-winW * .5, -TW * .78, winW, u * .010);\nrect(-winW * .5, TW * .78 - u * .010, winW, u * .010);\nfor (let s2 = -1; s2 <= 1; s2 += 2) {   // guide rollers\n  const rx = s2 * winW * .78;\n  fill(MEH, st.metal[1] * .6, st.metal[2] * .9); ellipse(rx, -TW * .60, u * .030);\n  fill(MEH, st.metal[1] * .4, st.metal[2] * 1.8);\n  push(); translate(rx, -TW * .60); rotate(feed / (u * .015) * s2);\n  rect(-u * .002, -u * .012, u * .004, u * .024, 1); pop();\n}\npop();\n\n// ---- decoded ASCII scrolling out of the head \u2014 text as the instrument's voice ----\ntextFont('Courier New');\nconst cur = Math.floor(feed / PITCH);\nconst nCh = 26;\nlet asc = '', hex = '';\nfor (let k = -nCh; k <= 0; k++) { asc += chAt(cur + k); hex += byteAt(cur + k).toString(16).padStart(2, '0') + ' '; }\nnoStroke(); textAlign(LEFT, TOP);\nfill(TXH, st.txt[1], st.txt[2] * .3, 62);\nrect(u * .026, H - u * .105, u * .55, u * .078, 3);\ntextSize(clp(u * .019, 8, 34)); fill(LAH, st.lamp[1] * .35, st.lamp[2], 94);\ntext(asc, u * .036, H - u * .098);\ntextSize(clp(u * .0105, 5, 18)); fill(TXH, st.txt[1], st.txt[2], 62);\ntext(hex.slice(-3 * 26), u * .036, H - u * .070);\nfill(TXH, st.txt[1], st.txt[2] * .8, 56);\ntext('FRAME ' + String(md(cur, 1000000)).padStart(6, '0') + '   8-TRACK  \u00b7  ' + Math.round((2.4 + clp(P.speed, 0, 3) * 6.2) * 8) + ' ch/s   ' + P.act.toUpperCase(), u * .036, H - u * .050);\n\n// placard\ntextAlign(LEFT, TOP); textSize(clp(u * .016, 8, 30)); fill(TXH, st.txt[1], st.txt[2], 88);\ntext('TAPE READER  \u00b7  PHOTOELECTRIC', u * .030, u * .028);\ntextSize(clp(u * .0105, 5, 18)); fill(TXH, st.txt[1], st.txt[2] * .8, 66);\ntext('SPROCKET LOCK   LAMP OK   TENSION NOM', u * .030, u * .050);\n\nblendMode(BLEND);\nnoFill(); stroke(0, 0, 0, 30); strokeWeight(u * .10); rect(-u * .05, -u * .05, W + u * .1, H + u * .1);\ndc.shadowBlur = 0;\nblendMode(BLEND);\nif (P.alpha < 100) { noStroke(); fill(DEH, st.deck[1], st.deck[2] * .6, 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

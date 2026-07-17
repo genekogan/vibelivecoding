@@ -33,6 +33,24 @@ curl -X POST localhost:8766/strudel/hush
 curl -X POST localhost:8766/p5/clear
 ```
 
+### Browse all three catalogs in one window
+
+```bash
+python livecode.py --catalog --kiosk
+```
+
+This opens `http://localhost:8766/catalog.html`, with dedicated Three.js, p5.js,
+and Strudel pages on one server. The p5 and Three.js catalogs work immediately;
+click **Enable audio** once before auditioning Strudel assets.
+
+## Three Ways to Drive It
+
+| Mode | What it is |
+|------|-----------|
+| **Manual** | Send curl commands directly — see "Quick Start" above |
+| **Showrunner** | Author + record + replay a stepped composition. Build with `compositions/*.py`, save as `shows/*.show.json`, play with `python autoplay.py --show ...`. Arrow keys ← → step sections in the browser. See [.claude/skills/livecode-compose.md](.claude/skills/livecode-compose.md). |
+| **Autopilot** | An autonomous improvisation loop. Tell Claude Code "start the autopilot" — it wakes every ~1 min via `ScheduleWakeup`, evolves the canvas + music, and listens to your messages between rounds. See [.claude/skills/autopilot.md](.claude/skills/autopilot.md). |
+
 ## How It Works
 
 The server (`livecode_server.py`) runs two services:
@@ -52,6 +70,7 @@ The browser client (`livecode.html`) renders a full-screen p5.js canvas and runs
 | POST | `/strudel/stop` | `{"name": "bass"}` | Stop a single track |
 | POST | `/strudel/hush` | `{}` | Stop all tracks |
 | POST | `/strudel/cps` | `{"cps": 0.5}` | Set tempo (cycles per second) |
+| POST | `/strudel/reset` | `{"quantumCycles": 1}` | Reset at the next AudioContext-clocked cycle boundary |
 | POST | `/strudel/send` | `{"code": "...", "evaluate": true}` | Send raw Strudel code |
 
 ### Visuals (p5.js)
@@ -70,7 +89,26 @@ The browser client (`livecode.html`) renders a full-screen p5.js canvas and runs
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/status` | Returns `{ready, tracks[], layers[], cps}` |
+| GET | `/status` | Returns `{ready, tracks[], layers[], cps, transportGeneration, reconnectPolicy, step, totalSteps, recording}` |
+| GET | `/state` | Full code dump (tracks + layers code, cps, setup) — used by autopilot for self-correction |
+| GET | `/errors` | Recent browser-side runtime errors (deque, maxlen 50) |
+| GET | `/transport` | Fresh owned scheduler/audio/output frame, including provenance and confidence |
+
+### Step-Through / Show Control
+
+Every accepted Strudel/p5 command auto-records into a timeline. Arrow keys ← → in the browser advance/back sections. Autosaves to `shows/unsorted/jam_<ts>.show.json` every 60s and on shutdown.
+
+| Method | Route | Body | Description |
+|--------|-------|------|-------------|
+| GET | `/show/steps` | — | List current timeline (truncated codes) |
+| GET | `/show/save` | — | Return the timeline as a JSON doc |
+| POST | `/show/next` / `/show/prev` | `{}` | Advance / step back |
+| POST | `/show/goto` | `{"step": N}` | Jump to a step |
+| POST | `/show/mark` | `{"label": "drop"}` | Insert a section boundary |
+| POST | `/show/recording` | `{"enabled": true}` | Toggle auto-recording |
+| POST | `/show/load` | `{"steps": [...]}` | Load a timeline in memory |
+| POST | `/show/load_file` | `{"path": "shows/foo.show.json"}` | Load a show from disk |
+| POST | `/show/save_file` | `{"path": "shows/foo.show.json"}` | Write timeline to disk |
 
 ## Python API
 
@@ -111,9 +149,19 @@ ctrl.close()
 - Canvas uses `colorMode(HSB, 360, 100, 100, 100)` by default
 - Press `C` in the browser to toggle code overlay, `L` for execution log
 
-## Twitch Streaming (Optional)
+## Livestreaming
 
-`stream.py` can stream the browser output to Twitch with chat integration.
+**To stream (X or Twitch), use manual OBS** — see the runbook
+[`docs/livestreaming-obs.md`](docs/livestreaming-obs.md) (sources, audio routing, the
+Restart-capture gotcha, per-platform ingest URLs, verification).
+
+### Automated `stream.py` — DEFUNCT
+
+> The old automated streamer below (headless browser + FFmpeg → Twitch) is **defunct**
+> and unmaintained. Kept for reference only — see
+> [`docs/archive/headless-browser-streaming.md`](docs/archive/headless-browser-streaming.md).
+
+`stream.py` streamed the *legacy* Strudel-only page to Twitch with chat integration.
 
 ```bash
 # Install extra dependencies
@@ -135,17 +183,15 @@ Required environment variables for streaming:
 
 ## Standalone Systems (Legacy)
 
-The Strudel and p5.js systems can also run independently:
+The pre-unification Strudel-only and p5-only servers live in `legacy/` and still run:
 
 ```bash
-# Music only
-python strudel_live.py
-# Open http://localhost:8766/strudel.html
-
-# Visuals only
-python p5_live.py
-# Open http://localhost:8776/p5.html
+cd legacy/
+python strudel_live.py        # music only — open http://localhost:8766/strudel.html
+python p5_live.py             # visuals only — open http://localhost:8776/p5.html
 ```
+
+Prefer the unified `livecode.py` above for new work.
 
 ## File Overview
 
@@ -154,15 +200,14 @@ python p5_live.py
 | `livecode.py` | Entry point — starts unified server |
 | `livecode_server.py` | `LivecodeController` — WebSocket + HTTP/REST server |
 | `livecode.html` | Browser client — p5.js canvas + Strudel audio |
-| `strudel_server.py` | Standalone Strudel server |
-| `strudel.html` | Standalone Strudel browser client |
-| `strudel_live.py` | Standalone Strudel REST API |
-| `strudel_send.py` | CLI tool to send Strudel code |
-| `p5_server.py` | Standalone p5.js server |
-| `p5.html` | Standalone p5.js browser client |
-| `p5_live.py` | Standalone p5.js REST API |
-| `p5_send.py` | CLI tool to send p5.js code |
-| `stream.py` | Twitch streaming + chat integration |
+| `legacy/` | Retired standalone Strudel-only + p5-only servers, REST APIs, and senders |
+| `stream.py` | Twitch streaming + chat (uses legacy strudel) |
+| `autopilot_host.py` | Playwright host for the autonomous improv loop |
+| `autopilot/` | Steering + journal + ideas for the autopilot |
+| `scenes/`, `compositions/`, `shows/`, `autoplay.py` | Showrunner system |
+| `performances/` | Archival MP4 recordings of past shows |
+| `test_steps.py` | Playwright regression test (101 checks across 14 phases) |
+| `AGENTS.md` | Pointer to `CLAUDE.md` for non-Claude coding agents |
 
 ## Requirements
 

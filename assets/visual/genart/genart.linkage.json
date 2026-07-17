@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.linkage",
+  "kind": "genart",
+  "name": "Linkage",
+  "desc": "A drafting plate of working four-bar mechanisms, each figure in its own ruled cell \u2014 cranks turn, rigid coupler triangles tumble, rockers swing on hatched ground pivots, and every coupler point drags a bright pen-head around the closed roulette it is cutting; each section the plate re-drafts one figure and the new curve draws itself in.",
+  "tags": [
+    "linkage",
+    "four-bar",
+    "fourbar",
+    "mechanism",
+    "mechanical",
+    "kinematics",
+    "kinematic",
+    "coupler",
+    "coupler-curve",
+    "crank",
+    "rocker",
+    "crank-rocker",
+    "grashof",
+    "pivot",
+    "bars",
+    "joints",
+    "machine",
+    "machinery",
+    "engineering",
+    "technical",
+    "drawing",
+    "draughting",
+    "drafting",
+    "plate",
+    "figures",
+    "grid",
+    "diagram",
+    "schematic",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "ghost",
+    "locus",
+    "trace",
+    "roulette",
+    "curve",
+    "annotation",
+    "dimension",
+    "title-block",
+    "clinical",
+    "austere",
+    "rigorous",
+    "precision",
+    "victorian",
+    "patent"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "crank rate + bar line weight + pen-head glow + plate float"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 2.2,
+      "doc": "figure size \u2014 a true plate zoom; 2.2 gives a few huge figures, 0.55 a dense sheet of small ones"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many distinct mechanisms in the pool (3..14) before the grid repeats"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "crank rate multiplier"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint + locus hue (film/ghost styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "grid anchor, canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "grid anchor, canvas fraction"
+    },
+    "trail": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "length of the bright pen-head trail along each coupler curve"
+    },
+    "anno": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: cell frames, FIG numbers, link tables, title block"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "kinematic"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / additive x-ray ghost / kinematic (bars dissolve to pivots + velocity & acceleration vectors)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "link proportions + coupler-point offsets + grid assignment"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the plate ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:11+00:00",
+    "fps": 63.3,
+    "motion": 0.0324,
+    "lum": 0.271
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:38, x:.5, y:.5, trail:.55, anno:.65, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\nconst TRL = cl(P.trail,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { g:[214,74,18], cell:[212,60,25], bar:[200,6,99], pin:[196,20,92], loc:[186,46,74], head:[46,68,98], ctr:[196,36,80], anno:[200,10,90], grain:34, add:false, wash:[196,22,80] };\n  if (sty==='engraving') return { g:[38,18,72],  cell:[36,14,64], bar:[28,38,11], pin:[28,30,22], loc:[24,44,34], head:[6,72,42], ctr:[8,62,42], anno:[28,42,14], grain:32, add:false, wash:[44,26,96] };\n  if (sty==='ghost')     return { g:[236,60,8],  cell:[232,50,13], bar:[H,30,96], pin:[H,14,100], loc:[H+150,58,70], head:[H,72,100], ctr:[12,70,58], anno:[H,16,84], grain:16, add:true,  wash:[H,44,60] };\n  if (sty==='kinematic') return { g:[204,40,8],  cell:[202,44,13], bar:[186,60,86], pin:[186,26,96], loc:[52,66,88], head:[340,74,94], ctr:[10,70,66], anno:[52,54,86], grain:14, add:false, wash:[188,42,58] };\n  return { g:[H,16,20], cell:[H,12,27], bar:[H,4,94], pin:[H,6,86], loc:[H,44,66], head:[H+22,72,96], ctr:[10,66,62], anno:[H,6,88], grain:28, add:false, wash:[H,12,80] };\n}\nconst C = pal();\nconst sc = (c,a) => { stroke(((c[0]%360)+360)%360, c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(((c[0]%360)+360)%360, c[1], c[2], a*AL); };\n\n// ---- real-time crank accumulator: never re-phases -----------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst wob = 1 + .22*Math.sin(K.t*.127) + .14*Math.sin(K.t*.311+1.4) + .08*Math.sin(K.t*.739+2.7);\nS.th = (S.th||0) + dt * wob * P.speed * (.55 + 1.5*NRG) * (.6 + .7*K.intensity);\nconst drx = .9*Math.sin(K.t*.139) + .5*Math.sin(K.t*.297+1.7) + .32*Math.sin(K.t*.463);\nconst dry = .8*Math.sin(K.t*.111+2.1) + .45*Math.sin(K.t*.253+.6) + .28*Math.sin(K.t*.611+1.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- four-bar vector-loop solve (circle intersection) -------------------------\nfunction solve(m, th2){\n  const ax = Math.cos(th2)*m.a, ay = Math.sin(th2)*m.a;\n  const dx = m.d - ax, dy = -ay;\n  const L = Math.hypot(dx,dy);\n  if (L > m.b + m.c || L < Math.abs(m.b - m.c) || L < 1e-6) return null;\n  const q = (m.b*m.b - m.c*m.c + L*L)/(2*L);\n  const hh = m.b*m.b - q*q;\n  const h = Math.sqrt(hh < 0 ? 0 : hh);\n  const mx = ax + q*dx/L, my = ay + q*dy/L;\n  const bx = mx + m.br*h*(-dy)/L, by = my + m.br*h*(dx)/L;\n  const th3 = Math.atan2(by-ay, bx-ax);\n  const px = ax + Math.cos(th3)*m.px - Math.sin(th3)*m.py;\n  const py = ay + Math.sin(th3)*m.px + Math.cos(th3)*m.py;\n  // transmission angle at B, between coupler BA and rocker BO4\n  const v1x=ax-bx, v1y=ay-by, v2x=m.d-bx, v2y=-by;\n  const mu = Math.acos(cl((v1x*v2x+v1y*v2y)/(Math.hypot(v1x,v1y)*Math.hypot(v2x,v2y)+1e-9),-1,1));\n  return { ax, ay, bx, by, px, py, th3, mu };\n}\n\n// ---- Grashof crank-rocker generator + coupler-curve locus ---------------------\nfunction makeMech(sf){\n  for (let tr=0; tr<48; tr++){\n    const g = k => fr(sf*17.31 + tr*3.907 + k*1.61);\n    const d = 1;\n    const a = .15 + g(1)*.15;\n    const b = .68 + g(2)*.50;\n    const c = .55 + g(3)*.48;\n    const arr = [a,b,c,d];\n    let s = arr[0], l = arr[0];\n    for (let i=1;i<4;i++){ if (arr[i]<s) s=arr[i]; if (arr[i]>l) l=arr[i]; }\n    if (s !== a) continue;\n    if (s + l > (a+b+c+d) - s - l) continue;            // Grashof\n    const m = { a, b, c, d, px:(.12+g(4)*.9)*b, py:(g(5)-.5)*1.6*b, br: g(6)<.5?-1:1 };\n    const loc = []; let ok = true, mnmu = 9;\n    let x0=9, x1=-9, y0=9, y1=-9;\n    const put = (x,y) => { if (x<x0)x0=x; if (x>x1)x1=x; if (y<y0)y0=y; if (y>y1)y1=y; };\n    for (let i=0;i<256;i++){\n      const r = solve(m, i/256*T2);\n      if (!r){ ok = false; break; }\n      loc.push(r.px, r.py); put(r.px,r.py); put(r.ax,r.ay); put(r.bx,r.by);\n      if (r.mu < mnmu) mnmu = r.mu;\n    }\n    if (!ok) continue;\n    if (mnmu < .18) continue;                            // reject near-toggle junk\n    put(0,0); put(d,0);\n    m.loc = loc; m.mu = mnmu; m.bb = [x0,y0,x1,y1];\n    m.tag = (mnmu > .62 ? 'CRANK-ROCKER' : 'CRANK-ROCKER*');\n    return m;\n  }\n  const m = { a:.22, b:.95, c:.75, d:1, px:.62, py:.46, br:1 };\n  const loc=[]; let x0=9,x1=-9,y0=9,y1=-9;\n  for (let i=0;i<256;i++){ const r=solve(m,i/256*T2); if(!r){loc.push(0,0); continue;}\n    loc.push(r.px,r.py);\n    if(r.px<x0)x0=r.px; if(r.px>x1)x1=r.px; if(r.py<y0)y0=r.py; if(r.py>y1)y1=r.py; }\n  if (x0>0) x0=0; if (x1<1) x1=1; if (y0>0) y0=0; if (y1<0) y1=0;\n  m.loc=loc; m.mu=.7; m.bb=[x0,y0,x1,y1]; m.tag='CRANK-ROCKER';\n  return m;\n}\n\n// ---- mechanism pool ----------------------------------------------------------\nconst npool = Math.round(3 + cl(P.density,0,1)*11);\nif (S.pool == null || S.pkey !== sd+'|'+npool){\n  S.pkey = sd+'|'+npool; S.gen = 0; S.pool = [];\n  for (let i=0;i<npool;i++) S.pool.push({ m: makeMech(i+1), born: K.t - 9, rate: .55 + fr(i*7.7+31)*1.05, fig: i+1 });\n}\n// dramaturgy: every section the plate re-drafts ONE figure, and it draws itself in\nif (S.lastSec == null || S.lastSec !== (K.section|0)){\n  S.lastSec = K.section|0; S.gen = (S.gen||0) + 1;\n  const idx = ((K.section|0)*7 + 13 + S.gen) % S.pool.length;\n  const e = S.pool[idx];\n  e.m = makeMech(100 + S.gen*13 + idx); e.born = K.t; e.fig = (e.fig||1) + S.pool.length;\n  e.rate = .55 + fr(S.gen*3.1 + idx*7.7 + 31)*1.05;\n}\nfor (let i=0;i<S.pool.length;i++){ if (S.pool[i].born > K.t) S.pool[i].born = K.t; }\n\n// ---- cached plate texture ----------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.44 + .32*fr(Math.floor(x/8)*13.71+Math.floor(y/8)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\n\n// ---- ground + texture --------------------------------------------------------\nnoStroke(); fill(C.g[0],C.g[1],C.g[2],100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\n\n// wandering raking wash\nconst wx = width*(.5 + .30*Math.sin(K.t*.073)), wy = height*(.5 + .25*Math.sin(K.t*.101+1.2));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ fill(C.wash[0],C.wash[1],C.wash[2],(2.0+1.8*glow)*AL); const rw=u*(.32+i*.20); ellipse(wx,wy,rw*2,rw*1.7); }\npop(); blendMode(BLEND);\n\n// ---- grid of figures (absolute-indexed so P.scale is a true plate zoom) -------\nconst cw = u*.34*cl(P.scale,.4,2.4), ch = cw*.80;\nconst ox = cl(P.x,.15,.85)*width  + u*.014*NRG*drx - cw*.5;\nconst oy = cl(P.y,.15,.85)*height + u*.012*NRG*dry - ch*.5;\nconst ci0 = Math.floor((0-ox)/cw), ci1 = Math.ceil((width-ox)/cw);\nconst ri0 = Math.floor((0-oy)/ch), ri1 = Math.ceil((height-oy)/ch);\nconst kin = (sty==='kinematic');\nif (C.add) blendMode(ADD);\n\nfunction pivotSym(x,y,r){\n  sc(C.bar, 86); strokeWeight(Math.max(.6,u*.0015)); noFill();\n  triangle(x, y, x-r*1.5, y+r*2.4, x+r*1.5, y+r*2.4);\n  sc(C.ctr, 62); strokeWeight(Math.max(.4,u*.0008));\n  for (let i=-3;i<=3;i++) line(x+i*r*.62, y+r*2.4, x+i*r*.62 - r*.55, y+r*3.1);\n  line(x-r*2.0, y+r*2.4, x+r*2.0, y+r*2.4);\n  noStroke(); fc(C.g, 90); ellipse(x,y,r*1.0,r*1.0);\n  sc(C.bar, 92); noFill(); strokeWeight(Math.max(.5,u*.0012)); ellipse(x,y,r*1.0,r*1.0);\n}\n\nlet figCount = 0, annoN = 0;\nfor (let ri=ri0; ri<=ri1; ri++) for (let ci=ci0; ci<=ci1; ci++){\n  const cellX = ox + ci*cw, cellY = oy + ri*ch;\n  if (cellX > width || cellY > height || cellX+cw < 0 || cellY+ch < 0) continue;\n  if (figCount++ > 44) break;\n  const pi = (((ci*7 + ri*13) % S.pool.length) + S.pool.length) % S.pool.length;\n  const e = S.pool[pi], m = e.m;\n  const grow = cl((K.t - e.born)/2.6, 0, 1);\n\n  // cell frame\n  noStroke(); fc(C.cell, C.add? 10 : 34);\n  rect(cellX+cw*.035, cellY+ch*.035, cw*.93, ch*.93);\n  noFill(); sc(C.anno, 22+26*anno); strokeWeight(Math.max(.5,u*.0009));\n  rect(cellX+cw*.035, cellY+ch*.035, cw*.93, ch*.93);\n\n  // fit the mechanism into the cell\n  const bw = m.bb[2]-m.bb[0], bh = m.bb[3]-m.bb[1];\n  const fs = Math.min(cw*.74/Math.max(.2,bw), ch*.62/Math.max(.2,bh));\n  const gx = cellX + cw*.5 - (m.bb[0]+bw*.5)*fs;\n  const gy = cellY + ch*.52 - (m.bb[1]+bh*.5)*fs;\n  const X = v => gx + v*fs, Y = v => gy + v*fs;\n\n  const th2 = S.th * e.rate + pi*1.7;\n  const r = solve(m, th2) || solve(m, 0);\n  if (!r) continue;\n\n  // ground centreline\n  sc(C.ctr, 30+26*anno); strokeWeight(Math.max(.4,u*.0008));\n  const gl = m.d*fs*.34;\n  for (let s2=-gl; s2 < m.d*fs+gl; s2 += fs*.09) line(X(0)+s2, Y(0), X(0)+s2+fs*.055, Y(0));\n\n  // coupler-curve locus (chain line), draws itself in after a re-draft\n  const np2 = m.loc.length/2;\n  const lim = Math.floor(np2*grow);\n  sc(C.loc, (34+40*anno)*(.5+.5*grow)); strokeWeight(Math.max(.5, u*.0011*(.7+.7*NRG))); noFill();\n  const stp = fs < u*.14 ? 3 : 2;\n  beginShape();\n  for (let i=0;i<lim;i+=stp) vertex(X(m.loc[i*2]), Y(m.loc[i*2+1]));\n  endShape(lim >= np2 ? CLOSE : undefined);\n\n  // persistent bright head along the locus \u2014 the pen that is drawing it\n  const hi = Math.floor((((th2/T2)%1)+1)%1 * np2);\n  const hl = Math.round(np2*(.06+.22*TRL));\n  strokeWeight(Math.max(.7, u*.0022*(.6+.8*NRG)));\n  for (let i=0;i<hl;i++){\n    const j0 = (hi-i+np2*2)%np2, j1 = (hi-i-1+np2*2)%np2;\n    sc(C.head, (86 - 84*(i/hl)) * (.4+.6*glow) * grow);\n    line(X(m.loc[j0*2]), Y(m.loc[j0*2+1]), X(m.loc[j1*2]), Y(m.loc[j1*2+1]));\n  }\n\n  if (!kin){\n    // bars: crank heavy, coupler as a rigid triangle, rocker heavy\n    const lw = Math.max(.9, u*.0030*(.6+.8*NRG)) * cl(fs/(u*.30),.5,1.5);\n    sc(C.bar, 92); strokeWeight(lw); noFill();\n    line(X(0),Y(0), X(r.ax),Y(r.ay));                       // crank\n    line(X(m.d),Y(0), X(r.bx),Y(r.by));                     // rocker\n    // coupler triangle A-B-P\n    noStroke(); fc(C.bar, C.add? 12 : 20);\n    triangle(X(r.ax),Y(r.ay), X(r.bx),Y(r.by), X(r.px),Y(r.py));\n    noFill(); sc(C.bar, 92); strokeWeight(lw);\n    triangle(X(r.ax),Y(r.ay), X(r.bx),Y(r.by), X(r.px),Y(r.py));\n    // pins\n    const pr = Math.max(1.6, fs*.032);\n    noStroke(); fc(C.g, C.add?26:92);\n    ellipse(X(r.ax),Y(r.ay),pr*2,pr*2); ellipse(X(r.bx),Y(r.by),pr*2,pr*2);\n    noFill(); sc(C.pin, 96); strokeWeight(Math.max(.5,lw*.55));\n    ellipse(X(r.ax),Y(r.ay),pr*2,pr*2); ellipse(X(r.bx),Y(r.by),pr*2,pr*2);\n    pivotSym(X(0),Y(0),pr*1.15); pivotSym(X(m.d),Y(0),pr*1.15);\n    // coupler point\n    noStroke(); fc(C.head, 96*(.5+.5*glow)); ellipse(X(r.px),Y(r.py), pr*1.7, pr*1.7);\n  } else {\n    // KINEMATIC: bars dissolve \u2014 pivots, coupler point, velocity & acceleration vectors\n    const dth = .012;\n    const r1 = solve(m, th2+dth), r2 = solve(m, th2-dth);\n    if (r1 && r2){\n      const vx=(r1.px-r2.px)/(2*dth), vy=(r1.py-r2.py)/(2*dth);\n      const axx=(r1.px-2*r.px+r2.px)/(dth*dth), ayy=(r1.py-2*r.py+r2.py)/(dth*dth);\n      const arrow = (x,y,dx2,dy2,col,k2) => {\n        const ex2=x+dx2*k2, ey2=y+dy2*k2, an=Math.atan2(ey2-y,ex2-x), hd=fs*.045;\n        sc(col, 88); strokeWeight(Math.max(.7,u*.0018)); line(x,y,ex2,ey2);\n        line(ex2,ey2, ex2-Math.cos(an-.4)*hd, ey2-Math.sin(an-.4)*hd);\n        line(ex2,ey2, ex2-Math.cos(an+.4)*hd, ey2-Math.sin(an+.4)*hd);\n      };\n      arrow(X(r.px),Y(r.py), vx*fs, vy*fs, C.head, .30);\n      arrow(X(r.px),Y(r.py), axx*fs, ayy*fs, C.ctr, .028);\n    }\n    sc(C.bar, 44); strokeWeight(Math.max(.4,u*.0009));\n    line(X(0),Y(0),X(r.ax),Y(r.ay)); line(X(m.d),Y(0),X(r.bx),Y(r.by)); line(X(r.ax),Y(r.ay),X(r.bx),Y(r.by));\n    noStroke();\n    for (const q2 of [[0,0],[m.d,0],[r.ax,r.ay],[r.bx,r.by]]){ fc(C.pin, 92); ellipse(X(q2[0]),Y(q2[1]), fs*.026, fs*.026); }\n    fc(C.head, 98); ellipse(X(r.px),Y(r.py), fs*.040, fs*.040);\n  }\n\n  // per-figure annotation\n  if (anno > .12 && cw > u*.17 && annoN < 20){\n    annoN++;\n    noStroke(); textFont('monospace'); textAlign(LEFT, TOP);\n    textSize(Math.max(6, cw*.042));\n    fc(C.anno, 62+34*anno);\n    text('FIG. '+e.fig, cellX+cw*.062, cellY+ch*.058);\n    textAlign(LEFT, BOTTOM);\n    fc(C.anno, 46+30*anno);\n    text('a'+m.a.toFixed(2)+' b'+m.b.toFixed(2)+' c'+m.c.toFixed(2)+' d1.00', cellX+cw*.062, cellY+ch*.955);\n    if (cw > u*.29){\n      textAlign(RIGHT, TOP); fc(C.anno, 62+34*anno);\n      text('mu '+(r.mu*57.2958).toFixed(0)+' deg', cellX+cw*.93, cellY+ch*.058);\n      textAlign(RIGHT, BOTTOM); fc(C.anno, 46+30*anno);\n      text(m.tag, cellX+cw*.93, cellY+ch*.955);\n    }\n  }\n}\nblendMode(BLEND);\n\n// ---- sheet border + title block ---------------------------------------------\nconst mgn = u*.028;\nnoFill(); sc(C.anno, 46+24*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.anno, 24+16*anno); strokeWeight(Math.max(.5,u*.0009));\nrect(mgn*1.7, mgn*1.7, width-mgn*3.4, height-mgn*3.4);\nif (anno > .08){\n  textFont('monospace'); textAlign(RIGHT, CENTER); noStroke();\n  const ts = Math.max(7, u*.0135); textSize(ts);\n  const bx = width-mgn*2.0, by = height-mgn*2.0;\n  fc(C.cell, C.add?30:84); rect(bx-u*.31, by-u*.052, u*.31, u*.052);\n  noFill(); sc(C.anno, 62); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.31, by-u*.052, u*.31, u*.052);\n  line(bx-u*.31, by-u*.026, bx, by-u*.026);\n  noStroke(); fc(C.anno, 90);\n  text('PLANAR FOUR-BAR MECHANISMS - COUPLER LOCI', bx-u*.012, by-u*.039);\n  text('GRASHOF s+l <= p+q   PLATE '+((S.gen||0)+1)+'   SEED '+sd, bx-u*.012, by-u*.013);\n  textAlign(LEFT, CENTER); fc(C.anno, 66);\n  text('theta2 '+(((S.th*57.2958)%360+360)%360).toFixed(1)+' deg', mgn*2.2, mgn*2.3);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

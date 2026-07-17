@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mandala",
+  "kind": "genart",
+  "name": "Sand Mandala",
+  "desc": "A radially symmetric sand mandala that constructs wedge-by-wedge from the center outward, holds, then dissolves in a wind sweep of blown grains, rendered as stippled Tibetan colored sand, black line rangoli, leaded stained glass, glowing neon, or a cyan compass-and-radius blueprint.",
+  "tags": [
+    "mandala",
+    "sand mandala",
+    "tibetan",
+    "buddhist",
+    "ritual",
+    "radial",
+    "symmetry",
+    "kaleidoscope",
+    "rose window",
+    "rangoli",
+    "lotus",
+    "sacred",
+    "geometry",
+    "sacred geometry",
+    "concentric",
+    "stained glass",
+    "neon",
+    "blueprint",
+    "schematic",
+    "ink",
+    "meditation",
+    "dissolve",
+    "impermanence",
+    "generative",
+    "genart",
+    "bg",
+    "backdrop",
+    "ornament",
+    "yantra"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "rings": {
+      "default": 5,
+      "min": 3,
+      "max": 9,
+      "doc": "concentric ring count (structural density)"
+    },
+    "sym": {
+      "default": 8,
+      "min": 4,
+      "max": 24,
+      "doc": "rotational symmetry / petal count per ring"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "sand-grain stipple density"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.7,
+      "doc": "overall radius vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "rotation + build/dissolve cadence"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "breathe / pulse amplitude"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue; ring hues fan out from it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y fraction"
+    },
+    "style": {
+      "default": "sand",
+      "options": [
+        "sand",
+        "ink",
+        "stained",
+        "neon",
+        "blueprint"
+      ],
+      "doc": "render philosophy: stippled colored sand / black line rangoli / leaded stained glass / neon glow / cyan compass-construction blueprint"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "motif selection + grain layout seed"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "build",
+        "steady"
+      ],
+      "doc": "dramaturgy: build-hold-dissolve loop / build once and hold / always full & rotating"
+    }
+  },
+  "acts": [
+    "cycle",
+    "build",
+    "steady"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:40:04+00:00",
+    "fps": 59.9,
+    "motion": 0.0236,
+    "lum": 0.227
+  },
+  "code": "const D = { rings:5, sym:8, density:.55, scale:1, speed:1, energy:.6, hue:32, x:.5, y:.5, style:'sand', act:'cycle', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W=width, H=height, u=Math.min(W,H), TAU=Math.PI*2;\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\nconst st=P.style, intn=(K.intensity!=null?K.intensity:.6);\nconst rings=Math.round(clp(P.rings,3,9));\nconst sym=Math.round(clp(P.sym,4,24));\n\n// ---- per-style palette + ground tone ----\nfunction theme(s,baseH){\n  const H0=((baseH%360)+360)%360;\n  const ring=k=>[ (H0 + k*37)%360, 62, 92 ];\n  if(s==='ink')      return {bg:[38,10,90], line:[28,18,14], fill:null, dot:[26,20,10], grain:false, glow:false, cols:[[28,18,16]] };\n  if(s==='stained')  return {bg:[224,30,10], line:[224,20,6], fill:1, dot:null, grain:false, glow:false, cols:[[H0,80,70],[(H0+120)%360,78,66],[(H0+210)%360,72,74],[(H0+300)%360,80,64],[(H0+60)%360,84,76]] };\n  if(s==='neon')     return {bg:[262,60,6], line:null, fill:null, dot:null, grain:false, glow:true, cols:[[H0,90,100],[(H0+90)%360,90,100],[(H0+180)%360,90,100],[(H0+270)%360,90,100]] };\n  if(s==='blueprint')return {bg:[220,74,9], line:[196,64,90], fill:null, dot:null, grain:false, glow:false, cols:[[196,60,88]] };\n  return {bg:[30,32,30], line:[24,30,20], fill:1, dot:1, grain:true, cols:[[H0,70,88],[(H0+150)%360,60,84],[(H0+40)%360,78,90],[(H0+220)%360,66,80],[(H0+90)%360,72,86],[(H0+300)%360,68,82]] };\n}\nconst T=theme(st,P.hue);\nconst col=k=>T.cols[((k%T.cols.length)+T.cols.length)%T.cols.length];\n\n// ---- baked mandala buffer (rebuilt on structure/seed/style change) ----\nconst Bs=Math.max(64,Math.ceil(u*0.98));\nconst Rb=Bs*0.47;\nconst bkey=Bs+'|'+rings+'|'+sym+'|'+st+'|'+P.seed+'|'+Math.round(P.hue/4)+'|'+Math.round(P.density*10);\nif(!S.buf || S.bkey!==bkey){\n  S.bkey=bkey;\n  const g=createGraphics(Bs,Bs); g.colorMode(HSB,360,100,100,100);\n  g.push(); g.translate(Bs/2,Bs/2);\n  const grainOn=T.grain && P.density>0.05;\n  // central bindu\n  const c0=col(0);\n  g.noStroke(); g.fill(c0[0],c0[1],c0[2],95); g.circle(0,0,Rb*0.10);\n  if(T.line){ g.noFill(); g.stroke(T.line[0],T.line[1],T.line[2],80); g.strokeWeight(Math.max(1,Rb*0.006)); g.circle(0,0,Rb*0.12); }\n  for(let r=0;r<rings;r++){\n    const rr=Rb*(0.16 + (r+1)/rings*0.82);\n    const rin=Rb*(0.16 + (r)/rings*0.82);\n    const mt=Math.floor(fr(r*3.7+1)*4);        // motif type per ring (seeded)\n    const cc=col(r+1);\n    const cnt = mt===1 ? sym*2 : sym;\n    // concentric guide circle\n    if(T.line){ g.noFill(); g.stroke(T.line[0],T.line[1],T.line[2],55); g.strokeWeight(Math.max(0.8,Rb*0.004)); g.circle(0,0,rr*2); }\n    if(st==='blueprint'){\n      // schematic: radii + chord polygon + tick arcs (construction diagram)\n      g.stroke(T.line[0],T.line[1],T.line[2],48); g.strokeWeight(1);\n      g.beginShape(); g.noFill();\n      for(let i=0;i<sym;i++){ const a=i/sym*TAU; g.vertex(Math.cos(a)*rr,Math.sin(a)*rr); }\n      g.endShape(CLOSE);\n      for(let i=0;i<sym;i++){ const a=i/sym*TAU; g.line(0,0,Math.cos(a)*rr,Math.sin(a)*rr); }\n      continue;\n    }\n    for(let i=0;i<cnt;i++){\n      const a=i/cnt*TAU;\n      g.push(); g.rotate(a); g.translate(0,-(rin+rr)/2);\n      const petL=(rr-rin)*0.92, petW=(rr-rin)*0.5*(0.7+fr(r*5.1)*0.6);\n      if(mt===0){ // petal / lotus\n        if(T.fill){ g.noStroke(); g.fill(cc[0],cc[1],cc[2],90); }\n        else { g.noFill(); g.stroke(T.line?T.line[0]:cc[0],T.line?T.line[1]:cc[1],T.line?T.line[2]:cc[2],85); g.strokeWeight(Math.max(1,Rb*0.006)); }\n        g.beginShape();\n        g.vertex(0,-petL*0.5);\n        g.bezierVertex(petW,-petL*0.15, petW*0.6,petL*0.4, 0,petL*0.5);\n        g.bezierVertex(-petW*0.6,petL*0.4, -petW,-petL*0.15, 0,-petL*0.5);\n        g.endShape(CLOSE);\n        if(st==='stained'){ g.noFill(); g.stroke(T.line[0],T.line[1],T.line[2],95); g.strokeWeight(Math.max(1.4,Rb*0.008)); g.beginShape(); g.vertex(0,-petL*0.5); g.bezierVertex(petW,-petL*0.15, petW*0.6,petL*0.4, 0,petL*0.5); g.bezierVertex(-petW*0.6,petL*0.4, -petW,-petL*0.15, 0,-petL*0.5); g.endShape(CLOSE); }\n      } else if(mt===1){ // dot\n        if(T.fill||T.dot){ g.noStroke(); g.fill(cc[0],cc[1],cc[2],92); }\n        else { g.noFill(); g.stroke(cc[0],cc[1],cc[2],88); g.strokeWeight(Math.max(1,Rb*0.006)); }\n        g.circle(0,0,petL*0.5);\n      } else if(mt===2){ // triangle\n        if(T.fill){ g.noStroke(); g.fill(cc[0],cc[1],cc[2],88); }\n        else { g.noFill(); g.stroke(cc[0],cc[1],cc[2],86); g.strokeWeight(Math.max(1,Rb*0.006)); }\n        g.triangle(0,-petL*0.5, petW*0.8,petL*0.45, -petW*0.8,petL*0.45);\n      } else { // scallop arc\n        g.noFill(); g.stroke(cc[0],cc[1],cc[2],85); g.strokeWeight(Math.max(1.2,Rb*0.009));\n        g.arc(0,petL*0.2, petW*1.6, petL*0.9, Math.PI*1.15, Math.PI*1.85);\n      }\n      // sand grain stipple\n      if(grainOn){\n        g.noStroke();\n        const ng=Math.round(4+P.density*10);\n        for(let d2=0;d2<ng;d2++){\n          const gx=(fr(r*13+i*2.1+d2*0.7)-0.5)*petW*1.2;\n          const gy=(fr(r*7+i*3.3+d2*1.9)-0.5)*petL*0.9;\n          const gb=cc[2]*(0.6+fr(d2*4.4)*0.6);\n          g.fill(cc[0], cc[1]*(0.5+fr(d2)*0.5), Math.min(100,gb), 55);\n          g.circle(gx,gy, Rb*0.006+0.5);\n        }\n      }\n      g.pop();\n    }\n  }\n  g.pop();\n  S.buf=g;\n}\n\n// ---- dramaturgy: reveal progress + dissolve ----\nlet prog=1, dis=0;\nif(P.act==='steady'){ prog=1; dis=0; }\nelse if(P.act==='build'){ prog=clp(K.t/18,0,1); dis=0; }\nelse { // cycle: build -> hold -> wind-dissolve -> loop\n  const per=44/(0.4+P.speed*0.6);\n  const ph=((K.t/per)%1+1)%1;\n  if(ph<0.42) prog=ph/0.42;\n  else if(ph<0.72){ prog=1; dis=0; }\n  else { prog=1; dis=(ph-0.72)/0.28; }\n}\nprog=clp(prog+ A.rms*0.1,0,1);\n\n// ---- background ----\nnoStroke();\nconst bg=T.bg;\nfor(let yy=0; yy<H; yy+=Math.max(2,H/60)){ // cheap vertical vignette gradient\n  const t=Math.abs(yy/H-0.5)*2;\n  fill(bg[0],bg[1],bg[2]*(1-t*0.35));\n  rect(0,yy,W,Math.max(2,H/60)+1);\n}\n\n// ---- draw mandala: rotate slowly, reveal via pie clip, dissolve via tint ----\nconst cx=clp(P.x,0,1)*W, cy=clp(P.y,0,1)*H;\nconst rot=K.t*0.04*P.speed + K.swell*0.02;\nconst sc=P.scale*(1 + K.swell*0.02*P.energy + A.bass*0.03);\npush();\ntranslate(cx,cy); rotate(rot);\nimageMode(CENTER);\nif(T.glow){ blendMode(ADD); }\nconst alpha=(1-dis)*100;\ntint(0,0,100,alpha);\nif(prog<0.999){\n  drawingContext.save();\n  drawingContext.beginPath();\n  drawingContext.moveTo(0,0);\n  drawingContext.arc(0,0, Rb*sc*1.1, -Math.PI/2, -Math.PI/2 + prog*TAU);\n  drawingContext.closePath();\n  drawingContext.clip();\n  image(S.buf,0,0,Bs*sc,Bs*sc);\n  drawingContext.restore();\n} else {\n  image(S.buf,0,0,Bs*sc,Bs*sc);\n}\nnoTint();\nimageMode(CORNER);\nblendMode(BLEND);\n\n// growing-edge sparkle at the construction front\nif(prog<1 && st!=='blueprint'){\n  const ea=-Math.PI/2 + prog*TAU;\n  noStroke();\n  for(let s2=0;s2<10;s2++){\n    const rr=Rb*sc*(0.2+fr(s2*2.2)*0.85);\n    const jx=Math.cos(ea)*rr + (fr(s2*4+K.t)-0.5)*u*0.02;\n    const jy=Math.sin(ea)*rr + (fr(s2*9+K.t*1.3)-0.5)*u*0.02;\n    const cc=col(s2);\n    fill(cc[0],cc[1],100, 70+30*Math.sin(K.t*3+s2));\n    circle(jx,jy, u*0.006+1.5);\n  }\n}\npop();\n\n// ---- shimmer sweep: rotating highlight (non-symmetric => motion floor) ----\npush();\ntranslate(cx,cy);\nblendMode(ADD);\nconst swAng=K.t*(0.5+P.speed*0.4);\nfor(let b=0;b<3;b++){\n  const a=swAng + b*TAU/3;\n  const rr=Rb*sc*0.9;\n  const hx=Math.cos(a)*rr*0.6, hy=Math.sin(a)*rr*0.6;\n  const cc=col(b+1);\n  noStroke(); fill(cc[0], cc[1]*0.4, 100, 6+4*Math.sin(K.t*1.3+b) + A.treble*20);\n  ellipse(hx,hy, rr*0.7, rr*0.7);\n}\n// central breathing bindu on the beat\nconst c0=col(0);\nfill(c0[0],c0[1]*0.5,100, 20+K.pulse*40 + A.bass*30);\ncircle(0,0, Rb*sc*(0.14+K.swell*0.05));\nblendMode(BLEND);\npop();\n\n// ---- wind-blown sand during dissolve (seeded particles drift +x) ----\nif(dis>0.01){\n  noStroke();\n  const nP=Math.round(140*dis);\n  for(let i=0;i<nP;i++){\n    const a=fr(i*1.3)*TAU, rr=Rb*sc*fr(i*2.7);\n    const life=dis;\n    const wind=life*life*u*0.5*(0.6+P.speed*0.6);\n    const bx=cx+Math.cos(a+rot)*rr + wind + Math.sin(K.t*2+i)*u*0.01;\n    const by=cy+Math.sin(a+rot)*rr + (fr(i*5.5)-0.5)*u*0.04 + Math.sin(K.t*1.5+i*0.3)*u*0.02;\n    const cc=col(i%6);\n    fill(cc[0],cc[1],cc[2], (1-life)*70+10);\n    circle(bx,by, u*0.004+1);\n  }\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

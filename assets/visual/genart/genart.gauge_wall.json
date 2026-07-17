@@ -1,0 +1,171 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gauge_wall",
+  "kind": "genart",
+  "name": "Gauge Wall",
+  "desc": "A control-room board of analog instruments: moving-coil needles overshoot and settle against engraved scales, counter drums roll their digits over, edgewise meters creep into the red, annunciator lamps latch and glow, and a miniature recorder inks its own trace while a raking room light crawls across the brushed panels.",
+  "tags": [
+    "gauge",
+    "gauges",
+    "dial",
+    "meter",
+    "needle",
+    "moving-coil",
+    "instrument",
+    "instrumentation",
+    "panel",
+    "console",
+    "control-room",
+    "control-panel",
+    "board",
+    "switchboard",
+    "mission-control",
+    "power-station",
+    "reactor",
+    "turbine",
+    "engine-room",
+    "cockpit",
+    "annunciator",
+    "lamp",
+    "indicator",
+    "counter",
+    "odometer",
+    "drum",
+    "toggle",
+    "switch",
+    "knob",
+    "bakelite",
+    "brass",
+    "brushed-metal",
+    "aluminium",
+    "rivet",
+    "engraved",
+    "analog",
+    "electromechanical",
+    "telemetry",
+    "readout",
+    "measurement",
+    "data",
+    "signal",
+    "industrial",
+    "machinery",
+    "cold-war",
+    "retrofuture",
+    "atomic-age",
+    "clinical",
+    "austere",
+    "sublime",
+    "xray",
+    "wireframe",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "needle liveliness, lamp glow and audio response"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many instrument tiles fill the board (12 to 40)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "board size vs design size"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rate multiplier for the plant's programme"
+    },
+    "wear": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scuffing, oxide bloom and thumb wear on the panels"
+    },
+    "lamps": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "annunciator lamp brightness"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "panel + dial hue (offset from the style anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "board centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "board centre y"
+    },
+    "style": {
+      "default": "brass",
+      "options": [
+        "brass",
+        "cold_war",
+        "bakelite",
+        "xray"
+      ],
+      "doc": "aesthetic: warm brass-bezelled instruments on aluminium / grey-green Soviet control room / dark bakelite and cream dials / radically abstracted \u2014 the whole board as a luminous wireframe X-ray with no dial faces at all"
+    },
+    "act": {
+      "default": "steady",
+      "options": [
+        "steady",
+        "startup",
+        "excursion"
+      ],
+      "doc": "multi-minute programme: the plant holding load / a slow cold start walking every needle up from zero / an excursion swinging the board through the red with alarms latching"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout, labelling and wear seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "steady",
+    "startup",
+    "excursion"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:48:02+00:00",
+    "fps": 57.8,
+    "motion": 0.0068,
+    "lum": 0.311
+  },
+  "code": "const D = { energy: .6, density: .55, scale: 1, speed: 1, wear: .5, lamps: .6, hue: 40, x: .5, y: .5, style: 'brass', act: 'steady', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction h1(i) { return h2(i | 0, 0x3ac9); }\nfunction vn1(x, r) { const ix = Math.floor(x), fx = x - ix, ux = fx*fx*(3-2*fx); const a = h2(ix, r), b = h2(ix+1, r); return a + (b-a)*ux; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), wear = clp(P.wear, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 40;\n\nconst ST = {\n  brass:    { pan:[38,16,30], dial:[42,20,78], face:[40,10,88], ink:[35,30,14], nd:[8,80,58],  bez:[42,34,58], lamp:[40,90,96], txt:[38,22,70], glow:.55 },\n  cold_war: { pan:[95,14,26], dial:[80,14,62], face:[74,12,70], ink:[100,26,16], nd:[6,84,52],  bez:[90,10,44], lamp:[110,80,92], txt:[86,18,64], glow:.5 },\n  bakelite: { pan:[18,34,17], dial:[30,12,66], face:[34,8,76],  ink:[20,34,12], nd:[2,86,50],  bez:[24,30,36], lamp:[26,88,94], txt:[28,22,58], glow:.45 },\n  xray:     { pan:[210,52,17], dial:[206,40,26], face:[204,36,30], ink:[190,4,96], nd:[190,4,99], bez:[200,30,44], lamp:[186,70,96], txt:[196,14,86], glow:.9 }\n};\nconst st = ST[P.style] || ST.brass;\nconst PNH = md(st.pan[0] + hs, 360), DIH = md(st.dial[0] + hs, 360), FAH = md(st.face[0] + hs, 360), INH = md(st.ink[0] + hs, 360), NDH = md(st.nd[0] + hs, 360), BEH = md(st.bez[0] + hs, 360), LAH = md(st.lamp[0] + hs, 360), TXH = md(st.txt[0] + hs, 360);\nconst wire = P.style === 'xray';\n\n// ---- act dramaturgy: what the plant is doing over minutes ----\nlet load = 0.5, jit = 1, alarmP = 0.06;\nif (P.act === 'startup') { load = clp(md(K.t * 0.006, 1) * 1.25, 0, 1); jit = 1.5; alarmP = 0.10; }\nelse if (P.act === 'excursion') { load = 0.55 + 0.42 * Math.sin(K.t * 0.037); jit = 2.6; alarmP = 0.34; }\nelse { load = 0.46 + 0.16 * Math.sin(K.t * 0.029) + 0.10 * Math.sin(K.t * 0.071); }\nload = clp(load + K.intensity * 0.18 - 0.09, 0, 1);\n\nconst LBLS = ['MAIN BUS','FEEDWATER','TURBINE','EXCITER','COOLANT A','COOLANT B','STATOR','MANIFOLD','PLENUM','REACTOR','CONDENSER','SCRUBBER','GOVERNOR','PENSTOCK','BUS TIE','INTERTIE','PREHEAT','SURGE','TAILRACE','DRUM'];\nconst UNITS = ['kV','m\u00b3/h','RPM','A','\u00b0C','bar','Hz','%','MW','kPa'];\n\n// ---- panel layout: a seeded grid of instrument tiles (cached) ----\nconst COLS = clp(4 + Math.round(dens * 3), 4, 7), ROWS = clp(3 + Math.round(dens * 1), 3, 4);\nconst lkey = COLS + 'x' + ROWS + '|' + (P.seed | 0);\nif (!S.tiles || S.lkey !== lkey) {\n  const T = [];\n  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {\n    const i = r * COLS + c, k = h1(i * 5 + 1);\n    // kind: 0 round gauge, 1 edgewise meter, 2 counter drum, 3 annunciator block, 4 strip recorder\n    let kind = k < .46 ? 0 : k < .64 ? 1 : k < .76 ? 2 : k < .9 ? 3 : 4;\n    T.push({ c, r, i, kind,\n      lbl: LBLS[Math.floor(h1(i * 5 + 2) * LBLS.length)], unit: UNITS[Math.floor(h1(i * 5 + 3) * UNITS.length)],\n      w0: 0.30 + h1(i * 5 + 4) * 0.5, ph: h1(i * 5 + 5) * TAU, red: 0.68 + h1(i * 7 + 6) * 0.22,\n      w2: 0.17 + h1(i * 7 + 7) * 0.33, base: h1(i * 7 + 8) });\n  }\n  S.tiles = T; S.lkey = lkey; S.nkey = '';\n}\nconst tiles = S.tiles;\n\n// ---- cached brushed-panel plate (local coords -> scales live with P.scale) ----\nconst pkey = P.style + '|' + Math.round(P.hue) + '|' + (P.seed | 0) + '|' + wear.toFixed(2);\nif (!S.plate || S.pkey !== pkey) {\n  if (S.plate && S.plate.remove) S.plate.remove();\n  const BX = 512, BY = 384;\n  const g = createGraphics(BX, BY); g.pixelDensity(1); g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.noStroke(); g.background(PNH, st.pan[1], st.pan[2]);\n  for (let i = 0; i < 2600; i++) {                     // brushed grain\n    g.fill(PNH, st.pan[1] * .7, st.pan[2] * (.55 + h1(i * 2 + 11) * 1.1), 12);\n    g.rect(h1(i * 2 + 12) * BX, h1(i * 2 + 13) * BY, 14 + h1(i * 2 + 14) * 60, 1);\n  }\n  for (let i = 0; i < 260; i++) {                      // scuffs, oxide bloom, thumb wear\n    const a = 5 + h1(i * 3 + 21) * 14 * wear;\n    g.fill(PNH, st.pan[1] * (1.4 + h1(i * 3 + 22)), st.pan[2] * (h1(i * 3 + 23) > .5 ? 1.5 : .55), a);\n    g.ellipse(h1(i * 3 + 24) * BX, h1(i * 3 + 25) * BY, 8 + h1(i * 3 + 26) * 54 * wear, 6 + h1(i * 3 + 27) * 40 * wear);\n  }\n  S.plate = g; S.pkey = pkey;\n  // The dial FACE is static \u2014 bezel, dial, graduations, numerals. Bake it once and\n  // share it across every round gauge; only the needle and the red band are live.\n  if (S.face && S.face.remove) S.face.remove();\n  const FS = 256, fc = FS * .5, FR = FS * .435;\n  const f = createGraphics(FS, FS); f.pixelDensity(1); f.colorMode(f.HSB, 360, 100, 100, 100);\n  f.clear(); f.noStroke();\n  f.fill(BEH, st.bez[1], st.bez[2] * 1.5); f.ellipse(fc, fc, FR * 2.3);\n  f.fill(BEH, st.bez[1], st.bez[2] * .55); f.ellipse(fc, fc, FR * 2.12);\n  if (!wire) { f.fill(DIH, st.dial[1], st.dial[2]); f.ellipse(fc, fc, FR * 2); }\n  else { f.noFill(); f.stroke(INH, st.ink[1], st.ink[2], 60); f.strokeWeight(1.5); f.ellipse(fc, fc, FR * 2); }\n  const fa0 = Math.PI * .78, fa1 = Math.PI * 2.22;\n  for (let k = 0; k <= 20; k++) {\n    const a = fa0 + (fa1 - fa0) * k / 20, maj = k % 5 === 0;\n    f.stroke(INH, st.ink[1], st.ink[2], maj ? 92 : 46); f.strokeWeight(maj ? FR * .05 : 1.4);\n    f.line(fc + Math.cos(a) * FR * (maj ? .62 : .72), fc + Math.sin(a) * FR * (maj ? .62 : .72), fc + Math.cos(a) * FR * .84, fc + Math.sin(a) * FR * .84);\n    if (maj) { f.noStroke(); f.fill(INH, st.ink[1], st.ink[2], 82); f.textAlign(f.CENTER, f.CENTER); f.textSize(FR * .17); f.text(k * 5, fc + Math.cos(a) * FR * .45, fc + Math.sin(a) * FR * .45); }\n  }\n  S.face = f;\n}\n\n// ---- damped needle physics: honest instrument motion, integrated in S ----\nlet dt = K.t - (S.lastT == null ? K.t - 1 / 60 : S.lastT);\nif (dt < 0 || dt > 0.2) dt = 1 / 60;                    // tolerate t0 reset\nS.lastT = K.t;\nif (!S.n || S.n.length !== tiles.length) { S.n = new Float32Array(tiles.length); S.v = new Float32Array(tiles.length); S.nkey = ''; }\nfunction target(t0) {\n  // each channel drifts on its OWN incommensurate rates \u2014 nothing re-phases at 8 s\n  const s = t0.i;\n  let v = t0.base * .18 + load * .62;\n  v += 0.16 * Math.sin(K.t * t0.w0 * .9 + t0.ph) + 0.09 * Math.sin(K.t * t0.w2 * 2.3 + t0.ph * 1.7);\n  v += 0.06 * jit * (vn1(K.t * (1.1 + t0.w0) + s * 13.7, 7) - .5) * 2;\n  v += (K.pulse * .05 + A.rms * .5 + A.bass * .22) * en;   // audio rides ON TOP of the baseline\n  return clp(v, 0.02, 1.02);\n}\nfor (let i = 0; i < tiles.length; i++) {\n  const tg = target(tiles[i]);\n  const k = 62, c = 9.4;                               // spring + damping -> real needle overshoot\n  const acc = (tg - S.n[i]) * k - S.v[i] * c;\n  S.v[i] += acc * dt; S.n[i] += S.v[i] * dt;\n  if (!Number.isFinite(S.n[i])) { S.n[i] = tg; S.v[i] = 0; }\n}\n\n// =================== composite ===================\nconst sc = clp(P.scale, .4, 2.2);\nconst PW = 0.94 * W * sc, PH2 = 0.88 * H * sc;\nconst px0 = P.x * W - PW * .5, py0 = P.y * H - PH2 * .5;\nconst tw = PW / COLS, th = PH2 / ROWS;\nconst dc = drawingContext;\n\nnoStroke();\nbackground(PNH, st.pan[1], st.pan[2] * .45);\nimage(S.plate, px0, py0, PW, PH2);\n\n// bay dividers + rivets: the panel reads as bolted-together sections\nstroke(PNH, st.pan[1] * .6, st.pan[2] * 1.9, 46); strokeWeight(Math.max(1, u * .0016));\nfor (let c = 1; c < COLS; c++) line(px0 + c * tw, py0, px0 + c * tw, py0 + PH2);\nfor (let r = 1; r < ROWS; r++) line(px0, py0 + r * th, px0 + PW, py0 + r * th);\nnoFill();\n\ntextFont('Courier New');\nfor (let i = 0; i < tiles.length; i++) {\n  const t0 = tiles[i], x = px0 + t0.c * tw + tw * .5, y = py0 + t0.r * th + th * .5;\n  const R = Math.min(tw, th) * .34;\n  const v = clp(S.n[i], 0, 1.05);\n  const alarm = v > t0.red;\n\n  // engraved tile label\n  noStroke(); fill(TXH, st.txt[1], st.txt[2], 78);\n  textAlign(CENTER, TOP); textSize(clp(Math.min(u * .0105, th * .11), 5, 17));\n  text(t0.lbl, x, py0 + t0.r * th + th * .055);\n\n  if (t0.kind === 0) {                                  // ---- round moving-coil gauge ----\n    const a0 = Math.PI * .78, a1 = Math.PI * 2.22;\n    noStroke();\n    image(S.face, x - R * 1.149, y - R * 1.149, R * 2.299, R * 2.299);   // baked bezel+dial+scale\n    // red band at the top of the scale (per-tile, so it stays live)\n    noFill(); stroke(NDH, st.nd[1], st.nd[2], 74); strokeWeight(R * .10);\n    arc(x, y, R * 1.62, R * 1.62, a0 + (a1 - a0) * t0.red, a1);\n    noStroke(); fill(INH, st.ink[1], st.ink[2], 70);\n    textAlign(CENTER, CENTER); textSize(clp(R * .19, 4, 16)); text(t0.unit, x, y + R * .48);\n    // needle + counterweight + hub\n    const an = a0 + (a1 - a0) * clp(v, 0, 1);\n    stroke(alarm ? NDH : INH, alarm ? st.nd[1] : st.ink[1], alarm ? st.nd[2] * 1.6 : st.ink[2], 96);\n    strokeWeight(Math.max(1.4, R * .055));\n    line(x - Math.cos(an) * R * .17, y - Math.sin(an) * R * .17, x + Math.cos(an) * R * .80, y + Math.sin(an) * R * .80);\n    noStroke(); fill(BEH, st.bez[1], st.bez[2] * 1.1); ellipse(x, y, R * .20);\n    if (!wire) {                                        // convex glass: a raking sheen, drifting slowly\n      const gl = Math.sin(K.t * 0.067 + t0.c * .7);\n      blendMode(ADD); noStroke(); fill(0, 0, 100, 5.5 + 3 * en);\n      push(); translate(x, y); rotate(-0.75 + 0.22 * gl);\n      ellipse(gl * R * .35, -R * .40, R * 1.5, R * .34); pop();\n      blendMode(BLEND);\n    }\n  } else if (t0.kind === 1) {                           // ---- edgewise bar meter ----\n    const bw = tw * .62, bh = th * .17;\n    noStroke(); fill(BEH, st.bez[1], st.bez[2] * .5); rect(x - bw * .5 - 3, y - bh * .5 - 3, bw + 6, bh + 6, 2);\n    fill(DIH, st.dial[1], st.dial[2] * .5); rect(x - bw * .5, y - bh * .5, bw, bh);\n    for (let k = 0; k <= 10; k++) { stroke(INH, st.ink[1], st.ink[2], k % 5 === 0 ? 80 : 34); strokeWeight(1); const xx = x - bw * .5 + bw * k / 10; line(xx, y - bh * .5, xx, y - bh * .2); }\n    noStroke(); fill(alarm ? NDH : LAH, alarm ? st.nd[1] : st.lamp[1] * .8, alarm ? st.nd[2] * 1.5 : st.lamp[2] * .8, 86);\n    rect(x - bw * .5, y - bh * .5 + bh * .3, bw * clp(v, 0, 1), bh * .7);\n    stroke(INH, st.ink[1], st.ink[2], 96); strokeWeight(Math.max(1.5, bh * .12));\n    const nx = x - bw * .5 + bw * clp(v, 0, 1);\n    line(nx, y - bh * .62, nx, y + bh * .62);\n    noStroke(); fill(TXH, st.txt[1], st.txt[2], 72); textAlign(CENTER, TOP); textSize(clp(u * .0095, 4, 15));\n    text((v * 100).toFixed(1) + ' ' + t0.unit, x, y + bh * .8);\n  } else if (t0.kind === 2) {                           // ---- rolling counter drum ----\n    const dw = Math.min(tw * .12, th * .30), dh = dw * 1.5, nd = 5;\n    const tot = v * 90000 + K.t * (9 + t0.base * 40);\n    noStroke(); fill(BEH, st.bez[1], st.bez[2] * .4); rect(x - dw * nd * .5 - 4, y - dh * .5 - 4, dw * nd + 8, dh + 8, 2);\n    for (let d = 0; d < nd; d++) {\n      const place = Math.pow(10, nd - 1 - d);\n      const val = tot / place;                          // each wheel rolls continuously into the next\n      const fracd = md(val, 1), digit = Math.floor(md(val, 10));\n      const dx = x - dw * nd * .5 + d * dw;\n      dc.save(); dc.beginPath(); dc.rect(dx, y - dh * .5, dw, dh); dc.clip();\n      noStroke(); fill(DIH, st.dial[1], st.dial[2] * .22); rect(dx, y - dh * .5, dw, dh);\n      const roll = (place === 1) ? fracd : (fracd > .9 ? (fracd - .9) * 10 : 0);\n      fill(FAH, st.face[1] * .3, st.face[2], 92);\n      textAlign(CENTER, CENTER); textSize(dh * .62);\n      const o0 = roll > 0.004 ? -1 : 0, o1 = roll > 0.004 ? 1 : 0;\n      for (let o = o0; o <= o1; o++) text(String(md(digit + o, 10) | 0), dx + dw * .5, y + (o + roll) * dh);\n      dc.restore();\n      stroke(0, 0, 0, 40); strokeWeight(1); noFill(); rect(dx, y - dh * .5, dw, dh);\n    }\n    noStroke(); fill(TXH, st.txt[1], st.txt[2], 66); textAlign(CENTER, TOP); textSize(clp(u * .0092, 4, 15));\n    text(t0.unit, x, y + dh * .75);\n  } else if (t0.kind === 3) {                           // ---- annunciator lamp block ----\n    const gw = 2, gh2 = 2, cwv = tw * .30, chv = th * .16;\n    for (let a = 0; a < 4; a++) {\n      const ax = x + ((a % gw) - .5) * cwv, ay = y + (Math.floor(a / gh2) - .5) * chv;\n      const lit = h1(t0.i * 13 + a) < alarmP * 3.2 + (v > t0.red ? .5 : 0) * (a === 3 ? 1 : 0);\n      const flick = lit ? (0.78 + 0.22 * vn1(K.t * 2.1 + a * 7 + t0.i, 31)) : 0;\n      noStroke();\n      fill(BEH, st.bez[1], st.bez[2] * .45); rect(ax - cwv * .46, ay - chv * .42, cwv * .92, chv * .84, 2);\n      const lh = a === 3 ? NDH : (a === 0 ? md(LAH + 80, 360) : LAH);\n      fill(lh, st.lamp[1] * (lit ? 1 : .5), st.lamp[2] * (lit ? flick : .16) * clp(P.lamps, 0, 1) + st.lamp[2] * .1, 92);\n      rect(ax - cwv * .40, ay - chv * .35, cwv * .80, chv * .70, 1);\n      fill(0, 0, lit ? 8 : 30, lit ? 78 : 48); textAlign(CENTER, CENTER); textSize(clp(chv * .28, 3, 11));\n      text(['TRIP','LOCK','AUTO','ALARM'][a], ax, ay);\n      if (lit && st.glow > 0) {\n        blendMode(ADD); noStroke(); fill(lh, st.lamp[1] * .6, 100, 13 * st.glow * flick * clp(P.lamps, 0, 1));\n        ellipse(ax, ay, cwv * 1.7, chv * 1.6); blendMode(BLEND);\n      }\n    }\n  } else {                                              // ---- miniature strip-chart recorder ----\n    const rw = tw * .70, rh = th * .34;\n    noStroke(); fill(BEH, st.bez[1], st.bez[2] * .45); rect(x - rw * .5 - 3, y - rh * .5 - 3, rw + 6, rh + 6, 2);\n    fill(DIH, st.dial[1] * .6, st.dial[2] * 1.05); rect(x - rw * .5, y - rh * .5, rw, rh);\n    stroke(NDH, st.nd[1] * .6, st.nd[2], 30); strokeWeight(1);\n    for (let k = 1; k < 5; k++) line(x - rw * .5, y - rh * .5 + rh * k / 5, x + rw * .5, y - rh * .5 + rh * k / 5);\n    // the trace is a pure function of time -> it scrolls honestly, no history buffer needed\n    noFill(); stroke(INH, st.ink[1], st.ink[2], 92); strokeWeight(Math.max(1, u * .0013));\n    beginShape();\n    const NPTS = 22;\n    for (let k = 0; k <= NPTS; k++) {\n      const tt = K.t - (1 - k / NPTS) * 9;\n      let vv = t0.base * .18 + (0.46 + 0.16 * Math.sin(tt * 0.029) + 0.10 * Math.sin(tt * 0.071)) * .62;\n      vv += 0.16 * Math.sin(tt * t0.w0 * .9 + t0.ph) + 0.09 * Math.sin(tt * t0.w2 * 2.3 + t0.ph * 1.7);\n      vertex(x - rw * .5 + rw * k / NPTS, y + rh * .5 - clp(vv, 0, 1) * rh);\n    }\n    endShape();\n    noStroke(); fill(NDH, st.nd[1], st.nd[2] * 1.4, 92); ellipse(x + rw * .5, y + rh * .5 - clp(v, 0, 1) * rh, Math.max(2.5, u * .004));\n  }\n\n  if (alarm && st.glow > 0) {   // alarm halo \u2014 soft and slow, never a flash (NO STROBE)\n    blendMode(ADD); noStroke();\n    fill(NDH, st.nd[1] * .7, 100, 6.5 * st.glow * (0.55 + 0.45 * Math.sin(K.t * 1.9 + i)));\n    ellipse(x, y, tw * .9, th * .9); blendMode(BLEND);\n  }\n}\n\n// toggle switches + knobs along the bottom rail\nconst nsw = clp(Math.round(COLS * 2.5), 6, 20);\nfor (let i = 0; i < nsw; i++) {\n  const x = px0 + PW * (i + .5) / nsw, y = py0 + PH2 - u * .018;\n  const on = h1(i * 3 + 61) + 0.22 * Math.sin(K.t * 0.05 + i) > .5;\n  noStroke(); fill(BEH, st.bez[1], st.bez[2] * .5); ellipse(x, y, u * .016, u * .016);\n  fill(BEH, st.bez[1] * .5, st.bez[2] * 1.7);\n  push(); translate(x, y); rotate(on ? -0.55 : 0.55);\n  rect(-u * .0022, -u * .016, u * .0044, u * .017, 2); pop();\n  fill(on ? LAH : PNH, on ? st.lamp[1] : st.pan[1], on ? st.lamp[2] * .9 : st.pan[2] * .8, 88);\n  ellipse(x, y + u * .014, u * .005);\n}\n\n// panel placard\nnoStroke(); fill(TXH, st.txt[1], st.txt[2], 88);\ntextAlign(LEFT, BOTTOM); textSize(clp(u * .014, 7, 26));\ntext('CENTRAL CONTROL  \u00b7  BOARD ' + String((P.seed | 0) % 90 + 10), px0 + u * .012, py0 - u * .010);\ntextAlign(RIGHT, BOTTOM); textSize(clp(u * .011, 6, 20)); fill(TXH, st.txt[1], st.txt[2] * .8, 70);\ntext('LOAD ' + (load * 100).toFixed(0) + '%   ' + P.act.toUpperCase(), px0 + PW - u * .012, py0 - u * .010);\n\n// room light raking across the whole board \u2014 the broad, slow motion floor\nblendMode(ADD);\nconst sweep = md(K.t * 0.041, 1);\nnoStroke();\nfor (let i = 0; i < 8; i++) {\n  fill(LAH, 12, 100, 2.6);\n  const sx = (sweep * 1.6 - .3) * W;\n  push(); translate(sx, H * .5); rotate(-0.36);\n  rect(-u * .10 + i * u * .026, -H, u * .022, H * 2); pop();\n}\nblendMode(BLEND);\nnoFill(); stroke(0, 0, 0, 26); strokeWeight(u * .11); rect(-u * .055, -u * .055, W + u * .11, H + u * .11);\ndc.shadowBlur = 0;\nblendMode(BLEND);\nif (P.alpha < 100) { noStroke(); fill(PNH, st.pan[1], st.pan[2] * .45, 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

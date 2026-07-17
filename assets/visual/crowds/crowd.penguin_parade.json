@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.penguin_parade",
+  "kind": "crowd",
+  "name": "Penguin Parade",
+  "desc": "A marching line of penguins waddling across the ice in bold arctic-poster ink, rocking step-for-step to the beat while one keeps tripping.",
+  "tags": [
+    "penguin",
+    "penguins",
+    "parade",
+    "march",
+    "waddle",
+    "procession",
+    "crowd",
+    "line",
+    "colony",
+    "bird",
+    "birds",
+    "animal",
+    "animals",
+    "arctic",
+    "antarctic",
+    "ice",
+    "snow",
+    "cold",
+    "winter",
+    "tuxedo",
+    "poster",
+    "screenprint",
+    "riso",
+    "silhouette",
+    "blueprint",
+    "cute",
+    "flock"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "per-penguin size vs design (each ~0.24*min-dim tall at 1)"
+    },
+    "n": {
+      "default": 8,
+      "min": 4,
+      "max": 20,
+      "doc": "number of penguins in the line"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "waddle/flipper amplitude + audio gain"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "tuxedo ink hue (205 = slate-blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative march + step rate"
+    },
+    "density": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient snow motes"
+    },
+    "gap": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spacing feel (reserved spread morph)"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "belly plumpness morph"
+    },
+    "trip": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how often the seeded clumsy one stumbles"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "line center x (unused for wrap, kept for contract)"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "feet/ground line as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic depth/jitter/trip-target seed"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "riso",
+        "silhouette",
+        "blueprint",
+        "noir"
+      ],
+      "doc": "render philosophy: flat arctic screenprint / 2-ink halftone / pure silhouette / X-ray schematic / chiaroscuro"
+    },
+    "act": {
+      "default": "march",
+      "options": [
+        "march",
+        "promenade",
+        "scramble"
+      ],
+      "doc": "multi-minute dramaturgy: steady conveyor / slow intensity-led stroll / fast trip-prone rush"
+    }
+  },
+  "acts": [
+    "march",
+    "promenade",
+    "scramble"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:59:57+00:00",
+    "fps": 59.5,
+    "motion": 0.0627,
+    "lum": 0.181
+  },
+  "code": "const D = { scale:1, n:8, energy:.6, hue:205, speed:1, density:.4, gap:.5, chub:.5, trip:.5, x:.5, y:.72, seed:0, style:'poster', act:'march' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, PI = Math.PI;\nconst u = Math.min(width, height);\nconst N = Math.max(1, Math.round(P.n));\nlet bt = K.beat * P.speed;\nif (S.lastBeat == null || bt < S.lastBeat) S.lastBeat = bt;\nS.lastBeat = bt;\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\n\nconst H = ((P.hue%360)+360)%360;\nconst eAmp = (.4 + .6*P.energy) * (.6 + .5*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5 + .5*K.intensity) + S.bass*.7);\nconst chub = P.chub;\n\nconst styles = ['poster','riso','silhouette','blueprint','noir'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'poster';\nconst wire = st === 'blueprint';\nconst sil = st === 'silhouette';\n\n// ---- act dramaturgy: modulate march + trips ----\nconst ACT = P.act;\nlet marchRate, tripBias;\nif (ACT === 'promenade') { marchRate = .016*P.speed*(.5+K.intensity); tripBias = P.trip*.5; }\nelse if (ACT === 'scramble') { marchRate = .042*P.speed*(.7+K.intensity); tripBias = P.trip*1.5; }\nelse { marchRate = .026*P.speed*(.55+.6*K.intensity); tripBias = P.trip; }\nconst globalScroll = bt*marchRate + K.t*P.speed*.012;\n\nconst tripIndex = Math.floor(fr(3)*N);\nconst M = u*0.16;\nconst spanW = width + 2*M;\n\n// ---- ground ice strip (cached, translucent, lower band only) ----\nif (!wire) {\n  const gy = P.y*height;\n  noStroke();\n  const band = st==='noir' ? [H,18,16] : sil ? [H,26,13] : st==='riso' ? [195,26,80,60] : [198,20,70,55];\n  fill(band[0], band[1], band[2], band[3]!=null?band[3]:40);\n  rect(0, gy+u*0.03, width, height-(gy+u*0.03));\n}\n\n// ---- build penguin list with seeded depth ----\nconst list = [];\nfor (let i=0;i<N;i++){\n  const off = i/N;\n  let ph = (off + globalScroll) % 1; if (ph<0) ph+=1;\n  const dep = .72 + .5*fr(i+5);\n  const px = -M + ph*spanW;\n  const hgt = u*0.24*P.scale*dep;\n  const py = P.y*height + (dep-1)*u*0.055;\n  list.push({i,off,px,py,hgt,dep});\n}\nlist.sort((a,b)=>a.dep-b.dep);\n\nfunction paint(role){\n  noStroke();\n  if (wire){\n    noFill();\n    stroke(role==='beak'||role==='foot'?32:195, 62, 96, 88);\n    strokeWeight(Math.max(1, u*0.0016));\n    return;\n  }\n  if (sil){ fill(H, 34, 10); return; }\n  if (st==='noir'){\n    if (role==='back') fill(H,26,15);\n    else if (role==='belly') fill(H,10,34);\n    else if (role==='beak'||role==='foot') fill(28,58,44);\n    else if (role==='eye') fill(0,0,4);\n    else if (role==='eyeW') fill(0,0,60);\n    else fill(H,24,17);\n    return;\n  }\n  if (st==='riso'){\n    if (role==='back') fill(H,62,44,92);\n    else if (role==='belly') fill(44,18,96,92);\n    else if (role==='beak'||role==='foot') fill(18,86,95,92);\n    else if (role==='eye') fill(H,60,22,95);\n    else if (role==='eyeW') fill(0,0,100,90);\n    else fill(H,56,46,92);\n    return;\n  }\n  // poster\n  if (role==='back') fill(H,50,26);\n  else if (role==='belly') fill(45,10,97);\n  else if (role==='beak'||role==='foot') fill(28,90,97);\n  else if (role==='eye') fill(0,0,8);\n  else if (role==='eyeW') fill(0,0,100);\n  else fill(H,48,28);\n}\n\nfor (let k=0;k<list.length;k++){\n  const a = list[k];\n  const hgt = a.hgt;\n  const bw = hgt*(0.42 + chub*0.18);\n  const phB = bt + a.off*4 + fr(a.i+9)*2;\n  const sbp = ((phB%1)+1)%1;\n  const swing = Math.sin(sbp*PI);\n  const side = (Math.floor(phB)%2===0)?1:-1;\n\n  // trip envelope (seeded, one penguin)\n  let trip = 0;\n  if (a.i === tripIndex && tripBias > 0){\n    const period = 5;\n    const c = Math.floor(bt/period);\n    if (fr(c*13 + a.i*7 + 1) < tripBias*0.55){\n      const loc = bt/period - c;\n      if (loc < 0.22) trip = Math.sin(loc/0.22*PI);\n    }\n  }\n\n  const sway = side*swing*hgt*0.05*(0.7+eAmp) + trip*hgt*0.05;\n  const dyBob = -Math.abs(Math.sin(phB*PI))*hgt*0.05 - kick*hgt*0.03*eAmp + trip*hgt*0.06;\n  const tilt = side*swing*0.11*(0.6+0.5*eAmp) + trip*0.5;\n  const footL = side<0 ? swing : 0;\n  const footR = side>0 ? swing : 0;\n  const fSw = Math.sin(phB*PI)*0.28*(0.5+eAmp) + trip*1.5;\n  const beak = (fr(Math.floor(phB)+a.i*3+30) < 0.3 ? kick*0.5 : 0) + trip*0.6;\n\n  const cx = a.px + sway;\n  const cy = a.py + dyBob;\n\n  // ground shadow (screenprint sits it on ice)\n  if (!wire){\n    noStroke(); fill(0,0,0, sil?26:18);\n    ellipse(a.px + sway*0.4, a.py + hgt*0.03, bw*1.7 - Math.abs(sway)*0.4, hgt*0.07);\n  }\n\n  push();\n  translate(cx, cy);\n  rotate(tilt);\n\n  // poster hard drop-ink silhouette (screenprint offset)\n  if (st==='poster'){\n    noStroke(); fill(H,55,13);\n    ellipse(hgt*0.03, -hgt*0.5 + hgt*0.02, bw*1.02, hgt*0.88);\n  }\n\n  // feet\n  paint('foot');\n  const fy = -hgt*0.015;\n  push(); translate(-bw*0.26, fy - footL*hgt*0.11); rotate(-.04);\n    if (wire) ellipse(0,0,bw*0.5,hgt*0.05);\n    else { triangle(-bw*0.22,hgt*0.03,bw*0.22,hgt*0.03,0,-hgt*0.02); ellipse(0,hgt*0.03,bw*0.5,hgt*0.035); }\n  pop();\n  push(); translate(bw*0.26, fy - footR*hgt*0.11); rotate(.04);\n    if (wire) ellipse(0,0,bw*0.5,hgt*0.05);\n    else { triangle(-bw*0.22,hgt*0.03,bw*0.22,hgt*0.03,0,-hgt*0.02); ellipse(0,hgt*0.03,bw*0.5,hgt*0.035); }\n  pop();\n\n  // far flipper\n  paint('back');\n  push(); translate(-bw*0.46, -hgt*0.52); rotate(-0.25 - fSw);\n    ellipse(0, hgt*0.12, bw*0.24, hgt*0.34);\n  pop();\n\n  // body mass\n  paint('back');\n  ellipse(0, -hgt*0.5, bw, hgt*0.88);\n  if (wire){\n    paint('back'); // stroke set\n    line(0,-hgt*0.92,0,-hgt*0.08);\n    ellipse(0,-hgt*0.5,bw*0.66,hgt*0.62);\n    ellipse(0,-hgt*0.5,bw*0.4,hgt*0.42);\n  }\n\n  // belly\n  if (!sil){\n    paint('belly');\n    ellipse(0, -hgt*0.42, bw*0.62, hgt*0.6);\n    if (st==='riso'){ noStroke(); fill((H+28)%360,66,90,24); ellipse(-hgt*0.02,-hgt*0.5,bw,hgt*0.88); }\n    if (st==='noir'){ noStroke(); fill(H,6,44,40); ellipse(-bw*0.18,-hgt*0.52,bw*0.5,hgt*0.7); }\n  }\n\n  // near flipper\n  paint('back');\n  push(); translate(bw*0.46, -hgt*0.52); rotate(0.25 + fSw);\n    ellipse(0, hgt*0.12, bw*0.24, hgt*0.34);\n  pop();\n\n  // head region\n  push();\n  translate(0, -hgt*0.8 + Math.sin(phB*TAU)*hgt*0.01*eAmp);\n  rotate(side*swing*0.05);\n  // beak\n  paint('beak');\n  const bo = beak*hgt*0.05;\n  if (wire){\n    triangle(-bw*0.05,-bo*0.4, bw*0.05,-bo*0.4, 0,-hgt*0.09);\n    triangle(-bw*0.06,bo, bw*0.06,bo, 0,hgt*0.07+bo);\n  } else {\n    triangle(-bw*0.07,-bo*0.4, bw*0.07,-bo*0.4, 0,-hgt*0.1);\n    triangle(-bw*0.08,bo, bw*0.08,bo, 0,hgt*0.08+bo);\n  }\n  // eyes\n  if (!sil){\n    const ex = bw*0.2;\n    const blink = ((K.t*0.3 + fr(a.i+11))%1) < 0.05;\n    if (blink && !wire){\n      paint('eye'); stroke(0,0,st==='noir'?4:8); strokeWeight(Math.max(1,hgt*0.008)); noFill();\n      line(-ex-hgt*0.02,-hgt*0.12,-ex+hgt*0.02,-hgt*0.12);\n      line(ex-hgt*0.02,-hgt*0.12,ex+hgt*0.02,-hgt*0.12);\n      noStroke();\n    } else {\n      paint('eyeW'); ellipse(-ex,-hgt*0.12,bw*0.16,hgt*0.075); ellipse(ex,-hgt*0.12,bw*0.16,hgt*0.075);\n      paint('eye'); ellipse(-ex,-hgt*0.12,bw*0.09,hgt*0.045); ellipse(ex,-hgt*0.12,bw*0.09,hgt*0.045);\n    }\n  }\n  pop();\n\n  pop();\n}\n\n// ---- ambient snow motes (density) ----\nif (P.density > 0.02 && !wire){\n  const n = Math.round(P.density*26);\n  noStroke();\n  for (let i=0;i<n;i++){\n    const drift = (K.t*(0.1+fr(i+50)*0.16) + fr(i+70)) % 1;\n    const fx = ((fr(i+90) + globalScroll*0.3)%1)*width;\n    const fyv = ((drift + fr(i+110))%1)*u*0.85 + (P.y*height - u*0.6);\n    const tw = 0.5 + 0.5*Math.sin(K.t*3 + i);\n    fill(sil?H:50, sil?24:8, 100, (12+20*tw)*(0.4+0.6*P.density));\n    ellipse(fx, fyv, (u*0.004)*(0.8+tw) + S.tre*u*0.006, (u*0.004)*(0.8+tw));\n  }\n}\n"
+}

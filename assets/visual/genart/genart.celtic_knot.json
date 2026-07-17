@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.celtic_knot",
+  "kind": "genart",
+  "name": "Celtic Knotwork",
+  "desc": "Endless interlaced Celtic knotwork of over-under woven cords threading a grid of crossings, perpetually re-threading as multi-hue bands drift and undulate \u2014 rendered as gilt illuminated-manuscript, neon glow-weave, carved stone relief, woven tartan, or black-on-cream ink.",
+  "tags": [
+    "celtic",
+    "knot",
+    "knotwork",
+    "interlace",
+    "interlaced",
+    "weave",
+    "woven",
+    "basket-weave",
+    "braid",
+    "plait",
+    "over-under",
+    "tiling",
+    "symmetry",
+    "pattern",
+    "ornament",
+    "illuminated",
+    "manuscript",
+    "gold",
+    "jewel",
+    "neon",
+    "stone",
+    "tartan",
+    "plaid",
+    "ink",
+    "gaelic",
+    "insular",
+    "cord",
+    "band",
+    "weave-field",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.4,
+      "doc": "cord thickness / zoom (higher = fewer, fatter cords)"
+    },
+    "warp": {
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "undulation / turbulence of the weave (higher = wavier, more organic knot)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude + cord girth"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "scroll / re-thread rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "grid fineness (more strands) + hue-gradient richness"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "base cord hue (45 = gold)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "weave scroll phase X"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "weave scroll phase Y"
+    },
+    "style": {
+      "default": "illuminated",
+      "options": [
+        "illuminated",
+        "neon",
+        "stone",
+        "tartan",
+        "ink"
+      ],
+      "doc": "render philosophy: gilt jewel bands on dark ground / glowing neon cords on black / carved grey stone relief (form from light) / woven multi-color tartan / flat black knot on cream ink"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (phase, warp shape, hue arrangement)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:39:39+00:00",
+    "fps": 58.1,
+    "motion": 0.1949,
+    "lum": 0.481
+  },
+  "code": "const D = { scale:1, warp:.35, energy:.6, speed:1, density:.55, hue:45, x:.5, y:.5, style:'illuminated', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 208, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph1 = fr(1)*10; S.ph2 = fr(2)*10; S.wf = 0.55 + fr(3)*0.7; S.gdrift = fr(5)*2-1;\n}\nfunction hsv(h,s,v){ h=((h%360)+360)%360; const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b; const q=(h/60)|0; if(q===0){r=c;g=x;b=0;}else if(q===1){r=x;g=c;b=0;}else if(q===2){r=0;g=c;b=x;}else if(q===3){r=0;g=x;b=c;}else if(q===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;} return [r+m,g+m,b+m]; }\nfunction hh1(n){ const s=Math.sin(n*12.9898 + P.seed*0.017)*43758.5453; return s-Math.floor(s); }\n\nconst t = K.t;\nconst style = P.style;\nconst cells = ((5 + P.density*8) / (0.5 + P.scale*0.9)) * (1 + 0.05*Math.sin(t*0.045));\nconst hw = 0.29 + 0.05*P.energy + Math.min(0.06, A.bass*0.06);\nconst wa = P.warp*0.6 + 0.05*K.intensity + Math.min(0.08, A.lowmid*0.1);\nconst spd = 0.004 + P.speed*0.006;\nconst scA = t*spd + S.ph1 + (P.x-0.5)*4;\nconst scB = -t*spd*0.82 + S.ph2 + (P.y-0.5)*4;\nconst hb = P.hue + K.section*15 + t*(2.5*(0.4+P.speed*0.3)) + S.gdrift*t*1.5;\nconst hueGrad = 12 + P.density*26 + K.intensity*8;\nconst expo = 0.72 + P.energy*0.46 + A.rms*0.4;\nconst spark = Math.min(0.5, A.treble*0.7);\nconst asp = BW/BH;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nfor (let j=0;j<BH;j++){\n  const fy = (j/BH - 0.5)/asp;\n  for (let i=0;i<BW;i++){\n    const fx = (i/BW - 0.5);\n    let a = (fx+fy)*cells + scA;\n    let b = (fx-fy)*cells + scB;\n    a += wa*Math.sin(b*0.7*S.wf + t*0.05);\n    b += wa*Math.cos(a*0.7*S.wf - t*0.043);\n    const ma = Math.round(a), mb = Math.round(b);\n    const sa = a-ma, sb = b-mb;\n    const da = Math.abs(sa), db = Math.abs(sb);\n    const inA = da<hw, inB = db<hw;\n    let win=0;\n    if (inA && inB) win = ((ma+mb)&1)?2:1;\n    else if (inA) win=1;\n    else if (inB) win=2;\n    let r,gg,bl;\n    if (win===0){\n      if (style==='ink'){ const c=hsv(42,0.14,0.93); r=c[0];gg=c[1];bl=c[2]; }\n      else if (style==='stone'){ r=gg=bl=0.15; }\n      else if (style==='neon'){ r=gg=bl=0.02; }\n      else if (style==='tartan'){ const c=hsv(hb+180,0.5,0.06); r=c[0];gg=c[1];bl=c[2]; }\n      else { const c=hsv(hb+205,0.5,0.09); r=c[0];gg=c[1];bl=c[2]; }\n    } else {\n      const d = (win===1?da:db)/hw;\n      const prof = Math.sqrt(Math.max(0,1-d*d));\n      const sgn = win===1?sa:sb;\n      const cc = (win===1? b : a) + t*0.12;\n      const bi = win===1? mb : ma;\n      const jit = hh1(bi*3.7 + 1.3);\n      if (style==='ink'){\n        if (d<0.70){ r=gg=bl=0.08; }\n        else { const c=hsv(42,0.14,0.93); r=c[0];gg=c[1];bl=c[2]; }\n      } else if (style==='neon'){\n        const hue = hb + cc*hueGrad*1.3 + bi*13 + jit*40;\n        let v = 0.28 + prof*0.9;\n        v = Math.min(1, v*(0.85+expo*0.25) + spark*prof);\n        const c=hsv(hue, 0.9-0.25*prof, v); r=c[0];gg=c[1];bl=c[2];\n      } else if (style==='stone'){\n        const nl = (win===1?sgn:-sgn)/hw;\n        let v = 0.30 + prof*0.42 + 0.22*Math.max(0,-nl)*prof;\n        if (d>0.85) v*=0.5;\n        v*=Math.min(1.15,expo);\n        r=gg=bl=Math.min(1,v);\n      } else if (style==='tartan'){\n        const hue = hb + (((bi%5)+5)%5)*64 + jit*18;\n        let v = (0.34 + prof*0.6)*expo;\n        if (d>0.85) v*=0.4;\n        v=Math.min(1,v+spark*prof);\n        const c=hsv(hue, 0.82-0.2*prof, v); r=c[0];gg=c[1];bl=c[2];\n      } else {\n        const hue = hb + cc*hueGrad + bi*6 + jit*24;\n        let v = (0.16 + prof*0.82)*expo;\n        if (d>0.86) v*=0.42;\n        v=Math.min(1, v + spark*prof*0.8);\n        const sat = 0.9 - 0.42*prof;\n        const c=hsv(hue, sat, v); r=c[0];gg=c[1];bl=c[2];\n      }\n    }\n    const o=4*(j*BW+i);\n    px[o]=Math.max(0,Math.min(255,r*255));\n    px[o+1]=Math.max(0,Math.min(255,gg*255));\n    px[o+2]=Math.max(0,Math.min(255,bl*255));\n    px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\npop();\n"
+}

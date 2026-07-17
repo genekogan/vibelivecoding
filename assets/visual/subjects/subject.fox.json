@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.fox",
+  "kind": "subject",
+  "name": "Fox",
+  "desc": "Sumi-e ink fox prowling and dancing on the beat, dry-brush fur and a whipping brush-stroke tail, switchable to ember chiaroscuro, luminous wireframe or riso halftone.",
+  "tags": [
+    "fox",
+    "vulpine",
+    "animal",
+    "creature",
+    "kitsune",
+    "sumi-e",
+    "ink",
+    "brush",
+    "woodland",
+    "tail",
+    "prowl",
+    "dance",
+    "chiaroscuro",
+    "wireframe",
+    "riso",
+    "halftone",
+    "monochrome",
+    "character",
+    "mammal",
+    "autumn"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude + limb swing"
+    },
+    "hue": {
+      "default": 22,
+      "min": 0,
+      "max": 360,
+      "doc": "ink/pelt primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "texture / accent density"
+    },
+    "x": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "ground anchor y (canvas fraction)"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "leg length / lankiness morph"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body/tail plumpness morph"
+    },
+    "brush": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dry-brush fur hatch amount (ink/pelt)"
+    },
+    "pose": {
+      "default": "dance",
+      "options": [
+        "dance",
+        "prowl",
+        "sit",
+        "pounce"
+      ],
+      "doc": "idle=sit, prowl=stalk, pounce=crouch-leap, dance=full-body bob"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "ember",
+        "wire",
+        "riso",
+        "pelt"
+      ],
+      "doc": "aesthetic: sumi-e ink wash / chiaroscuro ember glow / luminous wireframe (abstract) / 2-ink riso halftone / naturalistic hatched pelt"
+    },
+    "act": {
+      "default": "wander",
+      "options": [
+        "wander",
+        "hunt",
+        "play"
+      ],
+      "doc": "multi-minute dramaturgy: wander drift, hunt crouch-cycles, play skittish"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "fur hatch + halftone layout variation"
+    }
+  },
+  "acts": [
+    "wander",
+    "hunt",
+    "play"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:50:08+00:00",
+    "fps": 59.9,
+    "motion": 0.0261,
+    "lum": 0.133
+  },
+  "code": "const D = { scale:1, energy:.7, hue:22, speed:1, density:.5, x:.72, y:.82, pose:'dance', style:'ink', act:'wander', seed:0, limb:.5, chub:.5, brush:.6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sn=(tt,off)=>{const f=Math.floor(tt),xq=tt-f;return (fr(f+off)*(1-xq)+fr(f+1+off)*xq-.5)*2;};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst u=Math.min(width,height), sc=u*P.scale/320;\nconst bt=K.beat*P.speed, sub=frc(bt);\nconst kick=K.pulse*.62 + A.bass*.85;\nconst air=A.treble*.7;\nconst en=P.energy*(.45+.55*K.intensity);\nconst H=md(P.hue,360);\nconst style=P.style, ink=style==='ink', ember=style==='ember', wire=style==='wire', riso=style==='riso', pelt=style==='pelt';\nconst chub=.7+P.chub*.7, LL=.72+P.limb*.6;\n\nlet stance=0, headTurn=0, tailE=.5, crouch=0;\nif(P.act==='wander'){ stance=sn(K.t*.05,7)*.5; headTurn=sn(K.t*.08,3)*.6; tailE=.5+.4*K.intensity; }\nelse if(P.act==='hunt'){ crouch=ez(.4+.6*Math.sin(K.section*1.1)); headTurn=.5+.4*Math.sin(K.beat*.5); tailE=.25+.2*K.intensity; stance=.2; }\nelse if(P.act==='play'){ crouch=.15; headTurn=sn(K.t*.2,9)*.9; tailE=.8+.3*K.intensity; stance=sn(K.t*.15,2)*.7; }\n\nlet bob=0, sway=0, lean=0, frontLift=0, hindLift=0, spin=0, tuck=crouch;\nconst pose=P.pose;\nif(pose==='sit'){ bob=K.swell*.05*en; sway=Math.sin(bt*Math.PI)*.03; lean=.06; tuck=.55+crouch*.4; }\nelse if(pose==='prowl'){ const g=frc(bt*.5); bob=Math.sin(g*Math.PI*2)*.05*en; sway=Math.sin(g*Math.PI*2)*.09; frontLift=Math.max(0,Math.sin(g*Math.PI*2))*.4*LL; hindLift=Math.max(0,Math.sin((g+.5)*Math.PI*2))*.35*LL; lean=.14; tuck=.35+crouch*.4; }\nelse if(pose==='pounce'){ const c=frc(bt*.5); const load=ez(c/.55), fire=c>.55?ez((c-.55)/.45):0; tuck=.5*load*(1-fire)+.05*fire+crouch*.3; bob=-fire*.22*en - load*.04; lean=.05+fire*.12; frontLift=fire*.7*LL; hindLift=fire*.4*LL; }\nelse { bob=-(kick*.16 + K.swell*.05)*(.5+en); sway=Math.sin(bt*Math.PI+ .5)*.11*en; lean=Math.sin(bt*Math.PI)*.10*en;\n  frontLift=Math.max(0,Math.sin(bt*Math.PI))*.55*LL*en + kick*.12;\n  hindLift=Math.max(0,Math.sin(frc(sub+.5)*Math.PI))*.3*LL;\n  spin=Math.sin(bt*Math.PI*.5)*.06*en; }\n\nconst cx=P.x*width, gy=P.y*height;\nconst bob_px=bob*140*sc, sway_px=sway*120*sc;\nconst tail=Math.sin(K.t*2.2*P.speed + bt*1.5)*tailE + kick*.3*tailE;\n\nfunction fillT(l, sat){\n  if(wire){ noFill(); return; }\n  if(ember){ noStroke(); const lit=clp(l,0,1); fill(md(H+(lit-.5)*30,360), 55*sat, 8+lit*88); return; }\n  if(ink){ noStroke(); fill(md(H+8,360), 10+18*sat, 96-(l*74)); return; }\n  if(riso){ noStroke(); fill(l>.6?md(H+150,360):H, 78, l>.6?90:78); return; }\n  noStroke(); fill(H, (60+30*sat)*.95, 30+l*62);\n}\nfunction edge(w){ if(wire){ stroke(md(H+4,360),45,96,88); strokeWeight(w); } else if(ink){ stroke(md(H+8,360),18,20,60); strokeWeight(w); } else noStroke(); }\nfunction furHatch(x,y,w,h,l,n){ if(!(ink||pelt)||P.brush<=0)return; const m=Math.floor(n*(.4+P.brush)); for(let i=0;i<m;i++){ const a=fr(i*2.1+x*.01)*Math.PI*2, rr=fr(i*4.7+y*.01); const px=x+Math.cos(a)*w*.42*rr, py=y+Math.sin(a)*h*.42*rr; const len=(3+fr(i*7.3)*7)*sc; const ang=a+.5; stroke(ink?md(H+8,360):H, ink?14:70, ink?(l*70+10):(20+l*40), 55); strokeWeight((.6+fr(i*9.1)*.9)*sc); line(px,py,px+Math.cos(ang)*len,py+Math.sin(ang)*len); } noStroke(); }\n\nif(riso){ if(!S.htKey||S.htKey!==Math.round(u)+'_'+P.seed){ S.htKey=Math.round(u)+'_'+P.seed; const bs=Math.max(64,Math.round(u*.5)); const g=createGraphics(bs,bs); g.noStroke(); g.colorMode(HSB,360,100,100,100); const step=Math.max(5,bs/22); for(let yy=step/2; yy<bs; yy+=step)for(let xx=step/2; xx<bs; xx+=step){ const r=(fr(xx*.7+yy*1.3)*.5+.5)*step*.5; g.fill(md(H+150,360),80,20,60); g.circle(xx,yy,r);} S.ht=g; } }\n\npush();\ntranslate(cx+sway_px, gy+bob_px);\nrotate(spin + lean*.15);\nif(ember){ drawingContext.shadowColor='hsba('+md(H+10,360)+',85%,60%,0.9)'; drawingContext.shadowBlur=28*sc; }\nconst s=sc;\n\npush();\ntranslate(-70*s*chub, -78*s); rotate(-0.5 + tail*0.55);\nfillT(.34,1); edge(1.4*s);\nbeginShape(); vertex(0,-8*s); bezierVertex(-40*s,-30*s,-96*s,-6*s,-118*s,44*s); bezierVertex(-100*s,60*s,-70*s,52*s,-30*s,30*s); bezierVertex(-14*s,20*s,-6*s,8*s,0,-8*s); endShape(CLOSE);\nfurHatch(-70*s,20*s,90*s,70*s,.4,10);\nfillT(.96,.15); if(wire)edge(1.2*s); ellipse(-108*s,40*s,34*s,30*s);\npop();\n\npush(); translate(-30*s*chub, -18*s - hindLift*70*s); rotate(0.15 - hindLift*0.5); fillT(.28,1); edge(1.2*s); ellipse(0,20*s,26*s*chub,58*s*LL); fillT(.14,1); ellipse(0,48*s,20*s,16*s); pop();\n\nfillT(.4,1); edge(1.4*s);\nbeginShape(); vertex(-58*s*chub,-6*s); bezierVertex(-58*s*chub,-70*s,58*s*chub,-70*s,58*s*chub,-6*s); bezierVertex(60*s*chub,44*s,30*s,58*s,0,58*s); bezierVertex(-30*s,58*s,-60*s*chub,44*s,-58*s*chub,-6*s); endShape(CLOSE);\nfurHatch(0,-8*s,110*s*chub,110*s,.42,16);\nfillT(.95,.2); if(wire){edge(1.1*s);noFill();} beginShape(); vertex(-22*s,-30*s); bezierVertex(-30*s,20*s,-14*s,52*s,0,54*s); bezierVertex(14*s,52*s,30*s,20*s,22*s,-30*s); endShape(CLOSE);\n\npush(); translate(24*s*chub, 0 - frontLift*66*s); rotate(-0.12 + frontLift*0.7); fillT(.3,1); edge(1.2*s); ellipse(0,26*s,24*s*chub,62*s*LL); fillT(.12,1); ellipse(2*s,56*s,20*s,16*s); pop();\npush(); translate(-6*s*chub, 4*s); rotate(0.08); fillT(.24,1); edge(1.1*s); ellipse(0,28*s,20*s*chub,58*s*LL); fillT(.12,1); ellipse(0,56*s,18*s,15*s); pop();\n\npush();\ntranslate(30*s + headTurn*22*s, -68*s - kick*10*s);\nrotate(headTurn*0.35 + Math.sin(bt*Math.PI)*0.05*en);\nfor(const sgn of [-1,1]){ push(); translate(sgn*26*s, -34*s); rotate(sgn*(0.3+air*0.4)); fillT(.32,1); edge(1.3*s); triangle(0,10*s, sgn*-6*s,-40*s, sgn*20*s,-14*s); fillT(.08,1); if(!wire){ triangle(0,4*s, sgn*-2*s,-30*s, sgn*13*s,-12*s);} pop(); }\nfillT(.44,1); edge(1.4*s);\nbeginShape(); vertex(-30*s,-6*s); bezierVertex(-34*s,-34*s,34*s,-34*s,30*s,-6*s); bezierVertex(28*s,20*s,20*s,30*s,0,34*s); bezierVertex(-20*s,30*s,-28*s,20*s,-30*s,-6*s); endShape(CLOSE);\nfurHatch(0,0,60*s,64*s,.46,10);\nfillT(.96,.15); if(wire){edge(1.1*s);noFill();} beginShape(); vertex(-13*s,6*s); bezierVertex(-16*s,34*s,-6*s,52*s,0,54*s); bezierVertex(6*s,52*s,16*s,34*s,13*s,6*s); endShape(CLOSE);\nfillT(.05,1); if(wire){edge(1.1*s);} ellipse(0,50*s,12*s,9*s);\nif(!wire){ noStroke(); fill(H,20,10); } else { edge(1.1*s); }\nconst blink=(frc(K.t*.31)>.94)?.2:1;\npush(); ellipse(-15*s,2*s,13*s,15*s*blink); ellipse(15*s,2*s,13*s,15*s*blink);\nif(!wire && !ember){ fill(md(H+30,360),80,95); ellipse(-15*s,2*s,6*s,6*s*blink); ellipse(15*s,2*s,6*s,6*s*blink);} pop();\npop();\n\nif(riso&&S.ht){ push(); blendMode(MULTIPLY); imageMode(CENTER); image(S.ht,-4*s,-20*s,150*s,150*s); imageMode(CORNER); blendMode(BLEND); pop(); }\nif(ember){ drawingContext.shadowBlur=0; }\npop();\nblendMode(BLEND);\n"
+}

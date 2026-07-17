@@ -1,0 +1,160 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.motility_jam",
+  "kind": "genart",
+  "name": "Motility Jam",
+  "desc": "A suspension of swimmers with no attraction between them at all jams itself solid anyway \u2014 each one slows down where its neighbours are thick, slow things pile up, piles slow things further, and the crowd unmixes into a dense jammed phase with a rough evaporating edge floating in its own fizzing gas.",
+  "tags": [
+    "mips",
+    "motility-induced-phase-separation",
+    "active-matter",
+    "active-brownian",
+    "self-propelled",
+    "swimmers",
+    "bacteria",
+    "bacterial",
+    "suspension",
+    "quorum",
+    "cates-tailleur",
+    "jamming",
+    "jammed",
+    "clustering",
+    "cluster",
+    "nucleation",
+    "condensation",
+    "evaporation",
+    "phase-separation",
+    "unmixing",
+    "binodal",
+    "coexistence",
+    "dense-phase",
+    "dilute-gas",
+    "packing",
+    "crowding",
+    "swarm",
+    "agents",
+    "particles",
+    "density-field",
+    "non-equilibrium",
+    "statistical-mechanics",
+    "soft-matter",
+    "colloid",
+    "microscopy",
+    "phase-contrast",
+    "darkfield",
+    "micrograph",
+    "false-color",
+    "ink",
+    "material",
+    "texture",
+    "grain",
+    "clinical",
+    "scientific",
+    "austere",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "activity": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Peclet / how sharply swimmers brake in a crowd \u2014 the actual instability parameter; low = a homogeneous gas that never unmixes, high = hard swimming, fat clusters and a violently fizzing gas"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "grain of the field (higher = coarser, chunkier)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many swimmers are in the sample \u2014 sets which side of the binodal the suspension starts on"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "integration rate (how fast the suspension runs)"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "medium hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan y"
+    },
+    "style": {
+      "default": "phase-contrast",
+      "options": [
+        "phase-contrast",
+        "darkfield",
+        "false-color",
+        "ink",
+        "binodal"
+      ],
+      "doc": "aesthetic \u2014 grey phase-contrast micrograph with dark mass and bright halo / self-luminous darkfield / ironbow packing map / flooded ink on toned paper / abstracted to the two coexisting phases and the interface contour alone"
+    },
+    "act": {
+      "default": "separate",
+      "options": [
+        "separate",
+        "quench",
+        "boil"
+      ],
+      "doc": "multi-minute program \u2014 activity breathing across the binodal / held deep in the two-phase region for big slow clusters / fast activity swings so clusters barely nucleate before they boil off"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the suspension and the medium texture"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "separate",
+    "quench",
+    "boil"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:46:39+00:00",
+    "fps": 59.9,
+    "motion": 0.0706,
+    "lum": 0.45
+  },
+  "code": "const D = { activity: .55, scale: 1, energy: .6, density: .55, speed: 1, hue: 196, x: .5, y: .5, style: 'phase-contrast', act: 'separate', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ============ motility-induced phase separation: a crowd that jams itself solid ============\n// Active Brownian swimmers with NO attraction between them whatsoever. The only rule is that a\n// swimmer slows down where its neighbours are thick \u2014 and that alone is enough: slow things pile\n// up, piles slow things further, and the suspension unmixes into a jammed dense phase coexisting\n// with a fizzing dilute gas. Cates-Tailleur quorum motility, v(rho) = v0.exp(-lam.rho); the\n// instability bites once dln(v)/dln(rho) < -1, which the activity dial walks straight across.\n// Left alone MIPS coarsens toward one fat droplet and dies, so activity breathes across the\n// binodal on two incommensurate clocks: it is always condensing or always boiling off, never done.\n\nconst RW = Math.max(48, Math.min(150, Math.round(120 / Math.max(0.4, P.scale))));\nconst RH = Math.max(32, Math.min(150, Math.round(RW * height / Math.max(1, width))));\nconst NR = RW * RH;\nconst IS = 2.4;\nconst IW = Math.max(10, Math.round(RW / IS)), IH = Math.max(7, Math.round(RH / IS));\nconst NI = IW * IH;\nconst invIS = IW / RW;\nconst MAXN = 9000;\nconst seedI = P.seed | 0;\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\nconst sig = RW + 'x' + RH + '_' + seedI;\nif (S.sig !== sig || !S.px) {\n  S.sig = sig;\n  S.px = new Float32Array(MAXN); S.py = new Float32Array(MAXN); S.pt = new Float32Array(MAXN);\n  S.cn = new Float32Array(NI); S.rh = new Float32Array(NI);\n  S.dn = new Float32Array(NR);\n  for (let k = 0; k < MAXN; k++) { S.px[k] = gh(k, 13) * RW; S.py[k] = gh(k, 17) * RH; S.pt[k] = gh(k, 19) * 6.2831853; }\n  S.nUsed = 0; S.rng = ((seedI * 2654435761) ^ 0x9e3779b9) >>> 0; if (!S.rng) S.rng = 0x1234567;\n  S.done = null; S.g = null; S.med = null;\n}\nif (S.dn.length !== NR) S.dn = new Float32Array(NR);\nif (S.cn.length !== NI) { S.cn = new Float32Array(NI); S.rh = new Float32Array(NI); }\n\nlet n = Math.round(NI * (0.8 + P.density * 2.6));\nif (n > MAXN) n = MAXN; if (n < 80) n = 80;\nif (n > S.nUsed) for (let k = S.nUsed; k < n; k++) { S.px[k] = gh(k * 3 + 1, 401) * RW; S.py[k] = gh(k * 3 + 2, 409) * RH; S.pt[k] = gh(k * 3 + 3, 419) * 6.2831853; }\nS.nUsed = n;\n\n// ---- activity walks the binodal \u2014 this is the anti-convergence device -------------------\nconst act = P.act;\nlet ax = P.activity;\nif (act === 'quench') ax = Math.min(1, P.activity * 0.7 + 0.42 + 0.14 * Math.sin(K.t * 0.0113));\nelse if (act === 'boil') ax = P.activity * (0.55 + 0.5 * (0.5 + 0.5 * Math.sin(K.t * 0.0731))) + 0.1;\nelse ax = P.activity * (0.78 + 0.3 * Math.sin(K.t * 0.031) + 0.14 * Math.sin(K.t * 0.0117 + 2.1)) + K.intensity * 0.06;\nax = Math.max(0, Math.min(1, ax));\nconst lam = 0.15 + ax * 2.6;                      // > 1 => the suspension is unstable to unmixing\nconst v0 = 0.22 + ax * 0.42;                      // Peclet: harder swimming -> fatter clusters, fizzier gas\n\n// ---- integrate, gated on continuous K.t -----------------------------------------------\nconst sps = 14 + P.speed * 26 + K.intensity * 6;\nconst target = Math.floor(K.t * sps);\nif (S.done == null || target < S.done) S.done = target;\nlet need = target - S.done; if (need > 5) need = 5; if (need < 0) need = 0;\nS.done = target;\nconst dth = 0.22, kpush = 0.5;\nconst rho0 = Math.max(0.6, n / NI);\nlet r = S.rng >>> 0;\nconst px = S.px, py = S.py, pt = S.pt, cn = S.cn, rh = S.rh;\nfor (let st = 0; st < need; st++) {\n  cn.fill(0);\n  for (let k = 0; k < n; k++) cn[(((py[k] * invIS) | 0) % IH) * IW + (((px[k] * invIS) | 0) % IW)]++;\n  for (let j = 0; j < IH; j++) {                  // local packing fraction, 3x3, normalised to the mean\n    const jm = (j ? j - 1 : IH - 1) * IW, jp = (j + 1 < IH ? j + 1 : 0) * IW, rj = j * IW;\n    for (let i = 0; i < IW; i++) {\n      const im = i ? i - 1 : IW - 1, ip = i + 1 < IW ? i + 1 : 0;\n      rh[rj + i] = (cn[rj + im] + cn[rj + i] + cn[rj + ip] + cn[jm + im] + cn[jm + i] + cn[jm + ip] + cn[jp + im] + cn[jp + i] + cn[jp + ip]) / (9 * rho0);\n    }\n  }\n  for (let k = 0; k < n; k++) {\n    const ci = ((px[k] * invIS) | 0) % IW, cj = ((py[k] * invIS) | 0) % IH;\n    const im = ci ? ci - 1 : IW - 1, ip = ci + 1 < IW ? ci + 1 : 0;\n    const jm = (cj ? cj - 1 : IH - 1) * IW, jp = (cj + 1 < IH ? cj + 1 : 0) * IW, rj = cj * IW;\n    const rc = rh[rj + ci];\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0;\n    const th = pt[k] + (r / 4294967296 - 0.5) * dth * 6.2831853 * 0.16;\n    pt[k] = th;\n    let vl = v0 * Math.exp(-lam * (rc - 1));       // slow down where the crowd is thick\n    if (vl > v0 * 2.2) vl = v0 * 2.2; if (vl < v0 * 0.05) vl = v0 * 0.05;\n    // excluded volume, cheaply: swimmers refuse to compress past ~2.6x mean and slide downhill\n    let gx = 0, gy = 0;\n    if (rc > 2.6) { gx = (rh[rj + ip] - rh[rj + im]) * 0.5; gy = (rh[jp + ci] - rh[jm + ci]) * 0.5; }\n    let X = px[k] + vl * Math.cos(th) - kpush * gx, Y = py[k] + vl * Math.sin(th) - kpush * gy;\n    if (X < 0) X += RW; else if (X >= RW) X -= RW;\n    if (Y < 0) Y += RH; else if (Y >= RH) Y -= RH;\n    px[k] = X; py[k] = Y;\n  }\n  // a trickle of relocation: the gas is never allowed to empty out completely\n  for (let q = 0; q < 3; q++) {\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0; const k = r % n;\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0; px[k] = (r / 4294967296) * RW;\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0; py[k] = (r / 4294967296) * RH;\n  }\n}\nS.rng = r >>> 0;\n\n// ---- splat: persistence + light diffusion; keep it grainier than a fluid ----------------\nconst dn = S.dn, dec = 0.80;\nfor (let k = 0; k < NR; k++) dn[k] *= dec;\nfor (let k = 0; k < n; k++) dn[((py[k] | 0) % RH) * RW + ((px[k] | 0) % RW)] += 1;\nif (!S.tmp || S.tmp.length !== NR) S.tmp = new Float32Array(NR);\n{\n  const tmp = S.tmp;\n  for (let j = 0; j < RH; j++) { const rj = j * RW; for (let i = 0; i < RW; i++) { const im = i ? i - 1 : RW - 1, ip = i + 1 < RW ? i + 1 : 0; tmp[rj + i] = (dn[rj + im] + dn[rj + i] * 2 + dn[rj + ip]) * 0.25; } }\n  for (let j = 0; j < RH; j++) { const jm = (j ? j - 1 : RH - 1) * RW, jp = (j + 1 < RH ? j + 1 : 0) * RW, rj = j * RW; for (let i = 0; i < RW; i++) dn[rj + i] = (tmp[jm + i] + tmp[rj + i] * 2 + tmp[jp + i]) * 0.25; }\n}\n\n// ---- the medium itself is toned and textured, so the dilute phase is never dead black ---\nif (!S.med || S.medKey !== sig) {\n  S.med = new Float32Array(NR); S.medKey = sig;\n  for (let j = 0; j < RH; j++) for (let i = 0; i < RW; i++) {\n    const k = j * RW + i;\n    S.med[k] = (gh(k, 71) * 0.5 + gh(((j >> 2) * RW + (i >> 2)) | 0, 73) * 0.5 - 0.5);\n  }\n}\n\n// ---- render ----------------------------------------------------------------------------\nif (!S.g || S.gw !== RW || S.gh !== RH) { S.g = createGraphics(RW, RH); S.g.pixelDensity(1); S.gw = RW; S.gh = RH; }\nconst OUT = [0, 0, 0];\nfunction hsv(h, s, v, o) {\n  h = ((h % 360) + 360) % 360; v = v < 0 ? 0 : v > 1 ? 1 : v; s = s < 0 ? 0 : s > 1 ? 1 : s;\n  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let rr, gg, bb;\n  if (h < 60) { rr = c; gg = x; bb = 0; } else if (h < 120) { rr = x; gg = c; bb = 0; } else if (h < 180) { rr = 0; gg = c; bb = x; }\n  else if (h < 240) { rr = 0; gg = x; bb = c; } else if (h < 300) { rr = x; gg = 0; bb = c; } else { rr = c; gg = 0; bb = x; }\n  o[0] = (rr + m) * 255; o[1] = (gg + m) * 255; o[2] = (bb + m) * 255;\n}\nconst style = P.style;\nconst mode = style === 'darkfield' ? 1 : style === 'false-color' ? 2 : style === 'ink' ? 3 : style === 'binodal' ? 4 : 0;\nconst ex = Math.min(1.4, 0.68 + P.energy * 0.58 + K.intensity * 0.14 + A.rms * 0.3);\nconst hb = P.hue + K.section * 4 + Math.sin(K.t * 0.026) * 8;\nconst dnorm = 1 / Math.max(0.4, (n / NR) / (1 - dec));\nconst med = S.med;\n{\n  const g = S.g; g.loadPixels(); const pxl = g.pixels;\n  for (let j = 0; j < RH; j++) {\n    const jm = (j ? j - 1 : RH - 1) * RW, jp = (j + 1 < RH ? j + 1 : 0) * RW, rj = j * RW;\n    for (let i = 0; i < RW; i++) {\n      const im = i ? i - 1 : RW - 1, ip = i + 1 < RW ? i + 1 : 0, k = rj + i;\n      const q = Math.min(1.6, dn[k] * dnorm);                                   // 1 == mean packing\n      const lp = Math.abs(dn[rj + ip] - dn[rj + im]) + Math.abs(dn[jp + i] - dn[jm + i]);\n      const edge = Math.min(1, lp * dnorm * 0.9);                              // the rough interface\n      const tex = med[k] * 0.1;\n      if (mode === 1) {                    // darkfield: the swimmers self-luminous on black medium\n        hsv(hb + q * 22, 0.62 - q * 0.3, (0.09 + Math.min(1, q * 0.62) * 0.72 + edge * 0.18 + tex) * ex, OUT);\n      } else if (mode === 2) {             // false-color packing map\n        const w = Math.min(1, q * 0.62);\n        hsv(268 - w * 256, 0.95 - w * 0.5, (0.11 + w * w * 0.48 + w * 0.4 + tex) * ex, OUT);\n      } else if (mode === 3) {             // ink: jammed phase as flooded ink on toned paper\n        hsv(hb - 10, 0.13, (0.62 - Math.min(1, q * 0.6) * 0.52 - edge * 0.06 + tex) * (0.86 + P.energy * 0.26), OUT);\n      } else if (mode === 4) {             // binodal: abstracted to the two coexisting phases + interface\n        const liq = q > 1.15 ? 1 : q < 0.55 ? 0 : (q - 0.55) / 0.6;\n        hsv(hb + 150 - liq * 150, 0.30 + liq * 0.34, (0.22 + liq * 0.26 + Math.pow(edge, 0.7) * 0.5 + tex * 0.6) * ex, OUT);\n      } else {                             // phase-contrast (default): grey medium, dark mass, bright halo\n        const v = 0.40 - Math.min(1, q * 0.55) * 0.32 + Math.pow(edge, 0.8) * 0.42 + tex;\n        hsv(hb + 8 - q * 10, 0.16 + edge * 0.2, v * ex, OUT);\n      }\n      const o = 4 * k; pxl[o] = OUT[0]; pxl[o + 1] = OUT[1]; pxl[o + 2] = OUT[2]; pxl[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2 + (P.x - 0.5) * width * 0.16, height / 2 + (P.y - 0.5) * height * 0.16);\nrotate(Math.sin(K.t * 0.0117) * 0.04 + Math.sin(K.t * 0.0051 + 2.4) * 0.05);\nconst zoom = 1.5 + Math.sin(K.t * 0.043) * 0.04 + Math.sin(K.t * 0.101 + 1.7) * 0.016 + A.bass * 0.04;\nimageMode(CENTER);\nimage(S.g, 0, 0, width * zoom, height * zoom);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

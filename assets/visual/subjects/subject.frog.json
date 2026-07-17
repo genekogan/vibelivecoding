@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.frog",
+  "kind": "subject",
+  "name": "Frog",
+  "desc": "Glass-frog rendered as a glowing X-ray of spine, ribs and a pulsing heart, croak-sac inflating on the beat and leaping across the stage, switchable to iridescent poison-dart stipple, linocut, wireframe or murky swamp chiaroscuro.",
+  "tags": [
+    "frog",
+    "toad",
+    "amphibian",
+    "animal",
+    "creature",
+    "glass-frog",
+    "xray",
+    "x-ray",
+    "anatomical",
+    "bioluminescent",
+    "translucent",
+    "poison-dart",
+    "iridescent",
+    "linocut",
+    "wireframe",
+    "swamp",
+    "pond",
+    "hop",
+    "croak",
+    "character",
+    "green"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "figure size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "hop height + motion amplitude"
+    },
+    "hue": {
+      "default": 120,
+      "min": 0,
+      "max": 360,
+      "doc": "skin/membrane primary hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "choreography rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "texture / stipple density"
+    },
+    "x": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "ground anchor y (canvas fraction)"
+    },
+    "limb": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "leg length / leap-extension morph"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "body width / squatness morph"
+    },
+    "bulge": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "eye bulge size morph"
+    },
+    "pose": {
+      "default": "hop",
+      "options": [
+        "hop",
+        "ribbit",
+        "swim",
+        "idle"
+      ],
+      "doc": "idle=breathe, ribbit=throat-pump, swim=leg-kick glide, hop=crouch-leap arc"
+    },
+    "style": {
+      "default": "xray",
+      "options": [
+        "xray",
+        "toxic",
+        "lino",
+        "wire",
+        "swamp"
+      ],
+      "doc": "aesthetic: bioluminescent X-ray of bones+organs (abstract) / iridescent poison-dart stipple / high-contrast linocut / luminous wireframe / murky swamp chiaroscuro"
+    },
+    "act": {
+      "default": "pond",
+      "options": [
+        "pond",
+        "rain",
+        "dusk"
+      ],
+      "doc": "multi-minute dramaturgy: pond calm, rain frantic croaking, dusk slow"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "stipple + bone layout variation"
+    }
+  },
+  "acts": [
+    "pond",
+    "rain",
+    "dusk"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:50:25+00:00",
+    "fps": 60.2,
+    "motion": 0.0183,
+    "lum": 0.098
+  },
+  "code": "const D = { scale:1, energy:.7, hue:120, speed:1, density:.5, x:.3, y:.8, pose:'hop', style:'xray', act:'pond', seed:0, limb:.5, chub:.5, bulge:.5 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sn=(tt,off)=>{const f=Math.floor(tt),xq=tt-f;return (fr(f+off)*(1-xq)+fr(f+1+off)*xq-.5)*2;};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst u=Math.min(width,height), sc=u*P.scale/320;\nconst bt=K.beat*P.speed, sub=frc(bt);\nconst kick=K.pulse*.6 + A.bass*.9;\nconst air=A.treble*.7;\nconst en=P.energy*(.45+.55*K.intensity);\nconst H=md(P.hue,360);\nconst style=P.style, xray=style==='xray', toxic=style==='toxic', lino=style==='lino', wire=style==='wire', swamp=style==='swamp';\nconst chub=.72+P.chub*.66, LL=.7+P.limb*.7, BUL=.7+P.bulge*.8;\n\n// dramaturgy\nlet croakE=.5, restlessness=.5, dir=1;\nif(P.act==='pond'){ croakE=.4+.5*K.intensity; restlessness=.3+.4*Math.abs(sn(K.t*.06,4)); }\nelse if(P.act==='rain'){ croakE=.8+.2*K.intensity; restlessness=.7; }\nelse if(P.act==='dusk'){ croakE=.3+.2*Math.sin(K.section*.9); restlessness=.15+.3*K.intensity; }\ndir = sn(Math.floor(K.beat/8),5)>0?1:-1;\n\n// throat sac inflation: baseline pumps every beat\nconst croak = clp(K.swell*.6 + kick*.5, 0, 1) * croakE;\n\n// pose motion\nlet riseY=0, stretch=0, legExt=0, sqx=1, sqy=1, glideX=0, tilt=0;\nconst pose=P.pose;\nif(pose==='ribbit'){ const p=kick; riseY=-p*.03; sqx=1+croak*.06; sqy=1-croak*.05; tilt=Math.sin(bt*Math.PI)*.02; }\nelse if(pose==='swim'){ const g=frc(bt*.5); legExt=Math.max(0,Math.sin(g*Math.PI*2))*LL; glideX=Math.sin(bt*Math.PI*.5)*.12*en*dir; riseY=Math.sin(bt*Math.PI)*.02; tilt=.05*dir; }\nelse if(pose==='idle'){ riseY=K.swell*.02*en; sqy=1+K.swell*.03; tilt=Math.sin(bt*Math.PI)*.015; }\nelse { // hop (default): load then leap across one bar (2 beats)\n  const c=frc(bt*.5);\n  const load=c<.4?ez(c/.4):(c<.5?1:0);\n  const fly=c>=.5?ez((c-.5)/.5):0;\n  const arc=Math.sin(fly*Math.PI);\n  riseY = -arc*.34*en - load*.03;\n  glideX = fly*.18*en*dir;\n  legExt = fly*LL;\n  stretch = fly*.4;\n  sqx = 1+load*.12-fly*.14; sqy = 1-load*.1+fly*.16;\n  tilt = fly*.25*dir;\n}\n\nconst cx=P.x*width + glideX*width*.5, gy=P.y*height + riseY*260*sc;\n\nfunction skin(l, sat, al){\n  if(wire){ noFill(); return; }\n  if(xray){ noStroke(); fill(md(H+6,360), 30+30*sat, 22+l*40, (al==null?26:al)); return; }\n  if(toxic){ noStroke(); fill(md(H+ l*40,360), 85, 40+l*55); return; }\n  if(lino){ noStroke(); fill(md(H,360), l>.55?20:70, l>.55?92:22); return; }\n  if(swamp){ noStroke(); const lit=clp(l,0,1); fill(md(H+(lit-.5)*25,360), 45, 6+lit*70); return; }\n  noStroke(); fill(H,70,30+l*55);\n}\nfunction edge(w,l){ if(wire){ stroke(md(H+4,360),50,95,88); strokeWeight(w); } else if(lino){ stroke(md(H,360),80,10); strokeWeight(w); } else if(xray){ stroke(md(H+10,360),40,80,55); strokeWeight(w*.7); } else noStroke(); }\n\n// stipple cache for toxic\nif(toxic){ if(!S.dotKey||S.dotKey!==Math.round(u)+'_'+P.seed){ S.dotKey=Math.round(u)+'_'+P.seed; const bs=Math.max(64,Math.round(u*.55)); const g=createGraphics(bs,bs); g.noStroke(); g.colorMode(HSB,360,100,100,100); for(let i=0;i<260;i++){ const x=fr(i*3.1)*bs, y=fr(i*5.7)*bs, r=(.5+fr(i*8.3)*1.8); g.fill(md(H+180,360),90,95,70); g.circle(x,y,r);} S.dot=g; } }\n\npush();\ntranslate(cx, gy);\nrotate(tilt);\nscale(sqx, sqy);\nif(swamp){ drawingContext.shadowColor='hsba('+md(H,360)+',60%,50%,0.85)'; drawingContext.shadowBlur=26*sc; }\nif(xray){ drawingContext.shadowColor='hsba('+md(H+10,360)+',70%,70%,0.7)'; drawingContext.shadowBlur=20*sc; }\nconst s=sc;\n\n// ===== HIND LEGS (folded Z, extend on leap) =====\nfor(const sgn of [-1,1]){ push();\n  translate(sgn*52*s*chub, 8*s);\n  // thigh\n  push(); rotate(sgn*(0.7 - legExt*0.9)); skin(.3,1); edge(1.2*s); ellipse(sgn*20*s, 8*s, 34*s*chub, 20*s); pop();\n  // shin extends\n  push(); translate(sgn*(30+legExt*40)*s, (18-legExt*6)*s); rotate(sgn*(-0.9 + legExt*1.4)); skin(.34,1); edge(1.1*s); ellipse(sgn*16*s,0, 30*s, 15*s*LL);\n    // webbed foot\n    skin(.4,.6); const fx=sgn*(30+legExt*10)*s; beginShape(); vertex(fx,-6*s); for(let k=-2;k<=2;k++){ vertex(fx+sgn*(10+Math.abs(k)*3)*s, k*7*s);} vertex(fx,6*s); endShape(CLOSE); pop();\npop(); }\n\n// ===== BODY (squat dome) =====\nskin(.42,1); edge(1.4*s);\nbeginShape();\nvertex(-66*s*chub,6*s);\nbezierVertex(-70*s*chub,-46*s, -30*s,-64*s, 0,-64*s);\nbezierVertex(30*s,-64*s, 70*s*chub,-46*s, 66*s*chub,6*s);\nbezierVertex(60*s*chub,40*s, 34*s,52*s, 0,52*s);\nbezierVertex(-34*s,52*s, -60*s*chub,40*s, -66*s*chub,6*s);\nendShape(CLOSE);\n// belly / lighter underside\nskin(.72,.4); if(wire){edge(1.1*s);noFill();} ellipse(0,26*s, 78*s*chub, 44*s);\n\n// ===== FRONT ARMS =====\nfor(const sgn of [-1,1]){ push(); translate(sgn*46*s*chub, 30*s); rotate(sgn*(0.5 - stretch*0.3)); skin(.3,1); edge(1.1*s); ellipse(sgn*8*s, 14*s, 16*s, 34*s*LL);\n  skin(.4,.6); const hx=sgn*12*s; beginShape(); vertex(hx,26*s); for(let k=-1;k<=2;k++){ vertex(hx+sgn*(6+k*4)*s, 34*s+Math.abs(k)*2*s);} endShape(); pop(); }\n\n// ===== xray bones overlay =====\nif(xray){ stroke(md(H+20,360), 25, 96, 78); strokeWeight(1.6*s); noFill();\n  line(0,-40*s,0,44*s); // spine\n  for(let r=0;r<4;r++){ const yy=-24*s+r*16*s; line(-4*s,yy, -30*s*chub, yy+6*s); line(4*s,yy, 30*s*chub, yy+6*s); }\n  // pulsing heart glow\n  noStroke(); fill(md(H+340,360), 70, 95, 30+croak*50); ellipse(-8*s,0, (18+croak*10)*s, (16+croak*8)*s);\n  fill(md(H+30,360),20,90,20); ellipse(0,20*s,50*s,34*s); // gut membrane\n}\n\n// ===== HEAD / EYES =====\npush();\ntranslate(0, -50*s - croak*4*s);\n// wide mouth line\nif(!wire){ stroke(md(H, 360), lino?80:40, xray?70:16, 60); strokeWeight(2*s); noFill(); arc(0, -2*s, 66*s*chub, 30*s, 0.15, Math.PI-0.15); noStroke(); }\n// throat sac (inflates)\nskin(.55,.5); const sac=(10+croak*30); ellipse(0, 20*s + croak*10*s, 44*s*chub, sac*s);\n// bulging eyes on top\nfor(const sgn of [-1,1]){ push(); translate(sgn*30*s*chub, -20*s - BUL*6*s);\n  skin(.5,1); edge(1.2*s); ellipse(0,0, 34*s*BUL, 36*s*BUL);\n  if(!wire){ noStroke(); const blink=(frc(K.t*.27+sgn*.13)>.93)?.15:1;\n    fill(toxic?md(H+180,360):md(H+40,360), 90, 96); ellipse(0, 2*s, 22*s*BUL, 24*s*BUL*blink);\n    fill(0,0,6); ellipse(0, 4*s, 9*s, 20*s*BUL*blink); // slit pupil\n    fill(0,0,100, blink>.5?70:0); ellipse(-4*s,-4*s, 5*s,5*s); }\n  else { edge(1.1*s); ellipse(0,2*s, 20*s*BUL, 22*s*BUL); }\npop(); }\npop();\n\n// stipple over toxic body\nif(toxic&&S.dot){ push(); blendMode(SCREEN); imageMode(CENTER); image(S.dot, 0, -6*s, 160*s*chub, 150*s); imageMode(CORNER); blendMode(BLEND); pop(); }\n\nif(swamp||xray){ drawingContext.shadowBlur=0; }\npop();\nblendMode(BLEND);\n"
+}

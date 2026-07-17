@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.weierstrass",
+  "kind": "genart",
+  "name": "Weierstrass Terrain",
+  "desc": "Layered parallax mountain silhouettes cut from the Weierstrass nowhere-differentiable fractal-sum-of-cosines, their crags shivering and ranges scrolling at different rates under a glowing dusk sky that drifts violet to amber.",
+  "tags": [
+    "weierstrass",
+    "fractal",
+    "terrain",
+    "mountains",
+    "ridges",
+    "silhouette",
+    "parallax",
+    "landscape",
+    "nowhere-differentiable",
+    "sum-of-sines",
+    "fractal-sum",
+    "crags",
+    "peaks",
+    "range",
+    "dusk",
+    "violet",
+    "amber",
+    "aurora",
+    "sumi",
+    "ink",
+    "neon",
+    "mars",
+    "gradient",
+    "scrolling",
+    "horizon",
+    "atmospheric",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "relief": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.4,
+      "doc": "ridge height / vertical drama of the ranges"
+    },
+    "rough": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "fractal roughness (higher = jaggier crags, more octaves)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.4,
+      "doc": "exposure / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "phase-shiver + parallax scroll rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of parallax ridge layers (4..6)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "horizontal feature frequency / zoom"
+    },
+    "hue": {
+      "default": 270,
+      "min": 0,
+      "max": 360,
+      "doc": "dusk palette base hue (sky crown / far ridges)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sun/glow horizontal anchor"
+    },
+    "y": {
+      "default": 0.8,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "horizon height (more = ridges sit lower, more sky)"
+    },
+    "style": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "aurora",
+        "ink",
+        "neon",
+        "mars"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic phase variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:08:36+00:00",
+    "fps": 60.6,
+    "motion": 0.0186,
+    "lum": 0.352
+  },
+  "code": "const D = { relief: .6, rough: .55, energy: .6, speed: 1, density: .5, scale: 1, hue: 270, x: .5, y: .8, style: 'dusk', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- full-size scene buffer (enables alpha compositing without clearing main) ----\nif (!S.g || S.key !== width + 'x' + height) { S.g = createGraphics(width, height); S.g.pixelDensity(1); S.key = width + 'x' + height; }\nconst g = S.g;\n\n// ---- seed-deterministic per-octave phase offsets ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.ph = []; for (let n = 0; n < 8; n++) S.ph[n] = fr(n + 1) * 6.2831853;\n  S.cph = []; for (let n = 0; n < 6; n++) S.cph[n] = fr(n + 20) * 6.2831853; // per-curtain / per-ridge jitter\n}\n\nconst uMin = Math.min(width, height);\nconst TAU = 6.2831853;\nconst style = P.style;\nconst spd = 0.3 + P.speed;                 // scroll/drift multiplier (never zero-floor to 0 \u2192 still drifts a bit)\nconst expo = 0.55 + P.energy * 0.7 + K.intensity * 0.3 + A.rms * 0.5;\nconst sec = K.section | 0;\nconst hshift = sec * 9 + Math.sin(K.t * 0.03) * 6; // slow dramaturgical palette drift\nconst H = h => ((h % 360) + 360) % 360;\nconst lerp2 = (a, b, t) => a + (b - a) * t;\n\n// ---- Weierstrass fractal profile ----\nconst a = 0.45 + P.rough * 0.40;           // amplitude decay (higher = rougher / more high-freq)\nconst N = 5 + Math.round(P.rough * 3);     // octaves 5..8\nconst b = 1.9;                             // lacunarity (a*b>1 \u2192 nowhere-differentiable)\nlet sumAmp = 0, ap = 1; for (let n = 0; n < N; n++) { sumAmp += ap; ap *= a; }\n// phases drift continuously on K.t (never re-phase) + seed offset\nconst drift = []; for (let n = 0; n < N; n++) drift[n] = K.t * (0.12 + n * 0.045) * spd + S.ph[n];\nfunction W(phaseX) {\n  let hh = 0, ampp = 1, ff = 1;\n  for (let n = 0; n < N; n++) { hh += ampp * Math.cos(TAU * ff * phaseX + drift[n]); ampp *= a; ff *= b; }\n  return hh / sumAmp;\n}\n\n// ---- style palettes ----\nfunction skyCol(f) { // f: 0 top .. 1 horizon\n  if (style === 'aurora') return [H(lerp2(225, 208, f) + hshift * .3), lerp2(78, 44, f), lerp2(7, 17, f)];\n  if (style === 'ink')    return [H(lerp2(42, 34, f)), lerp2(7, 13, f), lerp2(90, 80, f)];\n  if (style === 'neon')   return [H(lerp2(252, 288, f) + hshift), lerp2(62, 52, f), lerp2(5, 11, f)];\n  if (style === 'mars')   return [H(lerp2(11, 30, f) + hshift * .2), lerp2(46, 60, f), lerp2(40, 78, f)];\n  // dusk (default): violet crown -> amber horizon (go up through red, not through green)\n  return [H(lerp2(P.hue + 2, P.hue + 122, f) + hshift), lerp2(55, 84, f), lerp2(20, 74, f) * (0.85 + expo * 0.2)];\n}\nfunction ridgeCol(depth) { // depth 0 far .. 1 near\n  if (style === 'aurora') return [H(lerp2(220, 226, depth)), lerp2(48, 62, depth), lerp2(16, 5, depth)];\n  if (style === 'ink')    return [H(lerp2(40, 28, depth)), lerp2(5, 8, depth), lerp2(74, 20, depth)];\n  if (style === 'neon')   return [H(lerp2(300, 300, depth)), 55, lerp2(15, 9, depth)];\n  if (style === 'mars')   return [H(lerp2(15, 9, depth)), lerp2(42, 66, depth), lerp2(55, 18, depth)];\n  return [H(lerp2(P.hue + 15, P.hue + 122, depth)), lerp2(46, 68, depth), lerp2(54, 15, depth)]; // dusk\n}\nfunction rimCol(depth) {\n  if (style === 'aurora') return [H(lerp2(160, 185, depth)), 82, lerp2(65, 92, depth)];\n  if (style === 'ink')    return [H(30), 10, lerp2(58, 14, depth)];\n  if (style === 'neon')   return [H(lerp2(322, 176, depth)), 92, 100];\n  if (style === 'mars')   return [H(22), 60, lerp2(80, 40, depth)];\n  return [H(lerp2(P.hue + 40, 40, depth)), 70, lerp2(78, 48, depth) + expo * 8]; // dusk warm glow rim\n}\n\n// ========================= RENDER =========================\ng.push();\n// sky gradient (banded)\ng.noStroke();\nconst nB = 100, horizon = height * lerp2(0.30, 0.52, P.y);\nfor (let i = 0; i < nB; i++) {\n  const f = i / (nB - 1);\n  const c = skyCol(f);\n  g.fill(c[0], c[1], c[2]);\n  g.rect(0, f * height - 1, width, height / nB + 2);\n}\n\n// atmospheric glow / curtains (per style, partial \u2014 never full-frame flash)\ng.blendMode(ADD);\nconst glowPulse = 0.6 + 0.4 * Math.sin(K.t * 0.5) + K.swell * 0.5 + A.bass * 0.6;\nif (style === 'aurora') {\n  for (let i = 0; i < 5; i++) {\n    const cx = (i / 5 + 0.1 + 0.08 * Math.sin(K.t * 0.2 * spd + i * 1.7)) % 1 * width;\n    const sh = 0.5 + 0.5 * Math.sin(K.t * 0.6 * spd + S.cph[i]);\n    const hue = [150, 172, 128, 200, 285][i];\n    for (let s = 0; s < 5; s++) {\n      g.fill(hue, 75, 22 * sh * (0.4 + expo * 0.5), 1);\n      g.rect(cx - width * 0.05 + s * width * 0.006, 0, width * 0.05, horizon * 1.1);\n    }\n  }\n} else if (style !== 'ink') {\n  // warm/cool sun-glow bloom near horizon at anchor x\n  const sx = P.x * width, sy = horizon * (0.95 + 0.03 * Math.sin(K.t * 0.4));\n  const gh = style === 'neon' ? H(lerp2(300, 200, P.x) + hshift) : (style === 'mars' ? 32 : H(P.hue + 118 + hshift));\n  for (let r = 0; r < 7; r++) {\n    const rad = uMin * (0.08 + r * 0.09);\n    g.fill(gh, style === 'mars' ? 55 : 60, (14 - r * 1.6) * glowPulse * (0.5 + expo * 0.4), 1);\n    g.ellipse(sx, sy, rad * 2, rad * 1.3);\n  }\n}\ng.blendMode(BLEND);\n\n// ---- parallax ridge silhouettes, back -> front ----\nconst nR = 4 + Math.round(P.density * 2);   // 4..6 ridges\nconst nCols = 150;\nfor (let k = 0; k < nR; k++) {\n  const depth = nR === 1 ? 0 : k / (nR - 1);\n  const baseY = height * (0.34 + depth * 0.44) + (P.y - 0.8) * height * 0.10;\n  const amp = uMin * (0.045 + depth * 0.13) * (0.35 + P.relief * 1.1);\n  const cyc = (2.0 + depth * 3.0) * (0.55 + P.scale * 0.75);\n  const scroll = K.t * (0.012 + depth * 0.05) * spd + S.cph[k] * 0.3;\n  const audioLift = (A.bass * 0.5 + K.pulse * 0.25) * amp * 0.6 * depth;\n  const rc = ridgeCol(depth);\n\n  // build profile\n  const ys = new Array(nCols);\n  for (let i = 0; i < nCols; i++) {\n    const xf = i / (nCols - 1);\n    ys[i] = baseY - W(xf * cyc + scroll) * amp - audioLift;\n  }\n\n  // fill silhouette\n  if (style === 'neon') { g.fill(rc[0], 60, rc[2] + 6); } else { g.fill(rc[0], rc[1], rc[2]); }\n  g.noStroke();\n  g.beginShape();\n  g.vertex(0, height + 4);\n  for (let i = 0; i < nCols; i++) g.vertex(i / (nCols - 1) * width, ys[i]);\n  g.vertex(width, height + 4);\n  g.endShape(CLOSE);\n\n  // crest rim / glow line\n  const rim = rimCol(depth);\n  const nb = (style === 'neon');\n  if (nb) { g.drawingContext.shadowBlur = 14 + depth * 10; g.drawingContext.shadowColor = 'hsl(' + rim[0] + ',100%,60%)'; }\n  g.noFill();\n  g.stroke(rim[0], rim[1], rim[2], nb ? 100 : (style === 'ink' ? 55 : 70));\n  g.strokeWeight(nb ? 2.0 : (style === 'ink' ? 1.3 : 1.4) + depth * 0.6);\n  g.beginShape();\n  for (let i = 0; i < nCols; i++) g.vertex(i / (nCols - 1) * width, ys[i]);\n  g.endShape();\n  if (nb) g.drawingContext.shadowBlur = 0;\n}\ng.pop();\n\n// ---- blit to main (tint enables translucent VJ compositing at alpha<100) ----\npush();\nif (P.alpha < 100) { tint(0, 0, 100, P.alpha); } else { noTint(); }\nimage(g, 0, 0, width, height);\npop();\n\n// ---- treble shimmer on nearest crags (partial, additive \u2014 won't strobe) ----\nif (A.treble > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  fill(H(P.hue + 60), 40, 100, Math.min(18, A.treble * 30));\n  rect(0, height * 0.55, width, height * 0.45);\n  blendMode(BLEND); pop();\n}\n"
+}

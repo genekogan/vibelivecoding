@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cutaway",
+  "kind": "genart",
+  "name": "Cutaway Section",
+  "desc": "An endless architectural cross-section trucking sideways forever \u2014 storeys stacked over a cut grade line, poch\u00e9-black structure driving down through topsoil, gravel, clay and bedrock to a service tunnel, lit windows breathing in every room.",
+  "tags": [
+    "section",
+    "cross-section",
+    "cutaway",
+    "poche",
+    "strata",
+    "stratigraphy",
+    "geology",
+    "geological",
+    "layers",
+    "storeys",
+    "floors",
+    "building",
+    "architecture",
+    "architectural",
+    "drawing",
+    "diagram",
+    "technical",
+    "blueprint",
+    "schematic",
+    "xray",
+    "riso",
+    "risograph",
+    "underground",
+    "foundation",
+    "tunnel",
+    "subway",
+    "excavation",
+    "bedrock",
+    "soil",
+    "structure",
+    "built",
+    "segments",
+    "bands",
+    "pan",
+    "clinical",
+    "austere",
+    "documentary"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "window glow, tunnel light, vertical camera lift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "storey height and slab thickness \u2014 at max the building swallows the earth"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "structural bays across the frame (narrower bays = more rooms)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "sideways truck rate along the section"
+    },
+    "floors": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of storeys above grade (2\u20137)"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "earth / material hue (sky takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor into the endless section (phase offset along x)"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.64,
+      "doc": "grade line height as canvas fraction \u2014 balance of building against earth"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "section",
+      "options": [
+        "section",
+        "geological",
+        "blueprint",
+        "xray",
+        "riso"
+      ],
+      "doc": "aesthetic: architect's section with solid poch\u00e9 cut / vivid stratigraphic survey plate / cyan schematic on navy / dark X-ray with only glowing edges / two-ink risograph with halftone earth and a misregistered plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for rooms, strata undulation, roof plant and services"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:00+00:00",
+    "fps": 59.9,
+    "motion": 0.0879,
+    "lum": 0.357
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, floors:.5, hue:28, x:.5, y:.46, style:'section', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst h1 = n => { const s = Math.sin(n*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst fr = (i,j) => h1(i*57.3 + j*131.9 + 7.1);\nconst vn1 = x => { const i=Math.floor(x), f2=x-i, w=f2*f2*(3-2*f2); return h1(i)*(1-w) + h1(i+1)*w; };\nconst fbm1 = x => .55*vn1(x) + .28*vn1(x*2.1+7.3) + .17*vn1(x*4.3-3.1);\n\nconst sty = P.style;\nconst bp = (sty==='blueprint'), geo = (sty==='geological'), xr = (sty==='xray'), riso = (sty==='riso');\nconst H = ((P.hue%360)+360)%360;\nconst NCv = Math.max(2, Math.round(3 + P.density*6));\nconst cw = Math.ceil(width/NCv);\nconst PAD = Math.round(height*.30), BH = height + PAD*2;\nconst GY = PAD + height*.46;                                  // grade line inside the buffer\nconst NF = Math.max(1, Math.round(2 + cl(P.floors,0,1)*5));   // storeys\nconst fh = height*.098*cl(P.scale,.35,2.2);                   // storey height\nconst st = Math.max(2, height*.010*cl(P.scale,.35,2.2));      // slab thickness\n\n// ---- real-time truck across an endless section; content keyed on abs column -\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.px = (S.px||0) + dt * P.speed * cw * .17 * (.6 + .5*K.intensity) * (.6 + .6*P.energy);\nconst pan = S.px + cl(P.x,0,1)*width*2;\nconst c0 = Math.floor(pan/cw), off = pan - c0*cw;\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.38 + .62*P.energy)*(.55 + .5*K.intensity) + bass*.3;\n// slow incommensurate vertical camera lift \u2014 a second non-repeating motion axis\nconst camY = PAD*.60*P.energy*(.55*Math.sin(K.t*.041) + .30*Math.sin(K.t*.113+1.4) + .15*Math.sin(K.t*.267+.6));\nconst yoff = -PAD + camY + (cl(P.y,.30,.64) - .46)*height;\n\n// ---- palette ----------------------------------------------------------------\nconst T = {};\nif (bp){\n  T.sky=[212,64,17]; T.air=[212,62,22]; T.poche=[212,20,86]; T.room=[212,60,24];\n  T.slab=[212,40,52]; T.soil=[212,58,28]; T.rock=[212,64,19]; T.ink=[196,26,100]; T.win=[186,30,96];\n} else if (geo){\n  T.sky=[198,28,72]; T.air=[198,18,82]; T.poche=[0,0,14]; T.room=[40,7,66];\n  T.slab=[0,0,38]; T.soil=[26,62,44]; T.rock=[16,52,26]; T.ink=[24,52,16]; T.win=[46,70,96];\n} else if (xr){\n  T.sky=[H,44,5]; T.air=[H,40,7]; T.poche=[H,34,24]; T.room=[H,52,9];\n  T.slab=[H,38,16]; T.soil=[H,48,10]; T.rock=[H,52,7]; T.ink=[H,22,98]; T.win=[H,18,100];\n} else if (riso){\n  T.sky=[38,7,92]; T.air=[38,5,95]; T.poche=[338,74,70]; T.room=[38,4,90];\n  T.slab=[212,66,60]; T.soil=[338,40,86]; T.rock=[212,52,56]; T.ink=[338,72,58]; T.win=[46,66,96];\n} else {\n  T.sky=[H+180,18,60]; T.air=[H+180,10,70]; T.poche=[H,24,10]; T.room=[H,9,70];\n  T.slab=[H,16,30]; T.soil=[H-6,34,30]; T.rock=[H-12,22,18]; T.ink=[H,28,16]; T.win=[H+8,44,94];\n}\nfor (const k2 in T) T[k2][0] = ((T[k2][0]%360)+360)%360;\nconst cf = (g,c,a) => g.fill(((c[0]%360)+360)%360, cl(c[1],0,100), cl(c[2],0,100), a==null?100:a);\nconst cs = (g,c,a,w) => { g.stroke(((c[0]%360)+360)%360, cl(c[1],0,100), cl(c[2],0,100), a==null?100:a); g.strokeWeight(Math.max(.7, w||1)); };\n\n// strata boundaries in world coords \u2014 continuous across every column seam\nconst strat = [[.055,.030],[.125,.038],[.245,.052],[.400,.060]];\nconst syOf = (k,wx) => GY + strat[k][0]*height + strat[k][1]*height*(fbm1(wx/(u*.75) + k*13.7) - .5)*2;\n\n// ---- one column of the section, baked once ---------------------------------\nfunction buildCol(ci){\n  const g = createGraphics(cw, BH); g.pixelDensity(1);\n  g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const wx0 = ci*cw, wins = [];\n  const roofY = GY - NF*fh;\n\n  // sky: gradient down to the horizon haze\n  const NG = 22;\n  for (let i=0;i<NG;i++){ const s=i/(NG-1);\n    cf(g, [T.sky[0], T.sky[1] + (T.air[1]-T.sky[1])*s, T.sky[2] + (T.air[2]-T.sky[2])*s]);\n    g.rect(0, BH*i/NG - 1, cw, BH/NG + 2);\n  }\n\n  // ---- earth: five strata, top down --------------------------------------\n  const bands = [T.soil,\n                 [T.soil[0]-4, T.soil[1]*.82, T.soil[2]*1.20],\n                 [T.soil[0]-10, T.soil[1]*.58, T.soil[2]*.82],\n                 [T.rock[0], T.rock[1]*.9, T.rock[2]*1.30],\n                 T.rock];\n  for (let k=0;k<5;k++){\n    const c = bands[k];\n    cf(g, geo ? [c[0] + k*26, cl(48 + k*5,0,90), cl(60 - k*8,8,90)] : c);\n    g.noStroke(); g.beginShape();\n    for (let i=0;i<=8;i++){ const wx = wx0 + cw*i/8; g.vertex(cw*i/8, k===0 ? GY : syOf(k-1, wx)); }\n    for (let i=8;i>=0;i--){ const wx = wx0 + cw*i/8; g.vertex(cw*i/8, k<4 ? syOf(k, wx) : BH); }\n    g.endShape(CLOSE);\n    if (xr && k>0){ cs(g, T.ink, 24, 1); g.noFill(); g.beginShape();\n      for (let i=0;i<=8;i++){ const wx=wx0+cw*i/8; g.vertex(cw*i/8, syOf(k-1,wx)); } g.endShape(); g.noStroke(); }\n  }\n\n  // stratum textures\n  if (!bp && !xr){\n    cs(g, T.ink, 44, 1);                                       // topsoil roots & tufts\n    for (let i=0;i<Math.round(cw/9);i++){ const lx2 = fr(ci*3+i,1)*cw, hh = 3 + fr(ci*3+i,2)*height*.020;\n      g.line(lx2, GY+2, lx2 + (fr(ci*3+i,3)-.5)*8, GY+2 - hh);\n      g.line(lx2, GY+2, lx2 + (fr(ci*3+i,7)-.5)*10, GY+2 + hh*.7);\n    }\n    g.noStroke();                                              // gravel pebbles\n    for (let i=0;i<Math.round(cw/6);i++){ const lx2 = fr(ci*11+i,4)*cw, wx = wx0 + lx2;\n      const a2 = syOf(1,wx), b2 = syOf(2,wx), yy = a2 + fr(ci*11+i,5)*(b2-a2);\n      const rad = 1.4 + fr(ci*11+i,6)*height*.006;\n      cf(g, geo ? [46,32,84] : [T.soil[0]+6, T.soil[1]*.5, cl(T.soil[2]*1.7,0,96)]);\n      g.ellipse(lx2, yy, rad*2, rad*1.4);\n    }\n    cs(g, [T.soil[0], T.soil[1]*.6, cl(T.soil[2]*(geo?.5:1.5),0,96)], 40, 1);  // clay bedding\n    for (let i=0;i<7;i++){ const q=(i+.5)/7; g.noFill(); g.beginShape();\n      for (let j=0;j<=8;j++){ const wx = wx0 + cw*j/8;\n        g.vertex(cw*j/8, syOf(2,wx) + q*(syOf(3,wx)-syOf(2,wx))); }\n      g.endShape(); }\n    cs(g, [T.rock[0], T.rock[1]*.5, cl(T.rock[2]*(geo?.45:2.0),0,96)], 34, 1); // bedrock fractures\n    for (let i=0;i<5;i++){ const lx2 = fr(ci*17+i,8)*cw, wx = wx0 + lx2;\n      const y0 = syOf(3,wx) + fr(ci*17+i,9)*(BH - syOf(3,wx))*.5;\n      g.line(lx2, y0, lx2 + (fr(ci*17+i,10)-.5)*cw*.5, y0 + fr(ci*17+i,11)*height*.14);\n    }\n  }\n  if (riso){                                                   // halftone plate over the earth\n    g.noStroke(); const dp = Math.max(6, height*.018);\n    for (let yy = GY; yy < BH; yy += dp){ const d2 = cl((yy-GY)/(height*.55),0,1);\n      for (let xx = 0; xx < cw; xx += dp){\n        cf(g, [212, 62, 54], 62); g.ellipse(xx, yy, dp*(.18+.52*d2), dp*(.18+.52*d2)); } }\n  }\n\n  // ---- service tunnel bore (longitudinal section) -------------------------\n  const ty = GY + height*.315, th2 = height*.055;\n  cf(g, xr ? [T.room[0],T.room[1],T.room[2]*2.2] : T.poche); g.noStroke(); g.rect(0, ty-th2*.5-2, cw, th2+4);\n  cf(g, bp ? T.room : (xr ? [H,50,4] : [T.poche[0], T.poche[1]*.6, cl(T.poche[2]*1.9+2,2,70)]));\n  g.rect(0, ty-th2*.5+2, cw, th2-4);\n  cs(g, T.ink, 60, 1.2); g.noFill();\n  g.line(0, ty-th2*.5, cw, ty-th2*.5); g.line(0, ty+th2*.5, cw, ty+th2*.5);\n  for (let i=0;i<4;i++){ const lx2 = cw*(i+.5)/4; g.line(lx2, ty-th2*.5+2, lx2, ty+th2*.5-2); }\n  cs(g, T.win, 70, 2); g.line(0, ty+th2*.34, cw, ty+th2*.34);\n\n  // ---- buried services ----------------------------------------------------\n  cs(g, T.ink, 70, Math.max(1.4, height*.005));  g.line(0, GY + height*.045, cw, GY + height*.048);\n  cs(g, T.win, 46, Math.max(1, height*.003));    g.line(0, GY + height*.082, cw, GY + height*.080);\n\n  // ---- the building -------------------------------------------------------\n  for (let j=0;j<NF;j++){\n    const fy = GY - (j+1)*fh;\n    g.noStroke(); cf(g, T.room); g.rect(0, fy, cw, fh);\n    if (fr(ci*5+j,12) > .2){                                   // back-wall window\n      const ww = cw*(.30 + fr(ci*5+j,13)*.34), wh = fh*.42;\n      const wx2 = cw*.1 + fr(ci*5+j,14)*(cw*.8 - ww), wy = fy + fh*.16;\n      cf(g, [T.win[0], T.win[1]*.5, T.win[2]*.7]); g.rect(wx2, wy, ww, wh);\n      cs(g, T.ink, 70, 1.2); g.noFill(); g.rect(wx2, wy, ww, wh);\n      g.line(wx2+ww*.5, wy, wx2+ww*.5, wy+wh);\n      wins.push([wx2, wy, ww, wh, fr(ci*5+j,15)*6.283]);\n    }\n    g.noStroke();                                              // abstract furnishing blocks\n    const nb = 1 + Math.floor(fr(ci*5+j,16)*3);\n    for (let b=0;b<nb;b++){\n      const bw = cw*(.06 + fr(ci*7+j*3+b,17)*.14), bh2 = fh*(.12 + fr(ci*7+j*3+b,18)*.42);\n      const bx = cw*.06 + fr(ci*7+j*3+b,19)*(cw*.88 - bw);\n      cf(g, [T.poche[0], T.poche[1]*.8, cl(T.poche[2]*(riso?1.0:2.4)+8, 3, 88)]);\n      g.rect(bx, fy + fh - bh2, bw, bh2);\n    }\n    if (fr(ci*5+j,20) > .62){                                  // a stair run to the storey above\n      cs(g, T.ink, 76, 1.2); g.noFill();\n      const n2 = 7, sx0 = cw*.60, sy0 = fy + fh, sw2 = cw*.32;\n      for (let i2=0;i2<n2;i2++){ const q=i2/n2, q2=(i2+1)/n2;\n        g.line(sx0+sw2*q, sy0-fh*q, sx0+sw2*q2, sy0-fh*q);\n        g.line(sx0+sw2*q2, sy0-fh*q, sx0+sw2*q2, sy0-fh*q2); }\n    }\n    g.noStroke(); cf(g, T.slab); g.rect(0, fy - st*.5, cw, st);  // slab (poch\u00e9)\n  }\n  cf(g, T.slab); g.rect(0, GY - st*.5, cw, st*1.3);\n  cf(g, T.slab); g.rect(0, roofY - st*.9, cw, st*1.5);\n  cf(g, T.poche); g.rect(0, roofY - fh*.16, Math.max(3, cw*.05), fh*.16);   // parapet\n  if (fr(ci,21) > .45){                                        // roof plant\n    const tw = cw*(.10 + fr(ci,22)*.14), thh = fh*(.22 + fr(ci,24)*.24);\n    cf(g, [T.poche[0], T.poche[1]*.7, cl(T.poche[2]*2.2+6, 3, 80)]);\n    g.rect(cw*.2 + fr(ci,23)*cw*.5, roofY - thh, tw, thh);\n  }\n  for (let q=0;q<2;q++){                                       // structure + footings + piles\n    const lx2 = q*cw*.5, colW = Math.max(2.4, cw*.030);\n    cf(g, T.poche); g.rect(lx2-colW*.5, roofY, colW, GY-roofY);\n    cf(g, [T.poche[0], T.poche[1], cl(T.poche[2]*1.5, 2, 60)]);\n    g.rect(lx2-colW*1.6, GY, colW*3.2, height*.022);\n    g.rect(lx2-colW*.55, GY, colW*1.1, height*.10);\n  }\n  cs(g, T.ink, 90, Math.max(1.4, height*.0028)); g.line(0, GY, cw, GY);     // the cut\n  if (riso){                                                   // second ink plate, misregistered\n    g.blendMode(MULTIPLY); g.noStroke(); cf(g, [212, 68, 62], 46);\n    for (let q=0;q<2;q++){ const lx2 = q*cw*.5, colW = Math.max(2.4, cw*.030);\n      g.rect(lx2-colW*.5+3.5, roofY-2.5, colW, GY-roofY); }\n    g.rect(0, GY-3, cw, Math.max(1.6, height*.003));\n    g.blendMode(BLEND);\n  }\n  return { g: g, wins: wins, used: 0 };\n}\n\n// ---- cache ------------------------------------------------------------------\nconst ck = [width,height,sty,Math.round(H),sd,NCv,NF,Math.round(fh),Math.round(st)].join('|');\nif (S.ck !== ck){\n  if (S.cols) for (const k2 in S.cols){ try { S.cols[k2].g.remove(); } catch(e){} }\n  S.cols = {}; S.ck = ck;\n}\nnoStroke(); fill(T.air[0], T.air[1], T.air[2], 100); rect(0,0,width,height);\nlet budget = 4;\nconst lw = [];\nfor (let i=-1; i<=NCv+1; i++){\n  const ci = c0 + i, sx = i*cw - off;\n  if (sx > width || sx + cw < 0) continue;\n  let col = S.cols[ci];\n  if (!col){ if (budget-- <= 0) continue; col = S.cols[ci] = buildCol(ci); }\n  col.used = K.t;\n  image(col.g, sx, yoff);\n  for (let w=0; w<col.wins.length; w++) lw.push([sx, col.wins[w], ci*31.7 + w]);\n}\nfor (const k2 in S.cols){\n  if (K.t - S.cols[k2].used > 4 && Math.abs((+k2) - c0) > NCv + 3){\n    try { S.cols[k2].g.remove(); } catch(e){} delete S.cols[k2];\n  }\n}\n\n// ---- live: lit windows breathing, a light running the tunnel ---------------\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<lw.length;i++){\n  const sx = lw[i][0], w = lw[i][1], q = lw[i][2];\n  const fl = .30 + .70*(.5 + .5*Math.sin(K.t*.23 + q*1.7))*(.5 + .5*Math.sin(K.t*.61 + q));\n  fill(T.win[0], cl(T.win[1]*.7,0,100), 100, cl(4 + 22*glow*fl, 0, 36));\n  rect(sx + w[0], yoff + w[1], w[2], w[3]);\n  fill(T.win[0], cl(T.win[1]*.5,0,100), 100, cl(1.6 + 6*glow*fl, 0, 12));\n  rect(sx + w[0] - w[2]*.3, yoff + w[1] - w[3]*.3, w[2]*1.6, w[3]*1.6);\n}\nconst tvx = ((K.t*.055*P.speed + .13) % 1) * width*1.6 - width*.3;\nconst tvy = yoff + GY + height*.315;\nfor (let i=3;i>=1;i--){ fill(T.win[0], 30, 100, 2.4 + 5*glow); ellipse(tvx, tvy, u*.06*i, height*.03*i); }\npop(); blendMode(BLEND);\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

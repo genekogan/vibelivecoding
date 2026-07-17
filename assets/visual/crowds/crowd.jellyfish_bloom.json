@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.jellyfish_bloom",
+  "kind": "crowd",
+  "name": "Jellyfish Bloom",
+  "desc": "A drifting bloom of translucent bioluminescent jellyfish pulsing in loose phase through dark water, glowing bells and trailing tentacles parallaxed by depth as a deep current turns them each section.",
+  "tags": [
+    "jellyfish",
+    "jellies",
+    "jelly",
+    "medusa",
+    "bloom",
+    "smack",
+    "bioluminescent",
+    "biolum",
+    "glow",
+    "translucent",
+    "ocean",
+    "sea",
+    "deep sea",
+    "underwater",
+    "aquatic",
+    "marine",
+    "abyss",
+    "plankton",
+    "drift",
+    "current",
+    "pulse",
+    "swarm",
+    "crowd",
+    "ethereal",
+    "serene",
+    "sublime",
+    "eerie",
+    "xray",
+    "neon",
+    "thermal",
+    "ink",
+    "bells",
+    "tentacles"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "n": {
+      "default": 18,
+      "min": 3,
+      "max": 40,
+      "doc": "number of jellyfish"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "bell size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pulse contraction + tentacle sway amplitude"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "current strength / rise speed"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "glow hue shift over palette"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "pulse + swim rate multiplier"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tentacle count / detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom center x (unused offset)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom center y (unused offset)"
+    },
+    "style": {
+      "default": "biolum",
+      "options": [
+        "biolum",
+        "neon",
+        "thermal",
+        "ink",
+        "xray"
+      ],
+      "doc": "soft bioluminescence / electric neon / thermal false-color / sumi ink wash / xray schematic rings (abstract)"
+    },
+    "pal": {
+      "default": "deep",
+      "options": [
+        "deep",
+        "abyss",
+        "ember",
+        "toxic",
+        "pearl"
+      ],
+      "doc": "glow + water color scheme"
+    },
+    "act": {
+      "default": "rise",
+      "options": [
+        "rise",
+        "swirl",
+        "tide"
+      ],
+      "doc": "multi-minute current program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "jelly placement + phase seed"
+    }
+  },
+  "acts": [
+    "rise",
+    "swirl",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:06:24+00:00",
+    "fps": 57.5,
+    "motion": 0.1443,
+    "lum": 0.276
+  },
+  "code": "const D = { hue: 300, energy: .6, speed: 1, density: .6, scale: 1, x: .5, y: .5, n: 18, drift: .5, style: 'biolum', pal: 'deep', act: 'rise', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst N = Math.max(3, Math.min(40, Math.round(P.n)));\nconst ho = P.hue - 300;\n\nconst PAL = {\n  deep:  { core:[188,70,100], edge:[300,72,90], tent:[210,60,88], spark:[168,60,100], water:[214,66,7] },\n  abyss: { core:[266,64,96], edge:[224,74,86], tent:[248,60,82], spark:[286,50,100], water:[240,70,6] },\n  ember: { core:[36,80,100], edge:[8,78,92],  tent:[22,70,86],  spark:[46,72,100], water:[8,60,7] },\n  toxic: { core:[74,78,100], edge:[128,72,88], tent:[96,64,84], spark:[64,70,100], water:[150,60,6] },\n  pearl: { core:[36,20,100], edge:[330,34,96], tent:[300,24,90], spark:[200,20,100], water:[250,30,9] } };\nconst pc = PAL[P.pal] || PAL.deep;\nconst tint = c => [hw(c[0] + ho), c[1], c[2]];\nconst sty = P.style;\nconst xray = sty === 'xray';\nconst ink = sty === 'ink';\nconst neon = sty === 'neon';\nconst thermal = sty === 'thermal';\n\nconst wk = width + 'x' + height + sty + P.pal + Math.round(P.hue);\nif (!S.wash || S.wk !== wk) {\n  if (!S.wash) S.wash = createGraphics(width, height);\n  else S.wash.resizeCanvas(width, height);\n  const g = S.wash; g.clear();\n  g.colorMode(g.HSB, 360, 100, 100, 100); g.noStroke();\n  const wc = tint(pc.water);\n  for (let yy = 0; yy < height; yy++) {\n    const t = yy / height;\n    g.fill(hw(wc[0] - t * 14), wc[1] * (1 - t * .4), wc[2] * (.5 + t * 1.3), 30 + t * 34);\n    g.rect(0, yy, width, 1);\n  }\n  if (!xray) { g.blendMode(g.ADD);\n    for (let i = 0; i < 5; i++) { const rx = fr(i * 7 + 3) * width;\n      g.fill(tint(pc.edge)[0], 24, 60, 3 + fr(i) * 3);\n      g.quad(rx, 0, rx + u * .04, 0, rx + u * .14, height, rx - u * .06, height); }\n    g.blendMode(g.BLEND); }\n  S.wk = wk;\n}\nimage(S.wash, 0, 0);\n\nif (!S.j || S.jn !== N || S.jseed !== P.seed) {\n  S.j = [];\n  for (let i = 0; i < N; i++) {\n    S.j.push({\n      bx: fr(i * 4 + 1),\n      y0: fr(i * 4 + 2),\n      z: .25 + fr(i * 4 + 3) * .75,\n      ph: fr(i * 4 + 5) * TAU,\n      rate: .5 + fr(i * 4 + 7) * .8,\n      tw: fr(i * 4 + 9) });\n  }\n  S.j = S.j.sort((a, b) => a.z - b.z);\n  S.jn = N; S.jseed = P.seed;\n}\n\nconst inten = .55 + .6 * K.intensity;\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst CUR = {\n  rise:  [[0,-1,0],[ .1,-1,.05],[-.1,-.9,.1],[0,-1,0],[.15,-.8,.15],[-.05,-1,.05],[.1,-.9,.1],[0,-1,.05]],\n  swirl: [[.4,-.3,.4],[-.4,-.3,.5],[.5,-.2,.4],[-.5,-.3,.6],[.4,-.2,.5],[-.4,-.3,.4],[.5,-.2,.5],[-.3,-.3,.5]],\n  tide:  [[1,-.2,0],[.6,-.3,.1],[-.6,-.2,0],[-1,-.3,.1],[.8,-.2,0],[.4,-.3,.1],[-.8,-.2,0],[-.4,-.3,.1]] };\nconst cur = (CUR[P.act] || CUR.rise)[sec];\nconst riseSpd = (.02 + .05 * P.drift) * P.speed;\nconst swayGlobal = K.t * (.15 + .3 * P.drift) * P.speed;\n\nconst tentBase = xray ? 4 : Math.round(4 + P.density * 5);\n\nfor (const j of S.j) {\n  const z = j.z;\n  const R = u * (.05 + .11 * z) * P.scale;\n  const span = 1 + R / height * 2;\n  let yf = (j.y0 - K.t * riseSpd * (.5 + z) * (-cur[1]));\n  yf = ((yf % span) + span) % span;\n  const py = (yf) * (height + 2 * R) - R;\n  const swirl = Math.sin(K.t * (.4 + z * .3) + j.ph) * cur[2];\n  const px = (j.bx * width\n    + Math.sin(swayGlobal + j.ph) * u * .04 * (.3 + z)\n    + cur[0] * z * u * .12 * Math.sin(K.t * .1 + j.tw * 6)\n    + swirl * u * .06);\n  const wx = ((px % (width + R * 2)) + (width + R * 2)) % (width + R * 2) - R;\n\n  const pph = K.beat * j.rate * P.speed * .5 + K.t * .12 * j.rate + j.ph;\n  let pulse = .5 + .5 * Math.sin(pph * TAU);\n  pulse = Math.pow(pulse, 1.6);\n  const contract = pulse * (.4 + .5 * P.energy);\n  const jet = (A.bass * .4 + K.pulse * .1);\n  const alpha = (thermal || neon ? 60 : 46) * (.4 + z * .8) + jet * 20;\n\n  const bellW = R * (1.02 - .32 * contract) * 2;\n  const bellH = R * (.78 + .55 * contract) * 2;\n\n  push();\n  translate(wx, py);\n  const cCore = tint(pc.core), cEdge = tint(pc.edge), cTent = tint(pc.tent), cSpark = tint(pc.spark);\n\n  const nt = tentBase;\n  const tlen = bellH * (1.1 + 1.6 * z) * (1 + .3 * P.energy);\n  for (let s = 0; s < nt; s++) {\n    const off = (s / (nt - 1) - .5) * bellW * .74;\n    const swim = swayGlobal * 3 + j.tw * 10 + s * .8;\n    if (xray) { stroke(cEdge[0], cEdge[1], cEdge[2], alpha * .8); strokeWeight(.8); noFill(); }\n    else if (ink) { stroke(cTent[0], cTent[1] * .5, cTent[2] * .7, alpha * .7); strokeWeight(R * .05); noFill(); }\n    else { stroke(cTent[0], cTent[1], cTent[2], alpha * .85); strokeWeight(R * (.05 + .04 * z)); noFill(); }\n    beginShape();\n    const segN = 5;\n    for (let g2 = 0; g2 <= segN; g2++) {\n      const tt = g2 / segN;\n      const sx = off + Math.sin(swim + tt * 3.2 + contract * 1.5) * bellW * .12 * tt;\n      const sy = bellH * .32 + tlen * tt;\n      curveVertex(sx, sy);\n    }\n    endShape();\n  }\n  if (!xray) {\n    for (let s = 0; s < 3; s++) {\n      const off = (s - 1) * bellW * .12;\n      stroke(cCore[0], cCore[1] * .8, cCore[2], alpha * .9); strokeWeight(R * .06); noFill();\n      beginShape();\n      for (let g2 = 0; g2 <= 4; g2++) { const tt = g2 / 4;\n        curveVertex(off + Math.sin(swayGlobal * 4 + s + tt * 4) * bellW * .06, bellH * .3 + tlen * .45 * tt); }\n      endShape();\n    }\n  }\n\n  if (!xray && !ink) {\n    push(); blendMode(ADD); noStroke();\n    for (let r = 0; r < 3; r++) {\n      const gc = thermal ? [hw(20 + r * 60), 80, 100] : cEdge;\n      fill(gc[0], gc[1] * .7, gc[2], (10 + jet * 14) * (1 - r * .28) * (.5 + z * .6));\n      ellipse(0, 0, bellW * (1.5 + r * .5), bellH * (1.4 + r * .5));\n    }\n    blendMode(BLEND); pop();\n  }\n\n  if (xray) {\n    noFill(); stroke(cEdge[0], cEdge[1], cEdge[2], alpha + 20); strokeWeight(1);\n    for (let r = 1; r <= 3; r++) arc(0, 0, bellW * r / 3, bellH * r / 3, Math.PI, TAU);\n    for (let a = 0; a <= 6; a++) { const aa = Math.PI + a / 6 * Math.PI;\n      line(0, 0, Math.cos(aa) * bellW / 2, Math.sin(aa) * bellH / 2); }\n    stroke(cCore[0], cCore[1], cCore[2], alpha + 30);\n    line(-bellW / 2, 0, bellW / 2, 0);\n  } else {\n    push(); if (thermal || neon) blendMode(ADD);\n    if (ink) { noStroke(); fill(cTent[0], cTent[1] * .4, cTent[2] * .8, alpha * .7);\n      arc(0, 0, bellW, bellH, Math.PI, TAU, CHORD); }\n    else {\n      noStroke();\n      for (let r = 3; r >= 0; r--) {\n        const tt = r / 3;\n        const col = thermal ? [hw(200 - tt * 190), 74, 100] : [hw(cEdge[0] + (cCore[0] - cEdge[0]) * (1 - tt)), cEdge[1] * (.6 + tt * .4), cEdge[2]];\n        fill(col[0], col[1], col[2], alpha * (neon ? .5 : .8) * (1 - tt * .3));\n        arc(0, 0, bellW * (1 - tt * .5), bellH * (1 - tt * .42), Math.PI, TAU, CHORD);\n      }\n      fill(cCore[0], cCore[1] * .8, cCore[2], alpha + 14 + jet * 20);\n      ellipse(0, -bellH * .06, bellW * .28, bellH * .3);\n    }\n    noFill(); stroke(cEdge[0], cEdge[1], Math.min(100, cEdge[2] + 8), alpha + (neon ? 40 : 18));\n    strokeWeight(neon ? R * .05 : R * .03);\n    arc(0, 0, bellW, bellH, Math.PI, TAU);\n    noStroke();\n    const nd = 7;\n    for (let d = 0; d <= nd; d++) {\n      const aa = Math.PI + d / nd * Math.PI;\n      const dx = Math.cos(aa) * bellW / 2, dy = Math.sin(aa) * bellH / 2;\n      const tw = .5 + .5 * Math.sin(K.t * 3 + d + j.ph + A.treble * 4);\n      fill(cSpark[0], cSpark[1], cSpark[2], (alpha + 20) * tw);\n      circle(dx, dy, R * (.07 + .05 * tw));\n    }\n    pop();\n  }\n  pop();\n}\nblendMode(BLEND);\n"
+}

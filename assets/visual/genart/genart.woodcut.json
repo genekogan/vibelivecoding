@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.woodcut",
+  "kind": "genart",
+  "name": "Gouged Block",
+  "desc": "A block that is never finished \u2014 the gouge keeps scooping the lights away along the contours of a drifting form, the wood's own grain and knots printing through whatever ink is left, and the roller keeps coming back over so the old cuts silt up and the whole image is cut again from underneath.",
+  "tags": [
+    "woodcut",
+    "woodblock",
+    "linocut",
+    "relief",
+    "block-print",
+    "gouge",
+    "carving",
+    "print",
+    "printmaking",
+    "wood-grain",
+    "knot",
+    "ink",
+    "expressionist",
+    "munch",
+    "ukiyo-e",
+    "chiaroscuro",
+    "wood-engraving",
+    "white-line",
+    "bewick",
+    "sanguine",
+    "graphic",
+    "bold",
+    "high-contrast",
+    "hand-cut",
+    "texture",
+    "process",
+    "accretion",
+    "austere",
+    "raw"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how fast the cutter works, how hard the light rakes the form, and the wet-ink sheen"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how loaded the roller is \u2014 ink haze and squash across the sheet, plus gouge width and length"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on cutting, re-inking and the drift of the form"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "size of the forms the cutter is chasing"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue \u2014 28 is a warm block black; carries the stock and the tone block with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the light comes from, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the light comes from, y"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "act": {
+      "default": "cut",
+      "options": [
+        "cut",
+        "clear",
+        "proof"
+      ],
+      "doc": "multi-minute program: steady cutting / the block is opened right up then closes back in / a light hand, mostly ink"
+    },
+    "style": {
+      "default": "woodcut",
+      "options": [
+        "woodcut",
+        "linocut",
+        "chiaroscuro",
+        "sanguine",
+        "xylograph"
+      ],
+      "doc": "aesthetic: plank-grain black with knots printing through / clean wide-gouge lino in deep blue-black on grey stock / two-block tonal woodcut, an ochre tone block under the key / red-ochre chalk ink on toned stock / end-grain wood engraving \u2014 form built from thin white lines cut into a solid black field"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic block \u2014 grain direction, knots, gouge character, stock fibre"
+    }
+  },
+  "acts": [
+    "cut",
+    "clear",
+    "proof"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:40+00:00",
+    "fps": 59.9,
+    "motion": 0.0779,
+    "lum": 0.242
+  },
+  "code": "const D = { energy: .6, density: .5, speed: 1, scale: 1, hue: 28, x: .5, y: .5, alpha: 100, act: 'cut', style: 'woodcut', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u2 = xf * xf * (3 - 2 * xf), v2 = yf * yf * (3 - 2 * yf);\n  const a = hsh(xi, yi), b = hsh(xi + 1, yi), c = hsh(xi, yi + 1), d = hsh(xi + 1, yi + 1);\n  return (a * (1 - u2) + b * u2) * (1 - v2) + (c * (1 - u2) + d * u2) * v2;\n};\nconst fbm = (x, y, o) => { let s = 0, am = .5, f = 1; for (let i = 0; i < o; i++) { s += am * vn(x * f, y * f); am *= .5; f *= 2.03; } return s; };\nconst rgb = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\nconst css = (h, s, v, a) => { const c = rgb(h, s, v); return 'rgba(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ',' + a + ')'; };\n\nconst W = width, H = height, u = Math.min(W, H), dc = drawingContext;\nconst en = clp(P.energy, 0, 1), de = clp(P.density, 0, 1);\nconst sp = Math.max(.1, P.speed), sc = Math.max(.35, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360, la = clp(P.alpha, 0, 100) / 100;\nconst hq = Math.round(hb / 10);\n\n// ---- the shop: block, ink, stock --------------------------------------------\nlet inkH = hb, inkS = .30, inkV = .09, ligH = hb + 6, ligS = .34, ligV = .19;\nlet paH = hb + 12, paS = .15, paV = .74, grainOn = 1, gl = 1, gwd = 1;\nif (st === 'linocut') { inkH = hb + 222; inkS = .48; inkV = .11; ligH = hb + 222; ligS = .40; ligV = .15; paH = hb + 172; paS = .09; paV = .70; grainOn = .1; gl = 1.15; gwd = 1.55; }\nelse if (st === 'chiaroscuro') { inkH = hb + 2; inkS = .34; inkV = .08; ligH = hb + 10; ligS = .40; ligV = .17; paH = hb + 14; paS = .17; paV = .80; gl = 1; gwd = 1.05; }\nelse if (st === 'sanguine') { inkH = hb - 16; inkS = .74; inkV = .34; ligH = hb - 6; ligS = .62; ligV = .50; paH = hb + 14; paS = .13; paV = .76; gl = 1; gwd = 1.05; }\nelse if (st === 'xylograph') { inkH = hb + 207; inkS = .22; inkV = .06; ligH = hb + 207; ligS = .18; ligV = .11; paH = hb + 16; paS = .10; paV = .82; grainOn = .16; gl = 1.55; gwd = .32; }\n\nconst BW = Math.max(360, Math.min(800, Math.round(W * .55))), BH = Math.max(220, Math.round(BW * H / W));\n\n// grain modulation field (expensive \u2014 seed/size/style only)\nif (!S.gm || S.bw !== BW || S.bh !== BH || S.gseed !== P.seed || S.gsty !== st) {\n  S.gm = new Float32Array(BW * BH); S.bw = BW; S.bh = BH; S.gseed = P.seed; S.gsty = st; S.inkKey = null;\n  const gang = fr(91) * Math.PI, gc = Math.cos(gang), gs = Math.sin(gang);\n  const kn = [];\n  for (let k = 0; k < 3; k++) kn.push([fr(k * 5 + 61) * BW, fr(k * 5 + 62) * BH, BW * (.03 + .07 * fr(k * 5 + 63)), (fr(k * 5 + 64) - .5) * 34]);\n  for (let y = 0; y < BH; y++) for (let x = 0; x < BW; x++) {\n    const px = x * gc + y * gs, py = -x * gs + y * gc;\n    let gph = py * .52 + vn(px * .010, py * .004) * 15 + vn(px * .036, py * .015) * 5;\n    for (let k = 0; k < 3; k++) {\n      const dx = x - kn[k][0], dy = y - kn[k][1], r2 = (dx * dx + dy * dy) / (kn[k][2] * kn[k][2]);\n      if (r2 < 9) gph += kn[k][3] * Math.exp(-r2 * .5);\n    }\n    let g = Math.pow(.5 + .5 * Math.sin(gph), 2.3);\n    const spk = hsh(x * .71 + y * .13, y * .83 + x * .29);\n    S.gm[y * BW + x] = clp(g * .62 * grainOn + spk * .13 * grainOn + .04, 0, 1);\n  }\n}\n// ink slab (cheap LUT recolour \u2014 hue is quantized so live sweeps stay smooth)\nconst inkKey = hq + '|' + st;\nif (!S.ink || S.inkKey !== inkKey) {\n  const had = S.ink && S.blk;\n  if (S.ink && S.ink.remove) S.ink.remove();\n  S.ink = createGraphics(BW, BH); S.ink.pixelDensity(1); S.inkKey = inkKey;\n  const ic = rgb(inkH, inkS, inkV), il = rgb(ligH, ligS, ligV);\n  S.ink.loadPixels(); const ip = S.ink.pixels;\n  for (let i = 0, n = BW * BH; i < n; i++) {\n    const m = S.gm[i], o = 4 * i;\n    ip[o] = ic[0] + (il[0] - ic[0]) * m; ip[o + 1] = ic[1] + (il[1] - ic[1]) * m; ip[o + 2] = ic[2] + (il[2] - ic[2]) * m; ip[o + 3] = 255;\n  }\n  S.ink.updatePixels();\n  // re-ink the block without losing a single cut\n  const old = had ? S.blk : null;\n  S.blk = createGraphics(BW, BH); S.blk.pixelDensity(1);\n  const nb = S.blk.drawingContext;\n  nb.drawImage(S.ink.drawingContext.canvas, 0, 0);\n  if (!old) S.warm = 1;\n  if (old && old.width === BW && old.height === BH) {\n    nb.globalCompositeOperation = 'destination-in';\n    nb.drawImage(old.drawingContext.canvas, 0, 0);\n    nb.globalCompositeOperation = 'source-over';\n  }\n  if (old && old.remove) old.remove();\n}\nif (!S.blk || S.blk.width !== BW) {\n  if (S.blk && S.blk.remove) S.blk.remove();\n  S.blk = createGraphics(BW, BH); S.blk.pixelDensity(1);\n  S.blk.drawingContext.drawImage(S.ink.drawingContext.canvas, 0, 0);\n  S.warm = 1;\n}\n\n// stock fibre\nconst TW = Math.max(260, Math.min(640, Math.round(W * .42))), TH = Math.max(150, Math.round(TW * H / W));\nif (!S.tile || S.tw !== TW || S.th !== TH || S.tseed !== P.seed) {\n  if (S.tile && S.tile.remove) S.tile.remove();\n  S.tile = createGraphics(TW, TH); S.tile.pixelDensity(1); S.tw = TW; S.th = TH; S.tseed = P.seed;\n  S.tile.loadPixels(); const tp = S.tile.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    const g1 = hsh(x * .87 + y * .19, y * .93 + x * .11);\n    const g2 = hsh(x * .27 - y * .41 + 7.3, y * .31 + x * .47 + 3.9);\n    const fib = Math.pow(clp(g1 * .8 + g2 * .5 - .14, 0, 1), 1.15);\n    const v = 255 - 52 * fib;\n    const o = 4 * (y * TW + x); tp[o] = v; tp[o + 1] = v; tp[o + 2] = v; tp[o + 3] = 255;\n  }\n  S.tile.updatePixels();\n}\n\n// ---- clock (tolerates t0 resets) ---------------------------------------------\nconst dt = (S.lt == null || K.t < S.lt || K.t - S.lt > .5) ? 1 / 60 : (K.t - S.lt);\nS.lt = K.t;\n\n// ---- act: multi-minute programs ---------------------------------------------\nlet bite = 1;\nif (P.act === 'clear') bite = 1.05 + .95 * (.5 + .5 * Math.sin(K.t * .0061 + .7 * Math.sin(K.t * .0023 + 1.8)));\nelse if (P.act === 'proof') bite = .45 + .55 * (.5 + .5 * Math.sin(K.t * .0133 + 2.2));\nelse bite = .78 + .52 * (.5 + .5 * Math.sin(K.t * .0083 + .6 * Math.sin(K.t * .0031 + 2.7)));\nbite *= (.8 + .4 * K.intensity);\n\n// ---- the drawing the cutter is chasing --------------------------------------\nconst fw = .0038 / (.45 + sc * .8);\nconst dx0 = 3.1 + K.t * .021 * sp + 1.4 * Math.sin(K.t * .0087);\nconst dy0 = 9.7 + K.t * .0131 * sp + 1.1 * Math.sin(K.t * .0113 + 2.1);\nconst lang = K.t * .043 * sp + 1.2 * Math.sin(K.t * .017 + .6) + .5 * Math.sin(K.t * .0371);\nconst tone = (px, py) => {\n  const wx = vn(px * fw * 2.1 + 5.3, py * fw * 2.1 + 1.7);\n  const wy = vn(px * fw * 2.1 + 21.1, py * fw * 2.1 + 9.4);\n  let t = fbm(px * fw + wx * 2.6 + dx0, py * fw + wy * 2.6 + dy0, 4) * 1.8 - .36;\n  t += (.18 + .32 * en) * Math.cos(Math.atan2(py - BH * P.y, px - BW * P.x) - lang);\n  return clp(t, 0, 1);\n};\n\n// ---- cut ---------------------------------------------------------------------\nconst rate = (6 + en * 24) * sp * bite;\nS.cacc = (S.cacc || 0) + rate * dt;\nlet nCut = Math.floor(S.cacc); S.cacc -= nCut;\nif (nCut > 34) nCut = 34;\nif (S.warm) { S.warm = 0; nCut = 340; }   // a fresh block is worked up to equilibrium at once\nconst bc = S.blk.drawingContext;\nif (nCut > 0) {\n  bc.save(); bc.globalCompositeOperation = 'destination-out'; bc.fillStyle = 'rgba(0,0,0,1)';\n  const lw = gl * (.75 + de * .65), ww = gwd * (.75 + de * 1.15);\n  for (let c = 0; c < nCut; c++) {\n    S.gid = (S.gid || 0) + 1;\n    const g = S.gid, q = k => fr(g * 7.13 + k * 1.7 + 3);\n    let bpx = 0, bpy = 0, bt = -1;\n    for (let k = 0; k < 4; k++) {\n      const px = q(k * 2 + 1) * BW, py = q(k * 2 + 2) * BH, t = tone(px, py);\n      if (t > bt) { bt = t; bpx = px; bpy = py; }\n    }\n    if (bt < .30) continue;\n    const e = BW * .014;\n    const gx = tone(bpx + e, bpy) - tone(bpx - e, bpy), gy = tone(bpx, bpy + e) - tone(bpx, bpy - e);\n    let ang = (Math.abs(gx) + Math.abs(gy) < 1e-5) ? lang : Math.atan2(gy, gx) + 1.5708;\n    ang += (q(20) - .5) * .55;\n    const len = BW * (.06 + .15 * q(22)) * lw * (.5 + bt);\n    const wid = BW * (.004 + .010 * q(23)) * ww * (.35 + .9 * bt);\n    const c0 = Math.cos(ang), s0 = Math.sin(ang), N = 8;\n    bc.beginPath();\n    for (let k = 0; k <= N; k++) {\n      const tt = k / N, w2 = wid * Math.pow(Math.sin(tt * Math.PI), .6) * (.65 + .6 * q(k + 40));\n      const ax = bpx + c0 * (tt - .5) * len, ay = bpy + s0 * (tt - .5) * len;\n      if (k) bc.lineTo(ax - s0 * w2, ay + c0 * w2); else bc.moveTo(ax - s0 * w2, ay + c0 * w2);\n    }\n    for (let k = N; k >= 0; k--) {\n      const tt = k / N, w2 = wid * Math.pow(Math.sin(tt * Math.PI), .6) * (.65 + .6 * q(k + 70));\n      const ax = bpx + c0 * (tt - .5) * len, ay = bpy + s0 * (tt - .5) * len;\n      bc.lineTo(ax + s0 * w2, ay + c0 * w2);\n    }\n    bc.closePath(); bc.fill();\n  }\n  bc.restore();\n}\n\n// ---- the roller comes back over: cuts silt up with ink, never quite gone -----\nS.hacc = (S.hacc || 0) + dt;\nif (S.hacc >= .28) {\n  S.hacc = 0;\n  bc.save(); bc.globalCompositeOperation = 'source-over';\n  bc.globalAlpha = clp(.021 * sp, .004, .2);\n  bc.drawImage(S.ink.drawingContext.canvas, 0, 0);\n  bc.restore();\n}\n\n// ---- print -------------------------------------------------------------------\nconst oldA = dc.globalAlpha;\nblendMode(BLEND); noStroke();\ndc.globalAlpha = la;\ndc.fillStyle = css(paH, paS, paV, 1); dc.fillRect(0, 0, W, H);\nblendMode(MULTIPLY);\ndc.globalAlpha = la * .9;\ndc.drawImage(S.tile.drawingContext.canvas, 0, 0, W, H);\nblendMode(BLEND);\nif (st === 'chiaroscuro') {\n  // the tone block goes down first, its highlight scooped out of the middle\n  dc.globalAlpha = la * .72;\n  dc.fillStyle = css(hb + 4, .44, .54, 1); dc.fillRect(0, 0, W, H);\n  const hx = W * (.5 + .18 * Math.sin(K.t * .037 + .4 * Math.sin(K.t * .011))), hy = H * (.42 + .16 * Math.sin(K.t * .029 + 1.7));\n  const hg = dc.createRadialGradient(hx, hy, u * .04, hx, hy, u * (.42 + .18 * Math.sin(K.t * .019 + .9)));\n  hg.addColorStop(0, css(paH, paS, paV, .95)); hg.addColorStop(1, css(paH, paS, paV, 0));\n  dc.globalAlpha = la; dc.fillStyle = hg; dc.fillRect(0, 0, W, H);\n}\ndc.globalAlpha = la;\ndc.drawImage(S.blk.drawingContext.canvas, 0, 0, W, H);\n\n// inking: how heavy the roller was loaded \u2014 haze and squash across the sheet\ndc.globalAlpha = la * de * .32;\ndc.fillStyle = css(inkH, inkS * .85, Math.min(1, inkV * 2.4 + .06), 1); dc.fillRect(0, 0, W, H);\n\n// damp ink catching the light off the press\nconst shp = K.t * .13 + .6 * Math.sin(K.t * .041 + 1.1) + .25 * Math.sin(K.t * .097);\nconst c1 = clp(.5 + .44 * Math.sin(shp), .05, .95);\nconst gg = dc.createLinearGradient(0, 0, W, H);\ngg.addColorStop(Math.max(0, c1 - .30), 'rgba(255,250,238,0)');\ngg.addColorStop(c1, 'rgba(255,250,238,' + (.04 + .20 * en * (1 + .3 * K.swell)).toFixed(3) + ')');\ngg.addColorStop(Math.min(1, c1 + .30), 'rgba(255,250,238,0)');\ndc.globalAlpha = la; dc.fillStyle = gg; dc.fillRect(0, 0, W, H);\n\nconst vg = dc.createRadialGradient(W * .5, H * .5, u * .22, W * .5, H * .5, u * .86);\nvg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,7,4,' + (.18 + .34 * en).toFixed(3) + ')');\ndc.globalAlpha = la; dc.fillStyle = vg; dc.fillRect(0, 0, W, H);\n\ndc.globalAlpha = oldA;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.constellations",
+  "kind": "genart",
+  "name": "Living Constellations",
+  "desc": "A slowly rotating night sky where drifting, twinkling stars perpetually link into glowing constellation line-figures that form, bloom and dissolve across a faint nebula, punctuated by darting shooting stars.",
+  "tags": [
+    "constellation",
+    "constellations",
+    "stars",
+    "starfield",
+    "star",
+    "night",
+    "sky",
+    "nightsky",
+    "cosmos",
+    "cosmic",
+    "space",
+    "astronomy",
+    "zodiac",
+    "celestial",
+    "nebula",
+    "galaxy",
+    "twinkle",
+    "shooting-star",
+    "aurora",
+    "blueprint",
+    "star-map",
+    "navigation",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "blue",
+    "cyan",
+    "gold",
+    "ambient",
+    "dreamy",
+    "serene",
+    "sacred"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "star count (higher = denser field)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "star size / brightness scale"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "sky rotation + twinkle rate"
+    },
+    "connect": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "constellation line strength/frequency"
+    },
+    "twinkle": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "twinkle depth"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "sky/nebula base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "rotation center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "rotation center y"
+    },
+    "style": {
+      "default": "night-sky",
+      "options": [
+        "night-sky",
+        "zodiac-gold",
+        "aurora-sky",
+        "blueprint",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic star arrangement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density: .6, scale: 1, energy: .6, speed: 1, connect: .6, twinkle: .6, hue: 220, x: .5, y: .5, style: 'night-sky', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst TAU = 6.283185307;\nconst NMAX = 1000;\n\n// ---- build starfield + constellation chains on seed change ----\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.stars = [];\n  for (let i = 0; i < NMAX; i++) {\n    const rr = Math.sqrt(fr(i * 3 + 11)) * 1.18;   // uniform disk, slightly beyond frame\n    const aa = fr(i * 3 + 12) * TAU;\n    const b = 0.22 + fr(i * 3 + 13) * 0.78;         // base brightness\n    const tw = fr(i * 3 + 14) * TAU;                // twinkle phase\n    const twr = 0.5 + fr(i * 3 + 15) * 1.9;         // twinkle rate\n    const big = fr(i * 3 + 16);                     // size roll (few big anchors)\n    const tint = fr(i * 3 + 17);                    // color variation\n    S.stars.push({ rr, aa, b, tw, twr, big, tint, cx: Math.cos(aa) * rr, cy: Math.sin(aa) * rr });\n  }\n  // constellation groups: greedy nearest-neighbour chains among inner bright stars\n  S.groups = [];\n  const GN = 15;\n  for (let g = 0; g < GN; g++) {\n    const start = Math.floor(fr(g * 7 + 101) * 300);\n    const chain = [start];\n    let cur = start;\n    const L = 3 + Math.floor(fr(g * 7 + 102) * 4);\n    for (let k = 0; k < L; k++) {\n      let best = -1, bd = 1e9;\n      const cs = S.stars[cur];\n      for (let j = 0; j < 340; j++) {\n        if (chain.indexOf(j) >= 0) continue;\n        const s2 = S.stars[j];\n        const dx = s2.cx - cs.cx, dy = s2.cy - cs.cy, d = dx * dx + dy * dy;\n        if (d < bd && d > 0.0005) { bd = d; best = j; }\n      }\n      if (best < 0 || bd > 0.09) break;\n      chain.push(best); cur = best;\n    }\n    if (chain.length >= 3) S.groups.push({ chain, ph: fr(g * 7 + 103) * TAU, rate: 0.6 + fr(g * 7 + 104) * 1.1 });\n  }\n}\n\n// ---- style palette config ----\nconst h0 = P.hue;\nlet baseC, cloudHues, lineA, lineB, schematic = false, mono = false, starFn;\nif (P.style === 'zodiac-gold') {\n  baseC = [258, 55, 10];\n  cloudHues = [[42, 70, 30], [30, 75, 22], [278, 45, 18]];\n  lineA = [45, 85, 96]; lineB = [30, 92, 90];\n  starFn = t => t < 0.6 ? [46, 30 + t * 40, 0] : (t < 0.85 ? [38, 60, 0] : [30, 15, 0]);\n} else if (P.style === 'aurora-sky') {\n  baseC = [202, 68, 10];\n  cloudHues = [[158, 70, 30], [176, 65, 26], [120, 60, 22], [268, 45, 16]];\n  lineA = [165, 80, 96]; lineB = [110, 78, 92];\n  starFn = t => t < 0.6 ? [190, 18 + t * 25, 0] : (t < 0.85 ? [160, 40, 0] : [0, 0, 0]);\n} else if (P.style === 'blueprint') {\n  baseC = [214, 82, 26];\n  cloudHues = [[214, 70, 32], [210, 60, 30]];\n  lineA = [208, 12, 100]; lineB = [208, 28, 92];\n  schematic = true;\n  starFn = t => [208, 10, 0];\n} else if (P.style === 'mono') {\n  baseC = [220, 8, 6];\n  cloudHues = [[0, 0, 16], [220, 6, 14]];\n  lineA = [0, 0, 82]; lineB = [0, 0, 58];\n  mono = true;\n  starFn = t => [0, 0, 0];\n} else { // night-sky (default)\n  baseC = [222, 70, 11];\n  cloudHues = [[(h0 - 18 + 360) % 360, 60, 30], [(h0 + 20) % 360, 55, 26], [192, 70, 30], [276, 50, 22]];\n  lineA = [188, 80, 96]; lineB = [45, 82, 95];\n  starFn = t => t < 0.55 ? [210, 22 + t * 30, 0] : (t < 0.85 ? [45, 45, 0] : [0, 0, 0]);\n}\n\n// ---- nebula backdrop buffer (rebuild on size/style/seed/hue) ----\nconst BW = 240, BH = Math.max(90, Math.round(BW * height / width));\nconst nkey = BW + 'x' + BH + '|' + P.style + '|' + (P.seed | 0) + '|' + Math.round(P.hue / 8);\nif (!S.neb || S.neb.width !== BW || S.neb.height !== BH) { S.neb = createGraphics(BW, BH); S.neb.pixelDensity(1); S.nkey = null; }\nif (S.nkey !== nkey) {\n  S.nkey = nkey;\n  const g = S.neb;\n  g.colorMode(HSB, 360, 100, 100, 100);\n  g.noStroke();\n  g.background(baseC[0], baseC[1], baseC[2]);\n  if (schematic) {\n    // technical grid + faint wash\n    g.push(); g.blendMode(BLEND); g.stroke(208, 30, 44, 40); g.strokeWeight(1);\n    const step = BW / 16;\n    for (let gx = 0; gx <= BW; gx += step) g.line(gx, 0, gx, BH);\n    for (let gy = 0; gy <= BH; gy += step) g.line(0, gy, BW, gy);\n    g.pop();\n  } else {\n    g.blendMode(ADD);\n    const NC = 30;\n    for (let c = 0; c < NC; c++) {\n      const ch = cloudHues[c % cloudHues.length];\n      const px = fr(c * 5 + 301) * BW, py = fr(c * 5 + 302) * BH;\n      const rad = BW * (0.14 + fr(c * 5 + 303) * 0.42);\n      const al = 3 + fr(c * 5 + 304) * 7;\n      const layers = 5;\n      for (let q = 0; q < layers; q++) {\n        const rr = rad * (1 - q / layers);\n        g.fill(ch[0], ch[1], ch[2], al);\n        g.ellipse(px, py, rr * 2, rr * 2);\n      }\n    }\n    g.blendMode(BLEND);\n  }\n  g.colorMode(RGB, 255);\n}\n\n// ---- per-frame dynamics ----\nconst halfD = 0.5 * Math.hypot(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst rot = K.t * (0.010 + 0.020 * P.speed);\nconst cosr = Math.cos(rot), sinr = Math.sin(rot);\nconst af = P.alpha / 100;\nconst expo = 0.65 + P.energy * 0.55 + A.bass * 0.7 + K.intensity * 0.2;\nconst twk = 0.35 + P.twinkle * 0.6;\nconst nStars = Math.min(NMAX, Math.floor(200 + P.density * 800));\nconst baseSz = (0.7 + P.scale * 1.5);\nconst trebleSpark = A.treble * 3;\n\n// backdrop\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.neb, 0, 0, width, height);\npop();\n\n// constellation lines (under stars)\npush();\nblendMode(ADD);\nnoFill();\nfor (let gi = 0; gi < S.groups.length; gi++) {\n  const grp = S.groups[gi];\n  const env = Math.pow(0.5 + 0.5 * Math.sin(K.t * (0.11 + 0.07 * P.speed) * grp.rate + grp.ph + K.section * 0.6), 2.3);\n  const la = env * (0.3 + P.connect * 0.95) * (0.55 + P.energy * 0.6) * (0.8 + A.mid * 0.6) * af;\n  if (la < 0.02) continue;\n  const col = (gi % 2) ? lineB : lineA;\n  stroke(col[0], col[1], col[2], Math.min(85, la * 78));\n  strokeWeight(schematic ? 1.0 : 0.8 + la * 1.7);\n  beginShape();\n  for (let ci = 0; ci < grp.chain.length; ci++) {\n    const s = S.stars[grp.chain[ci]];\n    const px = cx + halfD * (s.cx * cosr - s.cy * sinr);\n    const py = cy + halfD * (s.cx * sinr + s.cy * cosr);\n    vertex(px, py);\n  }\n  endShape();\n}\nblendMode(BLEND);\npop();\n\n// stars\npush();\nblendMode(ADD);\nnoStroke();\nfor (let i = 0; i < nStars; i++) {\n  const s = S.stars[i];\n  const px = cx + halfD * (s.cx * cosr - s.cy * sinr);\n  const py = cy + halfD * (s.cx * sinr + s.cy * cosr);\n  if (px < -30 || px > width + 30 || py < -30 || py > height + 30) continue;\n  const tw = (1 - twk) + twk * (0.5 + 0.5 * Math.sin(K.t * s.twr * (0.7 + P.speed * 0.4) + s.tw + trebleSpark));\n  const bght = Math.min(1, s.b * tw * expo);\n  const sz = baseSz * (0.55 + s.big * 1.9) * (0.65 + bght * 0.7);\n  const c = starFn(s.tint);\n  const sat = mono ? 0 : (schematic ? 8 : c[1]);\n  const hue = c[0];\n  fill(hue, sat, 55 + 45 * bght, (28 + 62 * bght) * af);\n  if (schematic) {\n    // schematic star ticks (plus mark)\n    const r = sz * 1.6;\n    rectMode(CENTER);\n    rect(px, py, r, 0.9); rect(px, py, 0.9, r);\n    rectMode(CORNER);\n  } else {\n    ellipse(px, py, sz, sz);\n    if (s.big > 0.86 && bght > 0.45) {\n      fill(hue, sat * 0.6, 100, 11 * bght * af);\n      ellipse(px, py, sz * 4.2, sz * 4.2);\n    }\n  }\n}\nblendMode(BLEND);\npop();\n\n// shooting star (continuous, periodic, small-area)\nconst per = Math.max(2.2, 6.0 - Math.min(3.4, P.speed * 1.3));\nconst cyc = Math.floor(K.t / per);\nconst frc = (K.t - cyc * per) / per;\nif (frc < 0.15 && P.energy > 0.05) {\n  const life = frc / 0.15;\n  const ang = fr(cyc * 13 + 201) * TAU;\n  const dx = Math.cos(ang), dy = Math.sin(ang);\n  const sx = (fr(cyc * 13 + 202)) * width;\n  const sy = (fr(cyc * 13 + 203)) * height * 0.7;\n  const travel = halfD * 1.3;\n  const hx = sx + dx * life * travel, hy = sy + dy * life * travel;\n  const fade = Math.sin(life * Math.PI);\n  push();\n  blendMode(ADD);\n  const tailN = 14;\n  for (let s = 0; s < tailN; s++) {\n    const f = s / tailN;\n    const tx = hx - dx * f * 70 * (0.6 + P.scale * 0.5);\n    const ty = hy - dy * f * 70 * (0.6 + P.scale * 0.5);\n    noStroke();\n    const hc = mono ? [0, 0] : (schematic ? [208, 12] : [190, 30]);\n    fill(hc[0], hc[1], 100, (1 - f) * 55 * fade * af);\n    circle(tx, ty, (1 - f) * (2.4 + P.scale * 1.6) + 0.8);\n  }\n  fill(0, 0, 100, 80 * fade * af);\n  circle(hx, hy, 2.5 + P.scale * 1.4);\n  blendMode(BLEND);\n  pop();\n}\n"
+}

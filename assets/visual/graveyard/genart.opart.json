@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.opart",
+  "kind": "genart",
+  "name": "Op-Art Warp",
+  "desc": "A precision black-and-white Vasarely grid deformed by an invisible lens that orbits the frame, cells magnifying and twisting into a breathing sphere-illusion dome.",
+  "tags": [
+    "op-art",
+    "opart",
+    "vasarely",
+    "optical",
+    "illusion",
+    "grid",
+    "warp",
+    "lens",
+    "bulge",
+    "sphere",
+    "vega",
+    "geometric",
+    "generative",
+    "kinetic",
+    "hypnotic",
+    "monochrome",
+    "black-and-white",
+    "moire",
+    "halftone",
+    "thermal",
+    "false-color",
+    "abstract",
+    "procedural",
+    "bridget-riley",
+    "distortion",
+    "bg",
+    "background",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grid fineness \u2014 higher packs a finer cell lattice"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "warp depth \u2014 magnification amplitude of the lens dome"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "lens-orbit + beat-pop rate (beats/real-time relative)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "cell/mark size vs design size"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "primary ink/tint hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lens home x (orbit/breathe center)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lens home y (orbit/breathe center)"
+    },
+    "warp": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lens radius + displacement strength"
+    },
+    "style": {
+      "default": "vasarely",
+      "options": [
+        "vasarely",
+        "moire",
+        "halftone",
+        "thermal"
+      ],
+      "doc": "render philosophy \u2014 hard-edge b&w squares / interference banding / halftone dot-screen / heat false-color"
+    },
+    "act": {
+      "default": "orbit",
+      "options": [
+        "orbit",
+        "pulse",
+        "breathe"
+      ],
+      "doc": "dramaturgy \u2014 lens circles / snaps between anchors on beat / central radius pump"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "orbit-phase + banding seed (hash-deterministic)"
+    }
+  },
+  "acts": [
+    "orbit",
+    "pulse",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density:.5, energy:.6, speed:1, scale:1, hue:210, x:.5, y:.5, warp:.6, style:'vasarely', act:'orbit', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style;\nconst vasa=style==='vasarely', moire=style==='moire', half=style==='halftone', therm=style==='thermal';\nconst hue=md(P.hue,360);\nconst dens=clp(P.density,0,1);\nconst en=clp(P.energy,0,1);\nconst intens=.55+.6*K.intensity;\n\n// grid fineness from density (FIRST poke param \u2014 structural, obvious change)\nconst N=Math.round(8+dens*15);\nconst cell=u/N;\nconst cols=Math.ceil(W/cell)+1, rows=Math.ceil(Hh/cell)+1;\n\n// warp amplitude (SECOND poke param via energy) + independent warp radius/strength\nconst warp=clp(P.warp,0,1);\nconst amp=(.3+.9*en)*intens*(.4+warp);           // magnification depth\nconst R=u*(.24+.5*warp);                          // lens radius\nconst spd=P.speed;\n\n// ---- bulge center: orbits continuously on K.t (real-time motion floor, never rephases) ----\nconst drift=K.t*0.055*spd;\nlet ox,oy,orbR=u*(.12+.16*warp);\nif(P.act==='pulse'){                              // bulge snaps between anchors on the beat\n  const idx=Math.floor(K.beat*spd);\n  ox=W*(.5+.30*Math.sin(idx*2.399+P.seed))+u*0.03*Math.sin(K.t*.7);\n  oy=Hh*(.5+.30*Math.cos(idx*1.717+P.seed))+u*0.03*Math.cos(K.t*.6);\n}else if(P.act==='breathe'){                      // bulge stays central, radius pumps\n  ox=P.x*W+u*0.05*Math.sin(K.t*.3);\n  oy=P.y*Hh+u*0.05*Math.cos(K.t*.27);\n}else{                                            // orbit (default)\n  ox=P.x*W+orbR*Math.cos(drift+P.seed*0.7);\n  oy=P.y*Hh+orbR*0.72*Math.sin(drift*1.13+P.seed*0.4);\n}\nconst breath=P.act==='breathe'? (0.55+0.7*(0.5+0.5*Math.sin(K.t*.6))) : 1;\nconst beatMag=1+(0.35*K.pulse+0.45*A.bass)*intens;   // pop on the kick, audio on top\nconst ampF=amp*breath*beatMag;\n\n// heat ramp for thermal false-color\nfunction heat(t){t=clp(t,0,1);\n  if(t<.25){const k=t/.25;return[md(250-40*k,360),85-15*k,18+40*k];}\n  if(t<.5){const k=(t-.25)/.25;return[md(210-120*k,360),80,58+22*k];}\n  if(t<.75){const k=(t-.5)/.25;return[md(330+ (30*k),360),85-25*k,80+15*k];}\n  const k=(t-.75)/.25;return[md(15+40*k,360),60-45*k,95+5*k];\n}\n\n// backdrop\nnoStroke();\nif(vasa){ background(hue,6,7); }\nelse if(moire){ background(hue,20,6); }\nelse if(half){ background(md(hue+8,360),12,93); }\nelse { background(245,70,7); }\n\nrectMode(CENTER);\nconst lw=cell*clp(P.scale,.4,2);\nconst swf=K.swell;\n\nfor(let j=0;j<rows;j++){\n  const gy=(j+0.5)*cell;\n  for(let i=0;i<cols;i++){\n    const gx=(i+0.5)*cell;\n    const dx=gx-ox, dy=gy-oy, d=Math.hypot(dx,dy)+1e-4;\n    const g=Math.exp(-(d*d)/(R*R));               // gaussian bump\n    const m=1+ampF*g;                             // magnification near bulge\n    const push=ampF*g*R*0.28;                     // slight outward displacement -> dome\n    const nx=gx+(dx/d)*push, ny=gy+(dy/d)*push;\n    const rot=g*ampF*1.15 + (moire?0:0);          // twist grid into the lens\n    const sz=lw*m;\n    if(nx<-cell||nx>W+cell||ny<-cell||ny>Hh+cell) continue;\n\n    const par=(i+j)&1;\n    const twist=rot>0.02;                          // only pay push/pop where the lens twists\n    if(twist){ push(); translate(nx,ny); rotate(rot); }\n    const dx0=twist?0:nx, dy0=twist?0:ny;          // draw at origin when transformed, else in-place\n    if(vasa){\n      // hard-edge b&w squares; brightness graded across the dome for tonal sphere\n      const shade=par? clp(96-46*g,10,96) : clp(8+40*g,4,70);\n      noStroke(); fill(hue,par?5:10,shade); rect(dx0,dy0,sz*0.98,sz*0.98);\n    } else if(moire){\n      // interference banding: brightness = high-freq fn of warped distance -> shimmering moire\n      const band=0.5+0.5*Math.sin(d*(0.16+0.05*dens) - K.t*1.3*spd + g*7);\n      const b2=0.5+0.5*Math.sin(d*0.09 + K.t*0.6 + par*3.14);\n      const bb=clp(14+82*band*b2,3,97);\n      noStroke(); fill(md(hue+ band*40,360), 24+50*g, bb); rect(dx0,dy0,sz*0.96,sz*0.96);\n    } else if(half){\n      // halftone screen: dot radius from field -> dome reads as a bright bulge\n      const dotr=sz*0.5*(0.14+0.9*(1-g*0.85));\n      noStroke(); fill(md(hue+4,360), 14, 16); circle(dx0,dy0,dotr);\n    } else {\n      // thermal false-color by bulge magnitude + radial base gradient\n      const base=clp(0.16 + g*0.8 + 0.12*Math.sin(d*0.02 - K.t*0.5),0,1);\n      const c=heat(base);\n      noStroke(); fill(c[0],c[1],c[2]); rect(dx0,dy0,sz*0.99,sz*0.99);\n    }\n    if(twist) pop();\n  }\n}\n\n// faint specular highlight rim so the sphere reads (few shapes, ADD)\nif(!half){\n  blendMode(ADD);\n  const hb=therm?55: (moire? md(hue+60,360): (vasa?hue:hue));\n  const hl=u*(0.05+0.10*ampF);\n  drawingContext.shadowBlur=0;\n  for(let k=3;k>=1;k--){ noStroke(); fill(hb, therm?20:12, 100, (therm?7:9)*(0.5+0.6*en)*k/3); circle(ox-hl*0.4,oy-hl*0.4, hl*k*1.3*(0.7+0.5*swf)); }\n  // treble sparkle riding the rim\n  if(A.treble>0.05){ const ns=Math.floor(14*A.treble); for(let s=0;s<ns;s++){ const a=fr(s*3.3+Math.floor(K.beat*2))*TAU; fill(hb,20,100,50*A.treble); circle(ox+Math.cos(a)*R*0.7, oy+Math.sin(a)*R*0.7, u*0.006); } }\n  blendMode(BLEND);\n}\nrectMode(CORNER);\ndrawingContext.shadowBlur=0;\n",
+  "last_fail": {
+    "at": "2026-07-11T14:43:54+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0000 <= 0.004"
+  }
+}

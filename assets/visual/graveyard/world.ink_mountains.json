@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.ink_mountains",
+  "kind": "world",
+  "name": "Ink-Wash Mountains",
+  "desc": "Receding sumi-e mountain ridges in tonal washes and broken dry-brush crests, banks of fog drifting between them while a lone boat crosses the water over minutes beneath a vermilion seal.",
+  "tags": [
+    "sumi-e",
+    "sumi",
+    "ink",
+    "ink-wash",
+    "mountains",
+    "landscape",
+    "fog",
+    "mist",
+    "brush",
+    "dry-brush",
+    "japanese",
+    "chinese",
+    "shanshui",
+    "nihonga",
+    "monochrome",
+    "zen",
+    "boat",
+    "seal",
+    "ridges",
+    "calm",
+    "serene",
+    "meditative",
+    "misty",
+    "world",
+    "background",
+    "minimal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ridge count + dry-brush stipple (rebuilds scene)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "boat / moon / seal size"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "boat + storm motion amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "fog + boat drift rate"
+    },
+    "fog": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fog-band count + opacity"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "composition anchor x"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "composition anchor y"
+    },
+    "style": {
+      "default": "sumi",
+      "options": [
+        "sumi",
+        "blueprint",
+        "neon"
+      ],
+      "doc": "aesthetic: brushed tonal washes w/ dry-brush crest / white schematic contour lines on cyanotype (abstract) / glowing outline ridges on near-black"
+    },
+    "pal": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "indigo",
+        "sepia",
+        "jade"
+      ],
+      "doc": "paper+ink colorway"
+    },
+    "act": {
+      "default": "voyage",
+      "options": [
+        "voyage",
+        "moor",
+        "storm"
+      ],
+      "doc": "multi-minute program: voyage a slow crossing, moor holds near center, storm brings raking rain"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "ridge silhouettes + paper mottle layout"
+    }
+  },
+  "acts": [
+    "voyage",
+    "moor",
+    "storm"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { scale:1, density:.5, energy:.5, hue:210, speed:1, fog:.6, x:.5, y:.6, style:'sumi', pal:'ink', act:'voyage', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2;\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst style=P.style, blueprint=style==='blueprint', neon=style==='neon';\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1)*(.5+.5*K.intensity);\n\n// palette: paper + ink tone\nconst PALS={ink:[42,10,92,210,20], indigo:[224,24,26,214,55], sepia:[34,26,88,28,60], jade:[70,14,90,150,45]};\nconst pal=PALS[P.pal]||PALS.ink;\nlet paperH=pal[0],paperS=pal[1],paperB=pal[2], inkH=md(pal[3]+(P.hue-210),360), inkBias=pal[4];\nif(blueprint){paperH=214;paperS=70;paperB=30;inkH=200;}\nif(neon){paperH=270;paperS=45;paperB=16;inkH=md(P.hue,360);}\nconst darkPaper=paperB<40;\n\n// number of mountain ridges\nconst NR=Math.max(3, Math.round(3+dens*5));\n\n// build cached ridge buffer, keyed on size/seed/style/densBucket/pal\nconst dB=Math.round(dens*4);\nconst key=W+'x'+Hh+'|'+P.seed+'|'+style+'|'+P.pal+'|'+dB+'|'+NR;\nif(S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Hh); g.colorMode(g.HSB,360,100,100,100); g.clear(); g.noStroke();\n  // paper tone underlaid so buffer is opaque (world owns bg)\n  g.fill(paperH,paperS,paperB); g.rect(0,0,W,Hh);\n  // soft paper mottle\n  g.noStroke();\n  for(let i=0;i<60;i++){const x=fr(i*1.3)*W,y=fr(i*2.7)*Hh; g.fill(paperH,paperS+6,paperB+(fr(i)*8-4),6); g.circle(x,y,u*(0.05+0.15*fr(i*3)));}\n  // ridges back(light)->front(dark): tonal wash + dry-brush crest\n  for(let r=0;r<NR;r++){\n    const dep=r/(NR-1);               // 0 far .. 1 near\n    const baseY=Hh*(0.30+0.52*dep);\n    const amp=u*(0.06+0.10*fr(r*7+1))*(0.5+0.8*dep);\n    const wl=0.8+fr(r*4+2)*1.8, ph=fr(r*5)*TAU;\n    const tone= blueprint? 0 : clp(6+68*dep,6,86);   // darker toward front\n    const bri = darkPaper? (blueprint?0: (neon? 100: 96-70*dep)) : (96-78*dep);\n    const sat = blueprint? 6 : (neon? 70 : inkBias*(0.5+0.6*dep));\n    const yof=(x)=> baseY - amp*Math.sin(x/W*TAU*wl+ph) - amp*0.45*Math.sin(x/W*TAU*wl*2.7+ph*1.7) - amp*0.2*fr(Math.floor(x/9)+r*31);\n    // tonal wash fill (the mountain mass)\n    g.noStroke();\n    if(neon){ g.stroke(inkH,sat,bri,90); g.strokeWeight(1.4+2*dep); g.noFill(); }\n    else { g.fill(inkH,sat,bri,blueprint?0:(66+24*dep)); }\n    if(!neon){\n      g.beginShape(); g.vertex(0,Hh);\n      for(let x=0;x<=W;x+=6) g.vertex(x, yof(x));\n      g.vertex(W,Hh); g.endShape(g.CLOSE);\n    } else {\n      g.beginShape();\n      for(let x=0;x<=W;x+=6) g.vertex(x, yof(x));\n      g.endShape();\n    }\n    // dry-brush / linework crest\n    if(blueprint){ g.stroke(200,10,98,80); g.strokeWeight(1.0+dep); g.noFill();\n      g.beginShape(); for(let x=0;x<=W;x+=6) g.vertex(x,yof(x)); g.endShape(); }\n    else if(!neon){\n      g.noFill(); g.stroke(inkH,sat+10,Math.max(4,bri-30),70); g.strokeWeight(1.0+2.4*dep);\n      let prevBreak=0;\n      g.beginShape();\n      for(let x=0;x<=W;x+=6){ const br=fr(Math.floor(x/7)+r*13); if(br<0.12*(1-dens*0.5)){ g.endShape(); g.beginShape(); } g.vertex(x, yof(x)+ (fr(x+r)*2-1)*1.2 ); }\n      g.endShape();\n      // dry-brush stipple on the mass\n      const nd=Math.floor(u*0.5*dens*(0.3+dep));\n      g.noStroke(); g.fill(inkH,sat,Math.max(4,bri-24),22);\n      for(let i=0;i<nd;i++){const x=fr(i*1.7+r*99)*W; const yy=yof(x)+fr(i*3+r)*amp*1.4; if(yy<Hh) g.circle(x,yy,u*0.006*(0.5+fr(i)));}\n    }\n  }\n  S.ridge=g;\n  S.ridgeInfo={NR};\n  // seal stamp sprite (vermilion) baked once\n  const ss=Math.ceil(u*0.06); const seal=createGraphics(ss,ss); seal.colorMode(seal.HSB,360,100,100,100); seal.clear();\n  seal.noFill(); seal.stroke(8,85,88,92); seal.strokeWeight(ss*0.09); seal.rect(ss*0.12,ss*0.12,ss*0.76,ss*0.76);\n  seal.strokeWeight(ss*0.06);\n  for(let i=0;i<3;i++){seal.line(ss*0.28,ss*(0.3+i*0.2),ss*0.72,ss*(0.3+i*0.2));}\n  seal.line(ss*0.5,ss*0.28,ss*0.5,ss*0.72);\n  S.seal=seal; S.ss=ss;\n}\n\n// ---- LIVE ----\nnoStroke();\n// base paper (in case buffer offset leaves edge)\nbackground(paperH,paperS,paperB);\nimage(S.ridge,0,0);\n\nconst oldOp=drawingContext.globalCompositeOperation;\n\n// drifting fog bands between ridges (real-time, never re-phasing)\nconst fogN=Math.floor(3+4*clp(P.fog,0,1));\nconst fogCol= darkPaper? [paperH,10,paperB+30] : [paperH,4,98];\nblendMode(darkPaper?SCREEN:BLEND);\nfor(let i=0;i<fogN;i++){\n  const fy=Hh*(0.32+0.44*fr(i*3.1+2));\n  const drift=md(K.t*(6+i*3)*(0.4+0.6*P.speed) + fr(i*7)*W, W+u)-u*0.5;\n  const bob=u*0.02*Math.sin(K.t*0.3+i*1.3);\n  const a=(darkPaper?12:26)*clp(P.fog,0,1)*(0.6+0.5*Math.sin(K.t*0.2+i));\n  fill(fogCol[0],fogCol[1],fogCol[2], clp(a,3,40));\n  ellipse(drift, fy+bob, u*(0.5+0.3*fr(i*5)), u*(0.05+0.05*fr(i*9)));\n}\nblendMode(BLEND);\n\n// tiny boat crossing over minutes (act arc)\nlet boatT;\nif(P.act==='moor'){ boatT=0.5+0.06*Math.sin(K.t*0.05); }\nelse if(P.act==='storm'){ boatT=frc(K.t*0.02); }\nelse { boatT=frc(K.t*0.008 + P.seed*0.13); } // voyage: slow drift across in ~2min\nconst bx=W*(0.06+0.88*boatT), by=Hh*(0.80)+u*0.012*Math.sin(K.t*0.8);\npush(); translate(bx,by);\nconst bs=u*0.05*P.scale*(0.8+0.4*clp(P.energy,0,1));\nstroke(inkH, blueprint?8:40, blueprint?98:14, 88); strokeWeight(Math.max(1,bs*0.06)); noFill();\nbeginShape(); vertex(-bs,0); bezierVertex(-bs*0.7,bs*0.5,bs*0.7,bs*0.5,bs,0); endShape();\nline(0,0,0,-bs*0.7); // mast\nfill(inkH, blueprint?8:40, blueprint?98:22, 70); noStroke();\ntriangle(0,-bs*0.66, 0,-bs*0.1, bs*0.6,-bs*0.2); // sail\n// wake ripple\nstroke(inkH,20,darkPaper?70:30,40); strokeWeight(1); noFill();\nfor(let i=1;i<=2;i++){arc(-bs*i*1.4, bs*0.2, bs*i*1.6, bs*0.5, 0.15*Math.PI, 0.85*Math.PI);}\npop();\n\n// storm act: raking rain streaks (real-time)\nif(P.act==='storm'){\n  stroke(inkH,10,darkPaper?80:20, 30+20*en); strokeWeight(1);\n  const rn=Math.floor(40*dens+20), sk=u*0.10*(0.6+en);\n  for(let i=0;i<rn;i++){const rx=md(fr(i*2.3)*W - K.t*u*0.5, W+u)-u*0.5; const ry=md(fr(i*5.1)*Hh + K.t*u*0.9, Hh+u)-u*0.5; line(rx,ry,rx-sk*0.3,ry+sk);}\n}\n\n// low moon / sun disc that breathes (adds continuous soft motion)\nconst mR=u*0.09*P.scale*(0.9+0.12*K.swell+0.2*A.rms);\nnoStroke(); blendMode(darkPaper?SCREEN:BLEND);\nfill(neon?inkH:(darkPaper?paperH:8), neon?60:(darkPaper?8:70), darkPaper?90:(neon?100:88), darkPaper?26:20);\ncircle(W*(P.x*0.4+0.5), Hh*(0.22)+u*0.01*Math.sin(K.t*0.3), mR*2);\nblendMode(BLEND);\n\n// vermilion seal stamp (lower-right), gentle presence pulse\nconst sealX=W*(P.x*0.2+0.80), sealY=Hh*0.86;\npush(); translate(sealX,sealY); const sp=1+0.04*K.swell; image(S.seal,-S.ss*sp/2,-S.ss*sp/2,S.ss*sp,S.ss*sp); pop();\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.shadowBlur=0; noStroke();\n",
+  "last_fail": {
+    "at": "2026-07-11T14:20:02+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0014 <= 0.004"
+  }
+}

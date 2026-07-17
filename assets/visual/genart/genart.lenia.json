@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lenia",
+  "kind": "genart",
+  "name": "Lenia Lifeforms",
+  "desc": "Bert Chan's Lenia \u2014 a continuous cellular automaton whose smooth ring-kernel convolution and Gaussian growth breed glowing orbium-like creatures that glide, pulse, split and self-organize across the field; renders as bioluminescent deep-sea blooms, thermal, green cell-membrane, magenta plasma, or dark sumi ink on cream.",
+  "tags": [
+    "lenia",
+    "smooth-life",
+    "continuous-ca",
+    "cellular-automata",
+    "artificial-life",
+    "alife",
+    "orbium",
+    "emergent",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "organic",
+    "creature",
+    "bioluminescent",
+    "convolution",
+    "morphogenesis",
+    "self-organizing",
+    "field",
+    "glow",
+    "deep-sea",
+    "edgy"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "creature / kernel radius (bigger = larger lifeforms)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many seed colonies spawn (more = fuller frame)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow of the creatures"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.1,
+      "max": 3.0,
+      "doc": "evolution rate (sim steps per frame)"
+    },
+    "mu": {
+      "default": 0.15,
+      "min": 0.1,
+      "max": 0.3,
+      "doc": "growth center \u2014 morphs creature species/behavior"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "(reserved) seed bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "(reserved) seed bias y"
+    },
+    "style": {
+      "default": "bioluminescent",
+      "options": [
+        "bioluminescent",
+        "thermal",
+        "membrane",
+        "plasma",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic colony seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:40:12+00:00",
+    "fps": 60.2,
+    "motion": 0.0169,
+    "lum": 0.226
+  },
+  "code": "const D = { scale:1, density:.55, energy:.6, speed:1, mu:.15, hue:196, x:.5, y:.5, style:'bioluminescent', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst style = P.style;\n// coarse Lenia grid (continuous CA); image()-upscaled\nconst GW = 108, GH = Math.max(48, Math.round(GW * height / width));\nconst N = GW * GH;\nconst R = Math.max(5, Math.min(18, Math.round(7 + P.scale * 6)));   // kernel radius (creature size)\n\nfunction fr(i){ const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); }\n\n// (re)allocate fields + buffer on size change\nif (!S.g || S.gw !== GW || S.gh !== GH) {\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1); S.gw = GW; S.gh = GH;\n  S.A = new Float32Array(N); S.U = new Float32Array(N); S.seeded = false; S.Rused = -1;\n}\n// (re)build sparse ring kernel on radius change (Lenia shell kernel)\nif (S.Rused !== R) {\n  S.Rused = R;\n  const kdx = [], kdy = [], kw = [];\n  let sum = 0;\n  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {\n    const rr = Math.sqrt(dx*dx + dy*dy) / R;\n    if (rr < 1e-6 || rr >= 1) continue;\n    const w = Math.exp(-((rr - 0.5)*(rr - 0.5)) / (2*0.15*0.15));  // single ring bump at r=0.5\n    if (w < 0.02) continue;\n    kdx.push(dx); kdy.push(dy); kw.push(w); sum += w;\n  }\n  for (let k = 0; k < kw.length; k++) kw[k] /= sum;\n  S.kdx = Int16Array.from(kdx); S.kdy = Int16Array.from(kdy); S.kw = Float32Array.from(kw); S.kn = kw.length;\n}\n\n// smooth blob seeder\nfunction seedBlob(cx, cy, rad, amp) {\n  const Ar = S.A;\n  for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {\n    const d = Math.sqrt(dx*dx + dy*dy) / rad; if (d >= 1) continue;\n    let gx = ((cx + dx) % GW + GW) % GW, gy = ((cy + dy) % GH + GH) % GH;\n    const v = amp * (0.5 + 0.5*Math.cos(Math.PI*d)) * (0.6 + 0.4*fr(dx*7+dy*13+cx));\n    const idx = gy*GW + gx; Ar[idx] = Math.min(1, Ar[idx] + v);\n  }\n}\n\n// initial seeding (several blobs so creatures fill the frame)\nif (!S.seeded || S.seedUsed !== P.seed) {\n  S.seeded = true; S.seedUsed = P.seed;\n  S.A.fill(0);\n  const nb = 3 + Math.round(P.density * 7);\n  for (let b = 0; b < nb; b++) {\n    const cx = Math.floor(fr(b*3+1) * GW), cy = Math.floor(fr(b*3+2) * GH);\n    seedBlob(cx, cy, R, 0.7 + fr(b*3+3)*0.3);\n  }\n  S.reseedAt = 0;\n}\n\nconst Ar = S.A, Ur = S.U, kdx = S.kdx, kdy = S.kdy, kw = S.kw, kn = S.kn;\nconst mu = P.mu, sig = 0.025;\nconst dt = 0.11;\nconst steps = Math.max(1, Math.min(3, Math.round(P.speed * 1.4)));\nconst g2 = 2; // growth amplitude\n\n// ---- Lenia update: A += dt * G( conv(A, ring) ) ----\nfor (let st = 0; st < steps; st++) {\n  // convolution -> U (potential), with wrap-around\n  for (let y = 0; y < GH; y++) {\n    for (let x = 0; x < GW; x++) {\n      let u = 0;\n      for (let k = 0; k < kn; k++) {\n        let sx = x + kdx[k]; if (sx < 0) sx += GW; else if (sx >= GW) sx -= GW;\n        let sy = y + kdy[k]; if (sy < 0) sy += GH; else if (sy >= GH) sy -= GH;\n        u += Ar[sy*GW + sx] * kw[k];\n      }\n      Ur[y*GW + x] = u;\n    }\n  }\n  // growth\n  const audioMu = mu + A.bass * 0.02;   // audio nudges morphology on top of baseline\n  for (let i = 0; i < N; i++) {\n    const u = Ur[i];\n    const grow = g2 * Math.exp(-((u - audioMu)*(u - audioMu)) / (2*sig*sig)) - 1;\n    let a = Ar[i] + dt * grow;\n    Ar[i] = a < 0 ? 0 : (a > 1 ? 1 : a);\n  }\n}\n\n// homeostasis: measure mass; reseed if the colony dies out or on section change (keeps it perpetually alive)\nlet mass = 0; for (let i = 0; i < N; i++) mass += Ar[i];\nconst massFrac = mass / N;\nconst sec = K.section | 0;\nif (massFrac < 0.012 || (sec !== S.lastSec && K.t - S.reseedAt > 6)) {\n  const cx = Math.floor(((fr(sec*5 + Math.floor(K.t*0.2)) )) * GW);\n  const cy = Math.floor(((fr(sec*5 + 3 + Math.floor(K.t*0.2)))) * GH);\n  seedBlob(cx, cy, R, 0.85);\n  S.reseedAt = K.t;\n}\nS.lastSec = sec;\n\n// ---- render A -> colour buffer ----\nconst gbuf = S.g; gbuf.loadPixels(); const px = gbuf.pixels;\nconst hb = ((P.hue + sec*17) % 360 + 360) % 360;\nconst expo = 0.7 + P.energy * 0.9 + A.rms * 0.5;\nfunction pal(m){ const hr = hb/360; return [\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.00)),\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.33)),\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.66)) ]; }\nfor (let i = 0; i < N; i++) {\n  const a = Ar[i];\n  const e = Math.min(1, a * expo);\n  let r, gg, b;\n  if (style === 'thermal') {\n    r = Math.min(1, e*2.1); gg = Math.min(1, Math.max(0, e*2.0-0.5)); b = Math.min(1, Math.max(0, e*3.4-2.3));\n  } else if (style === 'membrane') {          // green/violet cell-membrane\n    const c = pal(0.35 + a*0.5); r = c[0]*e*0.9; gg = c[1]*e; b = c[2]*e*1.1;\n  } else if (style === 'ink') {               // named mono \u2014 dark creatures on cream\n    const s = 1 - Math.min(1, a*1.6); r = 0.92*s + 0.05; gg = 0.90*s + 0.05; b = 0.84*s + 0.05;\n  } else if (style === 'plasma') {            // magenta/cyan\n    const c = pal(a*0.8 + 0.15); r = Math.min(1,c[0]*e*1.15); gg = c[1]*e*0.8; b = Math.min(1,c[2]*e*1.15);\n  } else {                                    // bioluminescent (default) \u2014 deep blue -> cyan -> yellow-white\n    const t = Math.min(1, a*1.15);\n    r = Math.min(1, Math.max(0, (t-0.55)*2.6) * expo + t*t*0.15);\n    gg = Math.min(1, t*1.5*expo*0.7 + (t>0.6? (t-0.6)*1.8:0));\n    b = Math.min(1, (0.15 + t*1.2) * expo * (style==='bioluminescent'?1:1));\n  }\n  // dim ground so frame-mean stays > floor even when sparse\n  const p = i*4;\n  px[p]   = Math.max(4, Math.min(255, r*255));\n  px[p+1] = Math.max(6, Math.min(255, gg*255));\n  px[p+2] = Math.max(10, Math.min(255, b*255));\n  px[p+3] = 255;\n}\ngbuf.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(gbuf, 0, 0, width, height);\npop();\n"
+}

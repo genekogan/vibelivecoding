@@ -1,0 +1,113 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.lighthouse",
+  "kind": "set",
+  "name": "Lighthouse",
+  "desc": "A striped lighthouse tower on a foggy sea, its lantern casting a slow rotating twin beam that cuts drifting fog, with rolling waves and beat-timed splashes at the base.",
+  "tags": [
+    "lighthouse",
+    "tower",
+    "beacon",
+    "beam",
+    "maritime",
+    "sea",
+    "ocean",
+    "coast",
+    "fog",
+    "mist",
+    "nautical",
+    "waves",
+    "splash",
+    "light",
+    "rotating",
+    "harbor",
+    "seafaring",
+    "landmark",
+    "set",
+    "prop",
+    "noir",
+    "atmospheric"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.5,
+      "doc": "tower + beam size"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "beam + lantern brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "beam rotation + fog drift + wave rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "splash particle count"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "tower/beam accent hue (maritime style)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tower base x"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0.55,
+      "max": 0.85,
+      "doc": "waterline height (tower base y)"
+    },
+    "style": {
+      "default": "maritime",
+      "options": [
+        "maritime",
+        "noir",
+        "riso",
+        "thermal",
+        "chart"
+      ],
+      "doc": "painted maritime / chiaroscuro noir / two-ink riso / heat false-color / schematic nautical-chart wireframe"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "beam phase + fog seed"
+    },
+    "act": {
+      "default": "sweep",
+      "options": [
+        "sweep"
+      ],
+      "doc": "continuous rotating sweep"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:18:02+00:00",
+    "fps": 60.6,
+    "motion": 0.0288,
+    "lum": 0.152
+  },
+  "code": "const D = { scale:1, energy:.7, speed:1, density:.5, hue:45, x:.5, y:.72, style:'maritime', seed:0, act:'sweep' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, u = Math.min(width, height);\nconst st = P.style;\nconst bx = P.x*width, baseY = P.y*height;                 // tower base (waterline)\nconst th = u*0.5*P.scale;                                  // tower height\nconst topY = baseY - th;\nconst tw = u*0.11*P.scale;                                 // base half-width\nconst twT = tw*0.42;                                       // top half-width\nconst H = P.hue % 360;\n// palette by style\nlet ink, band1, band2, beamH, fogH, seaH;\nif (st==='chart'){ ink=[192,72,86]; band1=[192,40,20]; band2=[192,20,40]; beamH=192; fogH=192; seaH=200; }\nelse if (st==='noir'){ ink=[210,6,92]; band1=[210,4,10]; band2=[210,3,30]; beamH=45; fogH=210; seaH=215; }\nelse if (st==='riso'){ ink=[338,70,92]; band1=[338,60,80]; band2=[210,70,80]; beamH=48; fogH=210; seaH=214; }\nelse if (st==='thermal'){ ink=[20,90,95]; band1=[8,90,40]; band2=[40,95,80]; beamH=50; fogH=260; seaH=250; }\nelse { ink=[H,10,95]; band1=[0,72,80]; band2=[0,0,96]; beamH=H; fogH=205; seaH=210; }\nconst wire = (st==='chart');\n// ---- draw sea fog behind tower (drifting, real-time floor) ----\nblendMode(BLEND); noStroke();\nfor (let i=0;i<7;i++){\n  const fy = baseY - u*0.02 + Math.sin(K.t*0.35 + i*1.3)*u*0.015 + i*u*0.012;\n  const span = width*1.4;\n  const fxp = ((fr(i+40)*span + K.t*(9+i*4)*(0.5+P.speed*0.5)) % span) - width*0.2;\n  const fa = (wire?6:13) * (0.6 + 0.4*Math.sin(K.t*0.5+i));\n  fill(fogH, wire?30:22, wire?50:70, Math.max(2,fa));\n  ellipse(fxp, fy, width*0.5, u*0.14);\n}\n// ---- rotating beam (continuous seconds-based, never rephases at 8s) ----\nconst lampY = topY + th*0.06;\nlet beat = K.beat; if (S.lb==null || beat < S.lb) S.lb = beat; S.lb = beat;\nconst rot = K.t * (0.55*P.speed) + fr(7)*TAU;            // radians, continuous\nconst beamLen = Math.max(width,height)*1.2;\nconst spread = 0.10 + 0.03*Math.sin(K.t*1.7);\nconst bright = (0.5 + 0.5*K.swell)*P.energy + (A.bass||0)*0.5;\nconst facing = Math.max(0, Math.sin(rot));               // brightest when sweeping toward viewer\nblendMode(ADD);\n// two opposite lobes\nfor (let s=0;s<2;s++){\n  const ang = rot + s*Math.PI;\n  const face = Math.max(0.06, Math.abs(Math.sin(ang)));\n  if (wire){\n    stroke(beamH, 50, 90, 30+face*40); strokeWeight(1); noFill();\n    for (let r=0;r<7;r++){ const a=ang-spread+ (2*spread)*r/6; const dsh = beamLen*(0.2+0.8*((r+K.t)%1)); line(bx,lampY, bx+Math.cos(a)*dsh, lampY+Math.sin(a)*dsh); }\n    noStroke();\n  } else {\n    noStroke();\n    for (let g=0;g<3;g++){\n      const sp = spread*(1+g*0.6), al = (10+bright*22)*face/(1+g*1.1);\n      fill(beamH, st==='noir'?4:40, 100, al);\n      triangle(bx,lampY, bx+Math.cos(ang-sp)*beamLen, lampY+Math.sin(ang-sp)*beamLen, bx+Math.cos(ang+sp)*beamLen, lampY+Math.sin(ang+sp)*beamLen);\n    }\n  }\n}\nblendMode(BLEND);\n// ---- tower body (drawn each frame; few shapes) ----\nnoStroke();\n// silhouette trapezoid\nconst tl = bx-tw, tr = bx+tw, ttl = bx-twT, ttr = bx+twT;\nif (wire){\n  stroke(ink[0],ink[1],ink[2],85); strokeWeight(Math.max(1,u*0.0035)); noFill();\n  quad(tl,baseY, tr,baseY, ttr,topY+th*0.12, ttl,topY+th*0.12);\n  // horizontal course lines\n  for (let b=1;b<9;b++){ const t=b/9; const y=baseY-(th*0.88)*t; const wL=tw+(twT-tw)*t; line(bx-wL,y,bx+wL,y); }\n  // schematic dimension tick\n  stroke(ink[0],40,60,50); line(tr+u*0.03,baseY, tr+u*0.03, topY); line(tr+u*0.02,baseY,tr+u*0.04,baseY); line(tr+u*0.02,topY,tr+u*0.04,topY);\n  noFill();\n} else {\n  // painted stripes\n  const nBand = 5;\n  for (let b=0;b<nBand;b++){\n    const t0=b/nBand, t1=(b+1)/nBand;\n    const y0=baseY-(th*0.88)*t0, y1=baseY-(th*0.88)*t1;\n    const wl0=tw+(twT-tw)*t0, wl1=tw+(twT-tw)*t1;\n    const c = (b%2===0)?band1:band2;\n    fill(c[0],c[1],c[2]*(0.8+0.2*Math.sin(b)));\n    quad(bx-wl0,y0, bx+wl0,y0, bx+wl1,y1, bx-wl1,y1);\n  }\n  // shading on left for form (chiaroscuro esp. noir)\n  fill(band1[0], band1[1], 0, st==='noir'?55:28);\n  quad(bx-tw,baseY, bx-tw*0.35,baseY, bx-twT*0.35,topY+th*0.12, bx-twT,topY+th*0.12);\n}\n// gallery + lantern room\nconst galY = topY + th*0.12;\nfill(wire?0:200, wire?0:6, wire?0:14, wire?0:100);\nif (wire){ stroke(ink[0],ink[1],ink[2],85); noFill(); }\nrect(bx-twT*1.5, galY-u*0.012, twT*3, u*0.024, 2);\n// lantern glass\nconst lampGlow = 60 + 40*Math.sin(K.t*3.2) + facing*40 + (A.rms||0)*60;\nif (!wire){ noStroke();\n  drawingContext.shadowColor = color(beamH,50,100,90).toString(); drawingContext.shadowBlur = u*0.05*(0.5+P.energy);\n  fill(beamH, st==='noir'?8:45, Math.min(100,lampGlow)); ellipse(bx, lampY, twT*2.1, th*0.13);\n  drawingContext.shadowBlur = 0;\n  // cap\n  fill(band1[0], band1[1], band1[2]*0.5); triangle(bx-twT*1.4, galY-u*0.012, bx+twT*1.4, galY-u*0.012, bx, galY-u*0.07);\n} else {\n  stroke(ink[0],ink[1],ink[2],90); noFill(); ellipse(bx,lampY,twT*2.1,th*0.13);\n  line(bx-twT*1.4, galY-u*0.012, bx, galY-u*0.07); line(bx+twT*1.4, galY-u*0.012, bx, galY-u*0.07);\n}\n// ---- waves + splash at base (real-time roll + beat splash) ----\nnoStroke(); blendMode(BLEND);\nconst seaTop = baseY;\nfor (let l=0;l<3;l++){\n  const yb = seaTop + l*u*0.02 + u*0.005;\n  const amp = u*0.012*(1+l*0.4), ph = K.t*(1.1+l*0.5)*(0.5+P.speed*0.5);\n  beginShape();\n  fill(seaH, st==='noir'?8:38, (st==='thermal'?30:22)+l*6, wire?40:80);\n  vertex(0, height);\n  for (let xx=0; xx<=width; xx+=Math.max(10,width/48)){\n    const yy = yb + Math.sin(xx*0.012 + ph)*amp + Math.sin(xx*0.03 - ph*1.4)*amp*0.4;\n    vertex(xx, yy);\n  }\n  vertex(width, height); endShape(CLOSE);\n}\n// splash at tower base on beat\nconst splash = K.pulse*P.energy + (A.bass||0)*0.6;\nif (splash > 0.08){ blendMode(ADD); noStroke();\n  const n = Math.round(6 + P.density*14);\n  for (let i=0;i<n;i++){ const a = -Math.PI*(0.15+0.7*fr(i+Math.floor(K.beat))); const sp = splash*u*0.09*(0.5+fr(i+3)); const px=bx+Math.cos(a)*sp*(fr(i)*2-1)*1.6; const py=seaTop-Math.abs(Math.sin(a))*sp; fill(seaH, 10, 100, 40*splash); ellipse(px,py, u*0.01*(0.5+fr(i+9)), u*0.01); }\n  blendMode(BLEND);\n}\ndrawingContext.shadowBlur = 0; blendMode(BLEND);\n"
+}

@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.whale",
+  "kind": "subject",
+  "name": "Whale",
+  "desc": "A vast sumi-ink whale glides in tonal washes, sweeping its flukes and puffing a bright spout on downbeats, then arcs into a slow multi-minute breach or lifts its tail in a deep sounding dive.",
+  "tags": [
+    "whale",
+    "cetacean",
+    "humpback",
+    "ocean",
+    "sea",
+    "marine",
+    "animal",
+    "mammal",
+    "giant",
+    "spout",
+    "breach",
+    "dive",
+    "fluke",
+    "ink-wash",
+    "sumi",
+    "brush",
+    "monochrome",
+    "calm",
+    "majestic",
+    "sublime",
+    "blue",
+    "leviathan",
+    "water",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.0,
+      "doc": "size vs design (0.4-0.55u tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tail/undulation swing + spout amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "ink tint hue (210 cool slate-blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative swim/tail rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ink granulation + spout droplet count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 0.95,
+      "doc": "anchor y / waterline"
+    },
+    "girth": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "body vertical fullness (slim->fat)"
+    },
+    "fluke": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tail fluke span"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic brush/granulation seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "swim",
+        "breach",
+        "sound",
+        "spout"
+      ],
+      "doc": "posture (auto follows act)"
+    },
+    "style": {
+      "default": "ink-wash",
+      "options": [
+        "ink-wash",
+        "linocut",
+        "contour",
+        "xray",
+        "engraving"
+      ],
+      "doc": "render philosophy: brushed washes / relief / single contour line / anatomical x-ray / steel hatching"
+    },
+    "act": {
+      "default": "surface",
+      "options": [
+        "surface",
+        "breach",
+        "sound"
+      ],
+      "doc": "multi-minute program"
+    }
+  },
+  "acts": [
+    "surface",
+    "breach",
+    "sound"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:53:52+00:00",
+    "fps": 62.9,
+    "motion": 0.0081,
+    "lum": 0.143
+  },
+  "code": "const D = { scale:1, energy:.6, hue:210, speed:1, density:.5, x:.5, y:.55, girth:.55, fluke:.5, seed:0, pose:'auto', style:'ink-wash', act:'surface' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst TAU = Math.PI*2;\nconst bt = K.beat * P.speed;\nconst eAmp = P.energy*(.5 + .6*K.intensity);\nconst kick = Math.min(1.4, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.tre = (S.tre||0)*.8  + (A.treble||0)*.2;\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed; }\n\n// ---- length / form ----\nconst L = u * 0.92 * P.scale;\nconst girth = 0.72 + 0.55*P.girth;              // vertical body scale\nconst flk = (0.11 + 0.11*P.fluke);              // fluke half-span (units of L)\nconst hue = ((P.hue%360)+360)%360;\n\n// ---- long-form dramaturgy: vertical trajectory + pitch ----\nlet pose = P.pose;\nif (pose === 'auto') {\n  const ACT = { surface:['swim','swim','spout','swim'], breach:['swim','breach','breach','sound'], sound:['sound','swim','sound','spout'] };\n  const seq = ACT[P.act] || ACT.surface;\n  pose = seq[(((K.section%seq.length)+seq.length)%seq.length)];\n}\n// breach cycle phase (~40-60s), t0-reset tolerant via K.t\nconst bph = ((K.t*0.022*P.speed + fr(3)) % 1 + 1) % 1;\n\nlet lift = 0, pitch = 0, submerge = 0;\nconst waterY = 0;                                // waterline at anchor y\nif (pose === 'breach') {\n  // dive-build-leap-splash arc\n  const a = bph;\n  if (a < 0.45) { submerge = 0.5*Math.sin(a/0.45*Math.PI); pitch = 0.18*Math.sin(a/0.45*Math.PI); }\n  else if (a < 0.72) {\n    const b = (a-0.45)/0.27; const s = Math.sin(b*Math.PI);\n    lift = -s * 0.62; pitch = -0.9*s - 0.5*Math.min(1,b*1.4)*(b>0.5?1:0); submerge = -0.1*s;\n    S.splashAt = a; S.splashArm = 1;\n  } else {\n    if (S.splashArm) { S.splash = 1; S.splashArm = 0; }\n    submerge = 0.28*Math.sin((a-0.72)/0.28*Math.PI);\n  }\n} else if (pose === 'sound') {\n  const a = ((K.t*0.05*P.speed + fr(7))%1+1)%1;\n  pitch = 0.55*Math.max(0, Math.sin(a*Math.PI));   // fluke-up dive posture\n  submerge = 0.22*Math.max(0, Math.sin(a*Math.PI));\n} else {\n  lift = Math.sin(K.t*0.6 + fr(2)*6) * 0.018 - K.swell*0.02*eAmp;\n}\nlift += Math.sin(K.t*0.9)*0.01*eAmp;\nconst driftX = Math.sin(K.t*0.18 + fr(4)*6) * 0.05;\n\n// ---- spout trigger on downbeats ----\nconst beatIdx = Math.floor(bt);\nif (S.lb == null || beatIdx < S.lb) S.lb = beatIdx;\nif (beatIdx > S.lb) { const step = beatIdx - S.lb; S.lb = beatIdx; if (((beatIdx%4)+4)%4===0) S.spout = 1; }\nS.spout = (S.spout||0)*0.93;\nS.splash = (S.splash||0)*0.9;\n\n// ---- tail + undulation params ----\nconst swim = Math.sin(bt*Math.PI*0.5);              // slow tail phase\nconst tailAng = swim * (0.42 + 0.35*eAmp) + Math.sin(bt*Math.PI)*0.08*eAmp;\nconst undAmp = 0.05*eAmp + 0.02;\nconst undPh  = bt*Math.PI*0.5;\n\nconst cx = P.x*width + driftX*L;\nconst cy = P.y*height + (lift + submerge)*L;\n\n// ---- silhouette outline (local units of L, head faces -x) ----\nconst TOP = [[-0.50,-0.03],[-0.475,-0.135],[-0.37,-0.195],[-0.19,-0.205],[0.02,-0.175],[0.22,-0.12],[0.375,-0.05]];\nconst BOT = [[0.375,0.05],[0.22,0.135],[0.02,0.185],[-0.19,0.205],[-0.35,0.175],[-0.455,0.075],[-0.50,0.02]];\nconst stockX = 0.375;\nfunction def(px,py){\n  // undulation travels tail-ward; tail (x large) moves most\n  const w = Math.sin(px*3.1 - undPh)*undAmp*(0.35 + (px+0.5));\n  let x = px, y = py*girth + w;\n  return [x*L, y*L];\n}\nfunction outline(){\n  const pts = [];\n  for (const p of TOP) pts.push(def(p[0],p[1]));\n  // fluke lobes from stock\n  const sx = stockX, sy = Math.sin(sx*3.1 - undPh)*undAmp*(0.35+(sx+0.5));\n  const ca = Math.cos(tailAng), sa = Math.sin(tailAng);\n  const fl = (dx,dy)=>{ const rx=dx, ry=dy; return [ (sx + rx*ca - ry*sa)*L, ((sy)+ (rx*sa + ry*ca))*L*1 ]; };\n  pts.push(fl(0.06,-0.02));\n  pts.push(fl(0.155,-flk));\n  pts.push(fl(0.12,-0.01));\n  pts.push(fl(0.16, flk));           // lower lobe\n  pts.push(fl(0.055, 0.02));\n  for (const p of BOT) pts.push(def(p[0],p[1]));\n  return pts;\n}\nconst OUT = outline();\n\nfunction shape(sc){\n  beginShape();\n  const n = OUT.length;\n  curveVertex(OUT[0][0]*sc,OUT[0][1]*sc);\n  for (let i=0;i<n;i++) curveVertex(OUT[i][0]*sc,OUT[i][1]*sc);\n  curveVertex(OUT[n-1][0]*sc,OUT[n-1][1]*sc);\n  curveVertex(OUT[0][0]*sc,OUT[0][1]*sc);\n  endShape(CLOSE);\n}\n\nconst st = P.style;\nconst ink = (l,a)=> color(hue, st==='ink-wash'?14:22, l, a);\n\n// waterline (surface + breach acts, world space, partial band)\nif ((pose==='swim'||pose==='breach'||pose==='spout') && P.act!=='sound') {\n  push();\n  const wy = P.y*height + 0.30*L;\n  stroke(hue, 20, 40, 26); strokeWeight(u*0.006);\n  noFill();\n  beginShape();\n  for (let i=0;i<=10;i++){ const x=map(i,0,10,cx-L*0.7,cx+L*0.7); curveVertex(x, wy + Math.sin(i*0.9 + K.t*0.8)*u*0.006*(1+kick)); }\n  endShape();\n  pop();\n}\n\npush();\ntranslate(cx, cy);\nrotate(pitch);\n\n// --- bleed halo (few shapes, soft) ---\ndrawingContext.shadowBlur = u*0.05;\ndrawingContext.shadowColor = color(hue, 30, 60, 40);\nnoStroke(); fill(hue, 18, 52, 12);\nshape(1.05);\ndrawingContext.shadowBlur = 0;\n\nif (st === 'contour') {\n  // single continuous contour line\n  noFill();\n  stroke(hue, 12, 88, 92); strokeWeight(u*0.004*(1+0.3*kick));\n  shape(1.0);\n  stroke(hue, 12, 88, 55); strokeWeight(u*0.0022);\n  // one interior sweep line\n  beginShape(); noFill();\n  for (let i=0;i<=8;i++){ const px=map(i,0,8,-0.44,0.34); const py=Math.sin(px*3.1-undPh)*undAmp*(0.35+(px+0.5)); curveVertex(px*L, py*L - 0.02*L); }\n  endShape();\n} else if (st === 'xray') {\n  // anatomical / x-ray: pale translucent body + skeleton\n  noStroke(); fill(hue, 30, 46, 30); shape(1.0);\n  stroke(hue, 8, 92, 75); strokeWeight(u*0.0026); noFill();\n  // spine\n  beginShape();\n  for (let i=0;i<=12;i++){ const px=map(i,0,12,-0.42,0.36); const py=Math.sin(px*3.1-undPh)*undAmp*(0.35+(px+0.5)); curveVertex(px*L, py*L); }\n  endShape();\n  // ribs\n  for (let i=0;i<9;i++){ const px=map(i,0,8,-0.36,0.14); const py=Math.sin(px*3.1-undPh)*undAmp*(0.35+(px+0.5)); const h=(0.12+0.05*Math.sin(i))*girth*L; strokeWeight(u*0.0018);\n    line(px*L, py*L-h, px*L+0.01*L, py*L+h); }\n  // skull\n  strokeWeight(u*0.0026); ellipse(-0.40*L, -0.02*girth*L, 0.16*L, 0.15*girth*L);\n} else if (st === 'linocut') {\n  // relief: flat pale mass, hard edge, carved gouge marks\n  noStroke(); fill(hue, 16, 82, 96); shape(1.0);\n  stroke(hue, 40, 14, 100); strokeWeight(u*0.007); noFill(); shape(1.0);\n  // carved gouges following the back\n  stroke(hue, 30, 22, 90); strokeWeight(u*0.004);\n  for (let i=0;i<7;i++){ const g=map(i,0,6,-0.34,0.28); const py=Math.sin(g*3.1-undPh)*undAmp*(0.35+(g+0.5));\n    const yy=py*L - (0.055+0.03*i*0.0)*girth*L*(1-i*0.02);\n    line(g*L-0.04*L, yy, g*L+0.05*L, yy - 0.01*L); }\n} else if (st === 'engraving') {\n  // steel-engraving hatching\n  noStroke(); fill(hue, 12, 30, 55); shape(1.0);\n  drawingContext.save();\n  beginShape(); for (const p of OUT) vertex(p[0],p[1]); endShape(CLOSE);\n  drawingContext.clip();\n  stroke(hue, 8, 88, 42); strokeWeight(u*0.0016);\n  for (let i=-24;i<24;i++){ const yy=i*0.018*L; line(-0.6*L, yy - 0.2*L, 0.6*L, yy + 0.2*L); }\n  stroke(hue, 8, 92, 30); strokeWeight(u*0.0014);\n  for (let i=-18;i<18;i++){ const yy=i*0.03*L; line(-0.6*L, yy + 0.18*L, 0.6*L, yy - 0.18*L); }\n  drawingContext.restore();\n  noFill(); stroke(hue, 10, 92, 60); strokeWeight(u*0.0022); shape(1.0);\n} else {\n  // ink-wash (default): tonal washes + dry-brush edge + bleed\n  noStroke();\n  fill(hue, 12, 58, 60); shape(1.0);                      // base wash\n  // dorsal darker wash (clip to body)\n  drawingContext.save();\n  beginShape(); for (const p of OUT) vertex(p[0],p[1]); endShape(CLOSE);\n  drawingContext.clip();\n  fill(hue, 22, 30, 46);\n  rect(-0.6*L, -0.24*girth*L, 1.2*L, 0.20*girth*L);        // back darkening\n  fill(hue, 6, 86, 26);\n  ellipse(-0.16*L, 0.02*L, 0.7*L, 0.10*girth*L);           // ventral sheen band\n  // wet granulation blobs (count ~ density)\n  const gN=Math.round(4+14*P.density);\n  for (let i=0;i<gN;i++){ const gx=(fr(i*3+1)-0.5)*0.8*L; const gy=(fr(i*3+2)-0.5)*0.3*girth*L; fill(hue, 20, 42, 10); ellipse(gx,gy, (0.05+fr(i)*0.08)*L, (0.04+fr(i+9)*0.06)*L); }\n  drawingContext.restore();\n  // dry-brush edge strokes\n  stroke(hue, 16, 70, 60); noFill();\n  for (let i=0;i<OUT.length;i++){ const a=OUT[i], b=OUT[(i+1)%OUT.length]; const seg=2+Math.floor(fr(i)*2);\n    for (let s2=0;s2<seg;s2++){ const t0=s2/seg, t1=(s2+0.7)/seg; if (fr(i*5+s2)<0.25) continue;\n      strokeWeight(u*(0.0012+0.0022*fr(i*7+s2)));\n      line(a[0]+(b[0]-a[0])*t0, a[1]+(b[1]-a[1])*t0, a[0]+(b[0]-a[0])*t1, a[1]+(b[1]-a[1])*t1); } }\n}\n\n// pectoral fin (all styles except pure contour keeps it lined)\n{\n  const fs = Math.sin(bt*Math.PI*0.5 + 1.2)*0.22*eAmp;\n  push(); translate(-0.08*L, 0.15*girth*L); rotate(0.5 + fs);\n  if (st==='contour'){ noFill(); stroke(hue,12,88,88); strokeWeight(u*0.004);}\n  else if (st==='xray'){ noFill(); stroke(hue,8,90,72); strokeWeight(u*0.0024);}\n  else if (st==='linocut'){ fill(hue,16,80,96); stroke(hue,40,14,100); strokeWeight(u*0.006);}\n  else { noStroke(); fill(hue, 16, 46, 46); }\n  beginShape(); vertex(0,0); bezierVertex(0.04*L,0.06*L, 0.10*L,0.14*L, 0.02*L,0.20*L); bezierVertex(-0.02*L,0.14*L, -0.03*L,0.06*L, 0,0); endShape(CLOSE);\n  pop();\n}\n\n// eye\nif (st!=='contour'){ noStroke(); fill(hue, 30, 8, 90); ellipse(-0.40*L, -0.01*girth*L, 0.022*L, 0.022*L); }\nelse { noFill(); stroke(hue,12,88,88); strokeWeight(u*0.003); ellipse(-0.40*L,-0.01*girth*L,0.03*L,0.03*L); }\n// mouth / jaw line\nnoFill(); stroke(hue, st==='ink-wash'?14:18, st==='linocut'?14:70, st==='linocut'?100:64);\nstrokeWeight(u*(st==='engraving'?0.0016:0.003));\nbeginShape(); curveVertex(-0.50*L,0.02*girth*L); curveVertex(-0.50*L,0.03*girth*L); curveVertex(-0.40*L,0.06*girth*L); curveVertex(-0.28*L,0.07*girth*L); curveVertex(-0.20*L,0.075*girth*L); endShape();\n\npop();\n\n// ---- spout (world space, from blowhole) ----\nconst spoutV = Math.max(S.spout, kick*0.25*(pose!=='sound'?1:0.2));\nif (spoutV > 0.02 && pose !== 'sound') {\n  const bl = [-0.34*L, -0.19*girth*L];               // blowhole local\n  const wx = cx + bl[0]*Math.cos(pitch) - bl[1]*Math.sin(pitch);\n  const wy = cy + bl[0]*Math.sin(pitch) + bl[1]*Math.cos(pitch);\n  push(); translate(wx, wy);\n  blendMode(ADD);\n  const H = (0.16 + 0.26*spoutV) * L * (0.8 + 0.4*eAmp);\n  const dN=Math.round(9+11*P.density);\n  for (let i=0;i<dN;i++){ const t0=i/dN; const spr=(t0-0.5); const px = spr*0.22*L*(0.4+t0) + Math.sin(t0*6+K.t*3)*0.02*L;\n    const py = -t0*H; const sz = (0.05 - 0.03*t0)*L*(1+0.4*spoutV);\n    fill(hue, 24, 88, 22*(1-t0*0.6)); noStroke(); ellipse(px, py, sz, sz*1.1); }\n  blendMode(BLEND);\n  pop();\n}\n// splash on re-entry\nif (S.splash > 0.03) {\n  push(); translate(cx, P.y*height + 0.28*L); blendMode(ADD);\n  for (let i=0;i<12;i++){ const ph=fr(i)*TAU; const rr=(0.1+0.9*(1-S.splash))*0.4*L; const sz=(0.03+fr(i+3)*0.05)*L*S.splash;\n    fill(hue, 18, 90, 30*S.splash); noStroke(); ellipse(Math.cos(ph)*rr, -Math.abs(Math.sin(ph))*rr*0.5, sz, sz); }\n  blendMode(BLEND); pop();\n}\n\nblendMode(BLEND);\n"
+}

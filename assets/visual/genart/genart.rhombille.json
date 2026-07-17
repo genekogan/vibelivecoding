@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rhombille",
+  "kind": "genart",
+  "name": "Rhombille",
+  "desc": "A plane of tumbling blocks cut from the rhombille tiling \u2014 three rhombi to a hexagon, shaded as the three faces of a cube \u2014 with a reversal front sweeping across so the whole field turns inside out behind it, every block popping from raised to hollow as the seam glints past.",
+  "tags": [
+    "rhombille",
+    "tumbling-blocks",
+    "necker",
+    "reversal",
+    "ambiguous",
+    "illusion",
+    "optical",
+    "impossible",
+    "isometric",
+    "cube",
+    "cubes",
+    "blocks",
+    "rhombus",
+    "rhombi",
+    "hexagon",
+    "trihexagonal",
+    "laves",
+    "dual",
+    "tiling",
+    "tessellation",
+    "plane-division",
+    "quilt",
+    "patchwork",
+    "escher",
+    "geometry",
+    "geometric",
+    "mathematical",
+    "engraving",
+    "engraved",
+    "hatching",
+    "three-rulings",
+    "plate",
+    "riso",
+    "risograph",
+    "concrete",
+    "brutalist",
+    "xray",
+    "luminous",
+    "wave",
+    "front",
+    "sweep",
+    "raking-light",
+    "chiaroscuro",
+    "austere",
+    "clinical",
+    "eerie",
+    "structure",
+    "architecture",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "face contrast + joint weight + chiaroscuro depth"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.55,
+      "max": 2.2,
+      "doc": "block size vs frame (2.2 = a few colossal cubes)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved shading jitter across the field"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "reversal-front / light-orbit / drift rate"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "primary face + ground hue"
+    },
+    "flip": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "strength of the Necker reversal front (0 = every cube reads the same way forever)"
+    },
+    "hatch": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "engraved ruling along each face's own axis"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "field centre x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "field centre y as canvas fraction"
+    },
+    "style": {
+      "default": "engrave",
+      "options": [
+        "engrave",
+        "riso",
+        "quilt",
+        "concrete",
+        "xray"
+      ],
+      "doc": "aesthetic: three-ruling copperplate engraving on bone / two-ink risograph / pieced folk quilt / raking-light brutalist concrete / luminous additive wireframe on black (non-representational)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "per-block tonal jitter + plate grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:07+00:00",
+    "fps": 61.3,
+    "motion": 0.0934,
+    "lum": 0.547
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:28, flip:.6, hatch:.55, x:.5, y:.5, style:'engrave', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\n\n// ---- rhombille: the dual of the trihexagonal Laves tiling -----------------\n// Split every hexagon into three 60/120 rhombi meeting at its centre. Because\n// the hexagon's side equals its circumradius, (C,v0,v1,v2) has four equal sides\n// -- a true rhombus. Shade the three as the top/left/right faces of a cube and\n// the plane reads as tumbling blocks. Cycling the three tones by one flips the\n// cube inside out: that is the Necker reversal this piece sweeps across as a wave.\nconst VX=[], VY=[];\nfor (let i=0;i<6;i++){ const a = Math.PI/6 + i*Math.PI/3; VX[i]=Math.cos(a); VY[i]=Math.sin(a); }\nconst T0X = VX[0]+VX[1], T0Y = VY[0]+VY[1];\nconst T1X = VX[1]+VX[2], T1Y = VY[1]+VY[2];\n\nconst ax = cl(P.x,.2,.8)*width, ay = cl(P.y,.2,.8)*height;\nconst corner = Math.max(Math.hypot(ax,ay), Math.hypot(width-ax,ay), Math.hypot(ax,height-ay), Math.hypot(width-ax,height-ay));\nconst R = Math.max(u*.115*cl(P.scale,.55,2.2), corner/9.2);\nconst rot = .19*Math.sin(K.t*.0389*sp) + .08*Math.sin(K.t*.0971*sp+1.7);\nS.gx = (S.gx||0) + dt*sp*(.085 + .06*Math.sin(K.t*.043))*R;\nS.gy = (S.gy||0) + dt*sp*(.050 + .06*Math.cos(K.t*.057+2.2))*R;\n\nconst ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));\nconst dxm = Math.max(ax, width-ax), dym = Math.max(ay, height-ay);\nconst hx = dxm*ca + dym*sa + R*2, hy = dxm*sa + dym*ca + R*2;\nconst step = 1.732*R;\nconst na = Math.ceil(hx/(step*.5)) + 2, nb = Math.ceil(hy/(step*.5)) + 2;\n\n// ---- styles ---------------------------------------------------------------\nconst glow = (sty==='xray');\nfunction grd(){\n  if (sty==='riso')     return [44, 9, 93];\n  if (sty==='quilt')    return [28, 22, 16];\n  if (glow)             return [(H+192)%360, 56, 5];\n  if (sty==='concrete') return [(H+180)%360, 4, 54];\n  return [(H+6)%360, 14, 88];                      // engrave: bone plate\n}\n// three cube faces: 0 top, 1 left, 2 right\nfunction faceCol(f, lam, wv, jit){\n  const base = [1.0, .58, .78][f];\n  const v = (base*(.45 + .62*lam))*(.6+.5*en) + wv*.35 + .05*jit;\n  if (sty==='riso')     return [ [352,205,46][f], cl(58 - 12*f,10,88), cl(52 + 48*v, 12, 100) ];\n  if (sty==='quilt')    return [ (H + f*22 + 8)%360, cl(56 - 12*f, 8, 82), cl(20 + 62*v, 5, 96) ];\n  if (glow)             return [ (H + 130 + f*54)%360, 44, cl(14 + 86*v, 2, 100) ];\n  if (sty==='concrete') return [ (H+180)%360, cl(3 + f,0,10), cl(26 + 58*v, 4, 92) ];\n  return [ (H + 2 + f*9)%360, cl(24 - 5*f, 4, 44), cl(30 + 58*v, 4, 98) ];\n}\n\nconst gc = grd(); noStroke(); background(gc[0], gc[1], gc[2]);\nconst lang = K.t*.081*sp + .55*Math.sin(K.t*.0293+1.2);\nconst lgx = Math.cos(lang), lgy = Math.sin(lang);\nconst fdir = K.t*.041*sp + .7;\nconst fnx = Math.cos(fdir), fny = Math.sin(fdir);\nconst fwv = cl(P.flip,0,1);\nconst hw = cl(P.hatch,0,1);\n\npush(); translate(ax, ay); rotate(rot);\nstrokeJoin(ROUND);\nconst jw = (u/900)*(.55 + 1.9*en);\nlet drawn = 0;\n\nfor (let a=-na;a<=na;a++){\n  for (let b=-nb;b<=nb;b++){\n    const cx = (a*T0X + b*T1X)*R - S.gx, cy = (a*T0Y + b*T1Y)*R - S.gy;\n    if (Math.abs(cx) > hx || Math.abs(cy) > hy) continue;\n    const dl = Math.hypot(cx,cy) || 1;\n    const lam = cl(.5 + .5*((cx/dl)*lgx + (cy/dl)*lgy), 0, 1);\n    // the reversal front: behind it every cube has turned inside out\n    const ph = (cx*fnx + cy*fny)/(R*4.2) - K.t*.62*sp;\n    const rev = fwv * (.5 + .5*Math.sin(ph));\n    const hard = rev > .5 ? 1 : 0;\n    const wv = Math.pow(Math.abs(Math.sin(ph)), 12) * fwv * (.55+.5*bass) * lift;   // the seam glints as it passes\n    const jit = fr(a*17.7 + b*31.3);\n    for (let f=0;f<3;f++){\n      const i0 = f*2;\n      const q0x = cx, q0y = cy;\n      const q1x = cx + VX[i0]*R,          q1y = cy + VY[i0]*R;\n      const q2x = cx + VX[(i0+1)%6]*R,    q2y = cy + VY[(i0+1)%6]*R;\n      const q3x = cx + VX[(i0+2)%6]*R,    q3y = cy + VY[(i0+2)%6]*R;\n      const fi = (f + hard) % 3;                 // <- the Necker flip: cycle the tones\n      const c = faceCol(fi, lam, wv, jit);\n      if (glow) {\n        blendMode(ADD);\n        noStroke(); fill(c[0], c[1], c[2], cl(6 + 15*lam + 20*wv, 2, 42));\n        quad(q0x,q0y,q1x,q1y,q2x,q2y,q3x,q3y);\n        blendMode(BLEND);\n        noFill(); stroke(c[0], c[1], cl(c[2]*(.5+.6*lam+.5*wv),0,100), cl(26 + 56*lam, 8, 92));\n        strokeWeight(jw*(.7+.9*wv)); quad(q0x,q0y,q1x,q1y,q2x,q2y,q3x,q3y);\n      } else {\n        noStroke(); fill(c[0], c[1], c[2], 100);\n        quad(q0x,q0y,q1x,q1y,q2x,q2y,q3x,q3y);\n        // engraved hatching runs along each face's OWN axis -> three rulings\n        if (hw > .05 && R > 16) {\n          stroke(c[0], cl(c[1]+16,0,100), cl(c[2]*.56,0,100), 14 + 40*hw);\n          strokeWeight(jw*.4);\n          const nh = 2 + Math.round(hw*3);\n          for (let k2=1;k2<=nh;k2++){\n            const t2 = k2/(nh+1);\n            line(q0x + (q1x-q0x)*t2, q0y + (q1y-q0y)*t2, q3x + (q2x-q3x)*t2, q3y + (q2y-q3y)*t2);\n          }\n        }\n        noFill(); stroke(gc[0], cl(gc[1]*1.15,0,100), cl(gc[2]*(.42+.5*(1-en)),0,100), 84);\n        strokeWeight(jw); quad(q0x,q0y,q1x,q1y,q2x,q2y,q3x,q3y);\n      }\n    }\n    drawn++;\n    if (drawn > 190) break;\n  }\n  if (drawn > 190) break;\n}\npop();\n\n// ---- moving chiaroscuro ---------------------------------------------------\nconst lw2 = 180, lh2 = cl(Math.round(180*height/Math.max(1,width)), 60, 340);\nif (!S.lg || S.lgk !== lw2+'x'+lh2) { S.lg = createGraphics(lw2, lh2); S.lg.colorMode(HSB,360,100,100,100); S.lgk = lw2+'x'+lh2; }\nconst L = S.lg;\nL.push(); L.noStroke(); L.blendMode(BLEND);\nL.background(0, 0, 100 - (16 + 28*en));\nL.blendMode(ADD);\nconst plx = (.5 + .30*Math.cos(lang))*lw2, ply = (.5 + .26*Math.sin(lang*1.19+1.6))*lh2;\nfor (let i=0;i<9;i++){\n  const q=i/8, rr=Math.max(lw2,lh2)*(1.26-q*.98);\n  L.fill(0,0,100, (6 + 7.5*en + 5*bass)*(.26+.74*q*q));\n  L.ellipse(plx, ply, rr*2, rr*2);\n}\nL.blendMode(BLEND); L.pop();\nblendMode(MULTIPLY); noStroke(); image(L, 0, 0, width, height); blendMode(BLEND);\n\n// ---- cached grain ---------------------------------------------------------\nconst tk = sty+'|'+sd;\nif (!S.tex || S.texk !== tk) {\n  const tw=420, th=280, t=createGraphics(tw,th);\n  t.colorMode(HSB,360,100,100,100); t.background(0,0,100); t.noStroke();\n  for (let i=0;i<2200;i++){\n    const rr=.4+fr(i*5.71)*1.8;\n    t.fill(32, 8, 100-fr(i*6.37)*42, 50);\n    t.ellipse(fr(i*2.91)*tw, fr(i*3.41+2.9)*th, rr, rr);\n  }\n  S.tex = t; S.texk = tk;\n}\nblendMode(MULTIPLY); noStroke(); image(S.tex, 0, 0, width, height); blendMode(BLEND);\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

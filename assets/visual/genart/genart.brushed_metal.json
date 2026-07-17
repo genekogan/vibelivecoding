@@ -1,0 +1,173 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.brushed_metal",
+  "kind": "genart",
+  "name": "Brushed Metal",
+  "desc": "A machined metal panel under a shop lamp that will not hold still \u2014 the anisotropic highlight smears perpendicular to the brush grain and travels as the lamp orbits, wandering satin grain on a slightly oil-canned face, breaking into a rotating dark cross on a sunburst disc or a field of planished facets under the hammer.",
+  "tags": [
+    "metal",
+    "metallic",
+    "steel",
+    "stainless",
+    "aluminium",
+    "aluminum",
+    "titanium",
+    "chrome",
+    "brushed",
+    "satin",
+    "grain",
+    "brushing",
+    "machined",
+    "machinist",
+    "shop",
+    "fabrication",
+    "industrial",
+    "anisotropic",
+    "anisotropy",
+    "specular",
+    "highlight",
+    "sheen",
+    "gloss",
+    "reflectance",
+    "brdf",
+    "ward",
+    "raking",
+    "lamp",
+    "light",
+    "sunburst",
+    "circular",
+    "engine-turned",
+    "damascened",
+    "hammered",
+    "planished",
+    "dimple",
+    "facet",
+    "oil-can",
+    "waviness",
+    "anodised",
+    "anodized",
+    "oxide",
+    "interference",
+    "iridescent",
+    "heat-tint",
+    "blueprint",
+    "schematic",
+    "surface-finish",
+    "chart",
+    "iso-contour",
+    "panel",
+    "plate",
+    "swatch",
+    "material",
+    "surface",
+    "texture",
+    "macro",
+    "austere",
+    "clinical",
+    "cold",
+    "sophisticated",
+    "precise",
+    "sensual",
+    "abstract",
+    "non-figurative"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the highlight burns \u2014 dull satin through to a blazing specular streak"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "coarseness of the whole surface \u2014 grain wander, brush tooth, waviness and hammer facets together"
+    },
+    "polish": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "0 = coarse brush, a wide soft glow \u00b7 1 = fine polish, a razor-thin travelling streak"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "brush tooth, how straight the grain runs, and the hammer strike count"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "re-tints the alloy (210 = cool steel; ~35 reads brass/bronze)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the lamp orbits the panel"
+    },
+    "x": {
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp azimuth around the panel"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp height \u2014 low rakes hard and long, high sits flat and broad"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "panel opacity"
+    },
+    "style": {
+      "default": "brushed",
+      "options": [
+        "brushed",
+        "sunburst",
+        "hammered",
+        "anodised",
+        "blueprint"
+      ],
+      "doc": "brushed: straight satin grain, the highlight a long band smearing across it \u00b7 sunburst: circular brushing \u2014 a dark anisotropic cross sweeps round as the lamp orbits \u00b7 hammered: planished, a lattice of dished hammer facets each catching the lamp \u00b7 anodised: heat-tinted titanium, the interference colour locked to the topography rather than the lamp \u00b7 blueprint: non-representational \u2014 the reflectance field alone as hard iso-bands on a machinist chart, no material"
+    },
+    "act": {
+      "default": "rake",
+      "options": [
+        "rake",
+        "buff",
+        "turn"
+      ],
+      "doc": "rake: the lamp orbits steadily \u00b7 buff: the polish comes up and falls away across sections, dull to mirror \u00b7 turn: the lamp holds still and the part rotates on the table instead"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "re-brushes the panel \u2014 new grain wander, waviness and hammer pattern"
+    }
+  },
+  "acts": [
+    "rake",
+    "buff",
+    "turn"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:21+00:00",
+    "fps": 59.9,
+    "motion": 0.0416,
+    "lum": 0.402
+  },
+  "code": "const D = { energy: .6, scale: 1, polish: .5, density: .5, hue: 210, speed: 1, x: .2, y: .5, alpha: 1, style: 'brushed', act: 'rake', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst pol=cl(P.polish,0,1), dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst H=md(P.hue,360), T=K.t*spd;\nconst TD=K.t*(.45+.55*Math.min(spd,3));\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\n\n// ---- seeded wrapping fBm field (once per seed) ----\nconst NZ=160;\nif(S.nzK!==P.seed || !S.nz){ S.nzK=P.seed; const F=new Float32Array(NZ*NZ); let amp=1, tot=0;\n  for(let o=0;o<4;o++){ const per=4<<o, cell=NZ/per;\n    const lv=new Float32Array(per*per);\n    for(let k=0;k<per*per;k++) lv[k]=fr(o*977.3+k*1.317+3.7);\n    for(let j=0;j<NZ;j++){ const gy=j/cell, jy=Math.floor(gy), fy=gy-jy, vv=fy*fy*(3-2*fy);\n      const j0=(jy%per)*per, j1=((jy+1)%per)*per;\n      for(let i=0;i<NZ;i++){ const gx=i/cell, ix=Math.floor(gx), fx=gx-ix, uu=fx*fx*(3-2*fx);\n        const i0=ix%per, i1=(ix+1)%per;\n        const a=lv[j0+i0], b=lv[j0+i1], c=lv[j1+i0], d=lv[j1+i1];\n        F[j*NZ+i]+=amp*(a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv); } }\n    tot+=amp; amp*=0.52; }\n  for(let k=0;k<NZ*NZ;k++) F[k]=F[k]/tot;\n  S.nz=F; }\nconst NF=S.nz, CEL=NZ/4;\nconst nzAt=(x,y)=>{ x*=CEL; y*=CEL;\n  let xi=Math.floor(x), yi=Math.floor(y); const fx=x-xi, fy=y-yi;\n  xi=md(xi,NZ); yi=md(yi,NZ); const x1=(xi+1)%NZ, y1=(yi+1)%NZ, r0=yi*NZ, r1=y1*NZ;\n  const a=NF[r0+xi], b=NF[r0+x1], c=NF[r1+xi], d=NF[r1+x1];\n  return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy; };\n\nconst BW=200, BH=cl(Math.round(BW*Hh/Math.max(1,W)),60,200);\nif(!S.g || S.gk!==BW+'x'+BH){ if(S.g&&S.g.remove)S.g.remove();\n  S.g=createGraphics(BW,BH); S.gk=BW+'x'+BH; S.h=new Float32Array(BW*BH); }\nconst G=S.g, HF=S.h;\n\n// ---- dramaturgy ----\nconst sec=((K.section|0)%8+8)%8;\nlet polM, lightRate, panRot;\nif(act==='buff'){ polM=.35+.85*(.5+.5*Math.sin(sec*.85+T*.023)); lightRate=.7; panRot=0; }\nelse if(act==='turn'){ polM=1; lightRate=.28; panRot=1; }\nelse { polM=1; lightRate=1; panRot=0; }\n\n// ---- the light orbits the panel. The monotonic term is what guarantees the motion floor;\n// the wobble is deliberately kept smaller so it can never cancel the advance.\nconst lAz=cl(P.x,0,1)*TAU + .0170*TD*lightRate + .26*Math.sin(TD*.043*lightRate) + .13*Math.sin(TD*.101*lightRate+1.3);\nconst lEl=.42+cl(P.y,0,1)*.75 + .10*Math.sin(TD*.059+.7) + .05*Math.sin(TD*.127+2.3) + .03*K.swell;\n// `turn` act: the PART rotates on the table instead of the lamp moving\nconst rot=panRot?(.0130*TD + .10*Math.sin(TD*.037)):0;\nconst cr=Math.cos(rot), sr=Math.sin(rot);\n// A real shop lamp sits at a FINITE distance, so the light direction varies across the\n// panel and the highlight is always a travelling band. A directional light on a uniform\n// grain lights the whole panel at once \u2014 a full-frame flash, which is the one thing the\n// no-strobe rule forbids. The lamp is in world space; the part may turn under it.\nconst lrad=1.02+.14*Math.sin(TD*.037);\nconst lpx=Math.cos(lAz)*lrad, lpy=Math.sin(lAz)*lrad;\nconst lph=cl(.26+cl(P.y,0,1)*.70+.06*Math.sin(TD*.059+.7)+.03*K.swell,.14,1.3);\nconst lpxP=lpx*cr-lpy*sr, lpyP=lpx*sr+lpy*cr;\n\n// ---- style ----\nlet BASE, spTint, anod=0, blue=0, hammer=0, sun=0;\nif(sty==='sunburst'){ BASE=hsb2rgb(H,7,44); spTint=[255,252,244]; sun=1; }\nelse if(sty==='hammered'){ BASE=hsb2rgb(H,9,43); spTint=[255,248,232]; hammer=1; }\nelse if(sty==='anodised'){ BASE=hsb2rgb(H,26,34); spTint=[240,246,255]; anod=1; }\nelse if(sty==='blueprint'){ BASE=hsb2rgb(H+2,62,17); spTint=[190,235,255]; blue=1; }\nelse { BASE=hsb2rgb(H,6,45); spTint=[255,252,246]; }\n\n// ---- surface height: the panel is never dead flat. Hammered gets real dimples.\nconst asp=W/Math.max(1,Hh);\nconst camX=.011*Math.sin(TD*.051+.3), camY=.011*Math.cos(TD*.043+1.9);\nconst scF=Math.max(.35,sc);\nconst wf=1.35/scF, dimF=(4.5+dens*7)/scF;\nconst wavAmp=.030+.045*dens;\nfor(let j=0;j<BH;j++){\n  const sy0=(j/BH-.5)+camY;\n  for(let i=0;i<BW;i++){\n    const sx0=(i/BW-.5)*asp+camX;\n    const sx=sx0*cr-sy0*sr, sy=sx0*sr+sy0*cr;\n    let h=(nzAt(sx*wf+3.1, sy*wf+7.7)-.5)*wavAmp + (nzAt(sx*wf*2.7-5.5, sy*wf*2.7+2.2)-.5)*wavAmp*.42;\n    if(hammer){\n      // planishing: a jittered lattice of hammer strikes, each a shallow dished facet\n      const gx=sx*dimF, gy=sy*dimF;\n      const c0=Math.floor(gx), r0=Math.floor(gy);\n      let best=9e9;\n      for(let cc=c0-1;cc<=c0+1;cc++) for(let rr2=r0-1;rr2<=r0+1;rr2++){\n        const jx=cc+.5+(fr(cc*7.3+rr2*13.1+600)-.5)*.75, jy=rr2+.5+(fr(cc*7.3+rr2*13.1+601)-.5)*.75;\n        const dx=gx-jx, dy=gy-jy, d2=dx*dx+dy*dy;\n        if(d2<best) best=d2;\n      }\n      h+=-.052*Math.sqrt(cl(1-best*.8,0,1));\n    }\n    HF[j*BW+i]=h;\n  }\n}\n\n// ---- shade: Ward anisotropic. Roughness is LOW along the grooves and HIGH across them,\n// so the highlight stretches PERPENDICULAR to the grain \u2014 the thing that sells metal.\nG.loadPixels();\nconst px=G.pixels, sR=spTint[0], sG=spTint[1], sB=spTint[2];\nconst ax=.030+.085*(1-pol);                  // along the grain \u2014 tight\nconst ay=(.26+.42*(1-pol))*(1+.6*dens);      // across the grain \u2014 broad\nconst NG=13.5;\nconst spAmt=(.16+2.15*en*en)*polM*(.6+.6*K.intensity)+S.tre*.35*en;\nconst grainWob=.95*(1-.4*dens);\nfor(let j=0;j<BH;j++){\n  const j0=Math.max(0,j-1)*BW, j1=Math.min(BH-1,j+1)*BW, jr=j*BW;\n  const sy0=(j/BH-.5)+camY;\n  for(let i=0;i<BW;i++){\n    const sx0=(i/BW-.5)*asp+camX;\n    const sx=sx0*cr-sy0*sr, sy=sx0*sr+sy0*cr;\n    const idx=jr+i;\n    // normal from the height field\n    const nx=-(HF[jr+Math.min(BW-1,i+1)]-HF[jr+Math.max(0,i-1)])*.5*NG;\n    const ny=-(HF[j1+i]-HF[j0+i])*.5*NG;\n    const nl=1/Math.sqrt(nx*nx+ny*ny+1);\n    const Nx=nx*nl, Ny=ny*nl, Nz=nl;\n    // the grain direction field \u2014 this is what the style really is\n    let tg;\n    if(sun) tg=Math.atan2(sy,sx)+1.5707963;                       // circular/sunburst brushing\n    else if(hammer) tg=Math.atan2(sy,sx)*.35+(nzAt(sx*3.1/scF+9.9,sy*3.1/scF+4.4)-.5)*3.4;\n    else tg=(nzAt(sx*.9/scF+21.3, sy*.9/scF+11.1)-.5)*grainWob;   // straight brush, grain wanders\n    tg+=rot;\n    const ct=Math.cos(tg), st=Math.sin(tg);\n    // per-pixel light vector to the lamp, then the Blinn half-vector against V=(0,0,1)\n    let Lx=lpxP-sx, Ly=lpyP-sy, Lz=lph;\n    const ll=1/Math.sqrt(Lx*Lx+Ly*Ly+Lz*Lz+1e-9); Lx*=ll; Ly*=ll; Lz*=ll;\n    let Hx=Lx, Hy=Ly, Hz=Lz+1;\n    const hl=1/Math.sqrt(Hx*Hx+Hy*Hy+Hz*Hz+1e-9); Hx*=hl; Hy*=hl; Hz*=hl;\n    // tangent T and bitangent B in the surface\n    const ht=Hx*ct+Hy*st;          // H . T   (along the grooves)\n    const hb=-Hx*st+Hy*ct;         // H . B   (across the grooves)\n    const hn=Hx*Nx+Hy*Ny+Hz*Nz;    // H . N\n    const hn2=Math.max(.06,hn*hn);\n    const e=((ht*ht)/(ax*ax)+(hb*hb)/(ay*ay))/hn2;\n    let spec=Math.min(Math.exp(-e)*spAmt*3.0,2.4);\n    // diffuse body, with a fill floor so the panel never sinks to black\n    const nl2=Nx*Lx+Ny*Ly+Nz*Lz;\n    const lam=cl(.26+.76*Math.max(0,nl2),.12,1.4);\n    // fine brush tooth, running ALONG the grain\n    const tooth=(nzAt((sx*ct+sy*st)*2.2/scF+41.1, (-sx*st+sy*ct)*96/scF+17.3)-.5)*(.10+.16*dens);\n    let R,Gc,B;\n    if(blue){\n      // machinist's surface chart: the reflectance field as hard iso-bands, no material\n      const q=cl(spec*.5+lam*.35,0,1);\n      const band=Math.abs(md(q*9,1)-.5)*2;\n      const li=Math.pow(cl(1-band*1.5,0,1),1.4);\n      const v=.16+.20*q+.80*li;\n      R=BASE[0]*(1-li)+sR*v*.9; Gc=BASE[1]*(1-li)+sG*v*.9; B=BASE[2]*(1-li)+sB*v*.9;\n    } else if(anod){\n      // anodised titanium: oxide thickness follows the topography, so the interference\n      // colour is locked to the surface, not to the lamp\n      const th=(HF[idx]*11+.5+.20*Math.sin(TD*.021));\n      const hh=md(H+th*300,360);\n      const c=hsb2rgb(hh,58+22*Math.sin(th*7),42+26*cl(lam,0,1.2));\n      R=c[0]*(.62+.5*lam)+sR*spec*.34; Gc=c[1]*(.62+.5*lam)+sG*spec*.34; B=c[2]*(.62+.5*lam)+sB*spec*.34;\n    } else {\n      const bl=(.46+.62*lam)*(1+tooth);\n      R=BASE[0]*bl+sR*spec*.42; Gc=BASE[1]*bl+sG*spec*.42; B=BASE[2]*bl+sB*spec*.42;\n    }\n    const vx=(i/BW-.5), vy=(j/BH-.5), vg=1-.26*(vx*vx*1.1+vy*vy*1.5);\n    R*=vg; Gc*=vg; B*=vg;\n    const o=idx*4;\n    px[o]=R<0?0:R>255?255:R; px[o+1]=Gc<0?0:Gc>255?255:Gc; px[o+2]=B<0?0:B>255?255:B; px[o+3]=255;\n  }\n}\nG.updatePixels();\n\nnoStroke();\nif(al<1){ push(); drawingContext.globalAlpha=al; image(G,0,0,W,Hh); pop(); }\nelse image(G,0,0,W,Hh);\nconst dc=drawingContext;\nblendMode(BLEND); dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

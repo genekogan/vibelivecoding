@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.gas_giant",
+  "kind": "world",
+  "name": "Gas Giant",
+  "desc": "Close orbit over a gas giant's cloud tops, deep enough in that the atmosphere is the whole sky \u2014 alternating zonal jets locked to latitude, shearing violently past each other at every margin, tearing the cream cloud sheet open onto the rust deck below while ammonia cirrus streams over the top and long-lived ovals spiral everything they drift under; as a jovian cloudscape, a cold ice-giant, false-color thermal, sumi ink bands, or spectral.",
+  "tags": [
+    "gas-giant",
+    "jupiter",
+    "saturn",
+    "jovian",
+    "planet",
+    "atmosphere",
+    "cloudscape",
+    "clouds",
+    "cloud-deck",
+    "zonal",
+    "jets",
+    "bands",
+    "belts",
+    "zones",
+    "shear",
+    "storm",
+    "oval",
+    "great-red-spot",
+    "vortex",
+    "anticyclone",
+    "cirrus",
+    "ammonia",
+    "ice-giant",
+    "neptune",
+    "uranus",
+    "orbit",
+    "space",
+    "sky",
+    "planetary",
+    "astronomy",
+    "astrophysics",
+    "fluid",
+    "fluid-dynamics",
+    "turbulence",
+    "rotating",
+    "parallax",
+    "layered",
+    "depth",
+    "atmospheric",
+    "fullbleed",
+    "background",
+    "world",
+    "rust",
+    "cream",
+    "amber",
+    "sublime",
+    "vast",
+    "eerie",
+    "austere",
+    "serene",
+    "thermal",
+    "false-color",
+    "sumi",
+    "ink",
+    "spectral",
+    "texture",
+    "generative"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "jet strength \u2014 how fast the bands stream, how hard the ovals spiral, and the contrast between belt and zone (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "band width \u2014 from a finely ruled atmosphere of many thin jets to a few vast lazy ribbons"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "rotation and evolution rate (0.2 still turns)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "COUNT of storm ovals riding the jets (the first is always the Great Oval)"
+    },
+    "haze": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "high ammonia cirrus \u2014 from clear sharp cloud tops to a thick milky veil drowning the bands"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the bright zones (belts and the deep deck take related shades)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "longitude \u2014 pan around the planet"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "latitude \u2014 pan from the banded equator toward the polar chaos"
+    },
+    "style": {
+      "default": "jovian",
+      "options": [
+        "jovian",
+        "ice_giant",
+        "thermal",
+        "ink_bands",
+        "spectral"
+      ],
+      "doc": "aesthetic: rust-and-cream jovian cloudscape / cold blue ice-giant with sparse cirrus / false-color thermal / sumi ink bands on paper / spectral false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the jet phases, cloud texture and oval placement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:35:41+00:00",
+    "fps": 63.3,
+    "motion": 0.0465,
+    "lum": 0.504
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, haze: .45, hue: 32, x: .5, y: .5, style: 'jovian', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Inside a gas giant's atmosphere, from close orbit ------------------------------------\n// Not a planet seen from outside \u2014 a sky. A rotating atmosphere organises itself into zonal\n// JETS: alternating east/west ribbons locked to latitude, with violent shear at every margin\n// between them. The clouds do not cross those margins; they get drawn out along them, and\n// where the shear rolls up it spins off long-lived ovals that then drift with their own band.\n//\n// Depth is real here, not painted: three cloud decks at different altitudes, each advected by\n// its own share of the jet profile and each parallaxing at its own rate under the camera, with\n// the deep rust deck showing through the gaps torn in the cream deck above it and a thin\n// ammonia cirrus riding over the top. Ovals domain-warp every deck they pass under, so the\n// spiral bites through all three.\n//\n// The differential shear is deliberately split: a uniform spin (every latitude together, so it\n// never decorrelates) plus a slow monotonic differential plus a BOUNDED oscillation on\n// incommensurate rates. Unbounded differential shear would look right for about forty seconds\n// and then grind the decks into one-pixel streaks.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 120, BH = Math.max(56, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n}\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hsh(ix, iy, iz), a1 = hsh(ix + 1, iy, iz), a2 = hsh(ix, iy + 1, iz), a3 = hsh(ix + 1, iy + 1, iz);\n  const b0 = hsh(ix, iy, iz + 1), b1 = hsh(ix + 1, iy, iz + 1), b2 = hsh(ix, iy + 1, iz + 1), b3 = hsh(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nfunction fbm3(x, y, z) { return 0.55 * vn3(x, y, z) + 0.28 * vn3(x * 2.09 + 4.3, y * 2.09 - 2.1, z * 1.7 + 1.1) + 0.17 * vn3(x * 4.27 - 3.1, y * 4.27 + 5.9, z * 2.6 - 3.3); }\nfunction fbm2o(x, y, z) { return 0.64 * vn3(x, y, z) + 0.36 * vn3(x * 2.11 + 1.7, y * 2.11 + 3.3, z * 1.6 - 2.2); }\n\nconst L = BW / BH;\nconst tt = K.t;\nconst en = P.energy;\nconst nJet = 3.2 / Math.max(0.35, P.scale);      // jets per frame height -> band width\n\n// zonal jet profile: alternating east/west, with an asymmetry so it never looks like a grating\nconst jphA = fr(3) * TAU, jphB = fr(5) * TAU;\nfunction jet(y) {\n  return Math.sin(TAU * nJet * y + jphA) * 0.72 + Math.sin(TAU * nJet * 1.87 * y + jphB) * 0.28;\n}\n\n// ---- ovals: long-lived storms, each drifting with the jet it is trapped in ----\nconst nOv = 2 + Math.round(P.density * 6);\nif (!S.OV || S.ovN !== nOv || S.ovSeed !== P.seed) {\n  S.ovN = nOv; S.ovSeed = P.seed;\n  S.OV = new Float64Array(nOv * 6);\n  for (let q = 0; q < nOv; q++) {\n    const o = q * 6;\n    S.OV[o] = fr(q * 11 + 1) * L;                       // x\n    S.OV[o + 1] = 0.07 + fr(q * 11 + 2) * 0.86;         // y (latitude)\n    S.OV[o + 2] = (q === 0 ? 0.16 : 0.045 + fr(q * 11 + 3) * 0.075);   // radius (0 = the Great Oval)\n    S.OV[o + 3] = (fr(q * 11 + 4) < 0.5 ? -1 : 1) * (0.6 + fr(q * 11 + 5) * 0.8);  // swirl\n    S.OV[o + 4] = 1.5 + fr(q * 11 + 6) * 1.3;           // aspect (ovals are wider than tall)\n    S.OV[o + 5] = fr(q * 11 + 7);                       // phase\n  }\n}\nconst OV = S.OV;\n\n// ---- shear budget (see header) ----\nconst spin = tt * (0.020 + en * 0.045) * (0.3 + P.speed * 0.7);\nconst drift = tt * (0.008 + en * 0.018) * (0.3 + P.speed * 0.7);\nconst wob = (1.9 * Math.sin(tt * 0.043) + 1.1 * Math.sin(tt * 0.097 + 1.3) + 0.6 * Math.sin(tt * 0.211 + 0.4)) * (0.2 + en);\nconst boil = tt * 0.035 * (0.3 + P.speed * 0.7);\n\n// slow camera: this is what makes the parallax between the decks read as depth\nconst camx = 0.30 * Math.sin(tt * 0.029) + 0.17 * Math.sin(tt * 0.071 + 1.9);\nconst camy = 0.10 * Math.cos(tt * 0.037 + 0.7) + 0.06 * Math.sin(tt * 0.089 + 2.3);\nconst px0 = (Math.min(1, Math.max(0, P.x)) - 0.5) * 1.4;\nconst py0 = (Math.min(1, Math.max(0, P.y)) - 0.5) * 0.5;\n\nconst g = S.g; g.loadPixels(); const pxa = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.017) * 8 + sec * 4) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cZone = pal(0.06, 0.10, 0.0);     // the bright cream zones\nconst cBelt = pal(0.94, 0.16, 0.0);     // the dark rust belts\nconst cDeep = pal(0.86, 0.20, 0.0);     // what shows through the gaps\nconst hz = P.haze;\nconst gl = 0.90 + A.lowmid * 0.22 + K.swell * 0.08;\nconst sunx = 0.55 + 0.22 * Math.sin(tt * 0.023);\n\n// warp the sample point through every oval it falls inside\nfunction ovwarp(x, y, k, out) {\n  let X = x, Y = y;\n  for (let q = 0; q < nOv; q++) {\n    const o = q * 6;\n    const asp = OV[o + 4];\n    let dx = X - OV[o], dy = (Y - OV[o + 1]) * asp;\n    if (dx > L * 0.5) dx -= L; else if (dx < -L * 0.5) dx += L;\n    const rr = OV[o + 2];\n    const d2 = dx * dx + dy * dy;\n    if (d2 > rr * rr) continue;\n    const d = Math.sqrt(d2);\n    const f = 1 - d / rr;\n    const ang = f * f * OV[o + 3] * (2.2 + en * 2.4) * (1 - k * 0.22);\n    const ca = Math.cos(ang), sa = Math.sin(ang);\n    const nx = dx * ca - dy * sa, ny = dx * sa + dy * ca;\n    X = OV[o] + nx; Y = OV[o + 1] + ny / asp;\n  }\n  out[0] = X; out[1] = Y;\n}\nconst ow = [0, 0];\n\nfor (let j = 0; j < BH; j++) {\n  const y = (j + 0.5) / BH;\n  const yl = y + py0;\n  const jv = jet(yl);\n  // limb darkening + a terminator: the sphere falls away at the frame edges\n  const limb = Math.pow(Math.max(0.0, 1 - Math.pow(Math.abs(y - 0.5) * 2, 2.4)), 0.42);\n  for (let i = 0; i < BW; i++) {\n    const x = (i + 0.5) / BH;\n    // each deck: its own share of the jet, its own parallax, its own boil rate\n    let r = 0, gg = 0, b = 0;\n    const term = Math.pow(Math.max(0.0, 1 - Math.pow(Math.abs((x / L) - sunx) * 1.85, 2.2)), 0.5);\n    const shade = (0.30 + limb * 0.55) * (0.42 + term * 0.72);\n\n    // -- deep deck (rust, slowest parallax, strongest jet) --\n    ovwarp(x + px0 - camx * 0.020, yl, 0, ow);\n    const xd = (ow[0] - spin - jv * (drift + wob) * 1.00) * 2.6;\n    const dDeep = fbm2o(xd, ow[1] * 7.4 * Math.max(0.4, 1 / Math.max(0.35, P.scale)) + 3.1, boil * 0.7);\n\n    // -- mid deck (cream zones, the main cloud sheet) --\n    ovwarp(x + px0 - camx * 0.055, yl, 1, ow);\n    const xm = (ow[0] - spin * 1.06 - jv * (drift + wob) * 0.86) * 3.4;\n    const dMid = fbm3(xm, ow[1] * 9.0 * Math.max(0.4, 1 / Math.max(0.35, P.scale)) + 8.7, boil);\n\n    // -- high cirrus (fastest parallax, thin ammonia haze) --\n    ovwarp(x + px0 - camx * 0.115, yl, 2, ow);\n    const xh = (ow[0] - spin * 1.14 - jv * (drift + wob) * 0.62) * 4.6;\n    const dHi = fbm2o(xh, ow[1] * 12.0 + 15.3, boil * 1.6);\n\n    // the belt/zone banding is latitude structure, not noise: jets ARE the bands\n    const band = 0.5 + 0.5 * jv;\n    const bandy = Math.min(1, Math.max(0, band * 0.80 + dMid * 0.55 - 0.16));\n    const gap = Math.min(1, Math.max(0, dMid * 1.5 - 0.62));    // torn holes down to the deep deck\n    const cir = Math.min(1, Math.max(0, dHi * 1.35 - 0.52)) * (0.25 + hz * 0.95);\n\n    if (style === 'ice_giant') {\n      const deep = 0.10 + dDeep * 0.13;\n      const v = (deep + bandy * 0.16 + gap * 0.05) * shade * 2.0;\n      r = v * 0.38; gg = v * 0.72; b = v * 1.18;\n      const c2 = cir * 0.42 * shade;\n      r += c2 * 0.9; gg += c2 * 0.96; b += c2 * 1.0;\n    } else if (style === 'thermal') {\n      const m = Math.min(1, (1 - bandy * 0.75 + gap * 0.5) * 0.56 * (0.5 + en) + dDeep * 0.14);\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55));\n      b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.40 - m * 1.5));\n      const c2 = cir * 0.18; r += c2; gg += c2; b += c2;\n    } else if (style === 'ink_bands') {\n      const v = (0.86 - bandy * 0.44 - dDeep * 0.10 - gap * 0.16 + cir * 0.10) * (0.55 + shade * 0.62);\n      r = v * 0.99; gg = v * 0.972; b = v * 0.93;\n    } else if (style === 'spectral') {\n      const u = 0.04 + bandy * 0.46 + gap * 0.16 + dHi * 0.10;\n      const cc = pal(u, 0.32, 0.0);\n      const v = (0.22 + bandy * 0.26 + cir * 0.22) * shade * 1.5;\n      r = v * (0.30 + cc[0] * 1.22); gg = v * (0.30 + cc[1] * 1.22); b = v * (0.32 + cc[2] * 1.22);\n    } else {                                   // jovian (default)\n      // rust deep deck, cream zone sheet torn open over it, ammonia cirrus on top\n      const dr = 0.24 + dDeep * 0.30;\n      let rr2 = dr * cDeep[0] * 1.5, gg2 = dr * cDeep[1] * 1.15, bb2 = dr * cDeep[2] * 0.85;\n      const mixv = bandy * (1 - gap * 0.85);\n      const zr = 0.34 + dMid * 0.34;\n      const zc0 = cBelt[0] + (cZone[0] - cBelt[0]) * bandy;\n      const zc1 = cBelt[1] + (cZone[1] - cBelt[1]) * bandy;\n      const zc2 = cBelt[2] + (cZone[2] - cBelt[2]) * bandy;\n      rr2 = rr2 * (1 - mixv) + zr * zc0 * 1.55 * mixv;\n      gg2 = gg2 * (1 - mixv) + zr * zc1 * 1.35 * mixv;\n      bb2 = bb2 * (1 - mixv) + zr * zc2 * 1.05 * mixv;\n      const c2 = cir * 0.34;\n      rr2 += c2 * 0.98; gg2 += c2 * 0.95; bb2 += c2 * 0.88;\n      r = rr2 * shade * 1.52 * gl; gg = gg2 * shade * 1.52 * gl; b = bb2 * shade * 1.52 * gl;\n    }\n    const o = 4 * (j * BW + i);\n    pxa[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    pxa[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    pxa[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    pxa[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

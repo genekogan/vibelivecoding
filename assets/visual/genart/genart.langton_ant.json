@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.langton_ant",
+  "kind": "genart",
+  "name": "Langton's Ant Colony",
+  "desc": "A colony of Langton's ants crawls a coarse lattice, each turmite flipping cells by a section-drifting turn-rule and dragging a fading colored trail that tangles into churning chaos and bursts of diagonal highway order until the over-built grid collapses and reseeds, rendered as neon highways, green phosphor CRT, ink plotter, thermal visit-heatmap, or copper circuit traces.",
+  "tags": [
+    "langton",
+    "langtons-ant",
+    "ant",
+    "ants",
+    "turmite",
+    "turmites",
+    "cellular-automata",
+    "ca",
+    "automaton",
+    "emergence",
+    "emergent",
+    "highway",
+    "grid",
+    "lattice",
+    "colony",
+    "generative",
+    "genart",
+    "abstract",
+    "algorithmic",
+    "computational",
+    "complexity",
+    "chaos",
+    "neon",
+    "cyan",
+    "magenta",
+    "lime",
+    "phosphor",
+    "crt",
+    "terminal",
+    "circuit",
+    "pcb",
+    "copper",
+    "thermal",
+    "heatmap",
+    "ink",
+    "plotter",
+    "trails",
+    "veins",
+    "retro",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1.0,
+      "doc": "number of ants in the colony"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "crawl step-rate + trail glow (build speed)"
+    },
+    "trail": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "trail persistence (0=short veins, 1=long highways)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "grid cell size (higher = chunkier cells)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 2.5,
+      "doc": "crawl-rate multiplier"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue of the ant palette (spread by golden angle)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reseed cluster center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reseed cluster center y"
+    },
+    "style": {
+      "default": "neon-highways",
+      "options": [
+        "neon-highways",
+        "phosphor",
+        "ink-plotter",
+        "heatmap",
+        "circuit"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:32:33+00:00",
+    "fps": 63.3,
+    "motion": 0.0622,
+    "lum": 0.134
+  },
+  "code": "const D = { density: .5, energy: .6, trail: .5, scale: 1, speed: 1, hue: 190, x: .5, y: .5, style: 'neon-highways', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// --- coarse grid sized from scale (cache buffer+arrays in S, keyed on dims) ---\nconst GW = Math.max(72, Math.min(210, Math.round(174 / P.scale)));\nconst GH = Math.max(46, Math.min(150, Math.round(GW * height / width)));\nconst N = GW * GH;\nconst gkey = GW + 'x' + GH;\nconst MAXA = 16;\nconst dx = [0, 1, 0, -1], dy = [-1, 0, 1, 0];\nconst RULES = ['RL', 'RLR', 'LLRR', 'RRLL', 'LRRRRRLLR', 'LLRRRLRLRLLR', 'RLLR', 'RRLRLLLR'];\n\nif (!S.g || S.gkey !== gkey) {\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1);\n  S.st = new Uint8Array(N);            // automaton cell state (interpreted mod nStates)\n  S.heat = new Float32Array(N);        // scalar visit intensity (drives most styles)\n  S.tr = new Float32Array(N * 3);      // accumulated ant RGB (drives neon interference)\n  S.ants = new Array(MAXA);\n  for (let i = 0; i < MAXA; i++) S.ants[i] = { x: 0, y: 0, dir: 0, hoff: (i * 137.508) % 360, life: 0, lifeMax: 1600, r: 1, g: 1, b: 1 };\n  S.gkey = gkey; S.needSeed = true;\n}\n\n// --- deterministic hashes ---\nfunction fr(i) { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); }\nfunction frn() { S.rc = (S.rc + 1) | 0; const s = Math.sin(S.rc * 92.7 + P.seed * 311.7 + 17.3) * 43758.5453; return s - Math.floor(s); }\n\n// rule for this frame (drifts by section = dramaturgy)\nconst rule = RULES[(K.section | 0) % RULES.length];\nconst rlen = rule.length;\nconst turns = new Int8Array(rlen);\nfor (let i = 0; i < rlen; i++) turns[i] = rule.charCodeAt(i) === 82 ? 1 : 3; // 'R'->+1, else left(+3)\n\nconst dep = 0.46;\n\nfunction reseed(ant) {\n  const cx = Math.round(P.x * GW + (frn() * 2 - 1) * GW * 0.34);\n  const cy = Math.round(P.y * GH + (frn() * 2 - 1) * GH * 0.34);\n  ant.x = ((cx % GW) + GW) % GW;\n  ant.y = ((cy % GH) + GH) % GH;\n  ant.dir = (frn() * 4) | 0;\n  ant.life = 0;\n  ant.lifeMax = 1600 + (frn() * 5200) | 0;\n  // clear a small patch of automaton state -> fresh chaos burst -> new highway\n  const rad = 4;\n  for (let oy = -rad; oy <= rad; oy++) for (let ox = -rad; ox <= rad; ox++) {\n    const gx = ((ant.x + ox) % GW + GW) % GW, gy = ((ant.y + oy) % GH + GH) % GH;\n    S.st[gy * GW + gx] = 0;\n  }\n}\n\nfunction step(ant) {\n  const idx = ant.y * GW + ant.x;\n  const c = S.st[idx] % rlen;\n  ant.dir = (ant.dir + turns[c] + 4) % 4;\n  S.st[idx] = (c + 1) % rlen;\n  // deposit colored trail + heat at current cell\n  S.heat[idx] = Math.min(1.5, S.heat[idx] + dep);\n  const b = idx * 3;\n  S.tr[b] = Math.min(1.9, S.tr[b] + ant.r * dep);\n  S.tr[b + 1] = Math.min(1.9, S.tr[b + 1] + ant.g * dep);\n  S.tr[b + 2] = Math.min(1.9, S.tr[b + 2] + ant.b * dep);\n  // advance (toroidal)\n  ant.x = (ant.x + dx[ant.dir] + GW) % GW;\n  ant.y = (ant.y + dy[ant.dir] + GH) % GH;\n  ant.life++;\n  if (ant.life > ant.lifeMax) reseed(ant);\n}\n\n// pure HSB(sat=1,val=1) -> rgb 0..1\nfunction h2rgb(h) {\n  h = ((h % 360) + 360) % 360 / 60;\n  const i = Math.floor(h), x = 1 - Math.abs((h % 2) - 1);\n  if (i === 0) return [1, x, 0]; if (i === 1) return [x, 1, 0]; if (i === 2) return [0, 1, x];\n  if (i === 3) return [0, x, 1]; if (i === 4) return [x, 0, 1]; return [1, 0, x];\n}\n\nconst nAnts = Math.max(2, Math.min(MAXA, Math.round(4 + P.density * 11)));\n\n// --- (re)seed + warmup so the very first frame is already populated ---\nif (S.needSeed || S.seedUsed !== P.seed) {\n  S.needSeed = false; S.seedUsed = P.seed; S.rc = 1; S.build = 0;\n  S.st.fill(0); S.heat.fill(0); S.tr.fill(0);\n  for (let i = 0; i < MAXA; i++) reseed(S.ants[i]);\n  const warm = 4600;\n  for (let s = 0; s < warm; s++) {\n    const a = S.ants[s % nAnts];\n    a.r = 1; a.g = 1; a.b = 1;\n    step(a);\n  }\n}\n\n// --- per-frame ant colors (respond to live hue/section drift) ---\nconst hueDrift = (K.section | 0) * 17;\nfor (let i = 0; i < nAnts; i++) {\n  const a = S.ants[i];\n  const c = h2rgb(P.hue + a.hoff + hueDrift);\n  a.r = c[0]; a.g = c[1]; a.b = c[2];\n}\n\n// --- decay trails (persistence from P.trail) + cheap saturation census ---\nconst decay = 0.947 + P.trail * 0.037;   // ~0.947 (short veins) .. ~0.984 (long highways)\nlet satCount = 0;\nfor (let i = 0; i < N; i++) {\n  const hv = (S.heat[i] *= decay);\n  if (hv > 1.15) satCount++;\n  const b = i * 3;\n  S.tr[b] *= decay; S.tr[b + 1] *= decay; S.tr[b + 2] *= decay;\n}\n// auto-exposure: only bites when the field floods (protects extreme param combos from white-out)\nconst satFrac = satCount / N;\nconst expoScale = satFrac > 0.32 ? Math.max(0.45, 1 - (satFrac - 0.32) * 1.4) : 1;\n\n// --- advance the colony (K gates steps/frame; audio adds on top; baseline never 0) ---\nconst kdrive = 0.55 + 0.55 * (K.swell || 0) + 0.5 * (K.intensity != null ? K.intensity : 0.5);\nlet steps = Math.round(P.energy * 24 * P.speed * kdrive + A.bass * 24);\nsteps = Math.max(3, Math.min(88, steps));\nfor (let s = 0; s < steps; s++) for (let i = 0; i < nAnts; i++) step(S.ants[i]);\n// colony collapse: when the grid is over-built, wipe automaton memory + rescatter ants\n// (recipe: \"reseed when they build too much\") -> restarts the chaos->highway->rebirth arc.\n// visible trails keep fading through it (no strobe), but ant behavior renews.\nS.build = (S.build || 0) + steps * nAnts;\nif (S.build > N * 11) { S.build = 0; S.st.fill(0); for (let i = 0; i < MAXA; i++) reseed(S.ants[i]); }\n\n// --- render buffer ---\nconst style = P.style;\nconst expo = (0.55 + P.energy * 0.9 + (K.intensity != null ? K.intensity : 0.5) * 0.3 + A.rms * 0.6) * expoScale;\nconst scanRoll = K.t * 6.0;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let idx = 0; idx < N; idx++) {\n  const h = S.heat[idx];\n  let R, G, B;\n  if (style === 'phosphor') {\n    const v = 1 - Math.exp(-h * expo * 1.55);\n    const row = (idx / GW) | 0;\n    const sl = 0.70 + 0.30 * Math.sin((row + scanRoll) * 1.9);\n    R = 0.012 + 0.10 * v; G = 0.032 + v * sl; B = 0.020 + 0.30 * v;\n  } else if (style === 'ink-plotter') {\n    const d = 1 - Math.exp(-h * expo * 1.5);\n    R = 0.93 * (1 - d) + 0.07 * d; G = 0.90 * (1 - d) + 0.09 * d; B = 0.81 * (1 - d) + 0.17 * d;\n  } else if (style === 'heatmap') {\n    const v = Math.min(1.15, h * expo * 0.95);\n    R = Math.min(1, v * 2.3) + Math.max(0, 0.22 - v) * 0.55;\n    G = Math.min(1, Math.max(0, v * 2.2 - 0.72));\n    B = Math.min(1, Math.max(0, v * 4.0 - 2.85)) + Math.max(0, 0.30 - v) * 0.7;\n  } else if (style === 'circuit') {\n    const v = 1 - Math.exp(-h * expo * 1.55);\n    R = 0.028 + v * 0.72; G = 0.075 + v * 0.44; B = 0.045 + v * 0.16;\n    if (h > 1.05) { const vv = Math.min(1, (h - 1.05) * 2.2); R += vv * 0.28; G += vv * 0.36; B += vv * 0.16; }\n  } else { // neon-highways (default)\n    const b = idx * 3;\n    const tr0 = S.tr[b], tr1 = S.tr[b + 1], tr2 = S.tr[b + 2];\n    const bloom = (h > 1.05) ? Math.min(0.18, (h - 1.05) * 0.4) : 0; // hot cores whiten\n    R = 0.075 + (1 - Math.exp(-tr0 * expo * 1.25)) * 0.92 + bloom;\n    G = 0.092 + (1 - Math.exp(-tr1 * expo * 1.25)) * 0.92 + bloom;\n    B = 0.150 + (1 - Math.exp(-tr2 * expo * 1.25)) * 0.92 + bloom;\n  }\n  const o = idx * 4;\n  px[o] = R < 0 ? 0 : R > 1 ? 255 : R * 255;\n  px[o + 1] = G < 0 ? 0 : G > 1 ? 255 : G * 255;\n  px[o + 2] = B < 0 ? 0 : B > 1 ? 255 : B * 255;\n  px[o + 3] = 255;\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

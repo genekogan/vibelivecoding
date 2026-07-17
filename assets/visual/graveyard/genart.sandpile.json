@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.sandpile",
+  "kind": "genart",
+  "name": "Abelian Sandpile",
+  "desc": "An Abelian sandpile grows from a slowly-wandering pour source into the iconic self-similar mandala of nested squares and diamonds, its four grain-heights mapped to a vivid indigo-magenta-gold-white ramp while toppling avalanches shimmer along the perpetually expanding self-organized-critical frontier.",
+  "tags": [
+    "sandpile",
+    "abelian-sandpile",
+    "abelian",
+    "bak-tang-wiesenfeld",
+    "btw",
+    "self-organized-criticality",
+    "soc",
+    "avalanche",
+    "toppling",
+    "cellular-automata",
+    "automata",
+    "grain",
+    "sand",
+    "aggregation",
+    "fractal",
+    "mandala",
+    "nested-squares",
+    "diamonds",
+    "emergence",
+    "emergent",
+    "complexity",
+    "criticality",
+    "generative",
+    "genart",
+    "abstract",
+    "field",
+    "topographic",
+    "thermal",
+    "copper",
+    "patina",
+    "verdigris",
+    "neon",
+    "contour",
+    "blueprint",
+    "indigo",
+    "magenta",
+    "gold",
+    "spectral",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.6,
+      "doc": "cell size / grid coarseness (higher = chunkier cells, fewer columns)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / glow amplitude + avalanche shimmer brightness"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "pour rate (grains dropped per second -> growth speed & avalanche activity)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "pour-rate multiplier (faster accretion)"
+    },
+    "hue": {
+      "default": 260,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (rotates the whole height ramp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pour source center x (the mandala's origin)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pour source center y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "thermal",
+        "copper-oxide",
+        "grayscale-topographic",
+        "neon-contour"
+      ],
+      "doc": "render philosophy: spectral indigo->magenta->gold->white / thermal blackbody / copper-oxide patina greens+rust / grayscale-topographic elevation bands (mono abstract) / neon-contour glowing height-region outlines only (abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (seed>0 adds asymmetric secondary pour sources)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg; lower = translucent trails)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { scale: 1, energy: .62, density: .55, speed: 1, hue: 260, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b) => v<a?a:(v>b?b:v);\n\n// ---- coarse integer grid: scale -> cell size (bigger scale = chunkier, fewer cells) ----\nconst GW = clp(Math.round(180 / (0.55 + clp(P.scale,0.5,2.6))), 48, 200) | 0;\nconst GH = clp(Math.round(GW * height / Math.max(1, width)), 32, 200) | 0;\nconst cells = GW * GH;\nconst seedI = P.seed | 0;\n\n// ---- Abelian relaxation via a work-stack (queue toppling; exact, Abelian-order-free) ----\nfunction relax(maxOps) {\n  const grid = S.grid, glow = S.glow, st = S.stack, cap = st.length;\n  let sp = 0;\n  for (let idx = 0; idx < cells; idx++) if (grid[idx] >= 4) { if (sp < cap) st[sp++] = idx; }\n  let ops = 0;\n  while (sp > 0 && ops < maxOps) {\n    const idx = st[--sp];\n    const h = grid[idx];\n    if (h < 4) continue;\n    const times = h >> 2;               // topple floor(h/4) times at once (Abelian batch)\n    grid[idx] = h - times * 4;\n    glow[idx] = 1;                       // mark toppled this pass (avalanche shimmer)\n    const y = (idx / GW) | 0;\n    const x = idx - y * GW;\n    if (x > 0)       { const n = idx - 1;  grid[n] += times; if (grid[n] >= 4 && sp < cap) st[sp++] = n; }\n    if (x < GW - 1)  { const n = idx + 1;  grid[n] += times; if (grid[n] >= 4 && sp < cap) st[sp++] = n; }\n    if (y > 0)       { const n = idx - GW; grid[n] += times; if (grid[n] >= 4 && sp < cap) st[sp++] = n; }\n    if (y < GH - 1)  { const n = idx + GW; grid[n] += times; if (grid[n] >= 4 && sp < cap) st[sp++] = n; }\n    ops++;                               // grains that fall off-grid are lost (open sinks)\n  }\n}\n\n// ---- (re)build + pre-grow the pile on size / seed change (start with a real mandala) ----\nconst key = GW + 'x' + GH + '_' + seedI;\nif (!S.grid || S.key !== key) {\n  S.key = key;\n  S.grid = new Int32Array(cells);\n  S.glow = new Float32Array(cells);\n  S.stack = new Int32Array(cells + 32);\n  S.acc = 0; S.lastT = null;\n  const fr = i => { const s = Math.sin(i * 127.1 + seedI * 311.7) * 43758.5453; return s - Math.floor(s); };\n  const cx = (GW * 0.5) | 0, cy = (GH * 0.5) | 0;\n  const init = Math.max(1200, Math.round(cells * 0.5));\n  S.grid[cy * GW + cx] += init;\n  if (seedI !== 0) {                     // seed > 0: asymmetric secondary sources\n    const nsrc = 1 + (fr(1) * 2 | 0);\n    for (let k = 0; k < nsrc; k++) {\n      const ox = ((fr(k * 3 + 2) - 0.5) * GW * 0.5) | 0, oy = ((fr(k * 3 + 3) - 0.5) * GH * 0.5) | 0;\n      const sx = clp(cx + ox, 1, GW - 2) | 0, sy = clp(cy + oy, 1, GH - 2) | 0;\n      S.grid[sy * GW + sx] += Math.round(init * (0.25 + fr(k * 3 + 4) * 0.4));\n    }\n  }\n  for (let it = 0; it < 48; it++) { relax(8000000); let any = false; for (let idx = 0; idx < cells; idx++) if (S.grid[idx] >= 4) { any = true; break; } if (!any) break; }\n  S.glow.fill(0);\n}\n\n// ---- clock -> continuous pour at a slowly-wandering source (K.t motion floor) ----\nif (S.lastT == null || K.t < S.lastT || K.t - S.lastT > 0.5) S.lastT = K.t;\nconst dt = Math.min(0.08, K.t - S.lastT); S.lastT = K.t;\nconst secF = K.section | 0;\nconst wob = 0.05 + (secF % 8) / 8 * 0.11;         // wander radius grows across the arc\nconst ang = K.t * 0.22;\nconst js = (seedI % 97) * 0.3;\nlet sx = Math.round(GW * clp(P.x,0,1) + Math.cos(ang + js) * GW * wob + Math.cos(ang * 1.7) * GW * wob * 0.4);\nlet sy = Math.round(GH * clp(P.y,0,1) + Math.sin(ang * 1.1 + js) * GH * wob + Math.sin(ang * 2.3) * GH * wob * 0.4);\nsx = clp(sx, 1, GW - 2) | 0; sy = clp(sy, 1, GH - 2) | 0;\nconst pourRate = (6 + clp(P.density,0,1) * 130) * (0.5 + K.intensity * 0.9) * (0.4 + clp(P.speed,0,3) * 0.8) * (1 + A.bass * 1.4);\nS.acc += pourRate * dt;\nlet nDrop = S.acc | 0; if (nDrop > 900) nDrop = 900; S.acc -= nDrop;\nif (nDrop > 0) S.grid[sy * GW + sx] += nDrop;\n\n// decay avalanche shimmer, then run this frame's toppling\nconst glow = S.glow;\nfor (let idx = 0; idx < cells; idx++) glow[idx] *= 0.86;\nrelax(300000);\n\n// ---- coarse pixel buffer ----\nif (!S.g || S.gw !== GW || S.gh !== GH) { S.g = createGraphics(GW, GH); S.g.pixelDensity(1); S.gw = GW; S.gh = GH; }\n\n// ---- exposure with continuous K.t breathing (period ~11s, never re-phases at 8s) ----\nconst expo = 0.55 + clp(P.energy,0,1) * 0.85 + K.intensity * 0.28 + 0.12 * Math.sin(K.t * 0.55) + A.rms * 0.6 + A.bass * 0.22;\nconst hueShift = P.hue - 260;\nconst style = P.style;\n\n// 4-height swatch tables (HSB) for the fill styles\nconst SPEC  = [[258,0.72,0.22],[300,0.78,0.52],[42,0.88,0.95],[46,0.14,1.0]];\nconst THERM = [[12,0.85,0.07],[6,1.0,0.55],[30,1.0,0.9],[46,0.30,1.0]];\nconst COPP  = [[150,0.5,0.12],[158,0.6,0.45],[120,0.35,0.72],[20,0.75,0.8]];\nconst isThermal = style === 'thermal';\nconst isCopper = style === 'copper-oxide' || style === 'copper';\nconst isNeon = style === 'neon-contour' || style === 'neon';\nconst isTopo = style === 'grayscale-topographic' || style === 'topo' || style === 'grayscale';\nconst SW = isThermal ? THERM : (isCopper ? COPP : SPEC);\n\nconst OUT = [0, 0, 0];\nfunction hsv(o, h, s, v) {\n  h = ((h % 360) + 360) % 360; const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; } else if (h < 180) { r = 0; g = c; b = x; }\n  else if (h < 240) { r = 0; g = x; b = c; } else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }\n  o[0] = (r + m) * 255; o[1] = (g + m) * 255; o[2] = (b + m) * 255;\n}\n\n// ---- render heights -> pixels ----\nconst grid = S.grid;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < GH; j++) {\n  for (let i = 0; i < GW; i++) {\n    const idx = j * GW + i;\n    let hc = grid[idx]; if (hc < 0) hc = 0; else if (hc > 3) hc = 3;\n    const gl = glow[idx];\n    let hh, ss, vv;\n    if (isNeon) {                        // ABSTRACT: only height-region boundaries glow (nested squares/diamonds)\n      let lvl = -1;\n      let rn = hc; if (i < GW - 1) { rn = grid[idx + 1]; rn = rn < 0 ? 0 : (rn > 3 ? 3 : rn); }\n      let dn = hc; if (j < GH - 1) { dn = grid[idx + GW]; dn = dn < 0 ? 0 : (dn > 3 ? 3 : dn); }\n      if (rn !== hc) lvl = rn > hc ? rn : hc; else if (dn !== hc) lvl = dn > hc ? dn : hc;\n      if (lvl >= 0) { hh = (lvl === 1 ? 188 : lvl === 2 ? 312 : 52) + hueShift; ss = 0.9; vv = clp((0.45 + lvl * 0.16) * (0.5 + expo * 0.5) + gl * 0.5, 0, 1.4); }\n      else { hh = 250 + hueShift; ss = 0.7; vv = 0.055 + gl * 0.28; }\n    } else if (isTopo) {                 // ABSTRACT: grayscale elevation bands + bright contour ridges\n      let edge = false;\n      let rn = hc; if (i < GW - 1) { rn = grid[idx + 1]; rn = rn < 0 ? 0 : (rn > 3 ? 3 : rn); }\n      let dn = hc; if (j < GH - 1) { dn = grid[idx + GW]; dn = dn < 0 ? 0 : (dn > 3 ? 3 : dn); }\n      if (rn !== hc || dn !== hc) edge = true;\n      let base = 0.12 + hc * 0.25; if (edge) base = base + 0.30;\n      hh = 42 + hueShift * 0.12; ss = 0.05; vv = clp(base * (0.6 + expo * 0.4) + gl * 0.3, 0, 1.3);\n    } else {                             // FILL: spectral / thermal / copper ramp\n      const sw = SW[hc];\n      hh = sw[0] + hueShift; ss = sw[1]; vv = sw[2] * expo;\n      if (gl > 0.02) { vv = vv + gl * 0.55 * (0.4 + P.energy) + A.treble * gl * 0.4; ss = ss - gl * 0.35; if (ss < 0) ss = 0; }\n    }\n    hsv(OUT, hh, ss, vv);\n    const o = 4 * idx;\n    px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\n// ---- draw (upscale). alpha<100 = translucent for VJ compositing (no bg clear) ----\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.g, 0, 0, width, height);\npop();\n\n// ---- audio reactivity ON TOP of the clk baseline (all-zero during validation) ----\nif (A.bass > 0.01 || A.treble > 0.01 || A.rms > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  fill((P.hue + 24) % 360, 42, 100, A.bass * P.energy * 15);\n  rect(0, 0, width, height);\n  const cx = width * clp(P.x,0,1), cy = height * clp(P.y,0,1), rr = Math.min(width, height) * (0.18 + A.rms * 0.5);\n  fill((P.hue + 46) % 360, 30, 100, A.treble * 20);\n  ellipse(cx, cy, rr, rr);\n  blendMode(BLEND); pop();\n}\n"
+}

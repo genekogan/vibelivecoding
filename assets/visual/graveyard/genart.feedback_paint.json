@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.feedback_paint",
+  "kind": "genart",
+  "name": "Feedback Painting",
+  "desc": "Analog video-feedback canvas where seeded brush attractors smear luminous trails that a slowly zooming, rotating self-stamp blooms into evolving fractal washes.",
+  "tags": [
+    "feedback",
+    "video feedback",
+    "painting",
+    "abstract",
+    "generative",
+    "bloom",
+    "psychedelic",
+    "trails",
+    "fractal",
+    "oil slick",
+    "iridescent",
+    "flow",
+    "organic",
+    "hue drift",
+    "liquid",
+    "analog",
+    "vortex",
+    "smoke",
+    "thermal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "brush attractor count + deposit size"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "feedback zoom magnitude + brush size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "feedback flow + brush travel rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "deposit opacity / bloom intensity"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "base paint hue (drifts continuously over time)"
+    },
+    "rot": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "feedback rotation: 0 spiral CCW, 0.5 pure zoom, 1 spiral CW"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "brush wander speed + hue drift rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "feedback zoom center + attractor pull x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "feedback zoom center + attractor pull y"
+    },
+    "style": {
+      "default": "feedback",
+      "options": [
+        "feedback",
+        "ink",
+        "thermal",
+        "oil",
+        "crt"
+      ],
+      "doc": "render discipline: additive analog glow / subtractive dark ink on cream / false-color heat map / iridescent oil-slick / degraded CRT rgb-split"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "attractor + initial-bloom seed"
+    },
+    "act": {
+      "default": "bloom",
+      "options": [
+        "bloom",
+        "vortex",
+        "pulse"
+      ],
+      "doc": "dramaturgy: bloom (slow expansion) / vortex (rotational drift) / pulse (beat-driven zoom bursts)"
+    }
+  },
+  "acts": [
+    "bloom",
+    "vortex",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density:.5, scale:1, speed:1, energy:.6, hue:280, x:.5, y:.5, style:'feedback', seed:0, rot:.5, drift:.5, act:'bloom' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst ink = (st==='ink');\n\n// ---- ping-pong feedback buffers (size + seed keyed) ----\nconst fkey = width+'x'+height;\nif (!S.a || S.fkey!==fkey){\n  if (S.a&&S.a.remove) S.a.remove(); if (S.b&&S.b.remove) S.b.remove();\n  S.a=createGraphics(width,height); S.a.colorMode(HSB,360,100,100,100);\n  S.b=createGraphics(width,height); S.b.colorMode(HSB,360,100,100,100);\n  S.fkey=fkey; S.seedUsed=null; S.styleUsed=null;\n}\nif (S.seedUsed!==P.seed || S.styleUsed!==st){\n  S.seedUsed=P.seed; S.styleUsed=st;\n  const base = ink ? [42,10,88] : (st==='thermal'?[248,60,5] : st==='oil'?[230,50,6] : [0,0,4]);\n  S.a.background(base[0],base[1],base[2]); S.b.background(base[0],base[1],base[2]);\n  // seed attractor particles\n  const N=48; S.px=[]; S.py=[]; S.ph=[];\n  for (let i=0;i<N;i++){ S.px[i]=fr(i*5+1)*width; S.py[i]=fr(i*5+2)*height; S.ph[i]=fr(i*5+3); }\n  // pre-stamp a few blooms so the frame is never blank\n  S.a.noStroke();\n  for (let i=0;i<10;i++){ const x=fr(i*9+7)*width, y=fr(i*9+8)*height, rr=u*(0.05+fr(i*9+9)*0.12); S.a.fill((P.hue+fr(i)*80)%360,70,ink?30:90, ink?24:40); S.a.ellipse(x,y,rr,rr); }\n  S.b.image(S.a,0,0);\n}\n\nlet src=S.a, dst=S.b;\n\n// ---- feedback re-stamp: draw src into dst, scaled + rotated + faded ----\nconst cx=P.x*width, cy=P.y*height;\nconst kick = K.pulse*0.6 + A.bass*0.8;\nconst zoomAmt = (P.act==='pulse') ? (0.006 + kick*0.02) : 0.004;\nconst zoom = 1 + (zoomAmt + 0.004*(P.scale-1)) * P.speed + (P.act==='bloom'?0.002:0);\nconst spin = (P.rot-0.5) * (0.010 + 0.006*Math.sin(K.t*0.15)) * P.speed + (P.act==='vortex'?0.006*P.speed:0);\ndst.push();\ndst.translate(cx,cy); dst.rotate(spin); dst.scale(zoom); dst.translate(-cx,-cy);\nif (ink){ dst.image(src,0,0); dst.noStroke(); dst.fill(42,9,90,10); dst.rect(0,0,width,height); } // decay toward cream\nelse { dst.tint(0,0,95.5,100); dst.image(src,0,0); dst.noTint(); }\ndst.pop();\n// ambient floor so buffer never blacks out below luminance gate\ndst.noStroke();\nif (ink){ dst.fill(42,9,88,4); } else { dst.fill(st==='thermal'?250:st==='oil'?230:0, st==='ink'?9:40, ink?88:5, 5); }\ndst.rect(0,0,width,height);\n\n// ---- brush attractors deposit onto dst ----\nconst nB = Math.round(14 + P.density*46);\nconst drift = 0.3 + P.drift*1.4;\nconst hbase = (P.hue + K.t*(4+P.drift*10) + K.section*18) % 360;\ndst.noStroke();\ndst.blendMode(ink ? BLEND : (st==='oil'?SCREEN:ADD));\nfor (let i=0;i<nB;i++){\n  const ph=S.ph[i];\n  // curl-ish flow field, seed + time driven (continuous real-time motion)\n  const fx = S.px[i]/u, fy = S.py[i]/u, tt = K.t*0.25*P.speed;\n  const ang = (Math.sin(fx*2.1+tt+ph*6.28) + Math.cos(fy*1.7 - tt*0.8 + ph*3.1) + Math.sin((fx+fy)*1.3 + i)) * 2.0;\n  const step = u*0.006*drift*P.speed*(0.6+A.rms*1.4);\n  S.px[i]+=Math.cos(ang)*step + (cx-S.px[i])*0.002;\n  S.py[i]+=Math.sin(ang)*step + (cy-S.py[i])*0.002;\n  if (S.px[i]<0)S.px[i]+=width; if (S.px[i]>=width)S.px[i]-=width;\n  if (S.py[i]<0)S.py[i]+=height; if (S.py[i]>=height)S.py[i]-=height;\n  const sz = u*(0.012 + ph*0.03) * P.scale * (0.7+0.5*K.swell) * (0.8+kick*0.9);\n  let h, s, b, a;\n  if (ink){ h=(hbase+ph*30)%360; s=18+ph*22; b=14+ph*20; a=14+P.energy*20; }\n  else if (st==='thermal'){ const e=0.3+ph*0.7+kick*0.4; h=((1-e)*210+e*25)%360; s=95-e*35; b=40+e*60; a=16+P.energy*26; }\n  else if (st==='oil'){ h=(hbase+ph*120)%360; s=70+ph*25; b=55+ph*40; a=14+P.energy*22; }\n  else if (st==='crt'){ h=(hbase+ph*40)%360; s=80; b=70+ph*30; a=18+P.energy*28; }\n  else { h=(hbase+(ph-0.5)*90)%360; s=60+ph*35; b=70+ph*30; a=16+P.energy*30; }\n  dst.fill((h+360)%360, s, b, a);\n  dst.ellipse(S.px[i], S.py[i], sz, sz);\n  // occasional bright core on the beat for sparkle\n  if (!ink && kick>0.4 && fr(i+Math.floor(K.beat))<0.3){ dst.fill((h+360)%360, s*0.5, 100, a*0.9); dst.ellipse(S.px[i],S.py[i], sz*0.4, sz*0.4); }\n}\ndst.blendMode(BLEND);\n\n// ---- composite dst to screen (style-dependent) ----\nif (st==='crt'){\n  const off = u*0.004*(1+A.rms*2);\n  blendMode(ADD);\n  tint(0,100,60,88); image(dst,-off,0);\n  tint(120,100,60,88); image(dst,0,0);\n  tint(240,100,60,88); image(dst,off,0);\n  noTint(); blendMode(BLEND);\n  // scanlines\n  stroke(0,0,0,26); strokeWeight(1); const sp=Math.max(2,u*0.006); for(let y=0;y<height;y+=sp) line(0,y,width,y); noStroke();\n} else {\n  image(dst,0,0);\n}\n// gentle vignette on top for depth (skip ink)\nif (!ink){ noStroke(); for(let r=6;r>0;r--){ fill(0,0,0,4); ellipse(width/2,height/2,width*(0.85+r*0.06),height*(0.9+r*0.06)); } }\n\nS.a=dst; S.b=src; // swap\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0;\n",
+  "last_fail": {
+    "at": "2026-07-11T14:43:25+00:00",
+    "gate": "luminance",
+    "detail": "0.019 outside [0.02, 0.92]"
+  }
+}

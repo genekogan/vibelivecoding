@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.forest",
+  "kind": "floor",
+  "name": "Forest Floor",
+  "desc": "A loamy forest floor of fallen leaves receding into shadow, dappled sunlight pools drifting across as leaves scroll past and stray leaves tumble through the foreground.",
+  "tags": [
+    "forest",
+    "woodland",
+    "leaf",
+    "litter",
+    "leaves",
+    "foliage",
+    "loam",
+    "ground",
+    "floor",
+    "plane",
+    "perspective",
+    "dappled",
+    "sunlight",
+    "shade",
+    "green",
+    "autumn",
+    "moss",
+    "botanical",
+    "vein",
+    "blueprint",
+    "noir",
+    "earthy",
+    "calm",
+    "organic"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "leaf-row + litter count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "leaf size / perspective spread of the plane"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "dappled-light amplitude + beat glimmer"
+    },
+    "hue": {
+      "default": 110,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage hue (110 = leaf green)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll/drift rate multiplier"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic leaf-litter seed"
+    },
+    "style": {
+      "default": "litter",
+      "options": [
+        "litter",
+        "moss",
+        "vein",
+        "noir",
+        "autumn"
+      ],
+      "doc": "aesthetic: painterly fallen-leaf litter / damp mossy tonal / botanical leaf-vein schematic / moonlit chiaroscuro / warm autumn"
+    },
+    "act": {
+      "default": "calm",
+      "options": [
+        "calm",
+        "breeze",
+        "dapple"
+      ],
+      "doc": "dramaturgy: still calm / beat-stirred breeze / slow-drifting dapple"
+    }
+  },
+  "acts": [
+    "calm",
+    "breeze",
+    "dapple"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:12:17+00:00",
+    "fps": 59.5,
+    "motion": 0.0286,
+    "lum": 0.199
+  },
+  "code": "const D = { density: .6, scale: 1, energy: .55, hue: 110, speed: 1, x: .5, y: .46, seed: 0, style: 'litter', act: 'calm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst sty = P.style, H = P.hue;\nconst hz = cl(P.y,.28,.72)*height, cx = cl(P.x,.05,.95)*width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t,1.7)*groundH;\nconst hwOf = t => width*(.05 + t*.95)*.5*P.scale;\nconst NR = Math.round(9 + P.density*26);\n\nS.bass = (S.bass||0)*.82 + (A.bass||0)*.18;\nS.tre  = (S.tre||0)*.82 + (A.treble||0)*.18;\nconst glow = (.4 + .6*P.energy) * (.5 + .6*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.7);\n\n// real-time scroll (never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nlet sp = P.speed*(.45 + .8*K.intensity);\nif (P.act === 'breeze') sp *= 1 + .9*kick;\nif (P.act === 'dapple') sp *= .35 + .8*(.5 + .5*Math.sin(K.t*.05 + K.section));\nS.scroll = (S.scroll||0) + dt*sp*.42;\nconst scroll = S.scroll;\nconst leafHue = i => { const m=fr(i); return m>.64 ? (26 + fr(i+9)*22) : (H - 34 + fr(i+3)*54); };\n\n// ---- cached base: canopy-shadow ground plane + static leaf litter ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*6)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = (S.base && S.base.width===width && S.base.height===height) ? S.base : createGraphics(width,height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 56;\n  // dim canopy above horizon\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz; let h,s,b;\n    if (sty==='vein'){ h=H; s=30; b=6+5*f; }\n    else if (sty==='noir'){ h=150; s=18-10*f; b=4+11*f; }\n    else if (sty==='autumn'){ h=30-14*f; s=54; b=10+14*f; }\n    else if (sty==='moss'){ h=H+6; s=48; b=8+13*f; }\n    else { h=H; s=50-16*f; b=7+15*f; }\n    g.fill(h,s,cl(b,2,88),100); g.rect(0,y-1,width,hz/STR+2);\n  }\n  // ground plane gradient (dark loam near, lit haze far)\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR); let h,s,b;\n    if (sty==='vein'){ h=H; s=24; b=7+13*t; }\n    else if (sty==='noir'){ h=150; s=cl(14-10*t,0,16); b=6+34*Math.pow(t,1.3); }\n    else if (sty==='autumn'){ h=(30 - 10*t); s=58-16*t; b=14+34*Math.pow(t,1.2); }\n    else if (sty==='moss'){ h=H+8; s=52-14*t; b=10+28*Math.pow(t,1.2); }\n    else { h=(H - 8 + 10*t); s=48-14*t; b=9 + 30*Math.pow(t,1.2); }\n    g.fill(h,s,cl(b,3,88),100); g.rect(0,y-1,width,(y2-y)+2);\n  }\n  // static content\n  g.push();\n  if (sty==='vein'){ // botanical leaf-vein schematic = non-representational\n    g.noFill(); g.stroke(H,30,66,34); g.strokeWeight(1);\n    for (let c=0;c<24;c++){ const t=.12+fr(c*5)*.85, y=yOf(t), hw=hwOf(t), lx=cx+(fr(c*5+1)*2-1)*hw*.9, len=hw*(.2+fr(c*5+2)*.4), ang=fr(c*5+3)*Math.PI;\n      const ex=lx+Math.cos(ang)*len, ey=y+Math.sin(ang)*len*.4;\n      g.line(lx,y,ex,ey);\n      for (let v=1;v<6;v++){ const f=v/6, mx=lx+(ex-lx)*f, my=y+(ey-y)*f, rl=len*.22*(1-f);\n        g.line(mx,my, mx+Math.cos(ang+1.1)*rl, my+Math.sin(ang+1.1)*rl*.5);\n        g.line(mx,my, mx+Math.cos(ang-1.1)*rl, my+Math.sin(ang-1.1)*rl*.5); } }\n    g.noStroke();\n  } else {\n    // fallen leaf litter \u2014 many small rotated shapes, seed-deterministic\n    for (let i=0;i<260;i++){ const t=.06+fr(i*3)*.94, y=yOf(t), hw=hwOf(t), x=cx+(fr(i*3+1)*2-1)*hw;\n      const h=leafHue(i*3+2), s=sty==='noir'?12:(sty==='autumn'?60:52), b=(sty==='noir'?18:24)+fr(i)*22 + t*10;\n      g.fill(h,s,cl(b,4,80),90); g.push(); g.translate(x,y); g.rotate(fr(i*3)*6.28);\n      const sz=(1.6+t*7); g.ellipse(0,0,sz*1.7,sz*.9); g.pop(); }\n    // damp shadow pooling near foreground\n    g.blendMode(sty==='noir'?BLEND:MULTIPLY);\n    for (let d=0;d<5;d++){ const t=(d+2)/8, y=yOf(t), hw=hwOf(t);\n      g.fill(H, 30, 26, 14); g.ellipse(cx+(fr(d)*2-1)*hw*.5, y+groundH*.03, hw*1.4, groundH*.08); }\n  }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base,0,0);\n\n// ---- scrolling leaf rows toward viewer (motion gate) ----\nnoStroke();\nconst perRow = Math.round(6 + P.density*10);\nfor (let r=0;r<=NR;r++){ let t=(r - (scroll%1))/NR; if (t<=0.01||t>1) continue;\n  const y=yOf(t), hw=hwOf(t), near=t;\n  for (let c=0;c<perRow;c++){ const u=(c+.5)/perRow, id=r*97+c*13;\n    const x=cx+(u*2-1)*hw*.98; const h=leafHue(id), s=sty==='noir'?10:(sty==='autumn'?62:54);\n    const b=(sty==='noir'?40:52)+near*30; const a=(14+40*near)*(.6+.6*glow);\n    if (sty==='vein'){ stroke(H,30,80,a); strokeWeight(.6+near*1.4); noFill();\n      line(x-4*near,y, x+4*near,y-2*near); noStroke(); }\n    else { fill(h,s,cl(b,6,96),Math.min(70,a)); push(); translate(x,y+Math.sin(K.t*.8+id)*groundH*.006*near);\n      rotate(id + K.t*.2); const sz=(1.8+near*9); ellipse(0,0,sz*1.7,sz*.9); pop(); }\n  }\n}\n\n// ---- drifting dappled sunlight pools (real-time, never re-phases) ----\npush(); blendMode(sty==='noir'?SCREEN:ADD); noStroke();\nconst NL = 7;\nfor (let i=0;i<NL;i++){ const t=.14 + (i/NL)*.8;\n  const y=yOf(t), hw=hwOf(t);\n  const dx=Math.sin(K.t*(.12+.05*i) + i*2.1)*hw*.7;\n  const x=cx+dx; const pr=(.5+.5*Math.sin(K.t*.3 + i*1.7));\n  const sz=(groundH*.10 + hw*.35)*(.6+.5*pr)*(1+.4*K.swell);\n  const lh = sty==='autumn'?38: sty==='noir'?150: (H+18);\n  fill(lh, sty==='noir'?12:40, sty==='noir'?70:98, (5+9*pr)*(.5+.9*glow));\n  ellipse(x,y,sz*1.6,sz*.8);\n}\npop();\n\n// ---- occasional falling leaves crossing (foreground drama) ----\npush(); noStroke();\nconst NF = Math.round(P.density*16);\nfor (let i=0;i<NF;i++){ const life=(fr(i*6) + K.t*(.04+.03*fr(i*6+1)))%1;\n  const t=.2+life*.78, y=yOf(t), hw=hwOf(t);\n  const x=cx+Math.sin(life*9 + i)*hw*.85; const h=leafHue(i*6+2);\n  fill(h, sty==='noir'?12:60, sty==='noir'?55:70, (30+40*t));\n  push(); translate(x,y); rotate(life*22+i); const sz=2+t*10; ellipse(0,0,sz*1.7,sz*.8); pop();\n}\npop();\n\n// ---- gentle light breathe / beat glimmer on horizon (partial-frame) ----\npush(); blendMode(ADD); noStroke();\nconst flare=(kick*.4 + K.swell*.5)*glow;\nconst fh = sty==='autumn'?36: sty==='noir'?150:(H+16);\nfor (let i=0;i<4;i++){ const rr=(4-i)*groundH*.05*(1+flare);\n  fill(fh, sty==='noir'?12:44, sty==='noir'?70:96, 3+7*flare);\n  rect(0, hz-rr*.4, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

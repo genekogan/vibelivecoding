@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.reef_night",
+  "kind": "world",
+  "name": "Coral Reef Night",
+  "desc": "A dark ocean column at night: branching coral silhouettes rise from the floor while bioluminescent accents twinkle and pulse with the treble, marine snow drifts down, and faint caustic light shafts sway.",
+  "tags": [
+    "reef",
+    "coral",
+    "ocean",
+    "sea",
+    "underwater",
+    "marine",
+    "deep",
+    "abyss",
+    "night",
+    "bioluminescent",
+    "biolum",
+    "glow",
+    "luminous",
+    "water",
+    "aquatic",
+    "caustics",
+    "marine-snow",
+    "plankton",
+    "xray",
+    "iridescent",
+    "thermal",
+    "teal",
+    "eerie",
+    "serene",
+    "ethereal",
+    "world",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "coral + biolum accent count"
+    },
+    "glow": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "bioluminescent brightness"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue (200 teal)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "current sway + shimmer amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative drift/pulse rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "accent + snow element scale vs design"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "column anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "column anchor y (canvas fraction)"
+    },
+    "snow": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "marine-snow particle amount"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic coral/accent layout seed"
+    },
+    "style": {
+      "default": "biolum",
+      "options": [
+        "biolum",
+        "xray",
+        "ink",
+        "thermal",
+        "iridescent"
+      ],
+      "doc": "render philosophy: luminous biolum / anatomical x-ray wireframe / sumi ink silhouette / thermal false-color / oil-slick iridescent"
+    },
+    "act": {
+      "default": "tide",
+      "options": [
+        "tide",
+        "pulse",
+        "still"
+      ],
+      "doc": "multi-minute program: slow tidal breathe / sectioned pulses / steady still"
+    }
+  },
+  "acts": [
+    "tide",
+    "pulse",
+    "still"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:11:14+00:00",
+    "fps": 60.2,
+    "motion": 0.0092,
+    "lum": 0.069
+  },
+  "code": "const D = { density:.5, glow:.55, hue:200, energy:.6, speed:1, scale:1, x:.5, y:.5, snow:.5, seed:0, style:'biolum', act:'tide' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst TAU = Math.PI*2;\nconst st = P.style;\nconst hue = ((P.hue%360)+360)%360;\nconst bt = K.beat*P.speed;\nS.tre = (S.tre||0)*.78 + (A.treble||0)*.22;\nS.bass = (S.bass||0)*.85 + (A.bass||0)*.15;\n\n// ---- palette per style ----\nfunction pal(){\n  if (st==='xray')       return { deep:[hue,30,4], top:[hue,45,12], coral:[hue,20,40,55], line:[hue,15,92], accent:[(hue+40)%360,25,95], snowC:[hue,10,80] };\n  if (st==='ink')        return { deep:[hue,6,5], top:[hue,8,12], coral:[hue,5,10], line:[hue,4,55], accent:[hue,10,70], snowC:[hue,4,60] };\n  if (st==='thermal')    return { deep:[240,85,4], top:[250,70,12], coral:[280,60,22], line:[20,80,55], accent:[45,95,100], snowC:[200,60,55] };\n  if (st==='iridescent') return { deep:[hue,50,5], top:[hue,55,14], coral:[(hue+280)%360,45,18], line:[hue,30,80], accent:[(hue+120)%360,70,95], snowC:[hue,25,80] };\n  return { deep:[hue,70,4], top:[hue,80,13], coral:[hue,55,9], line:[hue,40,55], accent:[(hue+150)%360,80,100], snowC:[hue,30,78] }; // biolum\n}\nconst C = pal();\n\n// ---- cached water column + coral silhouettes ----\nconst bkey = width+'x'+height+':'+st+':'+P.seed+':'+P.density.toFixed(2);\nif (!S.bg || S.bgKey !== bkey){\n  S.bgKey = bkey;\n  const g = S.bg && S.bg.width===width && S.bg.height===height ? S.bg : (S.bg = createGraphics(width,height));\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.push(); g.noStroke();\n  // vertical light-column gradient (bright surface -> abyss)\n  for (let i=0;i<40;i++){ const t=i/39; const b=C.top[2]*(1-t)+C.deep[2]*t; const s=C.top[1]*(1-t)+C.deep[1]*t; g.fill((C.top[0]*(1-t)+C.deep[0]*t), s, b, 100); g.rect(0, t*height, width, height/40+1); }\n  // downwelling light shafts (soft, baked faint; live caustics add on top)\n  g.blendMode(SCREEN);\n  for (let i=0;i<5;i++){ const sx=(0.15+0.7*fr(i*7))*width; g.fill(C.top[0],40,70,5+3*fr(i*7+1));\n    g.quad(sx-u*0.02,0, sx+u*0.02,0, sx+u*0.14,height*0.8, sx-u*0.10,height*0.8); }\n  g.blendMode(BLEND);\n  // coral silhouettes across the floor (seed-det branching)\n  const nc = Math.round(4 + 9*P.density);\n  const gy = height*0.98;\n  for (let c=0;c<nc;c++){\n    const cx = (c+0.5+ (fr(c*9)-0.5)*0.6)/nc*width;\n    const ch = u*(0.18+0.5*fr(c*9+1));\n    const cw = u*(0.05+0.09*fr(c*9+2));\n    drawCoral(g,cx,gy,ch,cw,c);\n  }\n  // sea floor mound\n  g.noStroke();\n  for (let i=0;i<10;i++){ const t=i/9; g.fill(C.coral[0],C.coral[1],C.coral[2]*(0.5+t)+1, 100); g.rect(0, gy-u*0.06+t*u*0.06+ (height-gy), width, u*0.02+2); }\n  g.pop();\n  function drawCoral(g,x,base,h,w,ci){\n    if (st==='xray'){ g.noFill(); g.stroke(C.line[0],C.line[1],C.line[2],35); g.strokeWeight(Math.max(1,u*0.002)); }\n    else { g.noStroke(); g.fill(C.coral[0],C.coral[1],C.coral[2], st==='ink'?95:88); }\n    branch(g,x,base,-Math.PI/2, h, w, 0, ci);\n  }\n  function branch(g,x,y,ang,len,wd,depth,ci){\n    if (depth>3 || len<u*0.03) return;\n    const x2=x+Math.cos(ang)*len, y2=y+Math.sin(ang)*len;\n    if (st==='xray'){ g.line(x,y,x2,y2); }\n    else { g.strokeWeight(wd); g.stroke(C.coral[0],C.coral[1],C.coral[2],92); g.line(x,y,x2,y2);\n      g.noStroke(); g.ellipse(x2,y2,wd*1.1,wd*1.1); }\n    const spread=0.5+0.5*fr(ci*13+depth);\n    branch(g,x2,y2,ang-spread, len*0.72, wd*0.7, depth+1, ci);\n    branch(g,x2,y2,ang+spread*0.8, len*0.66, wd*0.7, depth+1, ci);\n    if (fr(ci*17+depth)>0.5) branch(g,x2,y2,ang+ (fr(ci*7+depth)-0.5)*0.4, len*0.8, wd*0.75, depth+1, ci);\n  }\n  S.gy = gy;\n}\nimage(S.bg,0,0);\n\n// ---- live caustic shimmer (continuous K.t drift) ----\npush(); blendMode(SCREEN); noStroke();\nconst cn = 4;\nfor (let i=0;i<cn;i++){\n  const sx = ((fr(i*3)+K.t*0.02*(i%2?1:-1)*P.speed)%1)*width;\n  const wob = Math.sin(K.t*0.5+i)*u*0.03;\n  fill(C.top[0], 45, 65, 4+3*P.glow);\n  quad(sx-u*0.03+wob,0, sx+u*0.03+wob,0, sx+u*0.16-wob,S.gy||height, sx-u*0.10-wob,S.gy||height);\n}\nblendMode(BLEND); pop();\n\n// ---- bioluminescent accents pulse (treble + K.pulse) ----\nconst glowP = P.glow*(0.5+0.7*K.intensity);\nconst puls = K.pulse*(0.5+0.5*K.intensity) + S.tre*0.9;\nconst na = Math.round(10 + 40*P.density);\nif (S.seedUsed!==P.seed || S.naN!==na){ S.seedUsed=P.seed; S.naN=na; S.acc=[]; for(let i=0;i<na;i++) S.acc.push({x:fr(i*4)*width, y:(S.gy||height*0.9)-fr(i*4+1)*u*(0.15+0.5*fr(i*4+2)), r:u*(0.004+0.01*fr(i*4+3)), ph:fr(i*4)*TAU, sp:0.5+fr(i*4+1)*1.5}); }\nlet actGlow=1; if(P.act==='pulse') actGlow = 0.6+0.9*((K.section%2)?K.intensity:0.3);\nelse if(P.act==='tide') actGlow = 0.7+0.5*Math.sin(K.t*0.15);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<na;i++){\n  const a=S.acc[i];\n  const tw = 0.35+0.65*(0.5+0.5*Math.sin(K.t*a.sp*P.speed + a.ph));\n  const b = (12+40*glowP)*tw*actGlow*(0.7+0.8*puls);\n  const yy = a.y + Math.sin(K.t*0.3+a.ph)*u*0.01;\n  const rr = a.r*P.scale;\n  // faked glow: soft outer halo + bright core (no per-shape shadowBlur)\n  fill(C.accent[0], C.accent[1]*0.7, C.accent[2], Math.min(28,b*0.4)); ellipse(a.x, yy, rr*6*(0.6+glowP), rr*6*(0.6+glowP));\n  fill(C.accent[0], C.accent[1], C.accent[2], Math.min(80,b)); ellipse(a.x, yy, rr*2, rr*2);\n}\nblendMode(BLEND); pop();\n\n// ---- marine snow drifting DOWN (continuous, never re-phases) ----\nconst sn = Math.round(P.snow*260);\nif (sn>0){ push(); noStroke();\n  for (let i=0;i<sn;i++){\n    const dx = fr(i*2)*1.1-0.05;\n    const sp = 0.02+0.05*fr(i*2+1);\n    const ph = (fr(i*2)+K.t*sp*(0.6+0.6*P.speed))%1;\n    const yy = ph*(height+u*0.1)-u*0.05;\n    const xx = dx*width + Math.sin(K.t*0.3+i)*u*0.02;\n    const sz = u*P.scale*(0.0016+0.003*fr(i*2+1));\n    fill(C.snowC[0], C.snowC[1], C.snowC[2], 18+25*(1-ph));\n    ellipse(xx,yy,sz,sz);\n  }\n  blendMode(BLEND); pop();\n}\n\nblendMode(BLEND);\n"
+}

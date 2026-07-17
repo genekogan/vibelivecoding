@@ -1,0 +1,117 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wfc",
+  "kind": "genart",
+  "name": "Wave Function Collapse",
+  "desc": "An adjacency-constrained wave-function-collapse solver that visibly collapses a grid one lowest-entropy cell at a time, weaving compatible tile-edges into a coherent luminous network of pipes and circuit paths that flows, completes, and regenerates.",
+  "tags": [
+    "wfc",
+    "wave function collapse",
+    "tiling",
+    "tiles",
+    "adjacency",
+    "constraint",
+    "solver",
+    "procedural",
+    "generative",
+    "genart",
+    "pipes",
+    "circuit",
+    "maze",
+    "knot",
+    "network",
+    "paths",
+    "entropy",
+    "grid",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "copper",
+    "stained-glass",
+    "multi-hue",
+    "progressive",
+    "algorithmic",
+    "geometric"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "grid resolution (higher = finer grid, more cells/tiles)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "track thickness + glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "collapse rate + path-flow speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "stroke feature scale"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (tiles fan out multi-hue from here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor y"
+    },
+    "style": {
+      "default": "pipes",
+      "options": [
+        "pipes",
+        "circuit",
+        "knot",
+        "stained",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic tileset collapse"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T13:44:51+00:00",
+    "fps": 60.6,
+    "motion": 0.1599,
+    "lum": 0.316
+  },
+  "code": "const D = { density: .5, energy: .62, speed: 1, scale: 1, hue: 200, x: .5, y: .5, style: 'pipes', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// --- one-time tileset: 16 edge-masks (bit0=N,1=E,2=S,3=W): adjacency tables + weights ---\nif (!S.tiles) {\n  const pc = new Array(16); for (let m=0;m<16;m++){ let c=0,x=m; while(x){c+=x&1;x>>=1;} pc[m]=c; }\n  S.pc = pc;\n  const eN=m=>(m&1)?1:0, eE=m=>(m&2)?1:0, eS=m=>(m&4)?1:0, eW=m=>(m&8)?1:0;\n  const cN=new Array(16),cE=new Array(16),cS=new Array(16),cW=new Array(16);\n  for (let t=0;t<16;t++){ let mN=0,mE=0,mS=0,mW=0;\n    for (let n=0;n<16;n++){\n      if (eS(n)===eN(t)) mN|=1<<n;   // north neighbour's south edge must match my north\n      if (eW(n)===eE(t)) mE|=1<<n;\n      if (eN(n)===eS(t)) mS|=1<<n;\n      if (eE(n)===eW(t)) mW|=1<<n;\n    }\n    cN[t]=mN;cE[t]=mE;cS[t]=mS;cW[t]=mW;\n  }\n  S.cN=cN;S.cE=cE;S.cS=cS;S.cW=cW;\n  const w=new Array(16);\n  for (let m=0;m<16;m++){ const d=pc[m];\n    w[m] = d===0?0.55 : d===1?0.35 : d===2?((m===5||m===10)?1.3:1.55) : d===3?0.9 : 0.55;\n  }\n  S.w=w; S.full=0xFFFF; S.tiles=true;\n}\n\nconst u = Math.min(width,height);\nconst GW = Math.max(4, Math.round(7 + P.density*16));\nconst GH = Math.max(4, Math.round(GW*height/width));\nconst N = GW*GH;\nconst cw = width/GW, ch = height/GH;\nconst opaque = P.alpha >= 100;\nconst aMul = P.alpha/100;\nconst aG = opaque ? 1 : aMul;\n\nfunction pc16(v){ v=v-((v>>1)&0x5555); v=(v&0x3333)+((v>>2)&0x3333); v=(v+(v>>4))&0x0f0f; return (v+(v>>8))&0x1f; }\nfunction rnd(){ let t = S.rng = (S.rng + 0x6D2B79F5)>>>0; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }\nfunction allowMask(o, tab){ let a=0; while(o){ const lb=o&-o; a|=tab[31-Math.clz32(lb)]; o&=o-1; } return a; }\nfunction reset(g){\n  S.gen=g;\n  S.opt=new Int32Array(N).fill(S.full);\n  S.tile=new Int8Array(N).fill(-1);\n  S.done=false; S.solvedAt=null;\n  S.rng=((P.seed*2654435761)+(g*40503)+1)>>>0;\n}\nfunction propagate(start){\n  const st=[start], opt=S.opt, cN=S.cN,cE=S.cE,cS=S.cS,cW=S.cW;\n  while(st.length){\n    const c=st.pop(); const gx=c%GW, gy=(c/GW)|0; const o=opt[c];\n    if(gy>0){ const nb=c-GW; const no=opt[nb]&allowMask(o,cN); if(no!==opt[nb]){ if(!no)return false; opt[nb]=no; st.push(nb);} }\n    if(gx<GW-1){ const nb=c+1; const no=opt[nb]&allowMask(o,cE); if(no!==opt[nb]){ if(!no)return false; opt[nb]=no; st.push(nb);} }\n    if(gy<GH-1){ const nb=c+GW; const no=opt[nb]&allowMask(o,cS); if(no!==opt[nb]){ if(!no)return false; opt[nb]=no; st.push(nb);} }\n    if(gx>0){ const nb=c-1; const no=opt[nb]&allowMask(o,cW); if(no!==opt[nb]){ if(!no)return false; opt[nb]=no; st.push(nb);} }\n  }\n  return true;\n}\nfunction collapseOne(){\n  const opt=S.opt, tile=S.tile, W=S.w;\n  let min=99, cand=-1, cnt=0;\n  for(let c=0;c<N;c++){ const e=pc16(opt[c]); if(e>1){ if(e<min){min=e;cand=c;cnt=1;} else if(e===min){ cnt++; if(rnd()<1/cnt) cand=c; } } }\n  if(cand<0) return 'done';\n  let o=opt[cand], sum=0, tmp=o;\n  while(tmp){ sum+=W[31-Math.clz32(tmp&-tmp)]; tmp&=tmp-1; }\n  let r=rnd()*sum, pick=-1; tmp=o;\n  while(tmp){ const t=31-Math.clz32(tmp&-tmp); r-=W[t]; if(r<=0){pick=t;break;} tmp&=tmp-1; }\n  if(pick<0) pick=31-Math.clz32(o&-o);\n  opt[cand]=1<<pick; tile[cand]=pick;\n  if(!propagate(cand)){ reset((S.gen||0)+1); return 'reset'; }\n  return 'ok';\n}\n\n// --- (re)build grid on size / density / seed change ---\nif(!S.opt || S.GW!==GW || S.GH!==GH || S.seedBase!==P.seed){\n  S.GW=GW; S.GH=GH; S.seedBase=P.seed; reset(0); S.lastSec=K.section;\n}\n// clock-reset guard + section regeneration (new dramaturgic pattern each section)\nif(S.solvedAt!=null && K.t < S.solvedAt) S.solvedAt = K.t;\nif(K.section !== S.lastSec){ S.lastSec=K.section; reset((S.gen||0)+1); }\n\n// --- progressive collapse: a few lowest-entropy cells per frame (this IS the motion) ---\nif(!S.done){\n  const steps = Math.min(14, Math.max(1, Math.round(1 + P.speed*3 + K.intensity*2 + A.bass*2)));\n  for(let s=0;s<steps;s++){ const rr=collapseOne(); if(rr==='done'){ S.done=true; if(S.solvedAt==null) S.solvedAt=K.t; break; } if(rr==='reset') break; }\n} else {\n  const dwell = 2.5 + (1-K.intensity)*3.5;\n  if(S.solvedAt!=null && (K.t - S.solvedAt) > dwell) reset((S.gen||0)+1);\n}\n\n// --- render ---\nconst opt=S.opt, tile=S.tile, pcA=S.pc;\nconst style=P.style, hb=P.hue;\nconst flow = K.t*(0.5 + P.speed*0.7);\nconst sw = cw*(0.14 + P.energy*0.24)*Math.min(1.6, P.scale);\n\nif(opaque) background((hb+30)%360, 35, 9);\n// faint circuit grid\npush();\nstroke((hb+30)%360, 28, 19, (opaque?32:22*aMul)); strokeWeight(1);\nfor(let i=1;i<GW;i++) line(i*cw,0,i*cw,height);\nfor(let j=1;j<GH;j++) line(0,j*ch,width,j*ch);\npop();\n\nrectMode(CENTER); strokeJoin(ROUND); strokeCap(ROUND);\n\nfunction drawConn(cx,cy,list){\n  if(style==='knot' && list.length===2){\n    const a=list[0], b=list[1];\n    const opp = (a[0]===cx && b[0]===cx) || (a[1]===cy && b[1]===cy);\n    if(opp){ line(a[0],a[1],b[0],b[1]); }\n    else { beginShape(); vertex(a[0],a[1]); quadraticVertex(cx,cy,b[0],b[1]); endShape(); }\n  } else {\n    for(let k=0;k<list.length;k++) line(cx,cy,list[k][0],list[k][1]);\n  }\n}\nfunction drawTile(gx,gy,cx,cy,mask){\n  const deg=pcA[mask];\n  const wv=0.6+0.4*Math.sin((gx+gy)*0.55 - flow + mask*0.4 + A.rms*2.5);\n  const th=((hb + mask*22 + (gx+gy)*3)%360+360)%360;\n  const hw=cw/2, hh=ch/2;\n  const list=[];\n  if(mask&1) list.push([cx,cy-hh]);\n  if(mask&2) list.push([cx+hw,cy]);\n  if(mask&4) list.push([cx,cy+hh]);\n  if(mask&8) list.push([cx-hw,cy]);\n  let br,sat;\n  if(style==='mono'){ sat=0; br=42+wv*52; }\n  else if(style==='circuit'){ sat=72; br=44+wv*48; }\n  else if(style==='knot'){ sat=58; br=46+wv*44; }\n  else if(style==='stained'){ sat=76; br=54+wv*34; }\n  else { sat=82; br=50+wv*50; } // pipes\n  if(style==='stained'){\n    noStroke(); fill(th, sat, br*0.5, 76*aG); rect(cx,cy,cw*0.94,ch*0.94);\n  }\n  if(deg>0){\n    noFill();\n    stroke((style==='mono'?0:th), sat*0.7, br, 32*aG); strokeWeight(sw*2.0); drawConn(cx,cy,list);\n    stroke((style==='mono'?0:th), sat, Math.min(100,br+18), 96*aG); strokeWeight(sw); drawConn(cx,cy,list);\n    if(deg>=3 || style==='circuit'){ noStroke(); fill((style==='mono'?0:th), sat*0.5, Math.min(100,br+26), 95*aG); circle(cx,cy, sw*(deg>=3?1.6:1.15)); }\n  }\n}\n\nfor(let gy=0;gy<GH;gy++) for(let gx=0;gx<GW;gx++){\n  const c=gy*GW+gx; const cx=(gx+0.5)*cw, cy=(gy+0.5)*ch;\n  let tl=tile[c];\n  if(tl<0){ const o=opt[c]; if(pc16(o)===1){ tl=31-Math.clz32(o&-o); } }\n  if(tl<0){\n    // uncollapsed superposition: faint shimmer\n    const sh=0.5+0.5*Math.sin(K.t*2.1 + gx*1.7 + gy*2.3);\n    const b=13+sh*11*(0.4+P.energy) + A.mid*10;\n    noStroke(); fill(((hb+(gx+gy)*5)%360+360)%360, 40, b, 58*aG);\n    rect(cx,cy,cw*0.66,ch*0.66);\n    continue;\n  }\n  drawTile(gx,gy,cx,cy,tl);\n}\nrectMode(CORNER);\n"
+}

@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.robot",
+  "kind": "subject",
+  "name": "Robot",
+  "desc": "A stage-scale machined android of riveted metal plates that bobs, steps and swings its arms on the beat while a scanning visor eye and antenna bulb pulse with the music.",
+  "tags": [
+    "robot",
+    "android",
+    "bot",
+    "mech",
+    "mecha",
+    "machine",
+    "cyborg",
+    "automaton",
+    "droid",
+    "metal",
+    "chrome",
+    "sci-fi",
+    "retro",
+    "futuristic",
+    "industrial",
+    "dance",
+    "march",
+    "character",
+    "ai",
+    "tin"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "size vs design"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "metal tint hue (210=steel blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient spark/dust motes"
+    },
+    "chunk": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.5,
+      "doc": "chassis bulk morph"
+    },
+    "limb": {
+      "default": 1,
+      "min": 0.7,
+      "max": 1.4,
+      "doc": "limb length morph"
+    },
+    "antenna": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "antenna length morph"
+    },
+    "style": {
+      "default": "industrial",
+      "options": [
+        "industrial",
+        "blueprint",
+        "glitch",
+        "chrome",
+        "rust"
+      ],
+      "doc": "aesthetic: machined metal / schematic wireframe / CRT datamosh / iridescent chrome / corroded"
+    },
+    "pose": {
+      "default": "idle",
+      "options": [
+        "idle",
+        "dance",
+        "march",
+        "wave",
+        "salute"
+      ],
+      "doc": "posture / choreography"
+    },
+    "act": {
+      "default": "patrol",
+      "options": [
+        "patrol",
+        "perform",
+        "standby"
+      ],
+      "doc": "multi-minute dramaturgy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (feet) as canvas fraction"
+    }
+  },
+  "acts": [
+    "patrol",
+    "perform",
+    "standby"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:58:17+00:00",
+    "fps": 60.2,
+    "motion": 0.0079,
+    "lum": 0.096
+  },
+  "code": "const D = { scale:1, energy:.6, hue:210, speed:1, density:.4, chunk:1, limb:1, antenna:1, style:'industrial', pose:'idle', act:'patrol', seed:0, x:.5, y:.86 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const v = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return v - Math.floor(v); };\nconst u = Math.min(width,height);\nconst en = P.energy, spd = P.speed;\nconst bt = K.beat*spd;\nif (S.lb==null || bt < S.lb) S.lb = bt;\nS.lb = bt;\nconst puls = Math.max(0, K.pulse||0);\nconst swell = K.swell||0;\nconst sect = K.section||0, inten = (K.intensity!=null?K.intensity:.6);\nconst rms = Math.min(1,(A.rms||0)*2.2);\nconst bassv = Math.min(1,A.bass||0);\nconst air = Math.min(1,A.treble||0);\nconst gt = K.t||0;\nconst H = ((P.hue%360)+360)%360;\nconst st = P.style;\nconst chunk=P.chunk, limbz=P.limb;\nlet energyMul=1, dim=0, scanBias=0;\nif (P.act==='standby'){ energyMul=0.5; dim=0.55; }\nelse if (P.act==='perform'){ energyMul=1+inten*0.5; }\nelse { energyMul=0.85+inten*0.4; scanBias=1; }\nconst eM=(0.5+en)*energyMul;\nconst acc=[(H+165)%360, 88, 100];\n// style palettes / flags\nlet blueprint=(st==='blueprint'), glitch=(st==='glitch'), chrome=(st==='chrome'), rust=(st==='rust');\nlet mBase,mLite,mDark;\nif (rust){ mBase=[(H+18)%360,34,44]; mLite=[(H+20)%360,26,66]; mDark=[(H+10)%360,44,20]; }\nelse if (glitch){ mBase=[H,22,42]; mLite=[H,14,72]; mDark=[H,34,18]; }\nelse if (chrome){ mBase=[H,20,60]; mLite=[H,8,96]; mDark=[H,40,24]; }\nelse { mBase=[H,13,56]; mLite=[H,8,82]; mDark=[H,22,22]; } // industrial\n\nconst bodyH=u*0.48*P.scale; const k=bodyH/210;\nconst ax=P.x*width, ay=P.y*height;\n\n// ---------- motion ----------\nconst stepA=Math.max(0,Math.sin(bt*Math.PI)), stepB=Math.max(0,Math.sin(bt*Math.PI+Math.PI));\nlet torsoBob=0, torsoTwist=0, torsoX=0, headTilt=0, headSnap=0;\nlet sL=0, sR=0, eL=0, eR=0; // shoulder angle, elbow angle L/R\nlet liftL=0, liftR=0, kneeL=0, kneeR=0;\nlet antGlow=0.3, eyeOpen=1, eyeFlash=0.2;\nconst pose=P.pose;\ntorsoX=Math.sin(bt*Math.PI*0.5)*6*(0.4+en)*energyMul;\nif (pose==='dance'){\n  torsoBob=-puls*9*eM - swell*3; torsoTwist=Math.sin(bt*Math.PI*0.5)*0.26*eM;\n  sL=0.5+Math.sin(bt*Math.PI)*0.95*eM; sR=0.5-Math.sin(bt*Math.PI)*0.95*eM; eL=-0.9-puls*0.5; eR=-0.9-puls*0.5;\n  headSnap=Math.sin(bt*Math.PI)*0.22*eM; liftL=stepA*6*eM; liftR=stepB*6*eM; kneeL=stepA*0.4; kneeR=stepB*0.4;\n  antGlow=puls; eyeFlash=puls;\n} else if (pose==='march'){\n  liftL=stepA*24*eM; liftR=stepB*24*eM; kneeL=stepA*0.7; kneeR=stepB*0.7;\n  sL=Math.sin(bt*Math.PI+Math.PI)*0.5*eM; sR=Math.sin(bt*Math.PI)*0.5*eM; eL=-0.5; eR=-0.5;\n  torsoBob=-(stepA+stepB)*4*eM; headTilt=Math.sin(bt*Math.PI*0.5)*0.06; antGlow=0.3+puls*0.5; eyeFlash=0.3+puls*0.4;\n} else if (pose==='wave'){\n  sR=-2.2+Math.sin(bt*Math.PI*2)*0.15; eR=-0.4+Math.sin(bt*Math.PI*2)*0.5*eM; sL=0.2; eL=-0.4;\n  torsoBob=swell*3; headTilt=0.08; torsoTwist=Math.sin(bt*Math.PI*0.5)*0.08; antGlow=0.4+puls*0.4; eyeFlash=0.4;\n} else if (pose==='salute'){\n  sR=-1.9; eR=-1.9; sL=0.15; eL=-0.35; torsoBob=swell*2; headTilt=-0.05; antGlow=0.3+puls*0.5; eyeFlash=0.3+puls*0.4;\n} else { // idle\n  torsoBob=swell*4; headTilt=Math.sin(bt*Math.PI*0.25)*0.11; headSnap=(Math.floor(bt)%4===0?puls*0.14:0);\n  sL=0.12+Math.sin(bt*Math.PI*0.5)*0.09*eM; sR=0.12-Math.sin(bt*Math.PI*0.5)*0.09*eM; eL=-0.3; eR=-0.3;\n  antGlow=0.3+puls*0.5+bassv*0.4; eyeFlash=0.25+puls*0.3;\n}\nantGlow=Math.min(1.4, antGlow+bassv*0.5);\neyeFlash=Math.min(1.4, eyeFlash+rms*0.5);\neyeOpen=Math.max(0.15, 1 - dim*0.5);\n\n// ---------- helpers ----------\nconst setMetal=(shade)=>{ // shade: 0 base,1 lite,2 dark\n  const c = shade===1?mLite:(shade===2?mDark:mBase);\n  if(blueprint){ noFill(); stroke(H,72,96,90); strokeWeight(1.5/k); }\n  else { fill(c[0],c[1],Math.max(0,c[2]-dim*22)); noStroke(); }\n};\nconst plate=(x,y,w,h,r)=>{\n  if(blueprint){ noFill(); stroke(H,72,96,90); strokeWeight(1.5/k); rectMode(CENTER); rect(x,y,w,h,r);\n    stroke(H,60,90,50); strokeWeight(0.8/k); line(x-w/2,y,x+w/2,y); line(x,y-h/2,x,y+h/2);\n    noFill(); ellipse(x-w/2,y-h/2,4,4); ellipse(x+w/2,y-h/2,4,4); return; }\n  rectMode(CENTER);\n  if(chrome){ for(let b=0;b<7;b++){ const t=b/6; const hh=(H+t*120)%360; fill(hh,45,55+40*Math.sin(t*3.14),88); noStroke(); rect(x-w/2+w*t+w/12, y, w/6.2, h, r*0.4); } fill(mDark[0],mDark[1],mDark[2],0); }\n  else { fill(mBase[0],mBase[1],Math.max(0,mBase[2]-dim*22)); noStroke(); rect(x,y,w,h,r); }\n  // bevel light (top) + shadow (bottom) \u2014 raking light\n  if(!chrome){ noStroke(); fill(mLite[0],mLite[1],mLite[2],70); rect(x,y-h/2+h*0.14,w*0.9,h*0.2,r*0.5); fill(mDark[0],mDark[1],mDark[2],75); rect(x,y+h/2-h*0.12,w*0.94,h*0.18,r*0.5); }\n  // rivets\n  fill(mDark[0],mDark[1],mDark[2],90); const rv=6; for(const sx of [-1,1]) for(const sy of [-1,1]){ ellipse(x+sx*(w/2-rv), y+sy*(h/2-rv), 3.4,3.4); }\n  if(rust){ for(let i=0;i<10;i++){ const rr=fr(i*5+x*0.3+y*0.11); const cx=x-w/2+rr*w; const cy=y-h/2+fr(i*5+7+x)*h; fill(18+fr(i)*18,80,42+fr(i*3)*20, 60); ellipse(cx,cy, 2+fr(i*2)*5, 2+fr(i*2)*4); } }\n  if(glitch){ for(let b=0;b<5;b++){ const by=y-h/2+fr(b*3+Math.floor(gt*6)+x)*h; const dx=(fr(b*7+Math.floor(gt*8)+y)-0.5)*w*0.5; fill(mLite[0],mLite[1],mLite[2],55); rect(x+dx,by,w*0.9,2.2/k*k*3); } fill(0,90,95,26); rect(x-3,y,w,h*0.5); fill(180,90,95,26); rect(x+3,y,w,h*0.5); }\n};\n\npush();\ntranslate(ax, ay + torsoBob*k);\ntranslate(torsoX*k, 0);\nscale(k);\nnoStroke();\n\n// ground shadow\nif(!blueprint){ noStroke(); fill(H,30,6,55); ellipse(0,4, 120*chunk, 20); }\nelse { noFill(); stroke(H,60,80,40); strokeWeight(1/k); ellipse(0,4,120*chunk,20); }\n\nconst hipY=-62, hipHalf=17*chunk;\nconst shoY=-150, shoHalf=40*chunk;\n\n// ----- legs (behind torso) -----\nconst thigh=34*limbz, shin=32*limbz;\nconst drawLeg=(sx,lift,knee)=>{\n  push(); translate(sx*hipHalf,hipY+lift);\n  rotate(sx*0.05 - lift*0.01);\n  setMetal(2); plate(0,thigh/2, 15*chunk, thigh, 4);\n  translate(0,thigh); rotate(sx*0.04+knee*0.5);\n  setMetal(0); plate(0,shin/2, 12*chunk, shin, 4);\n  translate(0,shin);\n  setMetal(2); rectMode(CENTER); if(!blueprint){noStroke();fill(mDark[0],mDark[1],mDark[2]);} rect(sx*4,6,26*chunk,12,3);\n  pop();\n};\ndrawLeg(-1,liftL,kneeL); drawLeg(1,liftR,kneeR);\n\n// ----- far arm (behind torso) -----\nconst upper=30*limbz, fore=28*limbz;\nconst drawArm=(sx,sh,el,back)=>{\n  push(); translate(sx*shoHalf, shoY+6);\n  rotate(sx*0.2 + sh);\n  setMetal(back?2:0); plate(0,upper/2, 13*chunk, upper, 5);\n  translate(0,upper); rotate(el*sx*0.0 + el);\n  setMetal(back?2:0); plate(0,fore/2, 11*chunk, fore, 5);\n  translate(0,fore);\n  setMetal(1); if(!blueprint){noStroke();fill(mLite[0],mLite[1],mLite[2]);} ellipse(0,4, 15*chunk,15*chunk);\n  pop();\n};\ndrawArm(1,sR,eR,true);\n\n// ----- torso -----\nsetMetal(0);\nplate(0,-104, 60*chunk, 82, 8);\n// chest inset panel\npush(); rotate(torsoTwist*0.15);\nif(!blueprint){ setMetal(2); plate(0,-112, 40*chunk, 44, 5); }\nelse { plate(0,-112,40*chunk,44,5); }\n// vents\nif(!blueprint){ noStroke(); fill(mDark[0],mDark[1],mDark[2]); } else { noFill(); stroke(H,72,96,90); strokeWeight(1.2/k); }\nfor(let i=0;i<3;i++){ rectMode(CENTER); rect(18*chunk,-124+i*10, 16*chunk,4,1); }\n// chest lights row\nfor(let i=0;i<3;i++){ const on=(Math.floor(bt*2+i)%3===0)?1:0.25; const gl=on*(0.5+puls*0.5); const cc=[(acc[0]+i*40)%360,88,100]; if(!blueprint){ drawingContext.shadowColor=color(cc[0],cc[1],cc[2]).toString(); drawingContext.shadowBlur=10*gl; noStroke(); fill(cc[0],cc[1],cc[2], 40+gl*60);} else { noFill(); stroke(cc[0],cc[1],cc[2],40+gl*55); strokeWeight(1.4/k);} ellipse(-14*chunk+i*14*chunk, -100, 8,8); drawingContext.shadowBlur=0; }\npop();\n\n// ----- near arm (front) -----\ndrawArm(-1,sL,eL,false);\n\n// ----- neck + head -----\npush();\ntranslate(0,-150);\nrotate((headTilt+headSnap)*1.0 + torsoTwist*0.3);\ntranslate(0,-22);\n// neck\nif(!blueprint){ setMetal(2); rectMode(CENTER); noStroke(); fill(mDark[0],mDark[1],mDark[2]); rect(0,20, 20*chunk,16,3); }\n// head box\nsetMetal(0);\nplate(0,0, 54*chunk, 44, 7);\n// visor slit\nconst vw=40*chunk, vh=13;\nif(!blueprint){ noStroke(); fill(0,0,6); rectMode(CENTER); rect(0,-2, vw,vh, 4); }\nelse { noFill(); stroke(H,72,96,90); strokeWeight(1.3/k); rect(0,-2,vw,vh,4); }\n// scanning eye light\nconst scan=Math.sin(bt*Math.PI*(pose==='march'?1:0.5)+scanBias*gt*0.4)*(vw*0.32);\nconst ec=(pose==='dance')?[(acc[0]+Math.floor(bt)*57)%360,90,100]:acc;\ndrawingContext.shadowColor=color(ec[0],ec[1],ec[2]).toString(); drawingContext.shadowBlur=16*Math.min(1,eyeFlash);\nif(blueprint){ noFill(); stroke(ec[0],ec[1],ec[2],95); strokeWeight(2/k);} else { noStroke(); fill(ec[0],ec[1],ec[2], (55+eyeFlash*45)); }\nellipse(scan,-2, 12, 10*eyeOpen);\nif(!blueprint){ fill(ec[0],ec[1],100, 20+eyeFlash*20); ellipse(scan,-2, vw*0.7, vh*0.9*eyeOpen); }\ndrawingContext.shadowBlur=0;\n// antenna\nconst antH=(20+16*P.antenna);\nif(!blueprint){ stroke(mDark[0],mDark[1],mDark[2]); strokeWeight(2.4/k);} else { stroke(H,72,96,90); strokeWeight(1.3/k);} noFill();\nconst asway=Math.sin(bt*Math.PI*0.7)*4*eM;\nline(0,-22, asway,-22-antH);\nconst abc=[(acc[0]+30)%360,85,100];\ndrawingContext.shadowColor=color(abc[0],abc[1],abc[2]).toString(); drawingContext.shadowBlur=14*Math.min(1.2,antGlow);\nif(blueprint){ noFill(); stroke(abc[0],abc[1],abc[2],95); strokeWeight(2/k);} else { noStroke(); fill(abc[0],abc[1],abc[2], 55+antGlow*45); }\nellipse(asway,-22-antH, 7+antGlow*5, 7+antGlow*5);\ndrawingContext.shadowBlur=0;\npop();\n\npop();\n\n// ambient sparks/dust\nconst nm=Math.floor(P.density*10);\nif(nm>0){ blendMode(ADD); noStroke(); for(let i=0;i<nm;i++){ const ang=fr(i*7+2)*6.28; const rr=(0.25+fr(i*7+3)*0.5)*u*0.4; const dr=gt*(0.3+fr(i*7+4)*0.5)+fr(i*7)*6.28; const px=ax+Math.cos(ang+dr*0.4)*rr; const py=ay-u*0.26 + Math.sin(ang+dr)*rr*0.4 + Math.sin(gt*1.4+i)*7; const sz=(1+fr(i*7+5)*2)*u*0.0035*(1+air+puls*0.6); fill(acc[0],60,100, 22+air*34+puls*20); ellipse(px,py,sz,sz); } blendMode(BLEND); }\nblendMode(BLEND);\n"
+}

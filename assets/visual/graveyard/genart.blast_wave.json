@@ -1,0 +1,144 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "genart.blast_wave",
+ "kind": "genart",
+ "name": "Blast Wave",
+ "desc": "A shock tube with no way out — detonations bloom into circular blast fronts that steepen until they stand vertical, slam into the walls and fork into Mach stems hinged at a travelling triple point, then run each other down and collide, because in a compressible gas a wave's own amplitude sets its speed and nothing passes through anything unchanged; as a false-color CFD pressure plate, a supersonic Mach-number map, density interferometry, a sumi ink blast, or spectral false-color.",
+ "tags": [
+  "blast",
+  "blast-wave",
+  "shock",
+  "shockwave",
+  "shock-front",
+  "mach",
+  "mach-stem",
+  "mach-reflection",
+  "triple-point",
+  "supersonic",
+  "compressible",
+  "euler",
+  "gas-dynamics",
+  "detonation",
+  "explosion",
+  "sedov",
+  "steepening",
+  "nonlinear",
+  "discontinuity",
+  "pressure",
+  "density",
+  "cfd",
+  "rusanov",
+  "riemann",
+  "reflection",
+  "wave",
+  "turbulence",
+  "fluid",
+  "fluid-dynamics",
+  "physics",
+  "simulation",
+  "laboratory",
+  "scientific",
+  "clinical",
+  "false-color",
+  "magma",
+  "inferno",
+  "interferogram",
+  "fringe",
+  "sumi",
+  "ink",
+  "spectral",
+  "hot",
+  "violent",
+  "menacing",
+  "austere",
+  "sublime",
+  "field",
+  "abstract",
+  "generative",
+  "genart",
+  "fullbleed",
+  "background",
+  "texture"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "detonation strength — the pressure ratio of the hot spot, plus exposure and shock contrast (the master knob)"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.4,
+   "max": 2.6,
+   "doc": "charge size — from pinpoint cracks to blasts that fill a third of the box"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.2,
+   "max": 3.0,
+   "doc": "simulation rate (the CFL condition still governs stability — this only sets pacing)"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "detonation rate — how many blasts are ringing around the box at once"
+  },
+  "stiff": {
+   "default": 0.45,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "adiabatic index gamma — how hard the gas resists compression: low gives thin dense shells and violent fronts, high gives soft fat rolling waves"
+  },
+  "hue": {
+   "default": 22,
+   "min": 0,
+   "max": 360,
+   "doc": "hue of the high-pressure end of the ramp"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "center of the detonation zone across the box"
+  },
+  "y": {
+   "default": 0.5,
+   "min": 0.0,
+   "max": 1.0,
+   "doc": "center of the detonation zone down the box"
+  },
+  "style": {
+   "default": "pressure",
+   "options": [
+    "pressure",
+    "mach",
+    "interferogram",
+    "ink_blast",
+    "spectral"
+   ],
+   "doc": "aesthetic: false-color CFD log-pressure plate / abstracted Mach-number map where only supersonic gas lights / density interferometry / sumi ink blast on paper / spectral false-color"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "deterministic seed for charge placement, timing and yield"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "layer opacity"
+  }
+ },
+ "acts": null,
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, stiff: .45, hue: 22, x: .5, y: .5, style: 'pressure', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Blast waves — the 2D compressible Euler equations, solved for real -----------------\n// Everything else in this catalog that makes waves is LINEAR: waves pass through each other\n// and come out unchanged. Compressible gas does not work that way. Here the wave speed\n// depends on the wave's own amplitude, so a crest overtakes the trough in front of it and\n// the profile STEEPENS until it stands vertical — a shock, a true discontinuity.\n//\n// Conserved variables (rho, rho*u, rho*v, E) advanced with a Rusanov flux and dimensional\n// splitting, sub-stepped under a live CFL condition (the shock sets the time step, not the\n// frame rate). Walls are reflecting, which is the point: when a blast hits one, the incident\n// and reflected fronts cannot stay attached past a critical angle, so they merge into a\n// single stronger MACH STEM standing perpendicular to the wall, joined at a triple point.\n// That transition is irreducibly nonlinear — no superposition of waves can fake it.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 128, BH = Math.max(56, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.R = new Float32Array(NC); S.MU = new Float32Array(NC); S.MV = new Float32Array(NC); S.E = new Float32Array(NC);\n  S.FA = new Float64Array((Math.max(BW, BH) + 1) * 4);\n  S.init = false;\n}\nconst R = S.R, MU = S.MU, MV = S.MV, E = S.E, FA = S.FA;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn2(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d = hsh(ix + 1, iy + 1);\n  const p0 = a + (b - a) * u, p1 = c + (d - c) * u;\n  return p0 + (p1 - p0) * v;\n}\nfunction fbm2(x, y) { return 0.55 * vn2(x, y) + 0.27 * vn2(x * 2.13 + 4.1, y * 2.13 - 2.7) + 0.18 * vn2(x * 4.31 - 1.9, y * 4.31 + 6.3); }\n\nconst L = BW / BH, dx = 1 / BH;\nconst GAM = 1.12 + P.stiff * 0.78;         // adiabatic index: sets the compression ratio\nconst G1 = GAM - 1;\nconst R0 = 1, P0 = 1;\nconst E0 = P0 / G1;\nconst tt = K.t;\nconst en = P.energy;\n\n// ---- the ambient gas is STRATIFIED, not featureless. Real air is marbled with density\n// variation (it is the whole reason a shadowgraph shows anything at all), and it earns its\n// keep three times over: it gives the frame texture instead of a flat fill, it lets the whole\n// field visibly respond to the flow rather than only the thin fronts, and a shock crossing a\n// density interface deposits vorticity — Richtmyer-Meshkov — which rolls the interfaces into\n// billows. Pressure is uniform at rest, so the medium is isobaric: density varies, p does not.\n// The stratification also slowly OVERTURNS — the chamber convects on its own, on\n// incommensurate rates. Without it the box settles into a statistically stationary shock\n// soup: visually busy, but any two frames look alike, which is exactly how a piece that\n// obviously moves still reads as static to a gate comparing frames 8s apart.\nif (!S.RI) S.RI = new Float32Array(NC);\nconst RI = S.RI;\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed; S.T = 0; S.nextB = 0.15; S.bn = 0; S.par = 0;\n  S.fresh = true;\n}\n{\n  const fq = 3.4;\n  const dxo = 11.3 + 1.05 * Math.sin(K.t * 0.113) + 0.62 * Math.sin(K.t * 0.271 + 1.3) + K.t * 0.115;\n  const dyo = 5.7 + 0.92 * Math.cos(K.t * 0.097 + 0.7) + 0.51 * Math.sin(K.t * 0.229 + 2.2) + K.t * 0.041;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    RI[p] = R0 * (0.62 + fbm2((i / BH) * fq + dxo, (j / BH) * fq + dyo) * 0.80);\n  }\n}\nif (S.fresh) {\n  S.fresh = false;\n  for (let p = 0; p < NC; p++) { R[p] = RI[p]; MU[p] = 0; MV[p] = 0; E[p] = E0; }  // isobaric\n}\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dtr = K.t - S.lastT; S.lastT = K.t;\ndtr = dtr < 0 ? 0 : (dtr > 0.05 ? 0.05 : dtr);\n// sim time runs far slower than real time — a blast crossing the frame at Mach 1 would\n// otherwise be gone in under a second\nconst dtWant = dtr * 0.38 * (0.25 + P.speed * 0.75);\nS.T += dtWant;\nconst ts = S.T;\n\n// ---- detonate ----\nconst Tb = 1.15 / (0.35 + P.density * 1.5);  // SIM seconds (sim runs ~0.38x real time)\nif (ts > S.nextB) {\n  S.nextB = ts + Tb * (0.75 + fr(S.bn * 5 + 1) * 0.5);\n  const n = S.bn | 0; S.bn = n + 1;\n  const cx = Math.min(0.9, Math.max(0.1, P.x)) * L + (fr(n * 7 + 2) - 0.5) * L * 0.55;\n  const cy = Math.min(0.9, Math.max(0.1, P.y)) + (fr(n * 7 + 3) - 0.5) * 0.55;\n  const rr = (0.035 + fr(n * 7 + 4) * 0.030) * Math.max(0.4, P.scale);\n  const pr = 1 + (3 + en * 26) * (0.7 + fr(n * 7 + 5) * 0.6) * (0.8 + A.bass * 0.5);\n  const r2 = rr * rr;\n  const i0 = Math.max(0, ((cx - rr) / dx) | 0), i1 = Math.min(BW - 1, ((cx + rr) / dx) | 0);\n  const j0 = Math.max(0, ((cy - rr) / dx) | 0), j1 = Math.min(BH - 1, ((cy + rr) / dx) | 0);\n  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {\n    const ddx = (i + 0.5) * dx - cx, ddy = (j + 0.5) * dx - cy, d2 = ddx * ddx + ddy * ddy;\n    if (d2 > r2) continue;\n    const p = j * BW + i;\n    const w = 1 - d2 / r2;\n    const pp = P0 * (1 + (pr - 1) * w);\n    R[p] = R0 * (1 + w * 1.4);\n    E[p] = pp / G1 + 0.5 * (MU[p] * MU[p] + MV[p] * MV[p]) / Math.max(1e-4, R[p]);\n  }\n}\n\n// ---- max wave speed -> CFL -> substeps ----\nlet smax = 1e-3;\nfor (let p = 0; p < NC; p++) {\n  const r = R[p] > 1e-4 ? R[p] : 1e-4;\n  const u = MU[p] / r, v = MV[p] / r;\n  let pp = G1 * (E[p] - 0.5 * (MU[p] * MU[p] + MV[p] * MV[p]) / r);\n  if (pp < 1e-4) pp = 1e-4;\n  const c = Math.sqrt(GAM * pp / r);\n  const sx = Math.abs(u) + c, sy = Math.abs(v) + c;\n  const s = sx > sy ? sx : sy;\n  if (s > smax) smax = s;\n}\nconst dtCFL = 0.40 * dx / smax;\nlet nsub = Math.ceil(dtWant / dtCFL);\nif (nsub < 1) nsub = 1; if (nsub > 5) nsub = 5;\nconst dts = Math.min(dtWant / nsub, dtCFL);\n\nfunction sweep(dtl, along) {\n  // along=0: x-sweep over rows; along=1: y-sweep over columns. Reflecting walls: the ghost\n  // cell mirrors the state and flips the NORMAL momentum.\n  const n = along === 0 ? BW : BH, m = along === 0 ? BH : BW;\n  const stride = along === 0 ? 1 : BW, outer = along === 0 ? BW : 1;\n  const lam = dtl / dx;\n  for (let q = 0; q < m; q++) {\n    const base = q * outer;\n    // fluxes at the n+1 interfaces\n    for (let f = 0; f <= n; f++) {\n      const iL = f - 1, iR = f;\n      const kL = base + (iL < 0 ? 0 : iL) * stride, kR = base + (iR > n - 1 ? n - 1 : iR) * stride;\n      // left state\n      let rL = R[kL] > 1e-4 ? R[kL] : 1e-4;\n      let nL = along === 0 ? MU[kL] : MV[kL], tL = along === 0 ? MV[kL] : MU[kL];\n      let eL = E[kL];\n      if (iL < 0) nL = -nL;                       // wall ghost\n      // right state\n      let rR = R[kR] > 1e-4 ? R[kR] : 1e-4;\n      let nR = along === 0 ? MU[kR] : MV[kR], tR = along === 0 ? MV[kR] : MU[kR];\n      let eR = E[kR];\n      if (iR > n - 1) nR = -nR;\n      const uL = nL / rL, vL = tL / rL, uR = nR / rR, vR = tR / rR;\n      let pL = G1 * (eL - 0.5 * (nL * nL + tL * tL) / rL); if (pL < 1e-4) pL = 1e-4;\n      let pR = G1 * (eR - 0.5 * (nR * nR + tR * tR) / rR); if (pR < 1e-4) pR = 1e-4;\n      const cL = Math.sqrt(GAM * pL / rL), cR = Math.sqrt(GAM * pR / rR);\n      const aa = Math.max(Math.abs(uL) + cL, Math.abs(uR) + cR);\n      // Rusanov: centred flux minus the max-wave-speed dissipation\n      const o = f * 4;\n      FA[o] = 0.5 * (nL + nR) - 0.5 * aa * (rR - rL);\n      FA[o + 1] = 0.5 * (nL * uL + pL + nR * uR + pR) - 0.5 * aa * (nR - nL);\n      FA[o + 2] = 0.5 * (nL * vL + nR * vR) - 0.5 * aa * (tR - tL);\n      FA[o + 3] = 0.5 * ((eL + pL) * uL + (eR + pR) * uR) - 0.5 * aa * (eR - eL);\n    }\n    for (let i = 0; i < n; i++) {\n      const k = base + i * stride, o = i * 4, o2 = (i + 1) * 4;\n      const dr = lam * (FA[o2] - FA[o]);\n      const dn = lam * (FA[o2 + 1] - FA[o + 1]);\n      const dtn = lam * (FA[o2 + 2] - FA[o + 2]);\n      const de = lam * (FA[o2 + 3] - FA[o + 3]);\n      R[k] -= dr; E[k] -= de;\n      if (along === 0) { MU[k] -= dn; MV[k] -= dtn; } else { MV[k] -= dn; MU[k] -= dtn; }\n      if (R[k] < 1e-4) R[k] = 1e-4;\n      const ke = 0.5 * (MU[k] * MU[k] + MV[k] * MV[k]) / R[k];\n      if (E[k] - ke < 1e-4 / G1) E[k] = ke + 1e-4 / G1;\n    }\n  }\n}\n\nfor (let s2 = 0; s2 < nsub; s2++) {\n  // Strang-ish alternation: swapping the sweep order each substep cancels the splitting bias\n  if ((S.par | 0) === 0) { sweep(dts, 0); sweep(dts, 1); } else { sweep(dts, 1); sweep(dts, 0); }\n  S.par = ((S.par | 0) + 1) & 1;\n}\n\n// ---- radiative cooling: reflecting walls trap every blast forever, so the box would\n// saturate into noise without a sink. Real blasts cool; this is that. ----\n{\n  const kc = Math.min(0.4, dtWant * 0.12);\n  const kr = Math.min(0.5, dtr * 0.20);   // re-stratification runs on REAL time, not sim time\n  for (let p = 0; p < NC; p++) {\n    // density relaxes back toward the STRATIFIED ambient, never toward a flat constant —\n    // otherwise the cooling term would quietly iron the medium's texture away\n    R[p] += (RI[p] - R[p]) * kr;\n    MU[p] *= (1 - kc); MV[p] *= (1 - kc);\n    const ke = 0.5 * (MU[p] * MU[p] + MV[p] * MV[p]) / Math.max(1e-4, R[p]);\n    const ei = E[p] - ke;\n    E[p] = ke + ei + (E0 - ei) * kc * 0.5;   // back to ambient PRESSURE (isobaric rest state)\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.019) * 10 + sec * 6) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst gain = 0.55 + en * 0.85;\nconst fdr = tt * 0.31 + Math.sin(tt * 0.077) * 1.3;\nconst gl = 0.88 + A.bass * 0.3 + K.swell * 0.1;\n\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const r = R[p] > 1e-4 ? R[p] : 1e-4;\n    const mu2 = MU[p], mv2 = MV[p];\n    let pp = G1 * (E[p] - 0.5 * (mu2 * mu2 + mv2 * mv2) / r);\n    if (pp < 1e-4) pp = 1e-4;\n    const lp = Math.log(pp / P0);            // log pressure: shocks read across many decades\n    const c = Math.sqrt(GAM * pp / r);\n    const spd = Math.sqrt(mu2 * mu2 + mv2 * mv2) / r;\n    const mach = spd / c;\n    let rr, gg, b;\n    if (style === 'mach') {\n      // abstracted: forget pressure, show only where the gas is actually supersonic\n      const m = Math.min(1.3, mach * (0.7 + en * 1.1));\n      const sup = Math.max(0, Math.min(1, (mach - 1) * 1.6));\n      const cc = pal(0.10 + m * 0.5, 0.30, 0.0);\n      const v = 0.26 + m * 0.52 + sup * 0.34;\n      rr = v * (0.35 + cc[0] * 1.05) + sup * 0.22;\n      gg = v * (0.35 + cc[1] * 1.05) + sup * 0.16;\n      b = v * (0.42 + cc[2] * 1.05) + sup * 0.06;\n    } else if (style === 'interferogram') {\n      const fri = 0.5 + 0.5 * Math.cos(r * (5 + en * 16) * 2.2 + fdr);\n      const cc = pal(0.12 + Math.min(1, Math.abs(lp)) * 0.34, 0.30, 0.0);\n      const v = 0.16 + fri * 0.42;\n      rr = v * (0.45 + cc[0] * 1.0); gg = v * (0.45 + cc[1] * 1.0); b = v * (0.50 + cc[2] * 1.0);\n    } else if (style === 'ink_blast') {\n      const v = 0.72 - Math.min(1, Math.max(0, lp * gain * 0.9)) * 0.62 + Math.min(0, lp) * 0.30;\n      rr = v * 0.99; gg = v * 0.97; b = v * 0.925;\n    } else if (style === 'spectral') {\n      const u = 0.06 + Math.min(1, Math.max(-0.4, lp * gain * 0.7)) * 0.62;\n      const cc = pal(u, 0.33, 0.0);\n      const v = 0.30 + Math.min(1, Math.abs(lp) * gain) * 0.46;\n      rr = v * (0.28 + cc[0] * 1.28); gg = v * (0.28 + cc[1] * 1.28); b = v * (0.30 + cc[2] * 1.28);\n    } else {                                  // pressure (default)\n      // the CFD plate: the stratified medium sets the base tone (so the gas itself is\n      // visible and reads as a material), log-pressure drives a hot ramp on top, and a shock\n      // — a cliff in that field — lights up as a hard bright front\n      const m = Math.min(1.15, Math.max(-0.5, lp * gain));\n      const dv = Math.max(-0.6, Math.min(0.7, Math.log(r / R0)));\n      const cc = pal(0.02 + Math.max(0, m) * 0.30, 0.15, 0.0);\n      const v = (0.38 + dv * 0.55 + m * 0.38) * gl;\n      rr = v * (0.55 + cc[0] * 0.95);\n      gg = v * (0.42 + cc[1] * 0.85);\n      b = v * (0.52 + cc[2] * 0.55) + Math.max(0, -m) * 0.10;\n      const hot = Math.max(0, m - 0.45) * 0.75;\n      rr += hot; gg += hot * 0.72; b += hot * 0.30;\n    }\n    const o = 4 * p;\n    px[o] = rr < 0 ? 0 : (rr > 1 ? 255 : rr * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

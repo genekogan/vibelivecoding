@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.phyllotaxis",
+  "kind": "genart",
+  "name": "Phyllotaxis Bloom",
+  "desc": "A sunflower seed-head of golden-angle florets that spirals out from center and slowly rotates, blooming and wilting across sections, with a perturbable divergence angle that fractures the lattice into spiral arms, in botanical, ink-engraving, iridescent-nacre and blueprint-schematic styles.",
+  "tags": [
+    "phyllotaxis",
+    "golden angle",
+    "fibonacci",
+    "sunflower",
+    "spiral",
+    "vogel",
+    "seed head",
+    "floret",
+    "bloom",
+    "botanical",
+    "flower",
+    "generative",
+    "genart",
+    "growth",
+    "pattern",
+    "nature",
+    "math",
+    "parastichy",
+    "engraving",
+    "stipple",
+    "iridescent",
+    "nacre",
+    "blueprint",
+    "schematic",
+    "abstract",
+    "organic",
+    "backdrop",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.2,
+      "max": 1,
+      "doc": "floret count (~230..640)"
+    },
+    "spread": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "radial spacing constant (wider bloom at max)"
+    },
+    "angleTweak": {
+      "default": 0,
+      "min": -12,
+      "max": 12,
+      "doc": "divergence-angle offset from 137.5 deg (fractures into spiral arms)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rotation + bloom rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "floret size + glow/beat pulse"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "petal/rim hue"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "overall size vs design size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom center y"
+    },
+    "style": {
+      "default": "botanical",
+      "options": [
+        "botanical",
+        "engraving",
+        "iridescent",
+        "schematic"
+      ],
+      "doc": "render philosophy: shaded seed-to-petal florets / monochrome ink stipple plate / oil-slick nacreous glow / blueprint parastichy vector lattice"
+    },
+    "act": {
+      "default": "bloom",
+      "options": [
+        "bloom",
+        "seasons",
+        "pulse"
+      ],
+      "doc": "multi-minute dramaturgy: grow-and-hold / cyclic bloom+wilt / count pulses with sections"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "floret jitter + rotation-phase seed"
+    }
+  },
+  "acts": [
+    "bloom",
+    "seasons",
+    "pulse"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:41:07+00:00",
+    "fps": 58.5,
+    "motion": 0.0362,
+    "lum": 0.75
+  },
+  "code": "const D = { density:.55, spread:1, angleTweak:0, speed:1, energy:.6, hue:45, scale:1, x:.5, y:.5, style:'botanical', act:'bloom', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width,height);\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst jr = i => { const s=Math.sin((i+1)*78.233 + P.seed*39.425)*43758.5453; return s-Math.floor(s); };\nlet N = Math.floor(120 + P.density*520);\nif (st==='schematic') N=Math.min(N,420);\nconst key = width+'x'+height+st+((P.seed|0)%1000)+Math.round(P.hue);\n\n// cached full-bleed base\nif (!S.base || S.baseKey!==key){\n  const g=createGraphics(width,height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  if (st==='engraving') g.background(40,10,86);\n  else if (st==='botanical') g.background((P.hue*0.1+35)%360,17,85);\n  else if (st==='schematic') g.background(218,58,12);\n  else g.background((P.hue*0.1+250)%360,55,7);\n  if (st==='engraving'||st==='botanical'){\n    for(let i=0;i<680;i++){ const gx=jr(i*2+1)*width, gy=jr(i*2+3)*height; g.fill(35,14,jr(i)>.5?70:96, 8); g.circle(gx,gy,1+jr(i*2)*2.2); }\n  }\n  S.base=g; S.baseKey=key;\n}\nimage(S.base,0,0);\n\nconst GA = Math.PI*(3-Math.sqrt(5));\nconst ga = GA + (P.angleTweak*Math.PI/180) + Math.sin(K.t*0.02)*0.0009;\nconst cx = P.x*width, cy = P.y*height;\nconst c = u*0.019*P.scale*P.spread;\nconst rot = K.t*0.05*P.speed + jr(0)*6.2832;\n\n// bloom / decay dramaturgy\nlet bloom;\nif (P.act==='seasons') bloom=0.5+0.5*Math.sin(K.t*0.045*P.speed);\nelse if (P.act==='pulse') bloom=0.55+0.45*Math.sin((K.section||0)*1.3 + K.swell*0.6);\nelse bloom=Math.min(1, 0.12 + K.t*0.012*P.speed);\nconst grown = Math.max(8, Math.floor(N*(0.1+bloom*0.9)));\n\nif (st==='schematic'){\n  stroke(190,72,95,55); strokeWeight(1); noFill();\n  const fibs=[8,13,21];\n  for(let i=0;i<grown;i++){\n    const a=i*ga+rot, rr=c*Math.sqrt(i), x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;\n    for(let f=0;f<fibs.length;f++){ const j=i+fibs[f]; if(j<grown){ const aj=j*ga+rot, rj=c*Math.sqrt(j); if(f===0) line(x,y, cx+Math.cos(aj)*rj, cy+Math.sin(aj)*rj); } }\n  }\n  noStroke(); fill(190,55,100,75+K.pulse*20);\n  for(let i=0;i<grown;i+=2){ const a=i*ga+rot, rr=c*Math.sqrt(i); circle(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr, 2.2); }\n} else {\n  noStroke();\n  if (st==='iridescent') blendMode(ADD);\n  for(let i=0;i<grown;i++){\n    const a=i*ga+rot;\n    const rr=c*Math.sqrt(i)*(1+(jr(i)-.5)*0.03);\n    const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr;\n    const norm=i/N;\n    const edge=grown-i, pop= edge<26? edge/26 : 1;\n    const beat=K.pulse*0.25*(1-norm) + A.treble*0.3*jr(i);\n    const sz=u*(0.007+0.021*norm)*(0.8+P.energy*0.5)*P.scale*(0.55+pop*0.55)*(1+beat);\n    if (st==='engraving'){\n      const h=(P.hue*0.2+30)%360;\n      fill(h,18,14+norm*20,70); circle(x,y,sz*0.7);\n      if(jr(i*3)>0.6){ stroke(h,20,12,50); strokeWeight(0.8); const ha=a+1.2; line(x,y,x+Math.cos(ha)*sz*1.1,y+Math.sin(ha)*sz*1.1); noStroke(); }\n    } else if (st==='iridescent'){\n      const h=(P.hue + norm*160 + a*9 + K.t*10)%360, s=70+Math.sin(i*0.7)*20, al=30+beat*30;\n      fill((h+360)%360,s,80+norm*20,al); circle(x,y,sz*1.6);\n      fill((h+30)%360,s*0.6,100,al*0.7); circle(x,y,sz*0.8);\n    } else {\n      const t=norm;\n      const h=(30*(1-t) + P.hue*t)%360, s=60+t*28, bb=26+t*70;\n      fill(h,s,bb,92); circle(x,y,sz);\n      fill(h,Math.min(100,s+15),bb*0.6,45); circle(x-Math.cos(a)*sz*0.22, y-Math.sin(a)*sz*0.22, sz*0.7);\n    }\n  }\n}\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.warp_grid",
+  "kind": "genart",
+  "name": "Warped Lattice",
+  "desc": "A modular lattice whose vertices are dragged through a drifting noise flow so the whole grid ripples, folds and heaves like a kinetic topological fabric; renders as a glowing neon wireframe, shaded solid quads, a dot lattice, a cyan blueprint, or ink on paper.",
+  "tags": [
+    "grid",
+    "lattice",
+    "mesh",
+    "warp",
+    "distortion",
+    "noise",
+    "flow",
+    "geometric",
+    "modular",
+    "watz",
+    "kinetic",
+    "fabric",
+    "topology",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "wireframe",
+    "neon",
+    "blueprint",
+    "ink",
+    "dots",
+    "structural"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "warp": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "displacement amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "grid resolution"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness/glow"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "flow drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "dot size (dot style)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "wire",
+      "options": [
+        "wire",
+        "solid",
+        "dot",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "flow variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T00:36:38+00:00",
+    "fps": 64.5,
+    "motion": 0.0618,
+    "lum": 0.092
+  },
+  "code": "const D = { hue: 210, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .5, warp: .6, style: 'wire', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst GX = Math.round(10 + P.density * 26), GY = Math.round(6 + P.density * 16);\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\n  S.o1 = fr(1)*20; S.o2 = fr(2)*20; S.hoff = fr(3)*60;\n}\nconst sd = P.seed | 0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; }\nfunction fbm(x,y){ return 0.6*vn(x,y)+0.3*vn(x*2.03+5.1,y*2.03-3.2)+0.15*vn(x*4.1-2.3,y*4.1+7.7); }\n\nconst t = K.t*(0.10 + P.speed*0.18);\nconst amp = u * 0.05 * (0.3 + P.warp*2.6) * (0.6 + K.intensity*0.7);\nconst marginX = width*0.06, marginY = height*0.06;\nconst cw = (width-2*marginX)/(GX-1), ch = (height-2*marginY)/(GY-1);\nconst style = P.style, hb = (P.hue + S.hoff + K.section*14)%360;\nconst expo = 0.5 + P.energy*0.7 + A.rms*0.5;\n\n// compute displaced vertices\nconst VX = [], VY = [], VD = [];\nfor (let j=0;j<GY;j++){ for (let i=0;i<GX;i++){\n  const bx = marginX + i*cw, by = marginY + j*ch;\n  const fx = i*0.28 + S.o1, fy = j*0.30 + S.o2;\n  const dx = fbm(fx + t*0.5, fy) - 0.5, dy = fbm(fx + 5.3, fy - t*0.4) - 0.5;\n  const disp = Math.sqrt(dx*dx+dy*dy);\n  VX.push(bx + dx*amp*2); VY.push(by + dy*amp*2); VD.push(disp);\n}}\nfunction idx(i,j){ return j*GX+i; }\n\npush();\nif (P.alpha < 100) drawingContext.globalAlpha = P.alpha/100;\nif (style === 'ink') { background(38, 12, 96); } else if (style === 'blueprint') { background(215, 70, 22); } else { background(hb, 40, 7); }\n\nif (style === 'solid') {\n  noStroke();\n  for (let j=0;j<GY-1;j++){ for (let i=0;i<GX-1;i++){\n    const a=idx(i,j),b=idx(i+1,j),c=idx(i+1,j+1),d=idx(i,j+1);\n    const shade = 0.30 + Math.min(1,(VD[a]+VD[c])*1.3)*0.7;\n    fill((hb + (VD[a]*160))%360, 60, Math.min(100, shade*100*expo), 96);\n    quad(VX[a],VY[a],VX[b],VY[b],VX[c],VY[c],VX[d],VY[d]);\n  }}\n} else if (style === 'dot') {\n  noStroke();\n  for (let k=0;k<VX.length;k++){ const s=2.5+VD[k]*12*P.scale; fill((hb+VD[k]*150)%360, 75, Math.min(100,(50+VD[k]*180)*expo), 96); ellipse(VX[k],VY[k], s+A.treble*6); }\n} else { // wire / blueprint / ink \u2014 grid lines, cheap two-pass glow (NO per-line shadowBlur)\n  const wire = style==='wire';\n  // pass 1: wide soft glow (wire only)\n  if (wire){ blendMode(ADD); strokeWeight(3.4);\n    for (let j=0;j<GY;j++){ for (let i=0;i<GX;i++){ const a=idx(i,j);\n      if (i<GX-1){ const b=idx(i+1,j); const d=(VD[a]+VD[b])*0.5; stroke((hb+d*170)%360,80,100,10); line(VX[a],VY[a],VX[b],VY[b]); }\n      if (j<GY-1){ const c=idx(i,j+1); const d=(VD[a]+VD[c])*0.5; stroke((hb+d*170)%360,80,100,10); line(VX[a],VY[a],VX[c],VY[c]); }\n    }}\n    blendMode(BLEND);\n  }\n  // pass 2: crisp core\n  for (let j=0;j<GY;j++){ for (let i=0;i<GX;i++){ const a=idx(i,j);\n    if (i<GX-1){ const b=idx(i+1,j); const d=(VD[a]+VD[b])*0.5;\n      if (style==='blueprint'){ stroke(200,55,100,75); strokeWeight(1); }\n      else if (style==='ink'){ stroke(hb,30,12,82); strokeWeight(0.8+d*3); }\n      else { stroke((hb+d*170)%360,70,Math.min(100,(60+d*130)*expo),92); strokeWeight(1+d*2.2); }\n      line(VX[a],VY[a],VX[b],VY[b]); }\n    if (j<GY-1){ const c=idx(i,j+1); const d=(VD[a]+VD[c])*0.5;\n      if (style==='blueprint'){ stroke(200,55,100,75); strokeWeight(1); }\n      else if (style==='ink'){ stroke(hb,30,12,82); strokeWeight(0.8+d*3); }\n      else { stroke((hb+d*170)%360,70,Math.min(100,(60+d*130)*expo),92); strokeWeight(1+d*2.2); }\n      line(VX[a],VY[a],VX[c],VY[c]); }\n  }}\n}\nif (P.alpha < 100) drawingContext.globalAlpha = 1;\npop();\n"
+}

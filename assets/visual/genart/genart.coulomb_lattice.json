@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.coulomb_lattice",
+  "kind": "genart",
+  "name": "Coulomb Charges",
+  "desc": "Hundreds of positive and negative point charges drift across a toroidal field and self-organize into glowing ionic lattices, dipole chains and alternating +/- clusters \u2014 warm gold cations and cool cyan anions bonded across the whole frame.",
+  "tags": [
+    "coulomb",
+    "charge",
+    "charges",
+    "electrostatic",
+    "ion",
+    "ionic",
+    "lattice",
+    "dipole",
+    "particle",
+    "particles",
+    "particle-system",
+    "nbody",
+    "plasma",
+    "electric",
+    "field",
+    "physics",
+    "simulation",
+    "glow",
+    "additive",
+    "bonds",
+    "crystal",
+    "attraction",
+    "repulsion",
+    "positive",
+    "negative",
+    "cation",
+    "anion",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "warm",
+    "gold",
+    "cyan",
+    "blue",
+    "firefly",
+    "blueprint",
+    "wireframe",
+    "science",
+    "molecular",
+    "cosmic",
+    "energy"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow brightness + charge size (obvious at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "charge count 150..260 (crowded at max)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "sim rate / drift velocity (clamped)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "dot size + interaction radius"
+    },
+    "reach": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Coulomb cutoff radius (bigger = more connected lattice)"
+    },
+    "bond": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "visibility of +/- bonds"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "cation hue (anion is complementary)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "ionic",
+      "options": [
+        "ionic",
+        "plasma",
+        "firefly",
+        "lattice",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout + charge signs"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:15:11+00:00",
+    "fps": 40,
+    "motion": 0.1431,
+    "lum": 0.202
+  },
+  "code": "const D = { energy: .62, density: .5, speed: 1, scale: 1, reach: .5, bond: .5, hue: 34, x: .5, y: .5, style: 'ionic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2, st = P.style;\n\n// \u2500\u2500 coarse trail buffer (HSB, upscaled) + soft radial glow sprite \u2500\u2500\nconst cap = 800, sc = Math.min(1, cap / Math.max(width, height));\nconst BW = Math.max(2, Math.round(width * sc)), BH = Math.max(2, Math.round(height * sc));\nif (!S.buf || S.bw !== BW || S.bh !== BH) {\n  S.buf = createGraphics(BW, BH); S.buf.colorMode(S.buf.HSB, 360, 100, 100, 100); S.buf.pixelDensity(1);\n  S.bw = BW; S.bh = BH; S.needClear = true;\n}\nif (!S.sprite) {\n  const SS = 64; S.sprite = createGraphics(SS, SS); S.sprite.pixelDensity(1);\n  const ctx = S.sprite.drawingContext, gr = ctx.createRadialGradient(SS/2, SS/2, 0, SS/2, SS/2, SS/2);\n  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.24, 'rgba(255,255,255,0.55)');\n  gr.addColorStop(0.6, 'rgba(255,255,255,0.14)'); gr.addColorStop(1, 'rgba(255,255,255,0)');\n  ctx.fillStyle = gr; ctx.fillRect(0, 0, SS, SS);\n}\nconst buf = S.buf, u = Math.min(BW, BH), key = BW + 'x' + BH;\nconst N = Math.round(150 + P.density * 110);   // 150..260 charges\n\n// \u2500\u2500 population: pos, vel, charge (+1/-1), toroidal, spread across the WHOLE frame \u2500\u2500\nif (S.seedUsed !== P.seed || S.pkey !== key || !S.q || S.q.length !== N) {\n  S.seedUsed = P.seed; S.pkey = key;\n  let z = ((P.seed + 1) * 2654435761 + 12345) >>> 0;\n  const rnd = () => { z = (z * 1664525 + 1013904223) >>> 0; return z / 4294967296; };\n  S.px = new Float32Array(N); S.py = new Float32Array(N);\n  S.vx = new Float32Array(N); S.vy = new Float32Array(N); S.q = new Float32Array(N);\n  S.fx = new Float32Array(N); S.fy = new Float32Array(N); S.bc = new Uint8Array(N);\n  for (let i = 0; i < N; i++) { S.px[i] = rnd() * BW; S.py[i] = rnd() * BH; S.vx[i] = (rnd()-0.5)*0.4; S.vy[i] = (rnd()-0.5)*0.4; S.q[i] = i < N * 0.5 ? 1 : -1; }\n  for (let i = N-1; i > 0; i--) { const j = (rnd()*(i+1))|0; const t = S.q[i]; S.q[i] = S.q[j]; S.q[j] = t; } // mix signs spatially\n  const CAP = Math.min(760, N * 3);\n  S.bsx = new Float32Array(CAP); S.bsy = new Float32Array(CAP); S.bex = new Float32Array(CAP); S.bey = new Float32Array(CAP); S.bnd = new Float32Array(CAP); S.bcap = CAP;\n  S.needClear = true;\n}\nif (S.needClear) { buf.push(); buf.blendMode(buf.BLEND); buf.noStroke(); buf.fill(230, 50, 7, 100); buf.rect(0, 0, BW, BH); buf.pop(); S.needClear = false; }\n\n// \u2500\u2500 dramaturgy: section melt\u2192recrystallize + slow palette drift (K.section / K.t) \u2500\u2500\nconst sec = K.section | 0;\nif (S.lastSec == null || sec < S.lastSec) S.lastSec = sec;\nif (sec !== S.lastSec) { S.heat = 1; S.lastSec = sec; }\nS.heat = (S.heat || 0) * 0.965;\nconst intn = (K.intensity != null ? K.intensity : 0.6);\nconst hueShift = sec * 9 + Math.sin(K.t * 0.02) * 6;\nconst pulse = K.pulse * 0.5 + A.bass * 0.7, spk = A.treble * 0.6;\n\n// \u2500\u2500 physics (buffer-space, finite-range screened Coulomb + hard core; toroidal) \u2500\u2500\nconst rMax = u * (0.13 + P.reach * 0.15) * P.scale, rMax2 = rMax * rMax;   // finite cutoff \u2192 local structure, no global collapse\nconst coreFrac = 0.34;                                                     // hard-core (Pauli) spacing fraction\nconst bondR = rMax * 0.60, bondR2 = bondR * bondR;\nconst kCore = 2.7, kCoul = 1.15;\nconst fgain = (0.42 + P.energy * 0.6) * (0.4 + P.speed * 0.85) * (u * 0.0016) * (0.75 + intn * 0.45);\nconst fcap = 8.0;\nconst vmax = u * (0.005 + P.speed * 0.008);\nconst fric = 0.90;\nconst wander = vmax * (0.05 + (S.heat || 0) * 0.55);   // real-time motion floor + heat agitation\nconst hw = BW * 0.5, hh = BH * 0.5;\n\nconst px = S.px, py = S.py, vx = S.vx, vy = S.vy, q = S.q, fx = S.fx, fy = S.fy, bc = S.bc;\nconst wantBonds = (st === 'ionic' || st === 'lattice' || st === 'mono');\nfor (let i = 0; i < N; i++) { fx[i] = 0; fy[i] = 0; bc[i] = 0; }\n\n// pairwise: O(N^2)/2, Newton 3rd law; collect opposite-charge bonds\nlet bn = 0; const bcap = S.bcap;\nfor (let i = 0; i < N; i++) {\n  const xi = px[i], yi = py[i], qi = q[i];\n  for (let j = i + 1; j < N; j++) {\n    let dx = px[j] - xi, dy = py[j] - yi;\n    if (dx > hw) dx -= BW; else if (dx < -hw) dx += BW;   // minimal image (toroidal)\n    if (dy > hh) dy -= BH; else if (dy < -hh) dy += BH;\n    const d2 = dx*dx + dy*dy;\n    if (d2 > rMax2 || d2 < 1e-4) continue;\n    const d = Math.sqrt(d2), inv = 1/d, ux = dx*inv, uy = dy*inv, nd = d/rMax;\n    let f = 0;\n    if (nd < coreFrac) f -= kCore * (coreFrac - nd) / coreFrac;   // universal short-range repulsion (anti-collapse)\n    const cp = qi * q[j];                                          // +1 same, -1 opposite\n    const env = 1 - nd; f += (-cp) * kCoul * env * env;           // opposite\u2192attract, same\u2192repel; smooth cutoff\n    const fxv = f*ux, fyv = f*uy;\n    fx[i] += fxv; fy[i] += fyv; fx[j] -= fxv; fy[j] -= fyv;\n    if (wantBonds && cp < 0 && d2 < bondR2 && bc[i] < 3 && bc[j] < 3 && bn < bcap) {\n      S.bsx[bn] = xi; S.bsy[bn] = yi; S.bex[bn] = xi + dx; S.bey[bn] = yi + dy; S.bnd[bn] = nd; bn++; bc[i]++; bc[j]++;\n    }\n  }\n}\n\n// integrate: force + wander floor, damping, clamp, toroidal wrap, NaN guard\nfor (let i = 0; i < N; i++) {\n  let ax = fx[i], ay = fy[i];\n  const am = Math.hypot(ax, ay); if (am > fcap) { const s = fcap/am; ax *= s; ay *= s; }\n  let nvx = vx[i] + ax * fgain, nvy = vy[i] + ay * fgain;\n  const wa = noise(px[i]*0.006, py[i]*0.006, K.t*0.05 + S.seedUsed*0.013) * TAU * 2;\n  nvx += Math.cos(wa) * wander; nvy += Math.sin(wa) * wander;\n  nvx *= fric; nvy *= fric;\n  let sp = Math.hypot(nvx, nvy); if (sp > vmax) { const s = vmax/sp; nvx *= s; nvy *= s; }\n  if (!isFinite(nvx) || !isFinite(nvy)) { nvx = 0; nvy = 0; }\n  vx[i] = nvx; vy[i] = nvy;\n  let nx = px[i] + nvx, ny = py[i] + nvy;\n  if (!isFinite(nx) || !isFinite(ny)) { nx = (i*97%1000)/1000*BW; ny = (i*53%1000)/1000*BH; }\n  px[i] = (nx + BW) % BW; py[i] = (ny + BH) % BH;\n}\n\n// \u2500\u2500 render into buffer: fade ground \u2192 bonds \u2192 glowing charge stamps \u2500\u2500\nbuf.push(); buf.blendMode(buf.BLEND); buf.noStroke();\nlet gh, gs, gv, ga2;\nif (st === 'plasma') { gh = 270; gs = 55; gv = 11; ga2 = 22; }\nelse if (st === 'firefly') { gh = 250; gs = 45; gv = 8; ga2 = 24; }\nelse if (st === 'lattice') { gh = 212; gs = 60; gv = 11; ga2 = 22; }\nelse if (st === 'mono') { gh = 0; gs = 0; gv = 8; ga2 = 24; }\nelse { gh = 230; gs = 48; gv = 15; ga2 = 26; }   // ionic \u2014 dark indigo ground lifts luminance\nbuf.fill(gh, gs, gv, ga2); buf.rect(0, 0, BW, BH);\n\nif (bn > 0 && wantBonds) {\n  buf.blendMode(buf.ADD);\n  const bw = st === 'lattice' ? 1.3 : 1.0;\n  for (let b = 0; b < bn; b++) {\n    const fade = 1 - S.bnd[b];\n    let bh, bs, bv, ba;\n    if (st === 'lattice') { bh = 195; bs = 70; bv = 95; ba = (20 + P.bond*45) * fade; }\n    else if (st === 'mono') { bh = 0; bs = 0; bv = 80; ba = (6 + P.bond*16) * fade; }\n    else { bh = 195; bs = 62; bv = 85; ba = (5 + P.bond*20) * fade; }\n    buf.stroke(bh, bs, bv, ba); buf.strokeWeight(bw);\n    buf.line(S.bsx[b], S.bsy[b], S.bex[b], S.bey[b]);\n  }\n  buf.noStroke();\n}\n\nbuf.blendMode(buf.ADD);\nconst hp = ((P.hue + hueShift) % 360 + 360) % 360, hn = ((P.hue + 172 + hueShift) % 360 + 360) % 360;\nconst baseR = u * (0.022 + P.energy * 0.03) * P.scale;\nfor (let i = 0; i < N; i++) {\n  const x = px[i], y = py[i], pos = q[i] > 0;\n  const sp = Math.hypot(vx[i], vy[i]), sn = Math.min(1, sp / (vmax || 1));\n  let h, s, b, sizeMul = 1, aMul = 1;\n  if (st === 'plasma') { h = pos ? (275 + hueShift) : (190 + hueShift); s = 90; b = 56 + sn*40; sizeMul = 1.22; aMul = 1.05; }\n  else if (st === 'firefly') { const tw = 0.42 + 0.58 * Math.sin(K.t*1.1 + i*1.7); h = 34 + (i*37 % 40) + hueShift; s = 84; b = 42 + sn*26 + 30*tw; sizeMul = 0.62; aMul = 0.9; }\n  else if (st === 'lattice') { h = pos ? hp : hn; s = 55; b = 46 + sn*28; sizeMul = 0.66; aMul = 0.6; }\n  else if (st === 'mono') { h = 0; s = 0; b = pos ? 70 + sn*30 : 44 + sn*20; sizeMul = pos ? 1.0 : 0.64; aMul = pos ? 1.0 : 0.7; }\n  else { h = pos ? hp : hn; s = pos ? 88 : 80; b = 60 + sn*40; sizeMul = 1; }\n  const R = baseR * sizeMul;\n  const al = Math.min(240, (52 + P.energy*40) * aMul * (0.82 + pulse*0.5 + A.rms*0.5 + spk*0.4));\n  buf.tint(((h % 360) + 360) % 360, s, Math.min(100, b), al);\n  buf.image(S.sprite, x - R, y - R, R*2, R*2);\n}\nbuf.noTint(); buf.blendMode(buf.BLEND); buf.pop();\n\n// \u2500\u2500 composite to full canvas (tint for VJ alpha) \u2500\u2500\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha); else noTint();\nimage(buf, 0, 0, width, height);\npop();\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

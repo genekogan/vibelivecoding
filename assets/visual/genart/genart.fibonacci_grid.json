@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.fibonacci_grid",
+  "kind": "genart",
+  "name": "Fibonacci Grid",
+  "desc": "Two Fibonacci chains crossed into a quasiperiodic brickwork \u2014 every column and every row spaced long-short in the golden ratio, cutting the plane into four kinds of inlaid panel that each keep their own hatch discipline, sliding and flipping as the chains drift out of step.",
+  "tags": [
+    "fibonacci",
+    "fibonacci-grid",
+    "golden-ratio",
+    "phi",
+    "sturmian",
+    "beatty",
+    "quasilattice",
+    "quasicrystal",
+    "quasiperiodic",
+    "aperiodic",
+    "incommensurate",
+    "cut-and-project",
+    "phason",
+    "flip",
+    "grid",
+    "lattice",
+    "brickwork",
+    "panels",
+    "rectangles",
+    "orthogonal",
+    "tiling",
+    "tessellation",
+    "plane-division",
+    "geometry",
+    "geometric",
+    "mathematical",
+    "crystallography",
+    "photonics",
+    "elevation",
+    "architecture",
+    "architectural",
+    "inlay",
+    "marquetry",
+    "bevel",
+    "blueprint",
+    "schematic",
+    "riso",
+    "risograph",
+    "concrete",
+    "brutalist",
+    "xray",
+    "luminous",
+    "engraved",
+    "hatching",
+    "austere",
+    "clinical",
+    "structure",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "shading contrast + joint weight + chiaroscuro depth"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2.2,
+      "doc": "cell size vs frame (2.2 = a handful of huge panels)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hatching ruled into each panel type"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "drift / phason / wave rate"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "primary panel + ground hue"
+    },
+    "phason": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rate the two chains slide out of step, flipping whole rows and columns between long and short"
+    },
+    "bevel": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lit/sunk bevel around each panel"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.25,
+      "max": 0.75,
+      "doc": "lattice origin x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.25,
+      "max": 0.75,
+      "doc": "lattice origin y as canvas fraction"
+    },
+    "style": {
+      "default": "inlay",
+      "options": [
+        "inlay",
+        "blueprint",
+        "riso",
+        "concrete",
+        "xray"
+      ],
+      "doc": "aesthetic: engraved marquetry inlay / cyan schematic on prussian / two-ink risograph / raking-light brutalist concrete / luminous additive panels on black (non-representational)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "chain phases + per-cell tonal jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:05:11+00:00",
+    "fps": 60.2,
+    "motion": 0.1233,
+    "lum": 0.613
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:30, phason:.4, bevel:.6, x:.5, y:.5, style:'inlay', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst trb  = (S.tb = (S.tb||0)*.87 + (A.treble||0)*.13);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\n\n// ---- two Fibonacci chains, crossed --------------------------------------\n// Each axis is the staircase of Z^2 under a line of slope 1/phi: gaps come in\n// exactly two lengths L and S with L/S = phi, in the Sturmian order (never SS,\n// never LLL). Crossing two of them cuts the plane into FOUR rectangle types --\n// LL, LS, SL, SS -- laid out quasiperiodically: the 2D Fibonacci quasilattice.\nconst TH = 0.6180339887498949, C2 = 1 + TH*TH;\nconst pos = (m, r) => (m + TH*Math.floor(m*TH + r)) / C2;\nconst isL = (m, r) => (Math.floor((m+1)*TH + r) - Math.floor(m*TH + r)) === 1;\n\nS.gx = (S.gx||0) + dt*sp*(.070 + .052*Math.sin(K.t*.039));\nS.gy = (S.gy||0) + dt*sp*(.041 + .052*Math.cos(K.t*.047+1.6));\nS.px = (S.px||0) + dt*sp*(.03 + .30*cl(P.phason,0,1));\nS.py = (S.py||0) + dt*sp*(.03 + .30*cl(P.phason,0,1))*.71;\n\nconst zoom = 1 + .07*Math.sin(K.t*.053*sp) + .04*Math.sin(K.t*.131*sp+2.1);\nconst gu = Math.max(u*.125*cl(P.scale,.6,2.2), Math.max(width,height)/26) * zoom;\nconst rhoX = 1.7 + S.px, rhoY = 4.3 + S.py*1.13;\nconst qx = (TH*rhoX - TH*.5)/C2, qy = (TH*rhoY - TH*.5)/C2;\n\nconst ax = cl(P.x,.25,.75)*width, ay = cl(P.y,.25,.75)*height;\nconst nX = Math.ceil(Math.max(ax, width-ax)/gu) + 2, nY = Math.ceil(Math.max(ay, height-ay)/gu) + 2;\nconst m0 = Math.round(-qx - S.gx), n0 = Math.round(-qy - S.gy);\n\n// ---- styles ---------------------------------------------------------------\nconst glow = (sty==='xray');\nfunction grd(){\n  if (sty==='blueprint') return [212, 64, 40];\n  if (sty==='riso')      return [44, 9, 93];\n  if (glow)              return [(H+190)%360, 58, 5];\n  if (sty==='concrete')  return [(H+180)%360, 4, 58];\n  return [(H+8)%360, 32, 12];\n}\n// tone per rectangle type: 0=SS 1=SL 2=LS 3=LL\nfunction typeCol(ty, lam, wv){\n  const v = (.32 + .66*lam)*(.6+.5*en) + wv*.45;\n  if (sty==='blueprint') return [ 206 + ty*4, 30 + ty*8, cl(26 + 50*v + ty*5, 6, 94) ];\n  if (sty==='riso')      return [ [352,352,205,205][ty], cl(38 + 18*ty,8,88), cl(56 + 44*v, 12, 100) ];\n  if (glow)              return [ (H + 120 + ty*48)%360, 42, cl(14 + 86*v, 2, 100) ];\n  if (sty==='concrete')  return [ (H+180)%360, cl(2 + ty*2,0,12), cl(30 + 52*v + ty*4, 4, 92) ];\n  return [ (H + 2 + ty*16)%360, cl(50 - 10*ty, 6, 74), cl(26 + 52*v + ty*7, 4, 96) ];\n}\n\nconst gc = grd(); noStroke(); background(gc[0], gc[1], gc[2]);\nconst lang = K.t*.071*sp + .5*Math.sin(K.t*.0313+1.4);\nconst lgx = Math.cos(lang), lgy = Math.sin(lang);\nconst wavT = K.t*(.5 + .9*sp) + .8*Math.sin(K.t*.041+.6);\nconst bv = cl(P.bevel,0,1);\nconst dens = cl(P.density,0,1);\n\npush(); translate(ax, ay);\nstrokeJoin(MITER);\nconst jw = (u/900)*(.6 + 2.0*en);\nlet drawn = 0;\n\nfor (let m=m0-nX; m<=m0+nX; m++){\n  const x0 = (pos(m,rhoX) + S.gx)*gu, x1 = (pos(m+1,rhoX) + S.gx)*gu;\n  if (x1 < -Math.max(ax,width-ax)-gu || x0 > Math.max(ax,width-ax)+gu) continue;\n  const LX = isL(m, rhoX);\n  for (let n=n0-nY; n<=n0+nY; n++){\n    const y0 = (pos(n,rhoY) + S.gy)*gu, y1 = (pos(n+1,rhoY) + S.gy)*gu;\n    if (y1 < -Math.max(ay,height-ay)-gu || y0 > Math.max(ay,height-ay)+gu) continue;\n    const LY = isL(n, rhoY);\n    const ty = (LX?2:0) + (LY?1:0);\n    const w = x1-x0, h = y1-y0, cxm = x0+w*.5, cym = y0+h*.5;\n    const dl = Math.hypot(cxm,cym) || 1;\n    const lam = cl(.5 + .5*((cxm/dl)*lgx + (cym/dl)*lgy), 0, 1);\n    // a wave of state change crossing the quasilattice\n    const wv = Math.pow(Math.max(0, Math.sin((cxm+cym)/gu*.5 - wavT)), 4) * (.6+.5*bass) * lift;\n    const jit = fr(m*13.1 + n*29.7);\n    const c = typeCol(ty, lam*(.75+.35*jit), wv);\n    if (glow) {\n      blendMode(ADD);\n      noStroke(); fill(c[0], c[1], c[2], cl(6 + 14*lam + 22*wv, 2, 44));\n      rect(x0, y0, w, h);\n      blendMode(BLEND);\n      noFill(); stroke(c[0], c[1], cl(c[2]*(.5+.6*trb+.4*wv),0,100), cl(28 + 54*lam, 10, 92));\n      strokeWeight(jw*(.6+.8*wv+.4)); rect(x0, y0, w, h);\n    } else {\n      noStroke(); fill(c[0], c[1], c[2], 100); rect(x0, y0, w, h);\n      // bevel: a lit top-left and a sunk bottom-right -> inlaid panels, not flat fill\n      if (bv > .04) {\n        strokeWeight(jw*(.6 + 1.4*bv));\n        stroke(c[0], cl(c[1]*.6,0,100), cl(c[2]*(1 + .5*bv),0,100), 46 + 30*bv);\n        line(x0, y0, x1, y0); line(x0, y0, x0, y1);\n        stroke(c[0], cl(c[1]*1.2,0,100), cl(c[2]*(1 - .55*bv),0,100), 46 + 30*bv);\n        line(x0, y1, x1, y1); line(x1, y0, x1, y1);\n      }\n      // each of the four types keeps its own hatch discipline\n      if (dens > .06 && Math.min(w,h) > 13) {\n        stroke(c[0], cl(c[1]+14,0,100), cl(c[2]*.55,0,100), 16 + 40*dens);\n        strokeWeight(jw*.42);\n        const nh = 2 + Math.round(dens*3);\n        for (let k2=1;k2<=nh;k2++){\n          const f = k2/(nh+1);\n          if (ty===0) { /* SS: left plain -> the quiet cell */ }\n          else if (ty===1) line(x0, y0+h*f, x1, y0+h*f);\n          else if (ty===2) line(x0+w*f, y0, x0+w*f, y1);\n          else { line(x0, y0+h*f, x1, y0+h*f); line(x0+w*f, y0, x0+w*f, y1); }\n        }\n      }\n      noFill(); stroke(gc[0], cl(gc[1]*1.2,0,100), cl(gc[2]*(.5+.5*(1-en)),0,100), 80);\n      strokeWeight(jw*.8); rect(x0, y0, w, h);\n    }\n    drawn++;\n    if (drawn > 460) break;\n  }\n  if (drawn > 460) break;\n}\npop();\n\n// ---- moving chiaroscuro ---------------------------------------------------\nconst lw2 = 180, lh2 = cl(Math.round(180*height/Math.max(1,width)), 60, 340);\nif (!S.lg || S.lgk !== lw2+'x'+lh2) { S.lg = createGraphics(lw2, lh2); S.lg.colorMode(HSB,360,100,100,100); S.lgk = lw2+'x'+lh2; }\nconst L = S.lg;\nL.push(); L.noStroke(); L.blendMode(BLEND);\nL.background(0, 0, 100 - (18 + 28*en));\nL.blendMode(ADD);\nconst plx = (.5 + .30*Math.cos(lang))*lw2, ply = (.5 + .26*Math.sin(lang*1.27+.9))*lh2;\nfor (let i=0;i<9;i++){\n  const q=i/8, rr=Math.max(lw2,lh2)*(1.26-q*.98);\n  L.fill(0,0,100, (6.5 + 7.5*en + 5*bass)*(.26+.74*q*q));\n  L.ellipse(plx, ply, rr*2, rr*2);\n}\nL.blendMode(BLEND); L.pop();\nblendMode(MULTIPLY); noStroke(); image(L, 0, 0, width, height); blendMode(BLEND);\n\n// ---- cached grain ---------------------------------------------------------\nconst tk = sty+'|'+sd;\nif (!S.tex || S.texk !== tk) {\n  const tw=420, th=280, t=createGraphics(tw,th);\n  t.colorMode(HSB,360,100,100,100); t.background(0,0,100); t.noStroke();\n  for (let i=0;i<2200;i++){\n    const rr=.4+fr(i*4.61)*1.8;\n    t.fill(32, 8, 100-fr(i*7.31)*42, 50);\n    t.ellipse(fr(i*2.17)*tw, fr(i*3.91+3.7)*th, rr, rr);\n  }\n  S.tex = t; S.texk = tk;\n}\nblendMode(MULTIPLY); noStroke(); image(S.tex, 0, 0, width, height); blendMode(BLEND);\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

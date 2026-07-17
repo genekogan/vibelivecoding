@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.domain_coloring",
+  "kind": "genart",
+  "name": "Complex Domain Coloring",
+  "desc": "A living phase portrait of a complex rational function whose drifting poles and zeros bloom into glowing rosettes, the argument painting a full phase-wheel of hue while the modulus carves concentric contour rings and radial rays across the plane.",
+  "tags": [
+    "domain-coloring",
+    "complex",
+    "phase-portrait",
+    "phase",
+    "rational-function",
+    "poles",
+    "zeros",
+    "conformal",
+    "fractal",
+    "mathematical",
+    "argument",
+    "modulus",
+    "contour",
+    "rings",
+    "rosette",
+    "phase-wheel",
+    "hue-wheel",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "thermal",
+    "ink",
+    "contour-lines",
+    "neon",
+    "pastel",
+    "swirl",
+    "psychedelic",
+    "math-art",
+    "holomorphic",
+    "branch-cut"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "complex-plane zoom (higher = bigger rosettes, features fill the frame)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "contour ring + phase-ray frequency (higher = many nested level curves)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "warp": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pole/zero orbit radius \u2014 how far the singularities swing, churning the field"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "phase-wheel spin + drift rate"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base-hue offset added to the phase wheel"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "complex-plane pan (real axis)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "complex-plane pan (imaginary axis)"
+    },
+    "style": {
+      "default": "phase",
+      "options": [
+        "phase",
+        "thermal",
+        "ink",
+        "neon",
+        "pastel"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic pole/zero constellation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T06:05:17+00:00",
+    "fps": 59.9,
+    "motion": 0.1754,
+    "lum": 0.329
+  },
+  "code": "const D = { scale: 1, density: .5, energy: .62, warp: .55, speed: 1, hue: 200, x: .5, y: .5, style: 'phase', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = 6.283185307;\nconst BW = 168, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (!S.rgb) S.rgb = [0, 0, 0];\n\n// seed-deterministic singularity constellation (3 zeros + 2 poles)\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.bx = []; S.by = []; S.w = []; S.ph = []; S.rr = []; S.sign = [];\n  for (let k = 0; k < 5; k++) {\n    S.bx[k] = (fr(k * 4 + 1) * 2 - 1) * 0.9;\n    S.by[k] = (fr(k * 4 + 2) * 2 - 1) * 0.9;\n    S.w[k] = (fr(k * 4 + 3) * 0.65 + 0.14) * (fr(k * 4 + 7) > 0.5 ? 1 : -1);\n    S.ph[k] = fr(k * 4 + 4) * TAU;\n    S.rr[k] = 0.45 + fr(k * 4 + 5) * 0.6;\n    S.sign[k] = k < 3 ? 1 : -1;\n  }\n  S.hoff = fr(99);\n}\n\n// hsv (h,s,v in 0..1) -> out[3] in 0..1, no per-pixel allocation\nfunction hsv(h, s, v, out) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i;\n  const p = v * (1 - s), q = v * (1 - f * s), u = v * (1 - (1 - f) * s);\n  switch (i % 6) {\n    case 0: out[0] = v; out[1] = u; out[2] = p; break;\n    case 1: out[0] = q; out[1] = v; out[2] = p; break;\n    case 2: out[0] = p; out[1] = v; out[2] = u; break;\n    case 3: out[0] = p; out[1] = q; out[2] = v; break;\n    case 4: out[0] = u; out[1] = p; out[2] = v; break;\n    default: out[0] = v; out[1] = p; out[2] = q; break;\n  }\n}\n\nconst t = K.t;\nconst sec = K.section || 0, inten = K.intensity != null ? K.intensity : .6;\nconst spin = t * (0.10 + P.speed * 0.16) + A.lowmid * 0.6;          // continuous phase-wheel rotation (motion floor)\nconst expo = 0.62 + P.energy * 0.7 + inten * 0.22 + A.rms * 0.5;\nconst zoom = 0.4 + P.scale * 1.1;\nconst spanH = 2.4 / zoom;\nconst asp = BW / BH;\nconst cx = (P.x - 0.5) * 2.6, cy = (P.y - 0.5) * 2.6;\nconst orbitR = 0.14 + P.warp * 0.5 + A.bass * 0.15;\nconst ringFreq = (0.5 + P.density * 2.0) * (0.75 + 0.55 * inten);   // contour ring density (builds with intensity)\nconst raySect = Math.round(6 + P.density * 12);\nconst hueBase = P.hue / 360 + S.hoff + sec * 0.05 + t * 0.006;      // slow palette drift + per-section step\nconst style = P.style;\n\n// moving singularity positions this frame\nconst Px = [], Py = [];\nfor (let k = 0; k < 5; k++) {\n  const R = orbitR * S.rr[k];\n  Px[k] = S.bx[k] + R * Math.cos(t * S.w[k] + S.ph[k]);\n  Py[k] = S.by[k] + R * Math.sin(t * S.w[k] + S.ph[k]);\n}\n\nconst g = S.g; g.loadPixels(); const px = g.pixels; const RGB = S.rgb;\nfor (let j = 0; j < BH; j++) {\n  const zy = cy + (j / BH - 0.5) * 2 * spanH;\n  for (let i = 0; i < BW; i++) {\n    const zx = cx + (i / BW - 0.5) * 2 * spanH * asp;\n    // f(z) = prod (z - c_k)^sign_k  ->  log|f| = sum sign*0.5*log|dz|^2 ,  arg f = sum sign*atan2\n    let sl = 0, sa = 0;\n    for (let k = 0; k < 5; k++) {\n      const dx = zx - Px[k], dy = zy - Py[k];\n      const d2 = dx * dx + dy * dy + 1e-4;\n      const sg = S.sign[k];\n      sl += sg * 0.5 * Math.log(d2);\n      sa += sg * Math.atan2(dy, dx);\n    }\n    sa += spin;\n    const mag = sl;\n    const lev = 0.5 + 0.5 * Math.tanh(mag * 0.32);            // 0=near zero (dark) .. 1=near pole (bright)\n    const rn = mag * ringFreq; const ring = rn - Math.floor(rn);\n    const argn = sa / TAU; const hphase = argn - Math.floor(argn);\n    const rayn = argn * raySect; const ray = rayn - Math.floor(rayn);\n    const ringMesh = (0.72 + 0.28 * ring) * (0.86 + 0.14 * ray);\n    let r, gg, b;\n    if (style === 'thermal') {\n      let heat = (0.5 + 0.5 * Math.tanh(mag * 0.34)) * ringMesh * expo;\n      heat = heat < 0 ? 0 : heat > 1 ? 1 : heat;\n      r = Math.min(1, heat * 3.0);\n      gg = Math.min(1, Math.max(0, heat * 3.0 - 1.0));\n      b = Math.min(1, Math.max(0, heat * 3.0 - 2.0) + 0.20 * (1 - heat) * (1 - heat));\n    } else if (style === 'ink') {\n      const dm = Math.min(ring, 1 - ring), dr = Math.min(ray, 1 - ray);\n      const ringLine = dm < 0.12 ? 1 - dm / 0.12 : 0;\n      const rayLine = dr < 0.10 ? 1 - dr / 0.10 : 0;\n      const inkL = Math.max(ringLine, rayLine * 0.8);\n      const pap = 0.90 - 0.12 * (1 - lev);\n      const vv = pap * (1 - 0.92 * inkL);\n      r = vv * 0.99; gg = vv * 0.955; b = vv * 0.86;\n    } else if (style === 'neon') {\n      const dm = Math.min(ring, 1 - ring), dr = Math.min(ray, 1 - ray);\n      const ringLine = dm < 0.11 ? 1 - dm / 0.11 : 0;\n      const rayLine = dr < 0.09 ? 1 - dr / 0.09 : 0;\n      const glow = Math.min(1, (ringLine * 1.0 + rayLine * 0.55) * (0.45 + 0.55 * lev) * expo * 1.5);\n      const vv = Math.max(0.05 + 0.08 * lev, glow);\n      hsv(hphase + hueBase, 0.9, vv, RGB); r = RGB[0]; gg = RGB[1]; b = RGB[2];\n    } else if (style === 'pastel') {\n      const v = Math.min(1, (0.70 + 0.22 * lev) * (0.92 + 0.08 * ring) * Math.min(1.1, expo));\n      const s = Math.min(0.5, (0.24 + 0.16 * ring) * (0.8 + 0.3 * lev));\n      hsv(hphase + hueBase, s, v, RGB); r = RGB[0]; gg = RGB[1]; b = RGB[2];\n    } else { // phase (default enhanced phase portrait)\n      const v = Math.min(1, (0.28 + 0.72 * lev) * ringMesh * expo);\n      const s = Math.max(0.28, Math.min(0.95, 0.86 - Math.max(0, lev - 0.72) * 2.2));\n      hsv(hphase + hueBase, s, v, RGB); r = RGB[0]; gg = RGB[1]; b = RGB[2];\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = r < 0 ? 0 : r > 1 ? 255 : r * 255;\n    px[o + 1] = gg < 0 ? 0 : gg > 1 ? 255 : gg * 255;\n    px[o + 2] = b < 0 ? 0 : b > 1 ? 255 : b * 255;\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n\n// audio-reactive bass bloom on top (partial, zero during validation -> baseline carries motion)\nif (A.bass > 0.02 || A.rms > 0.02) {\n  push(); blendMode(ADD); noStroke();\n  const gl = (A.bass * 0.5 + A.rms * 0.4) * P.energy;\n  fill((P.hue + 40) % 360, 40, 100, gl * 20);\n  ellipse(width * 0.5, height * 0.5, width * 1.25, height * 1.25);\n  blendMode(BLEND); pop();\n}\n"
+}

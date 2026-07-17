@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.thistle",
+  "kind": "subject",
+  "name": "Thistle",
+  "desc": "A dried teasel standing hero-scale against the wind \u2014 a fluted, hard-hatched stalk carrying spine-toothed cauline leaves up to an ovoid capitulum whose imbricated bracts sit on a golden-angle spiral, the whole architecture leaning and recovering on a wind that never repeats while pappus florets tear loose from the crown and ride away.",
+  "tags": [
+    "thistle",
+    "teasel",
+    "seedhead",
+    "capitulum",
+    "bract",
+    "pappus",
+    "thistledown",
+    "seed",
+    "achene",
+    "stalk",
+    "stem",
+    "spine",
+    "spiny",
+    "dried",
+    "dead",
+    "winter",
+    "weed",
+    "botanical",
+    "botany",
+    "plant",
+    "herbarium",
+    "specimen",
+    "silhouette",
+    "architectural",
+    "abstract",
+    "engraving",
+    "copperplate",
+    "hatching",
+    "bewick",
+    "cyanotype",
+    "photogram",
+    "xray",
+    "chiaroscuro",
+    "wind",
+    "sway",
+    "bend",
+    "austere",
+    "melancholy",
+    "eerie",
+    "sublime",
+    "gothic",
+    "organic",
+    "nature",
+    "sculptural"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the wind bends the plant, how the leaves flutter, how fast it sheds"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "hero height vs min(width,height) \u2014 1 stands 0.48 tall, 2.2 towers out of frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cauline leaf pairs + bract count on the head + seated pappus"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "wind + shed rate multiplier"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "dry-tissue hue (the engraving keeps its key light near it)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the plant is rooted across the frame"
+    },
+    "y": {
+      "default": 0.94,
+      "min": 0,
+      "max": 1,
+      "doc": "where the plant is rooted down the frame \u2014 it grows upward from here"
+    },
+    "head": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "capitulum proportion \u2014 a lean spike at 0, a fat drum-head teasel at 1"
+    },
+    "pose": {
+      "default": "standing",
+      "options": [
+        "standing",
+        "bowed",
+        "seeding",
+        "thrash"
+      ],
+      "doc": "standing = erect, idling on the wind; bowed = the head's weight arcs the stalk over; seeding = the crown pours pappus away; thrash = storm-whipped, the whip landing on the beat"
+    },
+    "style": {
+      "default": "engraving",
+      "options": [
+        "engraving",
+        "cyanotype",
+        "xray",
+        "silhouette"
+      ],
+      "doc": "aesthetic \u2014 white-line engraving (dark mass, form built purely from pale hatching + a rim light, reads on any ground); Atkins photogram, pale mass on nothing; additive translucent radiograph of the head's interior; flat unlit mass, no interior at all"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the pappus release order, drift and spin"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity over whatever is behind it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:35:04+00:00",
+    "fps": 55.9,
+    "motion": 0.0044,
+    "lum": 0.088
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:38, x:.5, y:.94, head:.5, pose:'standing', style:'engraving', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style, pose = P.pose;\nconst EN = cl(P.energy,0,1), SC = cl(P.scale,.3,2.2), DN = cl(P.density,0,1);\nconst HD = cl(P.head,0,1), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\n\n// ---- wind: incommensurate, so the silhouette never returns to a pose ------\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43 + 1.7) + .32*Math.sin(T*2.29)\n           + .42*Math.sin(T*.197 + .6);\nconst squall = .5 + .5*Math.sin(T*.083 + 1.1);              // slow weather over minutes\n\n// ---- pose ----------------------------------------------------------------\nlet bend0, windAmp, whip, shed, spread;\nif (pose === 'bowed')        { bend0 = .58; windAmp = .15; whip = .05; shed = .5; spread = .9; }\nelse if (pose === 'seeding') { bend0 = .18; windAmp = .22; whip = .10; shed = 3.4; spread = 1.25; }\nelse if (pose === 'thrash')  { bend0 = .10; windAmp = .54; whip = .34; shed = 1.9; spread = 1.1; }\nelse                         { bend0 = .07; windAmp = .17; whip = .06; shed = .8; spread = 1; }\n\n// total lean at the apex \u2014 this is what displaces the silhouette\nconst wind = gust*(.35 + .65*squall) + A.lowmid*1.1 + A.bass*.5;\nconst bend = bend0*(1 + .3*Math.sin(T*.31))\n           + windAmp*(.4 + 1.5*EN)*wind\n           + whip*(K.pulse*K.intensity + A.bass*.7)*(.4 + EN);\n\n// ---- geometry ------------------------------------------------------------\nconst HGT = u*.475*SC;                                      // hero: 0.40-0.55 x min(w,h)\nconst bxx = P.x*width, byy = P.y*height;\nconst NS = 16;\nconst SX = [], SY = [], SA = [];\n{ let px2 = 0, py2 = 0;\n  for (let q=0;q<=NS;q++){\n    const s = q/NS;\n    const th = bend*Math.pow(s, 1.55)                        // curvature gathers toward the apex\n             + Math.sin(T*2.7 + s*3.4)*.014*EN;              // fine tremor in the dry tissue\n    SX.push(px2); SY.push(py2); SA.push(th);\n    if (q < NS) { px2 += Math.sin(th)*HGT/NS; py2 -= Math.cos(th)*HGT/NS; }\n  }\n}\nconst hx = SX[NS], hy = SY[NS], hAng = SA[NS];\nconst R = HGT*(.085 + .085*HD);                             // capitulum radius\nconst HL = R*(1.7 - HD*.35);                                // capitulum length\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet mass_h, mass_s, mass_b, lite_h, lite_s, lite_b, mode;\nif (sty === 'cyanotype') { mode = 1; mass_h = 214; mass_s = 40; mass_b = 34; lite_h = 210; lite_s = 4; lite_b = 99; }\nelse if (sty === 'xray') { mode = 2; mass_h = H; mass_s = 48; mass_b = 30; lite_h = H; lite_s = 22; lite_b = 98; }\nelse if (sty === 'silhouette') { mode = 3; mass_h = (H*.2 + 18) % 360; mass_s = 40; mass_b = 11; lite_h = mass_h; lite_s = 30; lite_b = 26; }\nelse { mode = 0; mass_h = (H + 348) % 360; mass_s = 46; mass_b = 15; lite_h = (H + 6) % 360; lite_s = 26; lite_b = 88; }\nconst LIT = -2.25;                                           // fixed key light, upper-left\n\n// ---- pappus pool: florets detach and drift, the head refills -------------\nconst NPAP = 22;                                            // 3 of these can share a stage\nif (!S.pap || S.pap.length !== NPAP || S.seedUsed !== sd) {\n  S.seedUsed = sd; S.pap = [];\n  for (let i=0;i<NPAP;i++) S.pap.push({ f: fr(i*7.3), sp: .4 + fr(i*3.1)*.9, ph: fr(i*5.7)*6.28,\n    ix: (fr(i*9.1)-.5)*1.7, ang: fr(i*2.3)*6.28 });\n}\nfor (let i=0;i<NPAP;i++) { const p = S.pap[i];\n  p.f += dt*SP*shed*p.sp*.055*(.4 + .8*EN)*(.5 + .8*squall);\n  if (p.f > 1) { p.f -= 1; p.ix = (fr(i*9.1 + T*0.017)-.5)*1.7; }   // refills from the head\n}\n\npush();\ntranslate(bxx, byy);\nif (mode === 2) blendMode(ADD);\nstrokeCap(ROUND); strokeJoin(ROUND);\n\n// ---- cauline leaves: spiny, decurrent, clasping the stalk ----------------\nconst nLf = 2 + Math.round(DN*3);\nfor (let k=0;k<nLf*2;k++) {\n  const side = (k % 2) ? 1 : -1;\n  const li = (k/2)|0;\n  const s = .16 + li*(.62/Math.max(1,nLf));\n  const i2 = Math.min(NS, Math.round(s*NS));\n  const ox = SX[i2], oy = SY[i2], oa = SA[i2];\n  const flut = Math.sin(T*(1.7 + li*.41) + k*1.3)*(.06 + .26*EN)*(.4 + Math.abs(wind)*.6);\n  const L = HGT*(.26 - li*.035)*(.7 + .5*spread);\n  push(); translate(ox, oy); rotate(oa + side*(1.16 + flut) - .34);\n  const nT = 5;\n  if (mode === 1) { noStroke(); fill(lite_h, 6, 96, 90*AL); }\n  else if (mode === 2) { noStroke(); fill(mass_h, 50, 44, 17*AL); }\n  else { noStroke(); fill(mass_h, mass_s, mass_b + 4, 96*AL); }\n  beginShape();                                              // a toothed, spine-tipped lamina\n  for (let q=0;q<=22;q++){ const v = q/22;\n    const w2 = L*.15*Math.pow(Math.sin(Math.PI*Math.pow(v,.7)), .7);\n    const ph2 = v*nT, saw = ph2 - Math.floor(ph2);\n    vertex(L*v, -(w2*(1 + saw*.9) + (saw > .82 ? L*.03 : 0))); }\n  for (let q=22;q>=0;q--){ const v = q/22;\n    const w2 = L*.15*Math.pow(Math.sin(Math.PI*Math.pow(v,.7)), .7);\n    const ph2 = v*nT + .5, saw = ph2 - Math.floor(ph2);\n    vertex(L*v, (w2*(1 + saw*.9) + (saw > .82 ? L*.03 : 0))); }\n  endShape(CLOSE);\n  if (mode === 0) {                                          // white-line engraving: form from hatching\n    stroke(lite_h, lite_s, lite_b, 34*AL); strokeWeight(Math.max(.4, L*.007));\n    for (let q=1;q<9;q++){ const v = q/9.4;\n      const w2 = L*.15*Math.pow(Math.sin(Math.PI*Math.pow(v,.7)), .7);\n      line(L*v, -w2*.5, L*v + L*.05, w2*.5); }\n    stroke(lite_h, lite_s - 8, lite_b, 62*AL); strokeWeight(Math.max(.5, L*.012));\n    line(L*.02, 0, L*.95, 0);                                // the pale midrib catches the key light\n  } else if (mode === 3) { /* pure mass, no interior */ }\n  else if (mode === 1) { stroke(214, 30, 70, 30*AL); strokeWeight(Math.max(.4, L*.009)); line(0, 0, L*.9, 0); }\n  else if (mode === 2) { stroke(mass_h, 34, 96, 24*AL); strokeWeight(Math.max(.4, L*.01)); line(0, 0, L*.9, 0); }\n  pop();\n}\n\n// ---- stalk: ribbed, dry, architectural ----------------------------------\nconst stW = HGT*(.017 + .008*HD);\nnoFill();\nif (mode === 1) stroke(lite_h, 8, 95, 94*AL);\nelse if (mode === 2) stroke(mass_h, 46, 60, 30*AL);\nelse stroke(mass_h, mass_s, mass_b, 100*AL);\nstrokeWeight(stW);\nbeginShape(); for (let q=0;q<=NS;q++) vertex(SX[q], SY[q]); endShape();\nif (mode === 0 || mode === 1) {                              // ribs \u2014 the stalk is fluted, not a tube\n  for (let rb=-1; rb<=1; rb++) {\n    if (mode === 1) stroke(214, 34, 66, 26*AL); else stroke(lite_h, lite_s, lite_b, rb === -1 ? 60*AL : 24*AL);\n    strokeWeight(Math.max(.4, stW*(rb === -1 ? .17 : .1)));\n    beginShape();\n    for (let q=0;q<=NS;q++){ const th = SA[q], nx = Math.cos(th), ny = Math.sin(th);\n      vertex(SX[q] + nx*stW*.3*rb, SY[q] + ny*stW*.3*rb); }\n    endShape();\n  }\n}\nif (mode === 0) {                                            // cross-hatched dry tissue\n  stroke(lite_h, lite_s, lite_b, 22*AL); strokeWeight(Math.max(.35, stW*.08));\n  for (let q=1;q<NS;q++){ const th = SA[q], nx = Math.cos(th), ny = Math.sin(th);\n    line(SX[q] - nx*stW*.42, SY[q] - ny*stW*.42, SX[q] + nx*stW*.42 + Math.sin(th)*stW*.5,\n         SY[q] + ny*stW*.42 - Math.cos(th)*stW*.5); }\n}\n\n// ---- capitulum: imbricated bracts on a golden-angle spiral over an ovoid --\npush(); translate(hx, hy); rotate(hAng);\nconst NB = Math.round(34 + DN*26);\nconst ct = .82, st2 = .57;                                   // fixed three-quarter view of the head\nconst idxs = [], keys = [];\nfor (let i=0;i<NB;i++){ idxs.push(i); keys.push(Math.sin(i*2.39996 + T*.021)); }\nidxs.sort((a, b) => keys[a] - keys[b]);                     // back bracts first\nfor (let oi=0; oi<NB; oi++) {\n  const i = idxs[oi];\n  const v = (i + .5)/NB;\n  const phi = i*2.39996 + T*.021;                            // slow axial creep \u2014 never re-phases\n  const rr = R*Math.pow(Math.sin(Math.PI*Math.pow(v, .78)), .62);\n  const zz = -HL*(v - .48);\n  const cph = Math.cos(phi), sph = Math.sin(phi);\n  const sx = rr*cph, sy = zz*ct + rr*sph*st2;\n  // surface normal of the ovoid: outward in r, tilted toward the nearer pole (-z is up)\n  const nz = .62*(1 - 2*v);\n  let nsx = cph, nsy = nz*ct + sph*st2;\n  if (Math.abs(nsx) + Math.abs(nsy) < 1e-3) { nsx = 0; nsy = -1; }\n  const bA = Math.atan2(nsy, nsx) - Math.PI*.5;              // local +y := the outward normal\n  const lf = .38 + .62*cl(.5 + .5*Math.cos(phi - LIT), 0, 1);\n  const BL = R*(.5 + .5*(1-v))*(.75 + .35*spread);\n  const bw2 = BL*.19;\n  push(); translate(sx, sy); rotate(bA);\n  if (mode === 1) { noStroke(); fill(lite_h, 4 + (1-lf)*8, 99 - (1-lf)*18, 88*AL); }\n  else if (mode === 2) { noStroke(); fill(mass_h, 50, 34, 15*AL); }\n  else if (mode === 3) { noStroke(); fill(mass_h, mass_s, mass_b, 100*AL); }\n  else { noStroke(); fill(mass_h, mass_s - lf*10, mass_b + lf*54, 98*AL); }\n  beginShape();                                              // a scale that tapers to a spine\n  vertex(-bw2*.5, 0); vertex(bw2*.5, 0);\n  vertex(bw2*.16, BL*.72); vertex(0, BL); vertex(-bw2*.16, BL*.72);\n  endShape(CLOSE);\n  if (mode === 0) { stroke(lite_h, lite_s, lite_b, (18 + lf*52)*AL); strokeWeight(Math.max(.35, BL*.024));\n    line(0, BL*.08, 0, BL*.94); }\n  else if (mode === 2) { stroke(mass_h, 30, 98, 20*AL); strokeWeight(Math.max(.35, BL*.02));\n    line(0, 0, 0, BL); }\n  pop();\n}\n// pappus still seated in the head\nconst nSeat = Math.round(6 + DN*10);\nfor (let k=0;k<nSeat;k++) {\n  const phi = k*2.39996 + T*.021, rr = R*.42*Math.sqrt((k + .4)/nSeat);\n  const sx = rr*Math.cos(phi), sy = -HL*.44*ct + rr*Math.sin(phi)*st2;\n  const tr = Math.sin(T*(2.9 + (k%4)*.4) + k)*(.03 + .1*EN)*R;\n  if (mode === 1) stroke(lite_h, 2, 100, 60*AL);\n  else if (mode === 2) stroke(mass_h, 16, 100, 22*AL);\n  else if (mode === 3) stroke(mass_h, mass_s, mass_b + 16, 70*AL);\n  else stroke(lite_h, 10, 96, 54*AL);\n  strokeWeight(Math.max(.35, R*.014));\n  for (let q=0;q<5;q++){ const a2 = -Math.PI*.5 + (q/4 - .5)*1.5 + tr*.06;\n    line(sx, sy, sx + Math.cos(a2)*R*.32 + tr, sy + Math.sin(a2)*R*.32); }\n}\npop();\n\n// ---- pappus in flight: the head is always shedding ------------------------\nfor (let i=0;i<NPAP;i++) {\n  const p = S.pap[i];\n  const f = p.f;\n  if (f < .04) continue;\n  const rise = f*f;\n  const px2 = hx + p.ix*R*.7 + (wind*1.4 + .35)*HGT*.42*rise + Math.sin(T*(.9 + p.sp) + p.ph)*HGT*.05*f;\n  const py2 = hy - HL*.4 - rise*HGT*.55 + Math.cos(T*(1.1 + p.sp*.5) + p.ph)*HGT*.03*f;\n  const al = cl((1 - f)*1.7, 0, 1)*cl(f*7, 0, 1)*AL;\n  const pr = R*(.18 + .1*p.sp)*(.6 + .5*f);\n  const spin = p.ang + T*(.5 + p.sp)*.6;\n  if (mode === 1) stroke(lite_h, 2, 100, 62*al);\n  else if (mode === 2) stroke(mass_h, 14, 100, 26*al);\n  else if (mode === 3) stroke(mass_h, mass_s, mass_b + 22, 62*al);\n  else stroke(lite_h, 8, 94, 58*al);\n  strokeWeight(Math.max(.3, R*.012));\n  for (let q=0;q<6;q++){ const a2 = spin + q*1.047;\n    line(px2, py2, px2 + Math.cos(a2)*pr, py2 + Math.sin(a2)*pr*.9); }\n  noStroke();                                                 // the achene it carries\n  if (mode === 1) fill(lite_h, 20, 78, 74*al);\n  else if (mode === 2) fill(mass_h, 44, 70, 24*al);\n  else fill(mass_h, mass_s + 8, mode === 3 ? mass_b + 8 : mass_b + 30, 82*al);\n  ellipse(px2, py2 + pr*.16, pr*.2, pr*.34);\n}\nblendMode(BLEND);\npop();"
+}

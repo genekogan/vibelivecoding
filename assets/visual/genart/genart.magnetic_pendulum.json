@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.magnetic_pendulum",
+  "kind": "genart",
+  "name": "Magnetic Pendulum Basins",
+  "desc": "A magnetic-pendulum basin fractal where every pixel releases a damped pendulum tugged by a slowly rotating ring of magnets and is coloured by which magnet captures it, so vivid attractor pools churn along infinitely filigreed boundaries \u2014 also rendered as molten settle-time thermal, soft pastel, glowing boundary-only neon, or four-tone hatched ink.",
+  "tags": [
+    "magnetic-pendulum",
+    "pendulum",
+    "fractal",
+    "basins",
+    "basin-of-attraction",
+    "attractor",
+    "magnets",
+    "chaos",
+    "chaotic",
+    "dynamical-system",
+    "ode",
+    "physics",
+    "simulation",
+    "filigree",
+    "boundary",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "thermal",
+    "blackbody",
+    "pastel",
+    "neon",
+    "ink",
+    "monochrome",
+    "colorful",
+    "saturated",
+    "magenta",
+    "cyan",
+    "gold",
+    "lime",
+    "churning",
+    "hypnotic",
+    "mathematical",
+    "math",
+    "delicate",
+    "marbled",
+    "cosmic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 3.0,
+      "doc": "view zoom into the basin field (higher = deeper boundary filigree)"
+    },
+    "chaos": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "filigree turbulence \u2014 lower friction + sharper wells = more chaotic boundaries"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "magnet-ring rotation rate (basin churn)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "integration depth & capture-contour fineness"
+    },
+    "magnets": {
+      "default": 4,
+      "min": 3,
+      "max": 6,
+      "doc": "number of magnets / basin colours"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (basins spread around from here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "view centre y"
+    },
+    "style": {
+      "default": "basins",
+      "options": [
+        "basins",
+        "thermal",
+        "pastel",
+        "neon-edge",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic ring framing / jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:08:59+00:00",
+    "fps": 30.1,
+    "motion": 0.0762,
+    "lum": 0.437
+  },
+  "code": "const D = { scale: 1, chaos: .5, energy: .62, speed: 1, density: .5, magnets: 4, hue: 300, x: .5, y: .5, style: 'basins', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- coarse per-pixel buffer (magnetic-pendulum basins), upscaled to full canvas ----\nconst BW = 128, BH = Math.max(48, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\n\nconst clamp = (v, a, b) => v < a ? a : (v > b ? b : v);\nfunction hsv(h, s, v) { // h deg, s,v 0..1 -> rgb 0..1\n  h = ((h % 360) + 360) % 360; const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let r, g, b;\n  if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; }\n  else if (h < 180) { r = 0; g = c; b = x; } else if (h < 240) { r = 0; g = x; b = c; }\n  else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }\n  return [r + m, g + m, b + m];\n}\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- seed + magnet-count dependent ring jitter (rebuild on change) ----\nconst N = Math.max(3, Math.min(6, Math.round(P.magnets)));\nif (S.seedUsed !== P.seed || S.nUsed !== N) {\n  S.seedUsed = P.seed; S.nUsed = N;\n  S.basePhase = fr(1) * 6.2831;               // ring start angle\n  S.rot0 = (fr(2) - 0.5) * 0.7;               // view rotation offset\n  S.cx0 = (fr(3) - 0.5) * 0.12;               // centre jitter x\n  S.cy0 = (fr(4) - 0.5) * 0.12;               // centre jitter y\n  S.aj = []; S.rj = [];\n  for (let m = 0; m < N; m++) { S.aj[m] = (fr(10 + m) - 0.5) * 0.35; S.rj[m] = (fr(30 + m) - 0.5) * 0.16; }\n}\n\n// ---- animated globals (read every frame) ----\nconst style = P.style;\nconst sec = K.section;\nconst spread = 360 / N;\nconst hb = P.hue + Math.sin(sec * 0.5 + K.t * 0.02) * 22;                  // section palette drift\nconst expo = 0.52 + P.energy * 0.6 + K.intensity * 0.22 + A.rms * 0.4;     // exposure builds w/ intensity\nconst chaos = clamp(P.chaos + 0.12 * Math.sin(sec * 0.9), 0, 1);          // section-stepped filigree (constant within a section -> no per-frame boil)\nconst dens = P.density;\nconst bandF = 0.28 + dens * 1.1;                                           // capture-contour richness\nconst maxSteps = Math.floor(105 + dens * 90);                             // integration depth (fine dt -> stable, clean pools)\nconst dt = 0.09;                                                          // small step: symplectic-Euler + damping stays stable in the stiff wells\nconst h = 0.30 - chaos * 0.16; const h2 = h * h;                          // well softening (low = sharper basins / more filigree)\nconst fric = clamp(0.42 - chaos * 0.22, 0.08, 0.45);                      // drag (steady within a section -> basins rotate coherently, don't boil)\nconst kspr = 0.30;                                                        // restoring spring toward origin\nconst vThr = 0.0012;                                                      // low-speed threshold (early-out)\nconst Rc2 = 0.13;                                                         // capture radius^2 around a magnet\n\n// magnet ring: RIGIDLY rotates on K.t -> the entire basin field rotates coherently (clean churn, not boil)\nconst omega = 0.028 + P.speed * 0.03 + K.intensity * 0.008;              // slow rigid churn (8s snapshots must not strobe)\nconst spin = S.basePhase + K.t * omega;\nconst Rm = 1.0 + A.bass * 0.04;                                          // audio pulse only (0 during validation -> steady radius)\nconst mx = S._mx || (S._mx = []); const my = S._my || (S._my = []);\nfor (let m = 0; m < N; m++) {\n  const ang = spin + m * 6.2831 / N + S.aj[m];\n  const rad = Rm * (1 + S.rj[m]);\n  mx[m] = Math.cos(ang) * rad; my[m] = Math.sin(ang) * rad;\n}\n\n// ---- view window: slow zoom breathe + continuous rotation (real-time motion floor) ----\nconst zb = 1 + 0.02 * Math.sin(K.t * 0.04);\nconst halfY = 1.75 / (P.scale * zb);\nconst halfX = halfY * (BW / BH);\nconst cx = (P.x - 0.5) * 1.7 + S.cx0, cy = (P.y - 0.5) * 1.7 + S.cy0;\nconst rot = S.rot0 + K.t * 0.012;                                        // rigid view spin -> smooth motion floor even at speed=0\nconst cosR = Math.cos(rot), sinR = Math.sin(rot);\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  const dyc = (j / (BH - 1) - 0.5) * 2 * halfY;\n  for (let i = 0; i < BW; i++) {\n    const dxc = (i / (BW - 1) - 0.5) * 2 * halfX;\n    // release point (rotated view)\n    let x = cx + dxc * cosR - dyc * sinR;\n    let y = cy + dxc * sinR + dyc * cosR;\n    let vx = 0, vy = 0, escapeStep = 0, calm = 0;\n    // integrate pendulum ODE: a = -fric*v - k*pos + Sigma_i (m_i - pos)/(|m_i-pos|^2 + h^2)^1.5\n    for (let s = 0; s < maxSteps; s++) {\n      let ax = -fric * vx - kspr * x;\n      let ay = -fric * vy - kspr * y;\n      let md = 1e18;                                        // min planar dist^2 to any magnet\n      for (let m = 0; m < N; m++) {\n        const ddx = mx[m] - x, ddy = my[m] - y;\n        const pd = ddx * ddx + ddy * ddy;\n        if (pd < md) md = pd;\n        const d2 = pd + h2;\n        const inv = 1 / (d2 * Math.sqrt(d2));   // 1/d^3 (softened, no singularity)\n        ax += ddx * inv; ay += ddy * inv;\n      }\n      vx += ax * dt; vy += ay * dt;\n      x += vx * dt; y += vy * dt;\n      // capture time: last step the bob was still roaming outside every magnet's well\n      if (md > Rc2) { escapeStep = s; calm = 0; }\n      else if (vx * vx + vy * vy < vThr) { calm++; if (calm > 12) break; } else calm = 0;\n    }\n    // which magnet did it settle on? (basin id) + capture-time shading\n    let bd = 1e18, idx = 0;\n    for (let m = 0; m < N; m++) { const ex = mx[m] - x, ey = my[m] - y; const dm = ex * ex + ey * ey; if (dm < bd) { bd = dm; idx = m; } }\n    const settleStep = escapeStep;\n    const sN = escapeStep / maxSteps;                       // 0 = captured instantly (pool), ->1 = chaotic boundary\n    const bright = Math.pow(clamp(1 - sN, 0, 1), 0.6);      // pool cores bright, filigree dark\n    const band = 0.5 + 0.5 * Math.cos(settleStep * bandF);  // capture-time contour texture\n    let r, gg, b;\n    if (style === 'thermal') {                              // molten settle-time blackbody\n      const heat = Math.pow(bright, 0.7);\n      const hh = 4 + heat * 54;\n      const ss = clamp(1 - Math.max(0, heat - 0.75) * 3.2, 0.12, 1);\n      const vv = clamp((0.12 + heat * 0.92) * (0.9 + 0.1 * band) * expo, 0, 1);\n      const c = hsv(hh, ss, vv); r = c[0]; gg = c[1]; b = c[2];\n    } else if (style === 'pastel') {                        // soft airy basins\n      const val = clamp((0.55 + bright * 0.4) * (0.95 + 0.05 * band) * (0.78 + expo * 0.28), 0.2, 1);\n      const sat = clamp(0.3 + (1 - bright) * 0.16, 0, 0.52);\n      const c = hsv(hb + idx * spread, sat, val); r = c[0]; gg = c[1]; b = c[2];\n    } else if (style === 'neon-edge') {                     // glowing boundary filigree on near-black\n      const glow = Math.pow(clamp(sN * 1.15, 0, 1), 1.4);\n      const val = clamp((0.045 + glow * 1.15) * expo, 0, 1);\n      const sat = clamp(0.95 - glow * 0.35, 0.35, 1);\n      const c = hsv(hb + idx * spread + 18, sat, val); r = c[0]; gg = c[1]; b = c[2];\n    } else if (style === 'ink') {                           // mono: N distinct greys + hatched filigree\n      const g0 = 0.30 + (idx % N) * (0.55 / Math.max(1, N - 1));\n      const hatch = Math.pow(0.5 + 0.5 * Math.cos(settleStep * bandF), 3) * 0.22 * (0.5 + dens);\n      const tone = clamp(g0 * bright + 0.06 - hatch, 0.03, 0.96) * clamp(expo * 1.05, 0.6, 1.15);\n      r = tone * 0.99; gg = tone * 0.98; b = tone * 0.93;\n    } else {                                                // basins (default): vivid hues + dark filigree\n      const val = clamp((0.15 + bright * 0.74) * (0.88 + 0.12 * band) * expo, 0, 1);\n      const sat = clamp(0.9 - bright * 0.16, 0.5, 1);\n      const c = hsv(hb + idx * spread, sat, val); r = c[0]; gg = c[1]; b = c[2];\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = clamp(r * 255, 0, 255); px[o + 1] = clamp(gg * 255, 0, 255); px[o + 2] = clamp(b * 255, 0, 255); px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n// audio bloom on the basins (partial ADD wash, never a full-frame flash -> won't strobe)\nif ((A.bass > 0.02 || A.rms > 0.02) && style !== 'ink' && style !== 'neon-edge') {\n  push(); blendMode(ADD); noStroke();\n  const glow = (A.bass * 0.5 + A.rms * 0.4) * P.energy;\n  fill((hb + 20) % 360, 45, 100, clamp(glow * 18, 0, 20));\n  rect(0, 0, width, height);\n  blendMode(BLEND); pop();\n}\n"
+}

@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.galton_board",
+  "kind": "genart",
+  "name": "Galton Board",
+  "desc": "Glowing beans cascade down a triangular peg lattice, bouncing left and right into a growing bell-curve histogram that builds, drains, and refills \u2014 probability made visible as neon columns, molten gold, thermal false-color, green phosphor, or a cyan wireframe blueprint.",
+  "tags": [
+    "galton",
+    "galton-board",
+    "bean-machine",
+    "quincunx",
+    "pegboard",
+    "probability",
+    "bell-curve",
+    "gaussian",
+    "normal-distribution",
+    "binomial",
+    "histogram",
+    "statistics",
+    "particles",
+    "balls",
+    "beans",
+    "cascade",
+    "falling",
+    "physics",
+    "bounce",
+    "stochastic",
+    "random-walk",
+    "neon",
+    "gold",
+    "thermal",
+    "phosphor",
+    "blueprint",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "science",
+    "data"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "ball-stream density / emission rate & population"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / exposure amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "fall / bounce rate"
+    },
+    "rows": {
+      "default": 11,
+      "min": 5,
+      "max": 18,
+      "doc": "peg rows (= bins-1); board structure"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.4,
+      "doc": "board width vs canvas"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (column-hue center)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "board center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "board vertical offset"
+    },
+    "style": {
+      "default": "neon",
+      "options": [
+        "neon",
+        "gold",
+        "thermal",
+        "phosphor",
+        "blueprint"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic deflection variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:35:09+00:00",
+    "fps": 59.9,
+    "motion": 0.0574,
+    "lum": 0.143
+  },
+  "code": "const D = { density: .55, energy: .6, speed: 1, rows: 11, scale: 1, hue: 30, x: .5, y: .5, style: 'neon', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst wrap = h => ((h % 360) + 360) % 360;\n\n// --- real-time dt (guard t0 resets / big jumps) ---\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t - 1/60;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt > 0) || dt > 0.4) dt = 1/60;\n\n// --- layout ---\nconst W = width, H = height, u = Math.min(W, H);\nconst R = Math.max(5, Math.min(18, Math.round(P.rows)));\nconst NB = R + 1;\nconst cx = P.x * W;\nconst boardW = Math.min(W * 0.94, u * 1.75) * (0.55 + P.scale * 0.5);\nconst binW = boardW / NB;\nconst yc = (P.y - 0.5) * H * 0.26;\nconst yTop = H * 0.10 + yc;\nconst yPegBot = H * 0.60 + yc;\nconst yBot = H * 0.965 + yc;\nconst rowH = (yPegBot - yTop) / R;\nconst hueSpread = 66;\nconst capCount = 90;\nconst aMul = Math.max(0, Math.min(1, P.alpha / 100));\n\n// --- seed / structure init & rebuild ---\nif (S.seedUsed !== P.seed || !S.bins || S.nb !== NB) {\n  S.seedUsed = P.seed; S.balls = []; S.bins = new Float32Array(NB);\n  S.nextId = 0; S.nb = NB; S.emitAcc = 0; S.drain = false;\n}\n\n// --- style palette ---\nconst sec = (K.section | 0);\nconst secHue = sec * 13;\nconst style = P.style;\nlet wire = false, mono = false, thermal = false;\nlet bgT, bgB, pegC, sat, hueBase;\nif (style === 'gold') {\n  mono = true; sat = 88; hueBase = 44; bgT = [42,60,5]; bgB = [38,55,14]; pegC = [45,70,24];\n} else if (style === 'thermal') {\n  thermal = true; sat = 90; hueBase = 40; bgT = [222,72,7]; bgB = [248,52,17]; pegC = [210,45,28];\n} else if (style === 'phosphor') {\n  mono = true; sat = 92; hueBase = 132; bgT = [135,82,5]; bgB = [140,70,14]; pegC = [135,85,22];\n} else if (style === 'blueprint') {\n  wire = true; sat = 72; hueBase = 190; bgT = [214,76,9]; bgB = [210,64,18]; pegC = [192,78,62];\n} else { // neon (default) \u2014 colorful column-hued beans\n  sat = 85; hueBase = wrap(P.hue + secHue);\n  bgT = [wrap(P.hue + secHue + 205), 58, 6]; bgB = [wrap(P.hue + secHue + 245), 46, 15]; pegC = [wrap(P.hue + secHue), 42, 32];\n}\n\n// --- emission ---\nconst inten = 0.5 + K.intensity * 0.6 + A.bass * 0.5;\nlet rate = (3 + P.density * 46) * inten * (0.5 + P.speed * 0.6);\nif (S.drain) rate *= 0.12;\nconst maxBalls = 40 + Math.floor(P.density * 150);\nS.emitAcc += rate * dt;\nlet guard = 0;\nwhile (S.emitAcc >= 1 && S.balls.length < maxBalls && guard++ < 30) {\n  S.emitAcc -= 1;\n  const jit = (fr(S.nextId * 7.3) - 0.5) * binW * 0.35;\n  S.balls.push({ id: S.nextId++, x: cx + jit, y: yTop, off: 0, row: 0, vy: 18 + fr(S.nextId * 3.1) * 34 });\n}\n\n// --- physics: fall + peg deflection + accrete into bins ---\nconst grav = (yPegBot - yTop) * 1.7;\nconst spd = P.speed * (0.7 + K.intensity * 0.4);\nconst alive = [];\nfor (const b of S.balls) {\n  b.vy += grav * dt * spd;\n  b.y += b.vy * dt * spd;\n  while (b.row < R && b.y >= yTop + (b.row + 0.5) * rowH) {\n    const dir = fr(b.id * 131.7 + b.row * 57.3 + 0.5) < 0.5 ? -1 : 1;\n    b.off += dir * 0.5; b.row++;\n  }\n  const tx = cx + b.off * binW;\n  b.x += (tx - b.x) * Math.min(1, dt * 15 * spd + 0.04);\n  if (b.y >= yPegBot) {\n    let bin = Math.round(b.off + R / 2); bin = Math.max(0, Math.min(R, bin));\n    S.bins[bin] += 1;\n    continue;\n  }\n  alive.push(b);\n}\nS.balls = alive;\n\n// --- drain / refill cycle (smooth, non-strobe) ---\nlet maxc = 0; for (let i = 0; i < NB; i++) if (S.bins[i] > maxc) maxc = S.bins[i];\nif (!S.drain && maxc >= capCount) S.drain = true;\nif (S.drain) {\n  const k = Math.pow(0.4, dt);\n  for (let i = 0; i < NB; i++) S.bins[i] *= k;\n  if (maxc * k < capCount * 0.03) S.drain = false;\n}\n\n// ================= RENDER =================\npush();\n\n// background ground tone (opaque fill for genart; skipped when compositing translucent)\nif (P.alpha >= 100) {\n  noStroke();\n  const bands = 44, drift = 2 + K.swell * 3;\n  for (let i = 0; i < bands; i++) {\n    const f = i / (bands - 1);\n    const h = wrap(bgT[0] + (bgB[0] - bgT[0]) * f);\n    const s = bgT[1] + (bgB[1] - bgT[1]) * f;\n    const br = bgT[2] + (bgB[2] - bgT[2] + drift * f) * f;\n    fill(h, s, br);\n    rect(0, i * (H / bands) - 0.5, W, H / bands + 1.5);\n  }\n}\n\n// faint peg lattice\nif (wire) {\n  stroke(pegC[0], pegC[1], pegC[2], 30 * aMul); strokeWeight(1);\n  const pr = Math.max(2, binW * 0.14);\n  for (let r = 0; r < R; r++) for (let k = 0; k <= r; k++) {\n    const px = cx + (k - r / 2) * binW, py = yTop + (r + 0.5) * rowH;\n    line(px - pr, py, px + pr, py); line(px, py - pr, px, py + pr);\n  }\n} else {\n  noStroke(); fill(pegC[0], pegC[1], pegC[2], 20 * aMul);\n  const pr = Math.max(1.5, binW * 0.12);\n  for (let r = 0; r < R; r++) for (let k = 0; k <= r; k++) {\n    const px = cx + (k - r / 2) * binW, py = yTop + (r + 0.5) * rowH;\n    ellipse(px, py, pr * 2, pr * 2);\n  }\n}\n\n// histogram bars (lit by count)\nconst spark = A.treble * 0.6 + K.pulse * 0.25;\nfor (let bIdx = 0; bIdx < NB; bIdx++) {\n  const frac = Math.max(0, Math.min(1, S.bins[bIdx] / capCount));\n  if (frac < 0.004) continue;\n  const barH = frac * (yBot - yPegBot);\n  const bx = cx + (bIdx - R / 2) * binW;\n  const bw = binW * 0.86;\n  const ytopB = yBot - barH;\n  let bh, bs, bb;\n  if (thermal) { bh = wrap(240 - frac * 240); bs = 92 - frac * 34; bb = 40 + frac * 55; }\n  else if (mono) { bh = hueBase; bs = sat; bb = 28 + frac * 62; }\n  else if (wire) { bh = wrap(hueBase + ((bIdx / (NB - 1)) - 0.5) * 2 * hueSpread); bs = sat; bb = 55; }\n  else { bh = wrap(hueBase + ((bIdx / (NB - 1)) - 0.5) * 2 * hueSpread); bs = sat; bb = 34 + frac * 60; }\n  const bexp = Math.min(100, bb + P.energy * 22 + A.rms * 30);\n  if (wire) {\n    noFill(); stroke(bh, bs, bexp, 80 * aMul); strokeWeight(Math.max(1, binW * 0.05));\n    rect(bx - bw / 2, ytopB, bw, barH);\n    line(bx - bw / 2, yBot, bx + bw / 2, ytopB);\n  } else {\n    noStroke();\n    fill(bh, bs, bexp * 0.75, 92 * aMul);\n    rect(bx - bw / 2, ytopB, bw, barH);\n    // lit cap glow\n    push(); blendMode(ADD);\n    fill(bh, Math.max(0, bs - 25), Math.min(100, bexp + 15), (30 + spark * 40) * aMul);\n    rect(bx - bw / 2, ytopB - binW * 0.12, bw, binW * 0.3);\n    pop();\n  }\n}\n\n// falling balls\nconst bri = Math.min(100, 72 + P.energy * 28);\nif (wire) {\n  noFill(); strokeWeight(Math.max(1, binW * 0.06));\n  const bR = Math.max(2, binW * 0.3);\n  for (const b of S.balls) {\n    stroke(hueBase, sat, 95, 82 * aMul);\n    ellipse(b.x, b.y, bR * 2, bR * 2);\n  }\n} else {\n  blendMode(ADD); noStroke();\n  const bR = Math.max(2, binW * 0.32);\n  const glowA = (10 + P.energy * 14 + A.bass * 12) * aMul;\n  const coreA = (52 + A.rms * 30) * aMul;\n  for (const b of S.balls) {\n    const on = b.off / (R / 2);\n    let hb, sb;\n    if (thermal) { hb = wrap(50 - Math.abs(on) * 32); sb = 72; }\n    else if (mono) { hb = hueBase; sb = sat; }\n    else { hb = wrap(hueBase + on * hueSpread); sb = sat; }\n    fill(hb, Math.max(0, sb - 30), bri, glowA);\n    ellipse(b.x, b.y, bR * 2.7, bR * 2.7);\n    fill(hb, sb, bri, coreA);\n    ellipse(b.x, b.y, bR * 1.15, bR * 1.15);\n  }\n  blendMode(BLEND);\n}\n\npop();\nblendMode(BLEND);\n"
+}

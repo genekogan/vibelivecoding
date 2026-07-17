@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wang_tiles",
+  "kind": "genart",
+  "name": "Wang Tile Weave",
+  "desc": "An aperiodic Wang tiling whose colored edges match across every seam and connect into continuous multi-hue pipes that flow edge-to-edge, the labyrinth slowly scrolling and re-rolling so the pattern perpetually rewrites, rendered as glossy pipe ribbons, neon tubes, copper circuit traces, leaded stained glass, or two-tone op-art.",
+  "tags": [
+    "wang",
+    "wang-tiles",
+    "tiling",
+    "tiling_symmetry",
+    "aperiodic",
+    "tiles",
+    "edge-matching",
+    "pipes",
+    "pipe",
+    "plumbing",
+    "network",
+    "weave",
+    "interlace",
+    "paths",
+    "conduit",
+    "grid",
+    "pattern",
+    "flow",
+    "scroll",
+    "labyrinth",
+    "maze",
+    "generative",
+    "genart",
+    "geometric",
+    "abstract",
+    "procedural",
+    "non-repeating",
+    "circuit",
+    "pcb",
+    "copper",
+    "stained-glass",
+    "op-art",
+    "opart",
+    "neon",
+    "multi-hue",
+    "rainbow",
+    "kinetic",
+    "hypnotic",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tile fineness \u2014 higher packs more, smaller tiles (finer weave)"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "pipe / ribbon thickness vs design size"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow brightness + edge re-roll activity"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "field scroll + flow-front rate (beats-relative)"
+    },
+    "flow": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "strength of the traveling luminance flow sweeping the pipes"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "base edge-color hue (three families fan out from here)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flow-front source x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "flow-front source y (canvas fraction)"
+    },
+    "style": {
+      "default": "pipes",
+      "options": [
+        "pipes",
+        "neon",
+        "circuit",
+        "stained",
+        "opart"
+      ],
+      "doc": "render philosophy \u2014 glossy pipe ribbons / neon tubes / copper circuit / stained glass / two-tone op-art"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "edge-color field + scroll-direction seed (hash-deterministic)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg; lower leaves trails)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T04:34:26+00:00",
+    "fps": 59.9,
+    "motion": 0.1896,
+    "lum": 0.176
+  },
+  "code": "const D = { density:.55, scale:1, energy:.6, speed:1, flow:.6, hue:205, x:.5, y:.5, style:'pipes', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU=Math.PI*2, HP=Math.PI/2;\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n;\nconst seed=P.seed|0;\nconst hh=(a,b)=>{ let s=Math.sin(a*127.1+b*311.7+seed*74.13)*43758.5453; return s-Math.floor(s); };\nconst fr=i=>{ let s=Math.sin(i*97.3+seed*57.7)*24634.6345; return s-Math.floor(s); };\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst style=P.style;\nconst isPipes=style==='pipes', isNeon=style==='neon', isCircuit=style==='circuit', isStained=style==='stained', isOp=style==='opart';\nconst av=clp(P.alpha,0,100)/100;\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1);\nconst intn=(K.intensity!=null?K.intensity:.6), sec=K.section||0;\nconst glow=en*(0.5+0.7*intn);\nconst flow=clp(P.flow,0,1);\nconst nColors = isOp?2:3;\n\n// grid fineness (1st poke param): coarse->fine\nconst cells = 6 + Math.round(dens*24);           // 6..30 tiles across min(w,h)\nconst ts = u/cells;\nconst half = ts*0.5;\n// pipe/ribbon thickness (2nd poke param)\nconst swb = ts*0.12*clp(P.scale,0.4,2.4);\n\n// continuous diagonal scroll = real-time motion floor (never re-phases)\nconst sv = u*0.006*P.speed;\nconst dirA = 0.5 + fr(3)*1.4;\nconst ox = K.t*sv*Math.cos(dirA);\nconst oy = K.t*sv*Math.sin(dirA);\n\n// slow in-place re-roll of edge colors -> the tiling perpetually rewrites (validity preserved: colors live on shared grid edges)\nconst rr = 0.04*en;\nconst hueDrift = K.t*3.4 + sec*20;\nconst ax=P.x*W, ay=P.y*Hh, wl=ts*3.0;\n\nfunction ecol(kx, ky, salt){\n  let base = Math.sin(kx*127.1+ky*311.7+seed*74.13+salt)*43758.5453; base-=Math.floor(base);\n  let rate = 0.6 + (Math.sin(kx*57.7+ky*13.3+seed*29.1+salt)*0.5+0.5)*0.9; // 0.6..1.5 desync\n  let v = base + K.t*rr*rate; v-=Math.floor(v);\n  return Math.floor(v*nColors)%nColors;\n}\n// vertical edges (W/E) and horizontal edges (N/S) live in independent hash fields -> guaranteed edge-match tiling\nconst vcol=(X,Y)=>ecol(X*1.7+0.31, Y*2.3+1.11, 11.3);\nconst hcol=(X,Y)=>ecol(X*2.9+9.71, Y*1.3+4.27, 71.7);\n\nfunction chue(k, gx, gy){ return md(P.hue + k*(360/nColors) + (gx*3 + gy*4) + hueDrift, 360); }\n\n// ---- background ----\nblendMode(BLEND); noStroke();\nlet bgH,bgS,bgB;\nif(isOp){ bgH=md(P.hue,360); bgS=4; bgB=48; }\nelse if(isCircuit){ bgH=138; bgS=52; bgB=10; }\nelse if(isStained){ bgH=md(P.hue+200,360); bgS=30; bgB=6; }\nelse { bgH=md(P.hue+180,360); bgS=48; bgB=8; }   // pipes / neon dark ground\nfill(bgH,bgS,bgB,100*av); rect(0,0,W,Hh);\n// ambient radial lift so the frame is never near-black (luminance floor)\nif(!isOp){\n  const gh=md(P.hue+ (isStained?40:120),360);\n  for(let r=0;r<3;r++){ fill(gh, isStained?30:44, isStained?18:16, 7*av); ellipse(ax,ay, u*(1.6-r*0.38), u*(1.2-r*0.3)); }\n}\n\nconst gx0=Math.floor((ox-ts)/ts), gx1=Math.floor((ox+W+ts)/ts);\nconst gy0=Math.floor((oy-ts)/ts), gy1=Math.floor((oy+Hh+ts)/ts);\nconst MID=[[0,-half],[half,0],[0,half],[-half,0]]; // N E S W local midpoints\nlet drawn=0;\n\nstrokeCap(ROUND); strokeJoin(ROUND);\nif(isNeon) blendMode(ADD); else blendMode(BLEND);\n\nfor(let gy=gy0; gy<=gy1; gy++){\n  for(let gx=gx0; gx<=gx1; gx++){\n    if(drawn++>2600) break;\n    const cxp=gx*ts-ox+half, cyp=gy*ts-oy+half;\n    const cN=hcol(gx,gy), cE=vcol(gx+1,gy), cS=hcol(gx,gy+1), cW=vcol(gx,gy);\n    const cols=[cN,cE,cS,cW];\n    const dist=Math.hypot(cxp-ax,cyp-ay);\n    const rip=0.5+0.5*Math.sin(dist/wl*TAU - K.t*1.6*P.speed);\n    const briBoost=flow*0.45*rip + K.pulse*0.22*en + A.bass*0.5*en;\n\n    push(); translate(cxp,cyp);\n\n    if(isStained){\n      // mass-fill: 4 wedges (center->side), colored by that side's edge -> color diamonds span tile borders\n      const cor=[[-half,-half],[half,-half],[half,half],[-half,half]]; // TL TR BR BL\n      const wed=[[0,1],[1,2],[2,3],[3,0]]; // N:TL-TR, E:TR-BR, S:BR-BL, W:BL-TL\n      noStroke();\n      for(let e=0;e<4;e++){\n        const hcol2=chue(cols[e],gx,gy);\n        const b=clp(46+briBoost*26+glow*10, 20, 90);\n        fill(hcol2, 66, b, 100*av);\n        triangle(0,0, cor[wed[e][0]][0],cor[wed[e][0]][1], cor[wed[e][1]][0],cor[wed[e][1]][1]);\n      }\n      // dark leading along diagonals + border\n      stroke(md(P.hue+200,360), 40, 4, 100*av); strokeWeight(clp(swb*0.7,1,ts*0.14)); noFill();\n      for(let c=0;c<4;c++) line(0,0, cor[c][0],cor[c][1]);\n      rect(-half,-half,ts,ts);\n      // bright bead at center\n      noStroke(); fill(chue((cN+cS)&1?cN:cE,gx,gy), 30, clp(70+briBoost*30,0,100), 70*av); circle(0,0, swb*0.9);\n      pop(); continue;\n    }\n\n    // --- line styles: connect same-colored edges into flowing pipes ---\n    noFill();\n    const byC={};\n    for(let e=0;e<4;e++){ (byC[cols[e]]=byC[cols[e]]||[]).push(e); }\n    let hasNode=false;\n    for(const kk in byC){\n      const arr=byC[kk].slice(); const k=+kk;\n      while(arr.length>=2){\n        // prefer an opposite pair (straight pipe), else adjacent (elbow)\n        let oi=-1,oj=-1;\n        for(let i=0;i<arr.length&&oi<0;i++) for(let j=i+1;j<arr.length;j++){ if((arr[i]+2)%4===arr[j]){oi=i;oj=j;break;} }\n        let a,b;\n        if(oi>=0){ a=arr[oi]; b=arr[oj]; arr.splice(oj,1); arr.splice(oi,1); }\n        else { a=arr[0]; b=arr[1]; arr.splice(1,1); arr.splice(0,1); }\n        const A0=MID[a], B0=MID[b];\n        drawPipe(A0[0],A0[1],B0[0],B0[1], k, gx,gy, briBoost);\n      }\n      if(arr.length===1){ const M=MID[arr[0]]; drawPipe(M[0],M[1],0,0, k, gx,gy, briBoost); hasNode=true; }\n    }\n    // small junction node\n    if(hasNode || isCircuit){\n      noStroke();\n      if(isCircuit){ const cu=md(30+(gx*2+gy)*1.1,360); fill(cu,70,clp(66+briBoost*24,0,100),100*av); circle(0,0,swb*1.6); fill(138,52,10,100*av); circle(0,0,swb*0.7); }\n      else { fill(chue(cN,gx,gy),24,clp(72+briBoost*26,0,100),60*av); circle(0,0,swb*1.0); }\n    }\n    pop();\n  }\n  if(drawn>2600) break;\n}\n\nfunction drawPipe(a1,a2,b1,b2, k, gx,gy, briBoost){\n  const hue=chue(k,gx,gy);\n  if(isOp){\n    // 2-color op-art: color0 -> dark bar, color1 -> light bar, hard edged, high contrast\n    const dark = k===0;\n    stroke(0,0, dark?6:96, 100*av); strokeWeight(swb*1.8);\n    pipeCurve(a1,a2,b1,b2);\n    return;\n  }\n  if(isCircuit){\n    const cu=md(28 + k*14 + (gx*2+gy)*1.0,360), b=clp(58+briBoost*30,0,100);\n    stroke(md(cu-8,360),64,18,100*av); strokeWeight(swb*2.0); pipeCurve(a1,a2,b1,b2);       // dark trace shadow\n    stroke(cu,84,b,100*av); strokeWeight(swb*0.95); pipeCurve(a1,a2,b1,b2);                   // copper core\n    stroke(cu,24,clp(b+30,0,100),70*av); strokeWeight(swb*0.3); pipeCurve(a1,a2,b1,b2);       // highlight\n    return;\n  }\n  if(isNeon){\n    const b=clp(50+glow*34+briBoost*44,0,100);\n    stroke(hue,70,b*0.85,(14+glow*10)*av); strokeWeight(swb*2.9); pipeCurve(a1,a2,b1,b2);      // halo (ADD)\n    stroke(hue,38,clp(b+22,0,100),(56+glow*26)*av); strokeWeight(swb*0.9); pipeCurve(a1,a2,b1,b2); // core\n    return;\n  }\n  // pipes (default): glossy tonal multi-hue ribbon on dark ground\n  const b=clp(60+briBoost*30,0,100);\n  stroke(hue,72,14,100*av); strokeWeight(swb*2.5); pipeCurve(a1,a2,b1,b2);                    // dark casing\n  stroke(hue,64,b,100*av); strokeWeight(swb*1.35); pipeCurve(a1,a2,b1,b2);                    // colored body\n  stroke(hue,22,clp(b+30,0,100),72*av); strokeWeight(swb*0.36); pipeCurve(a1,a2,b1,b2);       // gloss highlight\n}\nfunction pipeCurve(a1,a2,b1,b2){ beginShape(); vertex(a1,a2); quadraticVertex(0,0,b1,b2); endShape(); }\n\n// treble sparkle at random junctions (audio ON TOP, never sole motion)\nif(A.treble>0.05){\n  blendMode(ADD); noStroke();\n  const nsp=Math.floor(14*A.treble);\n  for(let i=0;i<nsp;i++){ const sx=fr(i*2.1+Math.floor(K.beat*2))*W, sy=fr(i*3.3+9+Math.floor(K.beat*2))*Hh; fill(md(P.hue+70,360),36,100,52*A.treble*av); circle(sx,sy,u*0.008); }\n}\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

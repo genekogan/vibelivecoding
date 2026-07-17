@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.pipework",
+  "kind": "genart",
+  "name": "Pipework",
+  "desc": "A piping isometric of a process unit \u2014 a header runs the length of the deck and branch lines break off and pick their way through three dimensions in Manhattan legs, elbowing round each other with real occlusion, flanged and valved and tagged, while coloured flow packets chase down every service and the whole spool sways gently on its axonometric axis.",
+  "tags": [
+    "pipework",
+    "piping",
+    "pipe",
+    "isometric",
+    "spool",
+    "axonometric",
+    "process",
+    "plant",
+    "refinery",
+    "industrial",
+    "pid",
+    "p&id",
+    "valve",
+    "gate-valve",
+    "globe-valve",
+    "check-valve",
+    "flange",
+    "elbow",
+    "tee",
+    "header",
+    "manifold",
+    "vessel",
+    "pump",
+    "hanger",
+    "support",
+    "service",
+    "flow",
+    "steam",
+    "coolant",
+    "instrument-air",
+    "routing",
+    "manhattan",
+    "engineering",
+    "technical",
+    "drawing",
+    "draughting",
+    "plate",
+    "schematic",
+    "diagram",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "ghost",
+    "tag",
+    "annotation",
+    "title-block",
+    "depth",
+    "occlusion",
+    "clinical",
+    "austere",
+    "rigorous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flow rate + pipe weight + packet count and glow + plate drift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "spool size vs frame \u2014 2.2 crowds the sheet with big-bore pipe"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many branch lines break off the header (3..9)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the flow packets travel"
+    },
+    "hue": {
+      "default": 186,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint and one of the service colours (plant/ghost styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "spool centre, canvas fraction"
+    },
+    "y": {
+      "default": 0.52,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "spool centre, canvas fraction"
+    },
+    "rock": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the model swings about its vertical axis \u2014 0 locks to a true isometric"
+    },
+    "anno": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: deck grid, tag bubbles, line numbers, legend, north arrow, title block"
+    },
+    "style": {
+      "default": "plant",
+      "options": [
+        "plant",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "pid"
+      ],
+      "doc": "aesthetic: shaded-tube plant spool / prussian cyanotype / aged engraved plate / additive x-ray ghost / pid (tubes collapse to single lines and every fitting becomes its flat P&ID symbol)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "route topology, services, diameters, valve types, line numbers"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the sheet ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:51+00:00",
+    "fps": 59.9,
+    "motion": 0.0473,
+    "lum": 0.261
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:186, x:.5, y:.52, rock:.5, anno:.7, style:'plant', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { g:[213,73,17], line:[200,6,99], dark:[212,66,20], anno:[200,10,92], ctr:[196,36,80], grain:34, add:false, wash:[196,22,80], deck:[210,58,26],\n    svc:[[200,10,96],[196,30,80],[204,20,88],[192,40,72]] };\n  if (sty==='engraving') return { g:[38,17,72], line:[28,38,11], dark:[34,22,42], anno:[28,42,14], ctr:[8,62,42], grain:32, add:false, wash:[44,26,96], deck:[36,13,62],\n    svc:[[28,40,14],[30,26,30],[26,50,22],[34,18,40]] };\n  if (sty==='ghost')     return { g:[234,60,7], line:[H,24,98], dark:[H,64,12], anno:[H,16,86], ctr:[12,70,58], grain:16, add:true, wash:[H,44,60], deck:[232,52,12],\n    svc:[[H,62,92],[H+40,58,84],[H+150,54,88],[H-40,60,80]] };\n  if (sty==='pid')       return { g:[196,36,8], line:[178,62,94], dark:[196,44,12], anno:[52,56,88], ctr:[10,70,66], grain:14, add:false, wash:[184,40,58], deck:[196,42,12],\n    svc:[[178,64,92],[52,60,90],[340,66,90],[130,54,84]] };\n  return { g:[H,18,17], line:[H,5,93], dark:[H,26,12], anno:[H,6,88], ctr:[10,66,62], grain:28, add:false, wash:[H,12,80], deck:[H,14,26],\n    svc:[[8,62,86],[142,44,74],[H,48,84],[38,66,88]] };\n}\nconst C = pal();\nconst hw = q => ((q%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst pid = (sty==='pid');\nconst SVCN = ['STEAM','CW','INST AIR','LUBE OIL'];\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.ft = (S.ft||0) + dt*P.speed*(.35+.9*NRG)*(.55+.75*K.intensity);      // flow clock, monotonic\nconst drx = .9*Math.sin(K.t*.137) + .5*Math.sin(K.t*.293+1.7) + .32*Math.sin(K.t*.451);\nconst dry = .8*Math.sin(K.t*.109+2.1) + .45*Math.sin(K.t*.257+.6) + .28*Math.sin(K.t*.611+1.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- axonometric sweep on two incommensurate rates (the motion floor) --------\nconst ROK = cl(P.rock,0,1);\nconst az = .30*ROK*(Math.sin(K.t*.083) + .58*Math.sin(K.t*.197+1.4)) + .10*ROK*Math.sin(K.t*.041+2.6);\nconst ca = Math.cos(az), sa = Math.sin(az);\nconst pr = (x,y,z) => { const x1=x*ca - z*sa, z1=x*sa + z*ca; return [(x1-z1)*.866, (x1+z1)*.5 - y]; };\nconst dep = (x,y,z) => { const x1=x*ca - z*sa, z1=x*sa + z*ca; return x1 + z1 + y*1.2; };\n\n// ---- the network: a header with branch routes, Manhattan-routed in 3D --------\nconst NB = Math.round(3 + cl(P.density,0,1)*6);\nconst nkey = sd+'|'+NB;\nif (S.nk !== nkey){\n  S.nk = nkey;\n  const GX=12, GY=6, GZ=8;\n  const hy = 4.2, hz = GZ*.5;\n  const lines = [];\n  lines.push({ pts:[[0,hy,hz],[GX,hy,hz]], svc:0, dia:1.0, tag:'HDR-'+(100+(sd%90)), rate:.30 });\n  for (let i=0;i<NB;i++){\n    const bx = 1.1 + fr(i*3.7+2)*(GX-2.2);\n    const ex = 0.6 + fr(i*5.3+7)*(GX-1.2);\n    const ey = .5 + fr(i*7.1+11)*(GY-1.2);\n    const ez = .5 + fr(i*9.7+13)*(GZ-1.0);\n    const wx = 0.6 + fr(i*11.3+17)*(GX-1.2);\n    const wy = .5 + fr(i*13.1+19)*(GY-1.0);\n    const wz = .5 + fr(i*17.9+23)*(GZ-1.0);\n    const pts = [[bx,hy,hz]];\n    const leg = (from, to) => {\n      const ord = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]][Math.floor(fr(i*19.3+from[0]+to[1]*2.3)*6)%6];\n      let cur = from.slice();\n      for (const ax of ord){ if (Math.abs(cur[ax]-to[ax]) > 1e-6){ const n=cur.slice(); n[ax]=to[ax]; pts.push(n); cur=n; } }\n      return cur;\n    };\n    const mid = leg([bx,hy,hz], [wx,wy,wz]);\n    leg(mid, [ex,ey,ez]);\n    lines.push({ pts, svc: Math.floor(fr(i*23.1+29)*4)%4, dia: .48 + fr(i*29.3+31)*.42,\n      tag: (Math.floor(fr(i*31.7+37)*8)+2)+'\"-'+SVCN[Math.floor(fr(i*23.1+29)*4)%4].replace(/[^A-Z]/g,'').slice(0,2)+'-'+(100+Math.floor(fr(i*37.1+41)*880)),\n      rate: .22 + fr(i*41.3+43)*.55, vpos: .25 + fr(i*43.7+47)*.5, vtype: Math.floor(fr(i*47.1+53)*3)%3 });\n  }\n  S.lines = lines; S.GX=GX; S.GY=GY; S.GZ=GZ;\n}\nconst lines = S.lines || [];\n\n// ---- fit the model to the frame --------------------------------------------\nlet bx0=1e9,by0=1e9,bx1=-1e9,by1=-1e9;\nfor (const L of lines) for (const p of L.pts){ const q=pr(p[0],p[1],p[2]);\n  if(q[0]<bx0)bx0=q[0]; if(q[0]>bx1)bx1=q[0]; if(q[1]<by0)by0=q[1]; if(q[1]>by1)by1=q[1]; }\nconst bw = Math.max(.5, bx1-bx0), bh = Math.max(.5, by1-by0);\nconst CS = Math.min((width*.80)/bw, (height*.74)/bh) * cl(P.scale,.4,2.2);\nconst OX = cl(P.x,.2,.8)*width  - (bx0+bw*.5)*CS + u*.010*NRG*drx;\nconst OY = cl(P.y,.2,.8)*height - (by0+bh*.5)*CS + u*.009*NRG*dry;\nconst SX = p => OX + pr(p[0],p[1],p[2])[0]*CS;\nconst SY = p => OY + pr(p[0],p[1],p[2])[1]*CS;\n\n// ---- ground -----------------------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.pixelDensity(1); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.44 + .32*fr(Math.floor(x/8)*13.71+Math.floor(y/8)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\nnoStroke(); fill(C.g[0],C.g[1],C.g[2],100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\nconst wx2 = width*(.5+.26*Math.sin(K.t*.071)), wy2 = height*(.46+.22*Math.sin(K.t*.097+1.2));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ fill(C.wash[0],C.wash[1],C.wash[2],(2.2+2.0*glow)*AL); const rw=u*(.30+i*.20); ellipse(wx2,wy2,rw*2,rw*1.7); }\npop(); blendMode(BLEND);\n\n// ---- isometric deck grid: the datum plane the plant stands on ---------------\nif (anno > .1){\n  sc(C.ctr, 12+16*anno); strokeWeight(Math.max(.4,u*.0007));\n  const GX=S.GX||12, GZ=S.GZ||8;\n  for (let x=0;x<=GX;x+=2) line(SX([x,0,0]), SY([x,0,0]), SX([x,0,GZ]), SY([x,0,GZ]));\n  for (let z=0;z<=GZ;z+=2) line(SX([0,0,z]), SY([0,0,z]), SX([GX,0,z]), SY([GX,0,z]));\n}\n\n// ---- build a depth-sorted draw list ----------------------------------------\nconst items = [];\nfor (let li=0; li<lines.length; li++){\n  const L = lines[li];\n  // arc-length parameterisation for the flow packets\n  let tot = 0; const seg = [];\n  for (let i=0;i<L.pts.length-1;i++){\n    const a=L.pts[i], b=L.pts[i+1];\n    const len = Math.abs(b[0]-a[0])+Math.abs(b[1]-a[1])+Math.abs(b[2]-a[2]);\n    seg.push({a,b,len,s:tot}); tot += len;\n  }\n  L.tot = tot; L.seg = seg;\n  for (const sg of seg) items.push({ k:'pipe', L, sg, d:(dep(sg.a[0],sg.a[1],sg.a[2])+dep(sg.b[0],sg.b[1],sg.b[2]))/2 });\n  for (let i=1;i<L.pts.length-1;i++){ const p=L.pts[i]; items.push({ k:'elbow', L, p, d:dep(p[0],p[1],p[2])+.02 }); }\n  const tp = L.pts[0], ep = L.pts[L.pts.length-1];\n  items.push({ k:'end', L, p:ep, d:dep(ep[0],ep[1],ep[2])+.03 });\n  if (li>0) items.push({ k:'tee', L, p:tp, d:dep(tp[0],tp[1],tp[2])+.03 });\n  if (li>0 && L.seg.length){\n    const si = Math.min(L.seg.length-1, Math.floor(L.vpos*L.seg.length));\n    const sg = L.seg[si];\n    const p = [ (sg.a[0]+sg.b[0])/2, (sg.a[1]+sg.b[1])/2, (sg.a[2]+sg.b[2])/2 ];\n    items.push({ k:'valve', L, p, sg, d:dep(p[0],p[1],p[2])+.05 });\n  }\n}\nitems.sort((a,b)=>a.d-b.d);\n\n// ---- tube renderer ----------------------------------------------------------\nfunction tube(ax,ay,bx,by,w,col,dim){\n  const dx=bx-ax, dy=by-ay, len=Math.hypot(dx,dy)||1;\n  const nx=-dy/len, ny=dx/len;\n  if (pid){ sc(col, 88*dim); strokeWeight(Math.max(.8, w*.30)); line(ax,ay,bx,by); return; }\n  sc(C.dark, (C.add?26:76)*dim); strokeWeight(w); line(ax,ay,bx,by);\n  sc(col, (C.add?46+24*glow:88)*dim); strokeWeight(w*.70); line(ax,ay,bx,by);\n  sc([col[0], col[1]*.42, cl(col[2]*1.28,0,100)], (C.add?42:80)*dim); strokeWeight(Math.max(.5,w*.17));\n  line(ax + nx*w*.24, ay + ny*w*.24, bx + nx*w*.24, by + ny*w*.24);\n}\nif (C.add) blendMode(ADD);\nconst dmin = -bh*.6, dspan = Math.max(1, (bx1-bx0)+bh*2);\nfor (const it of items){\n  const L = it.L, col = C.svc[L.svc % C.svc.length];\n  const w = Math.max(1.2, CS*L.dia*.28*(.7+.5*NRG));\n  const dim = cl(.52 + .48*((it.d - dmin)/dspan + .35), .42, 1);      // atmospheric depth falloff\n  if (it.k==='pipe'){\n    tube(SX(it.sg.a), SY(it.sg.a), SX(it.sg.b), SY(it.sg.b), w, col, dim);\n    // flanges along the run\n    if (!pid && it.sg.len > 1.4){\n      for (const f of [.30,.72]){\n        const p=[it.sg.a[0]+(it.sg.b[0]-it.sg.a[0])*f, it.sg.a[1]+(it.sg.b[1]-it.sg.a[1])*f, it.sg.a[2]+(it.sg.b[2]-it.sg.a[2])*f];\n        const q0=[it.sg.a[0],it.sg.a[1],it.sg.a[2]], q1=[it.sg.b[0],it.sg.b[1],it.sg.b[2]];\n        const ax2=SX(q0), ay2=SY(q0), bx2=SX(q1), by2=SY(q1);\n        const dx=bx2-ax2, dy=by2-ay2, ln=Math.hypot(dx,dy)||1;\n        const nx=-dy/ln*w*.78, ny=dx/ln*w*.78;\n        const px2=SX(p), py2=SY(p);\n        sc(C.line, 72*dim); strokeWeight(Math.max(.7,w*.24));\n        line(px2-nx, py2-ny, px2+nx, py2+ny);\n      }\n    }\n  } else if (it.k==='elbow'){\n    if (pid) continue;\n    noStroke(); fc(col, (C.add?40:92)*dim); ellipse(SX(it.p), SY(it.p), w*.98, w*.98);\n    noFill(); sc(C.dark, 60*dim); strokeWeight(Math.max(.4,w*.14)); ellipse(SX(it.p), SY(it.p), w*.98, w*.98);\n  } else if (it.k==='tee' || it.k==='end'){\n    const px2=SX(it.p), py2=SY(it.p);\n    if (it.k==='end'){\n      // the consumer: a small vessel / pump body standing on the deck\n      const top=[it.p[0],it.p[1],it.p[2]], bot=[it.p[0],0,it.p[2]];\n      sc(C.ctr, 26*dim + 18*anno); strokeWeight(Math.max(.4,u*.0007));\n      line(px2,py2, SX(bot), SY(bot));                       // support / hanger drop\n      if (!pid){\n        noStroke(); fc(C.deck, (C.add?26:94)*dim);\n        ellipse(px2, py2, w*2.0, w*2.0);\n        noFill(); sc(C.line, 84*dim); strokeWeight(Math.max(.6,u*.0013));\n        ellipse(px2, py2, w*2.0, w*2.0);\n        sc(C.line, 56*dim); ellipse(px2, py2, w*1.1, w*1.1);\n      } else { noFill(); sc(C.line, 86*dim); strokeWeight(Math.max(.7,u*.0015)); ellipse(px2,py2,w*1.6,w*1.6); }\n    } else {\n      noStroke(); fc(C.line, (C.add?36:80)*dim); ellipse(px2, py2, w*.9, w*.9);\n    }\n  } else if (it.k==='valve'){\n    const px2=SX(it.p), py2=SY(it.p);\n    const q0=[it.sg.a[0],it.sg.a[1],it.sg.a[2]], q1=[it.sg.b[0],it.sg.b[1],it.sg.b[2]];\n    const dx=SX(q1)-SX(q0), dy=SY(q1)-SY(q0), ln=Math.hypot(dx,dy)||1;\n    const ux=dx/ln, uy=dy/ln, nx=-uy, ny=ux;\n    const vs = w*1.15;\n    // valve travel cycles slowly, per line, on its own incommensurate rate\n    const open = .5+.5*Math.sin(K.t*(.037+L.rate*.09) + L.svc*1.7);\n    sc(C.line, 92*dim); strokeWeight(Math.max(.7,u*.0014));\n    if (L.vtype===0 || pid){   // gate: the P&ID bowtie\n      noFill();\n      beginShape();\n      vertex(px2-ux*vs+nx*vs, py2-uy*vs+ny*vs); vertex(px2-ux*vs-nx*vs, py2-uy*vs-ny*vs);\n      vertex(px2+ux*vs+nx*vs, py2+uy*vs+ny*vs); vertex(px2+ux*vs-nx*vs, py2+uy*vs-ny*vs);\n      endShape(CLOSE);\n    } else if (L.vtype===1){   // globe\n      noStroke(); fc(C.line, (C.add?34:88)*dim); ellipse(px2,py2, vs*1.6, vs*1.6);\n      noFill(); sc(C.dark, 70*dim); ellipse(px2,py2, vs*1.6, vs*1.6);\n    } else {                   // check: a triangle pointing with the flow\n      noFill(); sc(C.line, 92*dim);\n      triangle(px2-ux*vs-nx*vs*.9, py2-uy*vs-ny*vs*.9, px2-ux*vs+nx*vs*.9, py2-uy*vs+ny*vs*.9, px2+ux*vs, py2+uy*vs);\n    }\n    // stem + handwheel, turning as the valve travels\n    const hx = px2 + nx*vs*2.0, hy2 = py2 + ny*vs*2.0;\n    sc(C.line, 84*dim); strokeWeight(Math.max(.5,u*.0011));\n    line(px2, py2, hx, hy2);\n    noFill(); ellipse(hx, hy2, vs*1.5, vs*.75);\n    const spa = open*Math.PI*3;\n    line(hx - Math.cos(spa)*vs*.7, hy2 - Math.sin(spa)*vs*.35, hx + Math.cos(spa)*vs*.7, hy2 + Math.sin(spa)*vs*.35);\n  }\n}\nblendMode(BLEND);\n\n// ---- flow packets travelling the lines (real time, per-line rates) ----------\nconst NPK = Math.round(2 + NRG*3);\npush(); blendMode(sty==='engraving' ? BLEND : ADD);\nfor (const L of lines){\n  if (!L.seg || !L.tot) continue;\n  const col = C.svc[L.svc % C.svc.length];\n  for (let k=0;k<NPK;k++){\n    const s = ((S.ft*L.rate*2.2 + k/NPK)%1) * L.tot;\n    let acc = 0, sg = L.seg[0];\n    for (const g2 of L.seg){ if (s >= g2.s && s < g2.s + g2.len){ sg = g2; acc = (s - g2.s)/Math.max(1e-6,g2.len); break; } }\n    const p = [sg.a[0]+(sg.b[0]-sg.a[0])*acc, sg.a[1]+(sg.b[1]-sg.a[1])*acc, sg.a[2]+(sg.b[2]-sg.a[2])*acc];\n    const px2 = SX(p), py2 = SY(p);\n    const r = Math.max(1.6, CS*L.dia*.16*(.7+.6*NRG));\n    noStroke();\n    // soft halo: layered translucent discs (no filter(), no shadowBlur)\n    for (let i=3;i>=1;i--){\n      fc([col[0], cl(col[1]*.5,0,100), cl(col[2]*1.2,0,100)], (11 - i*2.4)*(.4+.7*glow));\n      ellipse(px2, py2, r*2*(1+i*.85), r*2*(1+i*.85));\n    }\n    fc([col[0], cl(col[1]*.35,0,100), cl(col[2]*1.3,0,100)], 92*(.4+.7*glow));\n    ellipse(px2, py2, r*2, r*2);\n  }\n}\npop(); blendMode(BLEND);\n\n// ---- tag bubbles + line numbers --------------------------------------------\nif (anno > .25){\n  textFont('monospace'); textSize(Math.max(5,u*.0105));\n  let n = 0;\n  for (const L of lines){\n    if (n++ > 8) break;\n    if (!L.seg || !L.seg.length) continue;\n    const sg = L.seg[Math.floor(L.seg.length*.5)];\n    const p = [(sg.a[0]+sg.b[0])/2, (sg.a[1]+sg.b[1])/2, (sg.a[2]+sg.b[2])/2];\n    const px2 = SX(p), py2 = SY(p);\n    const lx = px2 + u*.045*(fr(n*3.1)<.5?-1:1), ly = py2 - u*.040;\n    sc(C.anno, 56+24*anno); strokeWeight(Math.max(.4,u*.0007));\n    line(px2, py2, lx, ly);\n    noStroke(); fc(C.g, C.add?24:78); const tw = u*.058;\n    rect(lx - (lx<px2?tw:0), ly - u*.010, tw, u*.020);\n    noFill(); sc(C.anno, 70); strokeWeight(Math.max(.4,u*.0008));\n    rect(lx - (lx<px2?tw:0), ly - u*.010, tw, u*.020);\n    noStroke(); fc(C.anno, 92); textAlign(CENTER, CENTER);\n    text(L.tag, lx - (lx<px2?tw/2:-tw/2), ly);\n  }\n}\n\n// ---- sheet border + title block + service legend ----------------------------\nconst mgn = u*.028;\nnoFill(); sc(C.anno, 46+24*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.anno, 22+16*anno); strokeWeight(Math.max(.5,u*.0009));\nrect(mgn*1.7, mgn*1.7, width-mgn*3.4, height-mgn*3.4);\nif (anno > .08){\n  textFont('monospace'); noStroke(); textSize(Math.max(7,u*.0135));\n  textAlign(RIGHT,CENTER);\n  const bx = width-mgn*2.0, by = height-mgn*2.0;\n  fc(C.deck, C.add?28:74); rect(bx-u*.33, by-u*.052, u*.33, u*.052);\n  noFill(); sc(C.anno, 62); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.33, by-u*.052, u*.33, u*.052);\n  line(bx-u*.33, by-u*.026, bx, by-u*.026);\n  noStroke(); fc(C.anno, 90);\n  text('PIPING ISOMETRIC - UNIT '+(10+(sd%80)), bx-u*.012, by-u*.039);\n  text((pid?'P&ID SYMBOLS':'SPOOL VIEW')+'   '+lines.length+' LINES   SEED '+sd, bx-u*.012, by-u*.013);\n  // service legend\n  textAlign(LEFT,CENTER); textSize(Math.max(5,u*.0105));\n  for (let i=0;i<4;i++){\n    const ly = mgn*2.3 + i*u*.020;\n    sc(C.svc[i], 92); strokeWeight(Math.max(1.4,u*.0035)); line(mgn*2.2, ly, mgn*2.2+u*.030, ly);\n    noStroke(); fc(C.anno, 78); text(SVCN[i], mgn*2.2+u*.038, ly);\n  }\n  // north / orientation arrow for the isometric\n  const nx3 = width-mgn*2.6, ny3 = mgn*3.0, nr = u*.020;\n  const npt = pr(1,0,0);\n  const na = Math.atan2(npt[1], npt[0]);\n  sc(C.anno, 80); strokeWeight(Math.max(.6,u*.0013));\n  line(nx3, ny3, nx3+Math.cos(na)*nr, ny3+Math.sin(na)*nr);\n  line(nx3+Math.cos(na)*nr, ny3+Math.sin(na)*nr, nx3+Math.cos(na+2.6)*nr*.32, ny3+Math.sin(na+2.6)*nr*.32);\n  line(nx3+Math.cos(na)*nr, ny3+Math.sin(na)*nr, nx3+Math.cos(na-2.6)*nr*.32, ny3+Math.sin(na-2.6)*nr*.32);\n  noStroke(); fc(C.anno, 84); textAlign(CENTER,CENTER); text('N', nx3+Math.cos(na)*nr*1.4, ny3+Math.sin(na)*nr*1.4);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

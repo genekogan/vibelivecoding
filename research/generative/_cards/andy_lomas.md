@@ -1,0 +1,15 @@
+# Andy Lomas
+
+- **Bio/context**: British mathematician-turned-digital-artist (b. 1968), former film/TV CG supervisor (Matrix sequels, Walking with Dinosaurs, Avengers) who since ~2000 makes generative work about morphogenesis. Custom C++/GPU/CUDA simulations rendered offline (not real-time p5), output as large prints, 3D prints, stereo/holographic pieces and 4K films. Umbrella project: **Morphogenetic Creations** (shown Watermans, arsElectronica, V&A).
+
+- **Signature techniques**: **Particle-system morphogenesis** — a form is a mesh of interconnected "cells" (particles with spring-like links). Each cell accumulates a scalar *nutrient/growth* value from its neighbourhood; when it exceeds a threshold the cell **splits** (adds a particle), so the surface must locally buckle and fold to relieve crowding. A **12-parameter genome** controls split bias, nutrient sources, spring stiffness, and directional (light-seeking) growth; run for tens of thousands of steps to reach >1M cells. **Cellular Forms** = pure cell-division surfaces; **Aggregation/Flow** = **DLA-style accretion**, particles advected along noise/flow fields sticking on contact into coral/dendrite masses. **Hybrid Forms** blends the two. **Species Explorer** wraps a CNN aesthetic-scoring model around the parameter search to auto-curate runs.
+
+- **Palette logic**: Near-monochrome. Almost always a **black void background** with forms in bone-white / bio-ivory, sometimes a single warm (amber, coral-pink) or cool (jade) tint driven by the growth field. Color is a thin veneer over form — value/shading does the work, hue is a whisper. Occasional subsurface-scatter translucency (waxy, candle-like).
+
+- **Mark-making / texture**: Densely modeled 3D relief lit like a museum specimen — soft key light, deep ambient occlusion in the crevices, fine sub-millimetre ridging from the millions of cells. Reads as coral / brain coral / cauliflower / gut villi / whipped folds. Matte, not glossy; texture is *geometric* (real displacement) not painted.
+
+- **Motion/temporal qualities**: The native temporal signature is **growth** — a form *unfolds and thickens* from a single seed over the run, self-similar ruffles budding recursively at the tips (think time-lapse of coral or a blooming brain). For a VJ loop: emulate with a slowly-subdividing contour or an accretion front that advances outward, plus a very slow orbital camera drift around the modeled mass so the AO relief shimmers. Never snappy — it's geological/botanical time.
+
+- **Key works**: *Cellular Forms* (2014, cell-division surfaces, Lumen Prize gold); *Aggregation* (2005, DLA accretion sculptures); *Flow* (advection-driven filigree); *Hybrid Forms* (ECAL 2015, division + accretion); *Morphogenetic Creations* (2016 umbrella exhibition); *Species Explorer* / *Deep Learning of Individual Aesthetics* (2020, ML-curated parameter search).
+
+- **Links**: https://andylomas.com/ (galleries at andylomas.com/cellularFormImages.html, /aggregationImages.html) · publications https://andylomas.com/publications.html · Wikipedia https://en.wikipedia.org/wiki/Andy_Lomas · Watermans archive.

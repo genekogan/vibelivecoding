@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.directional_solidification",
+  "kind": "genart",
+  "name": "Directional Solidification",
+  "desc": "An alloy pulled through a thermal gradient: the flat freezing front is unstable, so it buckles into an array of cells whose tips race ahead into richer liquid while surface tension fights back, and the array never settles - cells split, drift and get squeezed out in Kuramoto-Sivashinsky chaos as the selected spacing wanders; the solid keeps the record, so the cell grooves trail away downward as the microstructure with the pulling rate laying horizontal bands through it, read as a false-colour phase field, an etched longitudinal section, Nomarski relief, or a blueprint of groove trajectories.",
+  "tags": [
+    "directional-solidification",
+    "solidification",
+    "freezing",
+    "crystal-growth",
+    "alloy",
+    "casting",
+    "bridgman",
+    "mullins-sekerka",
+    "cellular",
+    "cells",
+    "dendrite",
+    "dendritic",
+    "mushy-zone",
+    "segregation",
+    "banding",
+    "banded",
+    "microstructure",
+    "micrograph",
+    "metallography",
+    "metallurgy",
+    "materials-science",
+    "kuramoto-sivashinsky",
+    "instability",
+    "front",
+    "interface",
+    "chaos",
+    "deterministic-chaos",
+    "phase-field",
+    "phase-transition",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "pde",
+    "simulation",
+    "space-time",
+    "nomarski",
+    "dic",
+    "relief",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "scientific",
+    "clinical",
+    "laboratory",
+    "false-colour",
+    "blueprint",
+    "schematic",
+    "texture",
+    "molten",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast, front amplitude and the latent-heat glow behind the interface"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into the section - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "pulling rate and front dynamics - how fast the microstructure scrolls away (0.2 still grows)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "selected cell spacing - a few broad cells vs a fine dense array across the front"
+    },
+    "band": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the pulling rate is modulated - depth of the banded microstructure laid into the solid"
+    },
+    "grain": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "etch tooth and detector noise"
+    },
+    "hue": {
+      "default": 26,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the solid; the melt takes its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the section when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan along the growth direction when magnified"
+    },
+    "style": {
+      "default": "phase_field",
+      "options": [
+        "phase_field",
+        "micrograph",
+        "dic",
+        "schematic"
+      ],
+      "doc": "aesthetic: false-colour phase field with hot mushy zone / etched longitudinal metallographic section / Nomarski differential-interference relief / blueprint of groove trajectories"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic initial front perturbation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:30+00:00",
+    "fps": 64.9,
+    "motion": 0.1442,
+    "lum": 0.444
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, band: .5, grain: .45, hue: 26, x: .5, y: .5, style: 'phase_field', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Directional solidification: an alloy pulled through a thermal gradient. A flat\n// front is unstable (Mullins-Sekerka) -- a bump reaches richer liquid and runs\n// ahead, surface tension fights back at short wavelength -- which is exactly the\n// Kuramoto-Sivashinsky equation:\n//        h_t = -A h_xx - B h_xxxx - C (h_x)^2\n// A destabilises, B stabilises, C saturates. It selects a cell spacing and then\n// stays CHAOTIC forever: cells split, drift and get squeezed out, never settling.\n// That deterministic chaos is this piece's anti-convergence guarantee.\n//\n// The solid keeps the record: the buffer below the front is a space-time plot of\n// h, so the trajectories of the cell minima become the intercellular grooves of\n// the microstructure, and it scrolls away downward for as long as the alloy is\n// pulled. On top of that A drifts (spacing wanders, so cells must split and\n// merge) and the pulling rate V drifts (banded microstructure) -- both on\n// incommensurate K.t rates.\n// ---------------------------------------------------------------------------\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(100, Math.round(BW * height / width));\nconst N = BW * BH;\nconst FY = Math.round(BH * 0.32);\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.h = new Float32Array(BW); S.hn = new Float32Array(BW);\n  S.M = new Float32Array(N); S.Mb = new Float32Array(N);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\n\nconst h = S.h, hn = S.hn, M = S.M, Mb = S.Mb;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  for (let i = 0; i < BW; i++) h[i] = (hs3(i, 5, 2) - 0.5) * 0.9;\n  M.fill(0); Mb.fill(0.5);\n  S.Y = 0;\n}\n\nconst tt = K.t;\n\n// ---- KS front: A sets the selected cell spacing and drifts, so cells must split/merge ----\nconst Abase = 0.42 + P.density * 1.85;\nconst Adr = Abase * (1 + 0.22 * Math.sin(tt * 0.043) + 0.12 * Math.sin(tt * 0.107 + 1.9) + 0.07 * Math.sin(tt * 0.191 + 0.6));\nconst Bc = 1.0, Cc = 1.0;\nconst dt = 0.035;\nconst sub = Math.max(1, Math.min(6, Math.round(2 + P.speed * 2)));\nfor (let st = 0; st < sub; st++) {\n  let mean = 0;\n  for (let i = 0; i < BW; i++) {\n    const i1 = i > 0 ? i - 1 : BW - 1, i2 = i > 1 ? i - 2 : BW - 2 + i;\n    const j1 = i < BW - 1 ? i + 1 : 0, j2 = i < BW - 2 ? i + 2 : i + 2 - BW;\n    const hxx = h[i1] - 2 * h[i] + h[j1];\n    const hxxxx = h[i2] - 4 * h[i1] + 6 * h[i] - 4 * h[j1] + h[j2];\n    const hx = (h[j1] - h[i1]) * 0.5;\n    let v = h[i] + dt * (-Adr * hxx - Bc * hxxxx - Cc * hx * hx);\n    if (!(v > -40)) v = -40; else if (v > 40) v = 40;\n    hn[i] = v; mean += v;\n  }\n  mean /= BW;\n  for (let i = 0; i < BW; i++) h[i] = hn[i] - mean;   // KS drifts; keep the front centred\n}\n\n// normalise the front profile for display + recording\nlet hmin = 1e9, hmax = -1e9;\nfor (let i = 0; i < BW; i++) { const v = h[i]; if (v < hmin) hmin = v; if (v > hmax) hmax = v; }\nconst hrng = Math.max(0.6, hmax - hmin);\n\n// ---- pulling rate drifts -> banded microstructure ----\nconst Vb = (3.0 + P.speed * 6.0) * (1 + P.band * (0.42 * Math.sin(tt * 0.071) + 0.24 * Math.sin(tt * 0.151 + 1.1) + 0.13 * Math.sin(tt * 0.263 + 2.3)));\nconst V = Math.max(1.2, Vb) * (0.85 + K.swell * 0.2 + A.lowmid * 0.35);\nconst bandv = Math.max(0, Math.min(1, (V / (3.0 + P.speed * 6.0) - 0.4) * 0.9));\n\nS.Y += V / 60;\nlet rows = 0;\nwhile (S.Y >= 1 && rows < 8) {\n  S.Y -= 1; rows++;\n  M.copyWithin((FY + 1) * BW, FY * BW, (BH - 1) * BW);\n  Mb.copyWithin((FY + 1) * BW, FY * BW, (BH - 1) * BW);\n  const o = FY * BW;\n  for (let i = 0; i < BW; i++) {\n    const dpt = (hmax - h[i]) / hrng;              // 0 at a cell tip, 1 in the deepest groove\n    M[o + i] = dpt;\n    Mb[o + i] = bandv;\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.023 + Math.sin(tt * 0.017) * 0.018;\nconst gain = 0.45 + P.energy * 1.1 + A.rms * 0.3;\nconst gr = P.grain;\nconst amp = Math.min(BH * 0.11, 3.2 + P.energy * 3.0);\nfor (let i = 0; i < BW; i++) {\n  const fy = FY - ((h[i] - (hmin + hmax) * 0.5) / hrng) * 2 * amp;   // live front profile\n  const im = i > 0 ? i - 1 : BW - 1, ip = i < BW - 1 ? i + 1 : 0;\n  for (let j = 0; j < BH; j++) {\n    const p = j * BW + i;\n    const th = (hs3(i, j, 71) - 0.5) * 0.09 * gr;\n    let r, gg, b;\n    const dfr = j - fy;\n    if (dfr < 0) {\n      // ---- liquid: thermal gradient + solute boundary layer piled ahead of the front\n      const dep = Math.min(1, -dfr / (BH * 0.34));\n      const sol = Math.max(0, 1 - (-dfr) * 0.09);          // solute pile-up hugging the front\n      const shim = (hs3(i, (j + (tt * 9 | 0)) % BH, 13) - 0.5) * 0.05;\n      if (style === 'micrograph') { const v = 0.10 + dep * 0.05 + sol * 0.06 + shim; r = v; gg = v * 0.99; b = v * 0.97; }\n      else if (style === 'dic') { const v = 0.46 + sol * 0.05 + shim * 0.5; r = v; gg = v * 0.995; b = v * 1.01; }\n      else if (style === 'schematic') { const v = 0.055 + sol * 0.05; r = v * 0.5; gg = v * 0.9; b = v * 1.9; }\n      else {\n        hsv(hb + 0.52, 0.62 - dep * 0.12, 1);\n        const v = (0.09 + dep * 0.05 + sol * 0.10) * (0.7 + gain * 0.4);\n        r = RR * v; gg = GG * v; b = BB * v;\n      }\n    } else {\n      // ---- mushy zone then solid: read the space-time record\n      const rec = j >= FY ? M[p] : M[FY * BW + i];\n      const bnd = j >= FY ? Mb[p] : bandv;\n      const mush = Math.max(0, 1 - dfr * 0.20);            // latent-heat glow behind the front\n      const groove = Math.pow(rec, 1.35);\n      if (style === 'micrograph') {\n        // etched longitudinal section: bright cell cores, dark intercellular grooves\n        const v = (0.62 - groove * 0.50 + bnd * 0.07) * (0.55 + gain * 0.45);\n        r = v * 1.0 + mush * 0.30; gg = v * 0.985 + mush * 0.28; b = v * 0.94 + mush * 0.24;\n      } else if (style === 'dic') {\n        // Nomarski relief: form from light only, pseudo-3D off the groove gradient\n        const gx = (j >= FY ? M[p - (i > 0 ? 1 : 1 - BW)] : rec) - (j >= FY ? M[p + (i < BW - 1 ? 1 : 1 - BW)] : rec);\n        const gy = j > FY && j < BH - 1 ? M[p - BW] - M[p + BW] : 0;\n        const rel = 0.5 + (gx * 2.6 + gy * 1.1) * (0.6 + gain * 0.7);\n        const v = Math.max(0, Math.min(1, rel)) * 0.72 + 0.12 + bnd * 0.04;\n        r = v * 1.0 + mush * 0.16; gg = v * 0.99 + mush * 0.16; b = v * 0.96 + mush * 0.14;\n      } else if (style === 'schematic') {\n        // blueprint: the groove trajectories and the live front, nothing else\n        const line = Math.max(0, groove - 0.52) * 2.1;\n        const fl = Math.max(0, 1 - Math.abs(dfr) * 0.5);\n        r = 0.06 + line * 0.42 * gain + fl * 0.30;\n        gg = 0.09 + line * 0.80 * gain + fl * 0.56;\n        b = 0.15 + line * 1.0 * gain + fl * 0.74;\n      } else {\n        // phase_field (default): solid warm, grooves solute-dark, hot mushy zone,\n        // pulling-rate bands laid horizontally through the microstructure\n        hsv(hb + 0.02 + bnd * 0.05, 0.30 + groove * 0.30, 1);\n        const v = (0.30 + (1 - groove) * 0.52 + bnd * 0.09) * (0.55 + gain * 0.5);\n        r = RR * v; gg = GG * v; b = BB * v;\n        hsv(hb + 0.09, 0.55, 1);\n        r += RR * mush * 0.42 * gain; gg += GG * mush * 0.42 * gain; b += BB * mush * 0.42 * gain;\n      }\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + th) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + th) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + th) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

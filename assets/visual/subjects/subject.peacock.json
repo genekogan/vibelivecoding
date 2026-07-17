@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.peacock",
+  "kind": "subject",
+  "name": "Peacock",
+  "desc": "A front-facing peacock raising a parametric train of iridescent eyespot feathers from closed to full fan, quivering and shimmering on the treble while it struts and bobs its crested head.",
+  "tags": [
+    "peacock",
+    "peafowl",
+    "bird",
+    "animal",
+    "creature",
+    "fan",
+    "train",
+    "feathers",
+    "eyespot",
+    "ocellus",
+    "iridescent",
+    "jewel",
+    "emerald",
+    "sapphire",
+    "gold",
+    "teal",
+    "display",
+    "strut",
+    "art-nouveau",
+    "stained-glass",
+    "engraving",
+    "ornamental",
+    "regal",
+    "exotic",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.0,
+      "doc": "size vs design (fan spans ~0.85x min dim at full)"
+    },
+    "fan": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "train opening: 0 closed/trailing, 1 full display fan"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude (quiver, bob, step)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "jewel base hue (210 = peacock sapphire; rotates whole jewel set)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "feather count + ambient jewel dust"
+    },
+    "crest": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.2,
+      "doc": "head crest plume size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.9,
+      "min": 0.4,
+      "max": 1,
+      "doc": "anchor y (feet) as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic feather phase seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "display",
+        "strut",
+        "idle",
+        "preen"
+      ],
+      "doc": "pose preset; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "nouveau",
+      "options": [
+        "nouveau",
+        "stained",
+        "iridescent",
+        "engraving"
+      ],
+      "doc": "aesthetic: art-nouveau jewel gradients & gold line / leaded stained-glass / oil-slick iridescent shift / monochrome stipple-hatch engraving"
+    },
+    "act": {
+      "default": "show",
+      "options": [
+        "show",
+        "calm",
+        "parade"
+      ],
+      "doc": "multi-minute pose dramaturgy used when pose=auto"
+    }
+  },
+  "acts": [
+    "show",
+    "calm",
+    "parade"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:02:35+00:00",
+    "fps": 59.9,
+    "motion": 0.0161,
+    "lum": 0.108
+  },
+  "code": "const D = { scale: 1, fan: .6, energy: .6, hue: 210, speed: 1, density: .5, crest: 1, x: .5, y: .9, seed: 0, pose: 'auto', style: 'nouveau', act: 'show' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0016 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nconst am = .82 + .22*Math.sin(K.t*.26 + fr(6)*6);\nconst eAmp = P.energy * (.55 + .6*K.intensity) * am;\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + A.bass*.7);\nS.rms = (S.rms||0)*.85 + (A.rms||0)*.15;\nS.tre = (S.tre||0)*.78 + (A.treble||0)*.22;\nif (S.lastBeat==null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed; S.ph=[]; for(let i=0;i<64;i++) S.ph.push(fr(i)*6.283); }\n\nconst ACTS = { show:['display','strut','idle','display','strut','preen','display','strut'], calm:['idle','preen','idle','display','idle','preen','display','idle'], parade:['display','display','strut','display','strut','display','display','strut'] };\nlet pose = P.pose;\nif (pose==='auto') pose = (ACTS[P.act]||ACTS.show)[((K.section%8)+8)%8];\n\n// effective fan opening from param + pose\nlet effFan = P.fan, quiver=0, bodyBob=0, sway=0, neckBob=0, step=0, puff=0, preenA=0;\nconst drift = Math.sin(K.t*.4 + fr(2)*6);\nif (pose==='display'){ effFan = Math.min(1, P.fan+.28); quiver = 1; puff = kick*.06*eAmp; bodyBob = -K.swell*4*s*eAmp; neckBob = Math.sin(K.t*.7)*4*s; sway = drift*4*s; }\nelse if (pose==='strut'){ effFan = P.fan*.42; quiver=.4; step = bt; sway = Math.sin(step*Math.PI)*10*s*eAmp + drift*4*s; bodyBob = Math.abs(Math.sin(step*Math.PI))*8*s; neckBob = Math.sin(step*Math.PI*2)*14*s*eAmp; }\nelse if (pose==='preen'){ effFan = P.fan*.7; quiver=.5; preenA = 1; neckBob = 0; sway = drift*5*s; bodyBob = K.swell*3*s*eAmp; }\nelse { effFan = P.fan; quiver=.6; bodyBob = Math.sin(K.t*1.1)*3*s + K.swell*3*s*eAmp; sway = drift*5*s; neckBob = Math.sin(K.t*.9)*5*s; }\nsway += Math.sin(K.t*.31 + fr(4)*6)*4*s;\nbodyBob += Math.sin(K.t*.53 + fr(7)*6)*2.5*s;\n\nconst styles=['nouveau','stained','iridescent','engraving'];\nconst st = styles.indexOf(P.style)>=0 ? P.style : 'nouveau';\nconst H = ((P.hue%360)+360)%360;\nconst gold=((H-168)%360+360)%360, emer=((H-52)%360+360)%360, saph=H, viol=(H+56)%360;\n\nconst ax = P.x*width, ay = P.y*height;\n\n// ground shadow\nnoStroke(); fill(0,0,0,24); ellipse(ax, ay+4*s, (60+effFan*30)*s, 12*s);\n\npush(); translate(ax + sway, ay + bodyBob);\n\nconst originX=0, originY=-150*s;\nconst N = Math.round(16 + P.density*24);\nconst spread = (34 + effFan*150) * Math.PI/180;\nconst centerAngle = (1-effFan)*.55 + effFan*(-Math.PI/2);\nconst fanLen = (120 + effFan*160)*s;\nconst rustAmp = (.015 + .05*quiver) * (.6+.8*eAmp);\n\n// ---- eyespot painter ----\nfunction eyespot(rad, shim){\n  if (st==='engraving'){\n    noFill();\n    for(let r=0;r<3;r++){ stroke(32,18,22,80); strokeWeight((.7+r*.3)*s); ellipse(0,rad*.12,rad*(1.7-r*.5),rad*(2.1-r*.55)); }\n    // hatch fill of center\n    stroke(32,20,15,90); strokeWeight(.7*s);\n    for(let h=-3;h<=3;h++){ line(-rad*.5,rad*.2+h*rad*.16, rad*.5, rad*.2+h*rad*.16); }\n    noStroke(); fill(32,25,12,90); ellipse(0,rad*.22,rad*.5,rad*.66);\n    fill(38,10,96,60+shim*40); ellipse(-rad*.13,rad*.05,rad*.28,rad*.36);\n    return;\n  }\n  let g=gold,e=emer,sp=saph,v=viol;\n  if (st==='iridescent'){ const sh=Math.sin(K.t*.6+shim*3)*40; g=(g+sh)%360; e=(e+sh)%360; sp=(sp+sh)%360; v=(v+sh)%360; }\n  if (st==='stained'){\n    stroke(0,0,8,100); strokeWeight(2.4*s); strokeJoin(ROUND);\n    fill(g,85,72,100); ellipse(0,0,rad*2,rad*2.5);\n    fill(e,72,62,100); ellipse(0,rad*.15,rad*1.35,rad*1.7);\n    fill(sp,85,82,100); ellipse(0,rad*.2,rad*.85,rad*1.12);\n    fill(v,72,52,100); ellipse(0,rad*.26,rad*.5,rad*.72);\n    noStroke(); fill(0,0,100,30+shim*45); ellipse(-rad*.14,rad*.04,rad*.34,rad*.44);\n    return;\n  }\n  // nouveau + iridescent share soft jewel build\n  noStroke();\n  fill(g,82,68,90); ellipse(0,0,rad*2,rad*2.5);\n  fill(e,74,60,94); ellipse(0,rad*.15,rad*1.35,rad*1.7);\n  fill(sp,86,80,96); ellipse(0,rad*.2,rad*.86,rad*1.12);\n  fill(v,74,54,100); ellipse(0,rad*.26,rad*.5,rad*.72);\n  if (st==='iridescent'){ blendMode(ADD); fill((sp+80)%360,60,100,30+shim*50); ellipse(0,rad*.15,rad*1.1,rad*1.4); blendMode(BLEND); }\n  fill(200,14,100,44+shim*52); ellipse(-rad*.14,rad*.03,rad*.36,rad*.46);\n}\n\n// ---- fan feathers (drawn behind body) ----\nfor(let i=0;i<N;i++){\n  const frac = i/(N-1) - .5;\n  const rust = Math.sin(K.t*2.3 + S.ph[i%64] + i*.5) * rustAmp;\n  const a = centerAngle + frac*spread + rust;\n  const len = fanLen * (.88 + .12*Math.cos(frac*Math.PI));\n  const tx = originX + Math.cos(a)*len, ty = originY + Math.sin(a)*len;\n  const shim = .3 + .7*Math.abs(Math.sin(K.t*1.6 + S.ph[i%64]*2)) * (.5+.5*quiver) + S.tre*.9;\n  // shaft with barbs (translucent vane)\n  if (st==='engraving'){ stroke(32,20,20,54); strokeWeight(4.5*s); line(originX,originY,tx,ty); stroke(32,25,14,80); strokeWeight(.9*s); line(originX,originY,tx,ty); }\n  else {\n    const vh = st==='iridescent' ? (emer+Math.sin(K.t*.5+i)*40)%360 : emer;\n    stroke(vh,58,52,st==='stained'?32:44); strokeWeight(7*s); line(originX,originY,tx,ty);\n    stroke(gold,70,86,st==='stained'?55:78); strokeWeight(1.7*s); line(originX,originY,tx,ty);\n  }\n  // eyespot\n  noStroke();\n  push(); translate(tx,ty); rotate(a+Math.PI/2);\n  eyespot((13+effFan*7)*s*(1+S.rms*.3), Math.min(1,shim));\n  pop();\n}\n\n// ---- legs ----\n{ const hipY=-92*s;\n  const lc = st==='engraving'?32:gold, ls=st==='engraving'?18:60, lb=st==='engraving'?26:78;\n  const st1 = pose==='strut'? Math.sin(step*Math.PI*2)*.5 : 0;\n  const st2 = pose==='strut'? Math.sin(step*Math.PI*2+Math.PI)*.5 : 0;\n  stroke(lc,ls,lb,100); strokeWeight(5*s); strokeCap(ROUND); noFill();\n  line(-10*s,hipY,-14*s+st1*20*s, -Math.max(0,st1)*18*s);\n  line(10*s,hipY,14*s+st2*20*s, -Math.max(0,st2)*18*s);\n  if(st!=='engraving'){ noStroke(); fill(lc,ls,lb,100); ellipse(-14*s+st1*20*s,-Math.max(0,st1)*18*s,13*s,5*s); ellipse(14*s+st2*20*s,-Math.max(0,st2)*18*s,13*s,5*s); }\n}\n\n// ---- body (deep jewel, front-facing) ----\nfunction bodyPaint(x,y,rx,ry){\n  if (st==='engraving'){ noStroke(); fill(30,14,80,100); ellipse(x,y,rx*2,ry*2); stroke(30,22,20,70); strokeWeight(.8*s);\n    for(let h=-6;h<=6;h++){ const yy=y+h*ry*.16; const hw=Math.sqrt(Math.max(0,1-Math.pow((yy-y)/ry,2)))*rx; if(h%1===0){ for(let xx=-hw;xx<hw;xx+=3*s){ point(x+xx,yy+ (fr(Math.floor(xx))-.5)*2*s); } } }\n    noStroke(); return; }\n  if (st==='stained'){ stroke(0,0,8,100); strokeWeight(2.6*s); fill(saph,88,58,100); ellipse(x,y,rx*2,ry*2); noStroke(); return; }\n  noStroke(); fill(saph,90,42,100); ellipse(x+2*s,y+3*s,rx*2,ry*2);\n  fill(saph,86,58,100); ellipse(x,y,rx*2,ry*2);\n  if(st==='iridescent'){ blendMode(ADD); fill((saph+70)%360,70,100,26); ellipse(x-rx*.2,y-ry*.2,rx*1.2,ry*1.3); blendMode(BLEND); }\n  else { fill((saph+20)%360,60,80,40); ellipse(x-rx*.3,y-ry*.35,rx*1.0,ry*.9); }\n}\nconst bodyY=-120*s+puff*40*s;\nbodyPaint(0,bodyY,46*s*(1+puff),64*s);\n// wing coverts hint\nif(st!=='engraving'&&st!=='stained'){ noStroke(); fill(emer,60,50,50); ellipse(-20*s,bodyY+18*s,28*s,44*s); ellipse(20*s,bodyY+18*s,28*s,44*s); }\n\n// ---- neck + head + crest ----\n{ const neckTopY = bodyY - 78*s + neckBob*.2;\n  const hx = neckBob*.5, hy = neckTopY - 34*s;\n  // neck\n  if (st==='engraving'){ stroke(30,16,72,100); strokeWeight(20*s); strokeCap(ROUND); line(0,bodyY-40*s,hx,neckTopY); noStroke(); }\n  else if (st==='stained'){ stroke(0,0,8,100); strokeWeight(2.6*s); fill(saph,88,62,100); noStroke(); stroke(0,0,8,100); rectMode(CENTER); }\n  if (st!=='engraving'){ noStroke(); fill(st==='stained'?saph:saph, st==='stained'?88:88, st==='stained'?62:60, 100);\n    if(st==='stained'){ stroke(0,0,8,100); strokeWeight(2.4*s); }\n    // draw neck as tapered chain\n    for(let k=0;k<=8;k++){ const t=k/8; const nx=0+(hx-0)*t, ny=(bodyY-40*s)+((neckTopY)-(bodyY-40*s))*t; const rr=(15-7*t)*s; ellipse(nx,ny,rr*2,rr*2); }\n    noStroke();\n  }\n  // head\n  if(st==='stained'){ stroke(0,0,8,100); strokeWeight(2.4*s); }\n  fill(st==='engraving'?30:saph, st==='engraving'?16:88, st==='engraving'?76:66, 100); ellipse(hx,hy,26*s,30*s); noStroke();\n  // beak\n  fill(st==='engraving'?32:gold, st==='engraving'?20:55, st==='engraving'?30:82,100); triangle(hx+9*s,hy+2*s,hx+22*s,hy+5*s,hx+9*s,hy+9*s);\n  // eyes (front-facing pair) shimmer on treble\n  const esh = .4+.6*S.tre;\n  fill(st==='engraving'?32:38, st==='engraving'?20:10, st==='engraving'?12:12,100); ellipse(hx-6*s,hy-1*s,6*s,7*s); ellipse(hx+6*s,hy-1*s,6*s,7*s);\n  noStroke(); fill(50,10,100,60+esh*40); ellipse(hx-6.5*s,hy-2*s,2.2*s,2.2*s); ellipse(hx+5.5*s,hy-2*s,2.2*s,2.2*s);\n  // crest filaments\n  const nc=5; const cH = st==='engraving'?32:saph;\n  for(let c=0;c<nc;c++){ const ca=(c/(nc-1)-.5)*.9; const cl=(20+8*Math.sin(K.t*2+c))*s*P.crest; const cx=hx+Math.sin(ca)*cl, cy=hy-14*s-Math.cos(ca)*cl;\n    stroke(cH, st==='engraving'?16:70, st==='engraving'?60:70,100); strokeWeight(1.6*s); line(hx+Math.sin(ca)*4*s, hy-13*s, cx,cy); noStroke();\n    fill(st==='engraving'?32:emer, st==='engraving'?24:75, st==='engraving'?30:75,100); ellipse(cx,cy,5*s*P.crest,6*s*P.crest); }\n}\n\npop(); // figure\n\n// ---- ambient sparkle on treble (jewel dust) ----\nblendMode(ADD); noStroke();\nconst nS = Math.max(0, Math.floor(P.density*12));\nfor(let i=0;i<nS;i++){ const p=S.ph[(i*5)%64]; const ang=p + K.t*.18*(i%2?1:-1); const rr=(90+90*Math.abs(Math.sin(p*3)))*s; const tw=.35+.65*Math.abs(Math.sin(K.t*1.3+p*4)); const mh=[gold,emer,saph,viol][i%4]; fill(mh,45,100,Math.min(58, tw*(7+12*K.swell)+S.tre*48)); circle(ax+Math.cos(ang)*rr, ay-150*s+Math.sin(ang)*rr*.6, (1.5+Math.abs(Math.sin(p))*1.6)*s*(1+S.tre*1.3)); }\nblendMode(BLEND);\n"
+}

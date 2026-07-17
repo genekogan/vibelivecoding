@@ -1,0 +1,160 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.predator_prey",
+  "kind": "genart",
+  "name": "Predator-Prey Chase Waves",
+  "desc": "A hunt spread across a whole landscape and held still enough to look at \u2014 prey breaks out into bright arcs wherever the ground is good, the predator crescent runs each arc down from behind and eats a hole through it, and prey floods back into the emptied hole from the flank, the two populations chasing each other forever as false-colour channels that never once settle.",
+  "tags": [
+    "predator-prey",
+    "predator",
+    "prey",
+    "hunt",
+    "chase",
+    "pursuit",
+    "lotka-volterra",
+    "rosenzweig-macarthur",
+    "holling",
+    "functional-response",
+    "population-cycles",
+    "boom-bust",
+    "spatiotemporal-chaos",
+    "travelling-waves",
+    "wave-front",
+    "invasion",
+    "patchiness",
+    "ecology",
+    "ecological",
+    "population",
+    "biology",
+    "competition",
+    "reaction-diffusion",
+    "pde",
+    "simulation",
+    "field",
+    "continuum",
+    "two-channel",
+    "fluorescence",
+    "false-color",
+    "micrograph",
+    "survey",
+    "aerial",
+    "radiograph",
+    "x-ray",
+    "thermal",
+    "ironbow",
+    "sumi",
+    "ink",
+    "emergence",
+    "self-organizing",
+    "texture",
+    "material",
+    "clinical",
+    "scientific",
+    "eerie",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "predation": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "attack rate \u2014 how hard the predator crops the prey; higher = leaner standing crop, sharper crashes, harder-edged fronts"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "grain of the landscape (higher = fewer, chunkier patches)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pigment saturation and standing-crop gain"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "how fast the ecology runs (PDE steps per second)"
+    },
+    "hue": {
+      "default": 96,
+      "min": 0,
+      "max": 360,
+      "doc": "prey pigment hue; the predator channel sits opposite it (exposure is luma-normalised, so any hue holds its key)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan y"
+    },
+    "style": {
+      "default": "false-color",
+      "options": [
+        "false-color",
+        "survey",
+        "ink",
+        "radiograph",
+        "thermal"
+      ],
+      "doc": "aesthetic \u2014 two-channel fluorescence plate / aerial ecological survey with the predator as advancing shade / pale prey wash under a dark predator flood on toned paper / edge-only radiograph of the fronts alone / ironbow map of total standing biomass"
+    },
+    "act": {
+      "default": "chase",
+      "options": [
+        "chase",
+        "boom-bust",
+        "drought"
+      ],
+      "doc": "multi-minute program \u2014 steady pursuit / predation cycling over ~5.7 min / habitat productivity swinging over ~4 min from lean sharp filaments to a lush coarse mosaic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the habitat map and the spiral cores sown into the initial phase field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "chase",
+    "boom-bust",
+    "drought"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:29+00:00",
+    "fps": 59.9,
+    "motion": 0.2123,
+    "lum": 0.41
+  },
+  "code": "const D = { predation: .45, scale: 1, energy: .6, density: .5, speed: 1, hue: 96, x: .5, y: .5, style: 'false-color', act: 'chase', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ============ spatial Lotka-Volterra / Rosenzweig-MacArthur: the hunt as a wave ============\n//   du/dt = Du.lap(u) + r(x).u(1-u) - a.u.v/(u+h)      prey: logistic growth, Holling-II cropping\n//   dv/dt = Dv.lap(v) + b.u.v/(u+h)   - c.v            predator: converts prey, dies at rate c\n// The coexistence state sits past the Hopf bifurcation (u* < (1-h)/2), so every patch of ground\n// wants to cycle \u2014 but the growth rate r is heterogeneous, so patches cycle at different speeds,\n// desynchronise and shear into travelling chase fronts: a prey arc breaks out, the predator\n// crescent runs it down from behind and eats a hole, prey re-invades the hole from the flank.\n// Genuine spatiotemporal chaos \u2014 no equilibrium to fall into, ever.\n\nconst CW = Math.max(56, Math.min(176, Math.round(156 / Math.max(0.4, P.scale))));\nconst CH = Math.max(40, Math.min(176, Math.round(CW * height / Math.max(1, width))));\nconst NC = CW * CH;\nconst seedI = P.seed | 0;\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\nconst hH = 0.4, bB = 1.8, cC = 0.6;            // -> u* = 0.2 < (1-h)/2 = 0.3  => always oscillatory\nconst uS = 0.2;\n\nconst sig = CW + 'x' + CH + '_' + seedI;\nif (S.sig !== sig || !S.u) {\n  S.sig = sig;\n  S.u = new Float32Array(NC); S.v = new Float32Array(NC);\n  S.un = new Float32Array(NC); S.vn = new Float32Array(NC);\n  S.r = new Float32Array(NC);\n  // heterogeneous habitat quality: smooth blotches of good and poor ground (2-octave value noise)\n  const oct = (i, j, f, sd) => {\n    const x = i * f, y = j * f, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;\n    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);\n    const c00 = gh(x0 * 7919 + y0 * 104729, sd), c10 = gh((x0 + 1) * 7919 + y0 * 104729, sd);\n    const c01 = gh(x0 * 7919 + (y0 + 1) * 104729, sd), c11 = gh((x0 + 1) * 7919 + (y0 + 1) * 104729, sd);\n    return (c00 * (1 - sx) + c10 * sx) * (1 - sy) + (c01 * (1 - sx) + c11 * sx) * sy;\n  };\n  // Seed a phase field carrying a handful of topological defects. Charge is conserved, so these\n  // become permanent spiral cores: the medium can NEVER slide back into a single global\n  // in-phase oscillation (which would read as a full-frame flash). Heterogeneous r then makes\n  // the wave train unstable and the whole thing shears into irregular patchy chaos.\n  const ND = 16, dcx = [], dcy = [], dch = [];\n  for (let d = 0; d < ND; d++) { dcx.push(gh(d, 101) * CW); dcy.push(gh(d, 211) * CH); dch.push(gh(d, 307) < 0.5 ? 1 : -1); }\n  const vS = (1 - uS) * (uS + hH);                               // nominal predator standing crop at a=1\n  for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {\n    const k = j * CW + i;\n    const n = oct(i, j, 0.05, 11) * 0.68 + oct(i, j, 0.15, 23) * 0.32;\n    S.r[k] = 0.60 + n * 1.0;                                     // habitat quality 0.60 .. 1.60: patches cycle at different rates\n    let th = n * 11.0 + (gh(k, 41) - 0.5) * 1.1;\n    for (let d = 0; d < ND; d++) th += dch[d] * Math.atan2(j - dcy[d], i - dcx[d]);\n    S.u[k] = Math.max(0.006, uS * (1 + 0.85 * Math.cos(th)));\n    S.v[k] = Math.max(0.006, vS * (1 + 0.85 * Math.sin(th)));\n  }\n  S.done = null; S.g = null;\n}\n\n// ---- acts ------------------------------------------------------------------------------\n// NB: u* = c.h/(b-c) is independent of the attack rate a, so the Hopf condition u* < (1-h)/2\n// holds across the WHOLE predation range \u2014 there is no parameter setting that quietly lets the\n// system relax to a fixed point and read as static. (A prey refuge would do exactly that, which\n// is why there isn't one.)\nconst act = P.act;\nlet aA = 0.6 + P.predation * 0.9;                                // attack rate\nif (act === 'boom-bust') aA *= 0.72 + 0.55 * (0.5 + 0.5 * Math.sin(K.t * 0.0185));   // ~5.7 min predation cycle\naA = Math.max(0.35, Math.min(1.9, aA + K.intensity * 0.1));\n// drought: habitat productivity swings over ~4 min \u2014 lean sharp filaments to a lush coarse mosaic\nconst rGlob = act === 'drought' ? (0.86 + 0.42 * Math.sin(K.t * 0.0262 - 0.7)) : 1;\n\n// ---- integrate, gated on continuous K.t (never re-phases; survives a t0 reset) ---------\nconst dt = 0.14, Du = 0.22, Dv = 0.55;   // predators disperse faster than prey -> the crescent runs the arc down\nconst sps = 16 + P.speed * 24 + K.intensity * 8;                 // PDE steps per second\nconst target = Math.floor(K.t * sps);\nif (S.done == null || target < S.done) S.done = target;\nlet need = target - S.done; if (need > 8) need = 8; if (need < 0) need = 0;\nS.done = target;\nfor (let s = 0; s < need; s++) {\n  const u = S.u, v = S.v, un = S.un, vn = S.vn, rr = S.r;\n  for (let j = 0; j < CH; j++) {\n    const jm = (j ? j - 1 : CH - 1) * CW, jp = (j + 1 < CH ? j + 1 : 0) * CW, rj = j * CW;\n    for (let i = 0; i < CW; i++) {\n      const im = i ? i - 1 : CW - 1, ip = i + 1 < CW ? i + 1 : 0, k = rj + i;\n      const uk = u[k], vk = v[k];\n      const lu = u[rj + im] + u[rj + ip] + u[jm + i] + u[jp + i] - 4 * uk;\n      const lv = v[rj + im] + v[rj + ip] + v[jm + i] + v[jp + i] - 4 * vk;\n      const fr = uk * vk / (uk + hH);                            // Holling type II functional response\n      let nu = uk + dt * (Du * lu + rr[k] * rGlob * uk * (1 - uk) - aA * fr) + 3e-4 * dt;\n      let nv = vk + dt * (Dv * lv + bB * fr - cC * vk) + 6e-5 * dt;\n      un[k] = nu < 0 ? 0 : nu > 1.7 ? 1.7 : nu;\n      vn[k] = nv < 0 ? 0 : nv > 1.7 ? 1.7 : nv;\n    }\n  }\n  S.u = un; S.v = vn; S.un = u; S.vn = v;\n}\n\n// ---- render ----------------------------------------------------------------------------\nif (!S.g || S.gw !== CW || S.gh !== CH) { S.g = createGraphics(CW, CH); S.g.pixelDensity(1); S.gw = CW; S.gh = CH; }\nfunction hsv(h, s, v, o) {\n  h = ((h % 360) + 360) % 360; v = v < 0 ? 0 : v > 1 ? 1 : v; s = s < 0 ? 0 : s > 1 ? 1 : s;\n  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let rr, gg, bb;\n  if (h < 60) { rr = c; gg = x; bb = 0; } else if (h < 120) { rr = x; gg = c; bb = 0; } else if (h < 180) { rr = 0; gg = c; bb = x; }\n  else if (h < 240) { rr = 0; gg = x; bb = c; } else if (h < 300) { rr = x; gg = 0; bb = c; } else { rr = c; gg = 0; bb = x; }\n  o[0] = (rr + m) * 255; o[1] = (gg + m) * 255; o[2] = (bb + m) * 255;\n}\nconst OUT = [0, 0, 0], CU = [0, 0, 0], CV = [0, 0, 0];\nconst style = P.style;\nconst mode = style === 'survey' ? 1 : style === 'ink' ? 2 : style === 'radiograph' ? 3 : style === 'thermal' ? 4 : 0;\nconst exp2 = Math.min(1.45, 0.7 + P.energy * 0.6 + K.intensity * 0.14 + A.rms * 0.35);\nconst hb = P.hue + K.section * 4 + Math.sin(K.t * 0.027) * 8;\nhsv(hb, 0.72 + P.density * 0.2, 1, CU);                          // prey pigment  (green channel of the plate)\nhsv(hb + 208, 0.8 + P.density * 0.15, 1, CV);                    // predator pigment (magenta channel)\n// Luminance-balance the two channels. Prey and predator run ~a quarter-cycle apart, so if one\n// pigment carries far more luma than the other the SUM breathes globally and the frame reads as\n// a slow full-screen pulse. Weighting them to equal luma lets the chase cancel out at frame level\n// and leaves the motion where it belongs: in the spatial pattern.\nconst lmU = (0.2126 * CU[0] + 0.7152 * CU[1] + 0.0722 * CU[2]) / 255;\nconst lmV = (0.2126 * CV[0] + 0.7152 * CV[1] + 0.0722 * CV[2]) / 255;\nconst nrU = Math.max(0.45, Math.min(2.4, 0.8 / Math.max(0.1, lmU)));   // also holds exposure steady across the hue dial\nconst nrV = Math.max(0.45, Math.min(2.4, 0.8 / Math.max(0.1, lmV)));\nconst gu = (0.95 + P.density * 0.35) * nrU * exp2, gv = (0.42 + P.density * 0.15) * nrV * exp2;\nconst floorV = 0.055 + P.energy * 0.03;\n{\n  const g = S.g; g.loadPixels(); const px = g.pixels;\n  const u = S.u, v = S.v;\n  for (let j = 0; j < CH; j++) {\n    const jm = (j ? j - 1 : CH - 1) * CW, jp = (j + 1 < CH ? j + 1 : 0) * CW, rj = j * CW;\n    for (let i = 0; i < CW; i++) {\n      const im = i ? i - 1 : CW - 1, ip = i + 1 < CW ? i + 1 : 0, k = rj + i;\n      const uk = u[k], vk = v[k];\n      const grain = (gh(k, 3) - 0.5) * 0.055;\n      if (mode === 1) {                    // survey: prey as vegetation mass on bare ground, predator as advancing shade\n        const veg = Math.min(1, uk * 1.25);\n        const sh = Math.min(1, vk * 0.95);\n        hsv(hb - 22 + veg * 26, 0.30 + veg * 0.42, (0.60 - sh * 0.44) * (0.30 + veg * 0.52) / 0.62 + grain, OUT);\n      } else if (mode === 2) {             // ink: pale prey wash, dark predator flood on toned paper\n        const val = 0.66 - Math.min(1, vk * 1.05) * 0.56 + Math.min(1, uk) * 0.1 + grain;\n        hsv(hb + 170, 0.10 + vk * 0.1, val * (0.84 + P.energy * 0.3), OUT);\n      } else if (mode === 3) {             // radiograph: the fronts only \u2014 abstracted to edge magnitude\n        const gx = (u[rj + ip] - u[rj + im]) + (v[rj + ip] - v[rj + im]);\n        const gy = (u[jp + i] - u[jm + i]) + (v[jp + i] - v[jm + i]);\n        const e = Math.min(1, Math.hypot(gx, gy) * 2.4);\n        hsv(hb + 96 - e * 30, 0.55 - e * 0.42, (0.06 + Math.pow(e, 1.6) * 0.72 + (uk + vk) * 0.035 + grain * 0.5) * exp2, OUT);\n      } else if (mode === 4) {             // thermal: total standing biomass, identity dissolved\n        const bm = Math.min(1, (uk * 0.8 + vk * 0.85) * 0.95);\n        hsv(272 - bm * 258, 0.95 - bm * 0.5, (0.09 + bm * bm * 0.5 + bm * 0.42 + grain) * exp2, OUT);\n      } else {                             // false-color (default): prey channel + predator channel, chase seams blaze\n        const pu = Math.min(1.15, uk * gu), pv = Math.min(1.15, vk * gv);\n        OUT[0] = floorV * 40 + pu * CU[0] * 0.85 + pv * CV[0] * 0.8 + grain * 40;\n        OUT[1] = floorV * 46 + pu * CU[1] * 0.85 + pv * CV[1] * 0.8 + grain * 40;\n        OUT[2] = floorV * 74 + pu * CU[2] * 0.85 + pv * CV[2] * 0.8 + grain * 40;\n      }\n      const o = 4 * k; px[o] = OUT[0]; px[o + 1] = OUT[1]; px[o + 2] = OUT[2]; px[o + 3] = 255;\n    }\n  }\n  g.updatePixels();\n}\n\n// ---- composite ------------------------------------------------------------------------\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2 + (P.x - 0.5) * width * 0.18, height / 2 + (P.y - 0.5) * height * 0.18);\nrotate(Math.sin(K.t * 0.0163) * 0.04 + Math.sin(K.t * 0.0059 + 2.1) * 0.05);\nconst zoom = 1.52 + Math.sin(K.t * 0.053) * 0.045 + Math.sin(K.t * 0.127 + 1.3) * 0.018 + A.bass * 0.045;\nimageMode(CENTER);\nimage(S.g, 0, 0, width * zoom, height * zoom);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

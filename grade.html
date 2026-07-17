@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Visual Grader — genart</title>
+<script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
+<style>
+  :root { --bad:#e5484d; --ok:#5b8def; --good:#30a46c; }
+  html,body { margin:0; height:100%; background:#0b0b0e; color:#e8e8ea; font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  canvas { display:block; }
+  #hud { position:fixed; left:0; right:0; bottom:0; padding:14px 18px 16px; background:linear-gradient(transparent, rgba(0,0,0,.82) 32%); pointer-events:none; }
+  #hud .row { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; pointer-events:auto; }
+  #title { font-size:20px; font-weight:650; letter-spacing:.2px; }
+  #meta { opacity:.72; font-size:12.5px; margin-top:3px; max-width:820px; }
+  #idx { opacity:.6; font-variant-numeric:tabular-nums; font-size:12.5px; margin-top:2px; }
+  .btns { display:flex; gap:10px; }
+  button { pointer-events:auto; border:0; border-radius:10px; padding:12px 18px; font-size:14px; font-weight:650; color:#fff; cursor:pointer; opacity:.9; }
+  button:hover { opacity:1; }
+  .b-bad{background:var(--bad)} .b-ok{background:var(--ok)} .b-good{background:var(--good)}
+  .nav{background:#2a2a30}
+  #bar { position:fixed; top:0; left:0; height:3px; background:linear-gradient(90deg,var(--bad),var(--ok),var(--good)); transition:width .2s; }
+  #tally { position:fixed; top:10px; right:16px; font-size:12.5px; display:flex; gap:14px; background:rgba(0,0,0,.5); padding:7px 12px; border-radius:9px; }
+  #tally b{font-variant-numeric:tabular-nums}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  #grade-badge { position:fixed; top:9px; left:16px; font-weight:700; padding:6px 12px; border-radius:9px; font-size:12.5px; display:none; }
+  #help { position:fixed; top:44px; left:16px; opacity:.5; font-size:11.5px; max-width:230px; }
+  #toast { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); font-size:64px; font-weight:800; opacity:0; transition:opacity .12s; pointer-events:none; text-shadow:0 2px 20px #000; }
+  #style-tag{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-size:12px;opacity:.55;background:rgba(0,0,0,.5);padding:5px 10px;border-radius:8px}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bar"></div>
+<div id="grade-badge"></div>
+<div id="help">1 / B = bad&nbsp;&nbsp;2 / O = ok&nbsp;&nbsp;3 / G = good<br>← → step&nbsp;&nbsp;N = next ungraded&nbsp;&nbsp;S = cycle style<br>E = export grades</div>
+<div id="style-tag"></div>
+<div id="tally"></div>
+<div id="toast"></div>
+<div id="hud"><div class="row">
+  <div>
+    <div id="title">loading…</div>
+    <div id="meta"></div>
+    <div id="idx"></div>
+  </div>
+  <div class="btns">
+    <button class="nav" onclick="step(-1)">◀ Prev</button>
+    <button class="b-bad"  onclick="grade('bad')">Bad (1)</button>
+    <button class="b-ok"   onclick="grade('ok')">OK (2)</button>
+    <button class="b-good" onclick="grade('good')">Good (3)</button>
+    <button class="nav" onclick="step(1)">Next ▶</button>
+    <button class="nav" onclick="exportGrades()">Export (E)</button>
+  </div>
+</div></div>
+
+<script>
+const LSKEY = 'genart-grades-v1';
+let assets = [], cur = 0, curFn = null, curErr = null, t0 = 0, styleIdx = 0;
+let grades = JSON.parse(localStorage.getItem(LSKEY) || '{}');
+
+// ── faithful engine harness (mirrors livecode.html updateClock) ──
+window.state = { audio:{bass:0,lowmid:0,mid:0,treble:0,rms:0,fft:new Array(32).fill(0)}, P:{}, arc:[.2,.4,.7,.9,.3,.6,1,.4] };
+function updateClock(){
+  const t=(performance.now()-t0)/1000, cps=0.5, cycle=t*cps, beat=cycle*4;
+  const secBeats=32, section=Math.floor(beat/secBeats)%8, arc=window.state.arc;
+  window.state.cps=cps;
+  window.state.clk={ t, cps, beat, bar:cycle, cyc:cycle%1, phase:beat%1,
+    pulse:Math.pow(1-(beat%1),3), swell:Math.pow(Math.max(0,Math.sin((beat%1)*Math.PI)),2),
+    section, intensity:arc[section%arc.length], fps:frameRate(), playing:true, generation:0 };
+}
+
+function compile(a){
+  curErr=null; curFn=null;
+  window.state.bg = undefined;          // reset per-asset state (S)
+  window.state.P = {};                  // defaults (asset uses its D)
+  styleIdx = 0; document.getElementById('style-tag').textContent='';
+  try { curFn = new Function(a.code.replace(/__SLOT__/g,'bg')); }
+  catch(e){ curErr = 'compile: '+e.message; }
+  t0 = performance.now();
+  if (typeof background==='function'){ push(); background(0); pop(); }
+}
+
+function show(i){
+  cur = (i+assets.length)%assets.length;
+  const a = assets[cur];
+  compile(a);
+  document.getElementById('title').textContent = a.name + '  ·  ' + a.id;
+  document.getElementById('meta').textContent = a.desc || '';
+  updateHud();
+}
+function updateHud(){
+  const a=assets[cur], g=grades[a.id];
+  document.getElementById('idx').textContent =
+    `${cur+1} / ${assets.length}` + (g?`  ·  graded: ${g.toUpperCase()}`:'  ·  ungraded');
+  const badge=document.getElementById('grade-badge');
+  if(g){ badge.style.display='block'; badge.textContent=g.toUpperCase();
+    badge.style.background=g==='bad'?'var(--bad)':g==='ok'?'var(--ok)':'var(--good)'; }
+  else badge.style.display='none';
+  const n=Object.keys(grades).length;
+  document.getElementById('bar').style.width=(100*n/assets.length)+'%';
+  const c={bad:0,ok:0,good:0}; Object.values(grades).forEach(v=>c[v]++);
+  document.getElementById('tally').innerHTML =
+    `<span><span class="dot" style="background:var(--bad)"></span>bad <b>${c.bad}</b></span>`+
+    `<span><span class="dot" style="background:var(--ok)"></span>ok <b>${c.ok}</b></span>`+
+    `<span><span class="dot" style="background:var(--good)"></span>good <b>${c.good}</b></span>`+
+    `<span>done <b>${n}/${assets.length}</b></span>`;
+}
+function grade(g){
+  const a=assets[cur]; grades[a.id]=g;
+  localStorage.setItem(LSKEY, JSON.stringify(grades));
+  const toast=document.getElementById('toast');
+  toast.textContent = g==='bad'?'✕':g==='good'?'★':'✓';
+  toast.style.color = g==='bad'?'var(--bad)':g==='good'?'var(--good)':'var(--ok)';
+  toast.style.opacity=1; setTimeout(()=>toast.style.opacity=0,180);
+  updateHud();
+  setTimeout(()=>nextUngraded(),140);   // auto-advance to next ungraded
+}
+function step(d){ show(cur+d); }
+function nextUngraded(){
+  for(let k=1;k<=assets.length;k++){ const j=(cur+k)%assets.length; if(!grades[assets[j].id]){ show(j); return; } }
+  step(1); // all graded -> just advance
+}
+function cycleStyle(){
+  const a=assets[cur]; if(!a.styles||!a.styles.length) return;
+  styleIdx=(styleIdx+1)%a.styles.length;
+  window.state.P.bg = Object.assign({}, window.state.P.bg, {style:a.styles[styleIdx]});
+  window.state.bg = undefined; // rebuild caches for new style
+  document.getElementById('style-tag').textContent = 'style: '+a.styles[styleIdx];
+}
+async function exportGrades(){
+  const lines = assets.map(a=>JSON.stringify({id:a.id, grade:grades[a.id]||null}))
+                      .filter(l=>JSON.parse(l).grade);
+  const blob = new Blob([lines.join('\n')+'\n'], {type:'application/json'});
+  const name='visual-grades.jsonl';
+  if(window.showSaveFilePicker){
+    try{ const h=await showSaveFilePicker({suggestedName:name,
+      types:[{description:'grades',accept:{'application/json':['.jsonl','.json']}}]});
+      const w=await h.createWritable(); await w.write(blob); await w.close();
+      alert('Saved '+lines.length+' grades. (bad='+lines.filter(l=>l.includes('"bad"')).length+')'); return; }
+    catch(e){ /* fall through to download */ }
+  }
+  const url=URL.createObjectURL(blob), aEl=document.createElement('a');
+  aEl.href=url; aEl.download=name; aEl.click(); URL.revokeObjectURL(url);
+  alert('Downloaded '+name+' ('+lines.length+' grades). Save it into the repo (assets/visual/).');
+}
+
+addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  if(k==='1'||k==='b') grade('bad');
+  else if(k==='2'||k==='o') grade('ok');
+  else if(k==='3'||k==='g') grade('good');
+  else if(e.key==='ArrowRight') step(1);
+  else if(e.key==='ArrowLeft') step(-1);
+  else if(k==='n') nextUngraded();
+  else if(k==='s') cycleStyle();
+  else if(k==='e') exportGrades();
+});
+
+// ── p5 global-mode sketch ──
+window.setup = function(){
+  const c=createCanvas(windowWidth, windowHeight); c.parent('stage');
+  pixelDensity(1); colorMode(HSB,360,100,100,100); background(0);
+  fetch('assets/visual/genart_manifest.json').then(r=>r.json()).then(list=>{
+    assets=list; // start at first ungraded
+    let start=0; for(let i=0;i<assets.length;i++){ if(!grades[assets[i].id]){start=i;break;} }
+    show(start);
+  }).catch(e=>{ document.getElementById('title').textContent='failed to load manifest: '+e.message; });
+};
+window.draw = function(){
+  updateClock();
+  if(curErr){ background(0); fill(0,80,100); noStroke(); textAlign(CENTER,CENTER); textSize(18);
+    text('⚠ '+curErr, width/2, height/2); return; }
+  if(!curFn) return;
+  try { push(); curFn(); pop(); }
+  catch(e){ pop(); background(0,0,6); curErr='runtime: '+e.message; }
+};
+window.windowResized = function(){ resizeCanvas(windowWidth, windowHeight); };
+</script>
+</body>
+</html>

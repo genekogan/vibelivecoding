@@ -1,0 +1,115 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.dla",
+  "kind": "genart",
+  "name": "DLA Crystal",
+  "desc": "Diffusion-limited aggregation grows dendritic frost from a seed as living random-walk motes stick and branch, restarting each couple of sections, in icy-frost, warm-coral, sumi-ink and phosphor-circuit renderings.",
+  "tags": [
+    "dla",
+    "diffusion limited aggregation",
+    "frost",
+    "crystal",
+    "dendrite",
+    "fractal",
+    "growth",
+    "random walk",
+    "brownian",
+    "generative",
+    "genart",
+    "ice",
+    "snowflake",
+    "coral",
+    "reef",
+    "branching",
+    "aggregation",
+    "organic",
+    "ink",
+    "sumi",
+    "circuit",
+    "phosphor",
+    "abstract",
+    "dark",
+    "backdrop",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "walker population + branch mass (24..154 motes)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "crystal cell size (larger=chunkier/bigger)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "walk steps/frame = growth rate"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "front-glow weight"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "crystal accent hue (frost/coral core)"
+    },
+    "branch": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "deposit dot size (thin filament..fat coral)"
+    },
+    "style": {
+      "default": "frost",
+      "options": [
+        "frost",
+        "coral",
+        "ink",
+        "circuit"
+      ],
+      "doc": "render philosophy: icy glowing dendrite / warm organic reef / sumi ink blots on paper / schematic phosphor node-matrix"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic walk + layout seed (rebuilds aggregate)"
+    },
+    "act": {
+      "default": "grow",
+      "options": [
+        "grow",
+        "bloom",
+        "melt"
+      ],
+      "doc": "dramaturgy: steady central growth / fast bloom-and-hold / bottom-seeded melt regrowing each section"
+    }
+  },
+  "acts": [
+    "grow",
+    "bloom",
+    "melt"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:38:29+00:00",
+    "fps": 60.2,
+    "motion": 0.2553,
+    "lum": 0.515
+  },
+  "code": "const D = { density:.5, scale:1, speed:1, energy:.6, hue:205, branch:.5, style:'frost', act:'grow', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst u = Math.min(width, height);\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:0.6);\nconst restartEvery = (P.act==='melt')?1:2;\nconst epoch = Math.floor((K.section||0)/restartEvery);\nconst cs = Math.max(2.5, u*0.0058*(0.55+P.scale));\nconst cols = Math.max(8, Math.floor(width/cs));\nconst rows = Math.max(8, Math.floor(height/cs));\nconst centerSeed = !(st==='coral' || P.act==='melt');\n\nfunction paintBg(buf, st, hue){\n  buf.noStroke();\n  if (st==='ink') buf.background(40, 9, 88);\n  else if (st==='coral') buf.background(192, 62, 9);\n  else if (st==='circuit') buf.background(160, 45, 5);\n  else buf.background(222, 58, 11);\n  // faint vignette so it never reads flat\n  buf.drawingContext.save();\n  const g = buf.drawingContext.createRadialGradient(buf.width/2,buf.height/2,buf.width*0.1, buf.width/2,buf.height/2,buf.width*0.75);\n  g.addColorStop(0,'rgba(255,255,255,0.04)'); g.addColorStop(1,'rgba(0,0,0,0.28)');\n  buf.drawingContext.fillStyle=g; buf.drawingContext.fillRect(0,0,buf.width,buf.height);\n  buf.drawingContext.restore();\n}\n\nfunction stamp(buf,cx,cy,cs,st,P,rad01,u){\n  const x=(cx+0.5)*cs, y=(cy+0.5)*cs;\n  const r = cs*(0.55 + P.branch*1.0);\n  buf.push(); buf.noStroke();\n  if (st==='circuit'){\n    buf.drawingContext.shadowBlur=6; buf.drawingContext.shadowColor='rgba(80,255,150,0.6)';\n    buf.fill((110+rad01*50)%360, 82, 96, 92);\n    buf.rectMode(CENTER); buf.rect(x,y,r*0.9,r*0.9);\n  } else if (st==='ink'){\n    buf.fill(228, 14, 12, 78);\n    buf.circle(x + (Math.sin(cx*12.9)*r*0.2), y + (Math.cos(cy*7.3)*r*0.2), r*(0.8+ (Math.sin(cx*3.1+cy)*0.3)));\n  } else if (st==='coral'){\n    buf.drawingContext.shadowBlur=5; buf.drawingContext.shadowColor='rgba(255,120,90,0.5)';\n    buf.fill((14 + rad01*40)%360, 74, 96, 88); buf.circle(x,y,r);\n  } else {\n    buf.drawingContext.shadowBlur=8; buf.drawingContext.shadowColor='rgba(190,230,255,0.7)';\n    buf.fill((P.hue + rad01*28)%360, Math.max(6,22-rad01*14), 92+rad01*8, 88); buf.circle(x,y,r);\n  }\n  buf.drawingContext.shadowBlur=0; buf.pop();\n}\n\nfunction spawn(S){\n  const occ=S.occ, cols=S.cols, rows=S.rows;\n  const o = occ.length? occ[(occ.length*S.rnd())|0] : [cols>>1, rows>>1];\n  const ang = S.rnd()*Math.PI*2;\n  const d = 4 + S.rnd()*11;\n  let cx = Math.round(o[0]+Math.cos(ang)*d);\n  let cy = Math.round(o[1]+Math.sin(ang)*d);\n  cx = Math.max(1, Math.min(cols-2, cx));\n  cy = Math.max(1, Math.min(rows-2, cy));\n  return {cx:cx, cy:cy, life: 40 + (S.rnd()*70|0)};\n}\n\nconst key = width+'x'+height+'|'+cs.toFixed(2)+'|'+P.seed+'|'+epoch+'|'+st;\nif (S.key !== key){\n  S.key = key;\n  let z = ((P.seed*2654435761) ^ (epoch*40503)) >>> 0; z = (z+12345)>>>0;\n  S.rnd = ()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  S.cols=cols; S.rows=rows; S.cs=cs;\n  S.grid = new Uint8Array(cols*rows);\n  S.occ = [];\n  if (S.buf) S.buf.remove();\n  S.buf = createGraphics(width,height);\n  S.buf.colorMode(HSB,360,100,100,100);\n  paintBg(S.buf, st, P.hue);\n  const seeds = [];\n  if (centerSeed) seeds.push([cols>>1, rows>>1]);\n  else for (let i=0;i<Math.floor(5+P.density*7);i++) seeds.push([1+Math.floor(S.rnd()*(cols-2)), rows-2]);\n  for (let s=0;s<seeds.length;s++){ const sx=seeds[s][0], sy=seeds[s][1]; S.grid[sy*cols+sx]=1; S.occ.push([sx,sy]); stamp(S.buf, sx, sy, cs, st, P, 0.02, u); }\n  const NW = Math.floor(24 + P.density*130);\n  S.walk = [];\n  for (let i=0;i<NW;i++) S.walk.push(spawn(S));\n  S.rmax = 3;\n}\n\nimage(S.buf,0,0);\n\nconst grid=S.grid, cc=S.cols, rr=S.rows, occ=S.occ, cs2=S.cs, rnd=S.rnd;\nconst steps = Math.max(1, Math.round((2 + P.speed*4) * (0.6+intn) + A.bass*4));\nnoStroke();\nif (st!=='ink') blendMode(ADD);\nconst wl = st==='ink' ? [228,22,20,42] : (st==='circuit'?[135,80,95,50]:(st==='coral'?[16,60,98,46]:[(P.hue)%360,26,98,46]));\nfor (let i=0;i<S.walk.length;i++){\n  let w=S.walk[i];\n  for (let s=0;s<steps;s++){\n    const r=rnd(); w.cx += (r<0.34?-1:(r<0.67?0:1));\n    const r2=rnd(); w.cy += (r2<0.34?-1:(r2<0.67?0:1));\n    if (w.cx<1||w.cx>=cc-1||w.cy<1||w.cy>=rr-1||(--w.life)<=0){ S.walk[i]=spawn(S); w=S.walk[i]; continue; }\n    const gi=w.cy*cc+w.cx;\n    if (grid[gi]){ S.walk[i]=spawn(S); w=S.walk[i]; continue; }\n    if (grid[gi-1]||grid[gi+1]||grid[gi-cc]||grid[gi+cc]){\n      grid[gi]=1; occ.push([w.cx,w.cy]);\n      const dc=w.cx-(cc>>1), dgr=w.cy-(rr>>1); const rad=Math.sqrt(dc*dc+dgr*dgr);\n      if (rad>S.rmax) S.rmax=rad;\n      stamp(S.buf, w.cx, w.cy, cs2, st, P, rad/Math.max(cc,rr), u);\n      S.walk[i]=spawn(S); w=S.walk[i];\n      break;\n    }\n  }\n  const tw = wl[3]*(0.45 + 0.4*Math.sin(K.t*3+i*0.7) + A.treble*0.9);\n  fill(wl[0],wl[1],wl[2], Math.max(0,tw));\n  circle((w.cx+0.5)*cs2,(w.cy+0.5)*cs2, cs2*0.85);\n}\n\nif (centerSeed){\n  const gx=(cc>>1)*cs2, gy=(rr>>1)*cs2;\n  const gr=(S.rmax*cs2);\n  noFill();\n  const frH = st==='circuit'?135:(st==='ink'?228:(P.hue)%360);\n  stroke(frH, st==='ink'?12:30, st==='ink'?40:100, 10+K.pulse*22+A.bass*16);\n  strokeWeight(1.4+P.energy*2.2);\n  circle(gx,gy, gr*2*(1.0+0.025*Math.sin(K.t*2)));\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

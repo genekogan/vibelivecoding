@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.subdivision",
+  "kind": "genart",
+  "name": "Recursive Subdivision",
+  "desc": "A canvas that recursively splits into a De Stijl mosaic, growing and reshuffling over each section while a raking light sweeps the grid and accent cells snap on the beat.",
+  "tags": [
+    "subdivision",
+    "recursive",
+    "grid",
+    "mondrian",
+    "de-stijl",
+    "geometric",
+    "rectangles",
+    "partition",
+    "tiling",
+    "mosaic",
+    "riso",
+    "blueprint",
+    "brutalist",
+    "abstract",
+    "generative",
+    "constructivist",
+    "modular",
+    "architectural",
+    "fullscreen",
+    "background",
+    "minimal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "subdivision depth / cell count"
+    },
+    "accent": {
+      "default": 0.34,
+      "min": 0,
+      "max": 1,
+      "doc": "fraction of cells that are colored accents"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "accent palette anchor hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "beat pulse amplitude on accents"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "doc": "grow/reshuffle + sweep rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.5,
+      "doc": "reserved anchor scale"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (reserved)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (reserved)"
+    },
+    "style": {
+      "default": "mondrian",
+      "options": [
+        "mondrian",
+        "riso",
+        "blueprint",
+        "brutalist"
+      ],
+      "doc": "render philosophy: primaries+black rule / misregistered spot inks / schematic wireframe / raked concrete slabs"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout"
+    },
+    "act": {
+      "default": "grow",
+      "options": [
+        "grow",
+        "pulse",
+        "drift"
+      ],
+      "doc": "dramaturgy: grow-settle-reshuffle / fixed-depth beat / slow continuous re-split"
+    }
+  },
+  "acts": [
+    "grow",
+    "pulse",
+    "drift"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:32:06+00:00",
+    "fps": 59.9,
+    "motion": 0.2195,
+    "lum": 0.563
+  },
+  "code": "const D = { density:.5, accent:.34, hue:8, energy:.6, speed:1, scale:1, x:.5, y:.5, style:'mondrian', act:'grow', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), TAU=Math.PI*2, frc=v=>v-Math.floor(v);\nconst ez=t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst hsh=(i,sd)=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H);\nconst style=P.style, hueP=((P.hue%360)+360)%360, en=clp(P.energy,0,1), accF=clp(P.accent,0,1);\nconst t=K.t*clp(P.speed,0,4), pulse=K.pulse, bass=A.bass||0, treb=A.treble||0;\n\nconst dMax=Math.round(3+clp(P.density,0,1)*4);\nlet depth, shufSeed;\nif(P.act==='pulse'){ depth=dMax; shufSeed=P.seed*131+7; }\nelse if(P.act==='drift'){ depth=Math.round(2+(dMax-2)*(.5+.5*Math.sin(t*0.05))); shufSeed=P.seed*131+Math.floor(t/90); }\nelse { const cph=frc(t/30); depth=Math.round(1+ez(cph*1.5)*(dMax-1)); shufSeed=P.seed*131+Math.floor(t/30); }\n\nconst lkey=W+'x'+H+'|'+depth+'|'+shufSeed;\nif(S.lkey!==lkey){\n  S.lkey=lkey;\n  const rects=[]; const minS=Math.min(W,H)*0.06;\n  const rec=(x,y,w,h,dp,idx)=>{\n    if(dp<=0 || w<minS*2 || h<minS*2){ rects.push({x,y,w,h,idx}); return; }\n    if(hsh(idx*5.9,shufSeed)<0.13){ rects.push({x,y,w,h,idx}); return; }\n    const vert=(w>h)?(hsh(idx*1.3,shufSeed)>0.22):(hsh(idx*1.3,shufSeed)>0.78);\n    const ratio=0.32+hsh(idx*4.1,shufSeed)*0.36;\n    if(vert){ const sw=w*ratio; rec(x,y,sw,h,dp-1,idx*2+1); rec(x+sw,y,w-sw,h,dp-1,idx*2+2); }\n    else { const sh=h*ratio; rec(x,y,w,sh,dp-1,idx*2+1); rec(x,y+sh,w,h-sh,dp-1,idx*2+2); }\n  };\n  rec(0,0,W,H,depth,1);\n  for(let n=0;n<rects.length;n++){ const rc=rects[n];\n    rc.acc=hsh(rc.idx*9.3+n*0.7,shufSeed); rc.col=Math.floor(hsh(rc.idx*3.7,shufSeed)*3);\n    rc.ph=hsh(rc.idx*6.1,shufSeed)*TAU; rc.g=0.5+hsh(rc.idx*2.2,shufSeed)*0.5; }\n  S.rects=rects;\n}\nconst rects=S.rects;\n\nconst sweepPos=frc(t*0.05)*(W+H*0.55);\nconst sweepAmp=u*0.22;\nconst sweepOf=(ccx,ccy)=>{ const dd=(ccx+ccy*0.55)-sweepPos; return Math.exp(-(dd*dd)/(2*sweepAmp*sweepAmp)); };\n\nconst bw=Math.max(1.5,u*0.011);\n\nif(style==='blueprint'){\n  noStroke(); fill(214,72,19); rect(0,0,W,H);\n  for(let n=0;n<rects.length;n++){ const rc=rects[n]; const ccx=rc.x+rc.w/2, ccy=rc.y+rc.h/2; const sw=sweepOf(ccx,ccy);\n    const isAcc=rc.acc<accF; const beat=isAcc?pulse*en:0;\n    if(isAcc){ noStroke(); fill(196,55,26+sw*10+beat*14,90); rect(rc.x,rc.y,rc.w,rc.h); }\n    noFill(); stroke(196,70,70+sw*22+beat*25, 70+sw*30); strokeWeight(Math.max(1,u*0.0028)); rect(rc.x,rc.y,rc.w,rc.h);\n    if(rc.w>u*0.12 && rc.h>u*0.12){ stroke(196,60,55,40); strokeWeight(1); line(rc.x+4,rc.y+4,rc.x+rc.w*0.28,rc.y+4); } }\n} else if(style==='brutalist'){\n  noStroke();\n  for(let n=0;n<rects.length;n++){ const rc=rects[n]; const ccx=rc.x+rc.w/2, ccy=rc.y+rc.h/2; const sw=sweepOf(ccx,ccy);\n    const isAcc=rc.acc<accF*0.5; const beat=isAcc?pulse*en:0;\n    let cb=24+rc.g*30+sw*26; let cs=4, ch=30;\n    if(isAcc){ ch=(hueP+ (rc.col===0?0:rc.col===1?18:-8))%360; cs=88; cb=62+beat*18+sw*14; }\n    fill(ch,cs,clp(cb,6,92)); rect(rc.x,rc.y,rc.w,rc.h);\n    fill(0,0,6,55); rect(rc.x,rc.y+rc.h-bw*1.4,rc.w,bw*1.4); rect(rc.x+rc.w-bw*1.4,rc.y,bw*1.4,rc.h);\n    fill(0,0,90,26); rect(rc.x,rc.y,rc.w,bw*0.7); rect(rc.x,rc.y,bw*0.7,rc.h); }\n} else if(style==='riso'){\n  noStroke(); fill(40,12,85); rect(0,0,W,H);\n  const off=u*0.007*(0.6+0.4*Math.sin(t*0.35));\n  for(let n=0;n<rects.length;n++){ const rc=rects[n]; const isAcc=rc.acc<accF; if(!isAcc) continue;\n    const ccx=rc.x+rc.w/2, ccy=rc.y+rc.h/2; const sw=sweepOf(ccx,ccy); const beat=pulse*en;\n    const ink=rc.col; const h1=ink===0?335:ink===1?205:52, h2=ink===0?205:ink===1?52:335;\n    blendMode(MULTIPLY);\n    fill(h1,72,90-beat*8,72+sw*20); rect(rc.x+off,rc.y-off,rc.w,rc.h);\n    fill(h2,70,84,66+sw*18); rect(rc.x-off,rc.y+off,rc.w,rc.h);\n    blendMode(BLEND); }\n  blendMode(BLEND);\n  for(let n=0;n<rects.length;n++){ const rc=rects[n]; noFill(); stroke(30,10,40,28); strokeWeight(1); rect(rc.x,rc.y,rc.w,rc.h); }\n} else {\n  const prim=[[hueP,86,86],[(hueP+214)%360,80,70],[(hueP+44)%360,90,90]];\n  noStroke(); fill(45,5,80); rect(0,0,W,H);\n  for(let n=0;n<rects.length;n++){ const rc=rects[n]; const ccx=rc.x+rc.w/2, ccy=rc.y+rc.h/2; const sw=sweepOf(ccx,ccy);\n    const isAcc=rc.acc<accF; const beat=isAcc?pulse*en:0;\n    if(isAcc){ const pc=prim[rc.col]; const sh=6*Math.sin(t*0.6+rc.ph); fill(pc[0],pc[1],clp(pc[2]+sw*8+beat*15+sh,10,95)); }\n    else fill(45,5,clp(80+sw*9,10,90));\n    stroke(0,0,8); strokeWeight(bw); rect(rc.x,rc.y,rc.w,rc.h); }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

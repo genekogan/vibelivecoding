@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.checker",
+  "kind": "floor",
+  "name": "Checkerboard Floor",
+  "desc": "Infinite two-tone checkerboard receding to a vanishing point, tiles scrolling toward the viewer with beat-driven flip and shimmer.",
+  "tags": [
+    "checkerboard",
+    "checker",
+    "floor",
+    "perspective",
+    "two-tone",
+    "graphic",
+    "op-art",
+    "ska",
+    "diner",
+    "retro",
+    "monochrome",
+    "noir",
+    "scroll",
+    "tiles",
+    "halftone",
+    "vanishing-point",
+    "stage",
+    "dance"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "tile resolution (depth rows x columns)"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "beat-flip brightness + shimmer amplitude"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "primary tile hue (graphic style; other tone is complementary)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "depth scroll rate toward viewer"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "tile size / perspective spread"
+    },
+    "warp": {
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "doc": "perspective spread + op-art column warp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.12,
+      "max": 0.88,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0.25,
+      "max": 0.72,
+      "doc": "horizon y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed (reserved variation)"
+    },
+    "style": {
+      "default": "graphic",
+      "options": [
+        "graphic",
+        "op",
+        "noir",
+        "halftone"
+      ],
+      "doc": "aesthetic: bold two-tone graphic / warped op-art / high-contrast noir grayscale / halftone dot-matrix"
+    },
+    "act": {
+      "default": "cruise",
+      "options": [
+        "cruise",
+        "pulse",
+        "tide"
+      ],
+      "doc": "dramaturgy: steady cruise / beat-surging pulse / slow-breathing tide"
+    }
+  },
+  "acts": [
+    "cruise",
+    "pulse",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:11:44+00:00",
+    "fps": 57.5,
+    "motion": 0.0706,
+    "lum": 0.239
+  },
+  "code": "const D = { density:.5, energy:.55, hue:20, speed:1, scale:1, warp:.2, x:.5, y:.44, seed:0, style:'graphic', act:'cruise' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style, H = P.hue;\nconst hz = cl(P.y, .25, .72) * height;\nconst cx = cl(P.x, .12, .88) * width;\nconst groundH = Math.max(24, height - hz);\nconst yOf = t => hz + Math.pow(cl(t,0,1), 1.9) * groundH;\nconst hwOf = t => width * (.03 + t*1.05) * .5 * P.scale * (1 + P.warp*.55);\nconst NW = Math.round(6 + P.density*12);   // world depth rows visible\nconst NC = Math.round(4 + P.density*10);   // columns (fixed)\n\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nS.tre  = (S.tre||0)*.8 + (A.treble||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.5 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5 + .5*K.intensity) + S.bass*.55);\n\n// real-time depth scroll (integrates seconds \u2014 never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.55 + .9*K.intensity);\nif (P.act === 'pulse') sp *= .4 + 1.4*kick;\nif (P.act === 'tide')  sp *= .3 + 1.1*(.5 + .5*Math.sin(K.t*.05 + K.section*.9));\nS.scroll = (S.scroll||0) + dt*sp*.55;\nconst scroll = S.scroll, frac = scroll - Math.floor(scroll), base = Math.floor(scroll);\n\n// cached floor backdrop gradient\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+Math.round(P.y*20)+'|'+Math.round(P.scale*8)+'|'+Math.round(P.warp*10);\nif (!S.base || S.key !== key) {\n  const g = (S.base && S.base.width===width && S.base.height===height) ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 44;\n  for (let i=0;i<STR;i++){ const f=i/STR, y=hz + f*groundH;\n    let h,s,b;\n    if (sty==='noir'){ h=0; s=0; b=6 + 10*f; }\n    else if (sty==='op'){ h=0; s=0; b=10 + 8*f; }\n    else if (sty==='halftone'){ h=H; s=10; b=8 + 12*f; }\n    else { h=H; s=30-14*f; b=10 + 14*f; }   // graphic\n    g.fill(h, cl(s,0,90), b, 100); g.rect(0, y, width, groundH/STR + 1);\n  }\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// two tones per style (partial beat brighten \u2014 never a full-frame invert)\nconst bump = kick*.18*P.energy;\nfunction tone(parity, near){\n  let h,s,b;\n  if (sty==='noir'){ h=0; s=0; b = parity ? cl(88 - 34*(1-near) + bump*40, 6, 98) : cl(10 + 8*near, 3, 40); }\n  else if (sty==='op'){ h=0; s=0; b = parity ? cl(95 + bump*20, 6, 100) : 6; }\n  else if (sty==='halftone'){ h=0; s=0; b = 5 + 8*near; }  // bg tone; dots drawn separately\n  else { // graphic: two-tone hue pair\n    if (parity){ h=H; s=cl(72 - 30*(1-near), 20, 92); b=cl(72 + 22*near + bump*45, 30, 100); }\n    else { h=(H+180)%360; s=cl(60 - 26*(1-near), 15, 85); b=cl(26 + 20*near, 14, 70); }\n  }\n  return [h, cl(s,0,100), cl(b,2,100)];\n}\n\n// scrolling perspective checker \u2014 world rows physically travel toward viewer\nnoStroke();\nfor (let w=-1; w<=NW; w++){\n  const t0=(w - frac)/NW, t1=(w+1 - frac)/NW;\n  if (t1<=0 || t0>=1) continue;\n  const tt0=cl(t0,0,1), tt1=cl(t1,0,1);\n  const y0=yOf(tt0), y1=yOf(tt1), near=(tt0+tt1)/2;\n  const wi = w + base;\n  // op-art column warp phase travels with depth\n  const warpAmt = (sty==='op') ? P.warp*0.5 : 0;\n  for (let c=0;c<NC;c++){\n    const parity = (wi + c) & 1;\n    let u0=c/NC, u1=(c+1)/NC;\n    if (warpAmt){ u0 += warpAmt*Math.sin(c*1.3 + wi*.9)/NC; u1 += warpAmt*Math.sin((c+1)*1.3 + wi*.9)/NC; }\n    const hw0=hwOf(tt0), hw1=hwOf(tt1);\n    const xa=cx-hw0+u0*2*hw0, xb=cx-hw0+u1*2*hw0;\n    const xc=cx-hw1+u1*2*hw1, xd=cx-hw1+u0*2*hw1;\n    if (sty==='halftone'){\n      // dot-matrix: light parity -> big dot, dark -> small\n      const mx=(xa+xb+xc+xd)/4, my=(y0+y1)/2;\n      const cw=Math.min(Math.abs(xb-xa), Math.abs(y1-y0));\n      const val = parity ? .92 : .18;\n      fill(0,0, 4 + 90*val*(.6+.4*near), 100);\n      ellipse(mx, my, cw*(.2+.7*val), cw*(.2+.7*val)*.7);\n      continue;\n    }\n    const cc = tone(parity, near);\n    fill(cc[0], cc[1], cc[2], 100);\n    quad(xa,y0, xb,y0, xc,y1, xd,y1);\n  }\n}\n\n// specular / rim shimmer sweep across the plane (continuous, additive, partial)\npush(); blendMode(ADD); noStroke();\nconst bandY = hz + (( (K.t*.12*P.speed)%1 ) * groundH);\nfor (let i=0;i<3;i++){ const yy=bandY + i*groundH*.04;\n  fill((sty==='graphic'?H:0), sty==='graphic'?40:0, 100, (4 + 6*glow)); rect(0, yy, width, groundH*.05); }\npop();\n\n// horizon glow (partial, safe)\npush(); blendMode(ADD); noStroke();\nconst flare=(kick*.5 + K.swell*.3)*glow;\nfor (let i=0;i<4;i++){ const rr=(4-i)*groundH*.045*(1+flare);\n  fill((sty==='graphic'?H:(sty==='op'?0:H)), sty==='op'?0:40, 96, 3 + 7*flare); rect(0, hz-rr*.35, width, rr*.7); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

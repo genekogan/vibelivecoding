@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.petals",
+  "kind": "fx",
+  "name": "Cherry Petals",
+  "desc": "Sakura petals tumble and foreshorten as they fall, drifting on a seeded breeze with bass gusts that scatter them sideways.",
+  "tags": [
+    "petals",
+    "sakura",
+    "cherry",
+    "blossom",
+    "flower",
+    "falling",
+    "tumble",
+    "drift",
+    "spring",
+    "pink",
+    "hanami",
+    "wind",
+    "gust",
+    "confetti",
+    "romantic",
+    "delicate",
+    "japan",
+    "ukiyo-e",
+    "woodblock",
+    "riso",
+    "ink",
+    "sumi",
+    "wireframe",
+    "overlay",
+    "fx",
+    "cover"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "number of petals"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fall speed + petal size + gust response"
+    },
+    "hue": {
+      "default": 335,
+      "min": 0,
+      "max": 360,
+      "doc": "petal base hue (335=sakura pink)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.5,
+      "doc": "fall + tumble rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "petal size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor (petals span full width)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor (petals span full height)"
+    },
+    "wind": {
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "doc": "steady horizontal drift bias (0.2=calm)"
+    },
+    "tumble": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "rotation + 3D flip chaos"
+    },
+    "style": {
+      "default": "sakura",
+      "options": [
+        "sakura",
+        "ink",
+        "riso",
+        "woodblock",
+        "wire"
+      ],
+      "doc": "sakura=soft gradient petals no hard outline / ink=sumi dry-brush tonal strokes / riso=two-ink misregistration print / woodblock=flat ukiyo-e with hard outline / wire=contour wireframe only (abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "petal layout seed"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:24:32+00:00",
+    "fps": 61.3,
+    "motion": 0.0373,
+    "lum": 0.101
+  },
+  "code": "const D = { density:.55, energy:.6, hue:335, speed:1, scale:1, x:.5, y:.5, wind:.2, tumble:.6, style:'sakura', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style;\nconst sakura=st==='sakura',ink=st==='ink',riso=st==='riso',woodblock=st==='woodblock',wire=st==='wire';\n\nconst en=clp(P.energy,0,1);\n// gust on bass, blended over baseline breeze\nconst breeze=Math.sin(K.t*0.35)*0.5+Math.sin(K.t*0.13+1.7)*0.5;\nconst gust=(A.bass*0.9+A.lowmid*0.4);\nconst windX=(P.wind-0.2)*2 + breeze*(0.35+en*0.5) + gust*0.8;\n\nconst nP=Math.round(lrp(16,120,clp(P.density,0,1)));\nconst fall=(0.05+en*0.09)*P.speed;\nconst tmb=0.5+P.tumble*2.4;\n\nfunction petalCol(seedv,lifeY){\n  if(ink){ return [md(H,360), 6, lrp(30,58,frc(seedv))]; }\n  if(riso){ return frc(seedv*3.3)<0.5? [md(H,360),72,92] : [md(H+150,360),58,80]; }\n  if(woodblock){ return [md(H+lrp(-8,10,frc(seedv)),360), lrp(30,62,frc(seedv*1.7)), lrp(78,95,frc(seedv))]; }\n  // sakura: soft pinks, pale to warm\n  return [md(H+lrp(-14,16,frc(seedv)),360), lrp(18,44,frc(seedv*1.9)), lrp(88,100,frc(seedv))];\n}\n\nfunction petalShape(rr,fillOn){\n  // single blossom petal with notch, pointing up (-y)\n  if(fillOn) beginShape();\n  else beginShape();\n  vertex(0, rr*0.9);\n  bezierVertex(rr*0.62,rr*0.5, rr*0.62,-rr*0.55, rr*0.12,-rr*0.92);\n  bezierVertex(rr*0.05,-rr*0.78, -rr*0.05,-rr*0.78, -rr*0.12,-rr*0.92);\n  bezierVertex(-rr*0.62,-rr*0.55, -rr*0.62,rr*0.5, 0,rr*0.9);\n  endShape(CLOSE);\n}\n\nfor(let i=0;i<nP;i++){\n  const sd=i+1;\n  const sz=u*(0.016+0.03*fr(sd*2))*P.scale*(0.7+en*0.5);\n  const spd=0.6+fr(sd*3)*0.9;\n  const life=frc(fr(sd*5) + K.t*fall*spd);          // 0 top -> 1 bottom, continuous\n  const sway=Math.sin(K.t*1.2*tmb*spd + fr(sd*7)*6.28)*u*0.07*(0.5+P.tumble);\n  const px=frc(fr(sd*11) + windX*life*0.35 + K.t*0.006*windX) * (W+u*0.2) - u*0.1 + sway;\n  const py=life*(Hh+u*0.1)-u*0.05;\n  const rot=(fr(sd*13)*6.28) + K.t*tmb*spd*(fr(sd*17)<0.5?1:-1) + gust*2;\n  const flip=0.35+0.65*Math.abs(Math.sin(K.t*1.6*tmb*spd + fr(sd*19)*6.28)); // foreshorten = tumble in 3D\n  const col=petalCol(fr(sd*23), life);\n\n  push();\n  translate(px,py);\n  rotate(rot);\n  scale(1, flip);\n\n  if(wire){\n    noFill(); stroke(col[0],clp(col[1]+20,0,100),col[2], 85); strokeWeight(Math.max(0.8,u*0.0016));\n    petalShape(sz,false);\n    line(0,sz*0.85,0,-sz*0.85);\n  } else if(woodblock){\n    fill(col[0],col[1],col[2]); stroke(md(H+2,360),70,28,90); strokeWeight(Math.max(1,u*0.0022));\n    petalShape(sz,true);\n    noStroke();\n  } else if(ink){\n    noStroke();\n    // dry-brush: two offset tonal strokes\n    fill(col[0],col[1],col[2], 78); petalShape(sz,true);\n    fill(col[0],col[1],clp(col[2]-18,0,100), 55); push(); translate(sz*0.06,-sz*0.05); scale(0.7,0.86); petalShape(sz,true); pop();\n  } else if(riso){\n    noStroke();\n    // misregistration: second ink offset + halftone feel via alpha\n    const c2=frc(fr(sd*23)*3.3)<0.5? [md(H+150,360),58,80] : [md(H,360),72,92];\n    fill(c2[0],c2[1],c2[2], 62); push(); translate(sz*0.14,sz*0.1); petalShape(sz,true); pop();\n    fill(col[0],col[1],col[2], 78); petalShape(sz,true);\n  } else {\n    // sakura: soft gradient body + subtle vein, no hard outline\n    noStroke();\n    fill(col[0],clp(col[1]-8,0,100),col[2], 92); petalShape(sz,true);\n    fill(md(H+8,360),clp(col[1]+22,0,100),clp(col[2]-6,0,100), 55); push(); scale(0.6,0.94); petalShape(sz,true); pop();\n    stroke(md(H+4,360),clp(col[1]+30,0,100),clp(col[2]-14,0,100),40); strokeWeight(Math.max(0.6,u*0.0012)); line(0,sz*0.6,0,-sz*0.55); noStroke();\n  }\n  pop();\n}\n\nblendMode(BLEND);\ndrawingContext.shadowBlur=0;\n"
+}

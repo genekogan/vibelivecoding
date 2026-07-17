@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.god_rays",
+  "kind": "fx",
+  "name": "God Rays",
+  "desc": "Volumetric light shafts fanning from a corner with dust motes drifting inside, the whole fan swinging slowly while brightness tracks the musical intensity.",
+  "tags": [
+    "god-rays",
+    "godrays",
+    "crepuscular",
+    "light-shafts",
+    "sunbeam",
+    "sunbeams",
+    "volumetric",
+    "light",
+    "rays",
+    "beams",
+    "dust",
+    "motes",
+    "atmosphere",
+    "haze",
+    "dawn",
+    "cathedral",
+    "stained-glass",
+    "holy",
+    "sacred",
+    "divine",
+    "window",
+    "forest-light",
+    "fog",
+    "corner",
+    "fx",
+    "effect",
+    "overlay",
+    "ambient",
+    "light-source"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ray brightness + mote amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of shafts + dust motes"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "reserved overall scale"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "light hue (44=golden; try 200 cold, 12 sunset)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "swing + flicker + mote drift rate"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "angular width of the fan + beam taper"
+    },
+    "x": {
+      "default": 0.12,
+      "min": 0,
+      "max": 1,
+      "doc": "light source corner x"
+    },
+    "y": {
+      "default": 0.06,
+      "min": 0,
+      "max": 1,
+      "doc": "light source corner y"
+    },
+    "style": {
+      "default": "volumetric",
+      "options": [
+        "volumetric",
+        "cathedral",
+        "crepuscular",
+        "scanline",
+        "blueprint"
+      ],
+      "doc": "volumetric=soft warm additive shafts / cathedral=hard stained-glass colored beams w/ leaded edges / crepuscular=atmospheric graded haze / scanline=CRT phosphor banded light (abstract) / blueprint=schematic ray-diagram vectors + angle arc (abstract)"
+    },
+    "act": {
+      "default": "dawn",
+      "options": [
+        "dawn",
+        "flicker",
+        "noon"
+      ],
+      "doc": "dawn=slow brighten/dim breathing / flicker=clouds pass and occlude intermittently / noon=steady strong beams"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "beam offsets + mote layout"
+    }
+  },
+  "acts": [
+    "dawn",
+    "flicker",
+    "noon"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:22:53+00:00",
+    "fps": 59.5,
+    "motion": 0.041,
+    "lum": 0.139
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, hue:44, speed:1, spread:.5, x:.12, y:.06, style:'volumetric', act:'dawn', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst md=(a,n)=>((a%n)+n)%n, frc=v=>v-Math.floor(v), clp=(v,a,b)=>Math.max(a,Math.min(b,v)), lrp=(a,b,t)=>a+(b-a)*t, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360), st=P.style;\nconst vol=st==='volumetric', cath=st==='cathedral', crep=st==='crepuscular', scan=st==='scanline', blue=st==='blueprint';\nconst en=clp(P.energy,0,1), dens=clp(P.density,0,1), spread=clp(P.spread,0,1), spd=P.speed;\n// strength follows musical intensity + audio, over a live-carrying baseline\nconst strength = clp(0.35 + 0.5*K.intensity + 0.25*K.swell + 0.35*A.rms + 0.2*K.pulse, 0, 1.4) * (0.4+0.8*en);\n\n// ---- act dramaturgy ----\nlet bright=1, swingA=1, occl=0;\nif(P.act==='dawn'){ bright=0.35+0.65*(0.5+0.5*Math.sin(K.t*0.02-1.2)); }          // slow brighten/dim cycle\nelse if(P.act==='flicker'){ occl=Math.max(0,Math.sin(K.t*0.5)*Math.sin(K.t*0.17)); bright=1-0.55*occl; swingA=1.3; } // clouds pass\nelse if(P.act==='noon'){ bright=1.05; swingA=0.6; }\n\n// source corner (P.x,P.y) \u2014 beams fan outward from it\nconst sx=P.x*W, sy=P.y*Hh;\n// central emission angle points from source toward opposite side of canvas\nconst baseAng=Math.atan2((Hh*0.62-sy),(W*0.5-sx));\nconst swing=Math.sin(K.t*0.06*spd)*0.16*swingA + Math.sin(K.t*0.021+1.3)*0.06; // slow sway, real-time\nconst fan = lrp(0.25,1.25,spread);                 // total angular spread of the fan\nconst NR = Math.max(3, Math.round(lrp(4,16,dens)));\nconst rayLen = Math.hypot(W,Hh)*1.15;\n\nif(S.seedUsed!==P.seed || S.NR!==NR){\n  S.seedUsed=P.seed; S.NR=NR; S.ray=[]; S.mote=[];\n  for(let i=0;i<NR;i++) S.ray.push({ off:(i/(NR-1)-0.5), w:0.5+fr(i*3.1+1), fl:fr(i*5.7+2)*TAU, sp:0.5+fr(i*7.3+3), hj:(fr(i*2.2+4)-0.5)*20 });\n  for(let i=0;i<160;i++) S.mote.push({ a:fr(i*1.7+9), d:fr(i*3.3+10), sp:0.3+fr(i*5.9+11), ph:fr(i*7.1+12)*TAU, sz:0.4+fr(i*2.6+13) });\n}\n\nconst oldOp=drawingContext.globalCompositeOperation;\n\n// beam color by style\nfunction beamCol(hj,f){\n  if(cath){ const hh=md(H+hj*3+ f*140,360); return [hh, 75, 100]; }   // stained glass \u2014 saturated, hue varies per beam\n  if(blue){ return [205, 55, 100]; }\n  if(crep){ return [md(H+hj*0.5,360), lrp(55,20,f), 100]; }\n  return [md(H+hj,360), lrp(45,12,f), 100];                             // volumetric warm\n}\n\n// ---- draw shafts ----\nif(blue){\n  // schematic ray diagram: thin construction lines + angle arc + source node (abstract)\n  stroke(205,55,100, clp(45+40*strength,0,90)); strokeWeight(Math.max(1,u*0.0016)); noFill();\n  for(let i=0;i<NR;i++){ const R=S.ray[i]; const ang=baseAng+swing+R.off*fan;\n    const ex=sx+Math.cos(ang)*rayLen, ey=sy+Math.sin(ang)*rayLen;\n    // dashed\n    const dn=26; for(let d=0;d<dn;d++){ if(d%2) continue; const t0=d/dn,t1=(d+1)/dn; line(lrp(sx,ex,t0),lrp(sy,ey,t0),lrp(sx,ex,t1),lrp(sy,ey,t1)); } }\n  // angle arc + source\n  noFill(); stroke(205,60,100,70); arc(sx,sy,u*0.3,u*0.3, baseAng+swing-fan*0.5, baseAng+swing+fan*0.5);\n  noStroke(); fill(205,60,100,90); circle(sx,sy,u*0.02);\n} else {\n  blendMode(scan?SCREEN:ADD);\n  noStroke();\n  for(let i=0;i<NR;i++){\n    const R=S.ray[i];\n    const ang=baseAng+swing+R.off*fan;\n    const flick=0.6+0.4*Math.sin(K.t*(0.5+R.sp*0.8)*spd+R.fl)+0.15*Math.sin(K.t*1.7+R.fl*2);\n    const amp=strength*bright*flick*(0.5+0.7*R.w);\n    if(amp<=0.02) continue;\n    // beam as a long thin triangle-ish quad widening away from source\n    const halfW0=u*0.006*(0.5+R.w);\n    const halfW1=u*lrp(0.02,0.09,spread)*(0.5+R.w)*(cath?0.6:1);\n    const perpAng=ang+Math.PI/2;\n    const px=Math.cos(perpAng), py=Math.sin(perpAng);\n    const ex=sx+Math.cos(ang)*rayLen, ey=sy+Math.sin(ang)*rayLen;\n    // layered translucent slices for soft volumetric falloff\n    const layers=cath?1:3;\n    for(let L=0;L<layers;L++){\n      const lw=lrp(1,0.35,L/Math.max(1,layers-1));\n      const col=beamCol(R.hj, L/layers);\n      const a=clp((cath?26:12)*amp*lw,0,cath?30:26);\n      fill(col[0], cath?col[1]:clp(col[1]-L*6,0,100), 100, a);\n      const w0=halfW0*lw, w1=halfW1*lw;\n      quad(sx-px*w0, sy-py*w0, sx+px*w0, sy+py*w0, ex+px*w1, ey+py*w1, ex-px*w1, ey-py*w1);\n    }\n    if(cath){\n      // stained-glass leaded edge\n      stroke(0,0,10,20*amp); strokeWeight(Math.max(0.6,u*0.0012)); noFill();\n      line(sx-px*halfW1, sy-py*halfW1, ex-px*halfW1, ey-py*halfW1);\n      line(sx+px*halfW1, sy+py*halfW1, ex+px*halfW1, ey+py*halfW1);\n      noStroke();\n    }\n  }\n  blendMode(BLEND);\n}\n\n// ---- source flare bloom ----\nif(!blue){\n  blendMode(ADD); noStroke();\n  const fr0=u*(0.05+0.14*spread)*(0.7+0.5*strength*bright);\n  const fc= cath?[md(H+40,360),40,100]:[md(H,360),cath?40:22,100];\n  for(let r=5;r>0;r--){ const tt=r/5; fill(fc[0],fc[1],100, clp(20*(1-tt)*(1-tt)*strength*bright,0,30)); ellipse(sx,sy,fr0*tt*2,fr0*tt*2); }\n  blendMode(BLEND);\n}\n\n// ---- dust motes drifting inside the light cone (continuous, real-time) ----\nif(!blue){\n  blendMode(scan?BLEND:ADD); noStroke();\n  const coneA0=baseAng+swing-fan*0.5, coneA1=baseAng+swing+fan*0.5;\n  const nM=Math.round(160*clp(0.3+dens,0,1));\n  for(let i=0;i<nM;i++){\n    const M=S.mote[i];\n    const ang=lrp(coneA0,coneA1,M.a);\n    // drift outward along the shaft, loop\n    const life=frc(M.d + K.t*0.03*M.sp*spd);\n    const dist=life*rayLen*0.9 + u*0.05;\n    const wob=Math.sin(K.t*0.4*M.sp+M.ph)*u*0.02;\n    const perpAng=ang+Math.PI/2;\n    const mx=sx+Math.cos(ang)*dist+Math.cos(perpAng)*wob;\n    const my=sy+Math.sin(ang)*dist+Math.sin(perpAng)*wob;\n    const twk=0.4+0.6*Math.sin(K.t*(1.5+M.sp*2)+M.ph);\n    const a=clp((1-life)*strength*bright*(0.5+twk)*35,0,45)*(0.6+A.treble*0.8);\n    const sz=u*0.0028*M.sz*(0.6+twk);\n    const col= cath?[md(H+M.a*120,360),40,100]:[md(H+M.ph*3,360),15,100];\n    fill(col[0],col[1],col[2],a);\n    circle(mx,my,sz);\n  }\n  blendMode(BLEND);\n}\n\n// ---- scanline style overlay (retro CRT banding \u2014 abstract) ----\nif(scan){\n  blendMode(MULTIPLY);\n  stroke(0,0,0,40); strokeWeight(1);\n  const off=md(K.t*u*0.15,4);\n  for(let y=-off;y<Hh;y+=4) line(0,y,W,y);\n  blendMode(SCREEN);\n  // rolling bright band\n  const bandY=md(K.t*u*0.2,Hh*1.2)-Hh*0.1;\n  noStroke(); fill(md(H,360),30,100,10*strength); rect(0,bandY-u*0.05,W,u*0.1);\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); drawingContext.globalCompositeOperation=oldOp; drawingContext.shadowBlur=0; noStroke();\n"
+}

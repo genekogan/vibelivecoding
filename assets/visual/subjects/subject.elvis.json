@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.elvis",
+  "kind": "subject",
+  "name": "Elvis",
+  "desc": "A rhinestone-jumpsuit rock'n'roll king with pompadour, sideburns and shades who swivels his hips, croons into the mic, kicks and karate-chops and points to the crowd on the beat \u2014 rendered as spotlit chiaroscuro noir, CMYK halftone pop-print, Vegas neon outline or pure backlit silhouette.",
+  "tags": [
+    "elvis",
+    "presley",
+    "rockstar",
+    "singer",
+    "musician",
+    "performer",
+    "vegas",
+    "jumpsuit",
+    "pompadour",
+    "rock",
+    "fifties",
+    "seventies",
+    "king",
+    "icon",
+    "dancer",
+    "hips",
+    "noir",
+    "halftone",
+    "neon",
+    "silhouette",
+    "gold",
+    "character",
+    "human"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "motion/glow amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.3,
+      "doc": "size vs design (~0.45u tall at 1)"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "key-light/accent hue (40=warm gold spotlight)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rhinestone studs + spotlight dust count"
+    },
+    "hair": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.9,
+      "doc": "pompadour height morph"
+    },
+    "flare": {
+      "default": 1,
+      "min": 0,
+      "max": 2,
+      "doc": "bell-bottom / cuff flare morph"
+    },
+    "chub": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "build/girth morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic stud/dust layout"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "swivel",
+        "sing",
+        "dance",
+        "karate",
+        "point"
+      ],
+      "doc": "pose preset; auto = section-driven medley per act"
+    },
+    "style": {
+      "default": "noir",
+      "options": [
+        "noir",
+        "halftone",
+        "neon",
+        "silhouette"
+      ],
+      "doc": "aesthetic: spotlit chiaroscuro / CMYK halftone print / Vegas neon outline / backlit pure silhouette"
+    },
+    "act": {
+      "default": "vegas",
+      "options": [
+        "vegas",
+        "ballad",
+        "comeback"
+      ],
+      "doc": "multi-minute pose dramaturgy used when pose=auto"
+    }
+  },
+  "acts": [
+    "vegas",
+    "ballad",
+    "comeback"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:56:59+00:00",
+    "fps": 59.9,
+    "motion": 0.0184,
+    "lum": 0.105
+  },
+  "code": "const D = { hue: 40, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .56, style: 'noir', pose: 'auto', act: 'vegas', seed: 0, hair: 1, flare: 1, chub: .4 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst s = u * 0.0016 * P.scale;\nconst bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nconst am = .8 + .3 * Math.sin(K.t * .29 + fr(6) * 6);\nconst eAmp = P.energy * (.5 + .7 * K.intensity) * am;\nconst kick = Math.min(1, K.pulse * (.5 + .5 * K.intensity) + A.bass * .7);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\nif (S.lastBeat == null || K.beat < S.lastBeat) S.lastBeat = K.beat;\nS.lastBeat = K.beat;\n\nif (S.seedUsed !== P.seed || !S.dust) {\n  S.seedUsed = P.seed;\n  S.dust = []; for (let i = 0; i < 20; i++) S.dust.push({ x: (fr(i) - .5) * 2, y: fr(i + 20), w: .3 + fr(i + 40) * .8, o: fr(i + 60) * 6.283 });\n  S.gem = []; for (let i = 0; i < 10; i++) S.gem.push({ x: (fr(i + 3) - .5) * 30, y: -70 + fr(i + 9) * 150, h: fr(i + 15) });\n}\n\nconst ACTS = {\n  vegas: ['swivel','sing','dance','point','sing','dance','karate','swivel'],\n  ballad: ['sing','swivel','sing','point','swivel','sing','swivel','point'],\n  comeback: ['dance','karate','dance','point','karate','dance','point','swivel'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.vegas)[((K.section % 8) + 8) % 8];\n\nconst bounce = Math.abs(Math.sin(sb * Math.PI));\nlet dy = 0, sway = 0, swiv = 0, lean = 0, jaw = 0;\nlet hipL = .1, kneeL = .12, hipR = -.1, kneeR = .12;\nlet shL = .3, elbL = .35, shR = -.3, elbR = .35;\nlet headT = 0, mic = 0;\n\nif (pose === 'swivel') {\n  swiv = Math.sin(bt * Math.PI) * .3 * eAmp + Math.sin(K.t * .5) * .05;\n  sway = Math.sin(bt * Math.PI) * 9 * eAmp;\n  lean = -swiv * .4;\n  dy = -bounce * 4 * eAmp;\n  kneeL = .12 + bounce * .18 * eAmp; kneeR = .12 + (1 - bounce) * .18 * eAmp;\n  shL = .25 + Math.sin(bt * Math.PI) * .25 * eAmp; shR = -.25 - Math.sin(bt * Math.PI) * .25 * eAmp;\n  headT = swiv * .3; jaw = .06 + kick * .12;\n} else if (pose === 'sing') {\n  shR = -1.5; elbR = 1.25; mic = 1;\n  shL = .35 + Math.sin(bt * Math.PI) * .55 * eAmp; elbL = .45;\n  swiv = Math.sin(bt * Math.PI * .5) * .16;\n  sway = Math.sin(bt * Math.PI * .5) * 6 * eAmp;\n  jaw = .32 + .34 * Math.max(0, Math.sin(bt * 6.283)) * (.5 + .5 * S.rms);\n  dy = -K.swell * 4 * eAmp; lean = -.07;\n  headT = Math.sin(K.t * .7) * .06 - .04;\n} else if (pose === 'dance') {\n  dy = -(K.pulse * 11 + bounce * 5) * eAmp - S.rms * 18 * P.energy;\n  swiv = Math.sin(bt * Math.PI * 2) * .42 * eAmp;\n  sway = Math.sin(bt * Math.PI) * 13 * eAmp;\n  lean = -swiv * .5;\n  const alt = (((Math.floor(bt) % 2) + 2) % 2 === 0) ? 1 : -1;\n  if (alt > 0) { hipR = -.95 * eAmp * bounce - .1; kneeR = .25; hipL = .16; kneeL = .12; }\n  else { hipL = .95 * eAmp * bounce + .1; kneeL = .25; hipR = -.16; kneeR = .12; }\n  shL = .4 + alt * (.95 + kick) * eAmp; elbL = .5;\n  shR = -.4 - alt * (.95 + kick) * eAmp; elbR = .5;\n  headT = Math.sin(bt * 6.283) * .15; jaw = .15 + kick * .28;\n} else if (pose === 'karate') {\n  swiv = Math.sin(K.t * .8) * .05;\n  sway = Math.sin(bt * Math.PI / 2) * 5 * eAmp;\n  lean = .1;\n  hipL = .5; kneeL = .55; hipR = -.5; kneeR = .16;\n  const chop = Math.max(0, Math.sin(sb * Math.PI));\n  shR = -1.15 - chop * .45 * eAmp; elbR = .12;\n  shL = 1.25; elbL = 1.5;\n  dy = 9 - kick * 5 * eAmp; headT = .05; jaw = .1 + chop * .3;\n} else { // point\n  swiv = .2 + Math.sin(bt * Math.PI) * .13 * eAmp;\n  sway = Math.sin(bt * Math.PI / 2) * 6 * eAmp;\n  lean = -.12;\n  shR = -2.05 - kick * .22 * eAmp; elbR = .02;\n  shL = .5; elbL = .85;\n  hipL = .06; kneeL = .1; hipR = -.06; kneeR = .16;\n  dy = -2 - bounce * 3 * eAmp; headT = -.1; jaw = .08 + kick * .2;\n}\n\n// universal slow drift \u2014 carries the motion gate\nsway += Math.sin(K.t * .43 + fr(4) * 6) * 14 + Math.sin(K.t * .19 + fr(5) * 6) * 6;\ndy += Math.sin(K.t * .51 + fr(2) * 6) * 9;\nswiv += Math.sin(K.t * .31 + fr(7) * 6) * .08;\nlean += Math.sin(K.t * .23 + fr(8) * 6) * .035;\n\nconst styles = ['noir', 'halftone', 'neon', 'silhouette'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'noir';\nconst H = ((P.hue % 360) + 360) % 360;\nconst chW = 1 + (P.chub - .4) * .4;\nconst FL = P.flare, HR = P.hair;\nconst dctx = drawingContext;\n\nfunction glowOn(h, sat, br, amt) { dctx.shadowBlur = amt * s; dctx.shadowColor = 'hsla(' + h + ',' + sat + '%,' + br + '%,0.9)'; }\nfunction glowOff() { dctx.shadowBlur = 0; }\n\n// jumpsuit fill\nfunction jump(a) { a = a == null ? 100 : a;\n  if (st === 'neon') { noFill(); stroke((H + 6) % 360, 30, 100, Math.min(95, a)); strokeWeight(1.7 * s); }\n  else if (st === 'silhouette') { noStroke(); fill(0, 0, 9, a); }\n  else if (st === 'halftone') { noStroke(); fill(45, 6, 99, a); }\n  else { noStroke(); fill(45, 7, 88, a); } }\n// dark elements (hair, glasses, boots, belt)\nfunction dark(a) { a = a == null ? 100 : a;\n  if (st === 'neon') { noFill(); stroke(H, 85, 100, Math.min(95, a)); strokeWeight(1.5 * s); }\n  else if (st === 'silhouette') { noStroke(); fill(0, 0, 6, a); }\n  else if (st === 'halftone') { noStroke(); fill(210, 18, 14, a); }\n  else { noStroke(); fill(30, 22, 13, a); } }\n// skin\nfunction skin(a) { a = a == null ? 100 : a;\n  if (st === 'neon') { noFill(); stroke(28, 60, 100, Math.min(95, a)); strokeWeight(1.4 * s); }\n  else if (st === 'silhouette') { noStroke(); fill(0, 0, 12, a); }\n  else if (st === 'halftone') { noStroke(); fill(26, 34, 96, a); }\n  else { noStroke(); fill(26, 30, 74, a); } }\n// accent (scarf red / gems)\nfunction accent(h, a) { a = a == null ? 100 : a;\n  if (st === 'silhouette') { noStroke(); fill(0, 0, 14, a); }\n  else if (st === 'neon') { noFill(); stroke(h, 90, 100, Math.min(95, a)); strokeWeight(1.5 * s); }\n  else { noStroke(); fill(h, 82, 92, a); } }\n\nconst ax = P.x * width + sway * s;\nconst ay = P.y * height;\nconst breath = 1 + K.swell * .03 * eAmp + S.rms * .25 * P.energy;\n\n// ---- spotlight halo (silhouette/noir read best against a key light) ----\nif (st === 'silhouette' || st === 'noir') {\n  blendMode(ADD); noStroke();\n  const hb = st === 'silhouette' ? 1 : .55;\n  for (let r = 4; r >= 1; r--) { fill((H + 20) % 360, 10, 100, (6 + kick * 5) * hb / r);\n    ellipse(ax - 12 * s, ay - 60 * s, (150 + r * 90) * s, (240 + r * 110) * s); }\n  blendMode(BLEND);\n}\n\n// ground shadow\nnoStroke(); fill(0, 0, 0, 26);\nellipse(P.x * width, ay + 132 * s, (120 + Math.abs(sway)) * s * chW, 18 * s);\n\nif (st === 'neon') glowOn((H + 6) % 360, 40, 100, 10);\n\npush();\ntranslate(ax, ay + dy * s);\nrotate(lean * .3);\nscale(breath);\n\n// ---- legs (behind pelvis) ----\nfunction leg(side, hip, knee) {\n  push();\n  translate(15 * side * chW * s, 6 * s);\n  rotate(hip);\n  // thigh\n  jump(); rect(-10 * s, 0, 20 * s, 50 * s, 7 * s);\n  translate(0, 48 * s); rotate(knee);\n  // calf\n  jump(); rect(-9 * s, 0, 18 * s, 42 * s, 5 * s);\n  // bell-bottom flare\n  jump(); beginShape();\n  vertex(-9 * s, 20 * s); vertex(9 * s, 20 * s);\n  vertex((11 + 9 * FL) * s, 52 * s); vertex(-(11 + 9 * FL) * s, 52 * s);\n  endShape(CLOSE);\n  // boot\n  dark(); rect(-(9 + 5 * FL) * s, 48 * s, (18 + 10 * FL) * s, 16 * s, 4 * s);\n  pop();\n}\n// swivel affects the leg root rotation together\npush();\nrotate(swiv * .5);\nleg(-1, hipL, kneeL);\nleg(1, hipR, kneeR);\npop();\n\n// ---- torso group ----\npush();\nrotate(lean);\ntranslate(0, -46 * s);\n\n// arm (behind = right/far when facing) drawn first\nfunction arm(side, sh, elb, isMic) {\n  push();\n  translate(30 * side * chW * s, -40 * s);\n  rotate(side * sh);\n  jump(); rect(-7 * s, 0, 14 * s, 40 * s, 6 * s);\n  translate(0, 38 * s); rotate(side * elb);\n  jump(); rect(-6 * s, 0, 12 * s, 34 * s, 5 * s);\n  // cuff flare\n  jump(); beginShape(); vertex(-6 * s, 22 * s); vertex(6 * s, 22 * s); vertex((8 + 6 * FL) * s, 40 * s); vertex(-(8 + 6 * FL) * s, 40 * s); endShape(CLOSE);\n  translate(0, 36 * s);\n  skin(); ellipse(0, 0, 13 * s, 15 * s);\n  if (isMic) { dark(); ellipse(-side * 2 * s, -8 * s, 9 * s, 22 * s); accent(0, 0); if (st !== 'silhouette') { noStroke(); fill(0, 0, 20); ellipse(-side * 2 * s, -16 * s, 12 * s, 12 * s); } }\n  pop();\n}\narm(1, shR, elbR, mic > .5);\n\n// torso: cinched jumpsuit, V to shoulders\njump();\nbeginShape();\nvertex(-30 * chW * s, -44 * s); vertex(30 * chW * s, -44 * s);\nvertex(22 * chW * s, -6 * s); vertex(18 * chW * s, 20 * s);\nvertex(-18 * chW * s, 20 * s); vertex(-22 * chW * s, -6 * s);\nendShape(CLOSE);\n// center zipper line\nif (st !== 'silhouette') { stroke(st === 'neon' ? (H + 6) % 360 : 40, st === 'neon' ? 30 : 10, st === 'neon' ? 100 : 60, 70); strokeWeight(1.2 * s); line(0, -40 * s, 0, 18 * s); noStroke(); }\n\n// rhinestone studs down the chest\nfor (let i = 0; i < 10; i++) { const g = S.gem[i]; if (i / 10 > P.density + .35) continue;\n  const gh = (300 + g.h * 80) % 360; accent(gh); const gx = g.x * chW * s * .5, gy = (g.y - 20) * s * .5;\n  if (gy > -44 * s && gy < 18 * s) ellipse(gx, gy, 5 * s, 5 * s); }\n\n// belt + big buckle\ndark(); rect(-24 * chW * s, 14 * s, 48 * chW * s, 12 * s, 3 * s);\naccent(48); ellipse(0, 20 * s, 22 * s, 16 * s);\nif (st !== 'silhouette' && st !== 'neon') { noStroke(); fill(48, 20, 100, 80); ellipse(-3 * s, 17 * s, 8 * s, 6 * s); }\n\n// popped collar\njump();\npush(); translate(-16 * s, -46 * s); rotate(-.5); triangle(0, 0, 20 * s, -6 * s, 6 * s, 22 * s); pop();\npush(); translate(16 * s, -46 * s); rotate(.5); triangle(0, 0, -20 * s, -6 * s, -6 * s, 22 * s); pop();\n\n// scarf around neck, trailing\naccent(0);\npush(); translate(0, -44 * s);\nbeginShape();\nvertex(-12 * s, 0); vertex(12 * s, 0);\nbezierVertex(20 * s, 18 * s, 14 * s + Math.sin(K.t * 1.2) * 6 * s, 40 * s, 8 * s + Math.sin(K.t * 1.2 + 1) * 8 * s, 62 * s);\nbezierVertex(4 * s, 50 * s, 6 * s, 30 * s, -2 * s, 20 * s);\nbezierVertex(-8 * s, 30 * s, -6 * s, 48 * s, -10 * s, 60 * s);\nbezierVertex(-16 * s, 40 * s, -20 * s, 18 * s, -12 * s, 0);\nendShape(CLOSE);\npop();\n\n// front arm (left)\narm(-1, shL, elbL, false);\n\n// ---- head ----\npush();\ntranslate(0, -52 * s);\nrotate(headT + swiv * .2);\n// neck\nskin(); rect(-9 * s, -6 * s, 18 * s, 16 * s, 3 * s);\n// face\nskin(); ellipse(0, -20 * s, 44 * s, 54 * s);\n// jaw drop when singing\nif (jaw > .12 && st !== 'silhouette') { dark(4); noStroke(); fill(350, 40, 20, 80); ellipse(0, -6 * s + jaw * 3 * s, 12 * s, 6 * s + jaw * 8 * s); }\n// sideburns\ndark(); triangle(-22 * s, -30 * s, -14 * s, -30 * s, -18 * s, 2 * s);\ntriangle(22 * s, -30 * s, 14 * s, -30 * s, 18 * s, 2 * s);\n// pompadour\ndark();\nbeginShape();\nvertex(-24 * s, -30 * s);\nbezierVertex(-30 * s, -58 * HR * s, -6 * s, -70 * HR * s, 10 * s, -62 * HR * s);\nbezierVertex(30 * s, -56 * HR * s, 30 * s, -40 * s, 24 * s, -30 * s);\nbezierVertex(20 * s, -44 * s, 4 * s, -50 * s, -6 * s, -44 * s);\nbezierVertex(-16 * s, -40 * s, -20 * s, -36 * s, -24 * s, -30 * s);\nendShape(CLOSE);\n// forelock curl\ndark(); push(); translate(-4 * s, -34 * s); rotate(Math.sin(K.t * 1.1) * .1);\nif (st === 'neon') { noFill(); } arc(0, 0, 20 * s, 22 * s, Math.PI * .1, Math.PI * 1.1); pop();\n// sunglasses\ndark(); rect(-20 * s, -26 * s, 40 * s, 3 * s, 1 * s);\nif (st === 'neon') { noFill(); stroke(H, 85, 100, 90); strokeWeight(1.5 * s); } else { noStroke(); fill(st === 'silhouette' ? 0 : 220, st === 'silhouette' ? 0 : 40, st === 'silhouette' ? 5 : 10, 96); }\nellipse(-11 * s, -21 * s, 17 * s, 14 * s); ellipse(11 * s, -21 * s, 17 * s, 14 * s);\nif (st !== 'silhouette' && st !== 'neon') { noStroke(); fill(0, 0, 100, 40 + S.tre * 40); ellipse(-13 * s, -24 * s, 6 * s, 3 * s); ellipse(9 * s, -24 * s, 6 * s, 3 * s); }\n// smirk\nif (st !== 'silhouette') { stroke(st === 'neon' ? 28 : 20, st === 'neon' ? 60 : 40, st === 'neon' ? 100 : 40, 80); strokeWeight(1.6 * s); noFill();\n  const m = jaw; if (m > .12) { ellipse(0, -6 * s + m * 2 * s, 14 * s, 6 * s + m * 10 * s); } else { arc(-2 * s, -7 * s, 16 * s, 10 * s, .1, Math.PI * .5); } noStroke(); }\npop(); // head\n\npop(); // torso\n\n// ---- per-style modeling / texture ----\nif (st === 'noir') {\n  // chiaroscuro: soft shadow lobe on right, ADD key rim on left\n  noStroke(); fill(0, 0, 4, 30);\n  ellipse(20 * s, -60 * s, 44 * s, 150 * s);\n  ellipse(24 * s, 34 * s, 30 * s, 90 * s);\n  blendMode(ADD);\n  fill((H + 10) % 360, 25, 100, 20 + kick * 12);\n  ellipse(-22 * s, -66 * s, 26 * s, 130 * s);\n  ellipse(-18 * s, 30 * s, 20 * s, 80 * s);\n  blendMode(BLEND);\n} else if (st === 'halftone') {\n  // CMYK misregistration + halftone dot shading on the shadow side\n  blendMode(MULTIPLY); noStroke();\n  fill(0, 70, 100, 22); ellipse(-3 * s, -50 * s, 90 * chW * s, 150 * s);\n  fill(190, 70, 90, 18); ellipse(3 * s, -46 * s, 90 * chW * s, 150 * s);\n  blendMode(BLEND);\n  fill(0, 0, 10, 90);\n  const stp = 8 * s;\n  for (let gx = -46; gx <= 46; gx += 8) { for (let gy = -110; gy <= 40; gy += 8) {\n    const px = gx * s, py = gy * s; const sh = Math.max(0, (gx + 46) / 92);\n    const rad = sh * 3.4 * s; if (rad > .5) circle(px, py, rad); } }\n}\n\npop(); // figure\n\nif (st === 'neon') glowOff();\n\n// ---- ambient spotlight dust / flashbulbs ----\nconst nD = Math.max(0, Math.floor(2 + P.density * 14));\nblendMode(ADD); noStroke();\nfor (let i = 0; i < nD; i++) {\n  const q = S.dust[i % 20];\n  const life = (K.t * (.08 + q.w * .07) + q.o) % 1;\n  const dx2 = ax + q.x * 130 * s + Math.sin(K.t * .5 + q.o) * 12 * s;\n  const dy2 = ay + (40 - life * 200) * s;\n  fill((H + 30) % 360, 12, 100, Math.sin(life * Math.PI) * (14 + 16 * K.swell + S.tre * 40));\n  circle(dx2, dy2, (1.2 + q.w * 2) * s);\n}\n// treble flashbulb pops\nif (S.tre > .12) { fill(0, 0, 100, S.tre * 35); const fx = ax + (fr(Math.floor(K.t * 3)) - .5) * 220 * s, fy = ay - 120 * s - fr(Math.floor(K.t * 3) + 5) * 90 * s;\n  circle(fx, fy, (4 + S.tre * 8) * s); }\nblendMode(BLEND);\n"
+}

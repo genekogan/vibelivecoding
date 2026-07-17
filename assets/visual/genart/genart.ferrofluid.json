@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ferrofluid",
+  "kind": "genart",
+  "name": "Ferrofluid Spikes",
+  "desc": "A pool of oil-black ferrofluid bristling into the iconic hexagonal Rosensweig spike array under a pulsing magnetic field, its sharp 3D peaks rising, migrating and merging while each catches an iridescent petrol-and-gold rim and a white-hot specular tip.",
+  "tags": [
+    "ferrofluid",
+    "magnetic",
+    "rosensweig",
+    "spikes",
+    "spike-array",
+    "peaks",
+    "cones",
+    "metaball",
+    "implicit-surface",
+    "height-field",
+    "fluid",
+    "liquid",
+    "oil-black",
+    "iridescent",
+    "oil-slick",
+    "petrol",
+    "thin-film",
+    "chrome",
+    "liquid-metal",
+    "mercury",
+    "silver",
+    "lava",
+    "molten",
+    "thermal",
+    "specular",
+    "glossy",
+    "3d",
+    "relief",
+    "hex",
+    "physics",
+    "instability",
+    "self-organizing",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "dark",
+    "science"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "field": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1.5,
+      "doc": "magnetic field strength - spike height & sharpness (higher = taller, sharper, more-merged bristles)"
+    },
+    "density": {
+      "default": 0.66,
+      "min": 0,
+      "max": 1,
+      "doc": "how many spike charge-centers are active (higher = denser array)"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "specular + iridescent rim glow amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "spike pulse / migration rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "spike spacing / size (higher = fewer, bigger spikes)"
+    },
+    "hue": {
+      "default": 220,
+      "min": 0,
+      "max": 360,
+      "doc": "iridescent thin-film base hue (petrol/violet/gold rotation)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "magnet focus x - spikes rise taller nearest this point"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "magnet focus y - spikes rise taller nearest this point"
+    },
+    "style": {
+      "default": "petrol",
+      "options": [
+        "petrol",
+        "chrome",
+        "lava",
+        "mercury",
+        "ink"
+      ],
+      "doc": "surface material / render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic spike layout + jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:41:08+00:00",
+    "fps": 59.2,
+    "motion": 0.1269,
+    "lum": 0.238
+  },
+  "code": "const D = { field: .72, density: .66, energy: .7, speed: 1, scale: 1, hue: 220, x: .5, y: .5, style: 'petrol', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 190, BH = Math.max(96, Math.min(150, Math.round(BW * height / width)));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; S.F = new Float32Array(BW * BH); }\nif (!S.F || S.F.length !== BW * BH) S.F = new Float32Array(BW * BH);\n\n// --- seed + scale -> hex lattice of spike charge-centers (rebuilt only on change) ---\nconst layoutKey = P.seed + '_' + P.scale.toFixed(3) + '_' + BW + 'x' + BH;\nif (S.layoutKey !== layoutKey) {\n  S.layoutKey = layoutKey;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.hoff = fr(7);\n  const sp = Math.max(BW / 12, Math.min(BW / 3.5, (BW / 7.2) * P.scale));\n  S.sp = sp;\n  const w = sp * 0.34; S.w2 = w * w; S.box = Math.ceil(w * 2.7);\n  const rowH = sp * 0.866;\n  const cols = Math.ceil(BW / sp) + 2, rows = Math.ceil(BH / rowH) + 2;\n  const arr = []; let id = 1;\n  for (let j = -1; j < rows; j++) {\n    for (let i = -1; i < cols; i++) {\n      const bx = i * sp + (j & 1 ? sp * 0.5 : 0) + (fr(id * 2 + 1) - 0.5) * sp * 0.28;\n      const by = j * rowH + (fr(id * 2 + 2) - 0.5) * sp * 0.28;\n      arr.push({\n        bx: bx, by: by,\n        phase: fr(id + 11) * 6.2831, freq: 0.30 + fr(id + 23) * 0.85,\n        orbPh: fr(id + 37) * 6.2831, orbR: sp * (0.05 + fr(id + 41) * 0.16),\n        driftF: 0.10 + fr(id + 53) * 0.30, rank: fr(id + 67), amp0: 0.7 + fr(id + 71) * 0.6\n      });\n      id++;\n    }\n  }\n  S.spikes = arr;\n}\n\n// --- per-frame magnetic field: K.t drift baseline + K.section arc + audio on top ---\nconst spd = P.speed;\nconst tt = K.t;\nconst fieldMod = 0.84 + 0.16 * Math.sin(tt * 0.4 + 0.5);\nconst sec = K.section, secAmp = 0.72 + 0.28 * Math.sin(sec * 0.9 + tt * 0.05);\nconst globalField = (P.field * fieldMod * secAmp + A.bass * 0.5) * 2.55;\nconst eGlow = 0.55 + P.energy * 0.8 + K.intensity * 0.25 + A.treble * 0.55 + A.rms * 0.3;\nconst dens = P.density;\nconst w2 = S.w2, box = S.box, spikes = S.spikes, F = S.F;\nF.fill(0);\n// magnet spatial bias from x/y (gentle, edges never fully die)\nconst mx = P.x * BW, my = P.y * BH, mR = Math.max(BW, BH) * 0.9;\n\nfor (let s = 0; s < spikes.length; s++) {\n  const sk = spikes[s];\n  const gate = Math.max(0, Math.min(1, (dens - sk.rank) / 0.16 + 0.5));\n  if (gate <= 0.003) continue;\n  const cx = sk.bx + sk.orbR * Math.cos(tt * sk.driftF * spd + sk.orbPh);\n  const cy = sk.by + sk.orbR * Math.sin(tt * sk.driftF * spd * 0.8 + sk.orbPh * 1.3);\n  const dmx = cx - mx, dmy = cy - my; const spatial = 0.82 + 0.18 * Math.max(0, 1 - Math.sqrt(dmx * dmx + dmy * dmy) / mR);\n  const pulse = 0.5 + 0.5 * Math.sin(tt * sk.freq * spd + sk.phase);\n  const amp = globalField * (0.55 + 0.45 * sk.amp0) * (0.4 + 0.6 * pulse) * gate * spatial;\n  if (amp <= 0.01) continue;\n  const i0 = Math.max(0, Math.floor(cx - box)), i1 = Math.min(BW - 1, Math.ceil(cx + box));\n  const j0 = Math.max(0, Math.floor(cy - box)), j1 = Math.min(BH - 1, Math.ceil(cy + box));\n  for (let j = j0; j <= j1; j++) {\n    const dy = j - cy, dy2 = dy * dy, r0 = j * BW;\n    for (let i = i0; i <= i1; i++) {\n      const dx = i - cx, d2 = dx * dx + dy2;\n      const rr = w2 / (w2 + d2);\n      F[r0 + i] += amp * rr * rr * Math.sqrt(rr); // (w2/(w2+d2))^2.5 -> sharp separated peak\n    }\n  }\n}\n\n// --- shade: height + gradient normal + specular tip, per material style ---\nconst st = { petrol: 0, chrome: 1, lava: 2, mercury: 3, ink: 4 }[P.style] || 0;\nconst ns = 7.5;\nlet Lx = -0.36, Ly = -0.52, Lz = 0.78; { const l = 1 / Math.sqrt(Lx*Lx+Ly*Ly+Lz*Lz); Lx*=l; Ly*=l; Lz*=l; }\nlet Hx = Lx, Hy = Ly, Hz = Lz + 1; { const h = 1 / Math.sqrt(Hx*Hx+Hy*Hy+Hz*Hz); Hx*=h; Hy*=h; Hz*=h; }\nconst tPhase = tt * 0.05 * (0.5 + spd * 0.5);\nconst hueOff = P.hue / 360 + S.hoff * 0.5;\nconst twoPi = 6.28318;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : j) * BW, r0 = j * BW;\n  const vg = 0.62 + 0.38 * (1 - j / BH);\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : i;\n    const c = F[r0 + i];\n    const fx = F[r0 + ip] - F[r0 + im];\n    const fy = F[jp + i] - F[jm + i];\n    let nx = -fx * ns, ny = -fy * ns;\n    const inv = 1 / Math.sqrt(nx * nx + ny * ny + 1);\n    nx *= inv; ny *= inv; const nz = inv;\n    const ndl = Math.max(0, nx * Lx + ny * Ly + nz * Lz);\n    const ndh = Math.max(0, nx * Hx + ny * Hy + nz * Hz);\n    const gmag = Math.sqrt(fx * fx + fy * fy);\n    const fres = 1 - nz;\n    const hN = c > 1 ? 1 : c;\n    const lift = Math.pow(hN, 0.72);\n    const tip = Math.pow(hN, 2.6);\n    const hgate = hN * 4 > 1 ? 1 : hN * 4; // suppress specular only on flat oil gaps -> keep them black\n    const spc = Math.pow(ndh, 44) * eGlow * hgate;\n    let r, gg, b;\n    if (st === 0) { // petrol \u2014 oil-black fluid, 3D relief cones, iridescent rim sheen, hot directional specular tips\n      const shade = 0.03 + 0.97 * ndl; // directional lambert -> bright upper-left flank, dark shadow side\n      const m = fres * 0.9 + hN * 0.3 + tPhase + hueOff; // <1 palette cycle across a spike -> rim tint, no bullseye\n      const irR = 0.5 + 0.5 * Math.cos(twoPi * (m + 0.00));\n      const irG = 0.5 + 0.5 * Math.cos(twoPi * (m + 0.33));\n      const irB = 0.5 + 0.5 * Math.cos(twoPi * (m + 0.62));\n      const lit = shade * lift * (0.5 + 0.85 * eGlow);\n      const irW = 0.2 + 0.8 * fres;     // iridescence weighted to the curved rim\n      const oil = lit * 0.26;           // dark oily metal sheen (keeps fluid black, not candy)\n      const irc = lit * 0.82 * irW;     // iridescent rim/flank color\n      const glint = spc * 0.8;          // directional specular (kept modest to avoid comet streaks)\n      const core = tip * 0.78;          // centered white-hot tip highlight\n      r = 0.045 * vg + oil * 0.95 + irc * irR + glint + core * (0.42 + 0.55 * irR);\n      gg = 0.066 * vg + oil * 1.05 + irc * irG + glint + core * (0.42 + 0.55 * irG);\n      b = 0.14 * vg + oil * 1.3 + irc * irB + glint + core * (0.42 + 0.55 * irB);\n    } else if (st === 1) { // chrome \u2014 liquid metal, cool sky reflection, hard specular\n      const uy = -ny; const env = 0.16 + 0.66 * Math.pow(Math.max(0, 0.5 + 0.5 * uy), 0.75);\n      const body = env * lift; const sp2 = Math.pow(ndh, 80) * 1.25 * eGlow * hgate;\n      r = 0.02 + body * 0.9 + sp2 + fres * lift * 0.05;\n      gg = 0.025 + body * 0.96 + sp2;\n      b = 0.035 + body * 1.06 + sp2;\n    } else if (st === 2) { // lava \u2014 black crust, glowing molten cores, thermal by height\n      const heat = Math.min(1, hN * 1.35 + ndl * 0.1);\n      const gr = Math.min(1, 0.16 + heat * 2.1);\n      const gG = Math.min(1, Math.max(0, heat * heat * 1.9 - 0.04));\n      const gB = Math.min(1, Math.max(0, heat * heat * heat * 2.6 - 0.38));\n      const sp2 = Math.pow(ndh, 26) * 0.4 * eGlow * hgate;\n      r = 0.03 + gr * lift + sp2;\n      gg = 0.015 + gG * lift + sp2;\n      b = 0.03 + gB * lift + sp2 * 0.5;\n    } else if (st === 3) { // mercury \u2014 soft silver liquid, high-key\n      const uy = -ny; const env = 0.3 + 0.42 * (0.5 + 0.5 * uy);\n      const sheen = ndl * lift * 0.32; const sp2 = Math.pow(ndh, 22) * 0.7 * eGlow * hgate;\n      const sv = env * lift + sheen + 0.05;\n      r = sv * 0.97 + sp2; gg = sv * 0.99 + sp2; b = sv * 1.03 + sp2;\n    } else { // ink \u2014 abstract topographic: near-black ground, iso-contours, white tips\n      const fp = c * 6.5; const frac = fp - Math.floor(fp); const edge = Math.min(frac, 1 - frac);\n      const line = edge < 0.07 ? (1 - edge / 0.07) : 0;\n      let v = 0.055 + lift * 0.17 + line * 0.30 * lift + Math.pow(hN, 2.3) * 1.25 - fres * 0.04;\n      if (v < 0) v = 0;\n      r = v * 0.97; gg = v * 0.98; b = v;\n    }\n    const o = 4 * (r0 + i);\n    px[o] = r < 0 ? 0 : r > 1 ? 255 : r * 255;\n    px[o + 1] = gg < 0 ? 0 : gg > 1 ? 255 : gg * 255;\n    px[o + 2] = b < 0 ? 0 : b > 1 ? 255 : b * 255;\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\n"
+}

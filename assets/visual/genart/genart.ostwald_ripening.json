@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.ostwald_ripening",
+  "kind": "genart",
+  "name": "Ostwald Ripening",
+  "desc": "An emulsion coarsening under the objective: curvature makes small droplets more soluble than large ones, so the big quietly eat the small, drifting drops coalesce on contact, and every dissolved droplet hands its mass back to the matrix until the supersaturation fires off a fresh burst of nucleation - a dispersion that cycles forever instead of settling; rendered as a lit emulsion micrograph, luminous refracting rims in dark field, a grey phase-contrast plate, or ironbow thermal.",
+  "tags": [
+    "ostwald-ripening",
+    "ripening",
+    "coarsening",
+    "lsw",
+    "emulsion",
+    "droplet",
+    "drop",
+    "dispersion",
+    "colloid",
+    "precipitate",
+    "solubility",
+    "supersaturation",
+    "nucleation",
+    "coalescence",
+    "critical-radius",
+    "curvature",
+    "petri",
+    "petri-dish",
+    "micrograph",
+    "microscope",
+    "microscopy",
+    "dark-field",
+    "phase-contrast",
+    "bubbles",
+    "cells",
+    "phase-separation",
+    "phase-transition",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "simulation",
+    "materials-science",
+    "metallurgy",
+    "chemistry",
+    "laboratory",
+    "clinical",
+    "scientific",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "false-colour",
+    "thermal",
+    "ironbow",
+    "specular",
+    "glossy",
+    "texture",
+    "organic",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lighting contrast and specular gain on the droplets"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into a sub-region of the field - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "ripening rate - how fast droplets grow, dissolve and drift (0.2 still evolves)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "volume fraction of the dispersed phase - droplet count and coverage"
+    },
+    "drift": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "brownian wander + slow shear of the matrix, which drives coalescence"
+    },
+    "grain": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mottling of the continuous phase and film tooth"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the dispersed droplets; the matrix takes a cool complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the field when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan down the field when magnified"
+    },
+    "style": {
+      "default": "emulsion",
+      "options": [
+        "emulsion",
+        "darkfield",
+        "phase_contrast",
+        "thermal"
+      ],
+      "doc": "aesthetic: lit emulsion micrograph / luminous rims on black / grey phase-contrast halos / ironbow false-colour"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic initial dispersion and matrix mottling"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:44:52+00:00",
+    "fps": 64.5,
+    "motion": 0.073,
+    "lum": 0.409
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, drift: .4, grain: .5, hue: 28, x: .5, y: .5, style: 'emulsion', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Ostwald ripening (LSW): a dispersion of droplets in a supersaturated matrix.\n// Curvature makes small droplets more soluble than large ones, so the big eat the\n// small:   dR/dt = (k/R)(1/Rc - 1/R)     -- above the critical radius Rc you grow,\n// below it you dissolve. Droplets also drift and coalesce on contact.\n//\n// Coarsening is the single most dangerous thing in this sub-niche: it slows down\n// by construction and a settled dispersion is byte-identical 8s later. Kept alive\n// by a closed mass balance plus a breathing solubility:\n//   - dissolved mass returns to the matrix as supersaturation sigma;\n//   - sigma sets Rc and drives CONTINUOUS NUCLEATION of fresh sub-critical drops;\n//   - the equilibrium volume fraction breathes on three incommensurate K.t rates,\n//     so the whole population cycles through dissolution waves and nucleation\n//     bursts and never reaches a fixed point.\n// Droplets are rasterised as analytic spherical caps into a coarse buffer.\n// ---------------------------------------------------------------------------\nconst BW = 200, BH = Math.max(100, Math.round(BW * height / width));\nconst N = BW * BH;\nconst MAXD = 460;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.hf = new Float32Array(N); S.idf = new Int32Array(N); S.mtx = new Float32Array(N);\n  S.dx = new Float32Array(MAXD); S.dy = new Float32Array(MAXD); S.dr = new Float32Array(MAXD);\n  S.vx = new Float32Array(MAXD); S.vy = new Float32Array(MAXD); S.dk = new Float32Array(MAXD);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn2(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a0 = hs3(ix, iy, 1), a1 = hs3(ix + 1, iy, 1), a2 = hs3(ix, iy + 1, 1), a3 = hs3(ix + 1, iy + 1, 1);\n  return (a0 + (a1 - a0) * u) * (1 - v) + (a2 + (a3 - a2) * u) * v;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p; } else if (i === 1) { RR = q; GG = v; BB = p; }\n  else if (i === 2) { RR = p; GG = v; BB = w; } else if (i === 3) { RR = p; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p; BB = v; } else { RR = v; GG = p; BB = q; }\n}\nfunction rnd() { let x = S.rng; x ^= x << 13; x |= 0; x ^= x >>> 17; x ^= x << 5; x |= 0; S.rng = x; return (x >>> 0) / 4294967296; }\n\nconst dxs = S.dx, dys = S.dy, drs = S.dr, vxs = S.vx, vys = S.vy, dks = S.dk;\nconst hf = S.hf, idf = S.idf, mtx = S.mtx;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  S.rng = (sd * 2654435761 + 0x9e3779b9) | 0; if (S.rng === 0) S.rng = 1;\n  S.n = 200;\n  for (let k = 0; k < S.n; k++) {\n    dxs[k] = rnd() * BW; dys[k] = rnd() * BH; drs[k] = 1.2 + rnd() * 3.4;\n    vxs[k] = 0; vys[k] = 0; dks[k] = rnd();\n  }\n  // static matrix texture: mottled continuous phase + polishing tooth\n  const kk = 5.5 / BH;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    mtx[j * BW + i] = 0.55 * vn2(i * kk, j * kk) + 0.28 * vn2(i * kk * 2.7 + 9.1, j * kk * 2.7 - 4.3)\n                    + 0.17 * (hs3(i, j, 31) - 0.5);\n  }\n  S.sig = 0.2;\n}\n\nconst tt = K.t;\nconst dt = Math.min(0.05, (1 / Math.max(24, K.fps || 60))) * (0.3 + P.speed * 1.5) * 60;\n\n// ---- solubility breathes on incommensurate rates -> perpetual dissolve/nucleate cycles ----\nconst cyc = 0.70 + 0.30 * Math.sin(tt * 0.061) + 0.17 * Math.sin(tt * 0.137 + 1.7) + 0.09 * Math.sin(tt * 0.239 + 0.5);\nconst fillT = (0.15 + P.density * 0.32) * cyc * (0.85 + K.swell * 0.2 + A.lowmid * 0.25);\n\nlet n = S.n;\n// mass balance -> supersaturation -> critical radius\nlet tot = 0, rsum = 0;\nfor (let k = 0; k < n; k++) { tot += drs[k] * drs[k] * 3.14159265; rsum += drs[k]; }\nconst targ = Math.max(1, fillT * N);\nconst sig = Math.max(-1, Math.min(1.4, (targ - tot) / targ));\nS.sig = sig;\nconst rmean = n > 0 ? rsum / n : 2;\nconst Rc = Math.max(0.9, rmean * (1 - sig * 0.85));\nconst kg = (0.55 + P.speed * 1.1) * 2.2;\nconst rmax = BH * 0.22;\n\n// ---- growth / dissolution ----\nfor (let k = 0; k < n; k++) {\n  const R = drs[k];\n  let dR = kg * (1 / Rc - 1 / R) / R * dt;\n  if (dR > 0.6) dR = 0.6; else if (dR < -0.6) dR = -0.6;\n  let nr = R + dR;\n  if (nr > rmax) nr = rmax;\n  drs[k] = nr;\n}\n// remove fully dissolved droplets (mass returns to the matrix via the balance above)\nfor (let k = n - 1; k >= 0; k--) {\n  if (drs[k] < 0.85) {\n    n--; dxs[k] = dxs[n]; dys[k] = dys[n]; drs[k] = drs[n]; vxs[k] = vxs[n]; vys[k] = vys[n]; dks[k] = dks[n];\n  }\n}\n\n// ---- drift: brownian kick (small droplets wander more) + a slow shear ----\nconst dsp = P.drift * (0.35 + P.energy * 0.5);\nconst shx = 0.30 * Math.sin(tt * 0.053) + 0.16 * Math.sin(tt * 0.119 + 2.2);\nconst shy = 0.24 * Math.cos(tt * 0.071) + 0.13 * Math.sin(tt * 0.167 + 0.8);\nfor (let k = 0; k < n; k++) {\n  const mob = 1.6 / (1 + drs[k] * 0.42);\n  vxs[k] = vxs[k] * 0.86 + (rnd() - 0.5) * 0.5 * mob * dsp + shx * 0.05 * dsp * ((dys[k] / BH) - 0.5) * 2;\n  vys[k] = vys[k] * 0.86 + (rnd() - 0.5) * 0.5 * mob * dsp + shy * 0.05 * dsp * ((dxs[k] / BW) - 0.5) * 2;\n  let x2 = dxs[k] + vxs[k] * dt, y2 = dys[k] + vys[k] * dt;\n  if (x2 < 0) x2 += BW; else if (x2 >= BW) x2 -= BW;\n  if (y2 < 0) y2 += BH; else if (y2 >= BH) y2 -= BH;\n  dxs[k] = x2; dys[k] = y2;\n}\n\n// ---- coalescence on contact (area-conserving) ----\nfor (let a2 = 0; a2 < n; a2++) {\n  for (let b2 = a2 + 1; b2 < n; b2++) {\n    let ddx = dxs[a2] - dxs[b2], ddy = dys[a2] - dys[b2];\n    if (ddx > BW * 0.5) ddx -= BW; else if (ddx < -BW * 0.5) ddx += BW;\n    if (ddy > BH * 0.5) ddy -= BH; else if (ddy < -BH * 0.5) ddy += BH;\n    const rr = (drs[a2] + drs[b2]) * 0.82;\n    if (ddx * ddx + ddy * ddy < rr * rr) {\n      const aa = drs[a2] * drs[a2], bb = drs[b2] * drs[b2], s2 = aa + bb;\n      dxs[a2] = dxs[a2] - ddx * (bb / s2); dys[a2] = dys[a2] - ddy * (bb / s2);\n      drs[a2] = Math.min(rmax, Math.sqrt(s2));\n      n--; dxs[b2] = dxs[n]; dys[b2] = dys[n]; drs[b2] = drs[n]; vxs[b2] = vxs[n]; vys[b2] = vys[n]; dks[b2] = dks[n];\n      b2--;\n    }\n  }\n}\n\n// ---- CONTINUOUS NUCLEATION: classical rate ~ exp(-B/sigma^2), never allowed to stall ----\nif (sig > 0.02) {\n  const rate = 46 * Math.exp(-0.055 / (sig * sig)) * (0.5 + P.density * 1.2);\n  S.nacc = (S.nacc || 0) + rate * dt / 60 * 60;\n  let guard = 0;\n  while (S.nacc >= 1 && n < MAXD && guard < 30) {\n    S.nacc -= 1; guard++;\n    dxs[n] = rnd() * BW; dys[n] = rnd() * BH; drs[n] = 1.0 + rnd() * 0.5;\n    vxs[n] = 0; vys[n] = 0; dks[n] = rnd(); n++;\n  }\n} else S.nacc = 0;\nS.n = n;\n\n// ---- rasterise spherical caps into the coarse buffer (z-buffered by height) ----\nhf.fill(0); idf.fill(-1);\nfor (let k = 0; k < n; k++) {\n  const R = drs[k], cx = dxs[k], cy = dys[k], R2 = R * R;\n  const i0 = Math.floor(cx - R), i1 = Math.ceil(cx + R), j0 = Math.floor(cy - R), j1 = Math.ceil(cy + R);\n  for (let j = j0; j <= j1; j++) {\n    const jj = ((j % BH) + BH) % BH;\n    const dyv = j + 0.5 - cy, dy2 = dyv * dyv;\n    if (dy2 > R2) continue;\n    for (let i = i0; i <= i1; i++) {\n      const dxv = i + 0.5 - cx, d2 = dxv * dxv + dy2;\n      if (d2 >= R2) continue;\n      const ii = ((i % BW) + BW) % BW;\n      const p = jj * BW + ii;\n      const h = Math.sqrt(R2 - d2);\n      if (h > hf[p]) { hf[p] = h; idf[p] = k; }\n    }\n  }\n}\n\n// ---- shade ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.023 + Math.sin(tt * 0.015) * 0.015;\nconst gain = 0.45 + P.energy * 1.05 + A.rms * 0.3;\nconst gr = P.grain;\nconst lx = 0.50, ly = -0.62, lz = 0.60;      // key light\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const k = idf[p];\n    const tex = mtx[p];\n    let r, gg, b;\n    if (k < 0) {\n      // continuous phase (matrix) -- textured, never a flat fill\n      if (style === 'darkfield') { r = 0.035 + tex * 0.05; gg = 0.045 + tex * 0.055; b = 0.075 + tex * 0.07; }\n      else if (style === 'phase_contrast') { const v = 0.46 + tex * 0.16 * (0.5 + gr); r = v; gg = v * 1.005; b = v * 1.02; }\n      else if (style === 'thermal') { const m = 0.10 + tex * 0.10; r = m * 2.1; gg = Math.max(0, m * 2.0 - 0.5); b = Math.max(0, 0.38 - m * 1.4); }\n      else { hsv(hb + 0.44, 0.30, 0.42 + tex * 0.22 * (0.4 + gr)); r = RR; gg = GG; b = BB; }\n    } else {\n      const R = drs[k];\n      const nx = (i + 0.5 - dxs[k]) / R, ny = (j + 0.5 - dys[k]) / R;\n      const s2 = Math.min(1, nx * nx + ny * ny);\n      const nz = Math.sqrt(1 - s2);\n      const dif = Math.max(0, nx * lx + ny * ly + nz * lz);\n      const hx = lx * 0.5, hy = ly * 0.5, hz = (lz + 1) * 0.5;\n      const hl = 1 / Math.sqrt(hx * hx + hy * hy + hz * hz);\n      let sp = nx * hx * hl + ny * hy * hl + nz * hz * hl; sp = sp > 0 ? sp : 0;\n      const sp8 = sp * sp * sp * sp; const spec = sp8 * sp8 * sp8;\n      const rim = Math.pow(s2, 3);                    // steep cap edge -> refraction rim\n      const dl = dks[k];\n      if (style === 'darkfield') {\n        const glow = rim * (0.55 + gain * 0.75) + spec * 0.9;\n        hsv(hb + 0.5 + dl * 0.1, 0.5, 1);\n        r = 0.04 + RR * glow * 0.9 + nz * 0.05; gg = 0.05 + GG * glow + nz * 0.06; b = 0.09 + BB * glow * 1.05 + nz * 0.09;\n      } else if (style === 'phase_contrast') {\n        const halo = Math.max(0, rim - 0.35) * 2.2;\n        const v = 0.5 + (dif - 0.55) * 0.30 * gain - halo * 0.34 + spec * 0.32;\n        r = v; gg = v * 1.005; b = v * 1.02;\n      } else if (style === 'thermal') {\n        const m = Math.min(1, (nz * 0.62 + spec * 0.5 + 0.12) * (0.45 + P.energy * 0.9));\n        r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55));\n        b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.42 - m * 1.5));\n      } else {\n        // emulsion (default): dispersed-phase droplets, lit caps, dark refraction rims\n        hsv(hb + dl * 0.10, 0.34 + dl * 0.16, 1);\n        const base = (0.16 + dif * 0.62) * (0.55 + gain * 0.5);\n        r = RR * base; gg = GG * base; b = BB * base;\n        const k2 = 1 - rim * 0.72; r *= k2; gg *= k2; b *= k2;\n        r += spec * 0.95; gg += spec * 0.97; b += spec * 1.0;\n      }\n    }\n    const th = (hs3(i, j, 41) - 0.5) * 0.055 * gr;\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + th) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + th) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + th) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

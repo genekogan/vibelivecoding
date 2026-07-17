@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.tatami",
+  "kind": "floor",
+  "name": "Tatami",
+  "desc": "A tatami floor running away to a hazed horizon \u2014 woven igusa rush mats bound in dark cloth borders, laid to the auspicious rule that four mats may never meet at a point, their grain catching a low light that drifts up and down the room.",
+  "tags": [
+    "tatami",
+    "mat",
+    "mats",
+    "igusa",
+    "rush",
+    "woven",
+    "weave",
+    "heri",
+    "shugi-jiki",
+    "japanese",
+    "japan",
+    "washitsu",
+    "tearoom",
+    "temple",
+    "zen",
+    "domino",
+    "dominoes",
+    "tiling",
+    "tessellation",
+    "plane-division",
+    "combinatorics",
+    "combinatorial",
+    "no-four-corners",
+    "torus",
+    "floor",
+    "ground",
+    "pavement",
+    "perspective",
+    "recession",
+    "vanishing-point",
+    "depth",
+    "horizon",
+    "receding",
+    "grain",
+    "straw",
+    "ink",
+    "sumi",
+    "moonlit",
+    "night",
+    "worn",
+    "aged",
+    "sun-bleached",
+    "xray",
+    "luminous",
+    "raking-light",
+    "haze",
+    "austere",
+    "serene",
+    "sacred",
+    "quiet",
+    "texture",
+    "architecture",
+    "interior"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "light contrast + grain/border weight + walk rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "mat size vs frame \u2014 drops the eye toward the floor so the mats loom (2.2 = kneeling on them)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many rows of mats recede before the haze takes them"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "walk rate across the floor"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "primary rush + haze hue"
+    },
+    "weave": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "igusa rush grain ruled along each mat's long axis"
+    },
+    "border": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "the heri \u2014 dark cloth binding on the mats' long edges"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.24,
+      "max": 0.7,
+      "doc": "horizon height as canvas fraction"
+    },
+    "style": {
+      "default": "rush",
+      "options": [
+        "rush",
+        "ink",
+        "moonlit",
+        "worn",
+        "xray"
+      ],
+      "doc": "aesthetic: natural woven igusa in warm light / tonal sumi ink wash / cold blue night room / sun-bleached and stained with age / luminous additive mat outlines on black (non-representational)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "the mat layout itself \u2014 re-solves the tatami tiling, plus per-mat grain and ageing"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:03:15+00:00",
+    "fps": 63.7,
+    "motion": 0.0227,
+    "lum": 0.274
+  },
+  "code": "const D = { energy:.55, scale:1, density:.5, speed:1, hue:44, weave:.6, border:.7, x:.5, y:.46, style:'rush', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\n\n// ---- a real tatami layout -------------------------------------------------\n// Mats are dominoes on a 12x12 TORUS (so the plane repeats seamlessly in both\n// directions with no fault line). The layout obeys the tatami condition --\n// shugi-jiki, the auspicious layout -- in which four mats may never meet at a\n// point. A vertex is bad exactly when its four cells belong to four DIFFERENT\n// mats; if two of them share a mat, that mat runs THROUGH the vertex instead of\n// cornering on it. Solved by exact backtracking that tries all four neighbours\n// of the first empty cell, so mats crossing the torus seam are expressible\n// (a search that only reaches right/down provably cannot tile the torus at all).\nconst Wg = 12, Hg = 12;\nconst wi = i => (((i%Wg)+Wg)%Wg), wj = j => (((j%Hg)+Hg)%Hg);\nconst idx = (i,j) => wi(i) + Wg*wj(j);\nif (!S.own || S.seedUsed !== sd) {\n  S.seedUsed = sd;\n  const own = new Int16Array(Wg*Hg).fill(-1), doms = [];\n  const vertOK = (i,j) => {\n    const a=own[idx(i-1,j-1)], b=own[idx(i,j-1)], c=own[idx(i-1,j)], e=own[idx(i,j)];\n    if (a<0||b<0||c<0||e<0) return true;\n    return !(a!==b && a!==c && a!==e && b!==c && b!==e && c!==e);\n  };\n  const okAround = (i,j) => {\n    for (let p=0;p<=1;p++) for (let q=0;q<=1;q++) if (!vertOK(i+p,j+q)) return false;\n    return true;\n  };\n  const DIR = [[1,0],[0,1],[-1,0],[0,-1]];\n  let steps = 0;\n  const rec = pos => {\n    if (steps++ > 900000) return false;\n    while (pos < Wg*Hg && own[pos] >= 0) pos++;\n    if (pos >= Wg*Hg) return true;\n    const i = pos%Wg, j = (pos-i)/Wg;\n    const o = [0,1,2,3];\n    for (let k=3;k>0;k--){ const r = Math.floor(fr(pos*5.7 + k*13.1 + sd*.13)*(k+1)); const t = o[k]; o[k]=o[r]; o[r]=t; }\n    for (let z=0;z<4;z++){\n      const dx = DIR[o[z]][0], dy = DIR[o[z]][1];\n      const ni = wi(i+dx), nj = wj(j+dy);\n      if (own[idx(ni,nj)] >= 0) continue;\n      const d = doms.length;\n      doms.push({ i: dx<0?ni:i, j: dy<0?nj:j, h: dx!==0?1:0 });\n      own[idx(i,j)] = d; own[idx(ni,nj)] = d;\n      if (okAround(i,j) && okAround(ni,nj) && rec(pos)) return true;\n      own[idx(i,j)] = -1; own[idx(ni,nj)] = -1; doms.pop();\n    }\n    return false;\n  };\n  if (!rec(0)) {                      // fallback: staggered columns are provably tatami-valid\n    own.fill(-1); doms.length = 0;\n    for (let i=0;i<Wg;i++) for (let k=0;k<Hg/2;k++){\n      const j = (i%2) + 2*k, d = doms.length;\n      doms.push({ i:i, j:wj(j), h:0 });\n      own[idx(i,j)] = d; own[idx(i,j+1)] = d;\n    }\n  }\n  S.own = own; S.doms = doms;\n}\nconst own = S.own, doms = S.doms;\n\n// ---- camera ---------------------------------------------------------------\nconst hz = cl(P.y,.24,.70)*height, cxp = cl(P.x,.15,.85)*width;\nconst gh = Math.max(24, height-hz);\nconst f = u*1.0, camH = cl(2.4/cl(P.scale,.5,2.2), .7, 6);\nS.cz = (S.cz||0) + dt*sp*(.55 + .6*lift + .5*en)*.55;\nS.cx = (S.cx||0) + dt*sp*(.05*Math.sin(K.t*.037) + .035*Math.sin(K.t*.091+1.4));\nconst camZ = S.cz, camX = S.cx;\nconst znear = f*camH/gh;\nconst NR = cl(Math.round(8 + cl(P.density,0,1)*6), 6, 14);\nconst zfar = znear + NR;\nconst PYo = Z => hz + f*camH/Z;\nconst PXo = (X,Z) => cxp + f*(X-camX)/Z;\n\n// ---- styles ---------------------------------------------------------------\nconst glow = (sty==='xray');\nfunction haze(){\n  if (sty==='ink')     return [30, 6, 74];\n  if (sty==='moonlit') return [222, 46, 22];\n  if (glow)            return [(H+190)%360, 56, 6];\n  if (sty==='worn')    return [38, 14, 62];\n  return [(H+4)%360, 22, 58];\n}\nfunction matCol(lam, wv, jit, agei){\n  const v = (.34 + .62*lam)*(.6+.5*en) + wv*.3;\n  if (sty==='ink')     return [ 32, cl(5 + 6*jit,0,18), cl(28 + 58*v, 4, 92) ];\n  if (sty==='moonlit') return [ (216 + jit*14)%360, cl(34 - 10*v,6,52), cl(16 + 52*v, 3, 82) ];\n  if (glow)            return [ (H + 130 + jit*60)%360, 44, cl(14 + 86*v, 2, 100) ];\n  if (sty==='worn')    return [ (40 + jit*16 - agei*10)%360, cl(24 + 16*jit - 10*agei, 5, 48), cl(38 + 50*v, 6, 94) ];\n  return [ (H + jit*12 - 4)%360, cl(34 + 14*jit, 8, 62), cl(30 + 58*v, 5, 96) ];  // rush\n}\nconst hc = haze(); const ic = glow ? [(H+150)%360, 30, 96] : [28, 30, 10];\n\nconst lang = K.t*.061*sp + .5*Math.sin(K.t*.0293+.7);\nconst lightZ = znear + 3.5 + 2.6*Math.sin(K.t*.083*sp) + 1.3*Math.sin(K.t*.191*sp+1.9);\nconst wv0 = cl(P.weave,0,1), bw = cl(P.border,0,1);\n\npush();\n// haze band under the horizon so the plane reads as receding, not as a flat wall\nnoStroke();\nfor (let i=0;i<9;i++){\n  const q=i/8;\n  fill(hc[0], hc[1], cl(hc[2]*(.7+.5*q),0,100), 100);\n  if (i===0) rect(0, hz, width, gh);\n}\nstrokeJoin(ROUND);\nlet drawn = 0;\n\nfor (let r=NR-1; r>=0 && drawn<240; r--){          // far -> near (painter)\n  const Z0 = znear + r, Z1 = Z0 + 1;\n  const gj = Math.floor(Z0 + camZ);\n  const zA = gj - camZ, zB = zA + 1;\n  if (zA < znear*.92) continue;\n  const gi0 = Math.floor(camX - cxp*zB/f) - 2, gi1 = Math.ceil(camX + (width-cxp)*zB/f) + 1;\n  if (gi1 - gi0 > 44) continue;\n  for (let gi=gi0; gi<=gi1 && drawn<240; gi++){\n    const d = doms[own[idx(gi,gj)]];\n    if (!d) continue;\n    if ((((gi%Wg)+Wg)%Wg) !== d.i || (((gj%Hg)+Hg)%Hg) !== d.j) continue;   // draw each mat from its origin cell only\n    const wX = d.h ? 2 : 1, wZ = d.h ? 1 : 2;\n    const X0 = gi, X1 = gi + wX, ZA = zA, ZB = zA + wZ;\n    if (ZA < znear*.92) continue;\n    const yA = PYo(ZA), yB = PYo(ZB);\n    const aX0 = PXo(X0,ZA), aX1 = PXo(X1,ZA), bX0 = PXo(X0,ZB), bX1 = PXo(X1,ZB);\n    if (Math.max(aX0,bX0) > width+40 || Math.min(aX1,bX1) < -40) continue;\n    const fog = cl((zfar - ZA)/(zfar - znear), 0, 1);\n    const fogq = fog*fog*(3-2*fog);\n    const jit = fr(d.i*13.7 + d.j*29.3);\n    const agei = fr(d.i*7.1 + d.j*3.9);\n    const lam = cl(1 - Math.abs(ZA - lightZ)/4.2, 0, 1) * (.6+.5*lift);\n    const wv = lam*(.5+.5*bass);\n    const c = matCol(lam, wv, jit, agei);\n    // the mat\n    if (glow) {\n      blendMode(ADD);\n      noStroke(); fill(c[0], c[1], c[2], cl((8 + 22*lam)*fogq, 1, 44));\n      quad(aX0,yA, aX1,yA, bX1,yB, bX0,yB);\n      blendMode(BLEND);\n      noFill(); stroke(c[0], c[1], cl(c[2],0,100), cl((30+50*lam)*fogq, 2, 92));\n      strokeWeight((u/900)*(.6+1.2*en)); quad(aX0,yA, aX1,yA, bX1,yB, bX0,yB);\n    } else {\n      noStroke();\n      fill(c[0], c[1], c[2], 100*fogq);\n      quad(aX0,yA, aX1,yA, bX1,yB, bX0,yB);\n      // igusa rush grain: fine lines running the mat's long axis\n      const hpx = Math.abs(yA-yB);\n      if (wv0 > .05 && hpx > 9) {\n        stroke(c[0], cl(c[1]+16,0,100), cl(c[2]*.72,0,100), (16 + 40*wv0)*fogq);\n        strokeWeight((u/1100)*(.4+.5*en));\n        const nh = 3 + Math.round(wv0*5);\n        for (let k2=1;k2<=nh;k2++){\n          const t2 = k2/(nh+1);\n          if (d.h) {   // long axis lateral -> grain runs across\n            const yy = yA + (yB-yA)*t2;\n            const xx0 = aX0 + (bX0-aX0)*t2, xx1 = aX1 + (bX1-aX1)*t2;\n            line(xx0, yy, xx1, yy);\n          } else {     // long axis into depth -> grain runs toward the horizon\n            line(aX0 + (aX1-aX0)*t2, yA, bX0 + (bX1-bX0)*t2, yB);\n          }\n        }\n      }\n      // heri: the black cloth border binding the two long edges\n      if (bw > .05 && hpx > 4) {\n        stroke(ic[0], ic[1], ic[2], (48 + 44*bw)*fogq);\n        strokeWeight((u/900)*(.9 + 2.4*bw)*(.4+.9*fogq));\n        if (d.h) { line(aX0,yA, aX1,yA); line(bX0,yB, bX1,yB); }\n        else     { line(aX0,yA, bX0,yB); line(aX1,yA, bX1,yB); }\n      }\n      noFill(); stroke(ic[0], cl(ic[1]*.7,0,100), cl(ic[2]+16,0,100), 34*fogq);\n      strokeWeight((u/1100)*(.5+.8*en));\n      quad(aX0,yA, aX1,yA, bX1,yB, bX0,yB);\n    }\n    drawn++;\n  }\n}\n\n// haze veil toward the horizon\nblendMode(BLEND); noStroke();\nfor (let i=0;i<10;i++){\n  const q=i/9;\n  fill(hc[0], hc[1], hc[2], (glow?4:9)*(1-q)*(1-q)*(.6+.7*(1-en)));\n  rect(0, hz, width, gh*(.06 + q*.5));\n}\npop();\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0, hz, width, gh); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

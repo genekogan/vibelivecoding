@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.pollen",
+  "kind": "fx",
+  "name": "Pollen",
+  "desc": "Seed on the wind, built as real structure rather than specks \u2014 dandelion parachutes trailing their stalk and seed, thistledown puffs and bristled spore clusters, each a crown of bowed filaments that tumbles edge-on and opens again as it rides a thermal, blooming where it drifts across the light.",
+  "tags": [
+    "pollen",
+    "spore",
+    "seed",
+    "dandelion",
+    "thistledown",
+    "pappus",
+    "parachute",
+    "fluff",
+    "down",
+    "floss",
+    "filament",
+    "bristle",
+    "drift",
+    "float",
+    "rise",
+    "thermal",
+    "updraft",
+    "air",
+    "atmosphere",
+    "breeze",
+    "meadow",
+    "summer",
+    "spring",
+    "allergen",
+    "backlit",
+    "bloom",
+    "halo",
+    "tumble",
+    "botanical",
+    "engraving",
+    "xray",
+    "chalk",
+    "delicate",
+    "ethereal",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "crown size, filament brightness and wander amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much seed is in the air"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "mote size against the frame"
+    },
+    "mix": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "morph: 0 = dandelion parachutes, 0.5 = thistledown puffs, 1 = bristled spore clusters"
+    },
+    "spin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tumble rate \u2014 how fast crowns roll edge-on and open again"
+    },
+    "hue": {
+      "default": 48,
+      "min": 0,
+      "max": 360,
+      "doc": "seed-head hue (48 = warm backlit straw)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "rise + drift rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "thermal + backlight x \u2014 motes gather toward it as they climb and bloom near it"
+    },
+    "y": {
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "doc": "thermal + backlight y"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity over the scene below"
+    },
+    "style": {
+      "default": "backlit",
+      "options": [
+        "backlit",
+        "botanical",
+        "xray",
+        "chalk"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "updraft",
+        "burst"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeding \u2014 depth, kind, filament count and splay"
+    }
+  },
+  "acts": [
+    "drift",
+    "updraft",
+    "burst"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:46:14+00:00",
+    "fps": 65.8,
+    "motion": 0.0212,
+    "lum": 0.096
+  },
+  "code": "const D = { energy: .55, density: .5, scale: 1, mix: .35, spin: .5, hue: 48, speed: 1, x: .5, y: .28, alpha: .85, style: 'backlit', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sm=(e0,e1,x)=>{const t=cl((x-e0)/((e1-e0)||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), dens=cl(P.density,0,1), sc=cl(P.scale,.3,2.6);\nconst mix=cl(P.mix,0,1), spn=cl(P.spin,0,1), H0=md(P.hue,360);\nconst spd=cl(P.speed,.1,4), ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst T=K.t*spd, LX=ax*W, LY=ay*Hh;\nconst MODE = sty==='botanical'?1 : sty==='xray'?2 : sty==='chalk'?3 : 0;\nconst GLOWS = (MODE===0||MODE===2);\n\nS.tre=(S.tre||0)*.88+(A.treble||0)*.12;\nS.low=(S.low||0)*.88+(A.lowmid||0)*.12;\n\n// ---- dramaturgy ----\nlet lift=1, therm=.22, popM=1, burst=0;\nif(act==='updraft'){ lift=1.5+.9*(.5+.5*Math.sin(K.t*.043)); therm=.72; popM=1.05; }\nelse if(act==='burst'){ const q=md(T*.019,1); burst=Math.pow(sm(.42,.55,q)*(1-sm(.60,.99,q)),.7);\n  lift=.7+1.9*burst; therm=.30+.5*burst; popM=.6+.75*burst; }\nelse { lift=.85+.35*Math.sin(K.t*.037)+.16*Math.sin(K.t*.091+1.1); }\nlift*=.7+.5*K.intensity; popM*=.7+.5*K.intensity;\n\nconst N=Math.min(30,Math.max(2,Math.round((6+dens*22)*popM)));\ndc.lineCap='round'; dc.lineJoin='round';\n\nfor(let i=0;i<N;i++){\n  const dl=fr(i*1.1), ph=fr(i*1.1+1)*TAU;\n  const rise=(.010+.048*dl)*(.30+1.35*lift)*spd;\n  let yn=md(fr(i*2.3+1)-T*rise,1);\n  let xn=md(fr(i*2.3)+T*(.004+.020*dl)*(.3+1.1*en),1);\n  let cx=xn*W + u*(.028+.075*dl)*Math.sin(K.t*(.23+dl*.30)+ph) + u*.018*Math.sin(K.t*.51+ph*1.7);\n  let cy=yn*Hh + u*(.012+.030*dl)*Math.sin(K.t*(.31+dl*.19)+ph*1.3);\n  // the thermal gathers them as they climb\n  cx+=(LX-cx)*cl(therm*(1-yn)*.42,0,.7);\n  if(burst>.004){ const ba=fr(i*8.1)*TAU, bd=u*(.05+.55*fr(i*8.1+1))*burst;\n    cx+=Math.cos(ba)*bd*.6+(LX-cx)*.25*burst; cy+=Math.sin(ba)*bd*.6+(LY-cy)*.25*burst; }\n  const R=u*(.014+.032*dl)*sc*(.7+.55*en);\n  if(cx<-R*3||cx>W+R*3||cy<-R*3||cy>Hh+R*3) continue;\n\n  const kv=fr(i*3.3)*.62+mix*.72;\n  const kind = kv<.45?0 : kv<.98?1 : 2;                 // pappus / thistledown / spore\n  const NF = Math.max(4,Math.round((kind===2?4:6)+dl*(kind===1?9:7)));\n  const tA=K.t*(.24+.62*fr(i*7.1))*(.25+1.6*spn)+ph;\n  const rot=K.t*(.13+.33*fr(i*7.3))*(.25+1.6*spn)+ph*1.3;\n  const asp=Math.abs(Math.cos(tA))*.86+.14;             // the crown tumbles edge-on and open again\n  const cr=Math.cos(rot), sr=Math.sin(rot);\n\n  const d2=(cx-LX)*(cx-LX)+(cy-LY)*(cy-LY), rg=u*.62;\n  const bl=.42+.62*Math.exp(-d2/(rg*rg));               // backlit bloom near the source\n  const base=(.16+.30*en)*(.28+.85*dl)*al;\n\n  let ccol,acol;\n  if(MODE===1){ ccol=hsb(md(H0+180,360),22,16); acol=hsb(md(H0+180,360),30,10); }\n  else if(MODE===2){ ccol=hsb(md(H0+160,360),24,100); acol=hsb(md(H0+160,360),40,96); }\n  else if(MODE===3){ ccol=hsb(md(H0+8,360),14,94); acol=hsb(md(H0-6,360),26,74); }\n  else { ccol=hsb(md(H0,360),16,100); acol=hsb(md(H0-16,360),40,96); }\n  dc.globalCompositeOperation = (MODE===1)?'multiply':(GLOWS?'lighter':'source-over');\n\n  // backlit halo\n  if(GLOWS){\n    const gr=R*(2.0+1.1*bl);\n    const gg=dc.createRadialGradient(cx,cy,0,cx,cy,gr);\n    gg.addColorStop(0,rs(acol,cl(base*(.55+.7*bl)*(MODE===2?1.2:1),0,.55)));\n    gg.addColorStop(.45,rs(acol,cl(base*.22*bl,0,.3)));\n    gg.addColorStop(1,rs(acol,0));\n    dc.fillStyle=gg; dc.globalAlpha=1; dc.fillRect(cx-gr,cy-gr,gr*2,gr*2);\n  }\n\n  if(kind===2){\n    // spore cluster: a knot of beads with short bristles\n    dc.fillStyle=rs(ccol,1); dc.globalAlpha=cl(base*(2.2+1.3*bl),0,.9);\n    for(let f=0;f<NF;f++){\n      const a=f/NF*TAU+rot, ex=Math.cos(a)*R*.42, ey=Math.sin(a)*R*.42*asp;\n      const bx=cx+ex*cr-ey*sr, by=cy+ex*sr+ey*cr;\n      dc.beginPath(); dc.arc(bx,by,R*(.16+.12*fr(i*5+f)),0,TAU); dc.fill();\n    }\n    dc.strokeStyle=rs(ccol,1); dc.globalAlpha=cl(base*1.5,0,.7);\n    dc.lineWidth=Math.max(.5,R*.05);\n    dc.beginPath();\n    for(let f=0;f<NF;f++){\n      const a=f/NF*TAU+rot*1.7, ex=Math.cos(a)*R, ey=Math.sin(a)*R*asp;\n      dc.moveTo(cx,cy); dc.lineTo(cx+ex*cr-ey*sr,cy+ex*sr+ey*cr);\n    }\n    dc.stroke();\n  } else {\n    // pappus / thistledown: a crown of bowed filaments splaying off one hub\n    const stalk=kind===0?R*(1.5+.7*fr(i*9.1)):0;\n    const hx=cx, hy=cy-stalk*.5;\n    dc.beginPath();\n    for(let f=0;f<NF;f++){\n      const a=f/NF*TAU+rot*.35+fr(i*13+f)*.16;\n      const rr=R*(kind===1?(.82+.36*fr(i*17+f)):(.72+.5*fr(i*17+f)));\n      const sp2=kind===0?cl(Math.sin(a)*.5+.5,0,1)*.55+.45:1;   // a parachute opens upward\n      const ex=Math.cos(a)*rr*sp2, ey=Math.sin(a)*rr*asp*sp2;\n      const tx=hx+ex*cr-ey*sr, ty=hy+ex*sr+ey*cr;\n      const mx=hx+(tx-hx)*.58-(ty-hy)*.13, my=hy+(ty-hy)*.58+(tx-hx)*.13;\n      dc.moveTo(hx+(tx-hx)*.06,hy+(ty-hy)*.06);\n      dc.quadraticCurveTo(mx,my,tx,ty);\n    }\n    if(GLOWS){ dc.strokeStyle=rs(ccol,1); dc.globalAlpha=cl(base*(.7+.9*bl)*.5,0,.45);\n      dc.lineWidth=Math.max(.9,R*.14); dc.stroke(); }\n    dc.strokeStyle=rs(ccol,1);\n    dc.globalAlpha=cl(base*(MODE===1?2.6:(MODE===3?2.0:1.9+1.1*bl)),0,MODE===1?.8:.95);\n    dc.lineWidth=Math.max(MODE===3?1.1:.5,R*(MODE===3?.085:.038));\n    dc.stroke();\n    if(kind===0){\n      // stalk + the seed hanging under it\n      dc.globalAlpha=cl(base*2.2,0,.85);\n      dc.lineWidth=Math.max(.5,R*.05);\n      dc.beginPath(); dc.moveTo(hx,hy); dc.lineTo(cx,cy+stalk*.5); dc.stroke();\n      dc.fillStyle=rs(acol,1); dc.globalAlpha=cl(base*(MODE===1?2.8:2.4),0,.9);\n      dc.beginPath(); dc.ellipse(cx,cy+stalk*.5,R*.09,R*.24,0,0,TAU); dc.fill();\n    }\n  }\n}\ndc.globalAlpha=1;\nblendMode(BLEND); dc.globalCompositeOperation='source-over'; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

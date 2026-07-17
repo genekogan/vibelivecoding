@@ -1,0 +1,165 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "world.sea_stacks",
+ "kind": "world",
+ "name": "Basalt Sea Stacks",
+ "desc": "Columnar basalt sea stacks standing off a cold coast in fog — four planes of rock dissolve into the haar one behind the other, each drifting at its own rate, banks of sea fog scroll between them and swallow the far ones whole, and the swell works white around their feet; North Atlantic large-format, a wet-collodion dry plate, flat woodblock planes, an x-ray lattice of the jointing, or a graphite study.",
+ "tags": [
+  "sea stack",
+  "stacks",
+  "basalt",
+  "columnar basalt",
+  "column",
+  "jointing",
+  "rock",
+  "cliff",
+  "headland",
+  "skerry",
+  "coast",
+  "shore",
+  "ocean",
+  "sea",
+  "swell",
+  "surf",
+  "foam",
+  "fog",
+  "haar",
+  "sea fog",
+  "mist",
+  "haze",
+  "aerial perspective",
+  "parallax",
+  "depth",
+  "layers",
+  "planes",
+  "north atlantic",
+  "faroe",
+  "iceland",
+  "hebrides",
+  "monumental",
+  "sublime",
+  "austere",
+  "eerie",
+  "melancholy",
+  "desolate",
+  "cold",
+  "grey",
+  "desaturated",
+  "muted",
+  "overcast",
+  "landscape",
+  "seascape",
+  "large format",
+  "photographic",
+  "collodion",
+  "dry plate",
+  "woodblock",
+  "ukiyo-e",
+  "xray",
+  "wireframe",
+  "graphite",
+  "pencil",
+  "nature",
+  "outdoor"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.55,
+   "min": 0,
+   "max": 1,
+   "doc": "how hard the sea works the rock — swell amplitude, foam wash, and overall contrast"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.5,
+   "max": 2.2,
+   "doc": "how monumental the stacks are — height and column width (rebuilds the planes)"
+  },
+  "density": {
+   "default": 0.55,
+   "min": 0,
+   "max": 1,
+   "doc": "how many stacks per plane, how many swell lines and wash points"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.2,
+   "max": 3,
+   "doc": "fog scroll and camera-drift rate"
+  },
+  "fog": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "aerial perspective — how completely the far planes dissolve into the haar"
+  },
+  "swell": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "sea state, from oily calm to a running swell"
+  },
+  "hue": {
+   "default": 196,
+   "min": 0,
+   "max": 360,
+   "doc": "palette hue shift off the default cold grey-green"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "which way the light rakes across the rock faces"
+  },
+  "y": {
+   "default": 0.66,
+   "min": 0.4,
+   "max": 0.85,
+   "doc": "horizon height — high y gives more water, low y towers the stacks"
+  },
+  "style": {
+   "default": "haar",
+   "options": [
+    "haar",
+    "dryplate",
+    "ukiyo",
+    "xray",
+    "graphite"
+   ],
+   "doc": "aesthetic: haar = cold North Atlantic large-format with modelled rock; dryplate = warm wet-collodion, blown highlights, plate flaws; ukiyo = flat woodblock tonal planes, hard edges, no interior modelling; xray = transparent wireframe lattice of the columnar jointing, no mass; graphite = colourless pencil study, tone built only from hatching"
+  },
+  "act": {
+   "default": "lift",
+   "options": [
+    "lift",
+    "close",
+    "gale"
+   ],
+   "doc": "multi-minute weather programme — fog lifting, fog closing in, or a gale running"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "regenerates the stacks, their jointing and the fog banks"
+  },
+  "alpha": {
+   "default": 1,
+   "min": 0.2,
+   "max": 1,
+   "doc": "how far the world sits back behind the performers"
+  }
+ },
+ "acts": [
+  "lift",
+  "close",
+  "gale"
+ ],
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy: .55, scale: 1, density: .55, speed: 1, fog: .6, swell: .5, hue: 196, x: .5, y: .66, style: 'haar', act: 'lift', seed: 0, alpha: 1 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst ho = P.hue - 196;\nconst L3 = (a, b, f) => [a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f, a[2] + (b[2]-a[2])*f];\nconst sh = c => [hw(c[0] + ho), c[1], c[2]];\nconst NL = 4;                                  // depth planes: 0 = farthest, 3 = nearest\n\n// ---------------- style = a different way of building form, not a hue swap ----------------\nconst STY = {\n  // North Atlantic haar: cold desaturated grey-green, modelled rock, real aerial perspective\n  haar:       { skyT:[203,22,52], skyL:[196,10,74], rock:[205,14,30], lit:[38,8,52], sea:[199,16,44],\n                foam:[190,4,92], fogC:[196,7,84], hatch:0, wire:0, flat:0, grain:22 },\n  // wet-collodion dry plate: warm grey, blown highlights, plate flaws, hard vignette\n  dryplate:   { skyT:[36,10,58], skyL:[38,14,84], rock:[34,14,26], lit:[40,12,58], sea:[34,10,42],\n                foam:[42,5,95], fogC:[38,8,88], hatch:0, wire:0, flat:0, grain:52 },\n  // ABSTRACTED: woodblock — flat tonal planes, hard edges, no modelling inside a plane\n  ukiyo:      { skyT:[30,16,84], skyL:[28,10,92], rock:[212,26,34], lit:[210,20,52], sea:[206,34,54],\n                foam:[35,4,97], fogC:[32,6,93], hatch:0, wire:0, flat:1, grain:10 },\n  // ABSTRACTED: x-ray / wireframe — the columnar jointing as a transparent lattice, no mass\n  xray:       { skyT:[218,62,19], skyL:[216,52,27], rock:[186,44,74], lit:[184,30,94], sea:[210,46,26],\n                foam:[184,26,96], fogC:[196,40,34], hatch:0, wire:1, flat:0, grain:6 },\n  // graphite: soft pencil study — tone built entirely from hatching, no colour\n  graphite:   { skyT:[40,3,72], skyL:[40,2,86], rock:[40,4,32], lit:[40,3,56], sea:[40,3,50],\n                foam:[40,1,92], fogC:[40,2,88], hatch:1, wire:0, flat:0, grain:34 }\n};\nconst st = STY[P.style] || STY.haar;\n\nconst hy = height * P.y;\nconst en = Math.max(0, Math.min(1, P.energy));\nconst fg = Math.max(0, Math.min(1, P.fog));\nconst ty0 = Math.max(0, hy - u * .58);\nconst bh = Math.max(4, Math.ceil(hy + u * .20 - ty0));\nconst key = width + 'x' + height + '|' + P.style + '|' + P.seed + '|' + Math.round(P.hue) + '|' + P.scale.toFixed(2) + '|' + P.density.toFixed(2) + '|' + P.y.toFixed(3) + '|' + P.x.toFixed(3);\n\nif (!S.sky || S.key !== key) {\n  const W = Math.max(2, Math.ceil(width)), H = Math.max(2, Math.ceil(height));\n  const mk = (w, h) => { const g = createGraphics(Math.max(2, Math.ceil(w)), Math.max(2, Math.ceil(h))); g.colorMode(g.HSB, 360, 100, 100, 100); return g; };\n  if (S.sky) { S.sky.remove(); S.planes.forEach(p => p.remove()); S.fog0.remove(); S.fog1.remove(); }\n  S.sky = mk(W, H);\n  S.planes = []; for (let L = 0; L < NL; L++) S.planes.push(mk(W, bh));\n  S.fog0 = mk(W, bh); S.fog1 = mk(W, bh);\n\n  // --- sky: value climbs toward the horizon (fog-lit, no blue dome) ---\n  const g = S.sky; g.noStroke();\n  const cT = sh(st.skyT), cL = sh(st.skyL);\n  for (let yy = 0; yy < H; yy++) {\n    const f = Math.pow(Math.min(1, yy / Math.max(1, hy)), .8);\n    const c = L3(cT, cL, f);\n    g.fill(c[0], c[1], c[2]); g.rect(0, yy, W, 1);\n  }\n\n  // --- the stacks: silhouette EMERGES from columnar basalt jointing, never a flat blob ---\n  const rockC = sh(st.rock), litC = sh(st.lit), fogC = sh(st.fogC);\n  for (let L = 0; L < NL; L++) {\n    const q = S.planes[L];\n    const near = L / (NL - 1);                       // 0 far -> 1 near\n    const hazeF = (1 - near) * (.30 + .58 * fg);     // far planes dissolve into the fog colour\n    const base = L3(rockC, fogC, hazeF);\n    const litB = L3(litC, fogC, hazeF * .9);\n    const nstk = Math.max(1, Math.round((1 + fr(L * 13 + 1) * 2.2) * (.5 + P.density)) + (L < 2 ? 1 : 0));\n    const seaY = hy - ty0 + (near - .5) * u * .012;  // nearer stacks meet the water lower\n    for (let s = 0; s < nstk; s++) {\n      const id = L * 97 + s * 17;\n      const sx = W * ((s + .5 + (fr(id + 2) - .5) * .7) / nstk);\n      const hgt = u * (.10 + .34 * near + fr(id + 3) * .16) * P.scale;\n      const wid = hgt * (.24 + fr(id + 4) * .30);\n      const lean = (fr(id + 5) - .5) * .10;\n      const ncol = Math.max(4, Math.floor(wid / Math.max(1.6, u * .0075 * P.scale)));\n      for (let c = 0; c < ncol; c++) {\n        const fx = (c + .5) / ncol;\n        const env = Math.pow(Math.sin(Math.PI * Math.min(.999, Math.max(.001, fx))), .30);   // flat-topped, sloped shoulders\n        const jag = .74 + .26 * (fr(id * 31 + c * 7) * .6 + fr(id * 13 + c * 3 + 1) * .4);\n        const ch = hgt * env * jag;\n        const cw = wid / ncol;\n        const cxp = sx - wid / 2 + c * cw;\n        const topY = seaY - ch;\n        // per-column shading: light rakes across the face, so the column IS the texture\n        const lam = .55 + .45 * Math.cos((fx - (P.x * .8 + .1)) * 2.6);\n        const jit = (fr(id * 7 + c * 11 + 5) - .5) * 12;\n        const col = L3(base, litB, Math.max(0, Math.min(1, lam * (.55 + .45 * near))));\n        if (st.wire) {\n          q.noFill(); q.strokeWeight(Math.max(.5, u * .0011));\n          q.stroke(col[0], col[1], Math.min(99, col[2] + 24), 22 + 40 * near);\n          q.rect(cxp, topY, cw, ch);\n          q.line(cxp, topY + ch * .34, cxp + cw, topY + ch * .30 + jit * .4);\n          q.line(cxp, topY + ch * .68, cxp + cw, topY + ch * .72 + jit * .4);\n        } else {\n          q.noStroke();\n          q.fill(col[0], col[1], Math.max(2, col[2] + (st.flat ? 0 : jit)), 100);\n          q.quad(cxp, topY, cxp + cw + .8, topY + (fr(id + c) - .5) * ch * .05,\n                 cxp + cw + .8 + lean * ch, seaY + 2, cxp + lean * ch, seaY + 2);\n          if (!st.flat) {                          // the joint shadow between columns\n            q.stroke(base[0], base[1] + 6, Math.max(1, base[2] * .62), 46);\n            q.strokeWeight(Math.max(.4, cw * .10)); q.line(cxp, topY + 1, cxp + lean * ch, seaY);\n            q.noStroke();\n          }\n        }\n      }\n      if (st.hatch) {                              // graphite: tone is hatching, nothing else\n        q.strokeWeight(Math.max(.4, u * .0009));\n        for (let hI = 0; hI < 90; hI++) {\n          const hx = sx - wid / 2 + fr(id * 5 + hI) * wid;\n          const hyy = seaY - fr(id * 3 + hI * 2) * hgt * .9;\n          q.stroke(base[0], base[1], Math.max(2, base[2] - 14), 22 + fr(hI) * 26);\n          q.line(hx, hyy, hx + u * .012, hyy + u * .012);\n        }\n        q.noStroke();\n      }\n      // reflection smeared into the water, faded and vertically stretched\n      if (!st.wire) {\n        q.noStroke();\n        for (let r = 0; r < 12; r++) {\n          const rf = r / 12;\n          q.fill(base[0], base[1] * .8, Math.max(2, base[2] * (.66 - rf * .3)), (30 - rf * 26) * (.4 + .6 * near));\n          q.rect(sx - wid * (.5 + rf * .12), seaY + rf * u * .016, wid * (1 + rf * .24), u * .018);\n        }\n      }\n    }\n    // per-plane haze veil — the aerial-perspective plane separator\n    q.noStroke(); q.fill(fogC[0], fogC[1], fogC[2], (1 - near) * (10 + 30 * fg));\n    q.rect(0, 0, W, bh);\n  }\n\n  // --- two tileable fog banks (blobs drawn 3x so a linear scroll never seams) ---\n  const fogC2 = sh(st.fogC);\n  for (const [gg, n, yc, spr, thk, alp] of [[S.fog0, 11, hy - ty0 - u * .10, u * .30, u * .075, 15],\n                                            [S.fog1, 8, hy - ty0 - u * .01, u * .16, u * .045, 22]]) {\n    gg.noStroke();\n    for (let i = 0; i < n; i++) {\n      const bx = fr(i * 5 + 61) * W;\n      const by = yc + (fr(i * 5 + 62) - .5) * spr;\n      const bw = u * (.22 + fr(i * 5 + 63) * .70);\n      const bhh = thk * (.5 + fr(i * 5 + 64) * 1.0);\n      for (let rep = -1; rep <= 1; rep++)\n        for (let k = 0; k < 4; k++) {\n          gg.fill(fogC2[0], fogC2[1] * (1 - k * .1), Math.min(99, fogC2[2] + k * 2), alp * (1 - k * .2));\n          gg.ellipse(bx + rep * W, by + k * bhh * .14, bw * (1 - k * .12), bhh * (1 - k * .08));\n        }\n    }\n  }\n  S.key = key;\n}\n\n// ---------------- act: what the weather is doing over minutes ----------------\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = { lift: { f: 1.05 - sec * .09, sw: .9 }, close: { f: .35 + sec * .09, sw: 1 }, gale: { f: .7, sw: 1.5 + sec * .07 } };\nconst act = ACT[P.act] || ACT.lift;\nconst fogAmt = Math.max(.05, Math.min(1.4, act.f));\nconst swAmt = Math.max(0, Math.min(1, P.swell)) * act.sw;\n\n// ---------------- composite: sky / far planes / fog between them / sea ----------------\nnoStroke();\nimage(S.sky, 0, 0);\n\nconst W2 = S.fog0.width;\nconst scr = (g, px, yy, a) => { const ox = ((px % W2) + W2) % W2; if (a < 100) tint(0, 0, 100, a); image(g, ox - W2, yy); image(g, ox, yy); if (a < 100) noTint(); };\n\n// far half of the fog sits BEHIND the near stacks — that's what makes the depth read\nscr(S.fog0, -K.t * u * .0035 * P.speed, ty0, 100 * Math.min(1, fogAmt));\nfor (let L = 0; L < NL; L++) {\n  const near = L / (NL - 1);\n  // slow camera drift: each plane on its own incommensurate rate, nearer = larger throw\n  const dx = (Math.sin(K.t * (.021 + L * .0074) + L * 1.9) * .7 + Math.sin(K.t * (.047 + L * .011) + L) * .3) * u * .012 * (.25 + near) * P.speed;\n  const dy = Math.sin(K.t * (.017 + L * .006) + L * 2.7) * u * .0025 * (.2 + near);\n  image(S.planes[L], dx, ty0 + dy);\n  if (L === 1) scr(S.fog1, -K.t * u * .0091 * P.speed - u * .4, ty0 + u * .01, 100 * Math.min(1, fogAmt * .9));\n}\n\n// ---------------- sea: live swell, compressed toward the horizon ----------------\nconst seaC = sh(st.sea), foamC = sh(st.foam), fogC3 = sh(st.fogC);\nif (!st.wire) { fill(seaC[0], seaC[1], seaC[2]); rect(0, hy, width, height - hy); }\nelse { noFill(); stroke(seaC[0], seaC[1], seaC[2] + 30, 40); strokeWeight(1); rect(0, hy, width, height - hy); noStroke(); }\n\nconst nsw = Math.floor(26 + P.density * 26);\nnoFill();\nfor (let i = 0; i < nsw; i++) {\n  const f = Math.pow((i + .5) / nsw, 2.0);\n  const yy = hy + f * (height - hy);\n  const d = Math.max(.02, f);\n  // three incommensurate real-time terms per line: the swell never re-phases at 8 s\n  const ph = K.t * (.31 + d * .55) * P.speed;\n  const amp = u * .010 * d * (.35 + swAmt) * (.6 + .4 * en);\n  strokeWeight(Math.max(.6, u * .0016 * (.3 + d * 2.2)));\n  const v = seaC[2] * (.72 + .5 * d) + (st.flat ? 0 : 10 * Math.sin(i * 1.7));\n  stroke(seaC[0], seaC[1] * (.6 + .4 * d), Math.min(99, v + 10), 30 + 34 * d);\n  beginShape();\n  for (let xx = -10; xx <= width + 10; xx += Math.max(7, 16 * d)) {\n    const w1 = Math.sin(xx * .0075 / (1 + d) + ph) * .7 + Math.sin(xx * .019 / (1 + d) - ph * 1.43 + i) * .35 + Math.sin(xx * .0031 + K.t * .229) * .5;\n    vertex(xx, yy + w1 * amp);\n  }\n  endShape();\n}\nnoStroke();\n// horizon haze plane — sea and sky must meet in value, not in a hard line\nfor (let i = 0; i < 4; i++) {\n  const dr = Math.sin(K.t * (.037 + i * .019) + i * 2.3) * .5 + .5;\n  fill(fogC3[0], fogC3[1], fogC3[2], (6 + 12 * fg) * Math.min(1, fogAmt) * (1 - i * .17));\n  rect(0, hy - u * (.03 + i * .012) - dr * u * .008, width, u * (.055 + i * .05));\n}\n\n// --- wash at the stack bases: the only place the sea breaks white ---\nif (!st.wire) {\n  const nw = Math.floor(6 + P.density * 8);\n  for (let i = 0; i < nw; i++) {\n    const bx = fr(i * 11 + 401) * width;\n    const by = hy + Math.pow(fr(i * 11 + 402), 1.5) * (height - hy) * .5;\n    const dd = (by - hy) / Math.max(1, height - hy);\n    // clk baseline first, audio only added on top — silence must still surge\n    const surge = .5 + .5 * Math.sin(K.t * (.53 + i * .07) + i * 2.1) * .6 + .3 * Math.sin(K.t * 1.19 + i);\n    const amp2 = Math.max(0, surge) * (.4 + .6 * swAmt) + K.swell * .18 + A.bass * .28;\n    fill(foamC[0], foamC[1], foamC[2], (14 + 30 * amp2) * (.35 + .65 * en) * (.4 + dd));\n    ellipse(bx, by, u * (.05 + .12 * amp2) * (.4 + dd * 1.6), u * .012 * (.3 + dd * 1.4));\n  }\n}\n\n// --- grain / plate flaws: texture over every flat area ---\nif (st.grain > 12) {\n  const ng = Math.floor(st.grain * 5);\n  for (let i = 0; i < ng; i++) {\n    const gx = ((fr(i * 3 + 501) * width) + Math.sin(K.t * .011 + i) * u * .004 + width) % width;\n    const gy2 = fr(i * 3 + 502) * height;\n    fill(hw(st.rock[0] + ho), st.rock[1] * .5, fr(i * 3 + 503) > .5 ? 96 : 4, 3 + fr(i) * 7);\n    rect(gx, gy2, u * .0016, u * .0016);\n  }\n}\n\n// --- vignette / plate edge ---\nfor (let i = 0; i < 5; i++) {\n  noFill(); strokeWeight(u * .055);\n  stroke(hw(st.rock[0] + ho), st.rock[1], st.wire ? st.skyT[2] : 8, (st.grain > 40 ? 30 : 18) * (1 - i * .17));\n  rect(-u * .03 + i * u * .03, -u * .03 + i * u * .03, width + u * .06 - i * u * .06, height + u * .06 - i * u * .06);\n}\nnoStroke();\n\nif (P.alpha < 1) { fill(hw(st.rock[0] + ho), st.rock[1] * .5, 5, (1 - P.alpha) * 100); rect(0, 0, width, height); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

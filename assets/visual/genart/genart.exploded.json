@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.exploded",
+  "kind": "genart",
+  "name": "Exploded Assembly",
+  "desc": "An exploded axonometric of a machine that never finishes coming apart \u2014 flanges, gears, springs and nuts drift off a dash-dot centreline and drop back together while the whole assembly turns on its axis under ballooned leader lines.",
+  "tags": [
+    "exploded",
+    "assembly",
+    "axonometric",
+    "isometric",
+    "diagram",
+    "technical",
+    "drawing",
+    "draughting",
+    "patent",
+    "plate",
+    "machine",
+    "mechanism",
+    "gear",
+    "flange",
+    "bearing",
+    "spring",
+    "bolt",
+    "hardware",
+    "engineering",
+    "schematic",
+    "blueprint",
+    "engraving",
+    "xray",
+    "anodized",
+    "cad",
+    "parts",
+    "leader-line",
+    "centreline",
+    "clinical",
+    "austere",
+    "structure",
+    "built",
+    "depth",
+    "rotation"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "explosion travel + glow (at max the assembly flies fully apart)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "assembly size vs frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of parts in the stack (4\u201310)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "spin rate multiplier"
+    },
+    "spin": {
+      "default": 0.6,
+      "min": 0,
+      "max": 2,
+      "doc": "how fast the assembly turns on its own axis"
+    },
+    "hue": {
+      "default": 206,
+      "min": 0,
+      "max": 360,
+      "doc": "material / ink hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "assembly centre x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "assembly centre y as canvas fraction"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "technical",
+      "options": [
+        "technical",
+        "anodized",
+        "blueprint",
+        "engraving",
+        "xray"
+      ],
+      "doc": "aesthetic: draughtsman's plate on drafting paper / machined anodized metal with specular bands / cyan schematic on navy / hatched patent engraving / dark X-ray \u2014 outline and glow only, every part transparent"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 regenerates the whole part stack"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:33+00:00",
+    "fps": 59.9,
+    "motion": 0.0356,
+    "lum": 0.691
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:206, x:.5, y:.5, spin:.6, style:'technical', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst TAU = Math.PI*2;\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\nconst sty = P.style;\nconst bp = (sty==='blueprint'), paper = (sty==='engraving'), xr = (sty==='xray'), ano = (sty==='anodized');\nconst tech = (sty==='technical');\nconst H = ((P.hue%360)+360)%360;\nconst NP = Math.max(3, Math.round(4 + cl(P.density,0,1)*6));\nconst R = u*.30*cl(P.scale,.3,2.2);\n\n// ---- seeded assembly --------------------------------------------------------\nif (S.sdU !== sd || S.npU !== NP){\n  S.sdU = sd; S.npU = NP;\n  const kinds = ['flange','gear','ring','hub','cone','spring','nut','disc'];\n  const ps = []; let z = 0;\n  for (let i=0;i<NP;i++){\n    const q = fr(i*9.7+1);\n    let kd = kinds[Math.floor(fr(i*4.3+2)*kinds.length)];\n    if (i===0) kd = 'flange';\n    if (i===NP-1) kd = (q>.5) ? 'nut' : 'flange';\n    const len = (kd==='hub') ? .28 + q*.55 : (kd==='spring') ? .30 + q*.34 : .07 + q*.16;\n    const r0 = (kd==='hub') ? .18 + fr(i*7.1+3)*.14 : (kd==='nut') ? .26 + fr(i*7.1+3)*.12 : .42 + fr(i*7.1+3)*.55;\n    const r1 = (kd==='cone') ? r0*(.34 + fr(i*5.9+4)*.5) : r0;\n    ps.push({ kd:kd, z0:z, len:len, r0:r0, r1:r1,\n              bore: .10 + fr(i*11.3+5)*.14,\n              nt: 12 + Math.floor(fr(i*3.7+6)*8)*2,\n              nb: 5 + Math.floor(fr(i*6.1+7)*5),\n              hu: fr(i*13.1+8) });\n    z += len;\n  }\n  S.parts = ps; S.L = z;\n}\nconst ps = S.parts, L = S.L;\n\n// ---- incommensurate motion: explode breathes, spins, view angle drifts ------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.sp = (S.sp||0) + dt * P.speed * cl(P.spin,0,2) * (.55 + .8*K.intensity) * .9;\nconst spin = S.sp;\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.38 + .62*P.energy)*(.55 + .5*K.intensity) + bass*.3;\nconst X = cl(.5 + .5*(.60*Math.sin(K.t*.110) + .30*Math.sin(K.t*.257+1.3) + .10*Math.sin(K.t*.613+2.4)), 0, 1)\n        * (.25 + .75*P.energy);\nconst phi = -.38 + .10*Math.sin(K.t*.037) + .045*Math.sin(K.t*.089+1.1) + .02*Math.sin(K.t*.211);\nconst kk = .34 + .13*Math.sin(K.t*.053+.7) + .05*Math.sin(K.t*.131+2.0);\nconst gap = R*.50*X;\nconst ox = cl(P.x,.1,.9)*width, oy = cl(P.y,.1,.9)*height;\nconst zc = -(L*R + (NP-1)*gap)*.5;\nconst TX = (lx,ly) => [ox + lx*Math.cos(phi) - ly*Math.sin(phi), oy + lx*Math.sin(phi) + ly*Math.cos(phi)];\nconst zOf = i => zc + ps[i].z0*R + i*gap;\n\n// ---- palette ----------------------------------------------------------------\nconst G = bp ? [212,64,19] : paper ? [40,10,84] : xr ? [H,50,5] : ano ? [H,22,8] : [42,7,74];\nnoStroke(); fill(G[0], G[1], G[2], 100); rect(0,0,width,height);\n\n// drafting board furniture (cached)\nconst ck = width+'x'+height+'|'+sty+'|'+Math.round(H);\nif (!S.bd || S.ck !== ck){\n  const g = (S.bd && S.bd.width===width && S.bd.height===height) ? S.bd : createGraphics(width,height);\n  g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.clear(); g.noFill();\n  const gi = bp ? [196,30,100,16] : paper ? [30,20,30,10] : xr ? [H,26,90,9] : ano ? [H,20,80,7] : [210,22,44,13];\n  g.stroke(gi[0],gi[1],gi[2],gi[3]); g.strokeWeight(1);\n  const st2 = u*.055;\n  for (let x=st2; x<width; x+=st2) g.line(x,0,x,height);\n  for (let y=st2; y<height; y+=st2) g.line(0,y,width,y);\n  g.stroke(gi[0],gi[1],gi[2],gi[3]*3.0); g.strokeWeight(Math.max(1.2,u*.0022));\n  const m = u*.035; g.rect(m, m, width-2*m, height-2*m);\n  g.line(width-m-u*.30, height-m-u*.075, width-m, height-m-u*.075);\n  g.line(width-m-u*.30, height-m, width-m-u*.30, height-m-u*.075);\n  g.line(width-m-u*.30, height-m-u*.038, width-m, height-m-u*.038);\n  S.bd = g; S.ck = ck;\n}\nimage(S.bd, 0, 0);\n\nfunction ink(a,w){\n  if (bp) stroke(196,26,100,a); else if (paper) stroke(28,28,12,a);\n  else if (xr) stroke(H,22,98,a); else if (ano) stroke(H,14,92,a);\n  else stroke(210,30,16,a);\n  strokeWeight(Math.max(.8, w||1));\n}\n// body / face / shade tones for part i\nfunction tone(i, kind){\n  const p = ps[i], hh = (H + p.hu*(ano?150:26) + i*7) % 360;\n  if (bp)    return kind===2 ? [212,58,17] : kind===1 ? [212,50,32] : [212,54,24];\n  if (paper) return kind===2 ? [40,7,58] : kind===1 ? [40,6,93] : [40,7,78];\n  if (xr)    return kind===2 ? [hh,60,10] : kind===1 ? [hh,44,26] : [hh,52,17];\n  if (ano)   return kind===2 ? [hh,52,16] : kind===1 ? [hh,44,68] : [hh,50,40];\n  return kind===2 ? [206,10,42] : kind===1 ? [42,4,92] : [210,7,70];      // technical\n}\nconst filled = !xr && !bp;\n\npush(); translate(ox, oy); rotate(phi);\nfor (let i=0;i<NP;i++){\n  const p = ps[i], z0 = zOf(i), z1 = z0 + p.len*R;\n  const r0 = p.r0*R, r1 = p.r1*R, br = p.bore*R;\n  const lit = .5 + .5*Math.sin(spin*.4 + i);\n  const body = tone(i,0), face = tone(i,1), shade = tone(i,2);\n\n  if (p.kd === 'spring'){\n    ink(cl(60 + 40*glow, 10, 100), Math.max(1.6, R*.030));\n    noFill(); beginShape();\n    const turns = 5 + Math.floor(p.hu*4);\n    for (let j=0;j<=turns*22;j++){ const s=j/(turns*22), th=spin + s*turns*TAU;\n      vertex(z0 + (z1-z0)*s + r0*kk*Math.sin(th), r0*Math.cos(th)); }\n    endShape();\n    continue;\n  }\n  if (p.kd === 'nut'){\n    const N2 = 6;\n    if (filled){ noStroke(); fill(body[0],body[1],cl(body[2]*(.7+.5*lit),2,96),100); }\n    else { ink(72, Math.max(1,R*.010)); noFill(); }\n    // hex prism: side wall as a strip of quads + the near hex face\n    for (let j=0;j<N2;j++){ const a1=spin+j*TAU/N2, a2=spin+(j+1)*TAU/N2;\n      const p1=[r0*kk*Math.sin(a1), r0*Math.cos(a1)], p2=[r0*kk*Math.sin(a2), r0*Math.cos(a2)];\n      if (filled){ const sh = .48 + .52*cl(.5+.5*Math.sin(a1+.6),0,1);\n        fill(body[0], body[1], cl(body[2]*(.45+.75*sh),2,96), 100); }\n      quad(z0+p1[0],p1[1], z0+p2[0],p2[1], z1+p2[0],p2[1], z1+p1[0],p1[1]);\n    }\n    if (filled){ noStroke(); fill(face[0],face[1],cl(face[2]*(.85+.25*lit),2,98),100); }\n    beginShape();\n    for (let j=0;j<N2;j++){ const a1=spin+j*TAU/N2; vertex(z1 + r0*kk*Math.sin(a1), r0*Math.cos(a1)); }\n    endShape(CLOSE);\n    ink(74, Math.max(.9, R*.006)); noFill();\n    beginShape();\n    for (let j=0;j<N2;j++){ const a1=spin+j*TAU/N2; vertex(z1 + r0*kk*Math.sin(a1), r0*Math.cos(a1)); }\n    endShape(CLOSE);\n    if (filled){ noStroke(); fill(shade[0],shade[1],shade[2],100); }\n    ellipse(z1, 0, 2*br*kk, 2*br);\n    continue;\n  }\n\n  // ---- solid of revolution: far cap, wall, near cap ----\n  if (filled){ noStroke(); fill(shade[0], shade[1], cl(shade[2]*(.7+.4*lit),1,90), 100); }\n  else { ink(38, Math.max(.9,R*.006)); noFill(); }\n  ellipse(z0, 0, 2*r0*kk, 2*r0);                                  // far face\n  if (filled){                                                     // wall (banded shading)\n    const NBnd = ano ? 9 : 5;\n    for (let b2=0;b2<NBnd;b2++){ const q0=b2/NBnd, q1=(b2+1)/NBnd;\n      const sh = .40 + .60*Math.pow(1 - Math.abs(q0*2-1), ano?1.6:.9);\n      const sp2 = ano ? cl(.4 + .8*Math.pow(1-Math.abs(q0*2-.75),8), 0, 1) : 0;\n      noStroke(); fill(body[0], cl(body[1]*(1-sp2*.7),0,100), cl(body[2]*(.42+.85*sh) + sp2*42, 2, 97), 100);\n      const rb2 = r1;\n      quad(z0, -r0 + 2*r0*q0, z0, -r0 + 2*r0*q1, z1, -rb2 + 2*rb2*q1, z1, -rb2 + 2*rb2*q0);\n    }\n  } else {\n    ink(bp?70:52, Math.max(1,R*.008)); noFill();\n    line(z0, -r0, z1, -r1); line(z0, r0, z1, r1);\n  }\n  if (p.kd === 'gear'){                                            // teeth on the rim\n    const th2 = r0*.13, NT = p.nt;\n    for (let j=0;j<NT;j++){ const a1 = spin + j*TAU/NT, dth = TAU/NT*.32;\n      const nearq = .45 + .55*cl(.5 + .5*Math.sin(a1), 0, 1);\n      if (filled){ noStroke(); fill(body[0], body[1], cl(body[2]*(.4+.9*nearq),2,96), 100); }\n      else { ink(cl(30+50*nearq,8,100), Math.max(.8,R*.005)); noFill(); }\n      quad(z0 + r0*kk*Math.sin(a1-dth), r0*Math.cos(a1-dth),\n           z0 + (r0+th2)*kk*Math.sin(a1-dth), (r0+th2)*Math.cos(a1-dth),\n           z1 + (r0+th2)*kk*Math.sin(a1+dth), (r0+th2)*Math.cos(a1+dth),\n           z1 + r0*kk*Math.sin(a1+dth), r0*Math.cos(a1+dth));\n    }\n  }\n  if (filled){ noStroke(); fill(face[0], face[1], cl(face[2]*(.82+.30*lit),2,98), 100); }\n  else { ink(bp?80:64, Math.max(1,R*.008)); noFill(); }\n  ellipse(z1, 0, 2*r1*kk, 2*r1);                                   // near face\n  if (paper){                                                       // engraved rim hatching\n    ink(28, Math.max(.7,R*.004)); noFill();\n    for (let j=0;j<16;j++){ const a1 = spin*.3 + j*TAU/16;\n      line(z1 + r1*.42*kk*Math.sin(a1), r1*.42*Math.cos(a1), z1 + r1*.94*kk*Math.sin(a1), r1*.94*Math.cos(a1)); }\n  }\n  if (p.kd === 'flange'){                                            // bolt circle\n    const rb2 = r1*.74, hr = r1*.085;\n    for (let j=0;j<p.nb;j++){ const a1 = spin*.6 + j*TAU/p.nb;\n      if (filled){ noStroke(); fill(shade[0], shade[1], cl(shade[2]*.55,1,60), 100); }\n      else { ink(58, Math.max(.8,R*.005)); noFill(); }\n      ellipse(z1 + rb2*kk*Math.sin(a1), rb2*Math.cos(a1), 2*hr*kk, 2*hr);\n    }\n  }\n  if (filled){ noStroke(); fill(shade[0], cl(shade[1]*1.1,0,100), cl(shade[2]*.5,1,60), 100); }\n  else { ink(bp?66:50, Math.max(.9,R*.006)); noFill(); }\n  ellipse(z1, 0, 2*br*kk, 2*br);                                    // bore\n  ink(bp?78:(paper?60:(xr?70:44)), Math.max(.9, R*.0055)); noFill();\n  ellipse(z1, 0, 2*r1*kk, 2*r1);\n}\npop();\n\n// ---- centerline (dash-dot) through the whole exploded stack -----------------\nconst zA = zc - R*.55, zB = zc + L*R + (NP-1)*gap + R*.55;\nink(bp?58:(paper?42:34), Math.max(.9, u*.0016)); noFill();\n{ let z = zA; let f2 = 0;\n  while (z < zB){ const seg = (f2%2===0) ? R*.30 : R*.045;\n    const a2 = TX(z,0), b2 = TX(Math.min(z+seg, zB), 0);\n    line(a2[0],a2[1], b2[0],b2[1]); z += seg + R*.055; f2++; }\n}\n\n// ---- leader lines + ballooned part numbers ---------------------------------\ntextAlign(CENTER, CENTER);\nconst ts = Math.max(8, u*.020);\ntextSize(ts);\nconst brr = ts*.86;\nfor (let i=0;i<NP;i++){\n  const p = ps[i], zm = zOf(i) + p.len*R*.5, side = (i%2) ? 1 : -1;\n  const a2 = TX(zm, side*p.r0*R*.92);\n  const b2 = TX(zm + R*.30*side*.4, side*(R*(.95 + (i%3)*.16)));\n  ink(bp?66:(xr?60:46), Math.max(.9, u*.0014)); noFill();\n  line(a2[0],a2[1], b2[0],b2[1]);\n  line(b2[0],b2[1], b2[0] + (side>0?1:-1)*ts*1.5, b2[1]);\n  const cxb = b2[0] + (side>0?1:-1)*(ts*1.5 + brr), cyb = b2[1];\n  if (filled){ noStroke(); fill(G[0], G[1], cl(G[2]*(paper||tech?1.06:1.9)+3, 2, 98), 100); }\n  else noFill();\n  ink(bp?74:(xr?66:52), Math.max(.9, u*.0016));\n  ellipse(cxb, cyb, brr*2, brr*2);\n  noStroke();\n  fill(bp?196:(paper?28:(xr?H:(ano?H:210))), bp?24:(paper?30:(xr?16:(ano?12:26))), bp?100:(paper?12:(xr?98:(ano?92:16))), 100);\n  text(String(i+1), cxb, cyb + ts*.06);\n}\n\n// ---- part glow (xray/anodized read) ----------------------------------------\nif (xr || ano){\n  push(); blendMode(ADD); noStroke();\n  for (let i=0;i<NP;i++){ const p = ps[i], zm = zOf(i) + p.len*R*.5, c = TX(zm, 0);\n    fill((H + p.hu*(ano?150:26) + i*7)%360, 40, 100, cl(2.4 + 5*glow, 0, 12));\n    ellipse(c[0], c[1], p.r0*R*2.4, p.r0*R*2.4);\n  }\n  pop(); blendMode(BLEND);\n}\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

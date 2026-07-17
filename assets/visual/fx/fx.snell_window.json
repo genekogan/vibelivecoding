@@ -1,0 +1,169 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.snell_window",
+  "kind": "fx",
+  "name": "Snell's Window",
+  "desc": "The scene drops under the water and you look back up at the surface \u2014 the whole 180-degree sky refracts into one bright disc at the 48.6-degree critical angle, its horizon compressed into a burning gold rim, while everything outside the disc goes to total internal reflection and becomes a swimming silver-teal mirror; the chop tilts the surface so the window breathes, shreds and reassembles, and the sun wanders inside it throwing glitter along the rim.",
+  "tags": [
+    "snell",
+    "snells-window",
+    "critical-angle",
+    "total-internal-reflection",
+    "refraction",
+    "refractive",
+    "optics",
+    "atmospheric-optics",
+    "physics",
+    "underwater",
+    "under water",
+    "submerged",
+    "subsurface",
+    "surface",
+    "water",
+    "sea",
+    "ocean",
+    "lake",
+    "pool",
+    "dive",
+    "diving",
+    "freediving",
+    "snorkel",
+    "swim",
+    "looking-up",
+    "up-angle",
+    "water-column",
+    "chop",
+    "swell",
+    "wave",
+    "ripple",
+    "undulation",
+    "mirror",
+    "specular",
+    "glitter",
+    "caustic-adjacent",
+    "teal",
+    "cyan",
+    "silver",
+    "gold",
+    "sublime",
+    "serene",
+    "eerie",
+    "cold",
+    "clinical",
+    "documentary",
+    "schematic",
+    "blueprint",
+    "thermal",
+    "sumi",
+    "ink",
+    "overlay",
+    "veil",
+    "fx",
+    "effect",
+    "atmosphere",
+    "transparent",
+    "composite",
+    "drown",
+    "flood"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sea state \u2014 chop amplitude, how hard the surface lenses and shreds the window rim, rim + sun brightness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "window radius vs design size \u2014 0.35 is a distant porthole, 2.2 floods the frame with sky"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rim glitter count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 4,
+      "doc": "wave + drift rate multiplier"
+    },
+    "murk": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "water turbidity \u2014 how opaque the total-internal-reflection mirror sits over the scene"
+    },
+    "alpha": {
+      "default": 0.7,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overall overlay opacity \u2014 drop toward 0.3 to leave the scene reading clearly"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue \u2014 zenith and mirror; the compressed horizon rim swings warm off it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "window centre x (where you are looking straight up)"
+    },
+    "y": {
+      "default": 0.42,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "window centre y"
+    },
+    "style": {
+      "default": "daylight",
+      "options": [
+        "daylight",
+        "nocturne",
+        "thermal",
+        "schematic",
+        "ink"
+      ],
+      "doc": "aesthetic \u2014 daylight: warm sky disc over a silver-teal mirror \u00b7 nocturne: night dive, cold silver window on near-black water \u00b7 thermal: false-colour radiance map \u00b7 schematic: optics-diagram contours, dashed critical circle and ray construction, no picture at all \u00b7 ink: quantised sumi tones with a dry-brush surface"
+    },
+    "act": {
+      "default": "chop",
+      "options": [
+        "calm",
+        "chop",
+        "swell"
+      ],
+      "doc": "multi-minute sea-state programme \u2014 calm: glassy, wide sharp window \u00b7 chop: working surface, boundary breaking up \u00b7 swell: long-period heave that opens and closes the window"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "wave train + sun placement (int)"
+    }
+  },
+  "acts": [
+    "calm",
+    "chop",
+    "swell"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:39+00:00",
+    "fps": 57.5,
+    "motion": 0.0421,
+    "lum": 0.234
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, murk:.45, alpha:.7, hue:196, x:.5, y:.42, style:'daylight', act:'chop', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2=(h,s,v)=>{h=md(h,360)/60;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,x=c*(1-Math.abs(h%2-1)),m=v-c;let r=0,g=0,b=0;\n  if(h<1){r=c;g=x;}else if(h<2){r=x;g=c;}else if(h<3){g=c;b=x;}else if(h<4){g=x;b=c;}else if(h<5){r=x;b=c;}else{r=c;b=x;}\n  return [(r+m)*255,(g+m)*255,(b+m)*255];};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'chop';\nconst isNoc=st==='nocturne', isThm=st==='thermal', isSch=st==='schematic', isInk=st==='ink';\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1), mk=clp(P.murk,0,1);\nconst sc=clp(P.scale,0.35,2.2), sp=clp(P.speed,0.1,4);\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// ---- seeded wave train (4 incommensurate components; never re-phases on the 8s gate) ----\nif(S.seedUsed!==P.seed||!S.comp){\n  S.seedUsed=P.seed; S.comp=[];\n  const KM=[7.2,11.9,19.3,29.7], OM=[0.61,1.13,1.87,2.53], AM=[0.46,0.28,0.17,0.09];\n  for(let i=0;i<4;i++){\n    const ang=fr(i*5+1)*6.2832;\n    S.comp.push({kx:KM[i]*Math.cos(ang), ky:KM[i]*Math.sin(ang), om:OM[i]*(0.82+fr(i*7+3)*0.42), ph:fr(i*3+2)*6.2832, amp:AM[i]});\n  }\n}\nconst t=K.t*sp;\nconst fieldAt=(dx,dy)=>{let w=0,gx=0,gy=0;for(let i=0;i<4;i++){const c=S.comp[i];const a=c.kx*dx+c.ky*dy+c.om*t+c.ph;w+=c.amp*Math.sin(a);const co=Math.cos(a);gx+=c.amp*c.kx*co;gy+=c.amp*c.ky*co;}return [w,gx,gy];};\n\n// ---- sea state (act programs + slow real-time envelopes, no beat-only motion) ----\nconst slow=0.5+0.5*Math.sin(K.t*0.037*sp+1.1);\nlet chopMul=1, radMul=1;\nif(act==='calm'){ chopMul=0.30+0.16*slow; radMul=1.14; }\nelse if(act==='swell'){ chopMul=0.62+0.86*slow; radMul=1+0.26*Math.sin(K.t*0.071*sp)+0.11*Math.sin(K.t*0.113*sp+2.0); }\nelse { chopMul=0.86+0.34*Math.sin(K.t*0.089*sp+0.4); radMul=1+0.05*Math.sin(K.t*0.19*sp); }\nconst arc=0.74+0.5*K.intensity;\nconst chop=(0.18+1.05*en)*chopMul*arc*(1+A.rms*0.5);\nconst q=chop*0.011;\n\n// ---- observer drift (incommensurate) ----\nconst CX=P.x+0.028*Math.sin(K.t*0.083*sp)+0.017*Math.sin(K.t*0.191*sp+1.7);\nconst CY=P.y+0.021*Math.sin(K.t*0.067*sp+0.6)+0.013*Math.sin(K.t*0.157*sp+2.9);\nconst rw=0.30*sc*radMul;\n\n// ---- coarse field buffer (separable tables: O(bw+bh) trig, none in the inner loop) ----\nconst bw=144, bh=clp(Math.round(144*Hh/W),56,190);\nif(!S.g||S.bw!==bw||S.bh!==bh){ S.g=createGraphics(bw,bh); S.g.pixelDensity(1); S.bw=bw; S.bh=bh; S.tx=null; S.ty=null; }\nconst g=S.g;\nif(!S.tx){ S.tx=[]; S.ty=[]; for(let i=0;i<4;i++){ S.tx.push({s:new Float32Array(bw),c:new Float32Array(bw)}); S.ty.push({s:new Float32Array(bh),c:new Float32Array(bh)}); } S.DX=new Float32Array(bw); S.DY=new Float32Array(bh); }\nconst DX=S.DX, DY=S.DY;\nfor(let xx=0;xx<bw;xx++) DX[xx]=((xx+0.5)/bw-CX)*W/u;\nfor(let yy=0;yy<bh;yy++) DY[yy]=((yy+0.5)/bh-CY)*Hh/u;\nfor(let i=0;i<4;i++){\n  const c=S.comp[i], TX=S.tx[i], TY=S.ty[i], base=c.om*t+c.ph;\n  for(let xx=0;xx<bw;xx++){ const a=c.kx*DX[xx]+base; TX.s[xx]=Math.sin(a); TX.c[xx]=Math.cos(a); }\n  for(let yy=0;yy<bh;yy++){ const b=c.ky*DY[yy]; TY.s[yy]=Math.sin(b); TY.c[yy]=Math.cos(b); }\n}\nconst C0=S.comp[0],C1=S.comp[1],C2=S.comp[2],C3=S.comp[3];\nconst X0=S.tx[0],X1=S.tx[1],X2=S.tx[2],X3=S.tx[3];\nconst Y0=S.ty[0],Y1=S.ty[1],Y2=S.ty[2],Y3=S.ty[3];\n\ng.loadPixels();\nconst pix=g.pixels;\nfor(let yy=0;yy<bh;yy++){\n  const dy=DY[yy];\n  const s0=Y0.s[yy],c0=Y0.c[yy],s1=Y1.s[yy],c1=Y1.c[yy],s2=Y2.s[yy],c2=Y2.c[yy],s3=Y3.s[yy],c3=Y3.c[yy];\n  for(let xx=0;xx<bw;xx++){\n    const dx=DX[xx];\n    const a0=X0.s[xx],b0=X0.c[xx],a1=X1.s[xx],b1=X1.c[xx],a2=X2.s[xx],b2=X2.c[xx],a3=X3.s[xx],b3=X3.c[xx];\n    const v0=a0*c0+b0*s0, w0=b0*c0-a0*s0;\n    const v1=a1*c1+b1*s1, w1=b1*c1-a1*s1;\n    const v2=a2*c2+b2*s2, w2=b2*c2-a2*s2;\n    const v3=a3*c3+b3*s3, w3=b3*c3-a3*s3;\n    const wv=C0.amp*v0+C1.amp*v1+C2.amp*v2+C3.amp*v3;\n    const gx=C0.amp*C0.kx*w0+C1.amp*C1.kx*w1+C2.amp*C2.kx*w2+C3.amp*C3.kx*w3;\n    const gy=C0.amp*C0.ky*w0+C1.amp*C1.ky*w1+C2.amp*C2.ky*w2+C3.amp*C3.ky*w3;\n    const ex=dx+q*gx, ey=dy+q*gy;\n    const tt=Math.sqrt(ex*ex+ey*ey)/rw;\n    const gm=clp(Math.sqrt(gx*gx+gy*gy)/13,0,1);\n    let hh,ss,vv,aa;\n    if(tt<1){\n      // inside the window: the whole sky compressed into the 48.6-degree cone\n      const p=Math.pow(tt,1.55);\n      const rim=Math.exp(-Math.pow((tt-0.955)/0.06,2));\n      vv=lrp(0.50,0.94,p)+rim*0.52;\n      ss=lrp(0.34,0.05,p)+gm*0.10;\n      hh=H+lrp(8,-146,p)+gm*14;               // zenith blue -> compressed horizon gold\n      aa=lrp(0.30,0.84,Math.pow(tt,1.7))+rim*0.12;\n      if(isNoc){ vv=lrp(0.30,0.86,p)+rim*0.6; ss=lrp(0.26,0.06,p); hh=H+lrp(24,4,p); aa=lrp(0.24,0.88,Math.pow(tt,1.9))+rim*0.10; }\n      else if(isThm){ const e=clp(vv*0.78,0,1); hh=lrp(288,44,Math.pow(e,0.8)); ss=lrp(0.86,0.16,Math.pow(e,1.7)); vv=lrp(0.34,1,Math.pow(e,0.7)); aa=lrp(0.36,0.88,p)+rim*0.10; }\n      else if(isSch){ const band=Math.abs(frc(tt*5.0+0.5)*2-1); vv=0.24+0.66*Math.pow(band,3.0); ss=lrp(0.62,0.30,Math.pow(band,3.0)); hh=H+lrp(0,-14,p); aa=0.30+0.44*Math.pow(band,3.0)+rim*0.22; }\n      else if(isInk){ const tone=clp(vv*0.9+wv*0.10,0,1); vv=lrp(0.86,0.99,Math.pow(tone,2.2)); ss=lrp(0.16,0.02,tone); hh=H+lrp(14,-24,p); aa=lrp(0.20,0.70,Math.pow(tt,2.3))+rim*0.14; }\n    } else {\n      // outside: total internal reflection - the underside of the surface working as a mirror\n      const o=clp((tt-1)/1.7,0,1);\n      const mir=clp(0.5+0.5*wv,0,1);\n      const strk=Math.pow(gm,2.5);\n      vv=lrp(0.47,0.27,o)*lrp(0.64,1.18,mir)+strk*lrp(0.56,0.22,o);\n      ss=lrp(0.56,0.40,o)*(1-strk*0.55);\n      hh=H+lrp(-8,12,mir);\n      aa=lrp(0.72,0.50,o)*lrp(0.80,1.10,mk);\n      if(isNoc){ vv=lrp(0.20,0.09,o)*lrp(0.5,1.3,mir)+strk*lrp(0.62,0.22,o); ss=lrp(0.44,0.60,o)*(1-strk*0.7); hh=H+lrp(24,40,mir); aa=lrp(0.82,0.62,o)*lrp(0.85,1.14,mk); }\n      else if(isThm){ const e=clp(vv*1.5,0,1); hh=lrp(292,20,Math.pow(e,0.9)); ss=lrp(0.90,0.30,e); vv=lrp(0.24,0.94,Math.pow(e,0.75)); aa=lrp(0.70,0.48,o)*lrp(0.82,1.10,mk); }\n      else if(isSch){ const hatch=Math.abs(frc((ex*7.0+ey*7.0))*2-1); vv=0.18+0.44*Math.pow(hatch,5.0)+strk*0.3; ss=0.66; hh=H+6; aa=(0.24+0.30*Math.pow(hatch,5.0))*lrp(0.85,1.1,mk); }\n      else if(isInk){ const tone=clp(0.5+0.55*wv+strk*0.5,0,1); const qz=tone<0.34?0.10:tone<0.66?0.28:0.62; vv=qz+strk*0.25; ss=lrp(0.30,0.12,qz); hh=H+lrp(6,-10,tone); aa=lrp(0.86,0.60,o)*lrp(0.8,1.1,mk); }\n    }\n    const col=hsb2(hh,ss,vv);\n    const pp=4*(yy*bw+xx);\n    pix[pp]=col[0]; pix[pp+1]=col[1]; pix[pp+2]=col[2]; pix[pp+3]=clp(aa,0,1)*255;\n  }\n}\ng.updatePixels();\n\n// ---- broad downwelling glow from the window (the area element that carries luminance) ----\nblendMode(ADD);\n{\n  const gr=drawingContext.createRadialGradient(CX*W,CY*Hh,0,CX*W,CY*Hh,Math.max(8,rw*u*3.4));\n  const gc=hsb2(isThm?32:isNoc?H+26:isSch?H:H-42, isSch?0.5:isNoc?0.14:0.24, 1);\n  const ga=clp((isSch?0.10:0.20)*al*(0.45+0.75*en)*(0.8+0.5*K.intensity)*(1+A.bass*0.35),0,0.30);\n  gr.addColorStop(0,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+','+ga.toFixed(3)+')');\n  gr.addColorStop(0.45,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+','+(ga*0.45).toFixed(3)+')');\n  gr.addColorStop(1,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+',0)');\n  drawingContext.fillStyle=gr;\n  drawingContext.fillRect(0,0,W,Hh);\n}\nblendMode(BLEND);\n\n// ---- the surface itself ----\ntint(0,0,100,clp(al,0,1)*100);\nimage(g,0,0,W,Hh);\nnoTint();\n\n// ---- the sun inside the window ----\nif(!isSch){\n  const sa=fr(21)*6.2832+K.t*0.011*sp;\n  const sr=rw*(0.40+0.16*Math.sin(K.t*0.053*sp+fr(23)*6.28));\n  const f=fieldAt(sr*Math.cos(sa),sr*Math.sin(sa));\n  const sx=CX*W+(sr*Math.cos(sa)-q*f[1])*u, sy=CY*Hh+(sr*Math.sin(sa)-q*f[2])*u;\n  const sz=u*0.055*sc*(0.7+0.5*en);\n  blendMode(ADD);\n  noStroke();\n  drawingContext.shadowBlur=sz*0.9;\n  drawingContext.shadowColor='rgba(255,246,214,0.6)';\n  fill(isThm?46:isNoc?H+20:H-52, isNoc?10:isThm?12:16, 100, clp(24*al*(0.5+0.8*en),0,32));\n  circle(sx,sy,sz*(1.5+0.5*Math.sin(K.t*0.61)+0.3*Math.sin(K.t*1.43+1.7)));\n  drawingContext.shadowBlur=0;\n  fill(isThm?52:isNoc?H+16:H-46, isNoc?6:10, 100, clp(56*al,0,72));\n  circle(sx,sy,sz*0.5);\n  blendMode(BLEND);\n}\n\n// ---- rim glitter: fine detail riding on the area element, never carrying it alone ----\n{\n  const ng=Math.round(lrp(10,88,dn));\n  const twk=0.55+0.45*A.treble;\n  blendMode(ADD);\n  noStroke();\n  for(let i=0;i<ng;i++){\n    const dir=fr(i*5+2)>0.5?1:-1;\n    const th=fr(i*3+11)*6.2832+K.t*0.021*sp*dir*(0.6+fr(i*7+4));\n    const rr=rw*(0.94+0.10*fr(i*9+5));\n    const dx=rr*Math.cos(th), dy=rr*Math.sin(th);\n    const f=fieldAt(dx,dy);\n    const px=CX*W+(dx-q*f[1])*u, py=CY*Hh+(dy-q*f[2])*u;\n    if(px<-20||px>W+20||py<-20||py>Hh+20) continue;\n    const bl=Math.pow(clp(0.5+0.5*Math.sin(K.t*(1.7+fr(i+31)*3.3)+f[0]*3.1),0,1),2.6);\n    const aa=clp((14+64*bl*twk)*al*(0.35+0.8*en),0,74);\n    if(aa<2) continue;\n    fill(isThm?lrp(300,44,bl):isSch?H:isNoc?H+16:H-lrp(10,58,bl), isSch?0.4*100:lrp(30,4,bl), 100, aa);\n    circle(px,py,u*0.0035*sc*(0.5+1.5*bl)*(0.6+fr(i*11+7)));\n  }\n  blendMode(BLEND);\n}\n\n// ---- schematic overlay: the construction geometry, not a picture ----\nif(isSch){\n  const cx=CX*W, cy=CY*Hh, R=rw*u;\n  push();\n  drawingContext.setLineDash([Math.max(2,u*0.008),Math.max(2,u*0.010)]);\n  stroke(H,60,100,clp(70*al,0,80)); strokeWeight(Math.max(1,u*0.0016)); noFill();\n  circle(cx,cy,R*2);\n  drawingContext.setLineDash([]);\n  stroke(H,40,96,clp(30*al,0,40)); strokeWeight(Math.max(0.6,u*0.0009));\n  for(let i=0;i<6;i++){\n    const a=fr(i*13+41)*6.2832+K.t*0.017*sp*(i%2?1:-1);\n    line(cx,cy,cx+Math.cos(a)*R*1.9,cy+Math.sin(a)*R*1.9);\n  }\n  circle(cx,cy,R*2*0.72); circle(cx,cy,R*2*0.44);\n  noStroke(); fill(H,20,100,clp(72*al,0,86));\n  textAlign(LEFT,BOTTOM); textSize(Math.max(8,u*0.020));\n  text('48.6\u00b0', cx+R*0.72, cy-R*0.72);\n  textSize(Math.max(7,u*0.014)); fill(H,20,100,clp(46*al,0,60));\n  text('n = 1.333', cx+R*0.72, cy-R*0.72+u*0.026);\n  pop();\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint();"
+}

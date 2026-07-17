@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.sunset_beach",
+  "kind": "world",
+  "name": "Sunset Beach",
+  "desc": "A layered dusk seascape where a low sun sinks over minutes, warm gradient bands glow, the horizon laps in a live wave line and palm silhouettes lean at the edges.",
+  "tags": [
+    "sunset",
+    "sunrise",
+    "dusk",
+    "beach",
+    "ocean",
+    "sea",
+    "tropical",
+    "horizon",
+    "sun",
+    "palm",
+    "palm-tree",
+    "gradient",
+    "warm",
+    "orange",
+    "golden",
+    "evening",
+    "seaside",
+    "coast",
+    "waves",
+    "shore",
+    "serene",
+    "riso",
+    "blueprint",
+    "noir",
+    "posterize",
+    "scenic",
+    "world",
+    "backdrop"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "atmospheric density \u2014 cloud count + haze"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "motion amplitude \u2014 wave height, drift speed, glitter"
+    },
+    "hue": {
+      "default": 22,
+      "min": 0,
+      "max": 360,
+      "doc": "warm anchor hue (22 = orange dusk)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "beats-relative wave/shimmer rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "sun disc size vs design"
+    },
+    "sun": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "baseline sun elevation (0 horizon, 1 high)"
+    },
+    "tide": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.2,
+      "doc": "wave/lapping amplitude"
+    },
+    "palms": {
+      "default": 2,
+      "min": 0,
+      "max": 4,
+      "doc": "number of palm silhouettes"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor y"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic sun position, clouds, grain, palms"
+    },
+    "style": {
+      "default": "warm",
+      "options": [
+        "warm",
+        "posterize",
+        "riso",
+        "blueprint",
+        "noir"
+      ],
+      "doc": "render philosophy: smooth warm gradient / hard posterized bands / 2-ink riso print / cyanotype blueprint schematic / monochrome noir"
+    },
+    "act": {
+      "default": "sunset",
+      "options": [
+        "sunset",
+        "sunrise",
+        "tide"
+      ],
+      "doc": "multi-minute arc: sun descends / sun rises / steady golden hour"
+    }
+  },
+  "acts": [
+    "sunset",
+    "sunrise",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:03:37+00:00",
+    "fps": 60.2,
+    "motion": 0.0064,
+    "lum": 0.307
+  },
+  "code": "const D = { density:.5, energy:.55, hue:22, speed:1, scale:1, x:.5, y:.5, sun:.55, tide:1, palms:2, seed:0, style:'warm', act:'sunset' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst lp = (a,b,t)=>a+(b-a)*t;\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=((P.hue%360)+360)%360;\nconst styles=['warm','posterize','riso','blueprint','noir'];\nconst st = styles.includes(P.style)?P.style:'warm';\nconst dens = P.density;\nconst eAmp = P.energy*(.45+.7*K.intensity);\nS.tre=(S.tre||0)*.85+(A.treble||0)*.15; S.rms=(S.rms||0)*.85+(A.rms||0)*.15;\nconst tre=S.tre, rms=S.rms;\n\n// slow real-time day arc (sun descent over minutes)\nconst actDir = P.act==='sunrise'? 1 : (P.act==='tide'? 0 : -1);\nconst slow = Math.sin(K.t*0.018 + P.seed*0.7);\nlet elev = P.sun + actDir*0.30*slow + 0.04*Math.sin(K.t*0.11 + P.seed);\nelev = Math.max(0.04, Math.min(0.97, elev));\n\nconst horY = Hh*0.60;\nconst sunX = (0.26 + 0.48*fr(3))*W;\nconst sunY = (0.09 + (1-elev)*0.47)*Hh;\nconst sunVf = sunY/Hh;\nconst sr = u*(0.05+0.055*elev)*P.scale;\n\n// \u2500\u2500 grain buffer (texture over flat fill) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nif((st!=='blueprint') && (!S.grain || S.gKey!==W+'x'+Hh+st+P.seed)){\n  const g=createGraphics(W,Hh); g.noStroke();\n  const n=Math.min(1600, Math.floor(W*Hh/1100));\n  for(let i=0;i<n;i++){ const gx=fr(i*2+1)*W, gy=fr(i*2+2)*Hh; const b=fr(i*3+5);\n    g.fill(0,0, b<.5?0:100, 4+b*6); g.rect(gx,gy, 1+fr(i+9)*1.6, 1+fr(i+7)*1.6); }\n  S.grain=g; S.gKey=W+'x'+Hh+st+P.seed;\n}\n\nfunction skyFill(v){\n  let hh,ss,bb;\n  if(st==='noir'){ ss=0; hh=0; bb=20 + 64*Math.pow(v,0.85); }\n  else {\n    if(v<0.5){ const t=v/0.5; hh=lp(H+206,H+26,t); ss=lp(46,80,t); bb=lp(26,60,t); }\n    else { const t=(v-0.5)/0.5; hh=lp(H+26,H,t); ss=lp(80,86,t); bb=lp(60,95,t); }\n    const gd=Math.max(0,1-Math.abs(v-sunVf)*3.0);\n    bb=Math.min(100, bb+gd*24*(0.45+elev)); ss=Math.max(4, ss-gd*22);\n    if(st==='riso') ss=Math.min(100, ss*1.12+6);\n  }\n  fill(((hh%360)+360)%360, ss, bb);\n}\n\nnoStroke();\n// \u2500\u2500 SKY \u2500\u2500\nif(st==='blueprint'){\n  fill(210,78,26); rect(0,0,W,Hh);\n  stroke(196,40,100,26); strokeWeight(1); noFill();\n  for(let i=1;i<14;i++){ const yy=i/14*Hh; line(0,yy,W,yy); }\n  for(let i=1;i<18;i++){ const xx=i/18*W; line(xx,0,xx,Hh); }\n  noStroke();\n} else {\n  const NB = st==='posterize'?7:44;\n  for(let i=0;i<NB;i++){ const v=(i+0.5)/NB; skyFill(v); rect(0, i/NB*Hh, W+1, Hh/NB+1.5); }\n}\n\n// \u2500\u2500 SUN \u2500\u2500\nif(st==='blueprint'){\n  stroke(196,30,100,80); strokeWeight(1.4); noFill(); ellipse(sunX,sunY,sr*2);\n  for(let a=0;a<16;a++){ const an=a/16*6.283; const r0=sr*1.2, r1=sr*(1.5+0.25*Math.sin(K.t*1.5+a)); line(sunX+Math.cos(an)*r0, sunY+Math.sin(an)*r0, sunX+Math.cos(an)*r1, sunY+Math.sin(an)*r1); }\n  noStroke();\n} else {\n  blendMode(ADD); noStroke();\n  for(let gI=6;gI>=1;gI--){ const rr=sr*(1+gI*0.75); fill(st==='noir'?0:H, st==='noir'?0:52, 100, 5.5); ellipse(sunX,sunY,rr*2); }\n  blendMode(BLEND);\n  fill(st==='noir'?0:((H+8)%360), st==='noir'?0:32, 100); ellipse(sunX,sunY,sr*2);\n  if(st==='riso'){ fill((H+18)%360, 70, 100, 55); ellipse(sunX-sr*0.12, sunY-sr*0.12, sr*2); }\n}\n\n// \u2500\u2500 SEA \u2500\u2500\nconst waveAmp=u*0.013*(0.55+eAmp)*P.tide;\nconst seaTop=(x)=>{ const ph=x/W*6.283*3; return horY + Math.sin(ph + K.t*1.35*P.speed)*waveAmp + Math.sin(ph*0.5 - K.t*0.7)*waveAmp*0.6; };\nif(st==='blueprint'){\n  stroke(196,40,100,70); strokeWeight(1.6); noFill();\n  beginShape(); for(let x=0;x<=W;x+=W/70) vertex(x, seaTop(x)); endShape();\n  stroke(196,30,100,22); strokeWeight(1);\n  for(let i=1;i<9;i++){ const yy=horY+i/9*(Hh-horY); beginShape(); for(let x=0;x<=W;x+=W/40) vertex(x, yy+Math.sin(x/W*12+K.t*1.2+i)*u*0.004); endShape(); }\n  noStroke();\n} else {\n  // filled sea, darker reflection of sky\n  noStroke();\n  const NS=st==='posterize'?5:18;\n  for(let i=0;i<NS;i++){ const v=i/NS; const yy=horY+v*(Hh-horY);\n    if(st==='noir'){ fill(0,0, 34-18*v); } else { fill(((H+16)%360), lp(70,55,v), lp(46,22,v)); }\n    rect(0, yy, W+1, (Hh-horY)/NS+1.5); }\n  // wave-top fill to make lapping edge crisp\n  if(st==='noir'){ fill(0,0,34); } else { fill(((H+16)%360),70,46); }\n  beginShape(); vertex(0,Hh); for(let x=0;x<=W;x+=W/60) vertex(x, seaTop(x)); vertex(W,Hh); endShape(CLOSE);\n  // foam crest\n  stroke(st==='noir'?0:((H+40)%360), st==='noir'?0:14, 100, 60); strokeWeight(1.6); noFill();\n  beginShape(); for(let x=0;x<=W;x+=W/60) vertex(x, seaTop(x)-1); endShape(); noStroke();\n  // sun glitter column\n  blendMode(ADD);\n  for(let i=0;i<14;i++){ const yy=horY+(i/14)*(Hh-horY); const fl=0.4+0.6*Math.abs(Math.sin(K.t*3+i*1.7+fr(i))); const wgt=1-(i/16);\n    fill(st==='noir'?0:H, st==='noir'?0:38, 100, (7*fl*wgt)+tre*18*fl); const ww=sr*(0.5+i*0.14); rect(sunX-ww, yy, ww*2, (Hh-horY)/14*0.7); }\n  blendMode(BLEND);\n}\n\n// \u2500\u2500 CLOUDS (drift, real-time floor) \u2500\u2500\nconst nC=Math.round(2+dens*7);\nfor(let i=0;i<nC;i++){ const spd=(0.4+fr(i+5)*0.9)*(0.35+eAmp)*(P.act==='sunrise'?-1:1);\n  let cx=(fr(i)*(W+u*0.5)+K.t*spd*u*0.11)%(W+u*0.5); if(cx<0)cx+=(W+u*0.5); cx-=u*0.25;\n  const cy=(0.10+fr(i+2)*0.32)*Hh; const cs=u*(0.07+fr(i+9)*0.09);\n  const lit=Math.max(0,1-Math.abs((cy/Hh)-sunVf)*1.6);\n  if(st==='blueprint'){ stroke(196,35,100,55); strokeWeight(1.2); noFill();\n    for(let b=0;b<4;b++){ ellipse(cx+(b-1.5)*cs*0.5, cy+(fr(i*7+b)-0.5)*cs*0.2, cs*(0.7+fr(i+b)*0.5), cs*0.55); } noStroke();\n  } else { noStroke();\n    for(let b=0;b<5;b++){ const bx=cx+(b-2)*cs*0.42, by=cy+(fr(i*7+b)-0.5)*cs*0.24; const bs=cs*(0.6+fr(i+b*3)*0.6);\n      if(st==='noir'){ fill(0,0, lp(40,74,lit), 60); } else { fill(((H+lp(210,20,lit))%360), lp(30,55,lit), lp(50,92,lit), 62); }\n      ellipse(bx,by,bs,bs*0.62); }\n    if(st==='riso'){ blendMode(MULTIPLY); fill((H+320)%360,55,90,20); ellipse(cx-cs*0.15,cy, cs*1.6, cs*0.7); blendMode(BLEND); }\n  }\n}\n\n// \u2500\u2500 PALMS (edge silhouettes) \u2500\u2500\nconst nP=Math.max(0,Math.round(P.palms));\nfor(let i=0;i<nP;i++){ const side=fr(i+30)<.5?-1:1; const baseX=(side<0? (0.04+fr(i+31)*0.16):(0.80+fr(i+31)*0.16))*W;\n  const baseY=Hh*(0.92+fr(i+32)*0.06); const ht=u*(0.34+fr(i+33)*0.22); const sway=Math.sin(K.t*0.8+i)*0.05*(0.5+eAmp);\n  push(); translate(baseX,baseY);\n  if(st==='blueprint'){ stroke(196,35,100,80); strokeWeight(1.4); noFill(); }\n  else if(st==='noir'){ stroke(0,0,4,96); strokeWeight(Math.max(2,u*0.006)); }\n  else { stroke(H, 40, 8, 92); strokeWeight(Math.max(2,u*0.007)); }\n  noFill();\n  // trunk\n  beginShape(); for(let t=0;t<=1;t+=0.12){ const tx=Math.sin(t*1.2+sway)*ht*0.12*side; vertex(tx, -t*ht); } endShape();\n  const topX=Math.sin(1.2+sway)*ht*0.12*side, topY=-ht;\n  // fronds\n  const nf=7; for(let f=0;f<nf;f++){ const an=Math.PI*(0.15+0.7*(f/(nf-1))) + Math.sin(K.t*0.9+f)*0.06; const fl=ht*(0.5+fr(i*5+f)*0.2);\n    const ex=topX+Math.cos(-an)*fl*side, ey=topY-Math.sin(an)*fl*0.7;\n    beginShape(); vertex(topX,topY); const mx=(topX+ex)/2, my=(topY+ey)/2 - fl*0.18; quadraticVertexShim(topX,topY,mx,my,ex,ey); endShape(); }\n  pop();\n}\nfunction quadraticVertexShim(x0,y0,cx,cy,x1,y1){ for(let s=0;s<=1;s+=0.2){ const xx=lp(lp(x0,cx,s),lp(cx,x1,s),s), yy=lp(lp(y0,cy,s),lp(cy,y1,s),s); vertex(xx,yy); } }\nnoStroke();\n\n// \u2500\u2500 grain overlay (texture over flat fill) \u2500\u2500\nif(st!=='blueprint' && S.grain){ blendMode(BLEND); tint(0,0,100, 20+6*Math.sin(K.t*0.05)); image(S.grain,0,0); noTint(); }\n\n// edge vignette (darken corners only \u2014 mood)\nblendMode(MULTIPLY); noStroke();\nconst vg=drawingContext; const grd=vg.createRadialGradient(W/2,Hh*0.52,u*0.25, W/2,Hh*0.52,u*0.85);\ngrd.addColorStop(0,'rgba(255,255,255,1)'); grd.addColorStop(1,'rgba('+(st==='noir'?'40,40,55':'60,40,70')+',1)');\nvg.fillStyle=grd; vg.fillRect(0,0,W,Hh);\nblendMode(BLEND);\n"
+}

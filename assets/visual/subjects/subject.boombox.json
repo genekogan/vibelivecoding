@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.boombox",
+  "kind": "subject",
+  "name": "Boombox",
+  "desc": "Giant sticker-bombed ghetto blaster whose twin woofer cones pump on the bass, EQ bars dance to the spectrum and cassette reels spin \u2014 die-cut vinyl decals plastered over the shell.",
+  "tags": [
+    "boombox",
+    "ghetto blaster",
+    "stereo",
+    "speaker",
+    "woofer",
+    "bass",
+    "subwoofer",
+    "hiphop",
+    "80s",
+    "sticker bomb",
+    "decals",
+    "cassette",
+    "tape deck",
+    "eq",
+    "vu meter",
+    "block party",
+    "retro",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "boombox size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.5,
+      "doc": "cone pump + box rock amplitude + glow"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "shell hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "reel spin + rock rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sticker-bomb decal count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (canvas fraction)"
+    },
+    "style": {
+      "default": "sticker",
+      "options": [
+        "sticker",
+        "chrome",
+        "xray",
+        "riso",
+        "night"
+      ],
+      "doc": "aesthetic: sticker-bomb collage / brushed chrome / x-ray schematic (abstract wireframe) / 2-ink riso misregister / dark chiaroscuro glow"
+    },
+    "width": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "chassis width morph"
+    },
+    "gloss": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "vinyl gloss / specular amount"
+    },
+    "bars": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "EQ bar count"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "sticker layout variation"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:00:43+00:00",
+    "fps": 56.8,
+    "motion": 0.0381,
+    "lum": 0.219
+  },
+  "code": "const D = { scale:1, energy:.7, hue:20, speed:1, density:.5, x:.5, y:.72, style:'sticker', width:.5, gloss:.6, bars:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst md = (a,n)=>((a%n)+n)%n;\nconst frc = v=>v-Math.floor(v);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst ez = t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr = i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u = Math.min(width,height);\nconst sc = u*P.scale/320;\nconst bt = K.beat*P.speed;\nconst H = md(P.hue,360);\nconst style = P.style;\nconst sticker=style==='sticker', chrome=style==='chrome', xray=style==='xray', riso=style==='riso', night=style==='night';\nconst en = P.energy*(.5+.6*K.intensity);\n\n// bass/cone drive: clk baseline + audio on top (baseline must carry when silent)\nconst thumpB = K.pulse*.55 + K.swell*.35;             // baseline pump\nconst thump = thumpB + A.bass*.8 + A.lowmid*.4;\nconst kick = K.pulse*.6 + A.bass*.85;\n\n// geometry\nconst BW = 118 + P.width*40;    // body half-width\nconst BH = 78;                  // body half-height\nconst coneR = 46;               // woofer radius\nconst coneX = BW*.52;           // woofer offset\n\n// ---- seed-keyed sticker layout ----\nif (S.seedUsed!==P.seed) {\n  S.seedUsed=P.seed;\n  S.stk=[];\n  const kinds=['star','bolt','circ','bubble','tri','ring'];\n  for (let i=0;i<44;i++) S.stk.push({\n    x:(fr(i*2+1)-.5)*(BW*1.7), y:(fr(i*2+2)-.5)*(BH*1.5),\n    r:9+fr(i*3+4)*15, rot:(fr(i*3+5)-.5)*1.2, k:kinds[Math.floor(fr(i*3+6)*6)],\n    h:Math.floor(fr(i*4+7)*360), ph:fr(i*5+9)*6.28\n  });\n  S.eqSeed=[]; for(let i=0;i<16;i++) S.eqSeed.push(fr(i*11+2));\n}\n\n// whole-box rock on the beat\nconst rock = Math.sin(bt*Math.PI)*.03*en + kick*.015;\nconst boxLift = -kick*7*en - K.swell*3*en;\nconst swayX = Math.sin(K.t*.5)*6*en;\n\n// ---- sticker shapes ----\nfunction drawSticker(s){\n  push(); translate(s.x, s.y); rotate(s.rot + Math.sin(K.t*.3+s.ph)*.05);\n  const wob = 1 + Math.sin(K.t*1.4+s.ph)*.04;\n  scale(wob);\n  // die-cut white border + drop shadow\n  noStroke(); fill(0,0,0,30);\n  const R=s.r;\n  const fillH = riso?(s.k==='star'?358:200):(night?s.h:s.h);\n  const sat = riso?85:(night?70:82), bri=night?85:92;\n  // shadow offset\n  push(); translate(2.5,3); fill(0,0,0,28); shp(s.k,R*1.14); pop();\n  fill(0,0,100); shp(s.k,R*1.14);      // white border\n  fill(fillH,sat,bri); shp(s.k,R);     // color\n  // gloss highlight\n  if (P.gloss>.05){ fill(0,0,100, 40*P.gloss); ellipse(-R*.22,-R*.28,R*.5,R*.32); }\n  pop();\n}\nfunction shp(k,R){\n  if (k==='circ'||k==='ring'){ ellipse(0,0,R*2,R*2); if(k==='ring'){fill(0,0,0,0);} }\n  else if (k==='star'){ star(0,0,R*.5,R,5); }\n  else if (k==='bolt'){ beginShape(); vertex(-.2*R,-R);vertex(.4*R,-.1*R);vertex(.05*R,-.1*R);vertex(.3*R,R);vertex(-.4*R,.1*R);vertex(0,.1*R); endShape(CLOSE); }\n  else if (k==='tri'){ triangle(0,-R,R*.9,R*.7,-R*.9,R*.7); }\n  else { rect(-R,-R*.7,R*2,R*1.4,R*.4); }  // bubble\n}\nfunction star(cx,cy,r1,r2,n){ beginShape(); for(let i=0;i<n*2;i++){const a=i/(n*2)*6.2832-1.57;const r=i%2?r1:r2;vertex(cx+Math.cos(a)*r,cy+Math.sin(a)*r);} endShape(CLOSE); }\n\n// ---- woofer cone ----\nfunction woofer(cx){\n  push(); translate(cx,0);\n  const pump = 1 + thump*.16;\n  // surround / basket\n  if (xray){\n    stroke(180,60,100,80); strokeWeight(1.4); noFill();\n    for(let r=coneR;r>4;r-=6) ellipse(0,0,r*2,r*2);\n    line(-coneR,0,coneR,0); line(0,-coneR,0,coneR);\n    // magnet behind (schematic)\n    stroke(180,50,100,50); rect(-coneR*.5,-coneR*.5,coneR,coneR);\n    pop(); return;\n  }\n  noStroke();\n  fill(0,0, night?8:14); ellipse(0,0,coneR*2.15,coneR*2.15);       // frame\n  fill(0,0, night?4:8); ellipse(0,0,coneR*2,coneR*2);\n  // concentric cone rings pumping\n  const rings = chrome?6:5;\n  for (let i=rings;i>=1;i--){\n    const rr = coneR*(i/rings)*pump;\n    const lit = night? (i%2? 12: 20) : (chrome? (i%2?70:22) : (i%2? 30:16));\n    fill(riso?200:H*0+0, riso?70:0, lit, 100);\n    if (riso){ fill(i%2?200:358, 65, lit+8); }\n    else if (!chrome && !night){ fill(H, 30, lit*1.1); }\n    ellipse(0,0,rr*2,rr*2);\n  }\n  // dust cap (glows on kick)\n  fill(night? md(H,360):H, night?90:60, clp((night?40:55)+thump*45,0,100));\n  ellipse(0,0, coneR*.5*pump, coneR*.5*pump);\n  // specular\n  fill(0,0,100, 30*P.gloss + thump*20);\n  ellipse(-coneR*.28,-coneR*.3, coneR*.55, coneR*.4);\n  pop();\n}\n\n// ---- render ----\npush();\ntranslate(P.x*width + swayX*sc, P.y*height);\nscale(sc);\nrotate(rock);\ntranslate(0, boxLift);\n\n// glow behind (ADD, bass)\nif (!xray){\n  blendMode(ADD); noStroke();\n  fill(md(H+ (night?200:0),360),70,100, clp(8+kick*22+K.swell*8,0,38));\n  ellipse(0,0,(BW+70)*2, (BH+50)*2*.7);\n  blendMode(BLEND);\n}\n\n// ground shadow\nnoStroke(); fill(0,0,0,34); ellipse(0, BH+26, (BW+30)*2, 26);\n\n// ===== BODY =====\n// carry handle (sways)\npush();\nconst hsw = Math.sin(K.t*.8)*.04*en + rock*.5;\ntranslate(0,-BH); rotate(hsw*0);\nif (xray){ stroke(180,60,100,70); strokeWeight(2); noFill(); }\nelse { stroke(0,0, night?25:20); strokeWeight(9); noFill(); }\narc(0, -6, BW*1.1, BH*1.1, Math.PI+.3+hsw, 6.2832-.3+hsw);\npop();\n\n// body slab\nif (xray){\n  stroke(190,60,100,85); strokeWeight(1.6); noFill();\n  rect(-BW,-BH,BW*2,BH*2, 12);\n  // internal boards\n  stroke(190,45,100,45); strokeWeight(1);\n  for(let i=0;i<4;i++) line(-BW+20,-BH+20+i*30, BW-20,-BH+20+i*30);\n} else {\n  // outer shell\n  noStroke();\n  const shellB = night?16: chrome?58: riso?90:78, shellS = night?30: chrome?6: riso?15:12;\n  fill(chrome?210:H, shellS, shellB); rect(-BW-6,-BH-6,(BW+6)*2,(BH+6)*2, 16);   // bezel\n  fill(chrome?210:H, shellS*.6, shellB*.82); rect(-BW,-BH,BW*2,BH*2, 12);         // face\n  // brushed metal streaks / gloss top band\n  if (chrome){ for(let i=0;i<10;i++){ fill(210,6, i%2?80:40, 30); rect(-BW,-BH+i*(BH*2/10),BW*2, BH*2/10); } }\n  fill(0,0,100, 22*P.gloss); rect(-BW,-BH,BW*2, BH*.5, 10);                        // top gloss\n}\n\n// tape deck (center) with two spinning reels\npush(); translate(0, -BH*.28);\nconst dw = BW*.72, dh = BH*.5;\nif (xray){ stroke(190,55,100,70); strokeWeight(1.3); noFill(); rect(-dw,-dh,dw*2,dh*2,4); }\nelse { noStroke(); fill(0,0, night?5:10); rect(-dw,-dh,dw*2,dh*2,4);\n  fill(200,40, night?18:30, 55); rect(-dw+3,-dh+3,dw*2-6,dh*2-6,3); }   // window tint\n// reels spin continuously from beat clock\nconst spin = K.beat*1.4*P.speed;\nfor (let g=-1;g<=1;g+=2){\n  push(); translate(g*dw*.5, 0); rotate(spin*g);\n  if (xray){ stroke(190,60,100,80); strokeWeight(1.2); noFill(); ellipse(0,0,dh*1.1,dh*1.1);\n    for(let i=0;i<3;i++){const a=i/3*3.1416;line(-Math.cos(a)*dh*.5,-Math.sin(a)*dh*.5,Math.cos(a)*dh*.5,Math.sin(a)*dh*.5);} }\n  else { noStroke(); fill(0,0,88); ellipse(0,0,dh*1.05,dh*1.05); fill(0,0, night?12:14); ellipse(0,0,dh*.5,dh*.5);\n    for(let i=0;i<6;i++){const a=i/6*6.2832; fill(0,0,20); ellipse(Math.cos(a)*dh*.32,Math.sin(a)*dh*.32,dh*.16,dh*.16);} }\n  pop();\n}\npop();\n\n// EQ / VU bars (A.fft with clk baseline when silent)\npush(); translate(0, BH*.44);\nconst nb = Math.floor(6 + P.bars*10);\nconst bw = (BW*1.5)/nb;\nfor (let i=0;i<nb;i++){\n  const fftv = (A.fft && A.fft.length) ? A.fft[Math.floor(i/nb*A.fft.length)]||0 : 0;\n  const base = .28 + .5*Math.abs(Math.sin(bt*Math.PI + i*.6 + S.eqSeed[i]*6.28)) * (.5+.5*K.intensity);\n  const lvl = clp(base*.7 + fftv*1.1 + kick*.2, .05, 1);\n  const bx = -BW*.75 + i*bw + bw*.5;\n  const bhh = lvl*BH*.5;\n  if (xray){ stroke(150,60,100,70); strokeWeight(1); noFill(); rect(bx-bw*.35,0,bw*.7,-bhh); }\n  else {\n    noStroke();\n    const seg = Math.ceil(bhh/5);\n    for (let sgi=0; sgi<seg; sgi++){\n      const yy=-sgi*5; const frac=sgi/Math.max(1,(BH*.5/5));\n      const bh2 = frac<.6? 130 : frac<.85? 55 : 0;   // green->yellow->red\n      fill(night?bh2:bh2, night?85:80, night?85:75, night?100:95);\n      rect(bx-bw*.35, yy, bw*.7, -4, 1);\n    }\n  }\n}\npop();\n\n// woofers (front)\nwoofer(-coneX);\nwoofer(coneX);\n// tweeter + knobs between\nif (!xray){\n  noStroke(); fill(0,0,night?10:18); ellipse(0,BH*.02,BW*.16,BW*.16);\n  fill(night? md(H,360):45, 60, clp(45+A.treble*50+K.swell*20,0,100)); ellipse(0,BH*.02,BW*.08,BW*.08);\n  // knobs\n  for(let g=-1;g<=1;g+=2){ push(); translate(g*BW*.24,-BH*.02); fill(0,0,70); ellipse(0,0,BW*.1,BW*.1);\n    stroke(0,0,20); strokeWeight(1.5); const ka=K.t*.4+g; line(0,0,Math.cos(ka)*BW*.04,Math.sin(ka)*BW*.04); noStroke(); pop(); }\n}\n\n// sticker-bomb overlay (only sticker style) \u2014 dense die-cut collage\nif (sticker){\n  const n = Math.floor(10 + P.density*34);\n  for (let i=0;i<n;i++) drawSticker(S.stk[i]);\n}\n// riso misregistration: draw shell outline offset in 2nd ink\nif (riso){\n  noFill(); stroke(200,70,90,55); strokeWeight(2); rect(-BW+3,-BH-2,BW*2,BH*2,12);\n  stroke(358,80,90,45); rect(-BW-3,-BH+2,BW*2,BH*2,12);\n}\n\npop();\nblendMode(BLEND);\n"
+}

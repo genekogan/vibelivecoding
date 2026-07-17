@@ -1,0 +1,168 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.contour",
+  "kind": "post",
+  "name": "Contour",
+  "desc": "The frame is surveyed rather than photographed \u2014 its luminance becomes a terrain and the pass inks the level lines across it, each contour cut as an engraved relief with a dark trough and a lit lip, the whole survey breathing because the field carries its own slow living warp.",
+  "tags": [
+    "contour",
+    "contours",
+    "contour line",
+    "level set",
+    "isoline",
+    "isopleth",
+    "topographic",
+    "topography",
+    "survey",
+    "surveyed",
+    "map",
+    "cartographic",
+    "chart",
+    "terrain",
+    "relief",
+    "engraved",
+    "engraving",
+    "emboss",
+    "etch",
+    "etched",
+    "plate",
+    "burin",
+    "line",
+    "linework",
+    "outline",
+    "edge",
+    "edge detect",
+    "trace",
+    "tracing",
+    "hatch",
+    "hatching",
+    "cross-hatch",
+    "ink",
+    "inked",
+    "pen",
+    "technical",
+    "schematic",
+    "blueprint",
+    "clinical",
+    "austere",
+    "analytic",
+    "abstract",
+    "neon",
+    "wireframe",
+    "xray",
+    "x-ray",
+    "glow",
+    "overlay",
+    "post",
+    "finish",
+    "re-render",
+    "texture",
+    "subtle"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "line contrast: trough darkness, lit-lip brightness and glow amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of contour levels (6 sparse -> 24 dense)"
+    },
+    "alpha": {
+      "default": 0.78,
+      "min": 0,
+      "max": 1,
+      "doc": "overall ink opacity over the scene"
+    },
+    "warp": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "how much the living field warps the frame's own levels (0 = read the frame almost straight, 1 = pure invented terrain)"
+    },
+    "weight": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "line weight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "drift rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.6,
+      "doc": "terrain feature size"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "ink / glow hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field origin x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "field origin y"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "hatch",
+        "neon",
+        "xray"
+      ],
+      "doc": "aesthetic: engraved relief line with a lit lip / broken directional hatching on a rotating rake / additive glowing wire contours with a halo (abstract) / clinical pale isolines on a knocked-back veil"
+    },
+    "act": {
+      "default": "breathe",
+      "options": [
+        "breathe",
+        "tide",
+        "pulse",
+        "survey"
+      ],
+      "doc": "multi-minute program: breathe drifts gently / tide runs the levels steadily uphill so contours flow / pulse thickens the line on the beat / survey sweeps a reveal band down the frame"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "terrain layout"
+    }
+  },
+  "acts": [
+    "breathe",
+    "tide",
+    "pulse",
+    "survey"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:57+00:00",
+    "fps": 59.5,
+    "motion": 0.0284,
+    "lum": 0.098
+  },
+  "code": "const D = { energy:.62, density:.5, alpha:.78, warp:.42, weight:.4, speed:1, scale:1, hue:38, x:.5, y:.5, style:'ink', act:'breathe', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const sg=Math.floor(h/60)%6;if(sg===0){r=c;g=x;b=0;}else if(sg===1){r=x;g=c;b=0;}else if(sg===2){r=0;g=c;b=x;}else if(sg===3){r=0;g=x;b=c;}else if(sg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [((r+m)*255)|0,((g+m)*255)|0,((b+m)*255)|0];};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,t=K.t,key=W+'x'+H;\n\n// ---- size-keyed buffers: a coarse capture of the live frame + the ink plate\nif(!S.g||S.key!==key){\n  let gw,gh;\n  if(W>=H){ gw=220; gh=Math.max(20,Math.round(220*H/W)); } else { gh=220; gw=Math.max(20,Math.round(220*W/H)); }\n  if(S.g&&S.g.remove)S.g.remove();\n  if(S.ink&&S.ink.remove)S.ink.remove();\n  S.gw=gw; S.gh=gh;\n  S.g=createGraphics(gw,gh); S.g.pixelDensity(1);\n  S.ink=createGraphics(gw,gh); S.ink.pixelDensity(1);\n  S.vf=new Float32Array(gw*gh);\n  S.lx=[]; for(let k=0;k<6;k++) S.lx.push(new Float32Array(gw));\n  S.ly=[]; for(let k=0;k<6;k++) S.ly.push(new Float32Array(gh));\n  S.key=key;\n}\nconst gw=S.gw,gh=S.gh,g=S.g,ink=S.ink,vf=S.vf,LX=S.lx,LY=S.ly;\n\n// ---- sample the composited frame underneath us\ng.clear();\ng.drawingContext.drawImage(drawingContext.canvas,0,0,gw,gh);\ng.loadPixels();\nconst px=g.pixels;\n\nconst en=clp(P.energy,0,1);\nconst sp=0.45+clp(P.speed,.15,4)*0.55;\nconst sc=1.6/Math.max(0.25,P.scale);\nconst warp=clp(P.warp,0,1), wEff=0.06+warp*0.62;\nconst lv=6+Math.round(clp(P.density,0,1)*18);\nconst hue=((P.hue%360)+360)%360;\nconst style=P.style;\nconst isHatch=style==='hatch', isAdd=(style==='neon'||style==='xray');\nconst mode = style==='neon'?1 : style==='xray'?2 : 0;\n\n// ---- act: multi-minute programs\nlet lvOff=t*0.02*sp, wMul=1, reveal=0;\nif(P.act==='tide'){ lvOff = t*0.11*sp + Math.sin(t*0.071)*0.9; }\nelse if(P.act==='pulse'){ wMul = 1 + (K.pulse*0.5 + A.bass*0.5)*0.6*en; lvOff = t*0.03*sp + K.swell*0.35; }\nelse if(P.act==='survey'){ reveal=1; }\nconst bandY = 0.5 + 0.40*Math.sin(t*0.13*sp) + 0.12*Math.sin(t*0.37*sp+1.1);\n\n// ---- separable spatial LUTs (keeps the trig at O(gw+gh), not O(gw*gh))\nconst ox=(P.x-0.5)*4.0+fr(3)*7.0, oy=(P.y-0.5)*4.0+fr(7)*7.0, ar=gw/gh;\nfor(let i=0;i<gw;i++){\n  const nx=((i+0.5)/gw-0.5)*2*ar*sc+ox;\n  LX[0][i]=Math.sin(nx*2.10); LX[1][i]=Math.cos(nx*2.10);\n  LX[2][i]=Math.sin(nx*1.31); LX[3][i]=Math.cos(nx*1.31);\n  LX[4][i]=Math.sin(nx*2.70); LX[5][i]=Math.cos(nx*2.70);\n}\nfor(let j=0;j<gh;j++){\n  const ny=((j+0.5)/gh-0.5)*2*sc+oy;\n  LY[0][j]=Math.sin(ny*1.70); LY[1][j]=Math.cos(ny*1.70);\n  LY[2][j]=Math.sin(ny*1.31); LY[3][j]=Math.cos(ny*1.31);\n  LY[4][j]=Math.sin(ny*2.70); LY[5][j]=Math.cos(ny*2.70);\n}\n// four incommensurate real-time phases -> the line never re-phases at 8s\nconst p1=t*0.31*sp, p2=-t*0.23*sp+1.3, p3=t*0.41*sp, p4=-t*0.17*sp+2.1;\nconst S1=Math.sin(p1),C1=Math.cos(p1),S2=Math.sin(p2),C2=Math.cos(p2);\nconst S3=Math.sin(p3),C3=Math.cos(p3),S4=Math.sin(p4),C4=Math.cos(p4);\n\n// ---- pass 1: the scalar field = frame luminance + a living warp\nfor(let j=0;j<gh;j++){\n  const s2=LY[0][j],c2=LY[1][j],s3b=LY[2][j],c3b=LY[3][j],s4b=LY[4][j],c4b=LY[5][j];\n  const row=j*gw;\n  for(let i=0;i<gw;i++){\n    const o=(row+i)*4;\n    const lum=(px[o]*0.299+px[o+1]*0.587+px[o+2]*0.114)*0.00392157;\n    const s1=LX[0][i],c1=LX[1][i],s3=LX[2][i],c3=LX[3][i],s4=LX[4][i],c4=LX[5][i];\n    const sxy3=s3*c3b+c3*s3b, cxy3=c3*c3b-s3*s3b;\n    const sxy4=s4*c4b-c4*s4b, cxy4=c4*c4b+s4*s4b;\n    const n = 0.5*(s1*C1+c1*S1) + 0.4*(s2*C2+c2*S2) + 0.35*(sxy3*C3+cxy3*S3) + 0.3*(sxy4*C4+cxy4*S4);\n    vf[row+i] = (lum + wEff*n*0.645)*lv + lvOff;\n  }\n}\n\n// ---- pass 2: gradient-normalised level crossings -> even-weight relief contours\nink.loadPixels();\nconst ip=ink.pixels;\nconst lw=Math.max(0.2,(0.35+clp(P.weight,0,1)*1.7)*wMul);\nconst inkA=clp(clp(P.alpha,0,1)*(0.45+0.75*en),0,1);\nconst lipA=0.22+0.62*en;\nconst dk=hsb2rgb(hue,28,5), lp=hsb2rgb(hue,17,96);\nconst gl0=hsb2rgb(hue,72,100), gl1=hsb2rgb((hue+42)%360,58,100);\nconst xr0=hsb2rgb((hue+150)%360,30,100), xr1=hsb2rgb((hue+170)%360,12,100);\nconst hAng=t*0.041*sp+fr(11)*6.28, hc=Math.cos(hAng)*0.62, hs=Math.sin(hAng)*0.62;\nconst halo=lw*4;\nfor(let j=0;j<gh;j++){\n  const row=j*gw, jm=(j>0?j-1:j)*gw, jp=(j<gh-1?j+1:j)*gw;\n  let rev=1;\n  if(reveal){ rev=clp(1.18-Math.abs(j/gh-bandY)*3.2,0.10,1); }\n  for(let i=0;i<gw;i++){\n    const idx=row+i, o=idx*4;\n    const v=vf[idx];\n    const vx=vf[row+(i<gw-1?i+1:i)]-vf[row+(i>0?i-1:i)];\n    const vy=vf[jp+i]-vf[jm+i];\n    const grad=Math.max(0.004,Math.sqrt(vx*vx+vy*vy)*0.5);\n    const f=v-Math.round(v);\n    const d=f/grad;\n    const ad=Math.abs(d);\n    let a=ad<lw?(1-ad/lw):0;\n    a=a*a*(3-2*a);\n    if(mode===1&&ad<halo) a=Math.max(a,(1-ad/halo)*0.3);\n    if(isHatch) a*=0.30+0.70*(0.5+0.5*Math.sin(i*hc+j*hs));\n    a*=rev;\n    if(a<=0.004){ ip[o]=0;ip[o+1]=0;ip[o+2]=0;ip[o+3]=0; continue; }\n    if(mode===0){\n      if(d<0){ ip[o]=dk[0];ip[o+1]=dk[1];ip[o+2]=dk[2]; ip[o+3]=(a*inkA*255)|0; }\n      else   { ip[o]=lp[0];ip[o+1]=lp[1];ip[o+2]=lp[2]; ip[o+3]=(a*inkA*lipA*255)|0; }\n    } else if(mode===1){\n      const c=d<0?gl0:gl1; ip[o]=c[0];ip[o+1]=c[1];ip[o+2]=c[2]; ip[o+3]=(a*inkA*255)|0;\n    } else {\n      const c=d<0?xr0:xr1; ip[o]=c[0];ip[o+1]=c[1];ip[o+2]=c[2]; ip[o+3]=(a*inkA*0.9*255)|0;\n    }\n  }\n}\nink.updatePixels();\n\nnoStroke();\nif(mode===2){ blendMode(BLEND); fill(hue,24,6,32+22*en); rect(0,0,W,H); }\nblendMode(isAdd?ADD:BLEND);\nimage(ink,0,0,W,H);\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

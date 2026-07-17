@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.datascape",
+  "kind": "genart",
+  "name": "Data-scape",
+  "desc": "A Ryoji-Ikeda / Alva-Noto data console: crisp monochrome barcode strips, quantized spectral bars, oscilloscope waveforms and ticking hex columns stacked into registers and raked by a scanning cursor, the whole field reshuffling and brightening with the musical arc; renders as white-on-black data, amber CRT, cyan blueprint schematic, RGB-datamosh glitch, or green phosphor terminal.",
+  "tags": [
+    "ikeda",
+    "ryoji-ikeda",
+    "alva-noto",
+    "raster-noton",
+    "datascape",
+    "data",
+    "signal",
+    "telemetry",
+    "barcode",
+    "spectrum",
+    "waveform",
+    "oscilloscope",
+    "scan",
+    "scanline",
+    "sine-grid",
+    "bars",
+    "meter",
+    "monochrome",
+    "black-and-white",
+    "minimal",
+    "clinical",
+    "technical",
+    "precision",
+    "austere",
+    "glitch",
+    "datamosh",
+    "crt",
+    "phosphor",
+    "terminal",
+    "blueprint",
+    "schematic",
+    "hex",
+    "binary",
+    "generative",
+    "genart",
+    "abstract",
+    "bg",
+    "background",
+    "audio-reactive"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "register-channel count + bar/glyph packing (structural; max = dense multi-channel console)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lit-bar fraction + mark brightness + waveform/spectrum amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3.5,
+      "doc": "scan-sweep + barcode-scroll + waveform + ticker-churn rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "barcode/glyph/stroke size vs design size"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "accent color (drives the mono style's single accent; other styles carry fixed accents)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "measurement-reticle x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "measurement-reticle y (canvas fraction)"
+    },
+    "scan": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "scanning-sweep prominence + width + sine-grid brightness"
+    },
+    "style": {
+      "default": "mono",
+      "options": [
+        "mono",
+        "amber",
+        "blueprint",
+        "datamosh",
+        "phosphor"
+      ],
+      "doc": "render philosophy: white-on-black Ikeda data / amber CRT phosphor / cyan blueprint schematic (hollow outline bars) / RGB-datamosh channel-split glitch / green phosphor terminal"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout + barcode/spectrum/ticker pattern seed (inline hash, deterministic)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg; lower = translucent data overlay)"
+    },
+    "act": {
+      "default": "stream",
+      "options": [
+        "stream",
+        "spectrum",
+        "glitch"
+      ],
+      "doc": "dramaturgy: stream (balanced) / spectrum (bars+wave forward, barcode recedes) / glitch (RGB tearing scales with musical intensity)"
+    }
+  },
+  "acts": [
+    "stream",
+    "spectrum",
+    "glitch"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-12T14:00:39+00:00",
+    "fps": 64.9,
+    "motion": 0.0439,
+    "lum": 0.081
+  },
+  "code": "const D = { density:.55, energy:.6, speed:1, scale:1, hue:8, x:.5, y:.5, scan:.6, style:'mono', seed:0, alpha:100, act:'stream' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n;\nconst TAU=Math.PI*2;\nconst nf2=n=>(n<10?'0':'')+n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst SEED=(P.seed|0);\nfunction hsh(a,b){let h=(a*374761393 + b*668265263 + SEED*2654435761)|0; h=(h^(h>>13))*1274126177|0; return ((h^(h>>16))>>>0)/4294967295;}\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H);\nconst style=P.style;\nconst dens=clp(P.density,0,1), en=clp(P.energy,0,1), spd=clp(P.speed,0,3.5), scl=clp(P.scale,0.4,2.4);\nconst scan=clp(P.scan,0,1), aM=clp(P.alpha,0,100)/100;\nconst hue=md(P.hue,360);\nconst sec=K.section|0;\nconst intens=clp(K.intensity,0,1);\nconst drive=0.32+0.68*intens;\nconst act=P.act;\n\n// section-keyed salt: whole data-scape reshuffles on musical-section boundaries\nconst salt=sec*97 + 13;\n// act dramaturgy: stream (balanced) / spectrum (bars+wave forward, barcode recedes) / glitch (tearing)\nconst glitchAmt = act==='glitch' ? clp((intens-0.35)*1.7,0,1) : 0;\nconst specBoost = act==='spectrum' ? (0.7+0.85*drive) : 1;\nconst codeDim   = act==='spectrum' ? 0.55 : 1;\n\n// ---- style palette (single accent color per look) ----\nlet BG,INK,ACC,GRID,soft=false,split=false,hollow=false,crt=false,tickBoost=1;\nif(style==='amber'){ BG=[32,62,4]; INK=[38,78,92]; ACC=[18,92,100]; GRID=[34,55,11]; soft=true; crt=true; }\nelse if(style==='blueprint'){ BG=[212,82,10]; INK=[196,66,90]; ACC=[26,90,100]; GRID=[205,60,24]; hollow=true; }\nelse if(style==='datamosh'){ BG=[0,0,4]; INK=[0,0,96]; ACC=[305,88,100]; GRID=[0,0,15]; split=true; }\nelse if(style==='phosphor'){ BG=[128,45,3]; INK=[125,82,90]; ACC=[92,90,100]; GRID=[128,50,11]; soft=true; crt=true; tickBoost=1.25; }\nelse { BG=[0,0,4]; INK=[0,0,96]; ACC=[hue,86,100]; GRID=[0,0,13]; } // mono (default anchor)\n\nconst splitBase = (split? 2.2 : 0) + glitchAmt*5.5;\nconst splitAmt = splitBase * u*0.0016;\n\n// ---- register layout (deterministic from seed + nReg + H) ----\nconst nReg=Math.round(4+dens*5);\nconst REGT=['barcode','spectrum','wave','ticker','barcode','ticker','spectrum','wave'];\nconst rot=SEED%REGT.length;\nconst topPad=u*0.05, botPad=u*0.035;\nconst xL=u*0.065, xR=W-u*0.03, regW=xR-xL;\nlet wsum=0; const wts=[];\nfor(let r=0;r<nReg;r++){ const w=0.55+fr(r*5+1)*1.0; wts.push(w); wsum+=w; }\nconst availH=H-topPad-botPad;\nconst regs=[]; let yreg=topPad;\nfor(let r=0;r<nReg;r++){ const h=availH*wts[r]/wsum; regs.push({y0:yreg,y1:yreg+h,type:REGT[(r+rot)%REGT.length],id:r}); yreg+=h; }\n\n// ---- cached chrome: bg + graph grid + register frames/labels + rulers (static, size/style/seed keyed) ----\nconst ckey=W+'x'+H+':'+style+':'+SEED+':'+nReg+':'+Math.round(hue);\nif(!S.chrome || S.ckey!==ckey){\n  if(S.chrome && S.chrome.remove) S.chrome.remove();\n  const g=createGraphics(W,H); g.colorMode(HSB,360,100,100,100); g.pixelDensity(1);\n  g.background(BG[0],BG[1],BG[2]);\n  g.strokeWeight(1); g.stroke(GRID[0],GRID[1],GRID[2]);\n  const gs=Math.max(14,u*0.052);\n  for(let x=xL;x<=xR;x+=gs) g.line(x,topPad,x,H-botPad);\n  for(let y=topPad;y<=H-botPad;y+=gs) g.line(xL,y,xR,y);\n  g.textFont('monospace');\n  for(const rg of regs){\n    g.stroke(INK[0],INK[1],INK[2]*0.5,60); g.strokeWeight(1); g.noFill();\n    g.line(xL,rg.y0,xR,rg.y0);\n    g.noStroke(); g.fill(INK[0],INK[1],INK[2]*0.7,74);\n    g.textAlign(LEFT,TOP); g.textSize(Math.max(7,u*0.013));\n    const lbl=(rg.type==='barcode'?'BARCODE':rg.type==='spectrum'?'SPECTRA':rg.type==='wave'?'WAVE.OSC':'DATA.HEX')+' '+nf2(rg.id);\n    g.text(lbl, xL, rg.y0+2);\n  }\n  g.stroke(INK[0],INK[1],INK[2]*0.5,60); g.strokeWeight(1); g.line(xL,H-botPad,xR,H-botPad);\n  // rulers\n  g.stroke(INK[0],INK[1],INK[2]*0.6,70);\n  for(let y=topPad;y<=H-botPad;y+=gs*0.5){ const big=(Math.round((y-topPad)/(gs*0.5))%2===0); g.line(xL-u*(big?0.016:0.009), y, xL, y); }\n  for(let x=xL;x<=xR;x+=gs*0.5){ const big=(Math.round((x-xL)/(gs*0.5))%2===0); g.line(x, topPad-u*(big?0.016:0.009), x, topPad); }\n  // corner crop marks in accent\n  g.stroke(ACC[0],ACC[1],ACC[2],72); g.strokeWeight(Math.max(1,u*0.002));\n  const cm=u*0.02;\n  g.line(xL,topPad,xL+cm,topPad); g.line(xL,topPad,xL,topPad+cm);\n  g.line(xR,topPad,xR-cm,topPad); g.line(xR,topPad,xR,topPad+cm);\n  g.line(xL,H-botPad,xL+cm,H-botPad); g.line(xL,H-botPad,xL,H-botPad-cm);\n  g.line(xR,H-botPad,xR-cm,H-botPad); g.line(xR,H-botPad,xR,H-botPad-cm);\n  // title strip\n  g.noStroke(); g.fill(INK[0],INK[1],INK[2]*0.85,86); g.textAlign(LEFT,BOTTOM); g.textSize(Math.max(8,u*0.018));\n  g.text('DATA\u2014SCAPE', xL, topPad-u*0.006);\n  g.fill(INK[0],INK[1],INK[2]*0.6,70); g.textAlign(RIGHT,BOTTOM); g.textSize(Math.max(7,u*0.013));\n  g.text(style.toUpperCase()+'  '+nf2(nReg)+'CH', xR, topPad-u*0.006);\n  if(crt){ g.stroke(0,0,0,26); g.strokeWeight(1); const sp=Math.max(2,u*0.005); for(let y=0;y<H;y+=sp) g.line(0,y,W,y); }\n  S.chrome=g; S.ckey=ckey;\n}\n\n// ---- draw chrome (opaque at default; translucent ground when alpha<100) ----\nif(P.alpha>=100){ image(S.chrome,0,0); }\nelse { push(); tint(0,0,100,P.alpha); image(S.chrome,0,0); pop(); }\n\n// ---- dynamic data marks ----\nlet budget=2000;\nlet curSplit=false;\nfunction bar(x,y,w,h,b,acc){\n  if(h<=0||w<=0||budget<=0) return; budget--;\n  if(curSplit){\n    const o=splitAmt + (glitchAmt>0.5? (hsh(x|0,y|0)-0.5)*u*0.01*glitchAmt : 0);\n    noStroke();\n    fill(0,100,100,82*aM); rect(x-o,y,w,h);\n    fill(120,100,100,82*aM); rect(x,y,w,h);\n    fill(240,100,100,82*aM); rect(x+o,y,w,h);\n    return;\n  }\n  if(acc){ noStroke(); fill(ACC[0],ACC[1],100,92*aM); rect(x,y,w,h); return; }\n  if(hollow){ noFill(); stroke(INK[0],INK[1],b,90*aM); strokeWeight(Math.max(1,u*0.0016)); rect(x+0.5,y+0.5,w-1,h-1); noStroke(); return; }\n  noStroke(); fill(INK[0],INK[1],b,(soft?88:96)*aM); rect(x,y,w,h);\n}\nfunction atick(x,y,w){ if(budget<=0)return; budget--; noStroke(); fill(ACC[0],ACC[1],100,84*aM); rect(x,y-Math.max(1,u*0.0022),w,Math.max(1.5,u*0.003)); }\n\nfor(const rg of regs){\n  const ry0=rg.y0, ry1=rg.y1, ipad=Math.min((ry1-ry0)*0.18, u*0.02);\n  const y0=ry0+ipad, y1=ry1-ipad, rh=y1-y0, cy=(y0+y1)/2;\n  const focus=(rg.id===sec%nReg);\n  const fB=focus?1.14:1.0;\n  const type=rg.type;\n  curSplit = split && (type==='barcode'||type==='spectrum');\n  if(curSplit) blendMode(ADD);\n\n  if(type==='barcode'){\n    const bw=Math.max(2, u*0.0062*(1.7-dens*0.9)*scl);\n    const nb=Math.min(230, Math.ceil(regW/bw)+1);\n    const ph=K.t*(0.6+spd*1.0);\n    const fpx=(ph-Math.floor(ph))*bw, base=Math.floor(ph);\n    const litT=(0.64-0.36*en*drive)+(act==='spectrum'?0.14:0);\n    for(let c=0;c<nb;c++){\n      const idx=base+c;\n      if(hsh(idx*3+7, rg.id*131+salt) < litT) continue;\n      const lvl=hsh(idx*3+9, rg.id*131+salt+5);\n      const b=clp((52+Math.round(lvl*3)/3*44)*fB*codeDim,0,100);\n      const hh=rh*(0.4+0.6*hsh(idx*5, rg.id+salt));\n      const acc=(!split && hsh(idx, sec*17)>0.94 && K.pulse>0.35);\n      bar(xL + c*bw - fpx, y1-hh, bw*0.82, hh, b, acc);\n    }\n  } else if(type==='spectrum'){\n    const nbar=Math.min(72, Math.round(14+dens*46));\n    const gap=regW/nbar, bw=gap*0.6;\n    S.pk=S.pk||{}; const pk=S.pk[rg.id]||(S.pk[rg.id]=new Float32Array(72));\n    for(let k=0;k<nbar;k++){\n      const tilt=Math.pow(1-k/nbar,0.55);\n      const env=hsh(k*7+3, rg.id*57+salt);\n      const wob=0.5+0.5*Math.sin(K.t*(0.7+spd*0.6)+k*0.6+env*6.0);\n      const af=(A.fft&&A.fft.length)?A.fft[k%A.fft.length]:0;\n      let h=(0.12+env*0.5*tilt+0.32*wob*tilt)*drive*(0.5+en)*specBoost+af*0.7*drive;\n      h=clp(h,0,1);\n      const steps=Math.round(6+dens*10); h=Math.round(h*steps)/steps;\n      const bh=h*rh, bx=xL+k*gap+(gap-bw)/2;\n      bar(bx, y1-bh, bw, bh, clp((58+h*38)*fB,0,100), false);\n      if(bh>pk[k]) pk[k]=bh; else pk[k]=Math.max(bh, pk[k]-rh*0.006);\n      if(!curSplit) atick(bx, y1-pk[k], bw); else { noStroke(); fill(ACC[0],ACC[1],100,84*aM); rect(bx,y1-pk[k]-u*0.002,bw,u*0.003); }\n    }\n  } else if(type==='wave'){\n    const amp=Math.min(rh*0.46, rh*0.44*(0.4+0.6*drive+A.rms*0.8)*specBoost)*fB;\n    const ns=Math.min(170, Math.round(44+regW/(u*0.02)));\n    const ph=K.t*(1.2+spd*1.4);\n    noFill(); stroke(INK[0],INK[1],INK[2]*(soft?0.9:1),90*aM); strokeWeight(Math.max(1,u*0.0024*scl));\n    beginShape();\n    for(let s=0;s<=ns;s++){ const xx=s/ns;\n      const w=Math.sin(xx*TAU*3+ph)*0.6+Math.sin(xx*TAU*7-ph*1.3+hsh(rg.id,1)*6)*0.28+Math.sin(xx*TAU*13+ph*0.7)*0.12*(A.mid+0.3);\n      vertex(xL+xx*regW, cy-w*amp);\n    }\n    endShape();\n    const cxx=((K.t*(0.13+spd*0.1))%1);\n    const cw=Math.sin(cxx*TAU*3+ph)*0.6+Math.sin(cxx*TAU*7-ph*1.3+hsh(rg.id,1)*6)*0.28;\n    const cx=xL+cxx*regW, cyy=cy-cw*amp;\n    noStroke(); if(soft){drawingContext.shadowBlur=12;drawingContext.shadowColor='rgba(255,255,255,0.7)';}\n    fill(ACC[0],ACC[1],100,95*aM); circle(cx,cyy,Math.max(3,u*0.006)); drawingContext.shadowBlur=0;\n    stroke(INK[0],INK[1],INK[2]*0.4,40*aM); strokeWeight(1); line(xL,cy,xR,cy);\n  } else { // ticker (hex data columns)\n    const cw=Math.max(u*0.013, u*0.02*scl*(1.45-0.7*dens));\n    const ch=cw*1.12;\n    const ncol=Math.min(64, Math.floor(regW/cw));\n    const nrow=Math.max(1, Math.min(6, Math.floor(rh/ch)));\n    const rate=Math.floor(K.t*(2+spd*3));\n    const GLY=\"0123456789ABCDEF\";\n    textFont('monospace'); textAlign(CENTER,CENTER); textSize(ch*0.78); noStroke();\n    for(let r2=0;r2<nrow && budget>0;r2++) for(let c=0;c<ncol && budget>0;c++){\n      if(hsh(c*13+r2*29, rg.id*3)<0.36) continue; budget--;\n      const fast=hsh(c*3+r2, rg.id)>0.78;\n      const v=hsh(c*7+r2*5+rg.id, fast? rate*2 : rate+sec);\n      const b=clp((38+Math.round(hsh(c+r2*7,rate)*3)/3*54)*fB*tickBoost,0,100);\n      fill(INK[0],INK[1],b,88*aM);\n      text(GLY[(v*16|0)&15], xL+(c+0.5)*cw, y0+(r2+0.5)*ch);\n    }\n  }\n  if(curSplit) blendMode(BLEND);\n}\ncurSplit=false;\n\n// ---- global scanning sine-grid overlay (ties registers; continuous drift) ----\nnoFill(); stroke(ACC[0],ACC[1]*0.85,100,(24+34*scan)*aM); strokeWeight(Math.max(1,u*0.0016));\nconst gph=K.t*(0.5+spd*0.6);\nbeginShape();\nfor(let s=0;s<=120;s++){ const xx=s/120; const yv=0.5+0.33*Math.sin(xx*TAU*2+gph)*Math.sin(gph*0.3+xx*3.0); vertex(xL+xx*regW, topPad+(H-topPad-botPad)*yv); }\nendShape();\n\n// ---- vertical scan sweep = MOTION FLOOR (pure K.t, never rephases) ----\nconst scanX=xL+((K.t*(0.05+spd*0.06))%1)*regW;\npush(); blendMode(ADD); noStroke();\nconst sw=u*(0.008+0.05*scan);\nfor(let i=5;i>=1;i--){ fill(ACC[0],ACC[1]*0.5,100,(5+7*scan)*(i/5)*aM); rect(scanX-sw*i*0.5,0,sw*i,H); }\nfill(0,0,100,(38+42*scan)*aM); rect(scanX-Math.max(1,u*0.0016),0,Math.max(2,u*0.0034),H);\nblendMode(BLEND); pop();\n\n// ---- horizontal secondary scan (slower, faint cross motion) ----\nconst scanY=topPad+((K.t*(0.021+spd*0.02))%1)*(H-topPad-botPad);\npush(); blendMode(ADD); noStroke();\nfill(ACC[0],ACC[1]*0.45,100,(7+8*scan)*aM); rect(0,scanY-u*0.006,W,u*0.012);\nblendMode(BLEND); pop();\n\n// ---- measurement reticle at (x,y) \u2014 honors universal anchor as a data cursor ----\nconst rx=xL+clp(P.x,0,1)*regW, rry=topPad+clp(P.y,0,1)*(H-topPad-botPad);\nconst rr=u*(0.03+0.012*Math.sin(K.t*0.9));\npush(); noFill(); stroke(ACC[0],ACC[1],100,70*aM); strokeWeight(Math.max(1,u*0.0018));\nline(rx-rr,rry,rx-rr*0.35,rry); line(rx+rr*0.35,rry,rx+rr,rry);\nline(rx,rry-rr,rx,rry-rr*0.35); line(rx,rry+rr*0.35,rx,rry+rr);\nrectMode(CENTER); rect(rx,rry,rr*0.9,rr*0.9); rectMode(CORNER);\nnoStroke(); fill(ACC[0],ACC[1],100,80*aM); textFont('monospace'); textAlign(LEFT,BOTTOM); textSize(Math.max(7,u*0.012));\ntext('X'+clp(P.x,0,1).toFixed(2)+' Y'+clp(P.y,0,1).toFixed(2), rx+rr*0.55, rry-rr*0.4);\npop();\n\n// ---- HUD telemetry (reads as reacting to the musical arc) ----\nnoStroke(); textFont('monospace'); textAlign(LEFT,TOP); textSize(Math.max(8,u*0.016));\nfill(INK[0],INK[1],INK[2]*0.75,72*aM);\ntext('SEC '+nf2(sec)+'  INT '+intens.toFixed(2)+'  T'+K.t.toFixed(1)+'  '+act.toUpperCase(), xL, H-botPad+u*0.006);\n\n// ---- beat blink marker (partial corner, never full-frame) ----\nif(K.pulse>0.5){ noStroke(); fill(ACC[0],ACC[1],100,72*K.pulse*aM); const bs=u*0.028; rect(xR-bs,topPad*0.4,bs,bs); }\n\nblendMode(BLEND); drawingContext.shadowBlur=0; rectMode(CORNER); textAlign(LEFT,BASELINE);\n"
+}

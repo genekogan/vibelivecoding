@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.braided",
+  "kind": "genart",
+  "name": "Braided River",
+  "desc": "A braided gravel-bed river seen from above \u2014 water threads scour where the flow concentrates and dump gravel where it slackens, so mid-channel bars build and split the flow into an anastomosing web that re-weaves itself continuously; a bar that grows too tall shoves its own thread aside, floods drown the whole braid and reset it, and low stage re-incises the threads through pale gravel that vegetation is slowly colonising.",
+  "tags": [
+    "braided",
+    "braid",
+    "anastomosing",
+    "river",
+    "stream",
+    "channel",
+    "thread",
+    "gravel",
+    "gravel-bed",
+    "bar",
+    "mid-channel-bar",
+    "outwash",
+    "sandur",
+    "avulsion",
+    "aggradation",
+    "scour",
+    "bedload",
+    "transport",
+    "fluvial",
+    "hydrology",
+    "geomorphology",
+    "erosion",
+    "deposition",
+    "sediment",
+    "floodplain",
+    "meltwater",
+    "glacial",
+    "rock-flour",
+    "aerial",
+    "air-photo",
+    "false-colour",
+    "satellite",
+    "survey",
+    "map",
+    "radar",
+    "skeleton",
+    "braid-plain",
+    "iceland",
+    "alaska",
+    "turquoise",
+    "ochre",
+    "olive",
+    "simulation",
+    "emergent",
+    "self-organizing",
+    "process",
+    "landscape",
+    "terrain",
+    "scientific",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "transport capacity \u2014 how hard the threads scour and how fast bars build \u2014 plus colour/contrast gain"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the braid plain around x/y \u2014 1 shows the whole reach, 2.6 crops to a few threads"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the braid re-weaves and avulses"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "discharge \u2014 number of water parcels, i.e. the braiding index (thread count)"
+    },
+    "stage": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "base flow stage: 0 = a starved low-water braid of thin threads on wide bars, 1 = a bank-full flood that drowns the bars"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "gravel hue anchor; rotates the plate with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "aerial",
+      "options": [
+        "aerial",
+        "glacial",
+        "survey",
+        "radar"
+      ],
+      "doc": "aesthetic: aerial = false-colour air photo, silt-blue threads on pale gravel with vegetation taking the old bars; glacial = milky rock-flour meltwater on cold grey outwash; survey = topographic plate; radar = abstracted dark plate where only the wetted braid glows"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "valley + gravel-plain seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:51+00:00",
+    "fps": 59.9,
+    "motion": 0.0722,
+    "lum": 0.476
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, stage: .5, hue: 32, x: .5, y: .5, style: 'aerial', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A braided gravel-bed river, seen from above ---------------------------\n// Water parcels run down a wide gravel plain, routed by bed elevation. Each one\n// scours where the flow concentrates and dumps its gravel where it slackens, so\n// mid-channel BARS build, split the thread around them, and force the flow into\n// the anastomosing web that braided rivers actually make. A bar that grows too\n// tall pushes its own thread aside \u2014 the thread AVULSES, the abandoned one silts\n// up, and the braid re-weaves somewhere else.\n// Anti-convergence: net aggradation raises the bed forever (balanced by a slow\n// base-level fall at the outlet), and stage rises and falls on incommensurate\n// cycles \u2014 at flood the bars drown and the braid resets, at low stage the\n// threads re-incise. The braiding index never settles.\nconst BW = 184, BH = 104, N = BW * BH;\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\n\nif (!S.g) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.Z = new Float32Array(N);      // bed elevation\n  S.W = new Float32Array(N);      // wetness (flow occupancy this frame)\n  S.W2 = new Float32Array(N);\n  S.age = new Float32Array(N);    // time since last wetted -> bar vegetation/oxidation\n  S.seedUsed = null;\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const u = i / BW, v = j / BH;\n    // a valley trough falling to the right, with a gravel-plain rugosity\n    S.Z[j * BW + i] = 0.42 - u * 0.42 + Math.abs(v - 0.5) * 0.30\n                    + (vn(u * 9 + 2.1, v * 9 - 1.3) - 0.5) * 0.045;\n    S.W[j * BW + i] = 0; S.age[j * BW + i] = 40;\n  }\n  S.rng = (Math.imul(sd, 2654435761) + 4242) >>> 0;\n  let m0 = 0; for (let k = 0; k < N; k++) m0 += S.Z[k];\n  S.Z0 = m0 / N;                 // the graded reference the servo holds the reach to\n  S.warm = 700;\n}\nconst rnd = () => { S.rng = (Math.imul(S.rng, 1664525) + 1013904223) >>> 0; return S.rng / 4294967296; };\n\nconst spd = 0.3 + P.speed * 0.95;\nconst dts = Math.min(0.05, (typeof deltaTime === 'number' ? deltaTime : 16.7) / 1000);\n// stage: incommensurate cycles -> floods drown the bars and reset the braid\nconst st0 = 0.5 + 0.5 * (0.55 * Math.sin(K.t * 0.049) + 0.31 * Math.sin(K.t * 0.107 + 2.4) + 0.14 * Math.sin(K.t * 0.223 + 0.6));\nconst stage = Math.max(0.05, Math.min(1.35, (0.25 + P.stage * 0.9) * (0.45 + st0 * 1.0) * (0.6 + K.intensity * 0.5) + A.bass * 0.22));\n\n// ---- route water + gravel over the plain -----------------------------------\nconst passes = S.warm > 0 ? 10 : 1;\nconst NP = Math.round((26 + P.density * 74) * (0.5 + stage * 0.7));\nconst cap0 = 0.0055 * (0.4 + P.energy * 1.0);\nconst supply0 = 0.0052 * (0.4 + P.energy * 1.0) * (0.55 + stage * 0.6);\nS.W.fill(0);\nfor (let q = 0; q < passes; q++) {\n  for (let p = 0; p < NP; p++) {\n    let x = 1.5, y = 3 + rnd() * (BH - 6);\n    let dirx = 1, diry = 0, load = supply0;   // upstream sediment supply \u2014 the reason it braids at all\n    for (let s2 = 0; s2 < 260; s2++) {\n      const xi = x | 0, yi = y | 0;\n      if (xi < 1 || xi >= BW - 1 || yi < 1 || yi >= BH - 1) break;\n      const k = yi * BW + xi;\n      S.W[k] += 1; S.age[k] = 0;\n      let bx = 0, by = 0, bw = -1e9, bdrop = 0;\n      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {\n        if (!a && !b || a < 0) continue;                    // the river runs downvalley\n        const drop = S.Z[k] - S.Z[(yi + b) * BW + (xi + a)];\n        const w = drop * 78 + (a * dirx + b * diry) * 0.5 + rnd() * 0.26;   // bed-following must dominate the noise or the threads never concentrate\n        if (w > bw) { bw = w; bx = a; by = b; bdrop = drop; }\n      }\n      dirx = bx; diry = by;\n      // transport capacity rises with slope and stage; scour or dump to meet it\n      const cap = cap0 * stage * Math.max(0, bdrop * 26 + 0.10);\n      if (load < cap) { const e = Math.min((cap - load) * 0.22, 0.0016); S.Z[k] -= e; load += e; }\n      else { const dp = (load - cap) * 0.30; S.Z[k] += dp; load -= dp; }   // -> mid-channel bar\n      x += bx; y += by;\n    }\n  }\n  if (S.warm > 0) S.warm--;\n}\n\n// ---- aggradation vs base-level fall; bar ageing -----------------------------\n// The reach aggrades on average (that is what makes it braid), so the outlet is\n// lowered at a matched rate. Without this the plain fills, the gradient dies and\n// the braid freezes.\nlet mz = 0; for (let k = 0; k < N; k++) mz += S.Z[k];\nmz /= N;\nconst bl = (0.000004 + Math.max(0, mz - S.Z0) * 0.0022) * spd;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  S.Z[k] -= bl * (0.25 + 0.75 * (i / BW));\n  if (S.W[k] < 0.5) { S.age[k] += spd * 0.55; if (S.age[k] > 90) S.age[k] = 90; }\n  if (S.Z[k] < -0.5) S.Z[k] = -0.5; else if (S.Z[k] > 0.75) S.Z[k] = 0.75;\n}\n// smear wetness so threads read as ribbons, not parcel trails\nfor (let j = 1; j < BH - 1; j++) for (let i = 1; i < BW - 1; i++) {\n  const k = j * BW + i;\n  S.W2[k] = S.W[k] * 0.46 + (S.W[k - 1] + S.W[k + 1] + S.W[k - BW] + S.W[k + BW]) * 0.135;\n}\nconst tmp = S.W; S.W = S.W2; S.W2 = tmp;\n\n// ---- render ----------------------------------------------------------------\nconst stl = P.style;\nconst rot = h => (((h + (P.hue - 32)) % 360) + 360) % 360;\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c;\n  let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; }\n  else if (h < 3) { r = 0; g2 = c; b2 = xx; } else if (h < 4) { r = 0; g2 = xx; b2 = c; }\n  else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n}\nconst gain = 0.76 + P.energy * 0.46 + K.intensity * 0.14 + A.rms * 0.26;\nconst laz = K.t * 0.037 + 0.7 + 0.3 * Math.sin(K.t * 0.0163);      // raking light drifts: motion floor on the gravel\nconst lx = Math.cos(laz), ly = Math.sin(laz);\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  const wet = Math.min(1, S.W[k] * 0.42);\n  const ag = S.age[k] / 90;                       // 0 = freshly swept gravel, 1 = long-abandoned bar\n  const i0 = i > 0 ? i - 1 : 0, i1 = i < BW - 1 ? i + 1 : BW - 1;\n  const j0 = j > 0 ? j - 1 : 0, j1 = j < BH - 1 ? j + 1 : BH - 1;\n  const gx = (S.Z[j * BW + i1] - S.Z[j * BW + i0]) * 30, gy = (S.Z[j1 * BW + i] - S.Z[j0 * BW + i]) * 30;\n  const shade = Math.max(0, Math.min(1, 0.5 + (gx * lx + gy * ly) * 0.85));\n  const grain = 0.88 + hsh(i * 3, j * 3) * 0.24;\n  let r, g2, b;\n  if (stl === 'glacial') {\n    // rock-flour meltwater: milky turquoise threads on cold grey outwash\n    const c = wet > 0.06\n      ? hsv(rot(176) - wet * 12, 0.30 + wet * 0.22, (0.42 + wet * 0.44) * gain)\n      : hsv(rot(210), 0.07 + ag * 0.05, (0.34 + shade * 0.34 + ag * 0.06) * grain * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (stl === 'survey') {\n    const c = wet > 0.06\n      ? hsv(rot(203), 0.60, (0.30 + wet * 0.34) * gain)\n      : hsv(rot(44), 0.24 + ag * 0.10, (0.52 + shade * 0.26 - ag * 0.08) * grain * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (stl === 'radar') {\n    // abstracted: only the wetted braid survives, as a glowing skeleton on dark\n    const c = hsv(rot(150) + wet * 60, 0.5, (0.07 + wet * 0.85 + shade * 0.08) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else {\n    // aerial (default): false-colour air photo \u2014 silt-blue threads, pale gravel\n    // bars, ochre/olive vegetation colonising the long-abandoned ones\n    if (wet > 0.06) {\n      const c = hsv(rot(196) + wet * 14, 0.38 + wet * 0.26, (0.34 + wet * 0.40) * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    } else {\n      const veg = Math.max(0, ag - 0.45) / 0.55;\n      const c = hsv(rot(44) + veg * 42, 0.20 + veg * 0.30, (0.56 + shade * 0.28 - veg * 0.20) * grain * gain);\n      r = c[0]; g2 = c[1]; b = c[2];\n    }\n  }\n  const o = k * 4; px[o] = r; px[o + 1] = g2; px[o + 2] = b; px[o + 3] = 255;\n}\ng.updatePixels();\n\nconst z2 = Math.max(1, P.scale), hw = 0.5 / z2;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BH, 2 * hw * BW, 2 * hw * BH);\npop();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

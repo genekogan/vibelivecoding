@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rayleigh_taylor",
+  "kind": "genart",
+  "name": "Rayleigh-Taylor",
+  "desc": "Heavy fluid resting on light fluid \u2014 the most impatient arrangement in physics \u2014 where every dimple in the interface runs away into a falling spike, bubbles of light squeeze up between them, and each plunging tip shears itself into the iconic mushroom cap before the whole front shreds into a churning mixing layer that is fed from above and below and never settles; as two dyed fluids, the vorticity the spikes deposit, ironbow thermal, sumi ink wash, or spectral false-color.",
+  "tags": [
+    "rayleigh-taylor",
+    "instability",
+    "mushroom",
+    "spike",
+    "bubble",
+    "buoyancy",
+    "stratified",
+    "mixing",
+    "mixing-layer",
+    "interface",
+    "overturn",
+    "convection",
+    "boussinesq",
+    "navier-stokes",
+    "incompressible",
+    "projection",
+    "vorticity",
+    "kelvin-helmholtz",
+    "roll-up",
+    "turbulence",
+    "fluid",
+    "fluid-dynamics",
+    "flow",
+    "advection",
+    "continuum",
+    "pde",
+    "simulation",
+    "physics",
+    "laboratory",
+    "scientific",
+    "clinical",
+    "astrophysics",
+    "supernova",
+    "plume",
+    "dye",
+    "pigment",
+    "thermal",
+    "ironbow",
+    "sumi",
+    "ink",
+    "spectral",
+    "false-color",
+    "amber",
+    "indigo",
+    "violent",
+    "churning",
+    "eerie",
+    "sublime",
+    "austere",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.58,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "effective gravity times Atwood number \u2014 how violently the heavy fluid falls (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "feature size \u2014 the amplitude of the seeded interface ripple, from a barely-disturbed sheet to deep fat plunging lobes"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "time rate (0.2 still churns)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "COUNT of seeded interface modes \u2014 0 gives a few clean fat mushrooms, 1 gives a broadband shredded front"
+    },
+    "visc": {
+      "default": 0.4,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "viscosity \u2014 from a fine wispy shredded cascade through to thick syrupy lobes with smooth rims"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the light fluid (the heavy fluid takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "horizontal phase of the interface ripple \u2014 slides which columns become spikes"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "height the interface is hung at \u2014 how much room the spikes get to fall"
+    },
+    "style": {
+      "default": "mixing",
+      "options": [
+        "mixing",
+        "vorticity",
+        "thermal",
+        "ink_wash",
+        "spectral"
+      ],
+      "doc": "aesthetic: two dyed fluids with lit interfaces / abstracted vorticity showing the counter-rotating rolls inside every cap / ironbow thermal / sumi ink wash on paper / spectral false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the interface's initial ripple spectrum \u2014 which modes grow"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:42+00:00",
+    "fps": 61.0,
+    "motion": 0.1205,
+    "lum": 0.401
+  },
+  "code": "const D = { energy: .58, scale: 1, speed: 1, density: .5, visc: .4, hue: 30, x: .5, y: .42, style: 'mixing', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Rayleigh-Taylor instability \u2014 heavy fluid stacked on top of light -------------------\n// The most impatient arrangement in fluid mechanics. Any dimple in the interface lets heavy\n// fluid reach down into light, buoyancy pulls it further, and the dimple runs away: spikes of\n// heavy fall, bubbles of light rise between them, and the falling tips shear against the fluid\n// they push through until Kelvin-Helmholtz curls each one into the iconic MUSHROOM cap.\n//\n// This is a real incompressible Boussinesq solver \u2014 semi-Lagrangian advection of density and\n// momentum, a buoyancy source, and an SOR pressure projection to hold div(u) = 0. The\n// projection is the expensive part and also the whole reason it looks right: without it there\n// is no pressure to push the bubbles up between the spikes.\n//\n// Left/right wrap. The top and bottom are held as reservoirs \u2014 heavy above, light below \u2014 so\n// the instability is fed forever and cannot mix itself into a flat grey and stop. That is a\n// real configuration (Rayleigh-Taylor turbulence), not a convenience.\n//\n// vs Kelvin-Helmholtz: that is SHEAR across an interface and it makes a train of billow rolls.\n// This is buoyancy acting NORMAL to the interface, and it makes mushrooms.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 132, BH = Math.max(60, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.U = new Float32Array(NC); S.V = new Float32Array(NC); S.RO = new Float32Array(NC);\n  S.U2 = new Float32Array(NC); S.V2 = new Float32Array(NC); S.R2 = new Float32Array(NC);\n  S.PR = new Float32Array(NC); S.DV = new Float32Array(NC);\n  S.init = false;\n}\nconst U = S.U, V = S.V, RO = S.RO, U2 = S.U2, V2 = S.V2, R2 = S.R2, PR = S.PR, DV = S.DV;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\n\nconst L = BW / BH, h = 1 / BH;\nconst tt = K.t;\nconst en = P.energy;\nconst y0 = 0.18 + Math.min(1, Math.max(0, P.y)) * 0.50;   // where the interface is hung\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  U.fill(0); V.fill(0); PR.fill(0);\n  const nm = 2 + Math.round(P.density * 6);\n  for (let j = 0; j < BH; j++) {\n    const y = (j + 0.5) / BH;\n    for (let i = 0; i < BW; i++) {\n      const x = (i + 0.5) / BH;\n      // a seeded broadband ripple on the interface \u2014 the modes it will amplify\n      let d = 0;\n      for (let m = 1; m <= nm; m++) d += (0.030 / m) * Math.sin(TAU * m * x / L + fr(m * 13 + 1) * TAU);\n      const yi = y0 + d * Math.max(0.4, P.scale);\n      RO[j * BW + i] = 1 - 1 / (1 + Math.exp(-(y - yi) * 90));   // heavy(1) above, light(0) below\n    }\n  }\n}\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dtr = K.t - S.lastT; S.lastT = K.t;\ndtr = dtr < 0 ? 0 : (dtr > 0.05 ? 0.05 : dtr);\nconst dt = dtr * (0.25 + P.speed * 0.75);\n\nconst grav = 0.10 + en * 0.20;             // effective g * Atwood\nconst nuv = 0.00002 + P.visc * 0.00035;\n\nfunction samp(F, bx, by) {\n  // x wraps, y clamps\n  let X = bx - Math.floor(bx / BW) * BW;\n  let Y = by < 0 ? 0 : (by > BH - 1.001 ? BH - 1.001 : by);\n  const x0 = X | 0, y0i = Y | 0, fx = X - x0, fy = Y - y0i;\n  const x1 = x0 + 1 >= BW ? 0 : x0 + 1, y1 = y0i + 1 < BH ? y0i + 1 : y0i;\n  const a = F[y0i * BW + x0], b = F[y0i * BW + x1], c = F[y1 * BW + x0], d = F[y1 * BW + x1];\n  const t0 = a + (b - a) * fx, t1 = c + (d - c) * fx;\n  return t0 + (t1 - t0) * fy;\n}\n\n// ---- 1. advect u, v, rho (semi-Lagrangian, read from the old fields, write to new) ----\nconst sc = BH;\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const bx = i - U[p] * dt * sc, by = j - V[p] * dt * sc;\n    U2[p] = samp(U, bx, by); V2[p] = samp(V, bx, by); R2[p] = samp(RO, bx, by);\n  }\n}\nU.set(U2); V.set(V2); RO.set(R2);\n\n// ---- 2. buoyancy + a slow large-scale sloshing force on incommensurate rates ----\nconst shear = 0.30 * Math.sin(tt * 0.071) + 0.17 * Math.sin(tt * 0.157 + 1.3) + 0.09 * Math.sin(tt * 0.263 + 0.4);\nconst kick = 0.85 + K.swell * 0.2 + A.bass * 0.5;\nfor (let j = 0; j < BH; j++) {\n  const y = (j + 0.5) / BH, jc = j * BW;\n  const prof = Math.sin(TAU * y);\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    V[p] += grav * (RO[p] - 0.5) * dt * kick;      // heavy sinks (+y is down)\n    U[p] += shear * prof * dt * 0.5;\n  }\n}\n\n// ---- 3. project to divergence free (Stam's formulation), warm-started ----\nfor (let j = 1; j < BH - 1; j++) {\n  const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n    DV[jc + i] = -0.5 * h * (U[jc + ip] - U[jc + im] + V[jp + i] - V[jm + i]);\n  }\n}\nfor (let it = 0; it < 18; it++) {\n  for (let j = 1; j < BH - 1; j++) {\n    const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n      const t = (DV[jc + i] + PR[jc + im] + PR[jc + ip] + PR[jm + i] + PR[jp + i]) * 0.25;\n      PR[jc + i] += (t - PR[jc + i]) * 1.7;\n    }\n  }\n  for (let i = 0; i < BW; i++) { PR[i] = PR[BW + i]; PR[(BH - 1) * BW + i] = PR[(BH - 2) * BW + i]; }\n}\nfor (let j = 1; j < BH - 1; j++) {\n  const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n    U[jc + i] -= 0.5 * (PR[jc + ip] - PR[jc + im]) / h;\n    V[jc + i] -= 0.5 * (PR[jp + i] - PR[jm + i]) / h;\n  }\n}\nfor (let i = 0; i < BW; i++) { V[i] = 0; V[(BH - 1) * BW + i] = 0; }   // no flow through the lids\n\n// ---- 4. viscosity + the reservoirs that keep feeding the instability ----\n{\n  const kv = Math.min(0.24, nuv * sc * sc * dt);\n  const kr = Math.min(0.5, dt * 1.5);\n  const shrp = Math.min(0.45, dt * 5.5 * (1.3 - P.visc * 0.8));   // interface compression\n  U2.set(U); V2.set(V); R2.set(RO);\n  for (let j = 0; j < BH; j++) {\n    const y = (j + 0.5) / BH;\n    const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n    // 1 at the lids, 0 by 16% in: heavy is resupplied above, light below, the middle is free\n    const dEdge = Math.min(y, 1 - y);\n    const wE = Math.max(0, 1 - dEdge / 0.16);\n    const tgt = y < 0.5 ? 1 : 0;\n    for (let i = 0; i < BW; i++) {\n      const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1, p = jc + i;\n      const lu = U2[jc + im] + U2[jc + ip] + U2[jm + i] + U2[jp + i] - 4 * U2[p];\n      const lv = V2[jc + im] + V2[jc + ip] + V2[jm + i] + V2[jp + i] - 4 * V2[p];\n      const lr = R2[jc + im] + R2[jc + ip] + R2[jm + i] + R2[jp + i] - 4 * R2[p];\n      U[p] = U2[p] + lu * kv;\n      V[p] = V2[p] + lv * kv;\n      // Semi-Lagrangian advection is heavily diffusive, and left alone it dissolves the two\n      // fluids into one homogeneous grey within ~10s \u2014 the mushrooms stop reading entirely.\n      // The Allen-Cahn double-well term ro*(1-ro)*(2ro-1) pushes each cell back toward pure\n      // heavy or pure light, and balanced against the diffusion it holds the interface at a\n      // couple of cells. This is the standard phase-field interface compression, not a hack.\n      let ro = R2[p] + lr * kv * 0.12 + (tgt - R2[p]) * wE * kr;\n      ro += shrp * ro * (1 - ro) * (2 * ro - 1);\n      RO[p] = ro < 0 ? 0 : (ro > 1 ? 1 : ro);\n    }\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.019) * 9 + sec * 5) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cLight = pal(0.03, 0.14, 0.0), cHeavy = pal(0.50, 0.16, 0.0);\nconst gl = 0.88 + A.treble * 0.3;\nconst wsc = 5.0 + en * 6.0;\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1, p = jc + i;\n    const d = RO[p] < 0 ? 0 : (RO[p] > 1 ? 1 : RO[p]);\n    const gx = (RO[jc + ip] - RO[jc + im]) * 0.5, gy = (RO[jp + i] - RO[jm + i]) * 0.5;\n    const edge = Math.min(1, Math.sqrt(gx * gx + gy * gy) * 5.5);\n    const wz = ((V[jc + ip] - V[jc + im]) - (U[jp + i] - U[jm + i])) * 0.5 * sc * wsc;\n    let r, gg, b;\n    if (style === 'vorticity') {\n      // abstracted: forget the dye, show the vorticity the falling spikes deposit \u2014 every\n      // mushroom cap is a pair of counter-rotating rolls and this is the only view that says so\n      const s2 = wz < -1 ? -1 : (wz > 1 ? 1 : wz);\n      const v = 0.34;\n      const pos = s2 > 0 ? s2 : 0, neg = s2 < 0 ? -s2 : 0;\n      r = v + pos * 0.60 - neg * 0.20; gg = v - pos * 0.16 - neg * 0.15; b = v - pos * 0.22 + neg * 0.58;\n    } else if (style === 'thermal') {\n      const m = Math.min(1, (1 - d) * 0.94 + edge * 0.12);\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55));\n      b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.40 - m * 1.5));\n    } else if (style === 'ink_wash') {\n      const gr = (fr(i * 3.7 + j * 9.1) - 0.5) * 0.05;\n      const v = 0.84 - d * 0.66 + gr - edge * 0.13;\n      r = v * 0.99; gg = v * 0.972; b = v * 0.93;\n    } else if (style === 'spectral') {\n      const u = 0.06 + d * 0.56 + edge * 0.10;\n      const cc = pal(u, 0.32, 0.0);\n      const v = 0.24 + edge * 0.26 + (1 - Math.abs(d - 0.5) * 2) * 0.16;\n      r = v * (0.30 + cc[0] * 1.25); gg = v * (0.30 + cc[1] * 1.25); b = v * (0.32 + cc[2] * 1.25);\n    } else {                                   // mixing (default)\n      // two dyed fluids; the interface catches light, so every fold and mushroom rim reads\n      const bl = 0.30 + (1 - d) * 0.20;\n      r = (cHeavy[0] * d + cLight[0] * (1 - d)) * bl * 1.35 + 0.035;\n      gg = (cHeavy[1] * d + cLight[1] * (1 - d)) * bl * 1.30 + 0.040;\n      b = (cHeavy[2] * d + cLight[2] * (1 - d)) * bl * 1.28 + 0.055;\n      const e2 = edge * gl * 0.30;\n      r += e2 * 1.0; gg += e2 * 0.93; b += e2 * 0.76;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

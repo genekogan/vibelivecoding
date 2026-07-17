@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.sandpile",
+  "kind": "genart",
+  "name": "Abelian Sandpile",
+  "desc": "The Bak-Tang-Wiesenfeld abelian sandpile grows grain by grain from a fixed central pour into its iconic self-similar mandala of nested squares and diamonds, exact integer heights 0-3 rendered through a hard four-colour LUT so every crisp fractal boundary reads razor-sharp across indigo-blue-gold-white spectral, blackbody thermal, copper-oxide patina, clean grayscale, and glowing neon-edge looks.",
+  "tags": [
+    "sandpile",
+    "abelian-sandpile",
+    "abelian",
+    "bak-tang-wiesenfeld",
+    "btw",
+    "self-organized-criticality",
+    "soc",
+    "avalanche",
+    "toppling",
+    "cellular-automata",
+    "automata",
+    "grain",
+    "sand",
+    "aggregation",
+    "fractal",
+    "mandala",
+    "nested-squares",
+    "diamonds",
+    "self-similar",
+    "emergence",
+    "emergent",
+    "complexity",
+    "criticality",
+    "geometric",
+    "crisp",
+    "generative",
+    "genart",
+    "abstract",
+    "field",
+    "topographic",
+    "thermal",
+    "copper",
+    "patina",
+    "verdigris",
+    "grayscale",
+    "neon",
+    "contour",
+    "edge",
+    "indigo",
+    "blue",
+    "gold",
+    "spectral",
+    "symmetry",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "cell coarseness / grid resolution (higher = chunkier blocks, fewer columns)"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / brightness of the height ramp"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "pour rate (grains per frame -> growth speed & avalanche activity)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "pour-rate multiplier (faster frontier expansion)"
+    },
+    "hue": {
+      "default": 258,
+      "min": 0,
+      "max": 360,
+      "doc": "base palette hue (rotates the whole height ramp)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pour source center x (the mandalas origin)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pour source center y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "thermal",
+        "copper-oxide",
+        "grayscale",
+        "neon-edge"
+      ],
+      "doc": "render philosophy: spectral indigo->blue->gold->white ordered ramp / thermal blackbody by height / copper-oxide patina greens+rust / grayscale four clean greys (mono) / neon-edge only the height boundaries glow as lines (abstract)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation (seed>0 adds 4-fold-symmetric secondary pour sources)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg; lower = translucent)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:59:47+00:00",
+    "fps": 59.9,
+    "motion": 0.1821,
+    "lum": 0.383
+  },
+  "code": "const D = { scale: 1, energy: .62, density: .55, speed: 1, hue: 258, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b) => v<a?a:(v>b?b:v);\nconst seedI = P.seed | 0;\n\n// ---- coarse integer grid (scale -> cell coarseness). Small on purpose: crisp nearest-neighbor blocks ----\nconst GW = clp(Math.round(220 / (0.6 + clp(P.scale,0.4,2.6))), 56, 200) | 0;\nconst GH = clp(Math.round(GW * height / Math.max(1,width)), 40, 200) | 0;\nconst cells = GW * GH;\nconst cx = clp(Math.round(GW * clp(P.x,0.15,0.85)), 1, GW-2) | 0;\nconst cy = clp(Math.round(GH * clp(P.y,0.15,0.85)), 1, GH-2) | 0;\n\n// ---- (re)build the persistent, always-fully-relaxed pile on size / seed change ----\nconst key = GW + 'x' + GH + '_' + seedI;\nif (!S.grid || S.key !== key) {\n  S.key = key;\n  S.grid = new Int32Array(cells);\n  S.stack = new Int32Array(cells);\n  S.inS = new Uint8Array(cells);\n  S.lut = new Uint8Array(12);\n  S.N = 0; S.acc = 0; S.sat = 0; S.fade = 0;\n  S.g = createGraphics(GW, GH); S.g.pixelDensity(1);\n  S.fg = createGraphics(GW, GH); S.fg.pixelDensity(1);\n  const fr = i => { const s = Math.sin(i*127.1 + seedI*311.7) * 43758.5453; return s - Math.floor(s); };\n  // seed>0 -> 4-fold-symmetric extra pour sources (preserve square symmetry, still crisp)\n  S.off = [[0,0,1.0]];\n  if (seedI !== 0) {\n    const ns = 1 + (fr(1)*2 | 0);\n    for (let k = 0; k < ns; k++) {\n      const ox = ((0.1 + fr(k*3+2)*0.26) * GW) | 0, oy = ((0.1 + fr(k*3+3)*0.26) * GH) | 0, w = 0.35 + fr(k*3+4)*0.45;\n      S.off.push([ox,oy,w],[-ox,oy,w],[ox,-oy,w],[-ox,-oy,w]);\n    }\n  }\n}\n\n// ---- clock-driven pour (K.t motion floor via the perpetually expanding frontier) ----\nconst secF = K.section | 0;\nconst expo = 0.5 + clp(P.energy,0,1)*0.55 + K.intensity*0.2 + 0.08*Math.sin(K.t*0.55) + A.rms*0.5 + A.bass*0.18;\nconst pourF = (2 + clp(P.density,0,1)*18) * (0.4 + clp(P.speed,0,3)*0.6) * (0.6 + K.intensity*0.7) * (1 + A.bass*1.2);\nS.acc += pourF;\nlet pn = S.acc | 0; if (pn > 1200) pn = 1200; S.acc -= pn;\nconst grid = S.grid;\nlet added = 0;\nif (pn > 0) for (let s = 0; s < S.off.length; s++) {\n  const o = S.off[s];\n  const gx = clp(cx + o[0], 1, GW-2) | 0, gy = clp(cy + o[1], 1, GH-2) | 0;\n  const q = Math.max(1, (pn * o[2]) | 0);\n  grid[gy*GW + gx] += q; added += q;\n}\nS.N += added;\n\n// ---- relax to COMPLETION (stack drain; inS flag prevents duplicates so a cells-sized stack suffices) ----\nconst st = S.stack, inS = S.inS;\nlet sp = 0, lost = 0;\nconst enq = n => { if (!inS[n]) { inS[n] = 1; st[sp++] = n; } };\nif (pn > 0) for (let s = 0; s < S.off.length; s++) {\n  const o = S.off[s];\n  const gx = clp(cx + o[0], 1, GW-2) | 0, gy = clp(cy + o[1], 1, GH-2) | 0;\n  const idx = gy*GW + gx; if (grid[idx] >= 4) enq(idx);\n}\nlet guard = 0;\nwhile (sp > 0 && guard < 6000000) {\n  const idx = st[--sp]; inS[idx] = 0;\n  const h = grid[idx];\n  if (h < 4) continue;\n  const times = h >> 2;                 // Abelian batch topple: floor(h/4) times at once\n  grid[idx] = h - times*4;\n  const y = (idx / GW) | 0, x = idx - y*GW;\n  if (x > 0)      { const n = idx-1;  grid[n] += times; if (grid[n] >= 4) enq(n); } else lost += times;\n  if (x < GW-1)   { const n = idx+1;  grid[n] += times; if (grid[n] >= 4) enq(n); } else lost += times;\n  if (y > 0)      { const n = idx-GW; grid[n] += times; if (grid[n] >= 4) enq(n); } else lost += times;\n  if (y < GH-1)   { const n = idx+GW; grid[n] += times; if (grid[n] >= 4) enq(n); } else lost += times;\n  guard++;\n}\nS.N -= lost; if (S.N < 0) S.N = 0;\n\n// ---- soft rebloom: once the pile saturates (inflow ~ outflow), crossfade to a fresh bloom (well past validation) ----\nif (added > 0 && lost >= added*0.6) S.sat += 1; else S.sat = Math.max(0, S.sat - 2);\nif (S.sat > 340 && S.fade <= 0) {\n  S.fg.image(S.g, 0, 0, GW, GH);        // snapshot last frame's render for the crossfade\n  S.fade = 1;\n  grid.fill(0); S.N = 0; S.sat = 0; S.acc = 0;\n}\n\n// ---- HARD 4-colour LUT (no interpolation, no dither, no per-cell noise) ----\nconst hueShift = (P.hue - 258) + secF*7;    // slow section palette drift = dramaturgy\nconst OUT = [0,0,0];\nfunction hsv(o,h,s,v){ h=((h%360)+360)%360; if(v<0)v=0; if(v>1)v=1; if(s<0)s=0; if(s>1)s=1;\n  const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b;\n  if(h<60){r=c;g=x;b=0;} else if(h<120){r=x;g=c;b=0;} else if(h<180){r=0;g=c;b=x;}\n  else if(h<240){r=0;g=x;b=c;} else if(h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}\n  o[0]=(r+m)*255; o[1]=(g+m)*255; o[2]=(b+m)*255; }\nconst style = P.style;\nconst isNeon = (style==='neon-edge' || style==='neon-contour' || style==='neon');\nlet RAMP;\nif (style==='thermal') RAMP=[[20,0.85,0.14],[8,1.0,0.5],[34,1.0,0.85],[46,0.22,1.0]];\nelse if (style==='copper-oxide'||style==='copper') RAMP=[[192,0.55,0.16],[168,0.62,0.42],[134,0.5,0.66],[24,0.82,0.82]];\nelse if (style==='grayscale'||style==='mono'||style==='grayscale-topographic') RAMP=[[0,0,0.14],[0,0,0.40],[0,0,0.66],[0,0,0.95]];\nelse RAMP=[[250,0.72,0.35],[221,0.85,0.60],[46,0.9,0.87],[48,0.16,0.95]]; // spectral: indigo/blue/gold/white\nconst LUT = S.lut;\nfor (let hI=0; hI<4; hI++){ const r=RAMP[hI]; hsv(OUT, r[0]+hueShift*(hI>0?1:0.4), r[1], r[2]*expo); LUT[hI*3]=OUT[0]; LUT[hI*3+1]=OUT[1]; LUT[hI*3+2]=OUT[2]; }\n\n// ---- render exact heights 0..3 into the coarse buffer ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nif (isNeon) {                              // ABSTRACT: only the nested-square height boundaries glow\n  hsv(OUT, 250+hueShift, 0.7, clp(0.11*Math.max(0.7,expo*0.8),0,1)); const gr=OUT[0],gg=OUT[1],gb=OUT[2];\n  const LC0=[0,0,0],LC1=[0,0,0],LC2=[0,0,0];\n  hsv(OUT,196+hueShift,0.9, clp(0.55*expo,0,1)); LC0[0]=OUT[0];LC0[1]=OUT[1];LC0[2]=OUT[2];\n  hsv(OUT,300+hueShift,0.85,clp(0.72*expo,0,1)); LC1[0]=OUT[0];LC1[1]=OUT[1];LC1[2]=OUT[2];\n  hsv(OUT,48+hueShift,0.45, clp(0.96*expo,0,1)); LC2[0]=OUT[0];LC2[1]=OUT[1];LC2[2]=OUT[2];\n  const LC=[null,LC0,LC1,LC2];\n  for (let j=0;j<GH;j++) for (let i=0;i<GW;i++){\n    const idx=j*GW+i; let hc=grid[idx]; if(hc<0)hc=0; else if(hc>3)hc=3;\n    let lvl=0;\n    if(i<GW-1){ let rn=grid[idx+1]; if(rn<0)rn=0; else if(rn>3)rn=3; if(rn!==hc){ const m=rn>hc?rn:hc; if(m>lvl)lvl=m; } }\n    if(j<GH-1){ let dn=grid[idx+GW]; if(dn<0)dn=0; else if(dn>3)dn=3; if(dn!==hc){ const m=dn>hc?dn:hc; if(m>lvl)lvl=m; } }\n    const o=4*idx;\n    if(lvl>0){ const c=LC[lvl]||LC2; px[o]=c[0];px[o+1]=c[1];px[o+2]=c[2]; }\n    else { px[o]=gr;px[o+1]=gg;px[o+2]=gb; }\n    px[o+3]=255;\n  }\n} else {                                   // FILL: hard 4-colour ramp, exact per-cell, zero blending\n  for (let idx=0; idx<cells; idx++){\n    let hc=grid[idx]; if(hc<0)hc=0; else if(hc>3)hc=3;\n    const b=hc*3, o=4*idx;\n    px[o]=LUT[b]; px[o+1]=LUT[b+1]; px[o+2]=LUT[b+2]; px[o+3]=255;\n  }\n}\ng.updatePixels();\n\n// ---- draw upscaled NEAREST-neighbor (crisp edges); alpha<100 = translucent for VJ compositing ----\npush();\ndrawingContext.imageSmoothingEnabled = false;\nif (P.alpha < 100) tint(0,0,100,P.alpha);\nimage(g, 0, 0, width, height);\nif (S.fade > 0) { tint(0,0,100, S.fade * (P.alpha<100?P.alpha:100)); image(S.fg, 0, 0, width, height); S.fade -= 0.02; if(S.fade<0)S.fade=0; }\ndrawingContext.imageSmoothingEnabled = true;\npop();\n\n// ---- audio reactivity ON TOP of the clk baseline (all-zero during validation); partial, never full-frame ----\nif (A.bass > 0.01 || A.treble > 0.01) {\n  push(); blendMode(ADD); noStroke();\n  const px0 = (cx + 0.5)/GW*width, py0 = (cy + 0.5)/GH*height, rr = Math.min(width,height)*(0.1 + A.rms*0.4);\n  fill((P.hue+30)%360, 40, 100, A.bass*P.energy*12); ellipse(px0, py0, rr, rr);\n  fill((P.hue+50)%360, 22, 100, A.treble*13); ellipse(px0, py0, rr*1.9, rr*1.9);\n  blendMode(BLEND); pop();\n}\n"
+}

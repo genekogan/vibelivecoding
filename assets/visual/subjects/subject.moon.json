@@ -1,0 +1,146 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.moon",
+  "kind": "subject",
+  "name": "Moon With Face",
+  "desc": "A great gouache moon-face drifting in a starfield, halo breathing on the beat, lidded eyes that blink and wink on section changes, mood brightening with the music.",
+  "tags": [
+    "moon",
+    "lunar",
+    "face",
+    "moonface",
+    "celestial",
+    "sky",
+    "night",
+    "stars",
+    "crescent",
+    "gibbous",
+    "serene",
+    "kind",
+    "sleepy",
+    "dream",
+    "fairytale",
+    "storybook",
+    "gouache",
+    "engraving",
+    "chiaroscuro",
+    "riso",
+    "lantern",
+    "eerie",
+    "calm",
+    "glow",
+    "halo",
+    "character",
+    "subject"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "moon size vs design"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "drift/halo/blink amplitude"
+    },
+    "hue": {
+      "default": 48,
+      "min": 0,
+      "max": 360,
+      "doc": "moon + light hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beat-rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "star count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "serene",
+      "options": [
+        "serene",
+        "sleepy",
+        "wink",
+        "gibbous",
+        "full_beam"
+      ],
+      "doc": "mood/expression pose"
+    },
+    "style": {
+      "default": "gouache",
+      "options": [
+        "gouache",
+        "engraving",
+        "chiaroscuro",
+        "riso",
+        "lantern"
+      ],
+      "doc": "aesthetic: matte painterly / stipple-hatch woodcut / form-from-light no-outline / 2-ink misregistration / luminous stained-glass"
+    },
+    "act": {
+      "default": "nightfall",
+      "options": [
+        "nightfall",
+        "phases"
+      ],
+      "doc": "program: nightfall = mood tracks intensity, phases = slow terminator/waxing sweep over minutes"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "face fullness morph"
+    },
+    "glow": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "halo strength"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "crater/star layout seed"
+    }
+  },
+  "acts": [
+    "nightfall",
+    "phases"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:05:46+00:00",
+    "fps": 59.9,
+    "motion": 0.022,
+    "lum": 0.157
+  },
+  "code": "const D = { scale:1, energy:.55, hue:48, speed:1, density:.5, x:.5, y:.42, pose:'serene', style:'gouache', act:'nightfall', chub:.5, glow:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst u=Math.min(width,height);\nconst chub=.85+P.chub*.35;\nconst R=u*0.225*P.scale*(0.9+chub*0.12);\nconst bt=K.beat*P.speed;\nconst en=P.energy*(.55+.45*K.intensity);\nconst H=md(P.hue,360);\nconst style=P.style;\nconst gou=style==='gouache', eng=style==='engraving', chi=style==='chiaroscuro', riso=style==='riso', lan=style==='lantern';\n\n// t0 reset guard\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\n// section-change wink\nif(S.sec==null)S.sec=K.section;\nif(K.section!==S.sec){S.winkT=K.t;S.sec=K.section;}\nlet winking=(S.winkT!=null&&K.t-S.winkT<0.55)||(P.pose==='wink'&&frc(bt*0.5)<0.22);\n\n// ---- seed caches ----\nif(S.seedUsed!==P.seed){\n  S.seedUsed=P.seed;\n  S.crater=[];\n  for(let i=0;i<13;i++){const a=fr(i*3+1)*6.2832,rr=Math.sqrt(fr(i*3+2))*0.78;S.crater.push({x:Math.cos(a)*rr,y:Math.sin(a)*rr,r:0.05+fr(i*5+3)*0.12});}\n  S.star=[];\n  for(let i=0;i<64;i++)S.star.push({x:fr(i*7+10),y:fr(i*7+11)*0.92,s:0.3+fr(i*7+12)*0.9,ph:fr(i*7+13)*6.2832,tw:0.5+fr(i*7+14)});\n  S.dab=[];\n  for(let i=0;i<110;i++){const a=fr(i*9+20)*6.2832,rr=Math.sqrt(fr(i*9+21))*0.99;S.dab.push({x:Math.cos(a)*rr,y:Math.sin(a)*rr,r:0.03+fr(i*9+22)*0.06,t:fr(i*9+23)});}\n  S.haloKey=null;\n}\n\n// halo sprite\nconst HK=Math.round(R);\nif(!S.halo||S.haloKey!==HK){\n  S.haloKey=HK;\n  const sz=Math.max(24,Math.round(R*3));\n  S.halo=createGraphics(sz,sz);\n  S.halo.noStroke();\n  const c=sz/2;\n  for(let r=sz/2;r>0;r--){S.halo.fill(0,0,100,2.4*(1-r/(sz/2)));S.halo.ellipse(c,c,r*2,r*2);}\n}\n\n// ---- moon motion ----\nconst driftX=Math.sin(K.t*0.11)*R*0.13+Math.sin(K.t*0.047)*R*0.06;\nconst driftY=Math.cos(K.t*0.09)*R*0.11-K.pulse*R*0.07*en+Math.sin(K.t*0.19)*R*0.05;\nconst tilt=Math.sin(K.t*0.13)*0.05*en+Math.sin(K.t*0.037)*0.03;\nconst breathe=1+0.02*K.swell*en;\n\n// mood 0..1 (tracks intensity + pose)\nlet mood=clp(K.intensity*0.65+0.28+(P.pose==='full_beam'?0.35:0)-(P.pose==='sleepy'?0.55:0),0,1);\n\n// light / phase\nlet lightA=-0.9; // direction of light (upper-right-ish)\nlet phaseOff=0.34; // shadow crescent offset fraction\nif(P.act==='phases'){phaseOff=0.15+ (Math.sin(K.t*0.05)*0.5+0.5)*0.85; lightA=-0.9+Math.sin(K.t*0.05)*0.6;}\nconst gibbous=P.pose==='gibbous';\n\n// ---------- STARS (screen space) ----------\npush();\nblendMode(ADD); noStroke();\nconst nst=Math.floor(P.density*56);\nfor(let i=0;i<nst;i++){\n  const st=S.star[i];\n  const sx=st.x*width;\n  const sy=st.y*height;\n  const tw=Math.sin(K.t*(0.6+st.tw)+st.ph)*0.5+0.5;\n  const al=(7+tw*20)*(0.6+A.treble*1.3);\n  if(riso)fill((i%2)?205:335,60,100,clp(al,0,38));\n  else if(eng)fill(0,0,88,clp(al*0.7,0,26));\n  else fill(md(H+45,360),18,100,clp(al,0,38));\n  const ss=st.s*u*0.0045*(1+tw*0.5);\n  ellipse(sx,sy,ss,ss);\n}\nblendMode(BLEND);\npop();\n\n// ---------- MOON ----------\npush();\ntranslate(width*P.x+driftX, height*P.y+driftY);\nrotate(tilt);\nscale(breathe);\n\n// halo\nconst halPulse=1+0.11*K.swell*en+0.06*Math.sin(K.t*0.5)+A.bass*0.15+K.pulse*0.05*en;\nconst halSz=R*3*halPulse*(0.85+P.glow*0.65);\npush();\nblendMode(ADD);\nconst hcol=lan?H:(chi?md(H-10,360):md(H+8,360));\ntint(hcol,chi?28:36,100,clp(9+K.intensity*15+A.bass*13+P.glow*13,0,52));\nimageMode(CENTER);\nimage(S.halo,0,0,halSz,halSz);\nimageMode(CORNER);\nnoTint();\nblendMode(BLEND);\npop();\n\n// ---- disc paint (clipped to circle) ----\npush();\ndrawingContext.save();\ndrawingContext.beginPath();\ndrawingContext.arc(0,0,R,0,Math.PI*2);\ndrawingContext.clip();\n\nif(chi){\n  // form-from-light: dark base, luminous crescent, no outline\n  noStroke(); fill(md(H+8,360),34,16); rect(-R,-R,2*R,2*R);\n  blendMode(ADD);\n  const lx=Math.cos(lightA)*R*0.5, ly=Math.sin(lightA)*R*0.5;\n  for(let r=1.15;r>0;r-=0.045){ fill(md(H+6,360),22,100,4.2); ellipse(lx,ly,R*2*r,R*2*r); }\n  // subtle crater shadows only where lit\n  blendMode(MULTIPLY);\n  for(const cr of S.crater){ fill(0,0,0,26); ellipse(cr.x*R,cr.y*R,cr.r*R*1.6,cr.r*R*1.4); }\n  blendMode(BLEND);\n}else if(riso){\n  // 2-ink misregistration + halftone\n  const o=R*0.022;\n  noStroke();\n  fill(205,58,92,66); ellipse(-o,-o*0.7,R*2,R*2);      // cyan plate\n  fill(338,66,96,60); ellipse(o,o*0.7,R*2,R*2);         // magenta plate\n  // halftone dots in shadow crescent (magenta)\n  const sc0=phaseOff*R;\n  for(const d of S.dab){ const dx=d.x*R,dy=d.y*R; const inShadow=(dx+R*0.5)< -sc0+R*0.5+ (gibbous?R*0.2:0); if(dx< -sc0*0.2){ fill(338,70,90,70); ellipse(dx+o,dy+o*0.7,d.r*R*1.3,d.r*R*1.3);} }\n}else if(eng){\n  // parchment + cross-hatch shadow + stipple\n  noStroke(); fill(42,10,95); rect(-R,-R,2*R,2*R);\n  stroke(30,25,26); strokeWeight(Math.max(0.6,R*0.006));\n  for(let k=-14;k<=14;k++){ const yy=k/14*R; const shade=(yy>R*(0.05))||true; // hatch density grows lower-left\n    const xoff=-R*phaseOff;\n    // primary hatch across shadow band\n    const x0=xoff-R, x1=xoff+R*0.15;\n    if(k%1===0){ line(clp(x0,-R,R),yy,clp(x1,-R,R),yy+R*0.05); }\n  }\n  // diagonal cross-hatch in lower-left shadow\n  for(let k=-16;k<=8;k++){ const off=k*R*0.09; line(-R,off-R*0.4-R*phaseOff+R*0.3, off-R*phaseOff-R*0.1, -R); }\n  // stipple grain\n  noStroke();\n  for(const d of S.dab){ fill(30,22,22,55*(0.4+d.t)); ellipse(d.x*R,d.y*R,d.r*R*0.7,d.r*R*0.7); }\n}else if(lan){\n  // luminous translucent lantern\n  noStroke();\n  for(let r=1.0;r>0;r-=0.12){ fill(md(H+ (1-r)*30,360),clp(70-r*30,10,80),100,26); ellipse(0,0,R*2*r,R*2*r); }\n  blendMode(ADD);\n  for(const cr of S.crater){ fill(md(H+20,360),40,100,20); ellipse(cr.x*R,cr.y*R,cr.r*R*1.4,cr.r*R*1.4); }\n  blendMode(BLEND);\n}else{\n  // gouache: matte cream, terminator shading, brush dabs, craters\n  noStroke(); fill(md(H,360),16,96); rect(-R,-R,2*R,2*R);\n  // painterly tonal dabs (light modeling from upper-right)\n  for(const d of S.dab){ const dx=d.x*R,dy=d.y*R; const litv=(-dx-dy)/(R*1.4); // upper-right lighter\n    const b=clp(90+litv*10,72,100), s=clp(18-litv*8,6,26);\n    fill(md(H+litv*6,360),s,b,42*(0.5+d.t)); ellipse(dx,dy,d.r*R*2.4,d.r*R*2.2); }\n  // shadow crescent (lower-left) \u2014 soft\n  blendMode(MULTIPLY);\n  const sox=-R*phaseOff*1.4, soy=R*phaseOff*0.7;\n  for(let r=1.25;r>0;r-=0.06){ fill(md(H-14,360),40,72,5); ellipse(sox+R*0.1,soy+R*0.1,R*2*r,R*2*r); }\n  blendMode(BLEND);\n  // craters\n  for(const cr of S.crater){ const cx=cr.x*R,cy=cr.y*R,crr=cr.r*R;\n    fill(md(H-6,360),22,80,55); ellipse(cx,cy,crr*2,crr*1.85);\n    fill(md(H+6,360),12,99,50); ellipse(cx-crr*0.35,cy-crr*0.35,crr*1.1,crr*1.0);\n    fill(md(H-10,360),30,66,40); ellipse(cx+crr*0.3,cy+crr*0.32,crr*0.9,crr*0.85);\n  }\n}\ndrawingContext.restore();\npop();\n\n// disc rim / outline per style\nnoFill();\nif(gou){ stroke(md(H-8,360),28,74,50); strokeWeight(R*0.02); circle(0,0,R*2); }\nelse if(eng){ stroke(30,25,20,90); strokeWeight(Math.max(1,R*0.014)); circle(0,0,R*2); }\nelse if(lan){ stroke(md(H+30,360),55,100,60); strokeWeight(R*0.02); circle(0,0,R*2*1.005); }\nelse if(riso){ /* no crisp rim */ }\nelse if(chi){ /* form from light only */ }\n\n// beat rim-light kick\nif(!chi){ push(); blendMode(ADD); noFill(); stroke(md(H+10,360),clp(20+A.bass*40,10,70),100,clp((K.pulse*30+A.bass*36)*en,0,60)); strokeWeight(R*0.03); arc(0,0,R*2,R*2,-1.9,0.4); blendMode(BLEND); pop(); }\n\n// ---------- FACE ----------\nconst gsh=gibbous?R*0.16:0; // gibbous shifts features toward lit side\nconst eyeY=-R*0.16, eyeDX=R*0.30, eyeR=R*0.105;\nconst inkC=eng?[28,30,18]:riso?[300,50,30]:chi?[H,20,86]:lan?[md(H+180,360),40,55]:[md(H-6,360),30,40];\nfunction feat(h,s,b,a){ if(eng){stroke(inkC[0],inkC[1],inkC[2],a==null?100:a);} else if(chi){stroke(inkC[0],inkC[1],inkC[2],(a==null?100:a)*0.6);} else {stroke(h,s,b,a==null?100:a);} }\nfunction featF(h,s,b,a){ if(eng){noStroke();fill(inkC[0],inkC[1],inkC[2],a==null?100:a);} else if(chi){noStroke();fill(inkC[0],inkC[1],inkC[2],(a==null?100:a)*0.5);} else {noStroke();fill(h,s,b,a==null?100:a);} }\n\npush();\ntranslate(gsh,0);\n// eyebrows (mood: raised=bright, low=sleepy)\nconst brow=(mood-0.5)*R*0.06;\nfeat(inkC[0],inkC[1],inkC[2]); strokeWeight(R*0.02); noFill();\nconst browY=eyeY-R*0.16-brow*0.4;\narc(-eyeDX,browY,eyeR*1.9,eyeR*1.4,Math.PI+0.2-mood*0.3,6.2832-0.2);\nif(!winking)arc(eyeDX,browY,eyeR*1.9,eyeR*1.4,Math.PI+0.2,6.2832-0.2+mood*0.3);\n\n// eyes\nconst lidBlink=frc(K.t*0.13+fr(3)*4)<0.05;\nconst lid=P.pose==='sleepy'?0.62:0.0;\nfunction eye(ex,closed){\n  push(); translate(ex,eyeY);\n  if(closed){ feat(inkC[0],inkC[1],inkC[2]); strokeWeight(R*0.024); noFill(); arc(0,0,eyeR*2,eyeR*1.5,0.25,Math.PI-0.25); pop(); return; }\n  // white\n  if(!chi&&!eng){ noStroke(); fill(0,0,98,92); ellipse(0,0,eyeR*2,eyeR*2*(1-lid*0.6)); }\n  else { feat(inkC[0],inkC[1],inkC[2]); strokeWeight(R*0.018); noFill(); ellipse(0,0,eyeR*2,eyeR*2*(1-lid*0.6)); }\n  // iris follows slow drift\n  const gx=Math.sin(K.t*0.3)*eyeR*0.28, gy=Math.cos(K.t*0.23)*eyeR*0.18;\n  featF(md(H+150,360),50,45,100); ellipse(gx,gy,eyeR*1.05,eyeR*1.05*(1-lid*0.5));\n  featF(0,0,12,100); ellipse(gx,gy,eyeR*0.5,eyeR*0.5);\n  if(!chi){ noStroke(); fill(0,0,100,80); ellipse(gx-eyeR*0.2,gy-eyeR*0.2,eyeR*0.28,eyeR*0.28); }\n  pop();\n}\neye(-eyeDX, lidBlink);\neye(eyeDX, winking||lidBlink);\n\n// nose (tiny crescent)\nif(!eng||true){ feat(inkC[0],inkC[1],inkC[2],70); strokeWeight(R*0.016); noFill(); arc(0,R*0.02,R*0.09,R*0.11,0.5,Math.PI-0.5); }\n\n// mouth (mood-driven smile, breathes open a touch)\nconst open=R*0.02*(K.swell*0.6+0.4)*en+ (P.pose==='full_beam'?R*0.05:0);\nconst smile=R*(0.10+mood*0.16);\nconst my=R*0.30;\nfeat(inkC[0],inkC[1],inkC[2]); strokeWeight(R*0.028); noFill();\nbeginShape();\nvertex(-R*0.19,my- (mood-0.5)*R*0.05);\nbezierVertex(-R*0.06,my+smile, R*0.06,my+smile, R*0.19,my-(mood-0.5)*R*0.05);\nendShape();\nif(open>R*0.03&&!chi){ featF(340,55,45,85); ellipse(0,my+smile*0.55,R*0.16,open*2.2); }\n\n// cheeks (gouache warmth)\nif(gou||lan){ push(); blendMode(ADD); noStroke(); fill(md(H-20,360),clp(40+mood*20,20,70),100,18+mood*14); ellipse(-R*0.5,R*0.18,R*0.4,R*0.28); ellipse(R*0.5,R*0.18,R*0.4,R*0.28); blendMode(BLEND); pop(); }\npop(); // face group\npop(); // moon group\n"
+}

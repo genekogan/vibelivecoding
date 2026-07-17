@@ -1,0 +1,167 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.steel_deck",
+  "kind": "floor",
+  "name": "Steel Deck Plate",
+  "desc": "An industrial tread-plate deck running out to a hazed horizon \u2014 raised lozenges flipping direction course by course, plates butted on welded seams and studded with countersunk bolts, rust bloom and oil soaked into the tread \u2014 while an unseen beacon sweeps its wedge across the deck and every lozenge crown takes the light in turn.",
+  "tags": [
+    "steel",
+    "deck",
+    "deck-plate",
+    "treadplate",
+    "tread",
+    "diamond-plate",
+    "checker-plate",
+    "chequer",
+    "lozenge",
+    "durbar",
+    "plate",
+    "metal",
+    "iron",
+    "galvanised",
+    "anodised",
+    "industrial",
+    "factory",
+    "engine-room",
+    "machine-room",
+    "gantry",
+    "catwalk",
+    "ship",
+    "vessel",
+    "rig",
+    "platform",
+    "workshop",
+    "seam",
+    "weld",
+    "bead",
+    "bolt",
+    "rivet",
+    "countersunk",
+    "rust",
+    "corrosion",
+    "patina",
+    "oil",
+    "grease",
+    "grime",
+    "wear",
+    "worn",
+    "hazard",
+    "chevron",
+    "safety",
+    "keep-clear",
+    "beacon",
+    "sweep",
+    "specular",
+    "sheen",
+    "anisotropic",
+    "glint",
+    "raking",
+    "light",
+    "perspective",
+    "vanishing-point",
+    "plane",
+    "ground",
+    "floor",
+    "austere",
+    "clinical",
+    "brutalist"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the beacon and the sheen burn on the tread"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "perspective spread of the deck \u2014 plate and tread size follow it"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how fine the tread pattern is, and how many plates and bolts make up the deck"
+    },
+    "wear": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.4,
+      "doc": "rust bloom, oil soak, and how much tread corrosion has eaten away"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "beacon rotation and sheen drift rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "steel hue (210 = cold plant steel; rust and hazard paint answer on the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0.26,
+      "max": 0.74,
+      "doc": "horizon line y \u2014 nothing is ever painted above it"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "opacity of the beacon, sheen and haze"
+    },
+    "style": {
+      "default": "treadplate",
+      "options": [
+        "treadplate",
+        "patina",
+        "hazard",
+        "anodised"
+      ],
+      "doc": "treadplate: raw industrial steel, modelled lozenges throwing their own shadows, rust and oil worked in \u00b7 patina: corroded through \u2014 the tread eaten away in patches, dark and abandoned, iron gone to rust \u00b7 hazard: the graphic language of safety \u2014 chevrons and keep-clear lines painted under the tread in flat bold colour \u00b7 anodised: clinical coloured metal, saturated and clean, no grime at all \u2014 a product shot rather than a workplace"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "alarm",
+        "shutdown"
+      ],
+      "doc": "drift: the beacon turns steadily \u00b7 alarm: it spins up \u2014 the wedge whips round the deck \u00b7 shutdown: the beacon almost stops and the deck goes quiet"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for tread tone, corrosion, oil and bolt placement"
+    }
+  },
+  "acts": [
+    "drift",
+    "alarm",
+    "shutdown"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:31:33+00:00",
+    "fps": 60.6,
+    "motion": 0.0114,
+    "lum": 0.162
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, wear: .5, speed: 1, hue: 210, x: .5, y: .44, alpha: 1, style: 'treadplate', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:(v>b?b:v), md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst sd=P.seed|0;\nconst fr=i=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lb==null||K.beat<S.lb)S.lb=K.beat; S.lb=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style;\nconst pat=(sty==='patina'), haz=(sty==='hazard'), ano=(sty==='anodised');\nconst H=md(P.hue,360), AL=cl(P.alpha,0,1);\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.4,2.4), dens=cl(P.density,0,1);\nconst spd=cl(P.speed,.1,4), wr=cl(P.wear,0,1.4), act=P.act;\nconst hz=cl(P.y,.26,.74)*Hh, cx=cl(P.x,.05,.95)*W, gH=Math.max(24,Hh-hz);\n\nS.bass=(S.bass||0)*.84+(A.bass||0)*.16;\nconst T=K.t*spd;\nconst glow=(.34+.66*en)*(.55+.55*K.intensity)+S.bass*.28;\n\nconst yOf=t=>hz+Math.pow(cl(t,0,1),1.7)*gH;\nconst hwOf=t=>W*(.05+cl(t,0,1)*1.6)*.5*sc;\n\n// ---- the beacon: a SMOOTH continuous sweep, never a flash.\n// A pure rotation has |dAngle| over 8s = (8w mod 2pi) \u2014 a CONSTANT \u2014 so it can\n// never re-phase (at spd=1 the wedge moves ~30 deg every 8s, always).\n// Amplitude is held low on purpose: a hard beacon flash is exactly the strobe\n// Gene has banned from the stage.\nlet bw=0.85;\nif(act==='alarm') bw=1.35; else if(act==='shutdown') bw=0.30;\nconst ba=T*bw;\n// and a slow independent sheen drift, so two unrelated things always move\nconst shU=.60*Math.sin(T*.091)+.27*Math.sin(T*.163+1.7)+.13*Math.sin(T*.271);\n\nconst NPX=Math.max(2,Math.round(3+dens*3));     // plates across\nconst NPY=Math.max(3,Math.round(4+dens*4));     // plates deep\n\n// ---- the deck, baked once: plates, seams, welds, bolts, tread, paint -----\nconst bkey=[W,Hh,sty,sd,Math.round(H),Math.round(P.y*120),Math.round(P.x*120),Math.round(sc*40),Math.round(wr*6),NPX,NPY].join('|');\nif(!S.base||S.bk!==bkey||S.base.width!==W||S.base.height!==Hh){\n  const g=(S.base&&S.base.width===W&&S.base.height===Hh)?S.base:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const cr=(S.crown&&S.crown.width===W&&S.crown.height===Hh)?S.crown:createGraphics(W,Hh);\n  cr.colorMode(HSB,360,100,100,100); cr.clear(); cr.noStroke();\n  const steelH=pat?md(H-176,360):(ano?md(H+150,360):H);\n\n  // the plate, graded to the horizon\n  const STR=54;\n  for(let i=0;i<STR;i++){\n    const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR);\n    let s2,b2;\n    if(pat){ s2=34-12*t; b2=7+18*Math.pow(t,1.15); }\n    else if(ano){ s2=48-14*t; b2=12+34*Math.pow(t,1.1); }\n    else if(haz){ s2=8-3*t; b2=9+24*Math.pow(t,1.15); }\n    else { s2=10-4*t; b2=8+24*Math.pow(t,1.15); }\n    g.fill(steelH,cl(s2,0,70),cl(b2,2,90),100);\n    g.rect(0,y-1,W,(y2-y)+2);\n  }\n\n  // ---- hazard paint goes UNDER the tread, as it does on a real deck -----\n  if(haz){\n    for(let i=0;i<26;i++){                       // chevrons across the near deck\n      const t0=.30+(i/26)*.68, t1=.30+((i+1)/26)*.68;\n      if((i&1)===0) continue;\n      const hw0=hwOf(t0)*.72, hw1=hwOf(t1)*.72;\n      g.fill(md(H+186,360),74,66,74);\n      g.beginShape();\n      g.vertex(cx-hw0,yOf(t0)); g.vertex(cx+hw0,yOf(t0));\n      g.vertex(cx+hw1,yOf(t1)); g.vertex(cx-hw1,yOf(t1));\n      g.endShape(CLOSE);\n    }\n    for(const soff of [-.78,.78]){               // keep-clear edge lines\n      for(let i=0;i<24;i++){\n        const t0=.06+(i/24)*.94, t1=.06+((i+1)/24)*.94;\n        g.noFill(); g.strokeWeight(Math.max(.9,gH*.012*t0));\n        g.stroke(md(H+186,360),70,60,70*(.3+.7*t0));\n        g.line(cx+soff*hwOf(t0),yOf(t0),cx+soff*hwOf(t1),yOf(t1));\n      }\n      g.noStroke();\n    }\n  }\n\n  // ---- the raised tread: alternating lozenge pairs, the signature of the plate\n  const NLX=Math.round((16+dens*14)), NLY=Math.round((13+dens*11));\n  for(let r=NLY;r>=0;r--){\n    const t0=r/NLY, t1=(r+1)/NLY;\n    if(t1<=.08) continue;\n    const tm=(t0+t1)*.5, yc=yOf(tm), rowH=Math.max(1,yOf(t1)-yOf(t0)), hw=hwOf(tm);\n    const dir=(r%4<2)?1:-1;                      // the pattern flips every two rows\n    for(let c=-1;c<=NLX;c++){\n      const sxn=((c+.5+((r&1)?.5:0))/NLX)*2-1;\n      const x=cx+sxn*hw;\n      if(x<-gH*.1||x>W+gH*.1) continue;\n      const lw=(hw*2/NLX)*.52, lh=rowH*.34;\n      if(lw<.7||lh<.5) continue;\n      const id=r*61+c*17;\n      const gone=pat&&fr(id*1.9)<(wr*.42);       // corrosion has eaten the tread away\n      if(gone) continue;\n      g.push(); g.translate(x,yc); g.rotate(dir*.62);\n      // the lozenge body + its lit face + the shadow it throws on the plate\n      g.fill(steelH,cl((pat?30:(ano?44:8))+6*fr(id*1.9+1),0,70),cl((pat?12:(ano?22:16))+16*fr(id*1.9+2),2,80),100);\n      g.rect(-lw*.5,-lh*.5,lw,lh,Math.min(lw,lh)*.30);\n      g.fill(steelH,cl((pat?24:(ano?32:5)),0,60),cl((pat?26:(ano?58:44))+18*fr(id*1.9+3),3,92),64);\n      g.rect(-lw*.5,-lh*.5,lw,Math.max(.5,lh*.34),Math.min(lw,lh)*.24);\n      g.fill(steelH,10,3,40);\n      g.rect(-lw*.5,lh*.22,lw,Math.max(.5,lh*.3));\n      g.pop();\n      // the crown mask: where this lozenge CAN catch the beacon\n      cr.push(); cr.translate(x,yc); cr.rotate(dir*.62);\n      cr.fill(0,0,100,cl(60+38*fr(id*1.9+4),0,100));\n      cr.rect(-lw*.44,-lh*.44,lw*.88,Math.max(.5,lh*.46),Math.min(lw,lh)*.22);\n      cr.pop();\n    }\n  }\n\n  // ---- plate seams, weld beads and countersunk bolts --------------------\n  for(let j=0;j<=NPY;j++){                       // transverse butt joints\n    const t=j/NPY; if(t<.05) continue;\n    const y=yOf(t), hw=hwOf(t);\n    g.fill(steelH,12,3,72); g.rect(cx-hw,y,hw*2,Math.max(.9,gH*.006*t));\n    g.fill(steelH,8,pat?30:52,44); g.rect(cx-hw,y-gH*.004*t,hw*2,Math.max(.7,gH*.004*t));\n    for(let b=0;b<Math.round(6+dens*8);b++){     // bolts along the seam\n      const bx2=cx+((b+.5)/Math.round(6+dens*8)*2-1)*hw;\n      const br=Math.max(.9,gH*.007*t);\n      g.fill(steelH,10,pat?16:24,90); g.circle(bx2,y,br*2);\n      g.fill(steelH,8,pat?26:50,80); g.circle(bx2,y-br*.22,br*1.2);\n    }\n  }\n  for(let i=0;i<=NPX;i++){                       // longitudinal joints\n    const soff=(i/NPX)*2-1;\n    for(let k=0;k<24;k++){\n      const t0=.05+(k/24)*.95, t1=.05+((k+1)/24)*.95;\n      g.noFill(); g.strokeWeight(Math.max(.8,gH*.005*t0));\n      g.stroke(steelH,12,3,66*(.3+.7*t0));\n      g.line(cx+soff*hwOf(t0),yOf(t0),cx+soff*hwOf(t1),yOf(t1));\n    }\n    g.noStroke();\n  }\n\n  // ---- wear: rust bloom, oil soak, and the polished path feet have worn --\n  if(!ano){\n    const NC=Math.round(wr*(14+dens*12));\n    for(let k=0;k<NC;k++){\n      const t=.10+fr(k*7.3)*.88, y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(k*7.3+1)*2-1)*hw;\n      const rr=gH*(.02+fr(k*7.3+2)*.09)*t*(.5+wr);\n      g.fill(md(H-176,360),44+fr(k*7.3+3)*24,14+fr(k*7.3+4)*20,32);\n      g.ellipse(x,y,rr*2.4,rr*1.2);\n      g.fill(md(H-182,360),50,7,24);\n      g.ellipse(x+rr*.3,y+rr*.2,rr*1.6,rr*.7);\n    }\n    for(let k=0;k<Math.round(10+wr*10);k++){     // oil soaked into the tread\n      const t=.14+fr(k*9.1+3)*.82, y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(k*9.1+4)*2-1)*hw*.8;\n      const rr=gH*(.03+fr(k*9.1+5)*.10)*t;\n      g.fill(steelH,14,3,26); g.ellipse(x,y,rr*2.6,rr*1.0);\n    }\n  }\n  S.base=g; S.bk=bkey; S.crown=cr;\n}\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n// BELOW THE HORIZON ONLY \u2014 the bg slot underneath must survive untouched\ndc.save(); dc.beginPath(); dc.rect(0,hz,W,Hh-hz); dc.clip();\nimage(S.base,0,0);\n\n// ---- the beacon wedge sweeping the deck, masked to the tread crowns ------\n{\n  if(!S.lit||S.lit.width!==W||S.lit.height!==Hh){\n    if(S.lit) S.lit.remove();\n    S.lit=createGraphics(W,Hh); S.lit.colorMode(HSB,360,100,100,100);\n  }\n  const lg=S.lit, lc=lg.drawingContext;\n  lg.clear();\n  const bx2=cx+Math.cos(ba)*W*.30, by2=hz+gH*.46+Math.sin(ba)*gH*.30;\n  const bandC=ano?'200,226,255':(pat?'255,180,120':(haz?'255,206,120':'255,238,208'));\n  const rr=gH*(1.05+.12*Math.sin(T*.067));\n  const rg=lc.createRadialGradient(bx2,by2,0,bx2,by2,Math.max(6,rr));\n  const pa=(0.62+0.38*glow)*AL;\n  rg.addColorStop(0,'rgba('+bandC+','+pa.toFixed(3)+')');\n  rg.addColorStop(.42,'rgba('+bandC+','+(pa*.36).toFixed(3)+')');\n  rg.addColorStop(1,'rgba('+bandC+',0)');\n  lc.fillStyle=rg; lc.fillRect(0,hz,W,gH);\n  // a drifting anisotropic sheen \u2014 steel smears a reflection into a band\n  const sx2=cx+shU*W*.55;\n  const sg=lc.createLinearGradient(sx2-W*.22,0,sx2+W*.22,0);\n  const sa=(0.34+0.30*glow)*AL;\n  sg.addColorStop(0,'rgba('+bandC+',0)');\n  sg.addColorStop(.5,'rgba('+bandC+','+sa.toFixed(3)+')');\n  sg.addColorStop(1,'rgba('+bandC+',0)');\n  lc.fillStyle=sg; lc.fillRect(0,hz,W,gH);\n  // a standing wash so the tread never dies where neither light lands\n  lc.fillStyle='rgba('+bandC+','+(0.12*(0.4+glow)*AL).toFixed(3)+')';\n  lc.fillRect(0,hz,W,gH);\n  lc.globalCompositeOperation='destination-in';\n  lg.image(S.crown,0,0);\n  lc.globalCompositeOperation='source-over';\n  blendMode(ADD); image(lg,0,0); blendMode(BLEND);\n}\n\n// ---- the same beacon washing the plate itself, softly ------------------\n{\n  dc.globalCompositeOperation='lighter';\n  const bx2=cx+Math.cos(ba)*W*.30, by2=hz+gH*.46+Math.sin(ba)*gH*.30;\n  const rr=gH*.80;\n  const c=ano?'160,200,255':(pat?'255,170,110':'255,226,170');\n  const rg=dc.createRadialGradient(bx2,by2,0,bx2,by2,Math.max(6,rr));\n  const aa=0.055*(0.4+glow)*AL;               // soft: a sweep, never a flash\n  rg.addColorStop(0,'rgba('+c+','+aa.toFixed(4)+')');\n  rg.addColorStop(1,'rgba('+c+',0)');\n  dc.fillStyle=rg; dc.fillRect(0,hz,W,gH);\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- haze where the deck runs out of light -----------------------------\n{\n  const hgd=dc.createLinearGradient(0,hz,0,hz+gH*.32);\n  const c=ano?'40,60,90':(pat?'52,34,26':'32,38,50');\n  hgd.addColorStop(0,'rgba('+c+','+(0.60*AL).toFixed(3)+')');\n  hgd.addColorStop(1,'rgba('+c+',0)');\n  dc.fillStyle=hgd; dc.fillRect(0,hz,W,gH*.32);\n}\n\ndc.restore();\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0;\nnoStroke(); noTint();\n"
+}

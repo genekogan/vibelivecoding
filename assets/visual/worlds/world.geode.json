@@ -1,0 +1,156 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.geode",
+  "kind": "world",
+  "name": "Geode",
+  "desc": "Standing inside the vug of a cracked mineral nodule: banded agate walls of periodic precipitation recede into haze, a palisade of quartz points crowds inward off every surface and pipes light to its tips, near shards frame the mouth almost black with rim-light, and a shaft from the fissure above rakes slowly across the cavity with mineral dust turning in it; offered as a lit amethyst cavity, longwave-UV fluorescence, a hatched mineralogical engraving, or a crystallographic blueprint.",
+  "tags": [
+    "geode",
+    "vug",
+    "crystal",
+    "quartz",
+    "amethyst",
+    "agate",
+    "chalcedony",
+    "banded",
+    "banding",
+    "druse",
+    "cavity",
+    "cave",
+    "cavern",
+    "grotto",
+    "mineral",
+    "mineralogy",
+    "geology",
+    "rock",
+    "stone",
+    "nodule",
+    "prism",
+    "facet",
+    "faceted",
+    "crystalline",
+    "crystallography",
+    "precipitation",
+    "light-shaft",
+    "godray",
+    "dust",
+    "motes",
+    "haze",
+    "aerial-perspective",
+    "parallax",
+    "depth",
+    "layered",
+    "interior",
+    "enclosed",
+    "subterranean",
+    "underground",
+    "fluorescence",
+    "uv",
+    "blacklight",
+    "engraving",
+    "hatching",
+    "blueprint",
+    "schematic",
+    "background",
+    "fullbleed",
+    "atmospheric",
+    "chiaroscuro",
+    "sublime",
+    "eerie",
+    "austere",
+    "sacred",
+    "violet",
+    "purple"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light strength: shaft width, specular glints on the palisade, overall contrast"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "size of the crystal palisade against the cavity - fine druse vs huge blades crowding the frame"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate the fissure light swings, the camera sways and the dust turns (0.2 still drifts)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how many crystals line the cavity, and how thick the dust hangs"
+    },
+    "bands": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "agate band frequency on the back wall - a few broad layers vs tight banding"
+    },
+    "grain": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "film tooth over the whole plate"
+    },
+    "hue": {
+      "default": 276,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the crystals; the agate wall and shaft light take related tints"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal centre of the cavity mouth - the palisade re-aims at it"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical centre of the cavity mouth"
+    },
+    "style": {
+      "default": "geode",
+      "options": [
+        "geode",
+        "uv",
+        "engraving",
+        "schematic"
+      ],
+      "doc": "aesthetic: lit amethyst cavity in chiaroscuro / longwave-UV fluorescence where only the beam excites / hatched mineralogical engraving, form from ink density alone / crystallographic blueprint"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic cavity: agate banding, crystal placement and habits"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:47:12+00:00",
+    "fps": 61.0,
+    "motion": 0.0321,
+    "lum": 0.266
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, bands: .5, grain: .4, hue: 276, x: .5, y: .46, style: 'geode', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Inside a geode: standing in the vug of a mineral nodule.\n// Five real depth layers, painter's-order back to front, all composited in one\n// coarse buffer:\n//   1  the banded agate back wall -- periodic precipitation, hazed by distance\n//   2  a far palisade of small crystal points, washed out by aerial perspective\n//   3  the main quartz palisade growing inward off the cavity walls\n//   4  the near shards that frame the mouth, almost black, rim-lit only\n//   5  the shaft of light from the fissure, with mineral dust turning in it\n// Depth is cued four ways at once: scale, aerial haze, occlusion (painter's\n// order over a z-sorted list) and parallax between the layers.\n//\n// Perpetual: the fissure light swings on incommensurate K.t rates, so specular\n// glints crawl across the palisade and the shaft rakes the wall; dust turns\n// continuously; the agate hue drifts. Nothing here can settle.\n// ---------------------------------------------------------------------------\nconst BW = 300, BH = Math.max(150, Math.round(BW * height / width));\nconst N = BW * BH;\nconst MAXC = 150, MAXD = 220;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.wr = new Float32Array(N); S.wg = new Float32Array(N); S.wb = new Float32Array(N);\n  S.wd = new Float32Array(N); S.tooth = new Float32Array(N);\n  S.cx = new Float32Array(MAXC); S.cy = new Float32Array(MAXC); S.ca = new Float32Array(MAXC);\n  S.cl = new Float32Array(MAXC); S.cw = new Float32Array(MAXC); S.cz = new Float32Array(MAXC);\n  S.ch = new Float32Array(MAXC);\n  S.dx = new Float32Array(MAXD); S.dy = new Float32Array(MAXD); S.dz = new Float32Array(MAXD);\n  S.init = false; S.seedUsed = null; S.built = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn2(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a0 = hs3(ix, iy, 1), a1 = hs3(ix + 1, iy, 1), a2 = hs3(ix, iy + 1, 1), a3 = hs3(ix + 1, iy + 1, 1);\n  return (a0 + (a1 - a0) * u) * (1 - v) + (a2 + (a3 - a2) * u) * v;\n}\nfunction fbm(x, y) { return 0.58 * vn2(x, y) + 0.28 * vn2(x * 2.1 + 5.3, y * 2.1 - 3.7) + 0.14 * vn2(x * 4.3 - 1.9, y * 4.3 + 6.1); }\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\nfunction rnd() { let x = S.rng; x ^= x << 13; x |= 0; x ^= x >>> 17; x ^= x << 5; x |= 0; S.rng = x; return (x >>> 0) / 4294967296; }\n\nconst wr = S.wr, wg = S.wg, wb = S.wb, wd = S.wd, tooth = S.tooth;\nconst cxs = S.cx, cys = S.cy, cas = S.ca, cls = S.cl, cws = S.cw, czs = S.cz, chs = S.ch;\nconst dxs = S.dx, dys = S.dy, dzs = S.dz;\n\nconst cxc = P.x * BW, cyc = P.y * BH;\nconst u0 = Math.min(BW, BH);\nconst bkey = sd + '|' + P.bands.toFixed(3) + '|' + P.density.toFixed(3) + '|' + P.scale.toFixed(3) + '|' + BW + 'x' + BH + '|' + P.x.toFixed(3) + '|' + P.y.toFixed(3);\n\n// ---- static build: the agate wall, the crystal palisade, the dust ----\nif (!S.init || S.built !== bkey) {\n  S.init = true; S.built = bkey; S.seedUsed = P.seed;\n  S.rng = (sd * 2654435761 + 0x9e3779b9) | 0; if (S.rng === 0) S.rng = 1;\n\n  // --- layer 1: banded agate back wall. Concentric periodic precipitation about\n  // the vug, warped so the bands read as mineral, not as a target.\n  const bf = (2.5 + P.bands * 9.0) / u0;\n  const kw = 2.4 / u0;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    const dx = (i - cxc) / (BW * 0.62), dy = (j - cyc) / (BH * 0.62);\n    const r = Math.sqrt(dx * dx + dy * dy);\n    const warp = (fbm(i * kw, j * kw) - 0.5) * 0.55 + (fbm(i * kw * 3.3 + 11.2, j * kw * 3.3 - 5.1) - 0.5) * 0.16;\n    const rr = (r + warp * 0.30) * u0;\n    const ph = rr * bf;\n    const band = 0.5 + 0.5 * Math.sin(ph * 6.2831853);\n    const band2 = 0.5 + 0.5 * Math.sin(ph * 6.2831853 * 2.7 + 1.1);\n    const layer = band * 0.72 + band2 * 0.28;\n    wd[p] = Math.min(1, r);                       // depth: 0 at the vug mouth, 1 at the rim\n    const chalk = 0.30 + layer * 0.42 + (fbm(i * kw * 6.1, j * kw * 6.1) - 0.5) * 0.16;\n    wr[p] = chalk; wg[p] = layer; wb[p] = Math.min(1, r);\n    tooth[p] = hs3(i, j, 97) - 0.5;\n  }\n\n  // --- layers 2+3: the palisade. Crystals root on the cavity wall and grow inward.\n  const nc = Math.max(14, Math.min(MAXC, Math.round(26 + P.density * 110)));\n  const tmp = [];\n  for (let k = 0; k < nc; k++) {\n    const z = rnd();                              // 0 = near, 1 = far\n    const th = rnd() * 6.2831853;\n    const rad = (0.62 + rnd() * 0.55) * (1 - z * 0.22);\n    const bx = cxc + Math.cos(th) * rad * BW * 0.72;\n    const by = cyc + Math.sin(th) * rad * BH * 0.86;\n    let ax = cxc - bx, ay = cyc - by;             // point inward, toward the cavity\n    const al = Math.sqrt(ax * ax + ay * ay) + 1e-6;\n    ax /= al; ay /= al;\n    const jit = (rnd() - 0.5) * 0.9;\n    const ang = Math.atan2(ay, ax) + jit;\n    const sz = (1 - z * 0.62) * (0.9 + rnd() * 0.8);\n    tmp.push({\n      z: z, x: bx, y: by, a: ang,\n      l: u0 * (0.10 + rnd() * 0.26) * sz * P.scale,\n      w: u0 * (0.012 + rnd() * 0.032) * sz * P.scale,\n      h: rnd()\n    });\n  }\n  tmp.sort(function (p2, q) { return q.z - p2.z; });   // painter's order: far first\n  for (let k = 0; k < tmp.length; k++) {\n    cxs[k] = tmp[k].x; cys[k] = tmp[k].y; cas[k] = tmp[k].a;\n    cls[k] = tmp[k].l; cws[k] = tmp[k].w; czs[k] = tmp[k].z; chs[k] = tmp[k].h;\n  }\n  S.nc = tmp.length;\n\n  for (let k = 0; k < MAXD; k++) { dxs[k] = rnd(); dys[k] = rnd(); dzs[k] = rnd(); }\n}\nconst nc = S.nc;\n\nconst tt = K.t;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.017 + Math.sin(tt * 0.013) * 0.014;\nconst gain = 0.45 + P.energy * 1.0 + A.rms * 0.28;\nconst gr = P.grain;\nconst spd = 0.35 + P.speed * 0.8;\n\n// ---- the fissure light: swings on incommensurate rates, so glints crawl forever ----\nconst sw2 = 0.34 * Math.sin(tt * 0.047 * spd) + 0.19 * Math.sin(tt * 0.113 * spd + 1.7) + 0.10 * Math.sin(tt * 0.191 * spd + 0.6);\nconst lang = -1.15 + sw2 * 1.10;                 // shaft comes down from the fissure above\nconst lx = Math.cos(lang), ly = -Math.sin(lang);\nconst fx = cxc + sw2 * BW * 0.16, fy = -BH * 0.06;   // fissure mouth\nconst shaftW = (0.13 + P.energy * 0.10) * u0;\nconst breathe = 0.86 + 0.14 * Math.sin(tt * 0.071 * spd) + 0.06 * Math.sin(tt * 0.157 * spd + 2.1);\n// slow camera sway; every layer is displaced by (1.25 - z) so the palisade parallaxes\n// against the wall -- motion floor AND the strongest depth cue here\nconst camx = (0.62 * Math.sin(tt * 0.037 * spd) + 0.30 * Math.sin(tt * 0.091 * spd + 1.3) + 0.16 * Math.sin(tt * 0.163 * spd + 0.4)) * u0 * 0.090;\nconst camy = (0.50 * Math.cos(tt * 0.043 * spd) + 0.26 * Math.sin(tt * 0.077 * spd + 0.5) + 0.13 * Math.sin(tt * 0.139 * spd + 2.2)) * u0 * 0.062;\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\n// ---- base pass: agate wall + aerial haze + the volumetric shaft ----\nconst hazeH = 0.30 + 0.16 * Math.sin(tt * 0.053 * spd);\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    let wi = (i + camx * 0.22) | 0, wj = (j + camy * 0.22) | 0;      // the wall is farthest: least parallax\n    wi = wi < 0 ? 0 : (wi > BW - 1 ? BW - 1 : wi);\n    wj = wj < 0 ? 0 : (wj > BH - 1 ? BH - 1 : wj);\n    const wp = wj * BW + wi;\n    const dep = wd[wp];\n    const layer = wg[wp], chalk = wr[wp];\n    // distance of this pixel from the shaft axis -> volumetric wedge\n    const rx = i - fx, ry = j - fy;\n    const along = rx * lx * -1 + ry * ly * -1;\n    const perp = Math.abs(rx * ly * -1 - ry * lx * -1);\n    const spread = shaftW * (0.5 + along / (u0 * 1.1));\n    const shaft = Math.max(0, 1 - perp / Math.max(6, spread)) * Math.max(0, 1 - along / (u0 * 1.5)) * breathe;\n    let r, gg2, b;\n    if (style === 'uv') {\n      // longwave UV: the agate fluoresces from within in zones, no reflected light\n      hsv(hb + 0.06 + layer * 0.20, 0.62, 1);\n      // fluorescence needs excitation: only what the swinging UV beam lands on lights up\n      const exc = 0.16 + shaft * 1.5;\n      const fl = Math.pow(layer, 1.6) * (0.42 + gain * 0.62) * (1 - dep * 0.5) * exc;\n      r = 0.045 + RR * fl; gg2 = 0.050 + GG * fl; b = 0.105 + BB * fl;\n      r += shaft * 0.05; gg2 += shaft * 0.03; b += shaft * 0.13;\n    } else if (style === 'engraving') {\n      // mineralogical engraving: form from hatching density alone, ink on cream\n      const hatch = 0.5 + 0.5 * Math.sin((i * 0.72 + j * 1.42) * 1.5 + layer * 5.0);\n      const tone = (0.42 + dep * 0.34 - shaft * 0.20) * (0.7 + gain * 0.4);\n      const ink = Math.min(0.92, tone * (0.45 + hatch * 0.62));\n      const paper = 0.94 - ink * 0.80;\n      r = paper * 0.99; gg2 = paper * 0.965; b = paper * 0.90;\n    } else if (style === 'schematic') {\n      // blueprint: band contours of the agate, nothing modelled\n      const cont = Math.max(0, 1 - Math.abs(layer - 0.5) * 7.0);\n      r = 0.05 + cont * 0.16 + shaft * 0.03;\n      gg2 = 0.075 + cont * 0.34 + shaft * 0.06;\n      b = 0.16 + cont * 0.46 + shaft * 0.12;\n    } else {\n      // geode (default): chalcedony banding, warm light, deep aerial haze\n      hsv(hb + 0.52 + layer * 0.07, 0.30 + layer * 0.16, 1);\n      const lit = (0.15 + layer * 0.22 + chalk * 0.20) * (0.55 + gain * 0.45) * (1 - dep * 0.30);\n      r = RR * lit; gg2 = GG * lit; b = BB * lit;\n      hsv(hb + 0.10, 0.42, 1);                                 // warm shaft light on the wall\n      const wash = shaft * (0.20 + gain * 0.22) * (1 - dep * 0.35);\n      r += RR * wash; gg2 += GG * wash; b += BB * wash;\n      const hz = hazeH * dep * 0.26;                           // aerial perspective\n      r += hz * 0.42; gg2 += hz * 0.40; b += hz * 0.62;\n    }\n    const o = 4 * p;\n    px[o] = r * 255; px[o + 1] = gg2 * 255; px[o + 2] = b * 255; px[o + 3] = 255;\n  }\n}\n\n// ---- crystals: painter's order, far -> near ----\nfor (let k = 0; k < nc; k++) {\n  const L = cls[k], W = cws[k], z = czs[k];\n  const ca = Math.cos(cas[k]), sa = Math.sin(cas[k]);\n  const par = 1.25 - z;                                  // near crystals swing hardest\n  const bx = cxs[k] + camx * par, by = cys[k] + camy * par;\n  const hw2 = Math.abs(ca) * L + Math.abs(sa) * W, hh2 = Math.abs(sa) * L + Math.abs(ca) * W;\n  const i0 = Math.max(0, Math.floor(Math.min(bx, bx + ca * L) - hw2 * 0.12 - W));\n  const i1 = Math.min(BW - 1, Math.ceil(Math.max(bx, bx + ca * L) + hw2 * 0.12 + W));\n  const j0 = Math.max(0, Math.floor(Math.min(by, by + sa * L) - hh2 * 0.12 - W));\n  const j1 = Math.min(BH - 1, Math.ceil(Math.max(by, by + sa * L) + hh2 * 0.12 + W));\n  // facet normals turn with the crystal; the tip pipes light\n  const gb = Math.max(0, ca * lx + sa * ly); const glint = gb * gb * gb;\n  const ch = chs[k];\n  for (let j = j0; j <= j1; j++) {\n    for (let i = i0; i <= i1; i++) {\n      const dx = i + 0.5 - bx, dy = j + 0.5 - by;\n      const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;\n      if (u < 0 || u > L) continue;\n      const taper = u < L * 0.74 ? 1 : Math.max(0, (L - u) / (L * 0.26));\n      const hwid = W * taper;\n      if (v < -hwid || v > hwid) continue;\n      const p = j * BW + i;\n      const fv = v / (W + 1e-6);\n      const facet = fv < -0.34 ? 0 : (fv < 0.34 ? 1 : 2);\n      const fn = facet === 0 ? -0.72 : (facet === 1 ? 0.05 : 0.72);   // facet normal across the prism\n      const nxv = -sa * fn + ca * 0.16, nyv = ca * fn + sa * 0.16;\n      const dif = Math.max(0, nxv * lx + nyv * ly);\n      const pipe = 0.22 + Math.pow(u / L, 1.8) * 0.72;                 // light piped to the tip\n      const edge = Math.max(0, Math.abs(fv) - 0.80) * 5;\n      const haze = z * 0.62;\n      const spec = Math.pow(dif, 6) * glint * 1.5;\n      let r, gg2, b;\n      if (style === 'uv') {\n        hsv(hb + 0.02 + ch * 0.08, 0.50, 1);\n        const sh2 = Math.max(0, 1 - Math.abs((i - fx) * ly * -1 - (j - fy) * lx * -1) / Math.max(6, shaftW * 1.1));\n        const em = (0.22 + pipe * 0.66 + edge * 0.24) * (0.55 + gain * 0.62) * (1 - haze * 0.5) * (0.26 + sh2 * 1.7);\n        r = 0.045 + RR * em; gg2 = 0.050 + GG * em; b = 0.105 + BB * em + spec * 0.25;\n      } else if (style === 'engraving') {\n        const hatch = 0.5 + 0.5 * Math.sin((u * 1.05 + v * 3.2) * 1.5 + facet * 2.1);\n        const tone = (0.72 - dif * 0.46 - pipe * 0.16) * (0.7 + gain * 0.35);\n        const ink = Math.min(0.94, Math.max(0, tone) * (0.42 + hatch * 0.66) + edge * 0.5);\n        const paper = 0.94 - ink * 0.84;\n        r = paper * 0.99; gg2 = paper * 0.965; b = paper * 0.90;\n      } else if (style === 'schematic') {\n        const out = edge * 0.9 + (u > L * 0.74 ? 0.25 : 0);\n        r = 0.055 + out * 0.42 * gain;\n        gg2 = 0.085 + out * 0.80 * gain;\n        b = 0.17 + out * 1.0 * gain + spec * 0.20;\n      } else {\n        hsv(hb + ch * 0.05 + pipe * 0.03, 0.52 - pipe * 0.22, 1);\n        const val = (0.14 + dif * 0.44 + pipe * 0.36) * (0.55 + gain * 0.5) * (1 - haze * 0.55);\n        r = RR * val; gg2 = GG * val; b = BB * val;\n        const hz = haze * 0.11;\n        r += hz * 0.44 + spec * 0.72; gg2 += hz * 0.42 + spec * 0.74; b += hz * 0.64 + spec * 0.80;\n        r += edge * 0.06; gg2 += edge * 0.06; b += edge * 0.09;\n      }\n      const o = 4 * p;\n      px[o] = r * 255; px[o + 1] = gg2 * 255; px[o + 2] = b * 255; px[o + 3] = 255;\n    }\n  }\n}\n\n// ---- mineral dust turning in the shaft ----\n{\n  const nd = Math.round(60 + P.density * 150);\n  for (let k = 0; k < nd; k++) {\n    const zz = 0.25 + dzs[k] * 0.75;\n    const dr = 0.6 + dzs[k] * 1.4;\n    let X = (dxs[k] + tt * 0.006 * spd / zz + 0.03 * Math.sin(tt * 0.21 * spd + dys[k] * 19)) % 1;\n    let Y = (dys[k] + tt * 0.010 * spd / zz + 0.02 * Math.sin(tt * 0.17 * spd + dxs[k] * 23)) % 1;\n    if (X < 0) X += 1; if (Y < 0) Y += 1;\n    const ix = (X * BW) | 0, iy = (Y * BH) | 0;\n    const rx = ix - fx, ry = iy - fy;\n    const along = rx * lx * -1 + ry * ly * -1;\n    const perp = Math.abs(rx * ly * -1 - ry * lx * -1);\n    const spread = shaftW * (0.5 + along / (u0 * 1.1));\n    const inShaft = Math.max(0, 1 - perp / Math.max(6, spread));\n    const br = (0.10 + inShaft * 0.85) * (0.4 + gain * 0.5) / zz;\n    const rr2 = Math.max(1, dr | 0);\n    for (let jj = -rr2; jj <= rr2; jj++) for (let ii = -rr2; ii <= rr2; ii++) {\n      const xx = ix + ii, yy = iy + jj;\n      if (xx < 0 || xx >= BW || yy < 0 || yy >= BH) continue;\n      const o = 4 * (yy * BW + xx);\n      const f = br * 90;\n      if (style === 'engraving') { px[o] -= f * 0.7; px[o + 1] -= f * 0.7; px[o + 2] -= f * 0.6; }\n      else { px[o] += f * 0.9; px[o + 1] += f * 0.85; px[o + 2] += f; }\n    }\n  }\n}\n\n// ---- near shards: almost black, rim-lit, framing the mouth ----\nfor (let k = 0; k < 3; k++) {\n  const th = 2.094 * k + hs3(k, 9, 3) * 1.4;\n  const bx = cxc + Math.cos(th) * BW * 0.66 + camx * 1.55, by = cyc + Math.sin(th) * BH * 0.78 + camy * 1.55;\n  const ang = Math.atan2(cyc - by, cxc - bx) + (hs3(k, 8, 7) - 0.5) * 0.5;\n  const ca = Math.cos(ang), sa = Math.sin(ang);\n  const L = u0 * (0.34 + hs3(k, 7, 11) * 0.30), W = u0 * (0.075 + hs3(k, 6, 13) * 0.055);\n  const i0 = Math.max(0, Math.floor(Math.min(bx, bx + ca * L) - W)), i1 = Math.min(BW - 1, Math.ceil(Math.max(bx, bx + ca * L) + W));\n  const j0 = Math.max(0, Math.floor(Math.min(by, by + sa * L) - W)), j1 = Math.min(BH - 1, Math.ceil(Math.max(by, by + sa * L) + W));\n  const glint = Math.pow(Math.max(0, ca * lx + sa * ly), 4);\n  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {\n    const dx = i + 0.5 - bx, dy = j + 0.5 - by;\n    const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;\n    if (u < 0 || u > L) continue;\n    const taper = u < L * 0.66 ? 1 : Math.max(0, (L - u) / (L * 0.34));\n    const hwid = W * taper;\n    if (v < -hwid || v > hwid) continue;\n    const p = j * BW + i, o = 4 * p;\n    const fv = Math.abs(v) / (W + 1e-6);\n    const rim = Math.max(0, fv - 0.72) * 3.6 * (0.4 + glint * 0.9);\n    if (style === 'engraving') {\n      const hatch = 0.5 + 0.5 * Math.sin((u * 0.8 - v * 2.4) * 1.3);\n      const paper = 0.94 - Math.min(0.94, 0.62 + hatch * 0.34) * 0.84;\n      px[o] = paper * 250; px[o + 1] = paper * 243; px[o + 2] = paper * 227;\n    } else if (style === 'schematic') {\n      px[o] = 12 + rim * 90; px[o + 1] = 20 + rim * 170; px[o + 2] = 42 + rim * 210;\n    } else {\n      hsv(hb + 0.06, 0.35, 1);\n      px[o] = 9 + RR * rim * 150 * gain; px[o + 1] = 10 + GG * rim * 150 * gain; px[o + 2] = 16 + BB * rim * 160 * gain;\n    }\n  }\n}\n\n// ---- film tooth + clamp ----\nfor (let p = 0; p < N; p++) {\n  const th = tooth[p] * 26 * gr;\n  const o = 4 * p;\n  let r = px[o] + th, g2 = px[o + 1] + th, b = px[o + 2] + th;\n  px[o] = r < 0 ? 0 : (r > 255 ? 255 : r);\n  px[o + 1] = g2 < 0 ? 0 : (g2 > 255 ? 255 : g2);\n  px[o + 2] = b < 0 ? 0 : (b > 255 ? 255 : b);\n  px[o + 3] = 255;\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

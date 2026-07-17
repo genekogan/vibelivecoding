@@ -1,0 +1,144 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.lowrider",
+  "kind": "subject",
+  "name": "Lowrider",
+  "desc": "Chicano candy-paint lowrider that pops its hydraulics on the beat \u2014 nose pops, three-wheel rock, chrome Dayton spokes and a specular glint sweeping the lacquer.",
+  "tags": [
+    "lowrider",
+    "car",
+    "hydraulics",
+    "chicano",
+    "candy paint",
+    "airbrush",
+    "chrome",
+    "dayton",
+    "bounce",
+    "hop",
+    "cruise",
+    "lowbrow",
+    "auto",
+    "vehicle",
+    "gold",
+    "impala",
+    "east la",
+    "character"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "car size vs design"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.5,
+      "doc": "hydraulic bounce amplitude + glow"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "candy body hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "hop rate (beats multiplier)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "undercarriage neon + flake detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0,
+      "max": 1,
+      "doc": "ground anchor y (canvas fraction)"
+    },
+    "pose": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "front",
+        "back",
+        "side",
+        "pancake",
+        "cruise"
+      ],
+      "doc": "hop pattern \u2014 cycle auto-routines the dance"
+    },
+    "style": {
+      "default": "candy",
+      "options": [
+        "candy",
+        "primer",
+        "flake",
+        "chrome",
+        "blueprint"
+      ],
+      "doc": "aesthetic: airbrush candy / matte bare-metal primer / metalflake / mirror chrome / schematic blueprint (abstract linework)"
+    },
+    "act": {
+      "default": "showoff",
+      "options": [
+        "showoff",
+        "cruise"
+      ],
+      "doc": "multi-minute program: showoff = high hops + 3-wheel freezes, cruise = mellow boulevard glide"
+    },
+    "stance": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rim size / ride height morph"
+    },
+    "chop": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "chopped-top roofline morph"
+    },
+    "chrome": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "chrome trim brightness"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "flake + detail layout variation"
+    }
+  },
+  "acts": [
+    "showoff",
+    "cruise"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T02:02:01+00:00",
+    "fps": 60.2,
+    "motion": 0.0097,
+    "lum": 0.092
+  },
+  "code": "const D = { scale:1, energy:.7, hue:190, speed:1, density:.5, x:.5, y:.82, pose:'cycle', style:'candy', act:'showoff', stance:.5, chop:.4, chrome:.6, seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- helpers ----\nconst md = (a,n)=>((a%n)+n)%n;\nconst frc = v=>v-Math.floor(v);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst ez = t=>{t=clp(t,0,1);return t*t*(3-2*t);};\nconst fr = i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif (S.lastBeat==null || K.beat<S.lastBeat) S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\nconst u = Math.min(width,height);\nconst sc = u*P.scale/320;\nconst bt = K.beat*P.speed;\nconst sub = frc(bt);\nconst pop = K.pulse;\nconst kick = pop*.6 + A.bass*.85;\nconst H = md(P.hue,360);\nconst style = P.style;\nconst candy=style==='candy', primer=style==='primer', flake=style==='flake', chrome=style==='chrome', blue=style==='blueprint';\nconst en = P.energy*(.5+.6*K.intensity);\n\n// geometry morphs\nconst halfBase = 92;                 // axle half-spacing\nconst bodyW = 138;                   // body half-width\nconst rimR = 34 + P.stance*6;        // wheel radius\nconst roofDrop = 1 - P.chop*.55;     // chopped-top factor\n\n// ---- seed-keyed flake / detail layout ----\nif (S.seedUsed!==P.seed) {\n  S.seedUsed=P.seed;\n  S.flk=[];\n  for (let i=0;i<70;i++) S.flk.push({x:(fr(i*2+1)-.5)*250, y:-(20+fr(i*2+2)*70), ph:fr(i*3+5)*6.28, s:1.1+fr(i*4+7)*2.2});\n  S.tape=[];\n  for (let i=0;i<9;i++) S.tape.push({dh:(fr(i*5+3)-.5)*70, r:120+fr(i*5+4)*70, a:fr(i*5+6)*6.28});\n}\n\n// ---- hop rig (all from clk) ----\nconst amp = 44*en*(P.act==='cruise'?.45:1);\nconst load = sub>.7 ? (sub-.7)/.3 : 0;\nlet mv = P.pose;\nif (mv==='cycle') {\n  const ph = md(bt,16);\n  if (P.act==='cruise') { mv = ph<12?'cruise':'side'; }\n  else { mv = ph<4?'front':ph<8?'back':ph<12?'side':(K.section%4===3?'pancake':'front'); }\n}\nlet fLift=0, bLift=0, wheelJmp=0, freeze=0;\nconst beatIdx = Math.floor(md(bt,2));\nif (mv==='front') { fLift = pop*amp - load*amp*.35; bLift = pop*amp*.12; }\nelse if (mv==='back') { bLift = pop*amp; fLift = pop*amp*.12 - load*amp*.2; }\nelse if (mv==='side') { if(beatIdx===0){fLift=pop*amp;bLift=pop*amp*.1;} else {bLift=pop*amp;fLift=pop*amp*.1;} }\nelse if (mv==='pancake') { const j=pop; fLift=j*amp*1.15; bLift=j*amp*1.15; wheelJmp=j*amp*.32; freeze=Math.max(0,K.swell-.5); }\nelse { const s=Math.sin(bt*Math.PI); fLift=(K.swell*.4+ .5+.5*s)*amp*.3; bLift=(K.swell*.4+.5-.5*s)*amp*.3; }\n// showoff act: hold a 3-wheel freeze on section boundary\nif (P.act==='showoff' && K.section%4===2) { const hold=ez((md(bt,4))/1.2); bLift=Math.max(bLift, amp*1.1*(1-hold*.2)); }\n\nconst bodyLift = (fLift+bLift)/2;\nconst pitch = (fLift-bLift)*.0042;   // nose-up positive\nconst gy = -rimR - wheelJmp;         // wheel center y (ground contact at 0)\n\n// ---- style fills ----\nfunction bodyBase(){\n  if (blue){ noFill(); return; }\n  if (primer){ fill(H, 8, 52); return; }\n  if (chrome){ fill(210, 6, 62); return; }\n  fill(H, candy?78:70, candy?70:74);\n}\nfunction bodyLine(w){\n  if (blue){ stroke(205,60,100,90); strokeWeight(w*.7); return; }\n  if (chrome){ stroke(210,10,20,80); strokeWeight(w); return; }\n  if (primer){ stroke(H,10,30,70); strokeWeight(w); return; }\n  stroke(H,90,16,95); strokeWeight(w);\n}\n\n// ---- spoke wheel ----\nfunction wheel(cx){\n  push(); translate(cx, gy);\n  // tire (whitewall) unless blueprint\n  if (blue){\n    stroke(205,55,100,85); strokeWeight(1.6); noFill();\n    ellipse(0,0,rimR*2,rimR*2); ellipse(0,0,rimR*1.15,rimR*1.15);\n    // dimension cross\n    line(-rimR,0,rimR,0); line(0,-rimR,0,rimR);\n  } else {\n    noStroke(); fill(0,0,primer?7:9); ellipse(0,0,rimR*2.05,rimR*2.05);\n    fill(0,0,96); ellipse(0,0,rimR*1.62,rimR*1.62);      // whitewall\n    fill(0,0,primer?10:6); ellipse(0,0,rimR*1.34,rimR*1.34);\n  }\n  // dayton wire spokes (chrome) \u2014 rotate slowly with travel\n  const rot = K.beat*.6*P.speed;\n  push(); rotate(rot);\n  const nsp = blue?8:16;\n  for (let i=0;i<nsp;i++){\n    const a=i/nsp*6.2832;\n    if (blue){ stroke(205,50,100,55); strokeWeight(.8); }\n    else { stroke(0,0, i%2?70:96, 90); strokeWeight(1.4); }\n    line(0,0, Math.cos(a)*rimR*1.18, Math.sin(a)*rimR*1.18);\n  }\n  pop();\n  // chrome knock-off hub\n  if (!blue){ noStroke(); fill(0,0,88); ellipse(0,0,rimR*.5,rimR*.5); fill(0,0,100,80); ellipse(-rimR*.1,-rimR*.1,rimR*.2,rimR*.2); }\n  else { noFill(); stroke(205,55,100,80); strokeWeight(1.2); ellipse(0,0,rimR*.5,rimR*.5); }\n  pop();\n}\n\n// ---- render ----\npush();\ntranslate(P.x*width + Math.sin(K.t*.16)*10*sc, P.y*height);\nscale(sc);\n\n// undercarriage neon glow (density-gated, ADD)\nif (!blue && P.density>.02){\n  blendMode(ADD);\n  const gl = clp(10 + kick*20 + K.swell*8, 0, 40)*P.density;\n  noStroke(); fill(md(H+140,360),85,100, gl);\n  ellipse(0, -6 + bodyLift*.2, (bodyW+40)*1.9, 46);\n  blendMode(BLEND);\n}\n\n// floor shadow (tightens as car lifts)\nnoStroke(); fill(0,0,0, clp(40 - bodyLift*.4,10,44));\nellipse(0, 2, (bodyW+34)*2*(1 - bodyLift*.0016), 20);\n\n// wheels (behind body)\nwheel(-halfBase);\nwheel(halfBase);\n\n// hydraulic pistons (extend when body lifts)\nif (!blue){\n  stroke(0,0,82,80); strokeWeight(4);\n  line(-halfBase, gy, -halfBase, gy - (18+fLift*.9));\n  line(halfBase, gy, halfBase, gy - (18+bLift*.9));\n  stroke(0,0,55,70); strokeWeight(6);\n  line(-halfBase, gy-6, -halfBase, gy-6-(8+fLift*.5));\n  line(halfBase, gy-6, halfBase, gy-6-(8+bLift*.5));\n}\n\n// ===== BODY GROUP =====\npush();\ntranslate(0, -rimR - 30 - bodyLift);\nrotate(-pitch);\n\n// lower body silhouette\nbodyLine(3.2); bodyBase();\nbeginShape();\nvertex(-bodyW, 6); vertex(-bodyW-6, -14); vertex(-bodyW+6,-30);\nvertex(-70,-34); vertex(-56,-58*roofDrop);              // cowl to windshield\nvertex(-8,-70*roofDrop); vertex(46,-70*roofDrop);       // roof\nvertex(74,-40); vertex(bodyW-4,-32);                    // rear deck\nvertex(bodyW+6,-14); vertex(bodyW,6);\nendShape(CLOSE);\n\n// wheel arches (cutouts as dark arcs)\nif (!blue){ noStroke(); fill(0,0,primer?8:6);\n  arc(-halfBase, 6+ (rimR+30+bodyLift)-4, rimR*2.1, rimR*2.1, Math.PI, 6.2832);\n  arc(halfBase, 6+ (rimR+30+bodyLift)-4, rimR*2.1, rimR*2.1, Math.PI, 6.2832);\n}\n\n// greenhouse / windows\nif (blue){\n  stroke(205,55,100,80); strokeWeight(1); noFill();\n  beginShape(); vertex(-52,-56*roofDrop); vertex(-10,-66*roofDrop); vertex(42,-66*roofDrop); vertex(66,-40); endShape();\n} else {\n  noStroke(); fill(200,45,chrome?40:22, 92);\n  beginShape(); vertex(-50,-54*roofDrop); vertex(-10,-64*roofDrop); vertex(40,-64*roofDrop); vertex(62,-40); vertex(-46,-40); endShape(CLOSE);\n  // window reflection streak\n  fill(200,10,90,26);\n  quad(-30,-56*roofDrop,-14,-58*roofDrop,-2,-42,-18,-42);\n  // chrome pillar + trim\n  stroke(0,0,92,90); strokeWeight(2); noFill();\n  line(-6,-64*roofDrop,-6,-40); line(-46,-42, 62,-40);\n}\n\n// candy sheen: airbrushed tonal bands (translucent overlays)\nif (candy||flake){\n  noStroke();\n  fill(H,45,100,26); quad(-bodyW,-6,bodyW,-14,bodyW,-26,-bodyW,-16);   // upper light band\n  fill(H,95,34,34); quad(-bodyW,6,bodyW,6,bodyW,-6,-bodyW,-4);          // lower dark band\n  // moving specular glint sweep\n  const gx = -bodyW + md(K.t*40, bodyW*2.4);\n  fill(0,0,100, 30 + kick*30);\n  quad(gx-6,-30, gx+10,-30, gx+2,8, gx-14,8);\n}\nif (chrome){\n  noStroke();\n  for (let b=0;b<6;b++){ const yy=-32+b*7; fill(210,8, b%2?90:30, 40); rect(-bodyW,yy,bodyW*2,6); }\n  const gx = -bodyW + md(K.t*60, bodyW*2.4);\n  fill(0,0,100,55); rect(gx-3,-34,7,42);\n}\nif (primer){\n  // masking tape + bondo spots (matte, austere)\n  noStroke(); fill(H,4,72,60); rect(-40,-40,26,50); rect(30,-30,20,34);\n  fill(H,14,40,40); ellipse(-10,-20,20,14); ellipse(70,-16,16,10);\n  stroke(H,6,80,50); strokeWeight(1); line(-40,-40,-40,10); line(50,-30,50,4);\n}\n\n// pinstripe accent (candy/flake)\nif (candy||flake){\n  stroke(md(H+150,360),85,100,90); strokeWeight(1.6); noFill();\n  beginShape(); vertex(-bodyW+10,-8); bezierVertex(-40,-2,40,-16,bodyW-14,-10); endShape();\n  stroke(md(H+30,360),90,100,70); strokeWeight(1);\n  beginShape(); vertex(-bodyW+12,-4); bezierVertex(-30,2,50,-12,bodyW-16,-6); endShape();\n}\n\n// door split line\nif (!blue){ stroke(0,0,primer?20:12, 70); strokeWeight(1.4); line(2,-40,6,4); }\nelse { stroke(205,50,100,50); strokeWeight(.8); line(2,-40,6,4);\n  // blueprint dimension ticks\n  stroke(205,60,100,70); strokeWeight(.8);\n  line(-bodyW,20,bodyW,20); line(-bodyW,16,-bodyW,24); line(bodyW,16,bodyW,24);\n}\n\n// chrome bumpers + grille\nif (!blue){\n  noStroke();\n  const chm = clp(.4+P.chrome*.6,0,1);\n  fill(0,0, chrome?70:82); rect(-bodyW-8,-16,10,20,3); rect(bodyW-2,-16,10,20,3);   // bumpers\n  fill(0,0,100, 60*chm); rect(-bodyW-8,-16,10,5,2); rect(bodyW-2,-16,10,5,2);       // bumper glint\n  // grille slats\n  stroke(0,0,88,80); strokeWeight(1.2);\n  for (let i=0;i<5;i++) line(-bodyW-2,-12+i*4,-bodyW-8,-12+i*4);\n  // headlight\n  noStroke(); fill(48,30,100, 80+kick*15); ellipse(-bodyW+2,-20,8,8);\n  fill(0,80,90,80); ellipse(bodyW-2,-18,6,6);\n}\n\n// flake sparkle\nif (flake){\n  blendMode(ADD); noStroke();\n  for (let i=0;i<70;i++){ const f=S.flk[i];\n    const tw=(Math.sin(K.t*2.2+f.ph)*.5+.5);\n    fill(md(H+30,360),20,100, tw*(28+A.treble*50));\n    ellipse(f.x*.5, f.y*.5, f.s, f.s);\n  }\n  blendMode(BLEND);\n}\n\npop(); // end body group\n\n// hop spark accents at each corner on the pop (candy/flake)\nif ((candy||flake||chrome) && pop>.25){\n  blendMode(ADD); noStroke();\n  const spk=pop*(.6+en);\n  fill(0,0,100, 40*spk);\n  ellipse(-halfBase, gy - (18+fLift), 30*spk, 8*spk);\n  ellipse(halfBase, gy - (18+bLift), 30*spk, 8*spk);\n  blendMode(BLEND);\n}\npop();\n"
+}

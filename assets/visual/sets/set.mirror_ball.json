@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.mirror_ball",
+  "kind": "set",
+  "name": "Mirror Ball",
+  "desc": "A rotating faceted mirror ball hung on a chain, its specular facets glinting as thrown light dots sweep the whole room and burst on the treble.",
+  "tags": [
+    "mirror ball",
+    "disco ball",
+    "disco",
+    "glitter ball",
+    "facet",
+    "sparkle",
+    "specular",
+    "glint",
+    "reflection",
+    "chrome",
+    "club",
+    "dancefloor",
+    "nightclub",
+    "party",
+    "seventies",
+    "seventy",
+    "rotating",
+    "spin",
+    "light dots",
+    "light show",
+    "glamour",
+    "shimmer",
+    "silver",
+    "iridescent",
+    "wireframe",
+    "geodesic",
+    "sphere",
+    "ceiling",
+    "set",
+    "prop"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "dots": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "count/density of thrown light dots sweeping the room"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "mirror-ball size"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "thrown-light hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dot glow amplitude"
+    },
+    "spin": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "rotation rate multiplier"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall motion rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.2,
+      "max": 1,
+      "doc": "facet resolution on the ball"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ball anchor x"
+    },
+    "y": {
+      "default": 0.26,
+      "min": 0.1,
+      "max": 0.6,
+      "doc": "ball anchor y (hang height)"
+    },
+    "style": {
+      "default": "specular",
+      "options": [
+        "specular",
+        "wireframe",
+        "chrome",
+        "noir",
+        "riso"
+      ],
+      "doc": "render look (wireframe = abstract geodesic)"
+    },
+    "act": {
+      "default": "glide",
+      "options": [
+        "glide",
+        "throb",
+        "scatter"
+      ],
+      "doc": "multi-minute light program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "glide",
+    "throb",
+    "scatter"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:18:18+00:00",
+    "fps": 59.5,
+    "motion": 0.0138,
+    "lum": 0.109
+  },
+  "code": "const D = { dots: .5, scale: 1, hue: 200, energy: .6, spin: 1, speed: 1, density: .55, x: .5, y: .26, style: 'specular', act: 'glide', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\n\nconst STY = {\n  specular:  { wire:false, facet:[210,7,58],  glint:[200,5,100],  rim:[210,10,82], dotSat:38, dotBri:100, iri:0 },\n  wireframe: { wire:true,  facet:[190,65,52], glint:[188,35,100], rim:[190,75,92], dotSat:72, dotBri:100, iri:0 },\n  chrome:    { wire:false, facet:[280,24,54], glint:[300,30,100], rim:[280,22,84], dotSat:56, dotBri:100, iri:1 },\n  noir:      { wire:false, facet:[220,3,42],  glint:[220,1,100],  rim:[0,0,92],    dotSat:6,  dotBri:96,  iri:0 },\n  riso:      { wire:false, facet:[350,58,66], glint:[188,52,100], rim:[350,62,84], dotSat:74, dotBri:98,  iri:0 }\n};\nconst st = STY[P.style] || STY.specular;\n\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * (0.09 + P.scale * 0.11);\n\n// ---- section / act ----\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.3,.5,.7,.9,.4,.7,1,.5][sec];\nconst ACT = {\n  glide:   { spinM: 1,               throwR: 1,          spk: 1 },\n  throb:   { spinM: 1 + K.pulse*1.4,  throwR: 1,          spk: 1.3 },\n  scatter: { spinM: 1.35,             throwR: 1.5+arc*.5, spk: 1.6 }\n};\nconst act = ACT[P.act] || ACT.glide;\n\n// continuous rotation (K.t monotonic -> never re-phases)\nconst spin = K.t * P.spin * P.speed * 0.6 * act.spinM;\n\n// ---- seeded facet grid on unit sphere (geometry only) ----\nif (S.geoUsed !== P.seed + '|' + P.density) {\n  S.geoUsed = P.seed + '|' + P.density;\n  const rows = Math.round(6 + P.density * 6);\n  const F = [];\n  for (let r = 0; r < rows; r++) {\n    const la = -Math.PI/2 + Math.PI * (r + 0.5) / rows;\n    const cols = Math.max(3, Math.round(Math.cos(la) * rows * 2.2));\n    for (let c = 0; c < cols; c++) {\n      const lo = (c / cols) * TAU + fr(r*31 + c)*0.15;\n      F.push({ la, lo, j: fr(r*57 + c*13), sz: 1 / cols });\n      if (F.length >= 150) break;\n    }\n    if (F.length >= 150) break;\n  }\n  S.F = F;\n}\nconst F = S.F;\n\nconst light = [-0.5, 0.62, 0.6];\nconst lm = Math.hypot(light[0], light[1], light[2]);\nlight[0]/=lm; light[1]/=lm; light[2]/=lm;\n\n// ---- chain ----\npush();\nstroke(st.rim[0], st.rim[1]*0.5, st.rim[2]*0.7, 55);\nstrokeWeight(Math.max(1, u*0.0015));\nline(cx, 0, cx, cy - R*0.98);\nnoStroke();\n// ceiling mount\nfill(0,0,st.rim[2]*0.5, 60); ellipse(cx, 0, u*0.02, u*0.01);\npop();\n\n// ---- ball rim shadow disc ----\npush();\nif (!st.wire) { noStroke(); fill(st.facet[0], st.facet[1], st.facet[2]*0.35, 70); ellipse(cx, cy, R*2.06, R*2.06); }\npop();\n\n// ---- facets ----\npush();\nif (st.wire) { strokeWeight(Math.max(0.8, u*0.0011)); }\nelse noStroke();\nconst fs = R * 0.9;\nfor (let i = 0; i < F.length; i++) {\n  const f = F[i];\n  const lo = f.lo + spin;\n  const x = Math.cos(f.la) * Math.sin(lo);\n  const y = Math.sin(f.la);\n  const z = Math.cos(f.la) * Math.cos(lo);\n  if (z <= 0.02) continue;\n  const sx = cx + x * R, sy = cy - y * R;\n  const ndl = Math.max(0, x*light[0] + y*light[1] + z*light[2]);\n  const spec = Math.pow(ndl, 3.2);\n  const twinkle = Math.pow(Math.max(0, Math.sin(K.t*(2.2 + f.j*4) + i*1.7)), 10);\n  const spark = (twinkle * 0.7 + A.treble * fr(i+3) * 0.9) * act.spk;\n  const lit = 0.28 + 0.5*ndl*z + spec*0.5 + spark;\n  const size = fs * f.sz * (2.0 + f.j*0.6) * (0.85 + z*0.3);\n  let hh = st.facet[0], ss = st.facet[1], bb = st.facet[2];\n  if (st.iri) { hh = hw(st.facet[0] + Math.atan2(y, x)*40 + spin*30); ss = st.facet[1] + 20*ndl; }\n  bb = Math.min(100, bb * (0.4 + lit*1.1));\n  if (st.wire) { stroke(hh, ss, Math.min(100, 40 + lit*70), 40 + z*40); noFill(); }\n  else { fill(hh, ss, bb, 88); }\n  rect(sx - size/2, sy - size/2, size, size, size*0.12);\n  // glint on strongest facets\n  if (!st.wire && (spec > 0.55 || spark > 0.5)) {\n    fill(st.glint[0], st.glint[1], st.glint[2], 70 + spark*30);\n    ellipse(sx, sy, size*0.4, size*0.4);\n  }\n}\npop();\n\n// ---- ball rim highlight ----\npush();\nnoFill(); stroke(st.rim[0], st.rim[1], st.rim[2], 45); strokeWeight(Math.max(1, u*0.002));\nellipse(cx, cy, R*2, R*2);\n// top specular kiss\nnoStroke(); blendMode(ADD);\nfill(st.glint[0], st.glint[1]*0.5, 100, 30);\nellipse(cx - R*0.32, cy - R*0.34, R*0.6, R*0.6);\nblendMode(BLEND);\npop();\n\n// ---- thrown light dots sweeping the room ----\npush();\nblendMode(ADD); noStroke();\nconst nDots = Math.round(6 + P.dots * 44);\nfor (let i = 0; i < nDots; i++) {\n  const spd = 0.35 * (1 + fr(i+5)*0.7) * P.spin * P.speed;\n  const ang = fr(i)*TAU + K.t * spd;\n  const rx = (0.16 + fr(i+9)*0.86) * act.throwR;\n  const ry = (0.14 + fr(i+11)*0.82) * act.throwR;\n  const px = cx + Math.cos(ang) * rx * width * 0.92;\n  const py = cy + Math.sin(ang*0.83 + fr(i+3)*TAU) * ry * height * 0.9;\n  const tw = 0.35 + 0.65*Math.pow(Math.max(0,Math.sin(K.t*(1.1+fr(i)*3.4)+i*2.1)), 6)\n             + A.treble*fr(i+7)*1.1*act.spk;\n  const bri = Math.min(100, st.dotBri * (0.5 + tw*0.6));\n  const dh = hw(P.hue + (fr(i)-0.5)*70);\n  const sz = u * (0.008 + fr(i+2)*0.03) * (0.5 + tw*0.7) * P.energy * (0.7 + P.scale*0.4);\n  fill(dh, st.dotSat*0.7, bri, 10 + tw*16);\n  ellipse(px, py, sz*2.6, sz*2.6);\n  fill(dh, st.dotSat, bri, 30 + tw*40);\n  ellipse(px, py, sz, sz);\n  if (tw > 0.85) { fill(dh, st.dotSat*0.3, 100, 70); ellipse(px, py, sz*0.4, sz*0.4); }\n}\nblendMode(BLEND);\npop();\n\nblendMode(BLEND);\nif (drawingContext) drawingContext.shadowBlur = 0;\n"
+}

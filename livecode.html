@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <title>Livecode v1</title>
+    <title>vibe live coding v1</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -150,6 +150,34 @@
         #exec-log .log-entry .tag.strudel { background: #3a1a1a; color: #e94560; }
         #exec-log .log-entry .tag.p5 { background: #1a1a3a; color: #7b5ea7; }
 
+        /* Step toast — big centered label on section change */
+        #step-toast {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            font-size: 48px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 40px rgba(233,69,96,0.8), 0 0 80px rgba(233,69,96,0.4);
+            pointer-events: none;
+            z-index: 60;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            text-align: center;
+            line-height: 1.3;
+        }
+        #step-toast.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #step-toast .toast-section {
+            font-size: 18px;
+            font-weight: 400;
+            color: #e94560;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
         #code-overlay::-webkit-scrollbar,
         #exec-log::-webkit-scrollbar { width: 4px; }
         #code-overlay::-webkit-scrollbar-track,
@@ -161,10 +189,15 @@
 <body>
 
 <div id="overlay">
-    <button id="start-btn">Start Audio & Visuals (v1)</button>
+    <button id="start-btn" disabled>Loading Audio & Visuals…</button>
     <div id="init-status">Loading...</div>
 </div>
 
+<video id="video-player" preload="auto" playsinline
+       style="position:fixed; inset:0; width:100%; height:100%; object-fit:fill;
+              background:#000; z-index:90; display:none;"></video>
+
+<div id="step-toast"></div>
 <div id="code-overlay"></div>
 <div id="exec-log"></div>
 
@@ -172,18 +205,46 @@
     <div class="dot" id="dot"></div>
     <span id="conn-status">Disconnected</span>
     <span style="margin-left:auto">
+        <span id="step-display" style="color:#e94560;display:none">◀ <span id="step-info">0/0</span> ▶</span>
+        <span id="step-label" style="color:#ff6b80;font-weight:600;display:none"></span> |
         <span id="track-count">0 tracks</span> |
         <span id="layer-count">0 layers</span> |
         <span id="fps-display">--</span> fps |
-        v1 | [C] code [L] log
+        v3 | [C] code [L] log [←→] steps
     </span>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/p5@1.11.11/lib/p5.min.js"></script>
-<script src="https://unpkg.com/@strudel/web@1.0.3"></script>
+<script type="module">
+import * as Strudel from "https://esm.sh/@strudel/web@1.0.3?bundle&target=es2022";
+
+// Export the exact pinned ESM surface without invoking initStrudel(). The
+// convenience initializer constructs a hidden scheduler, so production makes
+// that entry point impossible and lets owned_transport.js create the sole REPL.
+for (const [name, value] of Object.entries(Strudel)) {
+    if (name !== "initStrudel") window[name] = value;
+}
+window.__strudelExportNames = Object.freeze(Object.keys(Strudel));
+Object.defineProperty(window, "initStrudel", {
+    configurable: true,
+    writable: false,
+    value: function hiddenSchedulerForbidden() {
+        throw new Error("initStrudel() is disabled: use the owned livecode transport");
+    },
+});
+window.__strudelModuleContract = Object.freeze({
+    web: "1.0.3",
+    core: "1.0.1",
+    webaudio: "1.0.1",
+    superdough: "1.0.1",
+    source: "esm.sh-pinned-bundle",
+    hiddenInitDisabled: true,
+});
+</script>
+<script src="owned_transport.js"></script>
 
 <script>
-const VERSION = 1;
+const VERSION = 3;
 
 // ── Sample caching (from strudel.html) ──────────────────────
 const _originalFetch = window.fetch;
@@ -208,6 +269,7 @@ window.fetch = async function(url, opts) {
 let ws = null;
 let reconnectTimer = null;
 let strudelReady = false;
+let ownedTransport = null;
 let p5Ready = false;
 let showCode = false;
 let showLog = false;
@@ -217,7 +279,117 @@ let diag = {};
 const p5Layers = new Map();
 const layerOrder = [];
 window.state = {};
+window.state.audio = { bass: 0, lowmid: 0, mid: 0, treble: 0, rms: 0, fft: [] };
 const errorTimestamps = new Map();
+
+// ── Audio-reactive bridge ───────────────────────────────────
+// Intercepts any WebAudio node connecting to the context destination and
+// reroutes it through a tap (gain → analyser → destination), so Strudel's
+// output is analysable regardless of superdough internals. Publishes
+// window.state.audio = {bass, lowmid, mid, treble, rms, fft[32]} every rAF.
+// Caveat: node.disconnect(ctx.destination) won't match the rerouted edge —
+// superdough uses bare disconnect() so this doesn't bite in practice.
+(function () {
+    const origConnect = AudioNode.prototype.connect;
+    let tap = null;
+    function getTap(ctx) {
+        if (tap && tap.ctx === ctx) return tap;
+        const input = ctx.createGain();
+        const an = ctx.createAnalyser();
+        const monitor = ctx.createGain();
+        an.fftSize = 2048;               // ~21.5Hz/bin @44.1kHz — resolves kick fundamentals
+        an.smoothingTimeConstant = 0.6;
+        origConnect.call(input, an);
+        origConnect.call(input, monitor);
+        origConnect.call(monitor, ctx.destination);
+        tap = { ctx, input, an, monitor,
+                freq: new Uint8Array(an.frequencyBinCount),
+                wave: new Uint8Array(an.fftSize) };
+        window.__livecodeAudioTap = {
+            context: ctx,
+            analyser: an,
+            setMonitorGain(value) {
+                const gain = Math.max(0, Number(value) || 0);
+                monitor.gain.setValueAtTime(gain, ctx.currentTime);
+                return gain;
+            },
+            getMonitorGain() { return monitor.gain.value; },
+        };
+        startMeter();
+        return tap;
+    }
+    AudioNode.prototype.connect = function (target, ...rest) {
+        // Only tap REAL-TIME contexts. Superdough renders reverb impulse
+        // responses in an OfflineAudioContext whose destination is also an
+        // AudioDestinationNode — tapping it would REPLACE the singleton tap
+        // with one on a context that renders once and stops, freezing
+        // state.audio at stale values forever (observed on first .room()).
+        if (target instanceof AudioDestinationNode
+                && !(target.context instanceof OfflineAudioContext)) {
+            return origConnect.call(this, getTap(target.context).input, ...rest);
+        }
+        return origConnect.call(this, target, ...rest);
+    };
+    // Symmetric intercept: a node that connected "to destination" actually holds
+    // an edge to tap.input, so disconnect(destination) must target tap.input or
+    // it throws InvalidAccessError inside superdough (observed: first .room()
+    // reverb init rewires the orbit output, the throw derails the rebuild, and
+    // the analyser subgraph goes inactive — state.audio freezes at stale values).
+    const origDisconnect = AudioNode.prototype.disconnect;
+    AudioNode.prototype.disconnect = function (target, ...rest) {
+        if (target instanceof AudioDestinationNode && tap && tap.ctx === target.context) {
+            try { return origDisconnect.call(this, tap.input, ...rest); }
+            catch (e) { /* edge may predate the tap — fall through */ }
+            return origDisconnect.call(this, target, ...rest);
+        }
+        if (target === undefined) return origDisconnect.call(this);
+        return origDisconnect.call(this, target, ...rest);
+    };
+    let meterOn = false;
+    function startMeter() {
+        if (meterOn) return;
+        meterOn = true;
+        const band = (f, a, b) => {
+            let s = 0;
+            for (let i = a; i < b; i++) s += f[i];
+            return s / ((b - a) * 255);
+        };
+        function tick() {
+            if (tap) {
+                tap.an.getByteFrequencyData(tap.freq);
+                tap.an.getByteTimeDomainData(tap.wave);
+                let s = 0;
+                for (let i = 0; i < tap.wave.length; i++) {
+                    const v = (tap.wave[i] - 128) / 128;
+                    s += v * v;
+                }
+                const f = tap.freq;
+                const nb = f.length; // 1024 bins
+                const fft = new Array(32);
+                for (let i = 0; i < 32; i++) {
+                    // log-ish packing: first 16 bins raw (0–344Hz), then widening groups
+                    const a = i < 16 ? i : Math.floor(16 * Math.pow(nb / 16, (i - 16) / 16));
+                    const b = i < 16 ? i + 1 : Math.floor(16 * Math.pow(nb / 16, (i - 15) / 16));
+                    fft[i] = band(f, a, Math.max(b, a + 1));
+                }
+                window.state.audio = {
+                    bass:   band(f, 1, 8),      // ~21–172 Hz (kick, sub)
+                    lowmid: band(f, 8, 24),     // ~172–516 Hz
+                    mid:    band(f, 24, 120),   // ~516 Hz–2.6 kHz
+                    treble: band(f, 120, 512),  // ~2.6–11 kHz (hats, air)
+                    rms: Math.sqrt(s / tap.wave.length),
+                    fft,
+                    capturedAtPerformanceMs: performance.now(),
+                    audioContextSeconds: tap.ctx.currentTime,
+                    sampleRate: tap.ctx.sampleRate,
+                    fftSize: tap.an.fftSize,
+                };
+            }
+            requestAnimationFrame(tick);
+        }
+        tick();
+    }
+})();
 
 // Strudel track names (for code overlay display; actual code managed server-side)
 const strudelTracks = new Map();
@@ -237,32 +409,27 @@ window.addEventListener("unhandledrejection", (e) => {
     addLogEntry("strudel", "[unhandled] " + msg, false);
 });
 
-// ── Initialize Strudel ──────────────────────────────────────
-initStatus.textContent = "Loading Strudel...";
-initStrudel();
-
-// Wrap Pattern.prototype.play for debug
-(function patchPlay() {
-    const checkPlay = setInterval(() => {
-        if (typeof Pattern === "undefined" || !Pattern.prototype.play) return;
-        clearInterval(checkPlay);
-        const _origPlay = Pattern.prototype.play;
-        Pattern.prototype.play = function() {
-            addLogEntry("strudel", ".play() called", true);
-            _origPlay.call(this);
-        };
-    }, 50);
-})();
-
-(async function initStrudelAsync() {
-    // Poll for window.evaluate
-    let attempts = 0;
-    while (typeof window.evaluate !== "function" && attempts < 100) {
-        await new Promise(r => setTimeout(r, 100));
-        attempts++;
+// ── Initialize one owned Strudel scheduler ──────────────────
+// Do not call @strudel/web initStrudel(): it creates a module-scoped Cyclist
+// that the application cannot read or control. The local adapter prebakes the
+// same language/audio scope and owns the only production scheduler.
+initStatus.textContent = "Loading owned Strudel transport...";
+(async function initOwnedStrudelAsync() {
+    try {
+        ownedTransport = await createOwnedStrudelTransport({
+            cps: 0.5,
+            reconnectPolicy: "declared-hard-reset",
+            onError: (where, error) => addLogEntry("strudel", `[${where}] ${error?.message || error}`, false),
+        });
+        diag.transportOwner = "owned-webaudio-Cyclist";
+        diag.transportFormat = ownedTransport.serializableSnapshot("ready-diagnostic").format;
+        diag.hiddenInitDisabled = true;
+    } catch (error) {
+        diag.transportError = error.message || String(error);
+        initStatus.textContent = "Owned Strudel transport failed: " + diag.transportError;
+        addLogEntry("strudel", diag.transportError, false);
+        return;
     }
-    diag.evaluateFound = typeof window.evaluate === "function";
-    diag.evaluateWaitMs = attempts * 100;
 
     // Load sample banks
     diag.samplesAvail = typeof window.samples === "function";
@@ -285,6 +452,7 @@ initStrudel();
     diag.hushAvail = typeof window.hush === "function";
     diag.stackAvail = typeof window.stack === "function";
     diag.getAudioCtxAvail = typeof window.getAudioContext === "function";
+    diag.schedulerOwned = !!ownedTransport?.scheduler;
 
     strudelReady = true;
     checkAllReady();
@@ -293,11 +461,78 @@ initStrudel();
 // ── p5.js sketch (global mode) ──────────────────────────────
 window.setup = function() {
     createCanvas(windowWidth, windowHeight);
+    pixelDensity(1);   // retina fill-rate: ~3-4x cheaper, protects the 20fps floor
     colorMode(HSB, 360, 100, 100, 100);
     background(0);
+
+    // Strudel and p5 both expose a few short global names (frameRate is one
+    // observed collision). Capture p5's installed global-mode descriptors
+    // before Strudel prebakes its evaluation vocabulary. The transport restores
+    // these for every visual frame and temporarily swaps Strudel's scope only
+    // while compiling a musical pattern.
+    const p5Globals = {};
+    for (const name of Object.getOwnPropertyNames(p5.prototype)) {
+        if (Object.prototype.hasOwnProperty.call(window, name)) {
+            p5Globals[name] = Object.getOwnPropertyDescriptor(window, name);
+        }
+    }
+    for (const name of [
+        "width", "height", "frameCount", "deltaTime", "focused",
+        "mouseX", "mouseY", "pmouseX", "pmouseY", "winMouseX", "winMouseY",
+        "touches", "key", "keyCode", "keyIsPressed", "mouseIsPressed",
+    ]) {
+        if (Object.prototype.hasOwnProperty.call(window, name)) {
+            p5Globals[name] = Object.getOwnPropertyDescriptor(window, name);
+        }
+    }
+    window.__livecodeP5Globals = Object.freeze(p5Globals);
+    p5Ready = true;
+    checkAllReady();
 };
 
+// Clock authority: one immutable frame derived from the owned AudioContext-
+// backed Cyclist. It freezes while audio is suspended/stopped and phase remains
+// continuous through tempo changes. Presentation phase is exposed separately
+// as an estimate; it is not mislabeled as scheduler truth.
+function updateClock() {
+    const transport = ownedTransport?.frame() || window.state.transport || {};
+    const cps = transport.cps || 0.5;
+    const t = transport.seconds || 0;
+    // Visuals follow the estimated cycle at the audio output device when an
+    // audible Strudel hap has provided a schedule anchor. Silent/metadata-only
+    // patterns fall back to the phase-continuous scheduler integral.
+    const visualEstimate = Number.isFinite(transport.presentationCycleEstimate)
+        ? transport.presentationCycleEstimate
+        : transport.cycle;
+    const cycle = Math.max(0, visualEstimate || 0);
+    const beat = cycle * 4;
+    const secBeats = window.state.secBeats || 32;  // 8 bars per section default
+    const section = Math.floor(beat / secBeats) % 8;
+    const arc = window.state.arc || [.2, .4, .7, .9, .3, .6, 1, .4];
+    window.state.cps = cps; // legacy readers; transport remains the authority
+    window.state.clk = {
+        t, cps, beat,
+        bar: cycle,
+        cyc: cycle % 1,
+        phase: beat % 1,                                   // 0 at each beat onset
+        pulse: Math.pow(1 - (beat % 1), 3),                // spikes on the beat, decays
+        swell: Math.pow(Math.max(0, Math.sin((beat % 1) * Math.PI)), 2),
+        section,
+        intensity: arc[section % arc.length],
+        fps: frameRate(),
+        schedulerCycle: transport.cycle || 0,
+        schedulerQueryCycle: transport.schedulerQueryCycle ?? null,
+        audioGraphCycleEstimate: transport.audioGraphCycleEstimate ?? null,
+        generation: transport.generation || 0,
+        playing: !!transport.playing,
+        source: transport.source || "uninitialized",
+        confidence: transport.confidence || "uninitialized",
+        presentationCycleEstimate: transport.presentationCycleEstimate ?? null,
+    };
+}
+
 window.draw = function() {
+    updateClock();
     for (const name of layerOrder) {
         const layer = p5Layers.get(name);
         if (!layer) continue;
@@ -325,11 +560,12 @@ window.windowResized = function() {
     resizeCanvas(windowWidth, windowHeight);
 };
 
-p5Ready = true;
-
 function checkAllReady() {
     if (p5Ready && strudelReady) {
         initStatus.textContent = "Ready — click above to start";
+        const startButton = document.getElementById("start-btn");
+        startButton.disabled = false;
+        startButton.textContent = "Start Audio & Visuals (v3)";
     } else if (p5Ready) {
         initStatus.textContent = "p5 ready, loading Strudel...";
     }
@@ -445,10 +681,70 @@ function addLogEntry(system, text, ok) {
     execLog.appendChild(el);
     while (execLog.children.length > 200) execLog.removeChild(execLog.firstChild);
     execLog.scrollTop = execLog.scrollHeight;
+
+    // Autopilot: forward failures to the server so the improv loop can self-correct.
+    if (!ok && ws && ws.readyState === WebSocket.OPEN) {
+        try {
+            ws.send(JSON.stringify({ type: "log_error", system, message: text, ts: Date.now() }));
+        } catch (e) { /* logging must never break rendering */ }
+    }
 }
 
 function escapeHTML(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ── Step navigation ─────────────────────────────────────────
+const stepDisplayEl = document.getElementById("step-display");
+const stepInfoEl = document.getElementById("step-info");
+const stepLabelEl = document.getElementById("step-label");
+const stepToast = document.getElementById("step-toast");
+let currentStep = -1;
+let totalSteps = 0;
+let toastTimer = null;
+
+function updateStepDisplay(data) {
+    const prevLabel = stepLabelEl.textContent;
+    currentStep = data.step;
+    totalSteps = data.total;
+    if (data.total > 0) {
+        stepDisplayEl.style.display = "inline";
+        const sec = data.section || 0;
+        const totalSec = data.totalSections || data.total;
+        stepInfoEl.textContent = `${sec}/${totalSec}`;
+        if (data.label) {
+            stepLabelEl.style.display = "inline";
+            stepLabelEl.textContent = data.label;
+            // Show big toast when section changes
+            if (data.label !== prevLabel) {
+                showToast(data.label, sec, totalSec);
+            }
+        } else {
+            stepLabelEl.style.display = "none";
+        }
+    } else {
+        stepDisplayEl.style.display = "none";
+        stepLabelEl.style.display = "none";
+    }
+}
+
+function showToast(label, sec, totalSec) {
+    if (toastTimer) clearTimeout(toastTimer);
+    stepToast.innerHTML = `${escapeHTML(label)}<div class="toast-section">Section ${sec} of ${totalSec}</div>`;
+    stepToast.classList.add("visible");
+    toastTimer = setTimeout(() => {
+        stepToast.classList.remove("visible");
+    }, 2000);
+}
+
+function stepNav(direction) {
+    const port = location.port;
+    const route = direction === "next" ? "/show/next" : "/show/prev";
+    fetch(`http://${location.hostname}:${port}${route}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: "{}",
+    }).catch(() => {});
 }
 
 // ── Keyboard shortcuts ──────────────────────────────────────
@@ -462,12 +758,21 @@ document.addEventListener("keydown", (e) => {
         showLog = !showLog;
         execLog.style.display = showLog ? "block" : "none";
     }
+    if (e.key === "ArrowRight") {
+        e.preventDefault();
+        stepNav("next");
+    }
+    if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        stepNav("prev");
+    }
 });
 
 // ── WebSocket ───────────────────────────────────────────────
 function connect() {
     if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
-    ws = new WebSocket("ws://localhost:8765");
+    const wsPort = new URLSearchParams(location.search).get("ws") || (parseInt(location.port, 10) - 1);
+    ws = new WebSocket(`ws://${location.hostname}:${wsPort}`);
 
     ws.addEventListener("open", () => {
         dot.classList.add("connected");
@@ -490,10 +795,20 @@ function connect() {
     ws.addEventListener("message", (evt) => {
         let msg;
         try { msg = JSON.parse(evt.data); } catch { return; }
+
+        if (msg.type === "step_update") {
+            updateStepDisplay(msg);
+            return;
+        }
+
         if (msg.type !== "execute") return;
 
         if (msg.target === "strudel") {
             executeStrudelCode(msg.code, msg.id, !!msg.evaluate);
+        } else if (msg.target === "transport") {
+            executeTransportMessage(msg);
+        } else if (msg.target === "video") {
+            executeVideoMessage(msg);
         } else {
             // Default target is p5
             executeP5Message(msg);
@@ -511,12 +826,84 @@ function connect() {
     ws.addEventListener("error", () => {});
 }
 
-function sendResponse(id, success, errorMessage) {
+function sendResponse(id, success, errorMessage, result) {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(success
-        ? { type: "status", id, success: true }
-        : { type: "error", id, message: errorMessage }
-    ));
+    let payload;
+    if (success) {
+        payload = { type: "status", id, success: true };
+        if (result !== undefined) {
+            try { payload.result = JSON.parse(JSON.stringify(result)); }
+            catch (e) { payload.result = String(result); }
+        }
+    } else {
+        payload = { type: "error", id, message: errorMessage };
+    }
+    ws.send(JSON.stringify(payload));
+}
+
+// ── Execute owned transport command ─────────────────────────
+async function executeTransportMessage(msg) {
+    const { id, mode } = msg;
+    try {
+        if (!ownedTransport) throw new Error("Owned Strudel transport is not ready");
+        let result;
+        switch (mode) {
+            case "configure":
+                result = ownedTransport.configure({
+                    cps: msg.cps,
+                    serverGeneration: msg.serverGeneration,
+                    reconnectPolicy: msg.reconnectPolicy,
+                    reason: msg.reason || "server-configure",
+                });
+                break;
+            case "set_cps":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                result = ownedTransport.setCps(msg.cps, msg.reason || "server-set-cps");
+                break;
+            case "hush":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                strudelTracks.clear();
+                updateCounts();
+                updateCodeOverlay();
+                result = ownedTransport.hush(msg.reason || "server-hush");
+                break;
+            case "reset":
+                if (Number.isFinite(Number(msg.serverGeneration))) {
+                    ownedTransport.serverGeneration = Number(msg.serverGeneration);
+                }
+                result = await ownedTransport.resetAtBoundary(
+                    msg.quantumCycles ?? 1,
+                    msg.reason || "server-quantized-reset",
+                );
+                break;
+            case "snapshot":
+                result = ownedTransport.serializableSnapshot(msg.reason || "server-snapshot");
+                break;
+            default:
+                throw new Error(`Unknown transport mode: ${mode}`);
+        }
+        addLogEntry("strudel", `transport:${mode}`, true);
+        sendResponse(id, true, null, result);
+    } catch (err) {
+        const message = err.message || String(err);
+        addLogEntry("strudel", `transport:${mode}: ${message}`, false);
+        sendResponse(id, false, message);
+    }
+}
+
+// ── Audio context keep-alive ────────────────────────────────
+// A fullscreen video segment hushes Strudel; the AudioContext then sits idle and
+// some browsers auto-suspend it. Re-evaluating tracks on resume would set the
+// pattern but produce no sound. So resume the context before every evaluation.
+async function ensureAudioRunning() {
+    try {
+        const ac = typeof getAudioContext === "function" ? getAudioContext() : null;
+        if (ac && ac.state === "suspended") await ac.resume();
+    } catch (e) {}
 }
 
 // ── Execute Strudel code ────────────────────────────────────
@@ -526,6 +913,7 @@ async function executeStrudelCode(code, id, useEvaluate) {
             // Track the code for overlay display
             // Parse track names from stack() or single pattern
             trackStrudelCode(code);
+            await ensureAudioRunning();
             await window.evaluate(code, true);
         } else {
             // Plain eval — hush(), samples(), etc.
@@ -596,16 +984,16 @@ function executeP5Message(msg) {
             default: {
                 const result = eval(code);
                 if (result && typeof result.then === "function") {
-                    result.then(() => {
+                    result.then((resolved) => {
                         addLogEntry("p5", code.substring(0, 80), true);
-                        sendResponse(id, true);
+                        sendResponse(id, true, null, resolved);
                     }).catch((err) => {
                         addLogEntry("p5", `eval error: ${err.message}`, false);
                         sendResponse(id, false, err.message);
                     });
                 } else {
                     addLogEntry("p5", code.substring(0, 80), true);
-                    sendResponse(id, true);
+                    sendResponse(id, true, null, result);
                 }
                 break;
             }
@@ -617,17 +1005,122 @@ function executeP5Message(msg) {
     }
 }
 
-// ── Start ───────────────────────────────────────────────────
-document.getElementById("start-btn").addEventListener("click", async () => {
-    // Resume AudioContext
-    let acState = "no-context";
+// ── Execute video message ───────────────────────────────────
+// Fullscreen mp4 player. The browser owns sequential playback (auto-advances on
+// 'ended') and reports progress back as {type:"video_update", ...} so the server
+// can mark dropbox files seen and the autopilot knows when the batch is done.
+const videoEl = document.getElementById("video-player");
+let videoPlaylist = [];
+let videoIdx = -1;
+let videoActive = false;
+
+function videoReport(extra) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const cur = (videoIdx >= 0 && videoIdx < videoPlaylist.length) ? videoPlaylist[videoIdx] : null;
     try {
+        ws.send(JSON.stringify(Object.assign({
+            type: "video_update",
+            index: videoIdx,
+            total: videoPlaylist.length,
+            current: cur ? cur.key : null,
+        }, extra || {})));
+    } catch (e) { /* never break playback on a report failure */ }
+}
+
+function videoTeardown() {
+    videoEl.pause();
+    videoEl.removeAttribute("src");
+    try { videoEl.load(); } catch (e) {}  // releases the decoder (may fire a benign 'error')
+    videoEl.style.display = "none";
+}
+
+function videoAdvance() {
+    const next = videoIdx + 1;
+    if (next >= videoPlaylist.length) {  // playlist exhausted → hard end
+        videoActive = false;
+        videoReport({ ended: true, playlistDone: true });
+        videoIdx = -1;
+        videoPlaylist = [];
+        videoTeardown();
+        return;
+    }
+    videoIdx = next;
+    const item = videoPlaylist[videoIdx];
+    videoEl.style.display = "block";
+    videoEl.src = item.url;
+    const p = videoEl.play();
+    videoReport({ playing: true });
+    if (p && p.catch) {
+        p.catch((err) => addLogEntry("video", `play() rejected: ${err.message || err}`, false));
+    }
+}
+
+videoEl.addEventListener("ended", () => {
+    if (!videoActive) return;
+    const item = videoPlaylist[videoIdx];
+    videoReport({ key: item && item.key, ended: true });  // server marks dropbox seen
+    videoAdvance();
+});
+
+videoEl.addEventListener("error", () => {
+    if (!videoActive) return;  // ignore teardown-triggered errors
+    const item = videoPlaylist[videoIdx];
+    addLogEntry("video", `error loading ${item ? item.name : "?"}`, false);
+    videoReport({ key: item && item.key, ended: false, error: "load failed" });  // NOT marked seen
+    videoAdvance();
+});
+
+function executeVideoMessage(msg) {
+    const mode = msg.mode;
+    if (mode === "play") {
+        videoPlaylist = (msg.playlist || []).slice();
+        videoIdx = -1;
+        videoActive = true;
+        strudelTracks.clear(); updateCounts(); updateCodeOverlay();  // music hushed server-side
+        videoAdvance();
+    } else if (mode === "append") {
+        videoPlaylist = videoPlaylist.concat(msg.playlist || []);
+        if (!videoActive) { videoActive = true; videoAdvance(); }  // resume if it had ended
+    } else if (mode === "stop") {
+        videoActive = false;
+        videoIdx = -1;
+        videoPlaylist = [];
+        videoTeardown();
+        ensureAudioRunning();  // wake the context so the resumed music is audible
+    }
+}
+
+// ── Start ───────────────────────────────────────────────────
+window.__livecodeAudioReady = false;
+window.__livecodeAudioError = null;
+document.getElementById("start-btn").addEventListener("click", async () => {
+    const button = document.getElementById("start-btn");
+    button.disabled = true;
+    button.textContent = "Starting audio...";
+    window.__livecodeAudioReady = false;
+    window.__livecodeAudioError = null;
+    try {
+        if (!strudelReady || !ownedTransport) {
+            throw new Error("Strudel transport is still loading");
+        }
         const ac = typeof getAudioContext === "function"
             ? getAudioContext()
             : new AudioContext();
-        acState = ac.state;
         if (ac.state === "suspended") await ac.resume();
-        acState = ac.state;
+        if (ac.state !== "running") {
+            throw new Error(`AudioContext is ${ac.state}; a direct user click is required`);
+        }
+
+        // Register superdough's DSP AudioWorklets on the owned context. The owned
+        // transport deliberately skips initStrudel(), which is what normally does
+        // this — so without it, worklet-backed effects (.shape / .coarse / .crush)
+        // silently output NOTHING (distort/lpf/gain are unaffected). Must run after
+        // resume() so the context is running when addModule registers the modules.
+        if (typeof window.initAudio !== "function") {
+            throw new Error("Strudel DSP initializer is unavailable");
+        }
+        await window.initAudio();
+        diag.dspWorklets = "registered";
 
         // Test beep
         const osc = ac.createOscillator();
@@ -637,15 +1130,22 @@ document.getElementById("start-btn").addEventListener("click", async () => {
         osc.connect(g).connect(ac.destination);
         osc.start();
         setTimeout(() => osc.stop(), 150);
+        diag.audioState = ac.state;
+        window.__livecodeAudioReady = true;
+        document.getElementById("overlay").style.display = "none";
+        document.getElementById("footer").style.display = "flex";
+        connect();
     } catch (e) {
-        acState = "error: " + e.message;
+        const message = e.message || String(e);
+        diag.audioState = "error: " + message;
+        diag.dspWorklets = diag.dspWorklets || "error: " + message;
+        window.__livecodeAudioReady = false;
+        window.__livecodeAudioError = message;
+        initStatus.textContent = "Audio failed: " + message;
+        addLogEntry("strudel", "audio startup: " + message, false);
+        button.disabled = false;
+        button.textContent = "Retry Audio & Visuals";
     }
-
-    diag.audioState = acState;
-
-    document.getElementById("overlay").style.display = "none";
-    document.getElementById("footer").style.display = "flex";
-    connect();
 });
 </script>
 </body>

@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.orthographic",
+  "kind": "genart",
+  "name": "Orthographic",
+  "desc": "A general-arrangement plate of a bossed bracket in true orthographic projection \u2014 plan, front and side elevations laid out in first or third angle with heavy visible outlines, dashed hidden bores, dash-dot centrelines and arrowheaded dimensions whose numbers keep changing because the part itself is slowly morphing, while an isometric pictorial turns in the fourth quadrant.",
+  "tags": [
+    "orthographic",
+    "projection",
+    "three-view",
+    "plan",
+    "elevation",
+    "section",
+    "first-angle",
+    "third-angle",
+    "isometric",
+    "axonometric",
+    "pictorial",
+    "hidden-line",
+    "dashed",
+    "centreline",
+    "dimension",
+    "dimensioning",
+    "arrowhead",
+    "leader",
+    "callout",
+    "drafting",
+    "draughting",
+    "technical",
+    "drawing",
+    "plate",
+    "sheet",
+    "general-arrangement",
+    "engineering",
+    "machine",
+    "part",
+    "bracket",
+    "boss",
+    "bore",
+    "cad",
+    "wireframe",
+    "xray",
+    "ghost",
+    "schematic",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "title-block",
+    "clinical",
+    "austere",
+    "rigorous",
+    "precision",
+    "industrial"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "outline weight + pictorial spin rate + projector-ray glow + plate float"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.1,
+      "doc": "view size and quadrant spread \u2014 a true plate zoom"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of mounting bores through the base (2..4)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "rate of the part morph and the pictorial rotation"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint (film/ghost styles); other styles are fixed inks"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "plate centre, canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "plate centre, canvas fraction"
+    },
+    "morph": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "how fast the part's features drift \u2014 the dimensions are live"
+    },
+    "anno": {
+      "default": 0.75,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: dimensions, projectors, view labels, projection symbol, title block"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "wire"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / additive x-ray ghost (all internal structure shown at once) / wire (pure CAD wireframe, every edge, no fills)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "part proportions, feature phasing, and first- vs third-angle convention"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the plate ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:44:52+00:00",
+    "fps": 57.8,
+    "motion": 0.0234,
+    "lum": 0.256
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:150, x:.5, y:.5, morph:.7, anno:.75, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\nconst MOR = cl(P.morph,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { g:[214,74,17], vis:[200,6,99], hid:[198,30,72], ctr:[196,40,80], dim:[200,16,88], anno:[200,10,92], face:[208,52,44], grain:34, add:false, wash:[196,22,80], cell:[212,58,24] };\n  if (sty==='engraving') return { g:[38,18,71],  vis:[28,42,10], hid:[30,30,34], ctr:[8,64,40],  dim:[28,38,20], anno:[28,42,13], face:[36,16,58], grain:32, add:false, wash:[44,26,96], cell:[36,13,64] };\n  if (sty==='ghost')     return { g:[232,60,8],  vis:[H,26,98], hid:[H,52,68], ctr:[12,72,60], dim:[H,18,86], anno:[H,14,86], face:[H,60,34], grain:16, add:true,  wash:[H,46,60], cell:[230,50,13] };\n  if (sty==='wire')      return { g:[192,44,7],  vis:[172,66,94], hid:[172,50,52], ctr:[10,70,66], dim:[52,56,86], anno:[52,54,86], face:[178,60,18], grain:12, add:false, wash:[180,44,54], cell:[190,46,12] };\n  return { g:[H,16,20], vis:[H,4,95], hid:[H,10,60], ctr:[10,66,62], dim:[H,8,82], anno:[H,6,88], face:[H,12,46], grain:28, add:false, wash:[H,12,80], cell:[H,12,26] };\n}\nconst C = pal();\nconst hw = q => ((q%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst wire = (sty==='wire'), xray = (sty==='ghost');\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.mt = (S.mt||0) + dt*P.speed*(.5+1.5*MOR)*(.6+.7*K.intensity);   // morph clock, monotonic\nS.rt = (S.rt||0) + dt*P.speed*(.25+.55*NRG);                       // pictorial spin clock\nconst mt = S.mt;\nconst drx = .9*Math.sin(K.t*.137) + .5*Math.sin(K.t*.293+1.7) + .32*Math.sin(K.t*.451);\nconst dry = .8*Math.sin(K.t*.109+2.1) + .45*Math.sin(K.t*.257+.6) + .28*Math.sin(K.t*.611+1.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\nconst first = fr(9.13) < .38;                                       // first- vs third-angle\n\n// ---- the part: primitives whose dimensions drift on incommensurate rates -----\nconst ph = k => fr(k*7.31+1)*T2;\nconst dr = (f,a,b,k) => a + (b-a)*(.5+.5*Math.sin(mt*f + ph(k)));\nconst W  = dr(.083,.66,.98,1), Dp = dr(.061,.36,.62,2), tb = dr(.107,.06,.13,3);\nconst hv = dr(.073,.24,.54,4), tv = dr(.119,.05,.11,5);\nconst br = dr(.091,.09,.17,6), bl = dr(.067,.16,.34,7);\nconst hr = br*dr(.113,.40,.64,8);\nconst bxo = dr(.053,-.12,.16,9);\nconst mr = dr(.101,.028,.052,10);\nconst mh = .09 + mr*1.6;\nconst prims = [\n  { t:'box', c:[0, tb/2, 0], e:[W, tb, Dp], v:1 },\n  { t:'box', c:[bxo, tb+hv/2, 0], e:[tv*2.4, hv, Dp*.66], v:1 },\n  { t:'cyl', ax:'z', c:[bxo, tb+hv, 0], r:br, L:bl, v:1 },\n  { t:'cyl', ax:'z', c:[bxo, tb+hv, 0], r:hr, L:bl*1.5, v:0 }\n];\nconst nh = cl(Math.round(2 + cl(P.density,0,1)*2), 2, 4);\nfor (let i=0;i<nh;i++){\n  const sx2 = (i%2)?1:-1, sz = (i<2)?1:-1;\n  prims.push({ t:'cyl', ax:'y', c:[sx2*(W/2-mh), tb/2, sz*(Dp/2-mh)*(nh>2?1:0)], r:mr, L:tb*1.6, v:0 });\n}\nif (fr(4.4) < .5) prims.push({ t:'box', c:[0, tb/2, 0], e:[W*dr(.077,.12,.30,11), tb*1.6, Dp*.22], v:0 });\n\nfunction ext(p){\n  if (p.t==='box') return [p.e[0], p.e[1], p.e[2]];\n  const d2 = p.r*2;\n  return p.ax==='x' ? [p.L,d2,d2] : p.ax==='y' ? [d2,p.L,d2] : [d2,d2,p.L];\n}\n\n// ---- cached plate texture ---------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.44 + .32*fr(Math.floor(x/8)*13.71+Math.floor(y/8)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\nnoStroke(); fill(C.g[0],C.g[1],C.g[2],100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\nconst wx = width*(.5+.28*Math.sin(K.t*.071)), wy = height*(.5+.24*Math.sin(K.t*.097+1.2));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ fill(C.wash[0],C.wash[1],C.wash[2],(2.0+1.8*glow)*AL); const rw=u*(.30+i*.20); ellipse(wx,wy,rw*2,rw*1.7); }\npop(); blendMode(BLEND);\nconst gs2 = u*.05;\nsc(C.anno, 7+6*anno); strokeWeight(Math.max(.5,u*.0008));\nfor (let x=(-drx*u*.008)%gs2; x<width; x+=gs2) line(x,0,x,height);\nfor (let y=(-dry*u*.008)%gs2; y<height; y+=gs2) line(0,y,width,y);\n\n// ---- layout -----------------------------------------------------------------\nconst SCA = cl(P.scale,.45,2.1);\nconst VS = u*.30*SCA;\nconst spx = u*.26*SCA, spy = u*.21*SCA;\nconst AX = cl(P.x,.22,.78)*width  + u*.010*NRG*drx;\nconst AY = cl(P.y,.24,.76)*height + u*.009*NRG*dry;\nconst VIEWS = first\n  ? [ {n:'FRONT ELEVATION', k:'front', x:AX-spx, y:AY-spy},\n      {n:'PLAN',            k:'plan1', x:AX-spx, y:AY+spy},\n      {n:'LEFT ELEVATION',  k:'left1', x:AX+spx, y:AY-spy} ]\n  : [ {n:'FRONT ELEVATION', k:'front', x:AX-spx, y:AY+spy},\n      {n:'PLAN',            k:'plan3', x:AX-spx, y:AY-spy},\n      {n:'RIGHT ELEVATION', k:'right3',x:AX+spx, y:AY+spy} ];\nconst ISO = first ? {x:AX+spx, y:AY+spy} : {x:AX+spx, y:AY-spy};\nconst PJ = {\n  front: { ax:'z', fx:p=>p[0],  fy:p=>-p[1] },\n  plan3: { ax:'y', fx:p=>p[0],  fy:p=>p[2]  },\n  plan1: { ax:'y', fx:p=>p[0],  fy:p=>-p[2] },\n  right3:{ ax:'x', fx:p=>-p[2], fy:p=>-p[1] },\n  left1: { ax:'x', fx:p=>p[2],  fy:p=>-p[1] }\n};\nconst YOFF = -(tb+hv+br)*.5;   // centre the part vertically in each view\n\n// ---- line-type vocabulary ---------------------------------------------------\nconst LWV = Math.max(1.0, u*.0028*(.6+.8*NRG));   // visible outline: heavy\nconst LWH = Math.max(.6,  u*.0013);               // hidden: thin\nconst LWC = Math.max(.5,  u*.0009);               // centreline: thin\nfunction dash(x0,y0,x1,y1,dl,gp){\n  const L = Math.hypot(x1-x0,y1-y0); if (L<.5) return;\n  const ux=(x1-x0)/L, uy=(y1-y0)/L;\n  for (let s=0;s<L;s+=dl+gp){ const e=Math.min(L,s+dl); line(x0+ux*s,y0+uy*s,x0+ux*e,y0+uy*e); }\n}\nfunction dashRect(x,y,w2,h2,dl,gp){ dash(x,y,x+w2,y,dl,gp); dash(x+w2,y,x+w2,y+h2,dl,gp); dash(x+w2,y+h2,x,y+h2,dl,gp); dash(x,y+h2,x,y,dl,gp); }\nfunction ddot(x0,y0,x1,y1,per){\n  const L = Math.hypot(x1-x0,y1-y0); if (L<.5) return;\n  const ux=(x1-x0)/L, uy=(y1-y0)/L;\n  for (let s=0;s<L;s+=per){\n    line(x0+ux*s,y0+uy*s, x0+ux*Math.min(L,s+per*.58), y0+uy*Math.min(L,s+per*.58));\n    const c=Math.min(L,s+per*.74); line(x0+ux*c,y0+uy*c, x0+ux*Math.min(L,c+per*.09), y0+uy*Math.min(L,c+per*.09));\n  }\n}\n\nfunction drawView(V){\n  const J = PJ[V.k];\n  const OX = V.x, OY = V.y;\n  const SX = q => OX + J.fx(q)*VS, SY = q => OY + J.fy([q[0], q[1]+YOFF, q[2]])*VS;\n  // cell\n  const cwid = Math.max(W,Dp)*VS*.72 + u*.05, chei = (tb+hv+br*2)*VS*.72 + u*.05;\n  noStroke(); fc(C.cell, xray? 8 : 26); rect(OX-cwid, OY-chei, cwid*2, chei*2);\n  noFill(); sc(C.anno, 16+22*anno); strokeWeight(LWC); rect(OX-cwid, OY-chei, cwid*2, chei*2);\n\n  for (let i=0;i<prims.length;i++){\n    const p = prims[i], e = ext(p);\n    const alongAxis = (p.t==='cyl' && p.ax === J.ax);\n    // bbox corners -> projected extents\n    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;\n    for (let k=0;k<8;k++){\n      const q = [p.c[0] + ((k&1)?.5:-.5)*e[0], p.c[1] + ((k&2)?.5:-.5)*e[1], p.c[2] + ((k&4)?.5:-.5)*e[2]];\n      const sx2 = SX(q), sy2 = SY(q);\n      if (sx2<x0)x0=sx2; if (sx2>x1)x1=sx2; if (sy2<y0)y0=sy2; if (sy2>y1)y1=sy2;\n    }\n    const cxp = SX(p.c), cyp = SY(p.c);\n    // a bore seen ALONG its axis is a visible circle; seen ACROSS it, hidden dashed lines\n    const visible = p.v ? true : alongAxis;\n    if (wire || xray){\n      sc(p.v ? C.vis : C.hid, (xray? 52+34*glow : 78)); strokeWeight(p.v ? LWV*.55 : LWH);\n      noFill();\n      if (alongAxis) ellipse(cxp, cyp, p.r*2*VS, p.r*2*VS); else rect(x0,y0,x1-x0,y1-y0);\n    } else if (visible){\n      if (p.v){ noStroke(); fc(C.face, 30); if (alongAxis) ellipse(cxp,cyp,p.r*2*VS,p.r*2*VS); else rect(x0,y0,x1-x0,y1-y0); }\n      else { noStroke(); fc(C.g, 82); if (alongAxis) ellipse(cxp,cyp,p.r*2*VS,p.r*2*VS); }\n      noFill(); sc(C.vis, 94); strokeWeight(p.v ? LWV : LWV*.72);\n      if (alongAxis) ellipse(cxp, cyp, p.r*2*VS, p.r*2*VS); else rect(x0,y0,x1-x0,y1-y0);\n    } else {\n      noFill(); sc(C.hid, 82); strokeWeight(LWH);\n      dashRect(x0, y0, x1-x0, y1-y0, u*.014, u*.008);\n    }\n    // centrelines through every cylinder, in every view (real practice)\n    if (p.t==='cyl'){\n      sc(C.ctr, 52+26*anno); strokeWeight(LWC);\n      const ov = Math.max(x1-x0, y1-y0)*.16 + u*.012;\n      if (alongAxis){ ddot(cxp-(p.r*VS+ov), cyp, cxp+(p.r*VS+ov), cyp, u*.019); ddot(cxp, cyp-(p.r*VS+ov), cxp, cyp+(p.r*VS+ov), u*.019); }\n      else {\n        const horiz = Math.abs(x1-x0) > Math.abs(y1-y0);\n        if (horiz) ddot(x0-ov, cyp, x1+ov, cyp, u*.019); else ddot(cxp, y0-ov, cxp, y1+ov, u*.019);\n      }\n    }\n  }\n  if (anno > .1){\n    noStroke(); textFont('monospace'); textAlign(CENTER, TOP); textSize(Math.max(6, u*.0125));\n    fc(C.anno, 70+28*anno); text(V.n, OX, OY + chei + u*.006);\n  }\n  return { OX, OY, cwid, chei, SX, SY };\n}\n\n// ---- dimension line with arrowheads + live value ----------------------------\nfunction dimH(x0, x1, y, val, off){\n  const ar = u*.010;\n  sc(C.dim, 78); strokeWeight(LWC);\n  line(x0, y-off*.82, x0, y+ar*.5); line(x1, y-off*.82, x1, y+ar*.5);\n  line(x0, y, x1, y);\n  line(x0,y, x0+ar,y-ar*.36); line(x0,y, x0+ar,y+ar*.36);\n  line(x1,y, x1-ar,y-ar*.36); line(x1,y, x1-ar,y+ar*.36);\n  noStroke(); textFont('monospace'); textAlign(CENTER, BOTTOM); textSize(Math.max(6,u*.0125));\n  fc(C.dim, 94); text(val, (x0+x1)/2, y-u*.004);\n}\nfunction dimV(y0, y1, x, val, off){\n  const ar = u*.010;\n  sc(C.dim, 78); strokeWeight(LWC);\n  line(x-off*.82, y0, x+ar*.5, y0); line(x-off*.82, y1, x+ar*.5, y1);\n  line(x, y0, x, y1);\n  line(x,y0, x-ar*.36,y0+ar); line(x,y0, x+ar*.36,y0+ar);\n  line(x,y1, x-ar*.36,y1-ar); line(x,y1, x+ar*.36,y1-ar);\n  push(); translate(x-u*.006, (y0+y1)/2); rotate(-Math.PI/2);\n  noStroke(); textFont('monospace'); textAlign(CENTER, BOTTOM); textSize(Math.max(6,u*.0125));\n  fc(C.dim, 94); text(val, 0, 0); pop();\n}\n\nif (C.add) blendMode(ADD);\nconst R = [];\nfor (const V of VIEWS) R.push(drawView(V));\nblendMode(BLEND);\n\n// projectors: the construction rays that tie the views together, plus a travelling one\nif (anno > .3 && R.length >= 3){\n  const F = R[0], PL = R[1], SD = R[2];\n  sc(C.ctr, 16+16*anno); strokeWeight(Math.max(.4,u*.0007));\n  for (let i=-2;i<=2;i++){\n    const px2 = F.OX + i*(W*VS/4);\n    dash(px2, F.OY - F.chei, px2, PL.OY + (first?-PL.chei:PL.chei), u*.012, u*.010);\n  }\n  for (let i=-1;i<=1;i++){\n    const py2 = F.OY + i*((tb+hv)*VS/3);\n    dash(F.OX + F.cwid, py2, SD.OX - SD.cwid, py2, u*.012, u*.010);\n  }\n  // one bright projector ray sweeping the plate on an incommensurate rate\n  const sw = (.5 + .5*Math.sin(K.t*.223)) ;\n  const rx = F.OX - F.cwid + sw*(F.cwid*2);\n  sc(C.dim, 52+38*glow); strokeWeight(Math.max(.9,u*.0022));\n  dash(rx, PL.OY - PL.chei, rx, F.OY + F.chei, u*.020, u*.012);\n  const ry2 = F.OY - F.chei + (.5+.5*Math.sin(K.t*.171+2.1))*(F.chei*2);\n  dash(F.OX - F.cwid, ry2, SD.OX + SD.cwid, ry2, u*.020, u*.012);\n}\n\n// ---- dimensions on the front + plan (values are live: the part is morphing) --\nif (anno > .2 && R.length >= 2){\n  const F = R[0], PL = R[1];\n  dimH(F.OX - W/2*VS, F.OX + W/2*VS, F.OY + F.chei*.80, (W*100).toFixed(1), u*.04);\n  const yTop = F.SY([0, tb+hv+br, 0]), yBot = F.SY([0, 0, 0]);\n  dimV(yTop, yBot, F.OX - F.cwid*.80, ((tb+hv+br)*100).toFixed(1), u*.04);\n  const zA = PL.SY([0,0,-Dp/2]), zB = PL.SY([0,0,Dp/2]);\n  dimV(Math.min(zA,zB), Math.max(zA,zB), PL.OX - PL.cwid*.80, (Dp*100).toFixed(1), u*.04);\n  dimH(PL.OX - W/2*VS, PL.OX + W/2*VS, PL.OY + PL.chei*.82, (W*100).toFixed(1), u*.04);\n  // bore leader + diameter callout\n  const lx = F.OX + bxo*VS, ly = F.SY([bxo, tb+hv, 0]);\n  const lex = lx + u*.075, ley = ly - u*.075;\n  sc(C.dim, 84); strokeWeight(LWC);\n  line(lx + hr*VS*.7, ly - hr*VS*.7, lex, ley); line(lex, ley, lex + u*.05, ley);\n  noStroke(); textFont('monospace'); textAlign(LEFT, BOTTOM); textSize(Math.max(6,u*.0125));\n  fc(C.dim, 94); text('DIA ' + (hr*200).toFixed(1) + ' THRU', lex + u*.004, ley - u*.003);\n}\n\n// ---- isometric pictorial: rotates on two incommensurate rates ---------------\n{\n  const az = S.rt*.62 + .34*Math.sin(K.t*.083) + .18*Math.sin(K.t*.197+1.4);\n  const el = .52 + .10*Math.sin(K.t*.061+.7) + .05*Math.sin(K.t*.149+2.2);\n  const ca=Math.cos(az), sa=Math.sin(az), ce=Math.cos(el), se=Math.sin(el);\n  const IV = VS*1.02;\n  const pp = q => { const y=q[1]+YOFF; const x1=q[0]*ca - q[2]*sa, z1=q[0]*sa + q[2]*ca;\n    return [ISO.x + x1*IV, ISO.y - (y*ce - z1*se)*IV, y*se + z1*ce]; };\n  const LGT = [-.42,.72,.55];\n  const faces = [];\n  const pushFace = (vs, n, dark) => {\n    const pts = vs.map(pp);\n    let dsum = 0; for (const q of pts) dsum += q[2];\n    const nx2 = n[0]*ca - n[2]*sa, nz1 = n[0]*sa + n[2]*ca;\n    const ny2 = n[1]*ce - nz1*se, nz2 = n[1]*se + nz1*ce;\n    const dp = cl(nx2*LGT[0] + ny2*LGT[1] + nz2*LGT[2], 0, 1);\n    faces.push({ pts, d: dsum/pts.length, sh: (.24 + .76*dp) * (dark?.22:1) });\n  };\n  const boxFaces = (c,e,dark) => {\n    const hx=e[0]/2, hy=e[1]/2, hz=e[2]/2, X=c[0], Y=c[1], Z=c[2];\n    const V8 = [[X-hx,Y-hy,Z-hz],[X+hx,Y-hy,Z-hz],[X+hx,Y+hy,Z-hz],[X-hx,Y+hy,Z-hz],\n                [X-hx,Y-hy,Z+hz],[X+hx,Y-hy,Z+hz],[X+hx,Y+hy,Z+hz],[X-hx,Y+hy,Z+hz]];\n    pushFace([V8[4],V8[5],V8[6],V8[7]],[0,0,1],dark);  pushFace([V8[1],V8[0],V8[3],V8[2]],[0,0,-1],dark);\n    pushFace([V8[3],V8[7],V8[6],V8[2]],[0,1,0],dark);  pushFace([V8[0],V8[1],V8[5],V8[4]],[0,-1,0],dark);\n    pushFace([V8[5],V8[1],V8[2],V8[6]],[1,0,0],dark);  pushFace([V8[0],V8[4],V8[7],V8[3]],[-1,0,0],dark);\n  };\n  const cylFaces = (p,dark) => {\n    const seg = p.r > .07 ? 12 : 8;\n    const A0 = p.ax==='x'?0 : p.ax==='y'?1 : 2, U1=(A0+1)%3, U2=(A0+2)%3;\n    const rim = k => { const a=k/seg*T2, q=[0,0,0]; q[U1]=Math.cos(a)*p.r; q[U2]=Math.sin(a)*p.r; return q; };\n    for (let s=0;s<seg;s++){\n      const r0=rim(s), r1=rim(s+1);\n      const mk2 = (rr,sg) => { const q=[p.c[0]+rr[0],p.c[1]+rr[1],p.c[2]+rr[2]]; q[A0]+=sg*p.L/2; return q; };\n      const n=[0,0,0]; const am=(s+.5)/seg*T2; n[U1]=Math.cos(am); n[U2]=Math.sin(am);\n      pushFace([mk2(r0,-1),mk2(r1,-1),mk2(r1,1),mk2(r0,1)], n, dark);\n    }\n    for (const sg of [-1,1]){\n      const cap=[]; for (let s=0;s<seg;s++){ const rr=rim(sg>0?s:seg-s); const q=[p.c[0]+rr[0],p.c[1]+rr[1],p.c[2]+rr[2]]; q[A0]+=sg*p.L/2; cap.push(q); }\n      const n=[0,0,0]; n[A0]=sg; pushFace(cap, n, dark);\n    }\n  };\n  for (const p of prims){ if (p.t==='box') boxFaces(p.c,p.e,!p.v); else cylFaces(p,!p.v); }\n  faces.sort((a,b)=>a.d-b.d);\n  if (C.add) blendMode(ADD);\n  for (const f of faces){\n    if (wire) noFill();\n    else fill(hw(C.face[0]), C.face[1]*(1.05-f.sh*.35), cl(C.face[2]*(.35+f.sh*1.05),3,98), (xray? 24 : 96)*AL);\n    sc(C.vis, wire? 70 : (xray? 46+30*glow : 62)); strokeWeight(wire? LWH : Math.max(.5,u*.0009));\n    beginShape(); for (const q of f.pts) vertex(q[0],q[1]); endShape(CLOSE);\n  }\n  blendMode(BLEND);\n  if (anno > .1){\n    noStroke(); textFont('monospace'); textAlign(CENTER, TOP); textSize(Math.max(6,u*.0125));\n    fc(C.anno, 70+28*anno); text('PICTORIAL - ISOMETRIC', ISO.x, ISO.y + VS*.88);\n  }\n}\n\n// ---- sheet border, projection symbol, title block ---------------------------\nconst mgn = u*.028;\nnoFill(); sc(C.anno, 46+24*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.anno, 22+16*anno); strokeWeight(LWC);\nrect(mgn*1.7, mgn*1.7, width-mgn*3.4, height-mgn*3.4);\nif (anno > .08){\n  // first/third-angle truncated-cone projection symbol\n  const py3 = height - mgn*2.7, r1 = u*.015, r2 = u*.0082, hl = u*.026;\n  // the frustum end-view (concentric circles) and its side view; which side they sit on IS the convention\n  const cvx = mgn*2.4 + r1, svx = cvx + hl*2.4;\n  const ex1 = first ? svx : cvx, ex2 = first ? cvx : svx;\n  noFill(); sc(C.anno, 86); strokeWeight(Math.max(.6,u*.0013));\n  ellipse(ex2, py3, r1*2, r1*2); ellipse(ex2, py3, r2*2, r2*2);\n  const bigL = !first;\n  const lR = bigL ? r1 : r2, rR = bigL ? r2 : r1;\n  line(ex1-hl, py3-lR, ex1+hl, py3-rR); line(ex1-hl, py3+lR, ex1+hl, py3+rR);\n  line(ex1-hl, py3-lR, ex1-hl, py3+lR); line(ex1+hl, py3-rR, ex1+hl, py3+rR);\n  sc(C.ctr, 60); strokeWeight(LWC); ddot(Math.min(ex1,ex2)-r1*2, py3, Math.max(ex1,ex2)+r1*2, py3, u*.014);\n  const px3 = mgn*2.4;\n  noStroke(); textFont('monospace'); textAlign(LEFT, CENTER); textSize(Math.max(6,u*.0115));\n  fc(C.anno, 80); text((first?'FIRST':'THIRD')+' ANGLE', px3 - r1, py3 + r1*2.2);\n  // title block\n  textAlign(RIGHT, CENTER); textSize(Math.max(7,u*.0135));\n  const bx = width-mgn*2.0, by = height-mgn*2.0;\n  fc(C.cell, xray?26:70); rect(bx-u*.32, by-u*.052, u*.32, u*.052);\n  noFill(); sc(C.anno, 62); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.32, by-u*.052, u*.32, u*.052);\n  line(bx-u*.32, by-u*.026, bx, by-u*.026);\n  noStroke(); fc(C.anno, 90);\n  text('BRACKET, BOSSED - GENERAL ARRANGEMENT', bx-u*.012, by-u*.039);\n  text('ALL DIMS mm   REV '+((K.section|0)+1)+'   SEED '+sd, bx-u*.012, by-u*.013);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

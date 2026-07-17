@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.phototropism",
+  "kind": "genart",
+  "name": "Phototropism",
+  "desc": "A rank of seedlings writing down where the light has been \u2014 auxin floods each shaded flank so the apex swings toward a lamp that wanders the sky on two incommensurate rates, and because tissue goes rigid the instant it is laid down, every stem grows into a frozen graph of the light's own history while its shadow sweeps the soil beneath it.",
+  "tags": [
+    "phototropism",
+    "tropism",
+    "auxin",
+    "seedling",
+    "seedlings",
+    "stem",
+    "stems",
+    "shoot",
+    "etiolation",
+    "heliotropism",
+    "sunflower",
+    "growth",
+    "bending",
+    "botanical",
+    "botany",
+    "plant",
+    "light",
+    "lamp",
+    "sun",
+    "shadow",
+    "shadows",
+    "soil",
+    "horizon",
+    "record",
+    "history",
+    "trace",
+    "plate",
+    "cyanotype",
+    "photogram",
+    "xray",
+    "blueprint",
+    "schematic",
+    "diagram",
+    "green",
+    "organic",
+    "process",
+    "emergence",
+    "senescence",
+    "clinical",
+    "austere",
+    "study",
+    "experiment",
+    "nature"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tropic responsiveness (how hard stems chase the light) + growth rate + leaf flutter"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many seedlings are in the rank (4 at 0 -> 24 at 1)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "seedling size vs frame (2.2 = towering stems that leave the frame)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "growth + lamp-traverse rate multiplier"
+    },
+    "hue": {
+      "default": 96,
+      "min": 0,
+      "max": 360,
+      "doc": "living-stem hue (senescence always drifts it toward straw)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bias of the lamp's wandering path across the sky"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "soil line \u2014 where the horizon sits in the frame"
+    },
+    "wander": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the lamp roams \u2014 near 0 it hangs almost still and the stems grow straight; at 1 it ranges and the stems become sinuous records"
+    },
+    "style": {
+      "default": "plate",
+      "options": [
+        "plate",
+        "cyanotype",
+        "xray",
+        "schematic"
+      ],
+      "doc": "aesthetic \u2014 botanical plate w/ lit and shaded flanks and cast shadows; Atkins photogram on Prussian blue; additive translucent radiograph; blueprint schematic with the auxin vector drawn at every apex"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds germination points, vigour and life spans"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the seedlings over the ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:25+00:00",
+    "fps": 57.1,
+    "motion": 0.0097,
+    "lum": 0.484
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:96, x:.5, y:.72, wander:.6, style:'plate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.4,2.2);\nconst WD = cl(P.wander,0,1), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43+1.7) + .32*Math.sin(T*2.29);\nconst breeze = (.2 + .7*EN)*gust + A.lowmid*.6 + K.pulse*.16*K.intensity;\n\n// ---- the light: two incommensurate rates -> its path NEVER repeats -------\nconst soil = P.y;\nconst lightX = tt => (.5 + .46*Math.sin(tt*.083)*Math.cos(tt*.0331*WD + 1.2) + (P.x - .5)*.7)*width;\nconst lightY = tt => (soil - .28 - .30*(.5 + .5*Math.sin(tt*.0517 + .8))*(.4 + .6*WD))*height;\nconst lx = lightX(T), ly = lightY(T);\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet mode;\nif (sty === 'cyanotype') mode = 1; else if (sty === 'xray') mode = 2;\nelse if (sty === 'schematic') mode = 3; else mode = 0;\n\n// ---- sky + soil ground ---------------------------------------------------\nconst bgKey = [width,height,sd,sty,H,soil].join('|');\nif (!S.g || S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const bw = Math.min(600, Math.max(220, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke();\n  const hz = bh*soil;\n  for (let y=0;y<bh;y++){ const v = y/Math.max(1,hz);\n    if (y < hz) {\n      if (mode === 1) g.fill(214, 82 - v*10, 24 + v*10);\n      else if (mode === 2) g.fill(198, 44, 13 + v*5);\n      else if (mode === 3) g.fill(206, 46, 30 + v*7);\n      else g.fill(36 - v*4, 13 + v*7, 76 - v*10);\n    } else {\n      const w = (y - hz)/Math.max(1, bh - hz);\n      if (mode === 1) g.fill(216, 78 - w*8, 15 - w*5);\n      else if (mode === 2) g.fill(200, 36, 20 + w*6);\n      else if (mode === 3) g.fill(206, 32, 20 - w*5);\n      else g.fill(26 - w*4, 42 + w*8, 30 - w*13);\n    }\n    g.rect(0, y, bw, 1.2); }\n  for (let i=0;i<3400;i++){                                 // soil tooth + sky grain\n    const y2 = fr(i*7.7+9)*bh;\n    g.fill(0, 0, mode===0&&y2>hz ? 40 : 96, y2 > hz ? 7 + fr(i*2.1)*11 : 4 + fr(i*3.3)*5);\n    g.rect(fr(i*3.1)*bw, y2, 1.4, 1.4); }\n  if (mode === 3) {                                          // blueprint rule\n    g.noFill(); g.stroke(190, 20, 88, 9); g.strokeWeight(.7);\n    for (let x=0;x<bw;x+=bw*.05) g.line(x, 0, x, bh);\n    for (let y=0;y<bh;y+=bw*.05) g.line(0, y, bw, y);\n    g.stroke(190, 14, 96, 26); g.strokeWeight(1.1); g.line(0, hz, bw, hz); g.noStroke();\n  } else {\n    g.fill(mode===1?216:(mode===2?200:24), mode===0?46:30, mode===2?26:12, 34);\n    g.rect(0, hz, bw, bh*.008);                              // the soil line\n  }\n  const dc = g.drawingContext;\n  const vg = dc.createRadialGradient(bw*.5, bh*.5, bw*.14, bw*.5, bh*.5, bw*.86);\n  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.42)');\n  dc.fillStyle = vg; dc.fillRect(0, 0, bw, bh);\n  g.pop();\n}\n\n// ---- stems: tissue is laid down at the apex and then RIGID ---------------\n// each stem is therefore a frozen graph of where the light has been.\nconst NMAX = 24, MAXP = 46;\nconst vdc = i => { let v = 0, den = 1, m = i|0;          // van der Corput: any prefix spreads\n  for (let k=0;k<5;k++){ den *= 2; v += (m % 2)/den; m = (m/2)|0; } return v; };\nconst reseed = (s) => {\n  const j = s.id*19.9 + (s.gen = (s.gen||0)+1)*7.7;\n  s.bx = .04 + vdc(s.id)*.92 + (fr(j*1.3)-.5)*.026;\n  s.pts = [{ x:0, y:0 }];\n  s.ang = -Math.PI*.5 + (fr(j*2.1)-.5)*.3;\n  s.acc = 0; s.age = 0; s.vig = .68 + fr(j*3.7)*.7;\n  s.hj = (fr(j*4.3)-.5)*24; s.ph = fr(j*5.9)*6.28;\n  s.life = 26 + fr(j*6.7)*20; s.hold = 8 + fr(j*7.3)*12; s.sen = 10 + fr(j*8.1)*10;\n  s.leaf = [];\n};\nconst adv = (s, d, tt) => {\n  const LX = lightX(tt), LY = lightY(tt);\n  s.age += d;\n  if (s.age > s.life + s.hold + s.sen) { reseed(s); return; }\n  if (s.age < s.life && s.pts.length < MAXP) {\n    s.acc += d*(1.5 + EN*1.4)*(.6 + .8*K.intensity);\n    let guard = 0;\n    while (s.acc > 1 && s.pts.length < MAXP && guard++ < 5) {\n      s.acc -= 1;\n      const p = s.pts[s.pts.length-1];\n      // auxin migrates to the shaded flank -> that flank elongates -> the apex turns to the light\n      const ax = s.bx*width, ay = soil*height;\n      const wx = ax + p.x, wy = ay + p.y;\n      const toL = Math.atan2(LY - wy, LX - wx);\n      let df = toL - s.ang; while (df > Math.PI) df -= 6.2832; while (df < -Math.PI) df += 6.2832;\n      const grav = -Math.PI*.5 - s.ang;                      // negative gravitropism keeps it upright\n      let dg = grav; while (dg > Math.PI) dg -= 6.2832; while (dg < -Math.PI) dg += 6.2832;\n      s.ang += df*(.10 + .26*EN) + dg*.05 + (fr(s.pts.length*3.1 + s.id)-.5)*.07;\n      s.ang = cl(s.ang, -Math.PI*.5 - 1.32, -Math.PI*.5 + 1.32);   // it cannot bend past horizontal\n      // NOTE: the point is pushed and never touched again \u2014 the stem IS the light's history\n      const st2 = u*.021*SC*s.vig;\n      s.pts.push({ x: p.x + Math.cos(s.ang)*st2, y: p.y + Math.sin(s.ang)*st2 });\n      if (s.pts.length % 3 === 0 && s.leaf.length < 7)\n        s.leaf.push({ i: s.pts.length-1, sg: (s.pts.length % 6) ? 1 : -1, ph: fr(s.pts.length*2.3+s.id)*6.28 });\n    }\n  }\n  const ph = s.life + s.hold;\n  s.fade = s.age > ph ? cl(1 - (s.age-ph)/s.sen, 0, 1) : 1;\n  s.dry = s.age > ph ? cl((s.age-ph)/s.sen, 0, 1) : 0;\n};\nif (!S.st || S.st.length !== NMAX || S.szKey !== width+'x'+height+sd) {\n  S.szKey = width+'x'+height+sd; S.st = [];\n  for (let i=0;i<NMAX;i++){ const s = { id:i }; reseed(s);\n    const w = fr(i*11.3)*52; let tt = T - w;               // replay the light's real past\n    for (let q=0;q<Math.round(w*20);q++){ adv(s, 1/20, tt); tt += 1/20; }\n    S.st.push(s); }\n}\nfor (let i=0;i<NMAX;i++) adv(S.st[i], dt*SP, T);\n\n// ---- draw ----------------------------------------------------------------\nimage(S.g, 0, 0, width, height);\nconst nDraw = Math.max(2, Math.round(4 + DN*20));\nconst sy = soil*height;\nif (mode === 2) blendMode(ADD);\nstrokeCap(ROUND); strokeJoin(ROUND);\n\n// the sweeping shadows are half the motion in this piece\nif (mode !== 3) {\n  noStroke();\n  for (let n=0;n<nDraw;n++) {\n    const s = S.st[n]; if (!s || s.pts.length < 3) continue;\n    const bx = s.bx*width;\n    const dxl = bx - lx, dyl = sy - ly;\n    const hgt = -s.pts[s.pts.length-1].y;\n    const sl = cl(dyl / Math.max(1, Math.abs(dyl)) * (dxl/Math.max(u*.05, Math.abs(dyl)))*1.6, -6, 6);\n    fill(mode===1 ? 218 : (mode===2 ? 200 : 22), mode===1?70:38, mode===2?30:12, 26*AL*(s.fade==null?1:s.fade));\n    beginShape();\n    vertex(bx - u*.006*s.vig, sy);\n    vertex(bx + sl*hgt*.9, sy + hgt*.06 + u*.004);\n    vertex(bx + sl*hgt*.9, sy + hgt*.06 + u*.012);\n    vertex(bx + u*.006*s.vig, sy + u*.006);\n    endShape(CLOSE);\n  }\n}\n\nfor (let n=0;n<nDraw;n++) {\n  const s = S.st[n]; if (!s || !s.pts || s.pts.length < 2) continue;\n  const fade = s.fade == null ? 1 : s.fade, dry = s.dry || 0;\n  const bx = s.bx*width;\n  const hh = ((P.hue + s.hj + dry*24) % 360 + 360) % 360;\n  const ss = (58 - dry*30), bb = (40 + dry*14);\n  const sw = u*.0055*SC*s.vig;\n  const droop = dry*dry;                                     // senescent stems lose turgor and bow\n  const ddir = (s.id % 2) ? 1 : -1;\n  const PX = [], PY = [];\n  for (let i=0;i<s.pts.length;i++){\n    const p = s.pts[i], v = i/Math.max(1, s.pts.length-1);\n    const dd = droop*v*v;                                    // the bow is worst at the tip\n    const wob = breeze*u*.012*v*v*s.vig*(1 + .5*Math.sin(T*1.7 + s.ph));\n    PX.push(bx + p.x + ddir*dd*Math.abs(p.y)*.62 + wob);\n    PY.push(sy + p.y*(1 - dd*.42));\n  }\n  noFill();\n  if (mode === 1) stroke(214, 12 + dry*8, 94 - dry*20, 88*AL*fade);\n  else if (mode === 2) stroke(hh, 45, 76, 30*AL*fade);\n  else if (mode === 3) stroke(190, 16, 96, 74*AL*fade);\n  else stroke(hh, ss, bb, 88*AL*fade);\n  strokeWeight(sw);\n  beginShape(); for (let i=0;i<PX.length;i++) vertex(PX[i], PY[i]); endShape();\n  if (mode === 0) {                                          // lit flank / shaded flank\n    stroke(hh, ss*.5, bb + 30, 46*AL*fade); strokeWeight(sw*.34);\n    beginShape();\n    for (let i=0;i<PX.length;i++){ const dxl = PX[i]-lx, dyl = PY[i]-ly, dl = Math.max(1e-3, Math.hypot(dxl,dyl));\n      vertex(PX[i] - dxl/dl*sw*.3, PY[i] - dyl/dl*sw*.3); }\n    endShape();\n  }\n  // cotyledons / leaves \u2014 they track the light too\n  for (let q=0;q<s.leaf.length;q++){\n    const lf = s.leaf[q], i = Math.min(lf.i, PX.length-1);\n    const px2 = PX[i], py2 = PY[i];\n    const toL = Math.atan2(ly - py2, lx - px2);\n    const fl = Math.sin(T*(2.1 + (lf.ph%1)*1.3) + lf.ph)*(.14 + .4*EN);\n    const ang = toL + lf.sg*(.95 + fl) + droop*.6;\n    const L = u*.036*SC*s.vig*(1 - dry*.3);\n    push(); translate(px2, py2); rotate(ang);\n    scale(1, .4 + .6*Math.abs(Math.cos(fl*1.4)));\n    if (mode === 1) { noStroke(); fill(214, 6, 97, 86*AL*fade); }\n    else if (mode === 2) { noStroke(); fill(hh, 52, 44, 20*AL*fade); }\n    else if (mode === 3) { noFill(); stroke(190, 18, 94, 62*AL*fade); strokeWeight(Math.max(.5, sw*.28)); }\n    else { noStroke(); fill(hh, ss + 6, bb + 8 - dry*8, 90*AL*fade); }\n    beginShape(); vertex(0, 0); bezierVertex(L*.32,-L*.30, L*.8,-L*.24, L, 0);\n    bezierVertex(L*.8, L*.24, L*.32, L*.30, 0, 0); endShape(CLOSE);\n    pop();\n  }\n  if (mode === 3) {                                          // schematic: the auxin vector at the apex\n    const i = PX.length-1, toL = Math.atan2(ly - PY[i], lx - PX[i]);\n    stroke(28, 74, 96, 70*AL*fade); strokeWeight(Math.max(.7, sw*.4));\n    line(PX[i], PY[i], PX[i] + Math.cos(toL)*u*.05, PY[i] + Math.sin(toL)*u*.05);\n    noStroke(); fill(28, 74, 96, 70*AL*fade);\n    ellipse(PX[i] + Math.cos(toL)*u*.05, PY[i] + Math.sin(toL)*u*.05, u*.008, u*.008);\n  }\n}\n\n// ---- the light itself ----------------------------------------------------\nconst glow = .8 + .2*Math.sin(T*1.9) + K.pulse*.1*K.intensity + A.treble*.14;\nblendMode(mode === 3 ? BLEND : ADD);\nnoStroke();\nif (mode === 3) {\n  noFill(); stroke(28, 74, 96, 72*AL); strokeWeight(1.4);\n  ellipse(lx, ly, u*.07, u*.07);\n  line(lx - u*.05, ly, lx + u*.05, ly); line(lx, ly - u*.05, lx, ly + u*.05);\n} else {\n  for (let k=10;k>0;k--){\n    const r = u*(.02 + k*.028)*(1 + .04*Math.sin(T*.9 + k));\n    fill(mode===1 ? 210 : (mode===2 ? 190 : 46), mode===1?18:(mode===2?24:36), 100, (mode===2?2.2:3.4)*glow*AL);\n    ellipse(lx, ly, r*2, r*2);\n  }\n  fill(mode===1 ? 210 : 50, 8, 100, 78*AL*glow); ellipse(lx, ly, u*.038, u*.038);\n}\nblendMode(BLEND);"
+}

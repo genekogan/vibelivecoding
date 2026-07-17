@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lichtenberg",
+  "kind": "genart",
+  "name": "Lichtenberg Figure",
+  "desc": "A dielectric-breakdown burn that accretes from a hot seed, forking into ever-finer feathery tendrils that spread to fill the frame like captured lightning frozen in acrylic, then softly regrows \u2014 as violet-white electric plasma, cyan captured-acrylic, amber woodburn, white frost-on-glass, or a mono ink print.",
+  "tags": [
+    "lichtenberg",
+    "dielectric-breakdown",
+    "dbm",
+    "fractal",
+    "burn",
+    "fractal-burn",
+    "lightning",
+    "electric",
+    "discharge",
+    "high-voltage",
+    "plasma",
+    "arc",
+    "spark",
+    "branching",
+    "tendrils",
+    "feathery",
+    "veins",
+    "dendrite",
+    "laplacian",
+    "growth",
+    "captured-lightning",
+    "acrylic",
+    "frost",
+    "woodburn",
+    "ink",
+    "violet",
+    "cyan",
+    "amber",
+    "glow",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "organic",
+    "eerie"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "grow rate + how densely the burn fills the frame"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "vein glow, hot-core bloom, frontier shimmer amplitude"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "field-relaxation + growth rate (accretion speed)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "vein thickness + hot-core size"
+    },
+    "hue": {
+      "default": 278,
+      "min": 0,
+      "max": 360,
+      "doc": "vein palette hue rotation (violet default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "seed injection point x (clamped 0.08-0.92)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "seed injection point y (clamped 0.08-0.92)"
+    },
+    "eta": {
+      "default": 2.2,
+      "min": 0.6,
+      "max": 7.0,
+      "doc": "breakdown straightness: low=fat branchy tree, high=whip-thin sparse channels"
+    },
+    "style": {
+      "default": "electric",
+      "options": [
+        "electric",
+        "acrylic",
+        "woodburn",
+        "frost",
+        "ink"
+      ],
+      "doc": "render philosophy: violet-white plasma / cyan captured-acrylic / amber burn on wood / white frost-on-glass / mono ink print"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic figure variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T05:41:42+00:00",
+    "fps": 58.8,
+    "motion": 0.0368,
+    "lum": 0.171
+  },
+  "code": "const D = { density: .55, energy: .55, speed: 1, scale: 1, hue: 278, x: .5, y: .5, eta: 2.2, style: 'electric', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst st = P.style;\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst ax = clp(P.x,0.08,0.92), ay = clp(P.y,0.08,0.92);\n\n// ---- grid (roughly square cells, capped within PROBE budget) ----\nlet COLS, ROWS; const ar = width/height;\nif (ar>=1){ ROWS = 60; COLS = clp(Math.round(60*ar),40,122); }\nelse { COLS = 60; ROWS = clp(Math.round(60/ar),40,122); }\nconst cw = width/COLS, ch = height/ROWS;\nconst NC = COLS*ROWS;\n\n// ---- HSB->RGB for drawingContext strokes (buffer draws in raw rgba) ----\nfunction hsb2rgb(h,s,b){ h=((h%360)+360)%360; s=clp(s,0,100)/100; b=clp(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h/60)%2-1)), m=b-c; let r,g,bl;\n  if(h<60){r=c;g=x;bl=0;} else if(h<120){r=x;g=c;bl=0;} else if(h<180){r=0;g=c;bl=x;}\n  else if(h<240){r=0;g=x;bl=c;} else if(h<300){r=x;g=0;bl=c;} else {r=c;g=0;bl=x;}\n  return [Math.round((r+m)*255),Math.round((g+m)*255),Math.round((bl+m)*255)]; }\n\n// ---- ground palette per style (radial vignette: warm/violet core -> dark edge) ----\nfunction groundCfg(s){\n  if(s==='acrylic') return {h:190,sat:78,cB:30,mB:14,eB:8};\n  if(s==='woodburn')return {h:26, sat:60,cB:46,mB:30,eB:17};\n  if(s==='frost')   return {h:208,sat:66,cB:32,mB:16,eB:9};\n  if(s==='ink')     return {h:42, sat:12,cB:88,mB:82,eB:72};\n  return {h:272,sat:72,cB:34,mB:15,eB:8}; // electric\n}\nfunction paintGround(g, alpha){\n  const ctx=g.drawingContext, gs=S.gs;\n  const cx=ax*g.width, cy=ay*g.height, R=Math.hypot(g.width,g.height)*0.92;\n  const gr=ctx.createRadialGradient(cx,cy,R*0.02,cx,cy,R);\n  const c0=hsb2rgb(gs.h,gs.sat*0.7,gs.cB), c1=hsb2rgb(gs.h,gs.sat,gs.mB), c2=hsb2rgb(gs.h,gs.sat,gs.eB);\n  gr.addColorStop(0,   'rgba('+c0[0]+','+c0[1]+','+c0[2]+','+alpha+')');\n  gr.addColorStop(0.45,'rgba('+c1[0]+','+c1[1]+','+c1[2]+','+alpha+')');\n  gr.addColorStop(1,   'rgba('+c2[0]+','+c2[1]+','+c2[2]+','+alpha+')');\n  ctx.save(); ctx.globalCompositeOperation='source-over'; ctx.fillStyle=gr; ctx.fillRect(0,0,g.width,g.height); ctx.restore();\n}\n\n// ---- vein color ramp along depth (0 core .. 1 tip) ----\nconst ho = (P.hue-278) + K.section*3;\nfunction vein(t){\n  let h,s,b,hc,sc,bc,blur;\n  if(st==='acrylic'){ h=189+ho; s=28+58*t; b=98-16*t; hc=186+ho; sc=6+18*t; bc=100; blur=1; }\n  else if(st==='woodburn'){ h=46-26*t+ho; s=62+34*t; b=100-46*t; hc=50-16*t+ho; sc=40+28*t; bc=100-12*t; blur=1; }\n  else if(st==='frost'){ h=202+ho; s=8+42*t; b=100-10*t; hc=200+ho; sc=2+14*t; bc=100; blur=0.5; }\n  else if(st==='ink'){ h=40+ho; s=10; b=24-12*t; hc=40+ho; sc=8; bc=16-8*t; blur=0; }\n  else { h=278+ho; s=30+60*t; b=100-14*t; hc=278+ho; sc=8+22*t; bc=100; blur=1; } // electric\n  return { bloom: hsb2rgb(h,s,b), core: hsb2rgb(hc,sc,bc), blur };\n}\nfunction stampSeg(x0,y0,x1,y1,depth){\n  const t=clp(depth/85,0,1), v=vein(t), ctx=S.buf.drawingContext;\n  const w = u*(0.0014 + 0.0060*Math.exp(-depth*0.05))*(0.6+P.scale*0.6);\n  ctx.save(); ctx.lineCap='round';\n  const glow = v.blur*(4+10*P.energy);\n  if(glow>0){ ctx.shadowBlur=glow; ctx.shadowColor='rgba('+v.core[0]+','+v.core[1]+','+v.core[2]+',0.9)'; }\n  ctx.strokeStyle='rgba('+v.bloom[0]+','+v.bloom[1]+','+v.bloom[2]+','+(st==='ink'?0.9:0.22)+')';\n  ctx.lineWidth = w*(st==='ink'?1:2.6);\n  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();\n  if(st!=='ink'){ ctx.shadowBlur=glow*0.4;\n    ctx.strokeStyle='rgba('+v.core[0]+','+v.core[1]+','+v.core[2]+',0.92)';\n    ctx.lineWidth=Math.max(0.6,w); ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); }\n  ctx.shadowBlur=0; ctx.restore();\n}\n\n// ---- candidate helper ----\nfunction addCand(x,y){\n  const nb=[[1,0],[-1,0],[0,1],[0,-1]];\n  for(let n=0;n<4;n++){ const nx=x+nb[n][0], ny=y+nb[n][1];\n    if(nx<1||nx>=COLS-1||ny<1||ny>=ROWS-1) continue;\n    const i=ny*COLS+nx; if(S.occ[i]||S.inCand[i]) continue; S.inCand[i]=1; S.cand.push(i); }\n}\nfunction seedAt(sx,sy){ sx=clp(sx,2,COLS-3)|0; sy=clp(sy,2,ROWS-3)|0;\n  const i=sy*COLS+sx; if(S.occ[i]) return; S.occ[i]=1; S.phi[i]=0; S.dep[i]=0; S.par[i]=-1; addCand(sx,sy); }\n\n// ---- sim (re)build ----\nfunction resetSim(hard){\n  S.occ=new Uint8Array(NC); S.phi=new Float32Array(NC); S.par=new Int32Array(NC).fill(-1);\n  S.dep=new Int32Array(NC); S.inCand=new Uint8Array(NC); S.cand=[];\n  for(let i=0;i<NC;i++) S.phi[i]=0.5;\n  for(let x=0;x<COLS;x++){ S.phi[x]=1; S.phi[(ROWS-1)*COLS+x]=1; }\n  for(let y=0;y<ROWS;y++){ S.phi[y*COLS]=1; S.phi[y*COLS+COLS-1]=1; }\n  const jx=(S.rnd()-0.5)*0.12, jy=(S.rnd()-0.5)*0.12;\n  seedAt(Math.round((ax+jx)*COLS), Math.round((ay+jy)*ROWS));\n  S.recent=[];\n}\n\nconst period = 30;\nconst epoch = Math.floor(K.t/period);\nconst hardKey = width+'x'+height+'|'+P.seed+'|'+st;\nif (S.hardKey !== hardKey){\n  S.hardKey = hardKey; S.epoch = epoch;\n  let z=((P.seed*2654435761)^(epoch*40503)^0x5b)>>>0;\n  S.rnd=()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  if(!S.buf || S.bufKey!==width+'x'+height){ if(S.buf) S.buf.remove();\n    S.buf=createGraphics(width,height); S.buf.pixelDensity(1); S.bufKey=width+'x'+height; }\n  S.gs=groundCfg(st); paintGround(S.buf,1); resetSim(true);\n} else if (S.epoch !== epoch){\n  S.epoch = epoch;\n  let z=((P.seed*2654435761)^(epoch*40503)^0x5b)>>>0;\n  S.rnd=()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  resetSim(false); // soft: buffer keeps old figure, it fades out under the new one\n}\n\n// ---- per-frame slow fade: the burn ACCRETES & persists (~10s half-life), then\n//      soft-turns-over so the next epoch regrows without a hard clear (no strobe) ----\npaintGround(S.buf, 0.0011);\n\n// ---- relax potential field (Jacobi), occupied pinned 0, frame source pinned 1 ----\nconst phi=S.phi, occ=S.occ;\nconst sweeps = 2 + (P.speed>2?1:0);\nfor(let s=0;s<sweeps;s++) for(let y=1;y<ROWS-1;y++) for(let x=1;x<COLS-1;x++){ const i=y*COLS+x;\n  if(occ[i]){ phi[i]=0; continue; }\n  phi[i]=0.25*(phi[i-1]+phi[i+1]+phi[i-COLS]+phi[i+COLS]); }\n\n// ---- grow G cells/frame, weighted by phi^eta (dielectric breakdown) ----\nconst eta = clp(P.eta,0.6,7);\nlet G = Math.round((0.6+P.speed*1.6)*(0.5+intn) + A.bass*4);\nG = Math.round(clp(G,1,10)*(0.4+P.density*1.2)); G = clp(G,1,12);\nif(S.cand.length===0){ // reseed a fresh nucleus so the burn keeps accreting\n  const rx=1+Math.floor(S.rnd()*(COLS-2)), ry=1+Math.floor(S.rnd()*(ROWS-2));\n  if(!occ[ry*COLS+rx]) seedAt(rx,ry);\n}\nfor(let gi=0; gi<G && S.cand.length; gi++){\n  let sum=0; const cand=S.cand, m=cand.length, wts=new Float64Array(m);\n  for(let k=0;k<m;k++){ const w=Math.pow(Math.max(1e-4,phi[cand[k]]),eta); wts[k]=w; sum+=w; }\n  let r=S.rnd()*sum, pick=0; for(let k=0;k<m;k++){ r-=wts[k]; if(r<=0){pick=k;break;} }\n  const ci=cand[pick]; cand[pick]=cand[m-1]; cand.pop(); S.inCand[ci]=0;\n  if(occ[ci]) continue;\n  occ[ci]=1; phi[ci]=0; const x=ci%COLS, y=(ci/COLS)|0;\n  const nb=[[1,0],[-1,0],[0,1],[0,-1]]; let par=-1;\n  for(let n=0;n<4;n++){ const j=(y+nb[n][1])*COLS+(x+nb[n][0]); if(j>=0&&j<NC&&occ[j]){par=j;break;} }\n  S.par[ci]=par; const dp=(par>=0? S.dep[par]+1 : 0); S.dep[ci]=dp;\n  if(par>=0){ const px=(par%COLS)*cw+cw/2, py=((par/COLS)|0)*ch+ch/2;\n    stampSeg(px,py, x*cw+cw/2, y*ch+ch/2, dp); }\n  addCand(x,y);\n  S.recent.push(ci); if(S.recent.length>160) S.recent.shift();\n}\n\n// ---- draw accumulated burn with slow K.t drift (never re-phases: motion floor) ----\npush();\nconst scl = 1.08 + 0.012*Math.sin(K.t*0.06);\nconst dx = Math.sin(K.t*0.13)*u*0.02, dy = Math.cos(K.t*0.10)*u*0.018;\ntranslate(width/2+dx, height/2+dy); rotate(Math.sin(K.t*0.017)*0.02);\nimageMode(CENTER); if(P.alpha<100) tint(0,0,100,P.alpha);\nimage(S.buf, 0,0, width*scl, height*scl);\nimageMode(CORNER); noTint(); pop();\n\n// ---- hot core: pulsing radial glow at the injection seed ----\nconst glowStyle = (st==='ink')?0:(st==='frost')?0.55:1;\nif(glowStyle>0){\n  const corePulse = 0.6+0.4*Math.sin(K.t*1.7) + 0.5*K.pulse + A.bass*0.8;\n  const cpx=ax*width, cpy=ay*height;\n  const cr = u*(0.10+0.05*Math.sin(K.t*0.9))*(0.7+P.energy*0.8)*(0.7+P.scale*0.5);\n  const chb = hsb2rgb((st==='woodburn'?42:st==='acrylic'?186:st==='frost'?200:280)+(P.hue-278), 22, 100);\n  const dctx=drawingContext;\n  dctx.save(); dctx.globalCompositeOperation='lighter';\n  const cg=dctx.createRadialGradient(cpx,cpy,1,cpx,cpy,cr);\n  const a0=clp(0.5*P.energy*(0.6+corePulse*0.3)*glowStyle,0,0.8);\n  cg.addColorStop(0,'rgba('+chb[0]+','+chb[1]+','+chb[2]+','+a0+')');\n  cg.addColorStop(1,'rgba('+chb[0]+','+chb[1]+','+chb[2]+',0)');\n  dctx.fillStyle=cg; dctx.fillRect(cpx-cr,cpy-cr,cr*2,cr*2); dctx.restore();\n}\n\n// ---- creeping-leader shimmer at the active frontier (continuous, silence-safe) ----\npush(); blendMode(ADD); noStroke();\nconst fh=(st==='woodburn'?40:st==='frost'?200:st==='acrylic'?186:st==='ink'?42:282)+(P.hue-278);\nconst lim=Math.min(S.cand.length,150);\nfor(let k=0;k<lim;k++){ const i=S.cand[k], x=i%COLS, y=(i/COLS)|0;\n  const fl=Math.pow(clp(phi[i],0,1),1.3)*(0.55+0.45*Math.sin(K.t*3.1 + k*0.7));\n  const gA=fl*(14+A.treble*40)*(0.4+P.energy)*(st==='ink'?0.22:1);\n  if(gA<0.6) continue;\n  fill(fh, st==='ink'?14:st==='frost'?34:70, 100, gA);\n  circle(x*cw+cw/2, y*ch+ch/2, cw*(1.1+fl*1.6)); }\nblendMode(BLEND); pop();\ndrawingContext.shadowBlur=0;\n"
+}

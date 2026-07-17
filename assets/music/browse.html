@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>livecode · sound space</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#0e0f12; --panel:#15171c; --panel2:#1b1e24; --ink:#e6e8ee; --dim:#8a90a0;
+    --acc:#7ce0a3; --acc2:#e0b07c; --hot:#e07c8a; --line:#262a33;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink); font:14px/1.45 "SF Mono", ui-monospace, Menlo, monospace; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+  header { display:flex; align-items:center; gap:14px; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font-size:15px; font-weight:600; letter-spacing:.06em; color:var(--acc); }
+  header .counts { color:var(--dim); font-size:12px; }
+  header .meter { display:flex; gap:3px; align-items:flex-end; height:22px; margin-left:auto; }
+  header .meter .bar { width:9px; background:var(--acc); opacity:.85; border-radius:1px 1px 0 0; transition:height .08s linear; height:1px; }
+  header .meter .bar.rms { background:var(--acc2); }
+  #playing { color:var(--acc2); font-size:12px; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #play-error { color:var(--hot); font-size:11.5px; max-width:42vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  main { flex:1; display:flex; min-height:0; }
+  #side { width:300px; min-width:300px; border-right:1px solid var(--line); overflow-y:auto; background:var(--panel); padding-bottom:40px; }
+  .ghead { position:sticky; top:0; background:var(--panel2); color:var(--acc2); padding:5px 12px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; border-bottom:1px solid var(--line); cursor:pointer; }
+  .item { padding:5px 12px 5px 18px; cursor:pointer; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12.5px; }
+  .item:hover { color:var(--ink); background:var(--panel2); }
+  .item.sel { color:var(--ink); background:var(--panel2); border-left:3px solid var(--acc); padding-left:15px; }
+  .item .slotchip { color:var(--acc); opacity:.75; margin-right:6px; font-size:10.5px; }
+  .item.kit .slotchip { color:var(--hot); }
+  .item.arc .slotchip { color:#b4a5ff; }
+  .item .new { color:var(--hot); font-size:10px; margin-left:6px; }
+  .item.unv { opacity:.55; font-style:italic; }
+  .item .gr { margin-left:6px; font-size:11px; }
+  .gr.good { color:var(--acc2); } .gr.ok { color:var(--acc); } .gr.bad { color:var(--hot); }
+  .item.graded-bad { opacity:.4; text-decoration:line-through; }
+  .gradebar { display:flex; gap:8px; align-items:center; margin:2px 0 14px; }
+  .gradebar .glabel { color:var(--dim); font-size:12px; margin-right:2px; }
+  .gbtn { padding:4px 13px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--dim); cursor:pointer; font:inherit; font-size:12px; }
+  .gbtn.bad.on { border-color:var(--hot); color:var(--hot); background:rgba(224,124,138,.13); }
+  .gbtn.ok.on { border-color:var(--acc); color:var(--acc); background:rgba(124,224,163,.13); }
+  .gbtn.good.on { border-color:var(--acc2); color:var(--acc2); background:rgba(224,176,124,.15); }
+  #detail { flex:1; overflow-y:auto; padding:18px 24px 80px; }
+  #detail h2 { font-size:20px; margin-bottom:2px; }
+  #detail .id { color:var(--dim); font-size:12px; margin-bottom:8px; }
+  #detail .desc { color:var(--ink); opacity:.9; margin-bottom:10px; max-width:70ch; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px; }
+  .chip { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:1px 9px; font-size:11px; color:var(--dim); }
+  .meta { display:flex; gap:22px; flex-wrap:wrap; color:var(--dim); font-size:12px; margin-bottom:14px; }
+  .meta b { color:var(--ink); font-weight:600; }
+  .variants { display:flex; gap:8px; margin-bottom:16px; }
+  .vbtn { padding:5px 16px; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--dim); cursor:pointer; font:inherit; }
+  .vbtn.sel { border-color:var(--acc); color:var(--acc); }
+  .vbtn.playing { background:var(--acc); color:#000; border-color:var(--acc); }
+  #params { margin-bottom:16px; max-width:620px; }
+  .prow { display:grid; grid-template-columns:110px 1fr 88px; gap:12px; align-items:center; margin-bottom:7px; }
+  .prow label { color:var(--dim); font-size:12px; text-align:right; }
+  .prow input[type=range] { width:100%; accent-color:var(--acc); }
+  .prow .pval { color:var(--acc2); font-size:12px; }
+  .prow select, .prow input[type=text] { background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:4px; padding:2px 6px; font:inherit; font-size:12px; }
+  #cpsrow { margin:2px 0 16px; }
+  .btnrow { display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap; }
+  .abtn { padding:7px 18px; border-radius:6px; border:1px solid var(--acc); background:transparent; color:var(--acc); cursor:pointer; font:inherit; font-weight:600; }
+  .abtn.primary { background:var(--acc); color:#000; }
+  .abtn.warn { border-color:var(--hot); color:var(--hot); }
+  pre#code { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:12px; color:#b9c4d8; overflow-x:auto; white-space:pre-wrap; word-break:break-all; max-width:900px; }
+  #kitlist { margin-bottom:14px; font-size:13px; color:var(--dim); }
+  #kitlist b { color:var(--ink); }
+  .arc-sections { display:grid; gap:7px; max-width:760px; margin:12px 0 18px; }
+  .arc-section { display:grid; grid-template-columns:90px 74px 1fr; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--panel); color:var(--dim); font-size:11px; }
+  .arc-section b { color:var(--ink); }
+  .arc-note { max-width:760px; margin:10px 0 16px; padding:10px 12px; border-left:3px solid #b4a5ff; background:var(--panel); color:var(--dim); }
+  footer { border-top:1px solid var(--line); background:var(--panel); padding:6px 16px; font-size:11.5px; color:var(--dim); display:flex; gap:18px; align-items:center; }
+  footer kbd, #help kbd { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:0 6px; margin-right:6px; color:var(--acc); }
+  #help { position:fixed; inset:0; background:rgba(10,11,14,.93); display:none; align-items:center; justify-content:center; z-index:50; }
+  #help .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:28px 34px; font-size:13.5px; line-height:2; }
+  #help .card h3 { color:var(--acc); margin-bottom:8px; }
+  #toast { position:fixed; bottom:52px; right:20px; background:var(--panel2); border:1px solid var(--acc); color:var(--ink); border-radius:8px; padding:8px 16px; font-size:12.5px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:60; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SOUND SPACE</h1>
+  <span class="counts" id="counts">loading…</span>
+  <span id="playing"></span>
+  <span id="play-error" role="status" aria-live="polite"></span>
+  <div class="meter" id="meter">
+    <div class="bar" data-b="bass"></div><div class="bar" data-b="lowmid"></div>
+    <div class="bar" data-b="mid"></div><div class="bar" data-b="treble"></div>
+    <div class="bar rms" data-b="rms"></div>
+  </div>
+</header>
+<main>
+  <nav id="side"></nav>
+  <section id="detail"><h2 style="color:var(--dim)">waiting for catalog…</h2>
+    <p style="color:var(--dim);margin-top:10px">Assets appear as the factory validates them (auto-refreshes every 4s). Press <b>?</b> for keys. In the unified catalog, click <b>Enable audio</b> once in the top bar; playback then stays on this page's current server.</p>
+  </section>
+</main>
+<footer>
+  <span><kbd>←→</kbd>browse</span><span><kbd>↑↓</kbd>variant</span><span><kbd>space</kbd>solo</span>
+  <span><kbd>a</kbd>layer</span><span><kbd>h</kbd>hush</span><span><kbd>[ ]</kbd>root</span>
+  <span><kbd>-=</kbd>tempo</span><span><kbd>g</kbd>genre</span><span><kbd>1 2 3</kbd>grade</span><span><kbd>?</kbd>help</span>
+  <span id="status" style="margin-left:auto"></span>
+</footer>
+<div id="help"><div class="card">
+  <h3>keys</h3>
+  <div><kbd>← →</kbd> previous / next concept &nbsp; <kbd>g</kbd> jump to next genre group</div>
+  <div><kbd>↑ ↓</kbd> intensity variant (sparse / full / peak) — re-fires if playing</div>
+  <div><kbd>space</kbd> SOLO: hush everything, fire this &nbsp; <kbd>a</kbd> LAYER: add on top of what's playing</div>
+  <div><kbd>h</kbd> hush all &nbsp; <kbd>[ ]</kbd> transpose root down/up &nbsp; <kbd>- =</kbd> tempo nudge (clamped to stem window)</div>
+  <div><kbd>u</kbd> toggle unverified inbox stems (fresh from the factory — may misbehave)</div>
+  <div style="color:var(--acc)"><kbd>1</kbd> ✗ bad (delete + learn) &nbsp; <kbd>2</kbd> ○ ok (keep in vocab) &nbsp; <kbd>3</kbd> ★ good (outstanding) — saves instantly, auto-advances to next ungraded</div>
+  <div><kbd>x</kbd> show / hide rejected (bad-graded) items</div>
+  <div>sliders retune params live (re-fires ~10ms). Kits fire whole bundles; the variant key sets kit intensity.</div>
+  <div style="color:var(--dim)">factory validation shares this server — brief interruptions are normal.</div>
+</div></div>
+<div id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const API = '';   // same origin :9766
+let ASSETS = [];          // index entries (verified) + unverified extras
+let FULL = new Map();     // id -> full asset json
+let ORDER = [];           // display order of ids
+let SEL = null;           // selected id
+let VARIANT = 'full';
+let PVALS = new Map();    // id -> {param: value}
+let PLAYINGSOLO = null;   // id currently solo-fired by us
+let LAYERED = new Set();  // slots we've layered
+let PACKS = null, LOADEDDEPS = new Set(['tidal-drum-machines','uzu-drumkit','piano','vcsl']);
+let SHOWUNV = false;
+let KNOWN = new Set(), NEWIDS = new Set();
+let SERVERCPS = null;
+let ARCS = new Map();     // id -> arc json
+let ARCPICK = new Map();  // kit id -> arc id (or null)
+let GRADES = new Map();   // id -> 'bad'|'ok'|'good' (latest from grades.jsonl)
+let SHOWBAD = false;      // reveal rejected (bad-graded) assets in the list
+
+async function refreshArcs() {
+  try {
+    const html = await fetch(API+'/assets/music/arcs/', {cache:'no-store'}).then(r=>r.ok?r.text():'');
+    const names = [...html.matchAll(/href="([^"]+\.json)"/g)].map(m=>decodeURIComponent(m[1]));
+    for (const n of names) {
+      const id = n.replace(/\.arc\.json$|\.json$/,'');
+      if (ARCS.has(id)) continue;
+      const j = await fetch(API+'/assets/music/arcs/'+n, {cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+      if (j && j.sections) { ARCS.set(j.id||id, j); toast('arc landed: '+(j.id||id)); }
+    }
+  } catch(e){}
+}
+
+const toast = m => { const t=$('#toast'); t.textContent=m; t.style.opacity=1; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity=0, 2200); };
+
+async function requestJson(path, options={}) {
+  const response = await fetch(API+path, options);
+  const text = await response.text();
+  let body = {};
+  try { body = text ? JSON.parse(text) : {}; }
+  catch (_) { throw new Error(`${path}: invalid server response`); }
+  if (!response.ok || body?.ok === false || body?.response?.type === 'error') {
+    const message = body?.error || body?.message || body?.response?.message || `HTTP ${response.status}`;
+    throw new Error(`${path}: ${message}`);
+  }
+  return body;
+}
+const post = (path, body) => requestJson(path, {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(body||{})
+});
+function clearPlayError(){ $('#play-error').textContent=''; }
+function showPlayError(error){
+  const message = error?.message || String(error);
+  $('#playing').textContent='';
+  $('#play-error').textContent='⚠ '+message;
+  toast('playback failed — '+message);
+}
+async function runPlayback(operation){
+  clearPlayError();
+  try { return await operation(); }
+  catch(error){ showPlayError(error); return null; }
+}
+async function requireAudioEngine(){
+  const body = await requestJson('/transport', {cache:'no-store'});
+  const transport = body.transport;
+  if (!transport?.initialized) throw new Error('audio engine is not initialized — click Enable audio');
+  if (transport.audio?.state !== 'running') {
+    throw new Error(`audio engine is ${transport.audio?.state || 'unavailable'} — click Enable audio`);
+  }
+  return transport;
+}
+
+// ── grading (bad / ok / good) ───────────────────────────────
+const GLABEL = { bad:'✗ bad', ok:'○ ok', good:'★ good' };
+async function refreshGrades() {
+  try {
+    const txt = await fetch(API+'/assets/music/grades.jsonl', {cache:'no-store'}).then(r=>r.ok?r.text():'');
+    const g = new Map();
+    txt.trim().split('\n').filter(Boolean).forEach(l=>{ try{ const r=JSON.parse(l); if(r.id&&r.grade) g.set(r.id,r.grade); }catch(e){} });
+    GRADES = g; renderSide();
+  } catch(e){}
+}
+async function gradeAsset(id, grade) {
+  if (!id) return;
+  try { await post('/music/grade', {id, grade}); }
+  catch(error) { showPlayError(error); return; }
+  GRADES.set(id, grade);
+  toast(GLABEL[grade] + ' · ' + id.replace(/^[a-z]+\./,''));
+  // pick the next ungraded asset so triage keeps flowing
+  const i = ORDER.indexOf(id);
+  let nextId = null;
+  for (let k=1;k<=ORDER.length;k++){ const c=ORDER[(i+k+ORDER.length)%ORDER.length]; if(c===id) break; if(!GRADES.has(c)){ nextId=c; break; } }
+  renderSide();                                     // update badges, hide bad
+  if (nextId) select(nextId);
+  else { const a = await fullAsset(id); if (a) renderDetail(a); }  // stay, refresh grade state
+}
+
+// ── catalog ingest ──────────────────────────────────────────
+async function refreshIndex() {
+  try {
+    const txt = await fetch(API+'/assets/music/index.jsonl', {cache:'no-store'}).then(r=>r.ok?r.text():'');
+    const rows = txt.trim() ? txt.trim().split('\n').map(l=>JSON.parse(l)) : [];
+    let unv = [];
+    if (SHOWUNV) {
+      const html = await fetch(API+'/assets/music/inbox/', {cache:'no-store'}).then(r=>r.ok?r.text():'').catch(()=>'');
+      const names = [...html.matchAll(/href="([^"]+\.json)"/g)].map(m=>decodeURIComponent(m[1]));
+      unv = names.map(n => ({id:n.replace(/\.json$/,''), kind:'stem', unverified:true,
+                             path:'assets/music/inbox/'+n, slot:n.split('.')[0], tags:'', blurb:'(unverified)'}));
+    }
+    const all = rows.concat(unv);
+    const fresh = all.filter(a => !KNOWN.has(a.id));
+    fresh.forEach(a => { KNOWN.add(a.id); NEWIDS.add(a.id); setTimeout(()=>{NEWIDS.delete(a.id); renderSide();}, 45000); });
+    ASSETS = all;
+    if (fresh.length && KNOWN.size > fresh.length) toast(`+${fresh.length} new: ${fresh.slice(0,3).map(a=>a.id).join(', ')}${fresh.length>3?'…':''}`);
+    renderSide();
+    if (!SEL && ASSETS.length) select(ASSETS[0].id);
+  } catch(e) { /* server busy */ }
+}
+function genreOf(a) {
+  if (a.kind === 'kit') return '★ kits';
+  if (a.kind === 'arc') return '↝ arcs';
+  const g = (a.genre && a.genre[0]) || (a.tags||'').split(' ')[0] || 'misc';
+  return String(g);
+}
+function renderSide() {
+  const visible = ASSETS.filter(a => SHOWBAD || GRADES.get(a.id) !== 'bad');
+  const groups = new Map();
+  for (const a of visible) {
+    const g = genreOf(a);
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(a);
+  }
+  const side = $('#side'); side.innerHTML = '';
+  ORDER = [];
+  const gnames = [...groups.keys()].sort((x,y)=> x==='★ kits' ? -1 : y==='★ kits' ? 1 : x.localeCompare(y));
+  for (const g of gnames) {
+    const h = document.createElement('div'); h.className='ghead'; h.textContent = g + ' · ' + groups.get(g).length;
+    h.onclick = () => select(groups.get(g)[0].id);
+    side.appendChild(h);
+    for (const a of groups.get(g)) {
+      ORDER.push(a.id);
+      const gr = GRADES.get(a.id);
+      const badge = gr ? `<span class="gr ${gr}">${gr==='good'?'★':gr==='ok'?'○':'✗'}</span>` : '';
+      const d = document.createElement('div');
+      d.className = 'item' + (a.id===SEL?' sel':'') + (a.kind==='kit'?' kit':a.kind==='arc'?' arc':'') + (a.unverified?' unv':'') + (gr==='bad'?' graded-bad':'');
+      d.innerHTML = `<span class="slotchip">${a.kind==='kit'?'KIT':a.kind==='arc'?'ARC':(a.slot||'')}</span>${a.id.replace(/^[a-z]+\./,'')}${badge}` + (NEWIDS.has(a.id)?'<span class="new">● NEW</span>':'');
+      d.onclick = () => select(a.id);
+      side.appendChild(d);
+    }
+  }
+  const gc = {bad:0,ok:0,good:0}; for (const a of ASSETS){ const x=GRADES.get(a.id); if(gc[x]!==undefined) gc[x]++; }
+  $('#counts').textContent = `${ASSETS.filter(a=>a.kind==='stem').length} stems · ${ASSETS.filter(a=>a.kind==='kit').length} kits · ${ASSETS.filter(a=>a.kind==='arc').length} arcs`
+    + (SHOWUNV?' · +inbox':'') + ` · graded ${gc.bad+gc.ok+gc.good}/${ASSETS.length} (★${gc.good} ○${gc.ok} ✗${gc.bad})` + (SHOWBAD?' · showing ✗':'');
+}
+async function fullAsset(id) {
+  if (FULL.has(id)) return FULL.get(id);
+  const e = ASSETS.find(a=>a.id===id); if (!e) return null;
+  const j = await fetch(API+'/'+e.path, {cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+  if (j) { j.unverified = e.unverified; FULL.set(id, j); }
+  return j;
+}
+
+// ── selection & detail ──────────────────────────────────────
+async function select(id) {
+  SEL = id; VARIANT = 'full';
+  renderSide();
+  const a = await fullAsset(id);
+  if (!a) return;
+  if (!PVALS.has(id)) {
+    const p = {}; for (const [k,v] of Object.entries(a.params||{})) p[k]=v.default;
+    PVALS.set(id, p);
+  }
+  renderDetail(a);
+  const el = document.querySelector('.item.sel'); if (el) el.scrollIntoView({block:'nearest'});
+}
+function compile(a, variant) {
+  const vals = PVALS.get(a.id)||{};
+  const code = a.kind==='kit' ? '' : ((a.code||{})[variant]||(a.code||{}).full||'');
+  return code.replace(/\$\{(\w+)\}/g, (m,k)=> (k in vals) ? vals[k] : m);
+}
+async function renderArcDetail(a) {
+  const kitAssets = (await Promise.all(ASSETS.filter(x=>x.kind==='kit').map(x=>fullAsset(x.id)))).filter(Boolean);
+  if (SEL !== a.id) return;
+  const compatible = kitAssets.filter(kit => new Set([kit.arc, ...(kit.arcs||[])]).has(a.id));
+  const cycles = (a.sections||[]).reduce((sum, section)=>sum + (Number(section.cycles)||0), 0);
+  let h = `<h2>${a.name||a.id}</h2><div class="id">${a.id} · ARRANGEMENT</div>`;
+  h += `<div class="desc">${a.desc||''}</div>`;
+  h += `<div class="chips">${(a.tags||[]).map(t=>`<span class="chip">${t}</span>`).join('')}</div>`;
+  h += `<div class="meta"><span>kind <b>arc</b></span><span>length <b>${cycles} cycles</b></span><span>sections <b>${(a.sections||[]).length}</b></span></div>`;
+  const gr = GRADES.get(a.id);
+  h += `<div class="gradebar"><span class="glabel">grade:</span>`
+     + `<button class="gbtn bad ${gr==='bad'?'on':''}" data-grade="bad">✗ bad <span style="opacity:.55">1</span></button>`
+     + `<button class="gbtn ok ${gr==='ok'?'on':''}" data-grade="ok">○ ok <span style="opacity:.55">2</span></button>`
+     + `<button class="gbtn good ${gr==='good'?'on':''}" data-grade="good">★ good <span style="opacity:.55">3</span></button></div>`;
+  h += `<div class="arc-note">An arc is an arrangement, not a standalone sound. It can only play through a verified kit that explicitly recommends it.</div>`;
+  h += `<div class="arc-sections">${(a.sections||[]).map((section,index)=>{
+    const slots = Object.entries(section.slots||{}).map(([slot,variant])=>`${slot}:${variant}`).join(' · ');
+    return `<div class="arc-section"><b>${index+1}. ${section.label||'section'}</b><span>${section.cycles||0} cycles</span><span>${slots}</span></div>`;
+  }).join('')}</div>`;
+  if (compatible.length) {
+    h += `<div class="arc-note">Verified kit assignments: ${compatible.map(kit=>`<button class="gbtn" data-open-kit="${kit.id}">${kit.name||kit.id}</button>`).join(' ')}</div>`;
+  } else {
+    h += `<div class="arc-note" style="border-left-color:var(--hot);color:var(--hot)">Not assigned to any verified kit. This arc is intentionally non-playable until it is assigned and passes the kit×arc audibility gate.</div>`;
+  }
+  h += `<pre id="code">${escapeHtml(JSON.stringify(a.sections||[], null, 2))}</pre>`;
+  $('#detail').innerHTML = h;
+  document.querySelectorAll('.gbtn[data-grade]').forEach(b=>b.onclick=()=>gradeAsset(a.id,b.dataset.grade));
+  document.querySelectorAll('[data-open-kit]').forEach(b=>b.onclick=()=>{ ARCPICK.set(b.dataset.openKit,a.id); select(b.dataset.openKit); });
+}
+function renderDetail(a) {
+  if (a.kind === 'arc') { void renderArcDetail(a); return; }
+  const isKit = a.kind==='kit';
+  const vals = PVALS.get(a.id)||{};
+  let h = `<h2>${a.name||a.id}</h2><div class="id">${a.id}${a.unverified?' · <span style="color:var(--hot)">UNVERIFIED</span>':''}</div>`;
+  h += `<div class="desc">${a.desc||''}</div>`;
+  h += `<div class="chips">${(Array.isArray(a.tags)?a.tags:String(a.tags||'').split(' ')).filter(Boolean).map(t=>`<span class="chip">${t}</span>`).join('')}</div>`;
+  const key = a.key ? `${a.key.root||''} ${a.key.mode||''}` : '—';
+  const cps = a.cps ? (isKit? a.cps : `${a.cps.written} [${a.cps.min}–${a.cps.max}]`) : '—';
+  h += `<div class="meta"><span>slot <b>${a.slot||'kit'}</b></span><span>key <b>${key}</b></span><span>cps <b>${cps}</b></span><span>energy <b>${a.energy??'—'}</b></span><span>meter <b>${a.meter||'4/4'}</b></span><span>${a.deterministic===false?'<b style="color:var(--acc2)">nondeterministic</b>':''}</span></div>`;
+  const _gr = GRADES.get(a.id);
+  h += `<div class="gradebar"><span class="glabel">grade:</span>`
+     + `<button class="gbtn bad ${_gr==='bad'?'on':''}" data-grade="bad">✗ bad <span style="opacity:.55">1</span></button>`
+     + `<button class="gbtn ok ${_gr==='ok'?'on':''}" data-grade="ok">○ ok <span style="opacity:.55">2</span></button>`
+     + `<button class="gbtn good ${_gr==='good'?'on':''}" data-grade="good">★ good <span style="opacity:.55">3</span></button></div>`;
+  if (isKit) {
+    h += `<div id="kitlist">stems: ${Object.entries(a.stems||{}).map(([s,i])=>`<div>· <b>${s}</b> ← ${i}</div>`).join('')}</div>`;
+    const pick = ARCPICK.get(a.id) || null;
+    h += `<div style="margin-bottom:12px"><div style="color:var(--dim);font-size:11px;letter-spacing:.1em;margin-bottom:5px">ARC — long-form section script (form repeats endlessly)</div><div class="variants" id="arcrow">`;
+    h += `<button class="vbtn ${!pick?'sel':''}" data-arc="">loop ${VARIANT}</button>`;
+    const recommendedIds = [...new Set([a.arc, ...(a.arcs||[])].filter(Boolean))];
+    for (const aid of recommendedIds) {
+      const arc = ARCS.get(aid);
+      if (!arc) continue;
+      const cyc = arc.sections.reduce((s,x)=>s+x.cycles,0);
+      const dur = Math.round(cyc / (a.cps||0.5));
+      h += `<button class="vbtn ${pick===aid?'sel':''}" data-arc="${aid}" title="${arc.desc||''}">${aid.replace(/^arc\./,'')} · ${dur}s</button>`;
+    }
+    h += `</div></div>`;
+  }
+  h += `<div class="variants">${['sparse','full','peak'].map(v=>`<button class="vbtn ${v===VARIANT?'sel':''} ${PLAYINGSOLO===a.id&&v===VARIANT?'playing':''}" data-v="${v}">${v}</button>`).join('')}${isKit?'<span style="color:var(--dim);align-self:center;font-size:12px">kit intensity</span>':''}</div>`;
+  h += `<div id="params">`;
+  for (const [k,spec] of Object.entries(a.params||{})) {
+    const v = vals[k];
+    if (typeof spec.default === 'number') {
+      const mn = spec.min ?? 0, mx = spec.max ?? Math.max(1, spec.default*2);
+      const step = (mx-mn)/100 || .01;
+      h += `<div class="prow"><label>${k}</label><input type="range" data-p="${k}" min="${mn}" max="${mx}" step="${step}" value="${v}"><span class="pval"><span class="pv">${v}</span> <span style="color:var(--dim)">${spec.doc||''}</span></span></div>`;
+    } else if (spec.options) {
+      h += `<div class="prow"><label>${k}</label><select data-p="${k}">${spec.options.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select><span class="pval">${spec.doc||''}</span></div>`;
+    } else {
+      h += `<div class="prow"><label>${k}</label><input type="text" data-p="${k}" value="${v}"><span class="pval">${spec.doc||''}</span></div>`;
+    }
+  }
+  h += `</div>`;
+  if (!isKit && a.cps) h += `<div class="prow" id="cpsrow"><label>tempo cps</label><input type="range" id="cpsslide" min="${a.cps.min}" max="${a.cps.max}" step=".005" value="${clampCps(a)}"><span class="pval" id="cpsval">${clampCps(a)}</span></div>`;
+  h += `<div class="btnrow"><button class="abtn primary" id="bplay">▶ solo (space)</button><button class="abtn" id="blayer">+ layer (a)</button><button class="abtn warn" id="bhush">■ hush (h)</button></div>`;
+  h += `<pre id="code">${isKit?'(kit — fires the stems listed above)':escapeHtml(compile(a, VARIANT))}</pre>`;
+  $('#detail').innerHTML = h;
+  document.querySelectorAll('.vbtn').forEach(b=> {
+    if (b.dataset.arc !== undefined) b.onclick = async ()=> { ARCPICK.set(a.id, b.dataset.arc||null); renderDetail(a); if (PLAYINGSOLO===a.id) runPlayback(()=>fireKit(a)); };
+    else b.onclick = ()=> setVariant(b.dataset.v);
+  });
+  document.querySelectorAll('#params [data-p]').forEach(inp => {
+    inp.oninput = () => {
+      const k = inp.dataset.p;
+      const val = inp.type==='range' ? parseFloat(inp.value) : inp.value;
+      PVALS.get(a.id)[k] = val;
+      const pv = inp.closest('.prow').querySelector('.pv'); if (pv) pv.textContent = val;
+      const c = $('#code'); if (c && !isKit) c.textContent = compile(a, VARIANT);
+      debounceRefire();
+    };
+  });
+  const cs = $('#cpsslide');
+  if (cs) cs.oninput = () => { $('#cpsval').textContent = cs.value; debounce(()=>runPlayback(async()=>{SERVERCPS=parseFloat(cs.value); await post('/strudel/cps',{cps:SERVERCPS});}), 200); };
+  $('#bplay').onclick = solo; $('#blayer').onclick = layer; $('#bhush').onclick = hush;
+  document.querySelectorAll('.gbtn').forEach(b=> b.onclick = ()=> gradeAsset(a.id, b.dataset.grade));
+}
+function clampCps(a){ const v = SERVERCPS ?? a.cps.written; return Math.max(a.cps.min, Math.min(a.cps.max, v)); }
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+let _deb; function debounce(f, ms){ clearTimeout(_deb); _deb = setTimeout(f, ms); }
+function debounceRefire(){ debounce(()=>{ if (PLAYINGSOLO===SEL || LAYERED.size) runPlayback(()=>fireCurrent(false)); }, 280); }
+async function setVariant(v){ VARIANT=v; const a=await fullAsset(SEL); renderDetail(a); if (PLAYINGSOLO===SEL) runPlayback(()=>fireCurrent(false)); }
+
+// ── firing ──────────────────────────────────────────────────
+async function ensureDeps(a) {
+  if (!PACKS) PACKS = await fetch(API+'/assets/music/packs.json').then(r=>r.json());
+  let newly = [];
+  for (const d of (a.deps||[])) {
+    if (LOADEDDEPS.has(d) || !PACKS[d] || typeof PACKS[d] !== 'string') continue;
+    await post('/strudel/send', {code: PACKS[d], evaluate:false});
+    LOADEDDEPS.add(d); newly.push(d);
+    toast('loading pack: '+d);
+  }
+  if (newly.length) await new Promise(r=>setTimeout(r, newly.some(d=>d.startsWith('shabda'))?5000:2300));
+}
+async function fireCurrent(setTempo) {
+  const a = await fullAsset(SEL); if (!a) return;
+  if (a.kind === 'arc') throw new Error('an arc is an arrangement — open one of its assigned kits');
+  if (a.kind === 'kit') return fireKit(a, setTempo);
+  await requireAudioEngine();
+  await ensureDeps(a);
+  if (setTempo && a.cps) { const c = parseFloat($('#cpsslide')?.value || a.cps.written); await post('/strudel/cps',{cps:c}); SERVERCPS=c; }
+  await post('/strudel/track', {name: a.slot, code: compile(a, VARIANT)});
+  $('#playing').textContent = '▶ ' + a.id + ' · ' + VARIANT;
+}
+async function solo() {
+  return runPlayback(async()=>{
+    const selected = await fullAsset(SEL);
+    if (selected?.kind === 'arc') throw new Error('an arc is an arrangement — open one of its assigned kits');
+    await requireAudioEngine();
+    await post('/strudel/hush'); LAYERED.clear();
+    await fireCurrent(true);
+    PLAYINGSOLO = SEL; const a=await fullAsset(SEL); renderDetail(a);
+  });
+}
+async function layer() {
+  return runPlayback(async()=>{
+    const a = await fullAsset(SEL); if (!a || a.kind==='kit') return solo();
+    await fireCurrent(false); LAYERED.add(a.slot);
+    toast('layered on '+a.slot);
+  });
+}
+async function hush() { return runPlayback(async()=>{ await post('/strudel/hush'); PLAYINGSOLO=null; LAYERED.clear(); $('#playing').textContent=''; }); }
+function subst(s, sid, variant) {
+  const vals = PVALS.get(sid)||{};
+  return ((s.code||{})[variant]||s.code.full).replace(/\$\{(\w+)\}/g,(m,k)=> (vals[k]!==undefined)?vals[k]:m);
+}
+async function fireKit(kit, setTempo) {
+  await requireAudioEngine();
+  await post('/strudel/hush'); LAYERED.clear();
+  if (setTempo !== false && kit.cps) { await post('/strudel/cps',{cps:kit.cps}); SERVERCPS=kit.cps; }
+  const arcId = ARCPICK.get(kit.id);
+  const arc = arcId ? ARCS.get(arcId) : null;
+  if (arc) {  // visual handshake per CONTRACT: section clock tracks the musical form
+    await post('/p5/state', {key:'secBeats', value: arc.sections[0].cycles*4});
+    await post('/p5/state', {key:'arc', value: arc.sections.map(s=>s.intensity??0.6)});
+    await post('/p5/state', {key:'t0', value: null});
+  }
+  for (const [slot, sid] of Object.entries(kit.stems||{})) {
+    const s = await fullAsset(sid);
+    if (!s) { toast('missing stem '+sid); continue; }
+    await ensureDeps(s);
+    if (!PVALS.has(sid)) { const p={}; for (const [k,v] of Object.entries(s.params||{})) p[k]=v.default; PVALS.set(sid,p); }
+    let code;
+    if (arc) {  // weave variants into one self-evolving arrange() form
+      const segs = [];
+      for (const sec of arc.sections) {
+        const v = (sec.slots||{})[slot] ?? (sec.slots||{})['*'] ?? 'full';
+        if (segs.length && segs[segs.length-1][1]===v) segs[segs.length-1][0] += sec.cycles;
+        else segs.push([sec.cycles, v]);
+      }
+      if (segs.every(x=>x[1]==='off')) continue;
+      code = 'arrange(' + segs.map(([c,v]) =>
+        `[${c}, ${v==='off' ? 'silence' : subst(s, sid, v).replace(/\.play\(\)\s*$/,'')}]`).join(', ') + ').play()';
+    } else {
+      code = subst(s, sid, VARIANT);
+    }
+    await post('/strudel/track', {name: slot, code});
+  }
+  PLAYINGSOLO = kit.id;
+  $('#playing').textContent = '▶ KIT ' + kit.id + (arc ? ' ⟿ ' + arcId : ' · ' + VARIANT);
+}
+
+// ── transpose / tempo keys ──────────────────────────────────
+async function nudgeRoot(dir) {
+  const a = await fullAsset(SEL); if (!a || !a.params || !a.params.root) return;
+  const vals = PVALS.get(a.id);
+  if (typeof a.params.root.default === 'number') {
+    const spec = a.params.root;
+    vals.root = Math.max(spec.min??-5, Math.min(spec.max??6, (vals.root??0)+dir));
+    toast('root '+(vals.root>=0?'+':'')+vals.root+' st');
+  } else {
+    const notes = ['c','c#','d','eb','e','f','f#','g','ab','a','bb','b'];
+    const i = Math.max(0, notes.indexOf(String(vals.root)));
+    vals.root = notes[(i+dir+12)%12];
+    toast('root '+vals.root);
+  }
+  renderDetail(a);
+  if (PLAYINGSOLO===SEL) runPlayback(()=>fireCurrent(false));
+}
+async function nudgeCps(d) {
+  const a = await fullAsset(SEL); if (!a || !a.cps) return;
+  const cur = parseFloat($('#cpsslide')?.value || a.cps.written);
+  const nxt = Math.max(a.cps.min, Math.min(a.cps.max, +(cur + d).toFixed(3)));
+  if ($('#cpsslide')) { $('#cpsslide').value = nxt; $('#cpsval').textContent = nxt; }
+  SERVERCPS = nxt; runPlayback(()=>post('/strudel/cps',{cps:nxt}));
+}
+
+// ── keyboard ────────────────────────────────────────────────
+const VORDER = ['sparse','full','peak'];
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT' || e.target.tagName==='SELECT') { if (e.key==='Escape') e.target.blur(); return; }
+  const i = ORDER.indexOf(SEL);
+  switch (e.key) {
+    case 'ArrowRight': if (ORDER.length) select(ORDER[(i+1)%ORDER.length]); e.preventDefault(); break;
+    case 'ArrowLeft':  if (ORDER.length) select(ORDER[(i-1+ORDER.length)%ORDER.length]); e.preventDefault(); break;
+    case 'ArrowUp':   { const v=VORDER.indexOf(VARIANT); if (v<2) setVariant(VORDER[v+1]); e.preventDefault(); break; }
+    case 'ArrowDown': { const v=VORDER.indexOf(VARIANT); if (v>0) setVariant(VORDER[v-1]); e.preventDefault(); break; }
+    case ' ': (PLAYINGSOLO===SEL) ? hush() : solo(); e.preventDefault(); break;
+    case 'a': layer(); break;
+    case 'h': hush(); break;
+    case '[': nudgeRoot(-1); break;
+    case ']': nudgeRoot(1); break;
+    case '-': nudgeCps(-.02); break;
+    case '=': nudgeCps(.02); break;
+    case 'g': {
+      if (!ORDER.length) break;
+      const cur = genreOf(ASSETS.find(x=>x.id===SEL)||{});
+      const gs = [...new Set(ORDER.map(id=>genreOf(ASSETS.find(x=>x.id===id))))];
+      const ng = gs[(gs.indexOf(cur)+1)%gs.length];
+      const first = ORDER.find(id=>genreOf(ASSETS.find(x=>x.id===id))===ng);
+      if (first) select(first);
+      break; }
+    case '1': gradeAsset(SEL,'bad');  e.preventDefault(); break;
+    case '2': gradeAsset(SEL,'ok');   e.preventDefault(); break;
+    case '3': gradeAsset(SEL,'good'); e.preventDefault(); break;
+    case 'x': SHOWBAD=!SHOWBAD; toast(SHOWBAD?'showing rejected ✗':'hiding rejected'); renderSide(); break;
+    case 'u': SHOWUNV=!SHOWUNV; toast(SHOWUNV?'showing unverified inbox':'verified only'); refreshIndex(); break;
+    case '?': $('#help').style.display = $('#help').style.display==='flex'?'none':'flex'; break;
+    case 'Escape': $('#help').style.display='none'; break;
+  }
+});
+$('#help').onclick = ()=> $('#help').style.display='none';
+
+// ── meters & status ─────────────────────────────────────────
+async function meterTick() {
+  try {
+    const d = await fetch(API+'/p5/read?key=audio', {cache:'no-store'}).then(r=>r.json());
+    const a = d.value||{};
+    document.querySelectorAll('#meter .bar').forEach(b => {
+      const k = b.dataset.b; const v = k==='rms' ? Math.min(1,(a.rms||0)*2.2) : (a[k]||0);
+      b.style.height = Math.max(1, v*22)+'px';
+    });
+  } catch(e){}
+}
+async function statusTick() {
+  try {
+    const s = await fetch(API+'/status', {cache:'no-store'}).then(r=>r.json());
+    SERVERCPS = s.cps;
+    $('#status').textContent = `server: ${s.tracks.length} tracks · cps ${s.cps??'—'}`;
+  } catch(e){ $('#status').textContent = 'server unreachable'; }
+}
+setInterval(meterTick, 200);
+setInterval(statusTick, 3000);
+setInterval(refreshIndex, 4000);
+setInterval(refreshArcs, 20000);
+setInterval(refreshGrades, 5000);
+refreshIndex(); refreshArcs(); refreshGrades(); statusTick();
+</script>
+</body>
+</html>

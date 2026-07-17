@@ -1,0 +1,114 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.arctic",
+  "kind": "world",
+  "name": "Arctic Night",
+  "desc": "Austere polar-night backdrop: emerald aurora curtains drifting over jagged ice ridges, a stippled star field, and endless falling snow.",
+  "tags": [
+    "arctic",
+    "polar",
+    "night",
+    "aurora",
+    "northern lights",
+    "borealis",
+    "snow",
+    "ice",
+    "tundra",
+    "glacier",
+    "cold",
+    "winter",
+    "sublime",
+    "eerie",
+    "dark",
+    "backdrop",
+    "world",
+    "sky",
+    "stars",
+    "emerald"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 1,
+      "doc": "aurora band count + snowfall + star-field density"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "aurora glow/shimmer amplitude + snow brightness"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.5,
+      "doc": "beats-relative aurora drift + snowfall rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "ice-ridge height + star size"
+    },
+    "hue": {
+      "default": 150,
+      "min": 0,
+      "max": 360,
+      "doc": "aurora hue (150 emerald, 200 cyan, 280 violet)"
+    },
+    "y": {
+      "default": 0.52,
+      "min": 0.3,
+      "max": 0.72,
+      "doc": "horizon height as canvas fraction"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "aurora drift phase offset"
+    },
+    "style": {
+      "default": "aurora",
+      "options": [
+        "aurora",
+        "thermal",
+        "noir",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "render treatment: painterly night / heat false-color / chiaroscuro / schematic wireframe / hatched engraving"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "layout seed for ridges, stars, snow"
+    },
+    "act": {
+      "default": "calm",
+      "options": [
+        "calm",
+        "storm"
+      ],
+      "doc": "multi-minute dramaturgy: gentle vs section-driven aurora surges"
+    }
+  },
+  "acts": [
+    "calm",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:08:49+00:00",
+    "fps": 59.9,
+    "motion": 0.0105,
+    "lum": 0.457
+  },
+  "code": "const D = { density:.5, energy:.6, speed:1, scale:1, hue:150, y:.52, x:.5, style:'aurora', seed:0, act:'calm' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const q = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718, u = Math.min(width, height);\nconst wire = (P.style==='blueprint' || P.style==='engraving');\nconst key = width+'x'+height+':'+P.style+':'+P.seed+':'+Math.round(P.hue)+':'+Math.round(P.y*100)+':'+Math.round(P.scale*100)+':'+Math.round(P.density*100);\nif (!S.buf || S.key !== key) {\n  const hz = height*P.y;\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  if (wire) {\n    const paper = P.style==='engraving' ? [0,0,7] : [222,64,7];\n    g.background(paper[0],paper[1],paper[2]);\n    const ink = P.style==='engraving' ? [0,0,86] : [192,72,92];\n    // stippled/hatched snow field\n    g.stroke(ink[0],ink[1],ink[2],28); g.strokeWeight(1);\n    for (let i=0;i<Math.round(300+P.density*500);i++){ const x=fr(i*2)*width, yy=hz+fr(i*2+1)*(height-hz); if(P.style==='engraving'){ g.line(x,yy,x+ (u*0.02), yy);} else { g.point(x,yy);} }\n    // ice ridge contours\n    g.noFill(); g.strokeWeight(Math.max(1,u*0.003));\n    for (let L=0;L<3;L++){ g.stroke(ink[0],ink[1],ink[2],55+L*12); g.beginShape();\n      const amp=hz*0.16*(1+L*0.45)*P.scale;\n      for (let x=0;x<=width;x+=Math.max(6,u*0.018)){ const n=Math.abs(Math.sin(x*0.008+L*2+P.seed))*0.7+Math.abs(Math.sin(x*0.021+L))*0.3; g.vertex(x, hz - amp*n - L*hz*0.045); }\n      g.endShape(); }\n    // star plus-marks\n    const ns=Math.round(40+P.density*120);\n    for (let i=0;i<ns;i++){ const x=fr(i)*width, yy=fr(i+99)*hz*0.9, s=2+fr(i+7)*3; g.stroke(ink[0],ink[1],ink[2],40); g.strokeWeight(1); g.line(x-s,yy,x+s,yy); g.line(x,yy-s,x,yy+s); }\n    g.stroke(ink[0],ink[1],ink[2],90); g.strokeWeight(Math.max(1,u*0.004)); g.line(0,hz,width,hz);\n  } else {\n    let sky;\n    if (P.style==='thermal') sky=[[262,82,6],[218,90,12]];\n    else if (P.style==='noir') sky=[[220,12,5],[210,8,15]];\n    else sky=[[236,70,5],[220,55,17]];\n    for (let y=0;y<hz;y++){ const t=y/hz; g.fill(sky[0][0]+(sky[1][0]-sky[0][0])*t, sky[0][1]+(sky[1][1]-sky[0][1])*t, sky[0][2]+(sky[1][2]-sky[0][2])*t); g.rect(0,y,width,1); }\n    const ns=Math.round(60+P.density*170);\n    for (let i=0;i<ns;i++){ const x=fr(i)*width, yy=fr(i+31)*hz*0.92, s=fr(i+7)*1.6+0.4, b=P.style==='noir'?70:92; g.fill(0,0,b,55+fr(i+3)*40); g.ellipse(x,yy,s,s); }\n    const rc = P.style==='thermal'?[[200,60,38],[210,48,55],[214,38,72]] : P.style==='noir'?[[210,6,28],[210,5,44],[210,4,62]] : [[212,32,44],[206,26,62],[200,20,82]];\n    for (let L=0;L<3;L++){ const amp=hz*0.16*(1+L*0.5)*P.scale, base=hz - L*hz*0.04; g.fill(rc[L][0],rc[L][1],rc[L][2]); g.beginShape(); g.vertex(0,hz);\n      for (let x=0;x<=width;x+=Math.max(8,u*0.02)){ const n=Math.abs(Math.sin(x*0.008+L*2+P.seed))*0.7+Math.abs(Math.sin(x*0.02+L))*0.3; g.vertex(x, base - amp*n); }\n      g.vertex(width,hz); g.endShape(g.CLOSE); }\n    const sf = P.style==='thermal'?[210,40,54]:P.style==='noir'?[210,4,66]:[205,18,86];\n    for (let y=Math.floor(hz);y<height;y++){ const t=(y-hz)/(height-hz+1); g.fill(sf[0],sf[1],sf[2]-t*22); g.rect(0,y,width,1); }\n  }\n  S.buf = g; S.hz = hz; S.key = key;\n}\nimage(S.buf, 0, 0);\nconst hz = S.hz, drift = K.t*P.speed + P.x*4;\nconst intn = (K.intensity!=null?K.intensity:0.6);\nlet glow = P.energy*(0.45+0.55*K.swell) + A.mid*0.6;\nlet nB = 2 + Math.round(P.density*4);\nif (P.act==='storm'){ glow *= (0.55+1.3*intn); nB += Math.round(intn*2); } else { glow *= (0.7+0.4*intn); }\nif (wire) {\n  noFill(); const li = P.style==='engraving'?[0,0,90]:[190,80,92];\n  stroke(li[0],li[1],li[2], 24+glow*22); strokeWeight(Math.max(1,u*0.0022));\n  for (let b=0;b<nB;b++){ const ph=drift*0.13+b*1.3, hy=hz*(0.55-b*0.055), amp=hz*0.09*(0.6+P.energy); beginShape();\n    for (let x=0;x<=width;x+=Math.max(10,u*0.03)){ vertex(x, hy+Math.sin(x*0.01+ph)*amp+Math.sin(x*0.03+ph*1.7)*amp*0.4); } endShape(); }\n} else {\n  blendMode(ADD);\n  for (let b=0;b<nB;b++){ const ph=drift*0.13+b*1.3, baseY=hz*(0.5-b*0.05), h=(P.hue+b*22)%360, sat=P.style==='noir'?22:72;\n    for (let x=0;x<=width;x+=Math.max(14,u*0.05)){ const yy=baseY+Math.sin(x*0.008+ph)*hz*0.14+Math.sin(x*0.02+ph*1.6)*hz*0.05; const a=(9+glow*20)*(0.5+0.5*Math.sin(x*0.011+ph*2)); if(a<1)continue; fill(h,sat,90,Math.min(28,a)); ellipse(x,yy,Math.max(12,u*0.035),hz*0.46); } }\n  blendMode(BLEND);\n}\n// falling snow \u2014 continuous real-time motion floor\nnoStroke();\nconst nS=Math.round(24+P.density*150), fb=95;\nfor (let i=0;i<nS;i++){ const spd=0.4+fr(i+50)*1.3, x=(fr(i)*width+Math.sin(K.t*0.3*P.speed+i)*u*0.03)%width, y=(fr(i+11)*height+K.t*(16+spd*42)*P.speed)%height, s=(0.6+fr(i+5)*2.2)*(u*0.004);\n  if(wire){ stroke(190,10,88,50); strokeWeight(Math.max(1,s*0.7)); point((x+width)%width,y); }\n  else { fill(0,0,fb,36+P.energy*46); ellipse((x+width)%width,y,s,s); } }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

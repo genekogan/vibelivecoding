@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.voronoi_3d",
+  "kind": "genart",
+  "name": "Voronoi Triangles 3D",
+  "desc": "A faceted crystalline field of Voronoi cells extruded into fake-3D gem facets, each triangle flat-shaded by a slowly orbiting light while the cells breathe on the beat and the whole lattice re-cuts itself every section.",
+  "tags": [
+    "voronoi",
+    "triangles",
+    "triangulation",
+    "facet",
+    "faceted",
+    "gem",
+    "crystal",
+    "crystalline",
+    "lowpoly",
+    "low-poly",
+    "3d",
+    "extrusion",
+    "polygon",
+    "cells",
+    "tessellation",
+    "mosaic",
+    "stained-glass",
+    "wireframe",
+    "geometric",
+    "generative",
+    "genart",
+    "abstract",
+    "shard",
+    "prism",
+    "jewel",
+    "lattice",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of Voronoi cells (14..72)"
+    },
+    "relief": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "facet extrusion height \u2014 how sharply the gems pop out"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "saturation, specular sparkle + jitter amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved size multiplier"
+    },
+    "hue": {
+      "default": 282,
+      "min": 0,
+      "max": 360,
+      "doc": "base jewel hue (cells spread around it)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "light-orbit + beat-breathe rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "light azimuth bias"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "light elevation bias"
+    },
+    "style": {
+      "default": "gem",
+      "options": [
+        "gem",
+        "lowpoly",
+        "wireframe",
+        "stained"
+      ],
+      "doc": "render philosophy: gem = specular cut-crystal facets / lowpoly = matte desaturated terrain / wireframe = glowing facet-edge mesh, no fills (abstract) / stained = flat translucent cells with heavy black leading, no 3D"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "shatter",
+        "grow"
+      ],
+      "doc": "multi-minute program: drift = calm orbiting light + gentle breathe / shatter = fast light, hard pops, jitter / grow = extrusion height swells and collapses across the section"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "site layout (folded with section index so the lattice re-cuts each section)"
+    }
+  },
+  "acts": [
+    "drift",
+    "shatter",
+    "grow"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:32:56+00:00",
+    "fps": 59.5,
+    "motion": 0.1725,
+    "lum": 0.516
+  },
+  "code": "const D = { density:.5, relief:.55, energy:.6, scale:1, hue:282, speed:1, x:.5, y:.5, style:'gem', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v)), frc=v=>v-Math.floor(v), TAU=Math.PI*2;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H);\nconst style=P.style, wire=style==='wireframe', stained=style==='stained', lowp=style==='lowpoly';\nconst dens=clp(P.density,0,1), relief=clp(P.relief,0,1), en=clp(P.energy,0,1);\nconst nCells=Math.round(14+dens*58);\n\n// ---- reseed per section: geometry key folds section into the effective seed ----\nconst sec = Math.floor(K.section)||0;\nconst effSeed = (P.seed|0) + sec*101;\nconst gkey = W+'x'+H+':'+nCells+':'+effSeed;\nif(S.gkey!==gkey){\n  S.gkey=gkey;\n  const hsh=i=>{const s=Math.sin(i*127.1+effSeed*311.7)*43758.5453;return s-Math.floor(s);};\n  const cols=Math.max(2,Math.round(Math.sqrt(nCells*W/H))), rows=Math.max(2,Math.ceil(nCells/cols));\n  const sites=[]; let idx=0;\n  for(let r=0;r<rows && idx<nCells;r++)for(let c=0;c<cols && idx<nCells;c++){\n    const jx=(hsh(idx*2+1)-.5)*0.92, jy=(hsh(idx*2+2)-.5)*0.92;\n    sites.push([(c+0.5+jx)/cols*W,(r+0.5+jy)/rows*H,hsh(idx*3+7)]); idx++;\n  }\n  const cells=[];\n  for(let i=0;i<sites.length;i++){\n    let poly=[[0,0],[W,0],[W,H],[0,H]];\n    const px=sites[i][0], py=sites[i][1];\n    for(let j=0;j<sites.length && poly.length;j++){\n      if(j===i)continue;\n      const qx=sites[j][0], qy=sites[j][1];\n      const mx=(px+qx)/2, my=(py+qy)/2, nx=px-qx, ny=py-qy;\n      const out=[];\n      for(let k=0;k<poly.length;k++){\n        const Aa=poly[k], Bb=poly[(k+1)%poly.length];\n        const dA=(Aa[0]-mx)*nx+(Aa[1]-my)*ny;\n        const dB=(Bb[0]-mx)*nx+(Bb[1]-my)*ny;\n        if(dA>=0) out.push(Aa);\n        if((dA>=0)!==(dB>=0)){ const t=dA/(dA-dB); out.push([Aa[0]+t*(Bb[0]-Aa[0]),Aa[1]+t*(Bb[1]-Aa[1])]); }\n      }\n      poly=out;\n    }\n    if(poly.length>=3){\n      let cx=0,cy=0; for(const v of poly){cx+=v[0];cy+=v[1];} cx/=poly.length; cy/=poly.length;\n      cells.push({v:poly,cx,cy,ph:sites[i][2],hj:sites[i][2]-0.5});\n    }\n  }\n  S.cells=cells;\n}\nconst cells=S.cells||[];\n\n// ---- drifting light (real-time motion floor, never rephases) ----\nlet actLmul=1, actH=1, actJit=0;\nif(P.act==='shatter'){ actLmul=1.9; actH=1.35; actJit=0.5; }\nelse if(P.act==='grow'){ actH=0.45+0.9*frc(K.section/8+K.t*0.01); }\nconst laz=K.t*0.17*(0.5+P.speed*0.7)*actLmul + (P.x-0.5)*3.0;\nconst lel=0.55+0.28*Math.sin(K.t*0.083)+(P.y-0.5)*0.5;\nlet Lx=Math.cos(laz)*Math.cos(lel), Ly=Math.sin(laz)*Math.cos(lel), Lz=Math.sin(lel)+0.35;\n{ const ll=Math.hypot(Lx,Ly,Lz)||1; Lx/=ll; Ly/=ll; Lz/=ll; }\nconst hBase=u*(0.035+relief*0.24)*actH;\nconst intens=0.65+0.55*K.intensity;\n\n// ---- background ----\nconst bgH=((P.hue%360)+360)%360;\nif(wire){ background(bgH,55,6); }\nelse if(stained){ background(bgH,30,4); }\nelse { background(bgH,lowp?18:44,lowp?12:7); }\n\nnoStroke();\nfor(let ci=0;ci<cells.length;ci++){\n  const cell=cells[ci], v=cell.v, n=v.length, cx=cell.cx, cy=cell.cy;\n  // per-cell beat breathe (staggered so field never re-aligns as one flash)\n  const cph=frc(K.beat*0.5*P.speed+cell.ph);\n  const pop=Math.pow(1-cph,2.3);\n  const jit=actJit? (frc(cell.ph*13.7+K.beat*0.25)-0.5)*u*0.02*actJit*en : 0;\n  const h=hBase*(0.45+0.75*pop+A.bass*1.15)*intens;\n  const cellH=(bgH+cell.hj*46+K.t*4)%360;\n\n  if(stained){\n    // flat translucent jewel cell, thick dark leading, backlit \u2014 mass + lead, no facets\n    const lit=clp(0.42+0.5*Math.sin(cell.ph*TAU+laz)+0.4*K.swell+A.bass*0.5,0.12,1);\n    fill((cellH+360)%360, 58+22*en, 30+58*lit, 92);\n    beginShape(); for(let k=0;k<n;k++) vertex(v[k][0],v[k][1]); endShape(CLOSE);\n    continue;\n  }\n\n  // faceted pyramid: apex above centroid, fan of lit triangles\n  for(let k=0;k<n;k++){\n    const a=v[k], b=v[(k+1)%n];\n    const e1x=a[0]-cx, e1y=a[1]-cy, e1z=-h;\n    const e2x=b[0]-cx, e2y=b[1]-cy, e2z=-h;\n    let nx=e1y*e2z-e1z*e2y, ny=e1z*e2x-e1x*e2z, nz=e1x*e2y-e1y*e2x;\n    if(nz<0){ nx=-nx; ny=-ny; nz=-nz; }\n    const nl=Math.hypot(nx,ny,nz)||1;\n    const diff=(nx*Lx+ny*Ly+nz*Lz)/nl;\n    const lit=clp(0.5+0.5*diff,0,1);\n    if(wire){\n      const g=clp(0.15+0.85*lit,0,1);\n      stroke((cellH+360)%360, 70-40*g, 40+60*g, 30+65*g);\n      strokeWeight(1+1.4*g*en);\n      line(cx+jit,cy+jit,a[0]+jit,a[1]+jit);\n    } else {\n      const spec=lowp?0:Math.pow(clp(diff,0,1),22)*95*en;\n      const sat=(lowp?24+18*en:62+30*en)*(1-Math.min(0.85,spec/110));\n      const bri=(lowp?34+50*lit:16+72*lit)+spec;\n      fill((cellH+360)%360, clp(sat,0,100), clp(bri,0,100));\n      triangle(cx+jit,cy+jit,a[0]+jit,a[1]+jit,b[0]+jit,b[1]+jit);\n    }\n  }\n  // cut-gem facet edges / stained leading handled below per style\n  if(!wire && !lowp){\n    noFill(); stroke(bgH,40,4,55); strokeWeight(u*0.0016);\n    beginShape(); for(let k=0;k<n;k++) vertex(v[k][0],v[k][1]); endShape(CLOSE);\n    noStroke();\n  }\n}\n\n// stained: heavy leading pass over the whole partition\nif(stained){\n  noFill(); stroke(bgH,45,2,96); strokeWeight(u*0.006*(0.8+0.4*K.swell));\n  for(const cell of cells){ const v=cell.v; beginShape(); for(let k=0;k<v.length;k++) vertex(v[k][0],v[k][1]); endShape(CLOSE); }\n  // soft backlight bloom on the beat\n  blendMode(ADD); noStroke();\n  const gl=18+30*K.pulse+A.bass*40;\n  fill(((bgH+40)%360),50,90,clp(gl*0.12,0,26));\n  rect(0,0,W,H);\n  blendMode(BLEND);\n}\n\n// specular sparkle on strongest-lit apexes (gem only) \u2014 tiny, adds live shimmer\nif(!wire && !stained && !lowp && en>0.15){\n  blendMode(ADD); noStroke();\n  const spark=clp(K.pulse*0.8+A.treble*1.2,0,1);\n  if(spark>0.05){\n    for(let ci=0;ci<cells.length;ci+=3){\n      const cell=cells[ci];\n      const sz=u*0.012*(0.5+spark);\n      fill(50,10,100,clp(40*spark,0,55));\n      circle(cell.cx,cell.cy,sz);\n    }\n  }\n  blendMode(BLEND);\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n"
+}

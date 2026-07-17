@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.unicorn",
+  "kind": "subject",
+  "name": "Unicorn",
+  "desc": "Mythic unicorn cantering across the stage in a streaming iridescent oil-slick coat, spiral horn shedding a comet-trail of stardust, prismatic mane and tail flying, with gallop, mid-air rear and grazing-idle poses.",
+  "tags": [
+    "unicorn",
+    "horse",
+    "pony",
+    "equine",
+    "mythic",
+    "fantasy",
+    "magic",
+    "magical",
+    "rainbow",
+    "iridescent",
+    "holographic",
+    "prismatic",
+    "sparkle",
+    "stardust",
+    "glitter",
+    "horn",
+    "mane",
+    "gallop",
+    "canter",
+    "rear",
+    "prance",
+    "creature",
+    "animal",
+    "character",
+    "dreamy",
+    "ethereal",
+    "fairytale"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "gait amplitude, mane flow, sparkle rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "size vs design"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "strides per beat multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mane/tail strands + sparkle count"
+    },
+    "mane": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "mane + tail length and stream"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "belly/barrel fullness morph"
+    },
+    "hue": {
+      "default": 288,
+      "min": 0,
+      "max": 360,
+      "doc": "coat base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "anchor x (canvas fraction)"
+    },
+    "y": {
+      "default": 0.64,
+      "min": 0.15,
+      "max": 0.9,
+      "doc": "anchor y (torso center)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "strand + sparkle variation"
+    },
+    "pose": {
+      "default": "canter",
+      "options": [
+        "canter",
+        "gallop",
+        "rear",
+        "idle",
+        "auto"
+      ],
+      "doc": "gait preset; auto cycles poses with the section arc via act"
+    },
+    "style": {
+      "default": "iridescent",
+      "options": [
+        "iridescent",
+        "sumi",
+        "wireframe",
+        "heraldic"
+      ],
+      "doc": "aesthetic: oil-slick sheen / brushed sumi ink / x-ray wireframe / heraldic woodcut"
+    },
+    "act": {
+      "default": "free",
+      "options": [
+        "free",
+        "quest",
+        "parade"
+      ],
+      "doc": "pose=auto dramaturgy: quest builds idle->gallop->rear, parade struts rears"
+    }
+  },
+  "acts": [
+    "free",
+    "quest",
+    "parade"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:53:36+00:00",
+    "fps": 59.9,
+    "motion": 0.0137,
+    "lum": 0.106
+  },
+  "code": "const D = { energy: .65, scale: 1, speed: 1, density: .5, mane: .7, chub: .5, hue: 288, x: .5, y: .64, pose: 'canter', style: 'iridescent', act: 'free', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst u = Math.min(width, height);\nconst sf = u * 0.00135 * P.scale;\nconst E = P.energy;\nconst H = ((P.hue % 360) + 360) % 360;\nconst bt = K.beat * P.speed;\nconst ph = ((bt % 1) + 1) % 1;\nconst inten = .5 + .5 * K.intensity;\nconst kick = Math.min(1, K.pulse * .6 + A.bass * .8);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\nconst CH = .7 + P.chub * .7;                 // belly chub morph\n\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.mn = []; for (let i = 0; i < 16; i++) S.mn.push({ o: fr(i*3+1), l: .7 + fr(i*3+2)*.7, hj: fr(i*3+3) });\n  S.tl = []; for (let i = 0; i < 12; i++) S.tl.push({ o: fr(i*5+40), l: .8 + fr(i*5+41)*.6, hj: fr(i*5+42) });\n}\nif (!S.spk) S.spk = [];\n\n// ---------- pose / act ----------\nconst ACTS = { free:['canter','canter','gallop','rear','canter','idle','gallop','rear'],\n               quest:['idle','canter','canter','gallop','gallop','rear','canter','idle'],\n               parade:['canter','rear','canter','gallop','rear','canter','gallop','rear'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.free)[((K.section % 8) + 8) % 8];\n\nconst rearT = pose === 'rear' ? 1 : 0;\nif (S.rear == null) S.rear = rearT;\nS.rear += (rearT - S.rear) * .06; const rear = S.rear;\nconst moving = pose === 'canter' || pose === 'gallop';\nconst amp = (pose === 'gallop' ? .7 : pose === 'canter' ? .48 : 0) * (.5 + .5*E) * inten;\nconst gaitK = pose === 'gallop' ? .95 : .6;\nconst gc = o => { const p = ((ph + o) % 1 + 1) % 1; return { a: -Math.cos(p*TAU)*amp, k: Math.max(0, Math.sin(p*TAU)) * gaitK * (.4+.6*E) }; };\nlet LG;\nif (pose === 'gallop') LG = { hf: gc(0), hn: gc(.08), ff: gc(.5), fn: gc(.58) };\nelse if (pose === 'canter') LG = { hf: gc(0), hn: gc(.12), ff: gc(.42), fn: gc(.5) };\nelse { const w = Math.sin(bt/4*TAU)*.05; LG = { hf:{a:-.05+w,k:.04}, hn:{a:.06-w,k:.02}, ff:{a:.05+w,k:.03}, fn:{a:-.07-w,k:.05} }; }\n\n// rear: front legs paw air, hind plant\nconst paw = Math.sin(bt*TAU), paw2 = Math.sin(bt*TAU+PI);\nconst mix = (v, r) => v*(1-rear) + r*rear;\nconst legF1 = { a: mix(LG.ff.a, -1.2 - Math.max(0,paw)*.5*(.5+.5*E)), k: mix(LG.ff.k, .9+paw*.3) };\nconst legF2 = { a: mix(LG.fn.a, -.95 - Math.max(0,paw2)*.45*(.5+.5*E)), k: mix(LG.fn.k, 1+paw2*.25) };\nconst legH1 = { a: mix(LG.hf.a, .3), k: mix(LG.hf.k, .5) };\nconst legH2 = { a: mix(LG.hn.a, .4), k: mix(LG.hn.k, .55) };\n\n// ---------- body bob + slow traveling drift (carries the motion gate w/o audio) ----------\nlet dy = 0, pitch = 0;\nif (pose === 'gallop') { dy = -Math.abs(Math.sin(ph*TAU)) * (14+12*E); pitch = Math.sin(ph*TAU)*.09*(.4+.6*E); }\nelse if (pose === 'canter') { dy = -Math.abs(Math.sin(ph*TAU)) * (9+9*E); pitch = Math.sin(ph*TAU)*.05; }\nelse dy = -K.swell*(3+3*E);\ndy -= kick*3*E;\n// slow non-beat-locked prance around the stage \u2014 big enough to displace the 320px silhouette\nconst drift = .4 + .6*E;\nlet dxW = Math.cos(K.t*.33 + fr(2)*6) * 120 * drift + Math.sin(K.t*.19 + fr(4)*6) * 40;\nlet dyW = Math.sin(K.t*.47 + fr(6)*6) * 20 * drift + Math.sin(2*(K.t*.33) + fr(2)*6) * 14 * drift;\npitch += Math.sin(K.t*.23 + fr(8)*6) * .04;\n\n// idle personality\nconst gcyc = ((bt/16)%1+1)%1;\nconst graze = (!moving && rear<.1 && gcyc>.25 && gcyc<.6) ? Math.sin((gcyc-.25)/.35*PI) : 0;\nconst blink = fr(Math.floor(bt*1.3)+77) > .92;\nconst earF = fr(Math.floor(bt*2)+9) > .86 ? Math.sin(((bt*2)%1+1)%1*PI) : 0;\nlet neckA = -rear*.35 + graze*.9 + (moving ? .1+Math.sin(ph*TAU)*.06 : 0);\nconst headA = graze*.5 + (moving ? Math.sin(ph*TAU)*.06*E : Math.sin(bt*TAU*.5)*.05);\n\n// ---------- sparkle emission: horn + hooves (persistent, seed-det direction) ----------\nconst dt = 1 / Math.max(K.fps || 60, 20);\nconst emitIdx = Math.floor(K.t * (moving ? 14 : 6));\nif (S.eIdx == null || emitIdx < S.eIdx) S.eIdx = emitIdx;\nconst budget = 22 + Math.floor(P.density * 34);\nif (emitIdx > S.eIdx && S.spk.length < budget) {\n  const n = 1 + Math.floor(P.density*2);\n  for (let j = 0; j < n; j++) {\n    const r = fr(emitIdx*3+j);\n    S.spk.push({ x: 150 + (r-.5)*20, y: -232 + (fr(emitIdx*3+j+1)-.5)*14,\n                 vx: -(20+r*50), vy: -(10+fr(emitIdx+j+5)*40),\n                 a: 1, r: 2+fr(emitIdx+j+9)*4, hj: fr(emitIdx+j+3) });\n  }\n  S.eIdx = emitIdx;\n} else if (emitIdx > S.eIdx) S.eIdx = emitIdx;\n// hoof puffs on strike\nconst stepIdx = Math.floor(bt*2);\nif (S.step == null || stepIdx < S.step) S.step = stepIdx;\nif (moving && stepIdx > S.step && S.spk.length < budget+8 && (kick>.2 || E>.5)) {\n  S.spk.push({ x:(fr(stepIdx)*2-1)*40-30, y:150, vx:-(30+40*E), vy:-(8+fr(stepIdx+2)*14), a:1, r:5+fr(stepIdx+1)*7, hj:fr(stepIdx), dust:1 });\n}\nS.step = stepIdx;\nfor (let i = S.spk.length-1; i >= 0; i--) { const q = S.spk[i]; q.x += q.vx*dt; q.y += q.vy*dt; q.vy += (q.dust?60:18)*dt; q.a -= dt*(q.dust?1.1:.75); q.r += (q.dust?12:2)*dt; if (q.a<=0) S.spk.splice(i,1); }\n\n// ---------- style pass config ----------\nconst st = ['iridescent','sumi','wireframe','heraldic'].indexOf(P.style) >= 0 ? P.style : 'iridescent';\nconst mane = P.mane;\nconst cx = P.x*width + dxW*sf;\nconst cyy = P.y*height + dyW*sf;\n\n// ground shadow\nnoStroke(); fill(0,0,6, st==='wireframe'?0:20);\nellipse(cx, P.y*height + 150*sf, 200*sf*(1-rear*.4), 20*sf);\n\n// ---------- geometry (design units, unicorn faces right) ----------\nfunction bodyPath() {\n  beginShape();\n  vertex(92, -14);\n  bezierVertex(104, 8, 84, 46*CH, 44, 52*CH);\n  bezierVertex(10, 58*CH, -34, 56*CH, -70, 42*CH);\n  bezierVertex(-100, 30, -104, -8, -88, -36);\n  bezierVertex(-74, -56, -32, -50, -4, -54);\n  bezierVertex(22, -58, 54, -66, 72, -56);\n  bezierVertex(86, -48, 90, -30, 92, -14);\n  endShape(CLOSE);\n}\nfunction legDraw(hx, hy, g, hind) {\n  push(); translate(hx, hy); rotate(g.a);\n  const w1 = hind ? 18 : 13;\n  quad(-w1*.5,-6, w1*.5,-6, 5,52, -5,52);\n  translate(0,52); rotate(g.k*(hind?-1:1)*1.05);\n  quad(-5,0, 5,0, 4,48, -4,48);\n  quad(-6,44, 6,44, 7,58, -7,58);   // hoof\n  pop();\n}\nfunction neckHead() {\n  push(); translate(66,-44); rotate(neckA);\n  beginShape(); vertex(-20,14); bezierVertex(-8,-30,20,-70,44,-96); vertex(64,-84); bezierVertex(42,-54,26,-22,20,12); endShape(CLOSE);\n  push(); translate(52,-92); rotate(headA);\n  beginShape(); vertex(-16,-8); bezierVertex(2,-20,20,-16,40,2); bezierVertex(52,12,54,20,48,24); bezierVertex(34,28,16,20,4,14); bezierVertex(-8,10,-16,4,-16,-8); endShape(CLOSE);\n  pop(); pop();\n}\nfunction earHorn(drawHorn, hornCol) {\n  push(); translate(66,-44); rotate(neckA); translate(52,-92); rotate(headA);\n  // ears\n  push(); rotate(-earF*.5); triangle(6,-14,14,-40,20,-12); pop();\n  triangle(-4,-14,-2,-42,8,-12);\n  // horn (spiral cone from forehead up)\n  if (drawHorn) {\n    push();\n    const hx0=14,hy0=-30, hx1=44,hy1=-140;\n    stroke(hornCol[0],hornCol[1],hornCol[2],hornCol[3]||100); strokeWeight(2.2);\n    fill(hornCol[0],Math.max(0,hornCol[1]-20),Math.min(100,hornCol[2]+8), st==='wireframe'?0:90);\n    beginShape(); vertex(hx0-9,hy0); vertex(hx0+9,hy0); vertex((hx0+hx1)/2+3,(hy0+hy1)/2); vertex(hx1,hy1); vertex((hx0+hx1)/2-3,(hy0+hy1)/2); endShape(CLOSE);\n    // spiral ridges\n    strokeWeight(1.4);\n    for (let i=0;i<6;i++){ const t=i/6, xa=hx0+(hx1-hx0)*t, ya=hy0+(hy1-hy0)*t, wr=(1-t)*8; line(xa-wr,ya+2,xa+wr,ya-2); }\n    pop();\n  }\n  pop();\n}\nfunction maneDraw(col, len01) {\n  push(); translate(66,-44); rotate(neckA);\n  stroke(col[0],col[1],col[2],col[3]!=null?col[3]:100); noFill();\n  const nM = Math.round(7 + 10*Math.min(1,P.density*1.4));\n  for (let i=0;i<nM;i++){\n    const sd=S.mn[i%16], tt=(i+.5)/nM;\n    const bx=-16+tt*58, by=12-tt*104;\n    const L=(20+sd.l*34)*(.4+mane*.9);\n    const wob=Math.sin(K.t*2.1*P.speed+i*1.31+ph*TAU)*(3+9*E*(moving?1:.4));\n    const wob2=Math.sin(K.t*2.8*P.speed+i*2.1+1.7)*(2+7*E);\n    if (st==='iridescent'){ const hh=(H+sd.hj*120)%360; stroke(hh,80,100,72); }\n    beginShape(); curveVertex(bx,by); curveVertex(bx,by);\n    curveVertex(bx-L*.5,by+wob*.35-L*.05); curveVertex(bx-L,by+wob+4); curveVertex(bx-L*1.25,by+wob+wob2+7); endShape();\n  }\n  pop();\n}\nfunction tailDraw(col) {\n  push(); translate(-92,-24);\n  stroke(col[0],col[1],col[2],col[3]!=null?col[3]:100); noFill();\n  const lift=(moving? .5+.4*E:0)+rear*.7+kick*.12;\n  const ang=1.75+lift*.8;\n  const nT=Math.round(6+8*Math.min(1,P.density*1.3));\n  for (let i=0;i<nT;i++){\n    const td=S.tl[i%12], L=(50+td.l*40)*(.4+mane*.85);\n    const an=ang+(i-nT/2)*.06+Math.sin(K.t*2.3+i*1.7+ph*TAU)*.1*(.4+E);\n    const mxx=Math.cos(an),myy=Math.sin(an);\n    const wv=Math.sin(K.t*3.0+i*2.3+td.o*6)*(4+8*E*(moving?1:.35));\n    if (st==='iridescent'){ const hh=(H+td.hj*120)%360; stroke(hh,80,100,72); }\n    beginShape(); curveVertex(0,0); curveVertex(0,0);\n    curveVertex(mxx*L*.5-myy*wv*.4,myy*L*.5+mxx*wv*.4);\n    curveVertex(mxx*L-myy*wv,myy*L+mxx*wv);\n    curveVertex(mxx*L*1.2-myy*wv*1.6,myy*L*1.2+mxx*wv*1.6); endShape();\n  }\n  pop();\n}\n\n// ---------- render ----------\npush();\ntranslate(cx, cyy + dy*sf);\nscale(sf*(1+S.rms*.12));\nrotate(pitch);\nif (rear>.001){ translate(-60,150); rotate(-rear*(.8+Math.sin(bt*TAU)*.05*E)); translate(60,-150); }\n\n// far legs first (recede)\nif (st==='iridescent'){ noStroke(); fill((H+30)%360,55,58); }\nelse if (st==='sumi'){ noStroke(); fill(H,8,32,80); }\nelse if (st==='wireframe'){ noFill(); stroke(H,70,100,50); strokeWeight(1.6); }\nelse { noStroke(); fill((H+200)%360,55,55); }\nlegDraw(-64, 40, legH2, true); legDraw(58, 44, legF2, false);\n\n// ---------- body by style ----------\nif (st==='iridescent') {\n  // luminous body: base + hue-swept sheen bands (no hard outline \u2192 non-cartoon)\n  noStroke();\n  fill((H+320)%360,60,40); push(); translate(2,4); bodyPath(); pop();      // core shadow\n  fill(H,55,88); bodyPath();                                                // body\n  neckHead();\n  drawingContext.save();\n  const nb=5;\n  blendMode(SCREEN);\n  for (let i=0;i<nb;i++){ const t=i/(nb-1); const hh=(H+t*140+K.t*8)%360; fill(hh,70,100,16); push(); translate(-30+t*90, -20+t*40); bodyPath(); pop(); }\n  blendMode(BLEND); drawingContext.restore();\n  // rim light\n  noFill(); stroke((H+180)%360,30,100,40); strokeWeight(2); bodyPath();\n} else if (st==='sumi') {\n  // brushed ink wash: soft body + dry-brush overstrokes, monochrome\n  noStroke(); fill(H,6,30,70); push(); translate(3,5); bodyPath(); pop();\n  fill(H,8,42,88); bodyPath();\n  neckHead();\n  stroke(H,12,14,80); strokeWeight(4); noFill();\n  drawingContext.setLineDash([14,6,4,9]); bodyPath(); drawingContext.setLineDash([]);\n  // dry-brush belly hatch\n  stroke(H,10,20,40); strokeWeight(1.4);\n  for (let i=0;i<7;i++){ const y=-30+i*11; line(-60+fr(i+50)*20,y+22,-20+fr(i+51)*24,y+16); }\n} else if (st==='wireframe') {\n  // X-ray polygon skeleton \u2014 non-representational option\n  noFill(); stroke(H,80,100,72); strokeWeight(1.8); bodyPath();\n  neckHead();\n  stroke((H+160)%360,70,100,45); strokeWeight(1);\n  // internal struts\n  const P0=[[92,-14],[-70,42],[66,-44],[-88,-36],[44,52],[10,-54]];\n  for (let i=0;i<P0.length;i++) for (let j=i+1;j<P0.length;j++){ if ((i+j)%2===0) line(P0[i][0],P0[i][1],P0[j][0],P0[j][1]); }\n  // node dots\n  noStroke(); fill(H,60,100,90); for (const p of P0) circle(p[0],p[1],4);\n} else { // heraldic woodcut\n  noStroke(); fill((H+18)%360,70,72); bodyPath();\n  neckHead();\n  // engraving hatch following the belly\n  stroke((H+340)%360,60,30,70); strokeWeight(1.5); noFill();\n  for (let i=0;i<9;i++){ const y=-40+i*11; const w=Math.sqrt(Math.max(0,1-(y/60)*(y/60)))*80; line(-w*.4,y+6,w,y); }\n  noFill(); stroke((H+340)%360,70,20); strokeWeight(3.2); bodyPath();\n}\n\n// near legs\nif (st==='iridescent'){ noStroke(); fill(H,60,80); }\nelse if (st==='sumi'){ noStroke(); fill(H,10,44,92); }\nelse if (st==='wireframe'){ noFill(); stroke(H,80,100,80); strokeWeight(1.8); }\nelse { noStroke(); fill((H+18)%360,72,74); }\nlegDraw(-56, 42, legH1, true); legDraw(70, 40, legF1, false);\n\n// mane + tail + horn colors per style\nlet maneCol, tailCol, hornCol;\nif (st==='iridescent'){ maneCol=[H,80,100,72]; tailCol=[H,80,100,72]; hornCol=[(H+40)%360,20,100,100]; }\nelse if (st==='sumi'){ maneCol=[H,12,16,85]; tailCol=[H,12,16,85]; hornCol=[H,10,20,90]; }\nelse if (st==='wireframe'){ maneCol=[(H+120)%360,80,100,60]; tailCol=[(H+120)%360,80,100,60]; hornCol=[H,80,100,90]; }\nelse { maneCol=[(H+320)%360,75,80,95]; tailCol=[(H+320)%360,75,80,95]; hornCol=[45,70,95,100]; }\nstrokeWeight((st==='wireframe'?1.4:3)*1);\ntailDraw(tailCol);\nmaneDraw(maneCol, mane);\nearHorn(true, hornCol);\n\n// eye\npush(); translate(66,-44); rotate(neckA); translate(52,-92); rotate(headA);\nif (st!=='wireframe'){ noStroke(); fill(0,0,12,95); if (blink) rect(18,-2,7,1.6,1); else circle(21,-2,5.4); if(!blink){ fill(0,0,100,90); circle(22,-3,2); } }\nelse { noStroke(); fill(H,80,100,95); circle(21,-2,4); }\npop();\n\npop(); // end hero transform\n\n// ---------- sparkles (drawn in world space, additive) ----------\nblendMode(ADD); noStroke();\nfor (const q of S.spk) {\n  const wx = cx + q.x*sf, wy = (cyy + dy*sf) + q.y*sf;\n  if (q.dust) { fill(H,10,80,22*q.a); circle(wx, wy, q.r*2.2*sf); }\n  else {\n    const hh = st==='sumi' ? H : (H + q.hj*140)%360;\n    const sat = st==='sumi'?12:80;\n    fill(hh,sat,100,55*q.a);\n    const rr=(q.r*(1+S.tre*.6))*sf;\n    circle(wx,wy,rr*2);\n    // 4-point star glint\n    stroke(hh,sat*.5,100,60*q.a); strokeWeight(1); line(wx-rr*2.4,wy,wx+rr*2.4,wy); line(wx,wy-rr*2.4,wx,wy+rr*2.4); noStroke();\n  }\n}\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.phase_portrait",
+  "kind": "genart",
+  "name": "ODE Phase Portrait",
+  "desc": "A living phase portrait of a 2D differential equation \u2014 fifteen hundred tracer particles stream along the vector field toward spirals, saddles, limit-cycles and centres, hued by speed over faint nullclines and glowing fixed points, the flow topology transforming from pendulum to Van der Pol to Duffing to predator-prey as the sections turn.",
+  "tags": [
+    "phase-portrait",
+    "dynamical-system",
+    "ode",
+    "differential-equation",
+    "vector-field",
+    "flow-field",
+    "flow",
+    "vanderpol",
+    "duffing",
+    "pendulum",
+    "lotka-volterra",
+    "predator-prey",
+    "limit-cycle",
+    "attractor",
+    "separatrix",
+    "nullcline",
+    "fixed-point",
+    "streamline",
+    "tracer",
+    "particles",
+    "chaos",
+    "nonlinear",
+    "topology",
+    "phase-space",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "science",
+    "math",
+    "physics",
+    "blueprint",
+    "schematic",
+    "aurora",
+    "ember",
+    "ink",
+    "thermal",
+    "glow",
+    "spiral",
+    "swirl",
+    "stream"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "tracer particle count (max \u2248 1500 streaming particles)"
+    },
+    "energy": {
+      "default": 0.72,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "tracer brightness / glow amplitude"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.15,
+      "max": 3.0,
+      "doc": "integration/advection rate along the field"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "phase-space zoom (bigger = closer on the fixed points)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue (speed ramps around it)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "phase-space origin anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "phase-space origin anchor y"
+    },
+    "trail": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "streamline persistence (higher = longer glowing trails)"
+    },
+    "style": {
+      "default": "streamflow",
+      "options": [
+        "streamflow",
+        "aurora",
+        "ember",
+        "blueprint",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic tracer seeding"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T15:01:56+00:00",
+    "fps": 59.5,
+    "motion": 0.0185,
+    "lum": 0.094
+  },
+  "code": "const D = { density: .6, energy: .72, speed: 1, scale: 1, hue: 200, x: .5, y: .5, trail: .55, style: 'streamflow', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst W = width, H = height, u = Math.min(W, H), TAU = 6.28318530718;\nconst clp = (v,a,b)=> v<a?a:v>b?b:v;\nconst style = P.style, light = (style==='blueprint' || style==='ink');\n\n// ---- coarse trail buffer (half-canvas, HSB), size-keyed cache ----\nconst BW = Math.min(720, Math.max(120, Math.round(W*0.6)));\nconst BH = Math.max(80, Math.round(BW*H/W));\nif (!S.buf || S.bw!==BW || S.bh!==BH){\n  if (S.buf && S.buf.remove) S.buf.remove();\n  S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1);\n  S.buf.colorMode(HSB,360,100,100,100);\n  S.bw=BW; S.bh=BH; S.freshBuf = true;\n}\n\n// ---- seed hash + tracer arrays ----\nconst fr = i => { const s = Math.sin(i*127.1 + (P.seed|0)*311.7)*43758.5453; return s - Math.floor(s); };\nconst NMAX = 1500;\nconst N = Math.round(300 + clp(P.density,0,1)*1200);\nif (!S.tx || S.tx.length!==NMAX){ S.tx=new Float32Array(NMAX); S.ty=new Float32Array(NMAX); S.age=new Float32Array(NMAX); S.seedUsed=null; }\n\n// ---- ODE system registry (topology cycles on K.section) ----\n// each: fn(x,y,pr)->[dx,dy]; view center cx,cy + radius R; fixed points [x,y,type]\nconst SYS = [\n  { name:'PENDULUM',      cx:0, cy:0, R:3.5,  vs:2.2,\n    fn:(x,y,d)=>[y, -Math.sin(x) - d*y],\n    fx:[[0,0,'center'],[Math.PI,0,'saddle'],[-Math.PI,0,'saddle']] },\n  { name:'VAN DER POL',   cx:0, cy:0, R:3.4,  vs:2.6,\n    fn:(x,y,m)=>[y, m*(1-x*x)*y - x],\n    fx:[[0,0,'source']] },\n  { name:'DUFFING',       cx:0, cy:0, R:1.95, vs:1.6,\n    fn:(x,y,d)=>[y, x - x*x*x - d*y],\n    fx:[[0,0,'saddle'],[1,0,'sink'],[-1,0,'sink']] },\n  { name:'LOTKA-VOLTERRA',cx:1, cy:1, R:0.98, vs:0.9,\n    fn:(x,y)=>{ const xx=Math.max(0.02,x), yy=Math.max(0.02,y); return [xx*(1.1-yy), -yy*(1.1-xx)]; },\n    fx:[[1.1,1.1,'center'],[0,0,'saddle']] }\n];\nconst sec = K.section|0;\nconst sys = SYS[((sec % SYS.length)+SYS.length)%SYS.length];\n// slow drift of the system's control parameter on K.t (never re-phases)\nlet pr;\nif (sys.name==='PENDULUM')      pr = 0.06 + 0.10*(0.5+0.5*Math.sin(K.t*0.11));\nelse if (sys.name==='VAN DER POL') pr = 1.6 + 1.1*(0.5+0.5*Math.sin(K.t*0.09));\nelse if (sys.name==='DUFFING')  pr = 0.12 + 0.16*(0.5+0.5*Math.sin(K.t*0.13));\nelse pr = 0;\n\nconst R = sys.R, cx = sys.cx, cy = sys.cy;\n\n// ---- world<->buffer mapping ----\nconst bcx = clp(P.x,0,1)*BW, bcy = clp(P.y,0,1)*BH;\nconst bs = Math.min(BW,BH) * clp(P.scale,0.3,3) * 0.44 / R;\nconst toBX = x => bcx + (x-cx)*bs;\nconst toBY = y => bcy - (y-cy)*bs;\n\n// ---- (re)seed all tracers on seed change ----\nfunction spawn(i, salt){\n  const a = fr(i*2+salt*7.13), b = fr(i*2+1+salt*3.71);\n  S.tx[i] = cx + (a*2-1)*R*0.98;\n  S.ty[i] = cy + (b*2-1)*R*0.98;\n  S.age[i] = fr(i+salt*17.7)*140;\n}\nif (S.seedUsed !== (P.seed|0)){ S.seedUsed = (P.seed|0); S.spawn=0; for (let i=0;i<NMAX;i++) spawn(i,1); }\n\n// ---- ground / fade tone per style ----\nconst g = S.buf;\nlet gH,gS,gB;\nif (style==='streamflow'){ gH=255; gS=54; gB=12; }\nelse if (style==='aurora'){ gH=235; gS=50; gB=11; }\nelse if (style==='ember'){  gH=16;  gS=68; gB=11; }\nelse if (style==='blueprint'){ gH=214; gS=78; gB=26; }\nelse { gH=42; gS=9; gB=86; } // ink cream\n\nif (S.freshBuf){ g.push(); g.noStroke(); g.fill(gH,gS,gB,100); g.rect(0,0,BW,BH); g.pop(); S.freshBuf=false; }\n\n// trail persistence: higher trail -> lower fade alpha -> longer streaks\nconst fadeA = light ? (7 + (1-clp(P.trail,0,1))*20) : (5 + (1-clp(P.trail,0,1))*16);\ng.push();\ng.noStroke(); g.blendMode(BLEND);\ng.fill(gH,gS,gB, fadeA);\ng.rect(0,0,BW,BH);\n\n// ---- advect tracers, draw hued-by-speed segments ----\nconst dt = 0.028 * clp(P.speed,0.15,3) * (sys.name==='LOTKA-VOLTERRA'?1.4:1.0);\nconst vs = sys.vs;\nconst bri = 55 + clp(P.energy,0,1)*45 + A.rms*30 + K.intensity*8;\nconst aBoost = 1 + A.bass*0.7 + K.pulse*0.25*clp(P.energy,0,1);\nconst maxStep = R*0.11; // clamp world step so stiff fields never explode\n\nif (!light) g.blendMode(ADD);\nconst salt = 2 + (sec*0.37);\nfor (let i=0;i<N;i++){\n  let x=S.tx[i], y=S.ty[i];\n  const ox=toBX(x), oy=toBY(y);\n  // RK2 midpoint\n  let k1=sys.fn(x,y,pr);\n  let mx=x+k1[0]*dt*0.5, my=y+k1[1]*dt*0.5;\n  let k2=sys.fn(mx,my,pr);\n  let vx=k2[0], vy=k2[1];\n  const sp=Math.hypot(vx,vy);\n  // clamp step length\n  let stepL=sp*dt; let sc=1; if (stepL>maxStep) sc=maxStep/stepL;\n  x += vx*dt*sc; y += vy*dt*sc;\n  S.age[i]++;\n  const bad = !isFinite(x)||!isFinite(y)|| Math.abs(x-cx)>R*2.2 || Math.abs(y-cy)>R*2.2;\n  const old = S.age[i] > (150 + fr(i)*120);\n  if (bad || old || (fr(i+ (S.spawn|0)) < (0.010+clp(P.density,0,1)*0.018))){\n    spawn(i, salt + (S.spawn||0)*0.019); S.spawn=(S.spawn||0)+1;\n    continue;\n  }\n  S.tx[i]=x; S.ty[i]=y;\n  const nx=toBX(x), ny=toBY(y);\n  // hue by normalized speed\n  const sn = clp(sp/vs, 0, 1);\n  let hh, ss, bb, wa, wt;\n  if (style==='streamflow'){ hh=(P.hue + 150 - sn*150 + 360)%360; ss=88; bb=bri; wa=32*aBoost; wt=1.05; }\n  else if (style==='aurora'){ hh=(120 + sn*160 + P.hue*0.15)%360; ss=70; bb=bri*0.95; wa=22*aBoost; wt=1.9; }\n  else if (style==='ember'){ hh=(6 + sn*46)%360; ss=90-sn*18; bb=bri; wa=30*aBoost; wt=1.15; }\n  else if (style==='blueprint'){ hh=195; ss=14+sn*20; bb=100; wa=46; wt=1.0; }\n  else { hh=(P.hue*0.1+28)%360; ss=16; bb=14; wa=40; wt=1.1; } // ink dark stroke\n  g.stroke(hh,ss,bb,wa);\n  g.strokeWeight(wt);\n  g.line(ox,oy,nx,ny);\n}\ng.blendMode(BLEND);\ng.pop();\n\n// ---- composite buffer to full canvas ----\npush();\nif (P.alpha < 100){ tint(0,0,100,P.alpha); }\nimage(g, 0, 0, W, H);\npop();\n\n// ================= main-canvas overlay: nullclines + fixed pts =================\nconst scX = x => clp(P.x,0,1)*W + (x-cx)*(u*clp(P.scale,0.3,3)*0.44/R);\nconst scY = y => clp(P.y,0,1)*H - (y-cy)*(u*clp(P.scale,0.3,3)*0.44/R);\n\n// nullclines: generic zero-crossing scan of dx (x-null) and dy (y-null)\npush();\nnoStroke();\nconst GX=44, GY=30;\nconst nA = 12 + P.energy*16;\nfor (let gy=0; gy<GY; gy++){\n  for (let gx=0; gx<GX; gx++){\n    const wx = cx + ((gx+0.5)/GX*2-1)*R*1.02;\n    const wy = cy + ((gy+0.5)/GY*2-1)*R*1.02;\n    const wx2 = cx + ((gx+1.5)/GX*2-1)*R*1.02;\n    const wy2 = cy + ((gy+1.5)/GY*2-1)*R*1.02;\n    const f00=sys.fn(wx,wy,pr), f10=sys.fn(wx2,wy,pr), f01=sys.fn(wx,wy2,pr);\n    // dx = 0 crossing (horizontal neighbor)\n    if (f00[0]*f10[0] < 0){\n      const px=scX((wx+wx2)*0.5), py=scY(wy);\n      if (px>-5&&px<W+5&&py>-5&&py<H+5){\n        fill(light?(214):(P.hue+150)%360, light?70:70, light?100:96, nA);\n        circle(px,py, light?2.2:2.6);\n      }\n    }\n    // dy = 0 crossing (vertical neighbor)\n    if (f00[1]*f01[1] < 0){\n      const px=scX(wx), py=scY((wy+wy2)*0.5);\n      if (px>-5&&px<W+5&&py>-5&&py<H+5){\n        fill(light?(28):(P.hue+30)%360, light?60:80, light?24:100, nA);\n        circle(px,py, light?2.2:2.4);\n      }\n    }\n  }\n}\npop();\n\n// fixed points: glowing markers (shadowBlur on few shapes only)\npush();\nconst spark = 1 + A.treble*0.9 + K.pulse*0.5;\nfor (let f=0; f<sys.fx.length; f++){\n  const fp=sys.fx[f], px=scX(fp[0]), py=scY(fp[1]);\n  if (px<-20||px>W+20||py<-20||py>H+20) continue;\n  let mh, ms, mb;\n  const ty=fp[2];\n  if (ty==='center'){ mh=light?214:0; ms=light?30:0; mb=100; }\n  else if (ty==='sink'){ mh=light?214:38; ms=light?70:90; mb=100; }\n  else if (ty==='source'){ mh=light?214:320; ms=light?70:85; mb=100; }\n  else { mh=light?24:190; ms=light?70:80; mb=100; } // saddle\n  const rr = u*0.012*(0.8+0.4*Math.sin(K.t*1.3+f));\n  drawingContext.shadowBlur = light?0:18*spark;\n  drawingContext.shadowColor = 'rgba(255,255,255,0.7)';\n  noFill(); stroke(mh,ms,mb, light?90:80); strokeWeight(1.6);\n  circle(px,py, rr*2.4);\n  drawingContext.shadowBlur = 0;\n  noStroke(); fill(mh,ms,light?30:100, 95);\n  circle(px,py, rr);\n  if (ty==='saddle'){ // cross-hair separatrix hint\n    stroke(mh,ms,mb, light?55:45); strokeWeight(1); noFill();\n    line(px-rr*2.2,py, px+rr*2.2,py); line(px,py-rr*2.2, px,py+rr*2.2);\n  }\n}\ndrawingContext.shadowBlur=0;\npop();\n\n// faint system label (the \"map of a differential equation\" flavor; evolves w/ section)\npush();\nnoStroke();\ntextFont('monospace');\ntextSize(u*0.026);\ntextAlign(LEFT,TOP);\nfill(light?214:0, light?60:0, light?30:100, light?55:40);\ntext(sys.name, u*0.03, u*0.03);\ntextSize(u*0.016);\nfill(light?214:0, light?50:0, light?35:100, light?45:30);\ntext(\"phase portrait / sec \"+sec, u*0.03, u*0.03 + u*0.034);\npop();\n\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.speckle",
+  "kind": "genart",
+  "name": "Speckle",
+  "desc": "Laser light off a rough surface \u2014 every point on the diffuser scatters with its own random phase and the wavefronts fight to a standstill, granulating the whole field into fully-developed speckle whose grain size is set by the pupil that collects it; the diffuser creeps, so the speckle either boils in place or rides bodily across the frame, and in the interferometry styles a loaded object's deformation writes itself across the grain as correlation fringes.",
+  "tags": [
+    "speckle",
+    "laser-speckle",
+    "espi",
+    "speckle-interferometry",
+    "interferometry",
+    "holography",
+    "correlation-fringes",
+    "fringes",
+    "coherent",
+    "coherence",
+    "laser",
+    "diffuser",
+    "scattering",
+    "random-phase",
+    "granular",
+    "grain",
+    "noise",
+    "interference",
+    "wave-optics",
+    "optics",
+    "metrology",
+    "deformation",
+    "strain",
+    "aperture",
+    "pupil",
+    "boiling",
+    "physics",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "austere",
+    "eerie",
+    "monochrome",
+    "silver",
+    "plate",
+    "ironbow",
+    "thermal",
+    "blueprint",
+    "polychrome",
+    "bg",
+    "genart",
+    "abstract",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "laser power / sensor exposure, and the load applied to the object in the ESPI styles (master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "collecting aperture \u2014 speckle grain size runs inversely with it, so high = big soft blobs, low = fine granulation"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "diffuser motion rate \u2014 boil + translation together"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "additional grain fineness; low = coarse macro speckle"
+    },
+    "boil": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "boil vs translate: 0 = the diffuser slides and the speckle rides across frame rigidly, 1 = it churns in place as each scatterer creeps at its own rate"
+    },
+    "hue": {
+      "default": 350,
+      "min": 0,
+      "max": 360,
+      "doc": "laser wavelength (350 = HeNe red; try 130 argon green, 240 violet)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "optical axis x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "optical axis y"
+    },
+    "aperture": {
+      "default": "round",
+      "options": [
+        "round",
+        "slit",
+        "annulus",
+        "square"
+      ],
+      "doc": "pupil shape \u2014 the speckle grain is its autocorrelation, so a slit gives streaked grain and an annulus a ringed one"
+    },
+    "style": {
+      "default": "speckle",
+      "options": [
+        "speckle",
+        "espi",
+        "polychrome",
+        "plate",
+        "ironbow",
+        "interferogram"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "diffuser seed \u2014 the scattering set, and the loaded object's deformation field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:45:25+00:00",
+    "fps": 62.5,
+    "motion": 0.083,
+    "lum": 0.227
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, boil: .45, hue: 350, x: .5, y: .5, aperture: 'round', style: 'speckle', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 160, BH = Math.max(50, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nconst style = P.style, sp = P.speed;\nconst NW = style === 'polychrome' ? 3 : 1;\nconst NV = style === 'polychrome' ? 30 : 72;          // scatterers per wavelength\nconst LR = NW === 3 ? [0.86, 1.0, 1.19] : [1.0];      // k scales as 1/lambda -> grain size runs with colour\n\n// ---- the diffuser: a fixed seeded set of scattering directions inside the\n// collecting aperture. Grain size is pinned to ~5 buffer pixels so the speckle\n// upscales as real macro grain instead of aliasing into pixel hash.\nconst grainPx = 3.4 + (1 - P.density) * 7.5;\nconst Kmax = 6.283185 * (BW / grainPx) / (0.55 + P.scale * 0.75);\nconst akey = P.seed + '_' + P.aperture + '_' + NV + '_' + NW;\nif (!S.kx || S.akey !== akey) {\n  S.akey = akey; S.kx = new Float64Array(NV); S.ky = new Float64Array(NV);\n  S.ph0 = new Float64Array(NV); S.dph = new Float64Array(NV);\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  for (let k = 0; k < NV; k++) {\n    const th = fr(k * 4 + 1) * 6.283185, rr = Math.sqrt(fr(k * 4 + 2));   // area-uniform over the disc\n    let ax = Math.cos(th) * rr, ay = Math.sin(th) * rr;\n    if (P.aperture === 'slit') ay *= 0.22;                 // slit pupil -> elongated grains\n    else if (P.aperture === 'annulus') { const m = 0.62 + rr * 0.38; ax = Math.cos(th) * m; ay = Math.sin(th) * m; }\n    else if (P.aperture === 'square') { ax = (fr(k * 4 + 1) - 0.5) * 2; ay = (fr(k * 4 + 2) - 0.5) * 2; }\n    S.kx[k] = ax; S.ky[k] = ay;\n    S.ph0[k] = fr(k * 4 + 3) * 6.283185; S.dph[k] = (fr(k * 4 + 4) - 0.5) * 2;   // each scatterer creeps at its own rate\n  }\n  S.bp = []; for (let b = 0; b < 3; b++) S.bp.push([fr(b * 6 + 71), fr(b * 6 + 72), fr(b * 6 + 73), fr(b * 6 + 74) * 6.283]);\n}\nconst NT = NV * NW;\nif (!S.exr || S.exr.length !== NT * BW) { S.exr = new Float64Array(NT * BW); S.exi = new Float64Array(NT * BW);\n  S.eyr = new Float64Array(NT * BH); S.eyi = new Float64Array(NT * BH); }\n\n// boiling (scatterers creep, phases decorrelate) vs translation (the whole\n// diffuser slides, so the speckle rides across frame rigidly) \u2014 both are real,\n// and `boil` dials between them\nconst bl = P.boil * 0.10 * sp;\nconst trx = (0.055 * Math.sin(K.t * 0.061 * sp) + 0.032 * Math.sin(K.t * 0.143 * sp + 1.7)) * (1.15 - P.boil) * sp;\nconst trY = (0.045 * Math.sin(K.t * 0.089 * sp + 0.6) + 0.026 * Math.sin(K.t * 0.229 * sp + 2.3)) * (1.15 - P.boil) * sp;\nfor (let w = 0; w < NW; w++) for (let k = 0; k < NV; k++) {\n  const idx = w * NV + k, sc = Kmax * LR[w];\n  const kxv = S.kx[k] * sc, kyv = S.ky[k] * sc;\n  const ph = S.ph0[k] + S.dph[k] * K.t * bl + kxv * trx + kyv * trY;\n  for (let i = 0; i < BW; i++) { const th = kxv * ((i + 0.5) / BW - P.x) + ph;\n    S.exr[idx * BW + i] = Math.cos(th); S.exi[idx * BW + i] = Math.sin(th); }\n  for (let j = 0; j < BH; j++) { const th = kyv * ((j + 0.5) / BH - P.y) * (BH / BW);\n    S.eyr[idx * BH + j] = Math.cos(th); S.eyi[idx * BH + j] = Math.sin(th); }\n}\n\n// ---- the loaded object under test: a smooth deformation field whose phase the\n// ESPI styles turn into correlation fringes\nconst bmp = S.bp;\nconst tlx = 2.2 * Math.sin(K.t * 0.037 * sp + 0.4), tly = 1.7 * Math.sin(K.t * 0.053 * sp + 2.1);\nconst damp = (2.6 + P.energy * 7.5);\nconst expo = (0.28 + P.energy * 0.55) * (0.85 + K.intensity * 0.2 + A.rms * 0.3);\n// partial coherence: fully-developed speckle is 100% contrast, and 100% contrast\n// noise that boils is exactly the flicker that is banned. This is a real\n// incoherent background, and it keeps the modulation partial.\nconst ctr = 0.70;\nconst lp = P.hue / 360;\nconst mc = [0.5 + 0.5 * Math.cos(6.283 * lp), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.66)), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.33))];\nconst invN = 1 / NV;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const X = (i + 0.5) / BW - P.x, Y = ((j + 0.5) / BH - P.y) * (BH / BW);\n    let ps = tlx * X + tly * Y;\n    for (let b = 0; b < 3; b++) { const bb = bmp[b];\n      const cx = 0.5 - P.x + (bb[0] - 0.5) * 0.7 + 0.09 * Math.sin(K.t * 0.031 * sp + bb[3]);\n      const cy = (0.5 - P.y + (bb[1] - 0.5) * 0.5 + 0.07 * Math.cos(K.t * 0.047 * sp + bb[3] * 1.3)) * (BH / BW);\n      const sg = 0.045 + bb[2] * 0.10, dx = X - cx, dy = Y - cy;\n      ps += damp * (0.5 + bb[2]) * Math.exp(-(dx * dx + dy * dy) / (sg * sg + 1e-6)) * Math.sin(K.t * 0.083 * sp + bb[3]);\n    }\n    const fring = Math.abs(Math.sin(ps * 0.5));            // |1 - e^{i psi}| / 2 : the ESPI correlation fringe\n    let cr = 0, cg = 0, cb = 0;\n    for (let w = 0; w < NW; w++) {\n      let re = 0, im = 0;\n      const base = w * NV;\n      for (let k = 0; k < NV; k++) { const id = base + k;\n        const ar = S.exr[id * BW + i], ai = S.exi[id * BW + i], br = S.eyr[id * BH + j], bi = S.eyi[id * BH + j];\n        re += ar * br - ai * bi; im += ar * bi + ai * br; }\n      let I = (re * re + im * im) * invN;                   // mean 1, exponential distribution\n      I = 1 + (I - 1) * ctr;\n      if (NW === 1) { cr = I; cg = I; cb = I; } else { if (w === 0) cb = I; else if (w === 1) cg = I; else cr = I; }\n    }\n    let R, G, B;\n    if (style === 'espi' || style === 'interferogram') {\n      const v = 1 - Math.exp(-Math.max(0, cr) * expo * (0.22 + fring * 1.55));\n      if (style === 'interferogram') { R = (0.055 + v * 0.42) * 255; G = (0.12 + v * 0.86) * 255; B = (0.26 + v * 0.95) * 255; }\n      else { R = Math.min(255, (mc[0] * v + 0.05) * 255); G = Math.min(255, (mc[1] * v + 0.055) * 255); B = Math.min(255, (mc[2] * v + 0.075) * 255); }\n    } else if (style === 'polychrome') {\n      R = Math.min(255, (1 - Math.exp(-Math.max(0, cr) * expo)) * 255 * (0.55 + mc[0] * 0.55) + 12);\n      G = Math.min(255, (1 - Math.exp(-Math.max(0, cg) * expo)) * 255 * (0.55 + mc[1] * 0.55) + 13);\n      B = Math.min(255, (1 - Math.exp(-Math.max(0, cb) * expo)) * 255 * (0.55 + mc[2] * 0.55) + 17);\n    } else if (style === 'ironbow') {\n      const v = 0.15 + (1 - Math.exp(-Math.max(0, cr) * expo)) * 0.70;\n      R = Math.min(255, (v * 1.5 + 0.05) * 255); G = Math.max(0, Math.min(255, (v * 1.2 - 0.28) * 255));\n      B = Math.max(0, Math.min(255, (v * 1.55 + 0.03 - Math.max(0, v - 0.5) * 1.9) * 255));\n    } else if (style === 'plate') {\n      const v = 1 - Math.exp(-Math.max(0, cr) * expo);\n      R = Math.min(255, (v * 0.78 + 0.10) * 255); G = Math.min(255, (v * 0.77 + 0.098) * 255); B = Math.min(255, (v * 0.75 + 0.11) * 255);\n    } else {                                                // speckle \u2014 the raw laser field\n      const v = 1 - Math.exp(-Math.max(0, cr) * expo);\n      R = Math.min(255, (mc[0] * v + 0.045) * 255); G = Math.min(255, (mc[1] * v + 0.05) * 255); B = Math.min(255, (mc[2] * v + 0.07) * 255);\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = R; px[o + 1] = G; px[o + 2] = B; px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

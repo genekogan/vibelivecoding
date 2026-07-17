@@ -1,0 +1,150 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "genart.robinson",
+ "kind": "genart",
+ "name": "Robinson Hierarchy",
+ "desc": "The hierarchy that proves a tiling can never repeat — Robinson's nested squares at every doubling scale, each square cross-braced to the four children inside it, the whole engraved lattice inflating forever through its own generations as a raking light drifts across the plate.",
+ "tags": [
+  "robinson",
+  "hierarchy",
+  "hierarchical",
+  "aperiodic",
+  "aperiodicity",
+  "substitution",
+  "inflation",
+  "deflation",
+  "self-similar",
+  "self-similarity",
+  "fractal",
+  "nested",
+  "nesting",
+  "squares",
+  "square",
+  "lattice",
+  "grid",
+  "tiling",
+  "tessellation",
+  "plane-division",
+  "2-adic",
+  "valuation",
+  "recursion",
+  "recursive",
+  "zoom",
+  "endless",
+  "infinite",
+  "generations",
+  "geometry",
+  "geometric",
+  "mathematical",
+  "proof",
+  "crystallography",
+  "engraving",
+  "copperplate",
+  "plate",
+  "blueprint",
+  "schematic",
+  "lead",
+  "leaded-glass",
+  "cames",
+  "xray",
+  "luminous",
+  "concrete",
+  "brutalist",
+  "austere",
+  "clinical",
+  "sublime",
+  "structure",
+  "architecture",
+  "architectural",
+  "chiaroscuro",
+  "hatching",
+  "texture"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "ink contrast + wash depth + line weight + chiaroscuro depth"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.5,
+   "max": 2,
+   "doc": "motif size within its cell — 2 packs the squares edge to edge, 0.5 leaves them floating and airy (an endless zoom would swallow a plain size param, so scale drives proportion)"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "how many generations deep the hierarchy is drawn at once"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.15,
+   "max": 3.5,
+   "doc": "inflation / rotation rate"
+  },
+  "hue": {
+   "default": 32,
+   "min": 0,
+   "max": 360,
+   "doc": "primary ink + wash hue"
+  },
+  "arms": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "reach of the cross arms binding each square to its children"
+  },
+  "breathe": {
+   "default": 0.55,
+   "min": 0,
+   "max": 1,
+   "doc": "how much the zoom breathes back and forth between inflating and coarsening"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0.2,
+   "max": 0.8,
+   "doc": "hierarchy centre x as canvas fraction"
+  },
+  "y": {
+   "default": 0.5,
+   "min": 0.2,
+   "max": 0.8,
+   "doc": "hierarchy centre y as canvas fraction"
+  },
+  "style": {
+   "default": "plate",
+   "options": [
+    "plate",
+    "blueprint",
+    "lead",
+    "xray",
+    "concrete"
+   ],
+   "doc": "aesthetic: sepia copperplate engraving / cyan schematic on prussian / leaded jewel glass in dark cames / luminous additive frames on black (non-representational) / raking-light brutalist concrete"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "per-cell tonal jitter + plate grain"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "overall opacity (fades toward black)"
+  }
+ },
+ "acts": null,
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:32, arms:.6, breathe:.55, x:.5, y:.5, style:'plate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst sst = (e0,e1,x) => { const t = cl((x-e0)/(e1-e0), 0, 1); return t*t*(3-2*t); };\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nS.pt = K.t;\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\n\n// ---- Robinson's hierarchy of nested squares ------------------------------\n// A level-k centre sits at every point ( 2^k(2i+1), 2^k(2j+1) ) -- i.e. exactly\n// where the 2-adic valuations of x and y are both k. Levels are disjoint, and\n// scaling by 2 maps level k onto level k+1 EXACTLY: the hierarchy is its own\n// inflation. So we can zoom forever and simply slide the drawn level window.\n// z is kept as frac(z) and levels are indexed off the SCREEN spacing only, so\n// nothing ever overflows and the wrap at each doubling is seamless.\nconst z = K.t*.052*sp + (.95*Math.sin(K.t*.041) + .52*Math.sin(K.t*.0973+1.3))*cl(P.breathe,0,1);\nconst M = Math.pow(2, z - Math.floor(z));                  // in [1,2)\nconst base = u*.030;\nconst rot = .17*Math.sin(K.t*.0431*sp) + .09*Math.sin(K.t*.1097*sp+2.2);   // bounded -> cheap culling\n\nconst ax = cl(P.x,.2,.8)*width, ay = cl(P.y,.2,.8)*height;\nconst ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));\nconst dxm = Math.max(ax, width-ax), dym = Math.max(ay, height-ay);\nconst hx = dxm*ca + dym*sa, hy = dxm*sa + dym*ca;\n\n// motif proportions (NOT overall size: a self-similar zoom would swallow that\n// whole and the params poke would be a no-op -- so scale drives the geometry)\nconst sqF  = cl(.86*P.scale, .25, 1.35);\nconst armF = cl(.95*P.scale*(.45+.9*cl(P.arms,0,1)), .25, 1.7);\nconst minPx = cl(240 - 150*cl(P.density,0,1), 105, 260);\nconst maxPx = Math.max(u*2.9, minPx*4.2);\nconst kmin = Math.ceil (Math.log(minPx/(base*M))/Math.LN2 - 1);\nconst kmax = Math.floor(Math.log(maxPx/(base*M))/Math.LN2 - 1);\n\n// ---- style tables ---------------------------------------------------------\nconst glow = (sty==='xray');\nfunction paper(){\n  if (sty==='blueprint') return [212, 64, 40];\n  if (sty==='lead')      return [230, 40, 16];\n  if (glow)              return [(H+190)%360, 58, 5];\n  if (sty==='concrete')  return [(H+180)%360, 5, 62];\n  return [(H+3)%360, 12, 89];\n}\nfunction ink(){\n  if (sty==='blueprint') return [192, 22, 98];\n  if (sty==='lead')      return [(H)%360, 8, 92];\n  if (glow)              return [(H+160)%360, 36, 99];\n  if (sty==='concrete')  return [(H+180)%360, 6, 22];\n  return [(H-16+360)%360, 56, 22];\n}\n// tone of a level's square wash, keyed on SCREEN spacing (never on k) so the\n// doubling wrap is invisible\nfunction wash(q){\n  if (sty==='blueprint') return [206, 42, 92];\n  if (sty==='lead')      return [(H + 40 + q*220)%360, 62, 86];\n  if (glow)              return [(H + 140 + q*90)%360, 44, 90];\n  if (sty==='concrete')  return [(H+180)%360, 4, 82];\n  return [(H + 6 + q*14)%360, 26, 88];\n}\n\nconst pc = paper(); noStroke(); background(pc[0], pc[1], pc[2]);\nconst ic = ink();\n\npush(); translate(ax, ay); rotate(rot);\nrectMode(CENTER); strokeJoin(MITER);\nblendMode(glow ? ADD : MULTIPLY);\n\nfor (let k=kmin; k<=kmax; k++){\n  const spc = Math.pow(2, k+1)*base*M;                      // screen spacing\n  if (!isFinite(spc) || spc <= 0) continue;\n  const aL = sst(minPx, minPx*1.55, spc) * (1 - sst(maxPx*.60, maxPx, spc));\n  if (aL < .012) continue;\n  const half = spc*.5, sq = half*sqF, arm = half*armF;\n  const q = cl((Math.log(spc/minPx)/Math.LN2)/4.2, 0, 1);   // depth 0..1 within the window\n  const rich = spc > u*.24;\n  const ni = Math.ceil(hx/half*.5)+1, nj = Math.ceil(hy/half*.5)+1;\n  const wc = wash(q);\n  const aw = aL*(6 + 15*en)*(glow ? 1.5 : 1);\n  const ai = aL*(46 + 44*en);\n  const lw = (u/900)*(.5 + 1.9*en)*(.55 + .9*q);\n  for (let i=-ni;i<=ni;i++){\n    const cx = (2*i+1)*half;\n    if (Math.abs(cx) > hx + sq) continue;\n    for (let j=-nj;j<=nj;j++){\n      const cy = (2*j+1)*half;\n      if (Math.abs(cy) > hy + sq) continue;\n      const jit = fr(i*13.7 + j*29.3 + k*7.1);\n      // tonal wash: nested translucent squares stack into real tonal depth\n      noStroke();\n      fill(wc[0], wc[1], glow ? wc[2]*(.5+.5*jit) : wc[2], aw*(.7+.6*jit));\n      rect(cx, cy, sq*2, sq*2);\n      // the square frame\n      noFill();\n      stroke(ic[0], ic[1], glow ? cl(ic[2]*(.5+.6*q+.4*bass),0,100) : ic[2], ai);\n      strokeWeight(lw);\n      rect(cx, cy, sq*2, sq*2);\n      if (rich) {\n        // the cross whose arms bind this square to its four children\n        strokeWeight(lw*1.5);\n        stroke(ic[0], ic[1], ic[2], ai*.92);\n        line(cx-arm, cy, cx+arm, cy);\n        line(cx, cy-arm, cx, cy+arm);\n        // engraved hatching inside the frame -> texture, not flat fill\n        const nh = 3 + ((i+j+k)&1);\n        strokeWeight(lw*.42);\n        stroke(ic[0], cl(ic[1]*.8,0,100), ic[2], ai*(.20+.22*en));\n        for (let h=1;h<=nh;h++){\n          const f = -sq + (2*sq)*h/(nh+1);\n          line(cx+f, cy-sq, cx+f, cy+sq);\n        }\n        // corner pips mark the four child centres\n        noStroke();\n        fill(ic[0], ic[1], ic[2], ai*.8);\n        const cq = half*.5;\n        for (let s=0;s<4;s++)\n          ellipse(cx + (s&1?cq:-cq), cy + (s&2?cq:-cq), lw*2.4, lw*2.4);\n      }\n    }\n  }\n}\nblendMode(BLEND); rectMode(CORNER); pop();\n\n// ---- moving chiaroscuro, built coarse and multiplied down once ------------\nconst lw2 = 184, lh2 = cl(Math.round(184*height/Math.max(1,width)), 60, 340);\nif (!S.lg || S.lgk !== lw2+'x'+lh2) { S.lg = createGraphics(lw2, lh2); S.lg.colorMode(HSB,360,100,100,100); S.lgk = lw2+'x'+lh2; }\nconst L = S.lg;\nL.push(); L.noStroke(); L.blendMode(BLEND);\nL.background(0, 0, 100 - (22 + 30*en));\nL.blendMode(ADD);\nconst px2 = (.5 + .28*Math.sin(K.t*.071+.4) + .12*Math.sin(K.t*.183+2.1))*lw2;\nconst py2 = (.5 + .25*Math.cos(K.t*.059+1.7) + .11*Math.sin(K.t*.149+.8))*lh2;\nfor (let i=0;i<9;i++){\n  const t2 = i/8, rr = Math.max(lw2,lh2)*(1.28 - t2*1.0);\n  L.fill(0, 0, 100, (7 + 7*en + 5*bass)*(.28 + .72*t2*t2));\n  L.ellipse(px2, py2, rr*2, rr*2);\n}\nL.blendMode(BLEND); L.pop();\nblendMode(MULTIPLY); noStroke(); image(L, 0, 0, width, height); blendMode(BLEND);\n\n// ---- cached plate grain ---------------------------------------------------\nconst tk = sty+'|'+sd;\nif (!S.tex || S.texk !== tk) {\n  const tw=430, th=290, t=createGraphics(tw,th);\n  t.colorMode(HSB,360,100,100,100); t.background(0,0,100); t.noStroke();\n  for (let i=0;i<2300;i++){\n    const rr = .4 + fr(i*5.13)*1.8;\n    t.fill(30, 7, 100 - fr(i*7.91)*44, 54);\n    t.ellipse(fr(i*1.97)*tw, fr(i*3.11+7.3)*th, rr, rr);\n  }\n  S.tex = t; S.texk = tk;\n}\nblendMode(MULTIPLY); noStroke(); image(S.tex, 0, 0, width, height); blendMode(BLEND);\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

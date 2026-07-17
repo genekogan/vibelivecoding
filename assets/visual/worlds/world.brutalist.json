@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.brutalist",
+  "kind": "world",
+  "name": "Brutalist Concrete",
+  "desc": "Massive stippled concrete slabs under an overcast sky, a hard raking sun-shadow sweeping slowly across, and a single blood-red accent pillar pulsing on the beat.",
+  "tags": [
+    "brutalist",
+    "concrete",
+    "architecture",
+    "monochrome",
+    "grey",
+    "gray",
+    "shadow",
+    "raking-light",
+    "austere",
+    "modernist",
+    "building",
+    "tower",
+    "stipple",
+    "texture",
+    "red-accent",
+    "stark",
+    "cold",
+    "urban",
+    "world",
+    "background",
+    "geometric",
+    "minimal",
+    "menacing",
+    "noir",
+    "blueprint"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of concrete slabs"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "shadow contrast + accent pulse amplitude"
+    },
+    "hue": {
+      "default": 8,
+      "min": 0,
+      "max": 360,
+      "doc": "accent element hue (default red)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "shadow-sweep rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "accent pillar size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "accent pillar + glow x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "grit": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "concrete stipple/tooth density"
+    },
+    "accent": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "red accent intensity (0 = pure monochrome)"
+    },
+    "style": {
+      "default": "monochrome",
+      "options": [
+        "monochrome",
+        "blueprint",
+        "riso",
+        "noir",
+        "xray"
+      ],
+      "doc": "hard grey concrete + stipple / schematic white-line blueprint (abstract) / 2-ink grey+red riso / high-contrast noir chiaroscuro / translucent x-ray volumes (abstract)"
+    },
+    "act": {
+      "default": "day_arc",
+      "options": [
+        "day_arc",
+        "pendulum"
+      ],
+      "doc": "day_arc = shadow rakes one way over ~40s / pendulum = shadow rocks back and forth"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "slab layout seed"
+    }
+  },
+  "acts": [
+    "day_arc",
+    "pendulum"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:06:57+00:00",
+    "fps": 60.2,
+    "motion": 0.0347,
+    "lum": 0.383
+  },
+  "code": "const D = { density:.5, energy:.55, hue:8, speed:1, scale:1, x:.5, y:.5, style:'monochrome', act:'day_arc', seed:0, grit:.6, accent:.7 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst frc=v=>v-Math.floor(v);\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst lrp=(a,b,t)=>a+(b-a)*t;\n\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst style=P.style;\nconst mono=style==='monochrome', blue=style==='blueprint', riso=style==='riso', noir=style==='noir', xray=style==='xray';\nconst en=P.energy*(.5+.5*K.intensity);\nconst act=P.act; // day_arc = one-way raking sweep; pendulum = shadow rocks back and forth\n\n// t0 guard\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat;\nS.lastBeat=K.beat;\n\n// slab count from density\nconst nSlab=Math.round(lrp(4,15,clp(P.density,0,1)));\n\n// ---- static concrete buffer (keyed size+style+seed+density+grit) ----\nconst key=W+'x'+Hh+':'+style+':'+P.seed+':'+nSlab+':'+Math.round(P.grit*4);\nif(!S.base||S.key!==key){\n  S.key=key;\n  const g=createGraphics(W,Hh); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  // sky / backdrop\n  if(blue){ g.fill(215,64,26); g.rect(0,0,W,Hh); }\n  else if(xray){ g.fill(200,60,8); g.rect(0,0,W,Hh); }\n  else if(noir){ g.fill(0,0,8); g.rect(0,0,W,Hh); }\n  else { // overcast concrete sky\n    for(let i=0;i<80;i++){const f=i/79; g.fill(210,lrp(6,3,f),lrp(56,74,f)); g.rect(0,i*Hh/80-1,W,Hh/80+2);} }\n  // ground\n  const gy=0.82*Hh;\n  if(!blue&&!xray){ g.fill(0,0,noir?14:40); g.rect(0,gy,W,Hh-gy); }\n\n  // build slab list (towers rising from ground + cantilever bars)\n  const slabs=[];\n  for(let i=0;i<nSlab;i++){\n    const w=u*(0.08+fr(i*7+1)*0.20);\n    const h=Hh*(0.20+fr(i*7+2)*0.55);\n    const cx=fr(i*7+3)*W;\n    const kind=fr(i*7+4);\n    slabs.push({x:cx-w/2,y:gy-h,w,h,tone:0.82+fr(i*7+5)*0.28,cant:kind>0.7});\n  }\n  slabs.sort((a,b)=>a.tone-b.tone); // far/dark behind\n  for(const sb of slabs){\n    const baseB = noir?lrp(10,64,fr(sb.x)):lrp(38,66,(sb.tone-0.82)/0.28);\n    if(blue){\n      g.noFill(); g.stroke(200,30,96,90); g.strokeWeight(Math.max(1,u*0.0016)); g.rect(sb.x,sb.y,sb.w,sb.h);\n      // schematic floor lines\n      const fl=Math.round(sb.h/(u*0.05));\n      for(let k=1;k<fl;k++){const yy=sb.y+sb.h*k/fl; g.line(sb.x,yy,sb.x+sb.w,yy);}\n      g.noStroke();\n    } else if(xray){\n      g.fill(190,70,70,16); g.rect(sb.x,sb.y,sb.w,sb.h);\n      g.noFill(); g.stroke(190,50,100,55); g.strokeWeight(1.2); g.rect(sb.x,sb.y,sb.w,sb.h); g.noStroke();\n    } else {\n      g.fill(riso?210:0, riso?10:0, baseB); g.rect(sb.x,sb.y,sb.w,sb.h);\n      // right face darker (form modeling)\n      g.fill(0,0,0,noir?46:24); g.rect(sb.x+sb.w*0.62,sb.y,sb.w*0.38,sb.h);\n      // top light edge\n      g.fill(0,0,100,noir?10:26); g.rect(sb.x,sb.y,sb.w,Math.max(2,sb.h*0.02));\n      if(sb.cant){ g.fill(0,0,baseB*0.9); g.rect(sb.x-sb.w*0.5,sb.y+sb.h*0.1,sb.w*0.5,sb.h*0.16);}\n    }\n  }\n  // stipple concrete tooth over everything (skip blueprint)\n  if(!blue){\n    const gn=Math.round(4200*(0.4+P.grit));\n    for(let i=0;i<gn;i++){\n      const px=fr(i*3+900)*W, py=fr(i*3+901)*Hh, a=fr(i*3+902);\n      g.fill(0,0,a<0.5?100:0, (xray?2:5)*(0.5+P.grit));\n      g.rect(px,py,1.5,1.5);\n    }\n  }\n  S.base=g;\n}\nimage(S.base,0,0,W,Hh);\n\n// ---- raking hard shadow sweep (real-time motion floor via K.t) ----\nconst gy=0.82*Hh;\nconst period=42; // seconds per sweep\nconst sweep = act==='pendulum' ? (0.5+0.5*Math.sin(K.t/period*6.2832*P.speed)) : frc(K.t/period*P.speed); // 0..1\nconst slope=-0.4; // diagonal\nconst edgeX=lrp(-0.25,1.25,sweep)*W;\nconst shA=(noir?52:34)*(0.6+en*0.9);\nnoStroke();\nif(!blue){\n  // shadow = region left of the diagonal hard edge, over the built forms\n  fill(210,noir?0:20,noir?0:8, shA);\n  beginShape();\n  vertex(0,0); vertex(edgeX+slope*0,0); vertex(edgeX+slope*Hh,Hh); vertex(0,Hh);\n  endShape(CLOSE);\n  // bright raking counter-light band just right of edge\n  blendMode(ADD);\n  fill(46,noir?0:30,100, (10+en*14));\n  const bw=u*0.05;\n  beginShape();\n  vertex(edgeX,0); vertex(edgeX+bw,0); vertex(edgeX+bw+slope*Hh,Hh); vertex(edgeX+slope*Hh,Hh);\n  endShape(CLOSE);\n  blendMode(BLEND);\n}\n\n// ---- the one red accent element (pulses on beat + bass) ----\nif(!blue&&P.accent>0.02){\n  const pump=K.pulse*0.6 + A.bass*0.7 + K.swell*0.2;\n  const ax=P.x*W, ah=Hh*0.5*(0.7+P.scale*0.5), aw=u*0.02*(1+P.scale*0.4);\n  const ay=gy-ah;\n  const aB=clp(70+pump*40,0,100), aS=xray?80:94;\n  blendMode(xray?ADD:BLEND);\n  noStroke(); fill(md(H,360),aS,aB*P.accent+20);\n  rect(ax-aw/2,ay,aw,ah);\n  // glow cap\n  blendMode(ADD);\n  fill(md(H+6,360),70,100,(18+pump*40)*P.accent);\n  ellipse(ax,ay,aw*3*(1+pump*0.6),aw*3*(1+pump*0.6));\n  blendMode(BLEND);\n}\n\n// ---- dust / grain shimmer (subtle real-time) ----\nblendMode(ADD); noStroke();\nfor(let i=0;i<12;i++){\n  const dx=frc(fr(i*2+30)+K.t*0.008)*W, dy=frc(fr(i*2+31)-K.t*0.004)*Hh;\n  fill(40,10,100, 6+A.treble*20);\n  ellipse(dx,dy,u*0.003,u*0.003);\n}\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,169 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.seed_pod",
+  "kind": "subject",
+  "name": "Seed Pod",
+  "desc": "A dehiscent seed capsule the height of the stage, staged against a toned specimen ground and running its whole life in a loop \u2014 the pod swells, the sutures crack, the valves splay back off the placenta and the seeds ride out on their pappus while the wind walks the whole silhouette across the frame, then the husk dries, reflexes, and a new pod begins to swell.",
+  "tags": [
+    "seed pod",
+    "pod",
+    "seedpod",
+    "capsule",
+    "dehiscence",
+    "husk",
+    "valve",
+    "milkweed",
+    "poppy",
+    "botanical",
+    "plant",
+    "flora",
+    "seed",
+    "pappus",
+    "stalk",
+    "wind",
+    "organic",
+    "specimen",
+    "engraving",
+    "copperplate",
+    "xray",
+    "radiograph",
+    "silhouette",
+    "bronze",
+    "abstract",
+    "sculptural",
+    "austere",
+    "melancholy",
+    "growth",
+    "life cycle",
+    "process",
+    "hero",
+    "sway"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "stalk sway/bob amplitude, seed shed rate and glow \u2014 the whole silhouette walks, it does not wiggle"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "hero size \u2014 at 1 the CAPSULE alone stands ~0.47 of the short edge; at 2 it overfills the frame as a macro study"
+    },
+    "hue": {
+      "default": 36,
+      "min": 0,
+      "max": 360,
+      "doc": "husk hue (the ground is keyed off it)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the life cycle and sway"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seed count and engraved hatching density"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stalk base x (the ground pool follows it)"
+    },
+    "y": {
+      "default": 0.92,
+      "min": 0,
+      "max": 1,
+      "doc": "stalk base y"
+    },
+    "plump": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "capsule proportion: slim pod to fat lantern"
+    },
+    "neck": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stalk length as a fraction of the capsule"
+    },
+    "ground": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "the toned specimen ground the pod is staged against \u2014 0 removes it entirely to composite the pod over a live scene"
+    },
+    "valves": {
+      "default": 5,
+      "min": 3,
+      "max": 6,
+      "doc": "number of dehiscing valves"
+    },
+    "pose": {
+      "default": "upright",
+      "options": [
+        "upright",
+        "bow",
+        "burst"
+      ],
+      "doc": "idle sway / wind-bent lean / beat-flexed bursting"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "swell",
+        "shed"
+      ],
+      "doc": "multi-minute program"
+    },
+    "style": {
+      "default": "botanical",
+      "options": [
+        "botanical",
+        "xray",
+        "silhouette",
+        "bronze"
+      ],
+      "doc": "botanical: mid-key engraved husk on toned specimen ground \u00b7 xray: radiograph, form from transmitted density only \u00b7 silhouette: pure abstract mass, no interior \u00b7 bronze: cast metal with specular and verdigris"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "swell",
+    "shed"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:09:03+00:00",
+    "fps": 59.9,
+    "motion": 0.0223,
+    "lum": 0.314
+  },
+  "code": "const D = { energy: .6, scale: 1, hue: 36, speed: 1, density: .5, x: .5, y: .92, plump: .5, neck: .5, ground: .8, valves: 5, pose: 'upright', act: 'cycle', style: 'botanical', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst MAXS = 54, TAU = Math.PI * 2;\nconst cl = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nif (!S.sx) {\n  S.sx = new Float32Array(MAXS); S.sy = new Float32Array(MAXS); S.svx = new Float32Array(MAXS); S.svy = new Float32Array(MAXS);\n  S.sa = new Float32Array(MAXS); S.sr = new Float32Array(MAXS); S.sal = new Uint8Array(MAXS);\n  S.tick = 0; S.life = 0; S.cur = 0;\n}\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\n\nconst u = Math.min(width, height);\nconst st = P.style, pose = P.pose;\nconst gnd = cl(P.ground, 0, 1), AL = cl(P.alpha, 0, 100) / 100;\n\n// ---- the specimen ground -----------------------------------------------------\n// A mid-key toned pool the pod is staged against: the hero needs something to read\n// AGAINST \u2014 a dark-key subject on a dark bed is invisible. P.ground = 0 removes it\n// entirely so the pod can be composited straight over a live scene.\nconst GW = Math.max(240, Math.min(900, Math.round(width * .5))), GH = Math.max(140, Math.round(GW * height / width));\nconst gkey = GW + 'x' + GH + '|' + st + '|' + P.seed + '|' + Math.round(P.x * 40) + '|' + Math.round(P.y * 40);\nif (gnd > .004 && (!S.gnd || S.gk !== gkey)) {\n  if (S.gnd && S.gnd.remove) S.gnd.remove();\n  const g = createGraphics(GW, GH); g.pixelDensity(1); g.colorMode(HSB, 360, 100, 100, 100); g.clear();\n  // ground palette per discipline \u2014 always MID key, never a cream page, never black\n  const gH = st === 'xray' ? P.hue + 148 : st === 'silhouette' ? P.hue + 12 : st === 'bronze' ? P.hue - 6 : P.hue + 44;\n  const gS = st === 'xray' ? 44 : st === 'silhouette' ? 8 : st === 'bronze' ? 20 : 14;\n  const gB = st === 'xray' ? 26 : st === 'silhouette' ? 46 : st === 'bronze' ? 34 : 40;\n  const gc = g.color(gH, gS, gB, 100);\n  const rgb = [Math.round(g.red(gc)), Math.round(g.green(gc)), Math.round(g.blue(gc))];\n  const rs = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',';\n  const px = P.x * GW, py = (P.y - .30) * GH, rr = Math.max(GW, GH) * .96;\n  const dg = g.drawingContext.createRadialGradient(px, py, 0, px, py, rr);\n  dg.addColorStop(0, rs + (.98 * gnd).toFixed(3) + ')');\n  dg.addColorStop(.42, rs + (.88 * gnd).toFixed(3) + ')');\n  dg.addColorStop(.78, rs + (.50 * gnd).toFixed(3) + ')');\n  dg.addColorStop(1, rs + (.22 * gnd).toFixed(3) + ')');\n  g.drawingContext.fillStyle = dg; g.drawingContext.fillRect(0, 0, GW, GH);\n  // tooth: the ground is never a flat fill\n  g.noStroke();\n  for (let i = 0; i < 1500; i++) {\n    const x = fr(i * 7) * GW, y = fr(i * 7 + 1) * GH, d = 1 - Math.min(1, Math.hypot(x - px, y - py) / rr);\n    g.fill(gH + (fr(i * 7 + 2) - .5) * 30, gS + fr(i * 7 + 3) * 16, gB * (.5 + fr(i * 7 + 4) * 1.1), (7 + fr(i * 7 + 5) * 16) * d * gnd);\n    g.circle(x, y, .8 + fr(i * 7 + 6) * 2.6 * (GW / 500));\n  }\n  g.strokeWeight(Math.max(1, GW / 480));\n  for (let i = 0; i < 220; i++) {             // fibre / rock grain\n    const x = fr(i * 11 + 3) * GW, y = fr(i * 11 + 4) * GH, a = fr(i * 11 + 5) * TAU, L = (3 + fr(i * 11 + 6) * 16) * (GW / 500);\n    const d = 1 - Math.min(1, Math.hypot(x - px, y - py) / rr);\n    g.stroke(gH + 8, gS + 10, gB * (fr(i * 11 + 7) > .5 ? 1.5 : .55), 12 * d * gnd);\n    g.line(x, y, x + Math.cos(a) * L, y + Math.sin(a) * L);\n  }\n  // the shadow the pod's stalk stands in\n  g.noStroke(); g.fill(gH - 10, gS + 14, gB * .34, 40 * gnd);\n  g.ellipse(P.x * GW, P.y * GH, GW * .30, GH * .05);\n  S.gnd = g; S.gk = gkey;\n}\nif (gnd > .004 && S.gnd) { push(); if (AL < 1) tint(0, 0, 100, AL * 100); image(S.gnd, 0, 0, width, height); pop(); }\n\n// ---- life cycle: swell -> split -> shed -> spent -> a new pod swells --------\nS.life += .4 + P.speed * .9;\nconst CYC = 5400;\nconst ph = (S.life % CYC) / CYC;\nlet podF, splay, dry;\nif (P.act === 'swell') { podF = 1.02 + .04 * K.swell; splay = .05; dry = 0; }\nelse if (P.act === 'shed') { podF = 1.04; splay = 1; dry = .25; }\nelse if (ph < .32) { const q = ph / .32; podF = .74 + q * .3; splay = 0; dry = 0; }\nelse if (ph < .55) { const q = (ph - .32) / .23; podF = 1.04; splay = q * q * (3 - 2 * q); dry = q * .18; }\nelse if (ph < .82) { const q = (ph - .55) / .27; podF = 1.04 - q * .04; splay = 1; dry = .18 + q * .3; }\nelse { const q = (ph - .82) / .18; podF = 1 - q * .07; splay = 1 + q * .3; dry = .48 + q * .4; }\n\n// ---- wind: incommensurate frequencies, so the pose never repeats ------------\nconst wind = .9 * Math.sin(K.t * .61) + .5 * Math.sin(K.t * 1.43 + 1.7) + .32 * Math.sin(K.t * 2.29);\nconst gust = .55 * Math.sin(K.t * .19 + .8) + .3 * Math.sin(K.t * .071);\nconst swayMul = pose === 'bow' ? 2.2 : pose === 'burst' ? 1.15 : 1;\nconst flex = pose === 'burst' ? (K.pulse * .09 + A.bass * .07) : 0;\n// STAGE HERO SIZE: the capsule itself stands 0.40-0.53 x min(w,h) at scale 1.\nconst BASE = u * cl(P.scale, .3, 2) * (.47 + (P.plump - .5) * .06) * (1 + flex);\nconst podL = BASE * podF;\nconst stalkL = podL * (.18 + P.neck * .42);\nconst H = podL + stalkL;\nconst R = podL * (.26 + P.plump * .30);\nconst bx = P.x * width, by = P.y * height;\nconst lean = pose === 'bow' ? .3 : 0;\n// whole-silhouette displacement: sway + bob, >= 5% of body height at default energy\nconst sway = (wind * .5 + gust * .5 + lean * 1.7) * H * .15 * (.4 + P.energy * 1.15) * swayMul + A.lowmid * H * .05;\nconst bob = (.6 * Math.sin(K.t * .43 + 1.1) + .35 * Math.sin(K.t * .97)) * H * .035 * (.4 + P.energy * 1.1);\nconst tipX = bx + sway, tipY = by - stalkL + bob;\nconst podRot = Math.atan2(sway * .62, stalkL) * .9;\nconst cr = Math.cos(podRot), sr = Math.sin(podRot);\nconst toWX = (lx, ly) => tipX + lx * cr - ly * sr;\nconst toWY = (lx, ly) => tipY + lx * sr + ly * cr;\n\n// ---- light ------------------------------------------------------------------\nconst lit = .42 + .28 * Math.sin(K.t * .053 + .7 * Math.sin(K.t * .0217));\nconst nv = Math.max(3, Math.min(6, Math.round(P.valves)));\nconst rot = K.t * .09 + .42 * Math.sin(K.t * .031 + 1.2);\nconst HU = P.hue, HUd = HU - dry * 22;\nconst glow = .9 + P.energy * .3 + K.intensity * .1 + A.rms * .22;\n\n// ---- pod geometry: an abstract organic capsule. No face. No eyes. -----------\nconst rib = (a, azm, t) => {\n  const bl = Math.pow(Math.sin(Math.min(1, t) * Math.PI), .72);\n  const fsq = 1 - .32 * splay * Math.abs(Math.cos(azm));\n  const x = R * Math.sin(a) * bl + Math.sin(azm) * podL * .86 * splay * t * t;\n  const y = -podL * t * fsq + podL * .4 * splay * t * t;\n  return [x, y];\n};\nconst order = [];\nfor (let i = 0; i < nv; i++) order.push(i);\norder.sort((p, q) => Math.cos(p / nv * TAU + rot) - Math.cos(q / nv * TAU + rot));\n\npush();\nif (AL < 1) drawingContext.globalAlpha = AL;\ntranslate(tipX, tipY);\nrotate(podRot);\n\n// ---- stalk ------------------------------------------------------------------\nconst swb = Math.max(1.4, u * .0052 * (.5 + P.plump * .5) * cl(P.scale, .3, 2));\npush();\nrotate(-podRot);\nconst sBend = -sway * .5;\nconst drawStalk = (w, h2, s2, b2, al2) => {\n  noFill(); strokeWeight(w); stroke(h2, s2, b2, al2);\n  beginShape(); vertex(bx - tipX, by - tipY);\n  bezierVertex(bx - tipX - sBend * .12, by - tipY - stalkL * .42, -sBend * .5, -stalkL * .18, 0, 0);\n  endShape();\n};\nif (st === 'xray') drawStalk(swb * 1.3, HU + 150, 22, 96, 46);\nelse if (st === 'silhouette') drawStalk(swb, HU, 24, 8, 98);\nelse if (st === 'bronze') { drawStalk(swb * 1.15, HUd + 6, 48, 30, 96); drawStalk(swb * .4, HUd + 14, 26, 74 + lit * 24, 84); }\nelse { drawStalk(swb, HUd + 46, 34, 44 - dry * 12, 94); drawStalk(swb * .34, HUd + 40, 22, 80, 60); }\npop();\n\n// ---- valves -----------------------------------------------------------------\nconst NT = 9;\nconst valveShape = (azm, a1, a2) => {\n  beginShape();\n  for (let s2 = 0; s2 <= NT; s2++) { const p = rib(a1, azm, s2 / NT); vertex(p[0], p[1]); }\n  for (let s2 = NT; s2 >= 0; s2--) { const p = rib(a2, azm, s2 / NT); vertex(p[0], p[1]); }\n  endShape(CLOSE);\n};\nconst drawInterior = () => {\n  if (splay < .12) return;\n  const seedsLeft = P.act === 'shed' ? 1 : Math.max(0, 1 - (ph - .55) / .3);\n  if (st === 'xray') { noStroke(); fill(HU + 150, 30, 100, 34); }\n  else if (st === 'silhouette') { noStroke(); fill(HU, 24, 6, 97); }\n  else { noStroke(); fill(HUd + 6, 26 + dry * 18, (st === 'bronze' ? 30 : 46) - dry * 10, 94); }\n  beginShape();\n  vertex(-R * .1, 0); vertex(-R * .055, -podL * .9); vertex(R * .055, -podL * .9); vertex(R * .1, 0);\n  endShape(CLOSE);\n  if (st === 'silhouette') return;\n  const nrow = Math.round(4 + P.density * 8);\n  for (let r2 = 0; r2 < nrow; r2++) {\n    const t = .12 + r2 / nrow * .74;\n    if (fr(r2 * 3 + 1) > seedsLeft) continue;\n    for (let sd = -1; sd <= 1; sd += 2) {\n      const sxl = sd * R * (.13 + .05 * Math.sin(t * 6)), syl = -podL * t;\n      const sz = R * (.15 + P.plump * .07);\n      if (st === 'xray') { noStroke(); fill(HU + 140, 26, 100, 80); ellipse(sxl, syl, sz * 1.1, sz * .72); }\n      else if (st === 'bronze') { noStroke(); fill(HUd + 12, 44, 42 + lit * 30, 95); ellipse(sxl, syl, sz * 1.1, sz * .72); fill(HUd + 18, 18, 88, 44); ellipse(sxl - sz * .16, syl - sz * .1, sz * .4, sz * .26); }\n      else { noStroke(); fill(HUd + 4, 34 + dry * 16, 84 - dry * 18, 92); ellipse(sxl, syl, sz * 1.1, sz * .72); stroke(HUd - 6, 40, 34, 52); strokeWeight(Math.max(.5, u * .0008)); noFill(); ellipse(sxl, syl, sz * 1.1, sz * .72); }\n    }\n  }\n};\n\nlet drewInterior = false;\nfor (let oi = 0; oi < nv; oi++) {\n  const i = order[oi];\n  const azm = i / nv * TAU + rot;\n  const dz = Math.cos(azm);\n  if (!drewInterior && dz > 0) { drawInterior(); drewInterior = true; }\n  const a1 = azm - Math.PI / nv, a2 = azm + Math.PI / nv;\n  const facing = dz * .5 + .5;\n  const shade = .28 + facing * .72;\n  if (st === 'xray') {\n    noStroke(); fill(HU + 150, 24 + facing * 16, 100, 16 + facing * 18);\n    valveShape(azm, a1, a2);\n    noFill(); strokeWeight(Math.max(.8, u * .0015)); stroke(HU + 146, 18, 100, 54 + facing * 26);\n    valveShape(azm, a1, a2);\n    strokeWeight(Math.max(.5, u * .001)); stroke(HU + 152, 14, 100, 30 + facing * 24);\n    for (let q = -1; q <= 1; q++) {\n      beginShape();\n      for (let s2 = 0; s2 <= NT; s2++) { const p1 = rib(a1, azm, s2 / NT), p2 = rib(a2, azm, s2 / NT); const m = (q + 1) * .5; vertex(p1[0] * (1 - m) + p2[0] * m, p1[1] * (1 - m) + p2[1] * m); }\n      endShape();\n    }\n  } else if (st === 'silhouette') {\n    noStroke(); fill(HU, 26, 7, 98);\n    valveShape(azm, a1, a2);\n    if (dz > .1) { noFill(); strokeWeight(Math.max(1, u * .0024)); stroke(HU + 26, 26, 70 + lit * 30, 62 * facing); valveShape(azm, a1, a2); }\n  } else if (st === 'bronze') {\n    noStroke(); fill(HUd + 4, 50 - dry * 12, (26 + shade * 52) * glow, 98);\n    valveShape(azm, a1, a2);\n    push(); scale(.74, .9); translate(R * .16, -podL * .03);\n    fill(HUd + 16, 32 - dry * 10, (40 + shade * 58 * (lit + .5)) * glow, 66);\n    valveShape(azm, a1, a2);\n    pop();\n    if (dz > .35) {\n      noStroke(); fill(HUd + 24, 12, 98, 40 * facing);\n      const p = rib(azm, azm, .52);\n      ellipse(p[0] * .5, p[1], R * .3, podL * .2);\n      fill(HU + 118, 46, 54, 26 * (1 - facing));\n      ellipse(p[0] * .3, p[1] * 1.4, R * .5, podL * .22);\n    }\n  } else {\n    // botanical: the husk is MID-to-LIGHT against the toned ground; a dark-key\n    // body on a dark bed is the invisibility trap this asset was rescued from.\n    noStroke(); fill(HUd, 22 + dry * 16, (34 + shade * 46) * glow, 96);\n    valveShape(azm, a1, a2);\n    noFill(); strokeWeight(Math.max(1, u * .0022 * (.5 + facing * .8))); stroke(HUd - 8, 44 + dry * 16, (24 + shade * 18) * glow, 96);\n    valveShape(azm, a1, a2);\n    const nh = Math.round(3 + P.density * 6);\n    strokeWeight(Math.max(.5, u * .001)); stroke(HUd - 4, 38 + dry * 16, (26 + shade * 26) * glow, 40 + facing * 36);\n    for (let q = 1; q < nh; q++) {\n      const m = q / nh;\n      beginShape();\n      for (let s2 = 1; s2 < NT; s2++) { const p1 = rib(a1, azm, s2 / NT), p2 = rib(a2, azm, s2 / NT); vertex(p1[0] * (1 - m) + p2[0] * m, p1[1] * (1 - m) + p2[1] * m); }\n      endShape();\n    }\n    if (facing > .55) {\n      strokeWeight(Math.max(.9, u * .0016)); stroke(HUd + 14, 10, 98 * glow, 42);\n      for (let q = 0; q < 9; q++) { const p = rib(azm + (fr(q * 3 + i * 7) - .5) * .5, azm, .2 + fr(q * 3 + 1 + i * 7) * .6); point(p[0] * .55, p[1]); }\n    }\n  }\n}\nif (!drewInterior) drawInterior();\npop();\n\n// ---- shed seeds -------------------------------------------------------------\nconst shedding = P.act === 'shed' || (P.act === 'cycle' && ph > .5 && ph < .86) || (P.act !== 'swell' && splay > .5);\nconst rate = shedding ? (.1 + P.energy * .5) * (1 + K.pulse * (pose === 'burst' ? 5 : 1.6) + A.bass * 2) * (.4 + P.speed * .8) : 0;\nS.acc = (S.acc || 0) + rate;\nwhile (S.acc >= 1) {\n  S.acc -= 1;\n  for (let n = 0; n < MAXS; n++) {\n    S.cur = (S.cur + 1) % MAXS;\n    if (!S.sal[S.cur]) {\n      const k = S.cur, lx = (rnd(k * 3 + 1) - .5) * R * .5, ly = -podL * (.3 + rnd(k * 3 + 2) * .55);\n      S.sx[k] = toWX(lx, ly); S.sy[k] = toWY(lx, ly);\n      S.svx[k] = (rnd(k * 5 + 1) - .5) * u * .0022 + wind * u * .0016;\n      S.svy[k] = -u * (.0009 + rnd(k * 5 + 2) * .0022);\n      S.sa[k] = 0; S.sr[k] = rnd(k * 7 + 3) * TAU; S.sal[k] = 1;\n      break;\n    }\n  }\n}\npush();\nif (AL < 1) drawingContext.globalAlpha = AL;\nstrokeCap(ROUND);\nfor (let k = 0; k < MAXS; k++) {\n  if (!S.sal[k]) continue;\n  S.sa[k] += 1;\n  S.svx[k] += (wind * .5 + Math.sin(S.sa[k] * .04 + S.sr[k]) * .6) * u * .00006;\n  S.svy[k] += -u * .0000075 + Math.sin(S.sa[k] * .031 + S.sr[k] * 2) * u * .00004;\n  S.sx[k] += S.svx[k] * (.5 + P.speed * .7); S.sy[k] += S.svy[k] * (.5 + P.speed * .7);\n  S.sr[k] += .012;\n  const fade = Math.max(0, 1 - S.sa[k] / 620);\n  if (fade <= 0 || S.sx[k] < -u * .1 || S.sx[k] > width + u * .1 || S.sy[k] < -u * .1) { S.sal[k] = 0; continue; }\n  const sz = u * .011 * (.5 + P.plump * .5) * cl(P.scale, .3, 2);\n  const ph2 = st === 'xray' ? HU + 146 : st === 'silhouette' ? HU : HUd + 6;\n  const pb = st === 'silhouette' ? 10 : st === 'xray' ? 100 : (82 + lit * 18) * glow;\n  const ps = st === 'silhouette' ? 24 : st === 'xray' ? 22 : 18;\n  strokeWeight(Math.max(.6, u * .001)); stroke(ph2, ps, pb, 42 * fade);\n  for (let q = 0; q < 5; q++) { const a = S.sr[k] + q / 5 * TAU * .42 - .9; line(S.sx[k], S.sy[k], S.sx[k] + Math.cos(a) * sz * 1.7, S.sy[k] + Math.sin(a) * sz * 1.7); }\n  noStroke(); fill(ph2, ps + 14, pb * .78, 92 * fade);\n  push(); translate(S.sx[k], S.sy[k]); rotate(S.sr[k] * .3); ellipse(0, 0, sz * .8, sz * .44); pop();\n}\npop();\nblendMode(BLEND);\ndrawingContext.globalAlpha = 1;\ndrawingContext.shadowBlur = 0;\n"
+}

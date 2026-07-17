@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.hopf_fibration",
+  "kind": "genart",
+  "name": "Hopf Links",
+  "desc": "Stereographically projected Hopf fibers \u2014 great-circle rings of the 3-sphere that link without ever touching, nested into a luminous torus of spectrum-hued glowing loops tumbling in continuous 4D rotation.",
+  "tags": [
+    "hopf",
+    "fibration",
+    "hopf-links",
+    "linked-rings",
+    "torus",
+    "villarceau",
+    "stereographic",
+    "4d",
+    "hypersphere",
+    "s3",
+    "quaternion",
+    "topology",
+    "geometry",
+    "mathart",
+    "generative",
+    "genart",
+    "abstract",
+    "spectral",
+    "rainbow",
+    "glow",
+    "additive",
+    "neon",
+    "chrome",
+    "ice",
+    "wireframe",
+    "blueprint",
+    "interlocking",
+    "circles",
+    "luminous",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow amplitude / ring brightness+thickness"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "fiber population (more latitudes & longitudes = denser linked torus)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "projection zoom"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "4D rotation / flow rate"
+    },
+    "twist": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "extra 4D rotation plane \u2014 how much the rings shear through each other"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue the spectrum rotates from"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "projection center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "projection center y"
+    },
+    "style": {
+      "default": "spectral",
+      "options": [
+        "spectral",
+        "gold",
+        "neon",
+        "ice",
+        "ink"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic layout variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T14:08:10+00:00",
+    "fps": 59.5,
+    "motion": 0.0234,
+    "lum": 0.12
+  },
+  "code": "const D = { energy: .62, density: .55, speed: 1, scale: 1, twist: .55, hue: 210, x: .5, y: .5, style: 'spectral', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nif (!S.sx) { S.sx = new Float32Array(72); S.sy = new Float32Array(72); }\n\nconst style = P.style;\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = u * 0.30 * P.scale;\nconst glow = 0.35 + P.energy * 0.95;\nconst spd = 0.2 + P.speed;\nconst twist = P.twist;\nconst alphaF = P.alpha / 100;\nconst additive = style !== 'ink';\n\n// ---- seed-driven layout offsets (deterministic) ----\nconst hueOff = fr(9) * 360;\nconst jTh = (fr(3) - 0.5) * 0.16;\nconst jPh = fr(7) * 6.2831853;\n\n// ---- fiber counts (density = 2nd param, drives ring population) ----\nconst nLat = 2 + Math.round(P.density * 2.2);            // 2..4\nconst nLon = Math.round(6 + P.density * 12);             // 6..18\nconst nFib = nLat * nLon;\nlet pts = Math.round(2200 / nFib); if (pts < 20) pts = 20; if (pts > 46) pts = 46;\n\n// ---- dramaturgy: hue sweep + spin build across sections ----\nconst secHue = K.section * 17;\nconst intens = 0.7 + 0.3 * K.intensity + A.bass * 0.5;\nconst secSpin = 1 + K.section * 0.04;\n\n// ---- continuous 4D rotation of S^3 (the motion floor) ----\nconst a4 = K.t * 0.13 * spd * secSpin;\nconst b4 = K.t * 0.19 * spd + 1.7;\nconst c4 = K.t * 0.075 * spd * twist;\nconst ca = Math.cos(a4), sa = Math.sin(a4), cb = Math.cos(b4), sb = Math.sin(b4), cc = Math.cos(c4), sc = Math.sin(c4);\n// slow 3D view tumble\nconst ry = K.t * 0.045 * spd + 0.6, rx = 0.52;\nconst cry = Math.cos(ry), sry = Math.sin(ry), crx = Math.cos(rx), srx = Math.sin(rx);\n\n// ---- background wash (fills the frame; alpha lets it composite) ----\npush();\nnoStroke();\nlet bgH, bgS, bgB;\nif (style === 'ink') { bgH = 40; bgS = 8; bgB = 92; }\nelse if (style === 'ice') { bgH = 215; bgS = 55; bgB = 7; }\nelse if (style === 'gold') { bgH = 30; bgS = 40; bgB = 6; }\nelse { bgH = (P.hue + secHue + 260) % 360; bgS = 55; bgB = 6; }\nfill(bgH, bgS, bgB, P.alpha);\nrect(0, 0, width, height);\n\n// ---- ambient core glow so the frame never reads 80% black ----\nif (additive) {\n  blendMode(ADD);\n  const ag = (0.4 + P.energy * 0.5) * intens * alphaF;\n  const ah = (P.hue + secHue + hueOff) % 360;\n  for (let r = 0; r < 3; r++) {\n    fill(ah, style === 'ice' ? 40 : 60, style === 'gold' ? 70 : 85, 5 * ag * (3 - r));\n    ellipse(cx, cy, u * (1.5 - r * 0.4) * P.scale, u * (1.5 - r * 0.4) * P.scale);\n  }\n}\n\n// ---- draw the fibers ----\nnoFill();\nif (additive) blendMode(ADD); else blendMode(BLEND);\n\nfor (let li = 0; li < nLat; li++) {\n  const theta = 0.20 * Math.PI + (li + 0.5) / nLat * 0.60 * Math.PI + jTh;\n  const ch = Math.cos(theta / 2), sh = Math.sin(theta / 2);\n  for (let ki = 0; ki < nLon; ki++) {\n    const phi = ki / nLon * 6.2831853 + jPh + li * 0.4;\n    const phiDeg = ki / nLon * 360;\n    // build projected ring\n    let mz = 0;\n    for (let p = 0; p < pts; p++) {\n      const tt = p / pts * 6.2831853;\n      let X = ch * Math.cos(tt);\n      let Y = ch * Math.sin(tt);\n      let Z = sh * Math.cos(tt + phi);\n      let W = sh * Math.sin(tt + phi);\n      // 4D plane rotations (X,Z),(Y,W),(X,W)\n      let t1 = X * ca - Z * sa; Z = X * sa + Z * ca; X = t1;\n      let t2 = Y * cb - W * sb; W = Y * sb + W * cb; Y = t2;\n      let t3 = X * cc - W * sc; W = X * sc + W * cc; X = t3;\n      // stereographic projection from north pole (W=1)\n      let Wc = W > 0.94 ? 0.94 : W;\n      const f = 1 / (1 - Wc);\n      let X3 = X * f, Y3 = Y * f, Z3 = Z * f;\n      const mag = Math.sqrt(X3 * X3 + Y3 * Y3 + Z3 * Z3);\n      if (mag > 6) { const s6 = 6 / mag; X3 *= s6; Y3 *= s6; Z3 *= s6; }\n      // 3D view rotation (around Y, then X)\n      let vx = X3 * cry - Z3 * sry; let vz = X3 * sry + Z3 * cry;\n      let vy = Y3 * crx - vz * srx; let vz2 = Y3 * srx + vz * crx;\n      S.sx[p] = cx + vx * R;\n      S.sy[p] = cy + vy * R;\n      mz += vz2;\n    }\n    mz /= pts;\n    const depth = Math.max(0, Math.min(1, (mz + 2.5) / 5));\n\n    // color by style\n    let h, s;\n    if (style === 'gold') { h = (40 + 10 * Math.sin(phi) + secHue) % 360; s = 72; }\n    else if (style === 'ice') { h = (188 + 18 * Math.sin(phi * 2) + secHue * 0.3 + 360) % 360; s = 42; }\n    else if (style === 'ink') { h = 0; s = 0; }\n    else { h = (P.hue + phiDeg + hueOff + secHue) % 360; s = style === 'neon' ? 96 : 82; }\n\n    if (style === 'ink') {\n      // wireframe blueprint: thin dark contour lines on pale paper\n      stroke(0, 0, 14, (42 + 24 * depth) * alphaF);\n      strokeWeight(Math.max(0.8, u * 0.0016 * (0.7 + 0.6 * depth)));\n      beginShape();\n      for (let p = 0; p < pts; p++) vertex(S.sx[p], S.sy[p]);\n      endShape(CLOSE);\n    } else {\n      // additive two-pass glow tube\n      const haloB = style === 'ice' ? 80 : 62;\n      const coreB = style === 'neon' ? 100 : 94;\n      const aHalo = glow * intens * alphaF * (style === 'ice' ? 7 : 9) * (0.45 + 0.55 * depth);\n      const aCore = glow * intens * alphaF * (style === 'neon' ? 34 : 26) * (0.5 + 0.5 * depth) + A.treble * 22 * alphaF;\n      const wHalo = Math.max(1, u * 0.011 * glow * (0.45 + 0.6 * depth));\n      const wCore = Math.max(0.8, u * 0.0032 * (0.7 + 0.5 * depth));\n      // halo\n      stroke(h, s * 0.85, haloB, aHalo);\n      strokeWeight(wHalo);\n      beginShape();\n      for (let p = 0; p < pts; p++) vertex(S.sx[p], S.sy[p]);\n      endShape(CLOSE);\n      // core\n      stroke(h, s, coreB, aCore);\n      strokeWeight(wCore);\n      beginShape();\n      for (let p = 0; p < pts; p++) vertex(S.sx[p], S.sy[p]);\n      endShape(CLOSE);\n    }\n  }\n}\nblendMode(BLEND);\npop();\n"
+}

@@ -1,0 +1,167 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.mudflat",
+  "kind": "world",
+  "name": "Tidal Mudflat",
+  "desc": "A vast tidal flat at the bottom of the light \u2014 dendritic drainage creeks branch across ribbed silt toward a low horizon, pans of standing water hold the shivering sky, and the tide line creeps in and out over minutes under a sun that never quite clears the haze; low-light large-format, an albumen plate, a silver nocturne, SAR radar backscatter, or a bare survey chart.",
+  "tags": [
+    "mudflat",
+    "tidal flat",
+    "tideland",
+    "estuary",
+    "foreshore",
+    "wadden",
+    "silt",
+    "mud",
+    "creek",
+    "dendrite",
+    "drainage",
+    "channel",
+    "tide",
+    "low tide",
+    "shallows",
+    "sheet water",
+    "wader",
+    "shorebird",
+    "horizon",
+    "coast",
+    "shore",
+    "landscape",
+    "wide",
+    "flat",
+    "empty",
+    "austere",
+    "melancholy",
+    "eerie",
+    "desolate",
+    "muted",
+    "desaturated",
+    "grey",
+    "dusk",
+    "dawn",
+    "overcast",
+    "haze",
+    "atmospheric",
+    "parallax",
+    "depth",
+    "large format",
+    "photographic",
+    "sepia",
+    "nocturne",
+    "moonlit",
+    "radar",
+    "sar",
+    "survey",
+    "chart",
+    "contour",
+    "wyeth",
+    "hopper",
+    "nature",
+    "outdoor"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the water works \u2014 pan shimmer, specular streaks, tide-line brightness and the low sun's burn"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.4,
+      "doc": "feature size of the flat \u2014 ripple amplitude, creek width, pan size (rebuilds the ground)"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "creek count, number of standing pans, and how many waders work the flat"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "cloud drift rate across the sky strata"
+    },
+    "tide": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "where the water's edge sits \u2014 0 is a drained flat at the horizon, 1 is water at your feet"
+    },
+    "haze": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "aerial perspective \u2014 horizon value-compression and the printed vignette"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue shift off the default cold-sky/warm-band pairing"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the low sun sits along the horizon"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.2,
+      "max": 0.7,
+      "doc": "horizon height \u2014 low y gives the big-sky read"
+    },
+    "style": {
+      "default": "lowlight",
+      "options": [
+        "lowlight",
+        "sepia",
+        "nocturne",
+        "radar",
+        "contour"
+      ],
+      "doc": "aesthetic: lowlight = cold large-format photograph with one warm band; sepia = warm albumen plate, heavy grain; nocturne = silver moonlit dark key; radar = SAR backscatter false-colour, water reads as black void; contour = drafting-blue survey chart, pure line, no tonal mass"
+    },
+    "act": {
+      "default": "ebb",
+      "options": [
+        "ebb",
+        "flood",
+        "slack"
+      ],
+      "doc": "multi-minute tide programme indexed off the section arc"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "regenerates the creek network, ripples and grain"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0.2,
+      "max": 1,
+      "doc": "how far the world sits back behind the performers"
+    }
+  },
+  "acts": [
+    "ebb",
+    "flood",
+    "slack"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:35:54+00:00",
+    "fps": 59.9,
+    "motion": 0.0093,
+    "lum": 0.396
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .55, speed: 1, tide: .45, haze: .6, hue: 28, x: .5, y: .42, style: 'lowlight', act: 'ebb', seed: 0, alpha: 1 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst ho = P.hue - 28;\nconst L3 = (a, b, f) => [a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f, a[2] + (b[2]-a[2])*f];\nconst sh = c => [hw(c[0] + ho), c[1], c[2]];\n\n// ---------------- style table: rendering philosophy, not hue swaps ----------------\nconst STY = {\n  // large-format photograph at the bottom of the light: cold sky, one low warm band\n  lowlight:  { skyT:[212,26,44], skyM:[206,20,58], skyL:[26,34,72], mudH:[30,12,40], mudL:[26,14,20],\n               wat:[204,16,74], glint:[36,26,92], grain:26, ripple:.9, mode:'tonal' },\n  // albumen / sepia plate \u2014 warm monochrome, heavy grain, printed vignette\n  sepia:     { skyT:[32,16,50], skyM:[34,20,64], skyL:[36,30,78], mudH:[32,20,38], mudL:[30,24,17],\n               wat:[36,14,76], glint:[40,18,94], grain:44, ripple:1.1, mode:'tonal' },\n  // moonlit nocturne \u2014 near-monochrome dark key, silver water, no warm band at all\n  nocturne:  { skyT:[228,44,22], skyM:[220,34,34], skyL:[196,18,50], mudH:[214,20,24], mudL:[224,26,11],\n               wat:[198,10,66], glint:[190,6,88], grain:20, ripple:.7, mode:'tonal' },\n  // ABSTRACTED: SAR radar backscatter \u2014 water is a black specular void, mud speckles bright\n  radar:     { skyT:[150,0,6], skyM:[150,0,9], skyL:[150,0,13], mudH:[80,52,62], mudL:[86,60,28],\n               wat:[150,0,4], glint:[70,30,96], grain:70, ripple:1.4, mode:'radar' },\n  // ABSTRACTED: survey chart \u2014 drafting ground, pure contour line, no tonal mass\n  contour:   { skyT:[218,58,21], skyM:[218,52,26], skyL:[216,46,31], mudH:[214,44,27], mudL:[216,50,20],\n               wat:[188,52,72], glint:[186,40,96], grain:8, ripple:1, mode:'line' }\n};\nconst st = STY[P.style] || STY.lowlight;\n\nconst hy = height * P.y;              // horizon\nconst cx = width * P.x;\nconst en = Math.max(0, Math.min(1, P.energy));\nconst hz = Math.max(0, Math.min(1, P.haze));\nconst key = width + 'x' + height + '|' + P.style + '|' + P.seed + '|' + Math.round(P.hue) + '|' + P.scale.toFixed(2) + '|' + P.y.toFixed(3) + '|' + P.x.toFixed(3);\n\n// ---------------- build cached strata ----------------\nif (!S.sky || S.key !== key) {\n  const W = Math.max(2, Math.ceil(width)), H = Math.max(2, Math.ceil(height));\n  const mk = (w, h) => { const g = createGraphics(w, h); g.colorMode(g.HSB, 360, 100, 100, 100); return g; };\n  if (S.sky) { S.sky.remove(); S.cl0.remove(); S.cl1.remove(); S.gnd.remove(); }\n  S.sky = mk(W, H); S.cl0 = mk(W, Math.max(2, Math.ceil(hy + u * .06)));\n  S.cl1 = mk(W, Math.max(2, Math.ceil(hy + u * .06))); S.gnd = mk(W, H);\n\n  // --- sky: banded gradient, warm compression at the horizon (aerial perspective) ---\n  const g = S.sky; g.noStroke();\n  const cT = sh(st.skyT), cM = sh(st.skyM), cL = sh(st.skyL);\n  for (let yy = 0; yy < H; yy++) {\n    const f = Math.min(1, yy / Math.max(1, hy));\n    const c = f < .62 ? L3(cT, cM, f / .62) : L3(cM, cL, (f - .62) / .38);\n    g.fill(c[0], c[1], c[2]); g.rect(0, yy, W, 1);\n  }\n\n  // --- two tileable cloud strata (drawn 3x so they wrap seamlessly when scrolled) ---\n  const bank = (gg, n, yc, spread, thick, alp, val, sat) => {\n    gg.noStroke();\n    for (let i = 0; i < n; i++) {\n      const bx = fr(i * 5 + 11) * W;\n      const by = yc + (fr(i * 5 + 12) - .5) * spread;\n      const bw = u * (.18 + fr(i * 5 + 13) * .55) * (1 + P.scale * .3);\n      const bh = thick * (.5 + fr(i * 5 + 14) * .9);\n      const cc = sh([st.skyL[0], sat, val]);\n      for (let rep = -1; rep <= 1; rep++)\n        for (let k = 0; k < 4; k++) {\n          gg.fill(cc[0], cc[1] * (1 - k * .12), cc[2] + k * 3, alp * (1 - k * .18));\n          gg.ellipse(bx + rep * W, by + k * bh * .18, bw * (1 - k * .13), bh * (1 - k * .1));\n        }\n    }\n  };\n  if (st.mode === 'line') {\n    // drafting ground: clouds become dashed isobars rather than mass\n    for (const [gg, n, yc] of [[S.cl0, 5, hy * .34], [S.cl1, 4, hy * .66]]) {\n      gg.noFill(); gg.strokeWeight(Math.max(1, u * .0016));\n      for (let i = 0; i < n; i++) {\n        const by = yc + (fr(i * 3 + 21) - .5) * hy * .3;\n        gg.stroke(hw(st.wat[0] + ho), st.wat[1], st.wat[2], 30 + fr(i * 3 + 22) * 24);\n        for (let rep = -1; rep <= 1; rep++) {\n          gg.beginShape();\n          for (let xx = 0; xx <= W; xx += 12)\n            gg.vertex(xx + rep * W, by + Math.sin(xx * .006 + i * 2.1 + fr(i) * 6) * u * .018);\n          gg.endShape();\n        }\n      }\n    }\n  } else if (st.mode === 'radar') {\n    bank(S.cl0, 7, hy * .4, hy * .5, u * .05, 9, 22, 0);\n    bank(S.cl1, 5, hy * .72, hy * .34, u * .035, 12, 30, 0);\n  } else {\n    bank(S.cl0, 9, hy * .34, hy * .5, u * .055, 15, st.skyT[2] + 20, st.skyT[1] * .5);\n    bank(S.cl1, 7, hy * .70, hy * .30, u * .030, 20, st.skyL[2] + 12, st.skyL[1] * .4);\n  }\n\n  // --- ground: mud plane, perspective grain, sand ripples, dendritic creeks ---\n  const q = S.gnd; q.noStroke();\n  const mH = sh(st.mudH), mL = sh(st.mudL), wc = sh(st.wat);\n  const dep = yy => Math.max(.0012, (yy - hy) / Math.max(1, height - hy));   // 0 at horizon -> 1 at camera\n  if (st.mode !== 'line') {\n    for (let yy = Math.floor(hy); yy < H; yy++) {\n      const f = Math.pow(dep(yy), .55);\n      const c = L3(mH, mL, f);\n      q.fill(c[0], c[1], c[2]); q.rect(0, yy, W, 1);\n    }\n  } else {\n    q.fill(mL[0], mL[1], mL[2]); q.rect(0, hy, W, H - hy);\n  }\n\n  // sand ripples: arcs whose spacing collapses toward the horizon\n  const nr = Math.floor(70 * st.ripple);\n  for (let i = 0; i < nr; i++) {\n    const f = Math.pow((i + .5) / nr, 2.1);                  // pack them near the horizon\n    const yy = hy + f * (H - hy);\n    const d = dep(yy);\n    const amp = u * .012 * d * P.scale;\n    q.noFill();\n    q.strokeWeight(Math.max(.6, u * .0016 * d * 2.4 * P.scale));\n    if (st.mode === 'line') q.stroke(hw(st.wat[0] + ho), st.wat[1] * .7, st.wat[2] * .5, 22);\n    else q.stroke(mL[0], mL[1] * .8, mL[2] + 16 + fr(i) * 10, 16 + 12 * d);\n    q.beginShape();\n    for (let xx = -20; xx <= W + 20; xx += Math.max(6, 14 * d)) {\n      const w1 = Math.sin(xx * .009 / P.scale + i * .7) + .6 * Math.sin(xx * .023 / P.scale + i * 1.9);\n      q.vertex(xx, yy + w1 * amp);\n    }\n    q.endShape();\n  }\n\n  // perspective grain \u2014 dense and fine up close, sparse and hazed far off\n  const ng = st.mode === 'line' ? 0 : Math.floor(2600 * (st.grain / 40));\n  q.noStroke();\n  for (let i = 0; i < ng; i++) {\n    const f = Math.pow(fr(i * 3 + 101), 2.4);\n    const yy = hy + f * (H - hy), xx = fr(i * 3 + 102) * W, d = dep(yy);\n    const v = (fr(i * 3 + 103) - .5) * st.grain;\n    const c = L3(mH, mL, Math.pow(d, .55));\n    q.fill(c[0], c[1], Math.max(2, c[2] + v), 34 + 30 * d);\n    const r = Math.max(.7, u * .0022 * d * 3);\n    q.rect(xx, yy, r, r * .7);\n  }\n\n  // dendritic drainage creeks \u2014 bright, they hold the sky\n  const branch = (x0, y0, ang, len, wid, dpt, id) => {\n    if (dpt > 6 || len < u * .008 || y0 < hy + 2) return;\n    let xx = x0, yy = y0, a = ang;\n    const segs = 5 + (dpt < 2 ? 4 : 0);\n    q.noFill();\n    for (let s = 0; s < segs; s++) {\n      a += (fr(id * 17 + s * 3 + dpt) - .5) * .5;\n      const nx = xx + Math.cos(a) * len / segs, ny = yy + Math.sin(a) * len / segs;\n      if (ny < hy + 1) break;\n      const d = dep(ny);\n      const w2 = Math.max(.5, wid * (.35 + d * .9));\n      q.strokeWeight(w2);\n      if (st.mode === 'line') q.stroke(wc[0], wc[1], wc[2], 60);\n      else if (st.mode === 'radar') q.stroke(wc[0], 0, 4, 92);\n      else q.stroke(wc[0], wc[1] * (.5 + .5 * d), wc[2] - 8 + 14 * d, 62 + 26 * d);\n      q.line(xx, yy, nx, ny);\n      // wet margin \u2014 the darkened lip of the channel\n      if (st.mode === 'tonal') {\n        q.strokeWeight(w2 * 2.6); q.stroke(mL[0], mL[1] + 10, Math.max(3, mL[2] - 7), 16);\n        q.line(xx, yy, nx, ny);\n        q.strokeWeight(w2); q.stroke(wc[0], wc[1] * (.5 + .5 * d), wc[2] - 8 + 14 * d, 62 + 26 * d);\n        q.line(xx, yy, nx, ny);\n      }\n      xx = nx; yy = ny;\n      if (s === segs - 2 && dpt < 6) {\n        branch(xx, yy, a - .55 - fr(id + 7) * .5, len * .62, wid * .6, dpt + 1, id * 3 + 1);\n        branch(xx, yy, a + .5 + fr(id + 9) * .5, len * .6, wid * .58, dpt + 1, id * 3 + 2);\n      }\n    }\n  };\n  const nc = 3 + Math.floor(P.density * 4);\n  for (let i = 0; i < nc; i++) {\n    const mx = W * (.08 + fr(i * 11 + 3) * .84);\n    branch(mx, H + u * .02, -Math.PI / 2 + (fr(i * 11 + 4) - .5) * .7,\n           (H - hy) * (.42 + fr(i * 11 + 5) * .3), Math.max(1.4, u * .009 * P.scale), 0, i * 31 + 5);\n  }\n  S.key = key;\n}\n\n// ---------------- act: the tide programme, indexed off the section arc ----------------\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = { ebb: { pull: .18 + sec * .07, lift: 0 }, flood: { pull: .82 - sec * .07, lift: .1 }, slack: { pull: .5, lift: .04 } };\nconst act = ACT[P.act] || ACT.ebb;\n\n// ---------------- composite ----------------\nnoStroke();\nimage(S.sky, 0, 0);\n\n// cloud strata, scrolled on two incommensurate linear rates (guaranteed motion floor)\nconst W2 = S.cl0.width;\nconst scr = (g, px) => { const ox = ((px % W2) + W2) % W2; image(g, ox - W2, 0); image(g, ox, 0); };\nscr(S.cl0, -K.t * u * .0042 * P.speed);\nscr(S.cl1, -K.t * u * .0113 * P.speed - u * .3);\n\n// horizon haze bank \u2014 the value-compression plane that sells the distance\nconst hazeC = sh(st.mode === 'radar' ? [150, 0, 20] : [st.skyL[0], st.skyL[1] * .5, st.skyL[2] + 6]);\nfor (let i = 0; i < 4; i++) {\n  const dr = Math.sin(K.t * (.031 + i * .017) + i * 2.1) * .5 + .5;\n  fill(hazeC[0], hazeC[1], hazeC[2], (7 + 9 * hz) * (1 - i * .16));\n  rect(0, hy - u * (.05 + i * .012) - dr * u * .012, width, u * (.10 + i * .045));\n}\n\nimage(S.gnd, 0, 0);\n\n// --- sheet water: pans of standing water holding the sky, shimmering ---\nconst dep = yy => Math.max(.0012, (yy - hy) / Math.max(1, height - hy));\nconst wc = sh(st.wat), gl = sh(st.glint);\nconst np = Math.floor(10 + P.density * 26);\nblendMode(st.mode === 'radar' ? MULTIPLY : BLEND);\nfor (let i = 0; i < np; i++) {\n  const f = Math.pow(fr(i * 7 + 201), 1.9);\n  const yy = hy + f * (height - hy);\n  const d = dep(yy);\n  const px = fr(i * 7 + 202) * width;\n  const pw = u * (.06 + fr(i * 7 + 203) * .22) * (.3 + d * 1.5) * P.scale;\n  const ph = u * .012 * (.2 + d * 1.6) * P.scale;\n  // shimmer: three incommensurate real-time terms, never re-phases at 8s\n  const sm = .5 + .5 * (Math.sin(K.t * (.61 + i * .013) + i) * .5 + Math.sin(K.t * 1.43 + i * 2.1) * .32 + Math.sin(K.t * 2.29 + i) * .18);\n  const gain = (.5 + .5 * en) * (.55 + .45 * sm) + A.rms * .5;\n  if (st.mode === 'radar') { fill(0, 0, 3, 70 + 22 * gain); ellipse(px, yy, pw, ph); continue; }\n  if (st.mode === 'line') { noFill(); stroke(wc[0], wc[1], wc[2], 30 + 34 * gain); strokeWeight(Math.max(.7, u * .0012)); ellipse(px, yy, pw, ph); noStroke(); continue; }\n  fill(wc[0], wc[1] * (.5 + .5 * d), Math.min(99, wc[2] * (.62 + .3 * gain)), 40 + 34 * d);\n  ellipse(px, yy, pw, ph);\n  // the specular streak inside the pan\n  fill(gl[0], gl[1] * .6, gl[2], (16 + 40 * gain) * (.4 + .6 * en));\n  ellipse(px + Math.sin(K.t * .27 + i) * pw * .12, yy, pw * (.3 + .3 * sm), ph * .38);\n}\nblendMode(BLEND);\n\n// --- the tide edge: a bright creeping line, on slow incommensurate rates ---\nconst tf = Math.max(0, Math.min(1, P.tide * act.pull + .12 * Math.sin(K.t * .023) + .06 * Math.sin(K.t * .0561 + 1.3)));\nconst ty = hy + Math.pow(.06 + tf * .9, 1.7) * (height - hy);\nconst td = dep(ty);\nnoFill();\nfor (let L = 0; L < 3; L++) {\n  strokeWeight(Math.max(.8, u * (.0018 + L * .0012) * (.4 + td)));\n  stroke(gl[0], gl[1] * (.5 - L * .1), gl[2] - L * 8, (st.mode === 'line' ? 40 : 60 + 24 * en) * (1 - L * .28));\n  beginShape();\n  for (let xx = -10; xx <= width + 10; xx += 9) {\n    const wv = Math.sin(xx * .011 + K.t * (.5 + L * .21)) * .6 + Math.sin(xx * .027 - K.t * (.83 + L * .17)) * .3 + Math.sin(xx * .004 + K.t * .13) * .8;\n    vertex(xx, ty + L * u * .006 + wv * u * .008 * (.3 + td) * (.5 + en));\n  }\n  endShape();\n}\nnoStroke();\nif (st.mode === 'tonal') { fill(wc[0], wc[1] * .7, wc[2] * .5, 26); rect(0, ty, width, Math.max(2, u * .012 * (.3 + td))); }\n\n// --- distant waders: specks, never characters. Pure silhouette, drifting. ---\nconst nb = Math.floor(P.density * 9 * (st.mode === 'line' ? 0 : 1));\nfor (let i = 0; i < nb; i++) {\n  const f = .1 + fr(i * 9 + 301) * .5;\n  const yy = hy + Math.pow(f, 1.6) * (height - hy) * .8;\n  const d = dep(yy);\n  const bx = (fr(i * 9 + 302) * width + Math.sin(K.t * (.07 + fr(i * 9 + 303) * .05) + i * 2) * u * .09 + width) % width;\n  const bob = Math.sin(K.t * (1.7 + i * .3) + i) * u * .0015;\n  fill(st.mode === 'radar' ? 70 : 0, st.mode === 'radar' ? 20 : 0, st.mode === 'radar' ? 92 : 8, 60 + 26 * d);\n  ellipse(bx, yy + bob, u * .006 * (.3 + d) * P.scale, u * .004 * (.3 + d) * P.scale);\n}\n\n// --- a low sun band / cold moon glow riding the horizon ---\nif (st.mode !== 'line' && st.mode !== 'radar') {\n  const sx = cx + Math.sin(K.t * .0091) * width * .06;\n  const sy = hy - u * (.015 + act.lift * .1);\n  const gg = (.45 + .55 * en) * (.7 + .3 * K.swell) + A.lowmid * .3;\n  blendMode(ADD);\n  for (let i = 4; i >= 0; i--) {\n    fill(gl[0], gl[1] * (.7 - i * .1), gl[2], (5 + 7 * gg) * (1 - i * .12));\n    ellipse(sx, sy, u * (.10 + i * .30) * (1 + .06 * Math.sin(K.t * .43)), u * (.05 + i * .11));\n  }\n  blendMode(BLEND);\n}\n\n// --- printed vignette / plate edge ---\nif (st.mode !== 'radar') {\n  const vg = st.mode === 'line' ? 30 : 22 + hz * 20;\n  for (let i = 0; i < 5; i++) {\n    noFill(); strokeWeight(u * .055);\n    stroke(hw(st.mudL[0] + ho), st.mudL[1], st.mode === 'line' ? st.skyT[2] * .5 : 6, vg * (1 - i * .17) * .5);\n    rect(-u * .03 + i * u * .03, -u * .03 + i * u * .03, width + u * .06 - i * u * .06, height + u * .06 - i * u * .06);\n  }\n  noStroke();\n}\n\n// --- global veil (alpha = how far the world sits back behind the performers) ---\nif (P.alpha < 1) { noStroke(); fill(hw(st.mudL[0] + ho), st.mudL[1] * .5, 4, (1 - P.alpha) * 100); rect(0, 0, width, height); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

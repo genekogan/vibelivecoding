@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.penguin",
+  "kind": "subject",
+  "name": "Penguin",
+  "desc": "Barrel-chested penguin that waddle-rocks foot to foot, scratches a deck as a DJ, and belly-slides across the stage, rendered as a bold mid-century screenprint.",
+  "tags": [
+    "penguin",
+    "bird",
+    "animal",
+    "waterfowl",
+    "seabird",
+    "antarctic",
+    "arctic",
+    "ice",
+    "waddle",
+    "tuxedo",
+    "dj",
+    "turntable",
+    "slide",
+    "dance",
+    "character",
+    "mascot",
+    "screenprint",
+    "poster",
+    "riso",
+    "noir",
+    "flightless",
+    "cute",
+    "flipper",
+    "monochrome",
+    "winter",
+    "beak"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.6,
+      "doc": "size vs design (hero ~0.48*min-dim tall at 1)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "expressive motion/flourish + audio gain"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "body ink hue (210 = slate-blue tuxedo)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 4,
+      "doc": "beats-relative rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ambient snow/spark motes"
+    },
+    "chub": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "belly plumpness + jiggle morph"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x as canvas fraction"
+    },
+    "y": {
+      "default": 0.74,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (feet line) as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation seed"
+    },
+    "pose": {
+      "default": "auto",
+      "options": [
+        "auto",
+        "waddle",
+        "dj",
+        "slide",
+        "idle",
+        "dance"
+      ],
+      "doc": "pose preset (auto cycles by section via act)"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "riso",
+        "noir",
+        "wire"
+      ],
+      "doc": "render philosophy: flat screenprint / 2-ink halftone / chiaroscuro / blueprint X-ray"
+    },
+    "act": {
+      "default": "set",
+      "options": [
+        "set",
+        "chill",
+        "party"
+      ],
+      "doc": "multi-minute pose dramaturgy"
+    }
+  },
+  "acts": [
+    "set",
+    "chill",
+    "party"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T01:52:21+00:00",
+    "fps": 59.9,
+    "motion": 0.0082,
+    "lum": 0.112
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 210, speed: 1, density: .5, chub: .5, x: .5, y: .74, seed: 0, pose: 'auto', style: 'poster', act: 'set' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst u = Math.min(width, height);\nconst s = u * 0.0019 * P.scale;\n\nlet bt = K.beat * P.speed;\nconst sb = ((bt % 1) + 1) % 1;\nif (S.lastBeat == null || bt < S.lastBeat) S.lastBeat = bt;\nS.lastBeat = bt;\nconst am = .82 + .22 * Math.sin(K.t * .31 + fr(6) * 6);\nconst loco = (.72 + .5 * K.intensity) * am;                  // energy-independent locomotion floor\nconst eAmp = (.35 + .65 * P.energy) * (.6 + .55 * K.intensity) * am;\nconst kick = Math.min(1, K.pulse * (.5 + .5 * K.intensity) + A.bass * .75);\nS.rms = (S.rms || 0) * .85 + (A.rms || 0) * .15;\nS.tre = (S.tre || 0) * .8 + (A.treble || 0) * .2;\n\n// ---- seed-dependent freckle/dot jitter cache ----\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed; S.pat = null; }\n\n// ---- pose dramaturgy ----\nconst ACTS = {\n  set:   ['waddle','dj','waddle','slide','dj','dance','waddle','dj'],\n  chill: ['idle','waddle','idle','dj','idle','waddle','idle','slide'],\n  party: ['dance','waddle','dance','slide','dj','dance','slide','dance'] };\nlet pose = P.pose;\nif (pose === 'auto') pose = (ACTS[P.act] || ACTS.set)[((K.section % 8) + 8) % 8];\n\nconst slow1 = Math.sin(K.t * .53 + fr(2) * 6);\nconst slow2 = Math.sin(K.t * .37 + fr(4) * 6);\n\nlet dy = 0, sway = 0, tilt = 0, lean = 0;\nlet liftL = 0, liftR = 0, flipL = .28, flipR = .28, headT = 0, beak = 0, deck = 0;\n\nif (pose === 'idle') {\n  sway = Math.sin(bt * Math.PI / 3) * 11 * loco;\n  dy = -Math.abs(Math.sin(bt * Math.PI)) * 3 * loco + Math.sin(K.t * 1.4) * 2.4;\n  tilt = Math.sin(bt * Math.PI / 3) * .06 * loco;\n  headT = Math.sin(K.t * .7) * .13 + K.swell * .05 * eAmp;\n  flipL = .26 + Math.sin(bt * Math.PI) * .16 * eAmp;\n  flipR = .26 - Math.sin(bt * Math.PI) * .16 * eAmp;\n  const lift = fr(Math.floor(K.t * .6) + 3) < .18 ? Math.max(0, Math.sin((K.t * .6 % 1) * Math.PI * 2)) * 9 : 0;\n  liftL = lift;\n  beak = fr(Math.floor(K.t * .8) + 9) < .12 ? .5 : 0;\n} else if (pose === 'waddle') {\n  const side = (((Math.floor(bt) % 2) + 2) % 2 === 0) ? 1 : -1;\n  const w = Math.sin(sb * Math.PI);\n  sway = side * 17 * w * loco;\n  tilt = side * .14 * w * loco;\n  dy = -Math.abs(Math.sin(bt * Math.PI)) * 5 * loco;\n  liftR = side > 0 ? Math.max(0, w) * 15 : 0;\n  liftL = side < 0 ? Math.max(0, w) * 15 : 0;\n  headT = side * .09 * w + Math.sin(bt * TAU) * .05 * eAmp;\n  flipL = .3 + side * .22 * w; flipR = .3 - side * .22 * w;\n  beak = fr(Math.floor(bt) + 20) < .25 ? kick * .5 : 0;\n} else if (pose === 'dj') {\n  lean = 12;\n  const scr = Math.sin(bt * Math.PI * 4) * (.55 + .45 * kick);\n  flipR = 1.15 + scr; flipL = .5 + Math.sin(bt * Math.PI) * .1;\n  headT = Math.sin(bt * TAU) * .15 * (.6 + eAmp) + kick * .1;\n  dy = -kick * 4 - Math.abs(Math.sin(bt * Math.PI)) * 4 * loco;\n  sway = Math.sin(bt * Math.PI / 2) * 7 * loco;\n  tilt = .07;\n  beak = kick * .45;\n  deck = 1;\n} else if (pose === 'slide') {\n  sway = Math.sin(bt * Math.PI / 2) * 34 * loco;\n  tilt = .48 + Math.sin(bt * Math.PI) * .1 * loco;\n  dy = 28 + Math.sin(bt * Math.PI * 2) * 3;\n  lean = 4;\n  flipL = -.55 + Math.sin(bt * Math.PI * 2) * .22;\n  flipR = -.55 - Math.sin(bt * Math.PI * 2) * .22;\n  liftL = Math.max(0, Math.sin(bt * Math.PI * 2)) * 10;\n  liftR = Math.max(0, -Math.sin(bt * Math.PI * 2)) * 10;\n  headT = -.18;\n  beak = .3 + kick * .3;\n} else {                                                     // dance\n  dy = -(kick * 11 + Math.abs(Math.sin(sb * Math.PI)) * 6) * eAmp;\n  const alt = (((Math.floor(bt) % 2) + 2) % 2 === 0) ? 1 : -1;\n  flipL = 1.55 + alt * .3 * eAmp; flipR = 1.55 - alt * .3 * eAmp;\n  sway = alt * 11 * Math.sin(sb * Math.PI) * loco;\n  tilt = alt * .09 * eAmp;\n  headT = Math.sin(bt * TAU) * .11;\n  beak = kick * .55;\n}\n\n// universal slow drift (guarantees non-static even when beat motion aliases)\ndy += slow1 * 3;\nsway += slow2 * 4.5;\ntilt += Math.sin(K.t * .21 + fr(8) * 6) * .028;\n\n// ---- style ----\nconst styles = ['poster', 'riso', 'noir', 'wire'];\nconst st = styles.indexOf(P.style) >= 0 ? P.style : 'poster';\nconst wire = st === 'wire';\nconst H = ((P.hue % 360) + 360) % 360;\nconst chub = P.chub;\nconst bodyW = .84 + chub * .42;\nconst jig = Math.sin(bt * TAU + fr(1) * 6) * chub * (3 + 5 * Math.min(1, Math.abs(dy) / 8)) * eAmp;\nconst bellyW = .96 + jig * .012;\n\nfunction paint(role) {\n  noStroke();\n  if (wire) {\n    noFill();\n    stroke(role === 'belly' ? 190 : (role === 'beak' || role === 'foot') ? 30 : 202, 55, 34, 92);\n    strokeWeight((role === 'skel' ? 1.1 : 1.7) * s);\n    return;\n  }\n  if (st === 'noir') {\n    if (role === 'back') fill(H, 34, 11);\n    else if (role === 'belly') fill(H, 14, 33);\n    else if (role === 'beak' || role === 'foot') fill(28, 66, 40);\n    else if (role === 'eye') fill(0, 0, 3);\n    else if (role === 'eyeW') fill(0, 0, 66);\n    else fill(H, 30, 15);\n    return;\n  }\n  if (st === 'riso') {\n    if (role === 'back') fill(H, 58, 42, 90);\n    else if (role === 'belly') fill(44, 20, 96, 90);\n    else if (role === 'beak' || role === 'foot') fill(20, 86, 96, 92);\n    else if (role === 'eye') fill(H, 62, 20, 96);\n    else if (role === 'eyeW') fill(0, 0, 100, 92);\n    else fill(H, 52, 46, 90);\n    return;\n  }\n  // poster (default flat screenprint)\n  if (role === 'back') fill(H, 44, 20);\n  else if (role === 'belly') fill(42, 12, 97);\n  else if (role === 'beak' || role === 'foot') fill(28, 90, 98);\n  else if (role === 'eye') fill(0, 0, 8);\n  else if (role === 'eyeW') fill(0, 0, 100);\n  else fill(H, 42, 24);\n}\n\n// build halftone dot pattern once (riso texture)\nfunction ensurePat() {\n  if (S.pat && S.patKey === (P.seed + '|' + Math.round(s * 100))) return;\n  const g = createGraphics(14, 14);\n  g.colorMode(HSB, 360, 100, 100, 100);\n  g.noStroke(); g.clear();\n  g.fill(H, 70, 30, 100); g.ellipse(7, 7, 5.5, 5.5);\n  S.pat = drawingContext.createPattern(g.canvas, 'repeat');\n  S.patKey = P.seed + '|' + Math.round(s * 100);\n}\n\nconst ax = P.x * width + sway * s;\nconst ay = P.y * height;\nconst pump = 1 + S.rms * .35 * P.energy;\n\n// ground shadow\nnoStroke(); fill(0, 0, 0, wire ? 0 : 24);\nellipse(P.x * width, ay + 128 * s, Math.max(14, 120 * bodyW - Math.abs(sway) * .3) * s, 15 * s);\n\npush();\ntranslate(ax, ay + (dy + lean * .3) * s);\nrotate(tilt);\nscale(pump, pump);\n\n// deck (dj prop)\nif (deck && !wire) {\n  push(); translate(64 * s, 40 * s);\n  paint('foot'); noStroke(); fill(0, 0, 12); ellipse(0, 0, 78 * s, 30 * s);\n  fill(H, 20, 55); ellipse(0, 0, 60 * s, 22 * s);\n  fill(0, 0, 8); ellipse(0, 0, 12 * s, 5 * s);\n  pop();\n}\n\n// feet\npaint('foot');\npush(); translate(-30 * s, (118 - liftL) * s); rotate(-.05 - liftL * .01);\nif (wire) { paint('foot'); ellipse(0, 0, 40 * s, 16 * s); } else { triangle(-20 * s, 6 * s, 20 * s, 6 * s, 0, -8 * s); ellipse(0, 5 * s, 40 * s, 12 * s); }\npop();\npush(); translate(30 * s, (118 - liftR) * s); rotate(.05 + liftR * .01);\nif (wire) { ellipse(0, 0, 40 * s, 16 * s); } else { triangle(-20 * s, 6 * s, 20 * s, 6 * s, 0, -8 * s); ellipse(0, 5 * s, 40 * s, 12 * s); }\npop();\n\n// far flipper (behind body)\npaint('back');\npush(); translate(-70 * bodyW * s, -8 * s); rotate(-flipL - .1);\nellipse(0, 34 * s, 30 * s, 96 * s);\npop();\n\n// poster offset shadow-ink\nif (st === 'poster') { noStroke(); fill(H, 52, 11); ellipse(7 * s, 8 * s, 152 * bodyW * s, 250 * s); }\n\n// body / back mass\npaint('back');\nellipse(0, -8 * s, 150 * bodyW * s, 250 * s);\nif (wire) { paint('skel'); line(0, -128 * s, 0, 116 * s); ellipse(0, -8 * s, 108 * bodyW * s, 190 * s); ellipse(0, -8 * s, 66 * bodyW * s, 130 * s); }\n\n// belly patch\npaint('belly');\nif (!wire) ellipse(0, 26 * s, 104 * bodyW * bellyW * s, 186 * s);\nelse ellipse(0, 26 * s, 104 * bodyW * bellyW * s, 186 * s);\n\n// halftone over body (riso only)\nif (st === 'riso') {\n  ensurePat();\n  if (S.pat) {\n    drawingContext.save();\n    drawingContext.globalCompositeOperation = 'multiply';\n    drawingContext.globalAlpha = .28;\n    drawingContext.fillStyle = S.pat;\n    drawingContext.fillRect(-85 * bodyW * s, -140 * s, 170 * bodyW * s, 280 * s);\n    drawingContext.restore();\n  }\n  // second-ink misregistration edge\n  noStroke(); fill((H + 30) % 360, 70, 88, 26);\n  ellipse(-4 * s, -12 * s, 150 * bodyW * s, 250 * s);\n}\n\n// near flipper (in front)\npaint('back');\npush(); translate(70 * bodyW * s, -8 * s); rotate(flipR + .1);\nellipse(0, 34 * s, 30 * s, 96 * s);\nif (wire) { paint('skel'); line(0, 0, 0, 60 * s); }\npop();\n\n// head details region (top of the mass): eyes + beak\npush();\ntranslate(0, -72 * s + Math.sin(bt * TAU) * 1.6 * s * eAmp);\nrotate(headT);\n\n// beak (orange), opens with `beak`\nconst bo = beak * 9 * s;\npaint('beak');\nif (wire) {\n  triangle(-5 * s, -2 * s - bo * .4, 5 * s, -2 * s - bo * .4, 0, -18 * s);\n  triangle(-6 * s, 3 * s + bo, 6 * s, 3 * s + bo, 0, 16 * s + bo);\n} else {\n  triangle(-7 * s, -2 * s - bo * .4, 7 * s, -2 * s - bo * .4, 0, -20 * s);\n  triangle(-8 * s, 3 * s + bo, 8 * s, 3 * s + bo, 0, 18 * s + bo);\n  if (bo > 1.5 * s) { noStroke(); fill(2, 80, 40); ellipse(0, 2 * s, 10 * s, bo); }\n}\n\n// eyes\nconst blink = ((K.t * .27 + fr(9)) % 1) < .045;\nconst exo = 21 * bodyW * s;\nconst gx = (fr(Math.floor(K.t * .4) + 11) - .5) * 3 * s;\nif (blink && !wire) {\n  paint('eye'); stroke(0, 0, st === 'noir' ? 4 : 8); strokeWeight(2 * s); noFill();\n  line(-exo - 5 * s, -30 * s, -exo + 5 * s, -30 * s);\n  line(exo - 5 * s, -30 * s, exo + 5 * s, -30 * s);\n  noStroke();\n} else {\n  paint('eyeW'); ellipse(-exo, -30 * s, 15 * s, 17 * s); ellipse(exo, -30 * s, 15 * s, 17 * s);\n  paint('eye'); ellipse(-exo + gx, -30 * s, 8 * s, 9 * s); ellipse(exo + gx, -30 * s, 8 * s, 9 * s);\n  if (!wire && st !== 'noir') { noStroke(); fill(0, 0, 100, 90); ellipse(-exo + gx - 2 * s, -33 * s, 3 * s, 3 * s); ellipse(exo + gx - 2 * s, -33 * s, 3 * s, 3 * s); }\n}\npop();\n\npop();\n\n// ambient snow/spark motes (density) \u2014 behind-agnostic, cheap\nif (P.density > 0.02 && !wire) {\n  const n = Math.round(P.density * 22);\n  noStroke();\n  for (let i = 0; i < n; i++) {\n    const ph = (K.t * (.12 + fr(i + 50) * .18) + fr(i + 70)) % 1;\n    const fx = (fr(i + 90) - .5) * u * 1.1 + P.x * width;\n    const fy = ((ph + fr(i + 110)) % 1) * u * .9 + (P.y * height - u * .55);\n    const tw = .5 + .5 * Math.sin(K.t * 3 + i);\n    fill(st === 'noir' ? H : 50, st === 'noir' ? 12 : 8, 100, (14 + 22 * tw) * (.4 + .6 * P.density));\n    ellipse(fx, fy, (2 + 2.4 * tw + S.tre * 6) * s, (2 + 2.4 * tw) * s);\n  }\n}\n"
+}

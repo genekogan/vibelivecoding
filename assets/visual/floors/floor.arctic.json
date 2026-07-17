@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.arctic",
+  "kind": "floor",
+  "name": "Arctic Floor",
+  "desc": "Glacial perspective grid of etched ice-crack rows drifting toward a frozen horizon with snow motes; holographic-wireframe, rolling-aurora and faceted-glacier variants.",
+  "tags": [
+    "arctic",
+    "ice",
+    "frost",
+    "glacier",
+    "snow",
+    "polar",
+    "winter",
+    "cold",
+    "tundra",
+    "perspective",
+    "grid",
+    "floor",
+    "stage",
+    "frozen",
+    "crystal",
+    "aurora",
+    "wireframe",
+    "blue",
+    "cyan",
+    "white",
+    "serene",
+    "austere",
+    "glacial"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "grid line + drifting-mote count"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "shimmer/glow amplitude + beat flare"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "ice hue (200 = glacial cyan-blue)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "grid cell size / perspective spread"
+    },
+    "warp": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "barrel curvature of converging verticals"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y as canvas fraction"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic crack/crystal seed"
+    },
+    "style": {
+      "default": "frost",
+      "options": [
+        "frost",
+        "wireframe",
+        "aurora",
+        "glacier"
+      ],
+      "doc": "aesthetic: etched frost cracks / holographic wireframe / rolling aurora / faceted low-poly glacier"
+    },
+    "act": {
+      "default": "cruise",
+      "options": [
+        "cruise",
+        "pulse",
+        "tide"
+      ],
+      "doc": "dramaturgy: steady cruise / beat-surging pulse / slow-breathing tide"
+    }
+  },
+  "acts": [
+    "cruise",
+    "pulse",
+    "tide"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:04:27+00:00",
+    "fps": 54.9,
+    "motion": 0.0208,
+    "lum": 0.514
+  },
+  "code": "const D = { density: .55, energy: .55, hue: 200, speed: 1, scale: 1, warp: .25, x: .5, y: .46, seed: 0, style: 'frost', act: 'cruise' };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst TAU = 6.28318530718;\nconst cl = (v,a,b) => v<a?a:v>b?b:v;\nconst sty = P.style;\nconst hz = cl(P.y, .28, .72) * height;\nconst cx = cl(P.x, .05, .95) * width;\nconst groundH = Math.max(20, height - hz);\nconst yOf = t => hz + Math.pow(t, 1.7) * groundH;\nconst hwOf = t => width * (.045 + t * .95) * .5 * P.scale;\nconst NR = Math.round(9 + P.density * 32);\nconst NC = Math.round(6 + P.density * 16);\nconst H = P.hue;\n\nS.tre = (S.tre||0)*.8 + (A.treble||0)*.2;\nS.bass = (S.bass||0)*.8 + (A.bass||0)*.2;\nconst glow = (.4 + .6*P.energy) * (.55 + .55*K.intensity);\nconst kick = Math.min(1, K.pulse*(.5+.5*K.intensity) + S.bass*.6);\n\n// real-time scroll (integrate seconds -> never re-phases)\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nlet dt = K.t - S.pt; S.pt = K.t; dt = cl(dt, 0, .1);\nlet sp = P.speed * (.5 + .8*K.intensity);\nif (P.act === 'pulse') sp *= 1 + 1.0*kick;\nif (P.act === 'tide')  sp *= .35 + .95*(.5 + .5*Math.sin(K.t*.055 + K.section*.9));\nS.scroll = (S.scroll||0) + dt*sp*.58;\nconst scroll = S.scroll;\n\n// ---- cached structural base ----\nconst key = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+P.seed+'|'+Math.round(P.density*8)+'|'+Math.round(P.y*24)+'|'+Math.round(P.scale*8);\nif (!S.base || S.key !== key) {\n  const g = S.base && S.base.width===width && S.base.height===height ? S.base : createGraphics(width, height);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR = 56;\n  // sky\n  for (let i=0;i<STR;i++){ const f=i/STR, y=f*hz;\n    let h,s,b;\n    if (sty==='frost'){ h=(H+18); s=24-14*f; b=52+30*f; }\n    else if (sty==='wireframe'){ h=H; s=60; b=6+7*f; }\n    else if (sty==='aurora'){ h=H; s=55; b=4+8*f; }\n    else { h=H-10; s=50-20*f; b=10+18*f; }   // glacier\n    g.fill(h,cl(s,4,90),cl(b,3,88),100); g.rect(0,y,width,hz/STR+1);\n  }\n  // aurora curtains (static shells; animated copy added live)\n  if (sty==='aurora'){ g.push(); g.blendMode(ADD);\n    for(let b0=0;b0<3;b0++){ const bh=(H+100+b0*70)%360;\n      for(let x=0;x<width;x+=6){ const yy=hz*(.25+.45*Math.sin(x*.008+b0*2+P.seed))*(.6);\n        g.fill(bh,70,80,7); g.rect(x, yy, 6, hz*.5); } } g.pop(); }\n  // ground plane\n  for (let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR);\n    let h,s,b;\n    if (sty==='frost'){ h=(H+8); s=16+8*t; b=cl(88-58*Math.pow(t,.7),24,90); }\n    else if (sty==='wireframe'){ h=H; s=70; b=4+6*t; }\n    else if (sty==='aurora'){ h=H; s=45-20*t; b=6+14*Math.pow(t,1.2); }\n    else { h=H-12+18*t; s=40-14*t; b=cl(70-46*Math.pow(t,.8),14,80); }   // glacier\n    g.fill(h,cl(s,3,90),b,100); g.rect(0,y,width,(y2-y)+1);\n  }\n  // static texture\n  g.push();\n  if (sty==='frost'){ // stippled frost crystals\n    g.blendMode(ADD);\n    for(let i=0;i<170;i++){ const t=.05+.95*fr(i*2), y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(i*2+1)*2-1)*hw; g.fill(H+20,10,100,4+7*t); const r=1+t*3.2;\n      g.ellipse(x,y,r,r); } }\n  else if (sty==='glacier'){ // faceted low-poly shading over plane\n    for(let ry=0;ry<9;ry++){ const t0=ry/9,t1=(ry+1)/9;\n      for(let cxi=0;cxi<8;cxi++){ const u0=cxi/8,u1=(cxi+1)/8, sh=fr(ry*8+cxi);\n        const y0=yOf(t0),y1=yOf(t1),hw0=hwOf(t0),hw1=hwOf(t1);\n        g.fill(H-8+22*sh, 30, cl(40+50*sh-30*t0,12,86), 32);\n        g.quad(cx-hw0+u0*2*hw0,y0, cx-hw0+u1*2*hw0,y0, cx-hw1+u1*2*hw1,y1, cx-hw1+u0*2*hw1,y1); } } }\n  else if (sty==='wireframe'){ /* void \u2014 grid only, drawn live */ }\n  else { /* aurora ground faint */ }\n  g.pop();\n  S.base = g; S.key = key;\n}\nimage(S.base, 0, 0);\n\n// ---- live animated aurora roll (real-time, aurora style) ----\nif (sty==='aurora'){ push(); blendMode(ADD); noStroke();\n  for(let b0=0;b0<3;b0++){ const bh=(H+90+b0*70)%360;\n    for(let x=0;x<width;x+=7){ const ph=x*.01+b0*1.7+K.t*(.25+.1*b0);\n      const yy=hz*(.18+.32*(.5+.5*Math.sin(ph)));\n      const hgt=hz*(.35+.2*Math.sin(ph*1.7));\n      fill(bh,70,92, (10+10*Math.sin(ph*2))*glow);\n      rect(x, yy, 7, hgt); } }\n  pop(); }\n\n// ---- live grid ----\nnoFill();\nconst jag = (sty==='frost'||sty==='glacier');\nfor (let r=0; r<=NR; r++){\n  let t = (r - (scroll%1)) / NR;\n  if (t<=0 || t>1) continue;\n  const y = yOf(t), hw = hwOf(t), near=t;\n  let h,s,b,a,sw;\n  if (sty==='wireframe'){ h=H; s=80; b=100; a=20+64*near; sw=.5+near*1.6; }\n  else if (sty==='aurora'){ h=(H+130)%360; s=40; b=100; a=10+40*near; sw=.5+near*1.6; }\n  else if (sty==='glacier'){ h=H+10; s=30; b=100; a=14+58*near; sw=.6+near*2.2; }\n  else { h=H+16; s=22; b=100; a=16+60*near; sw=.6+near*2.4; } // frost\n  stroke(h,s,b, a*(.6+.6*glow));\n  strokeWeight(sw);\n  if (sty==='wireframe'){ drawingContext.shadowBlur=(4+12*near)*glow; drawingContext.shadowColor=color(h,90,100,90).toString(); }\n  if (jag){\n    beginShape();\n    const seg = 8;\n    for(let k=0;k<=seg;k++){ const u=k/seg; const xx=cx-hw+u*2*hw;\n      const jj=(fr(r*13+k)*2-1)*hw*.05*(1-t)*4;\n      vertex(xx, y+jj); }\n    endShape();\n  } else { line(cx-hw, y, cx+hw, y); }\n}\ndrawingContext.shadowBlur = 0;\n\n// converging verticals\nconst warp = P.warp;\nfor (let c=0; c<=NC; c++){\n  const u=c/NC, d=(u-.5);\n  const xTop=cx + d*width*.03*P.scale;\n  const xBot=cx + d*width*1.9*P.scale*(1+warp*1.2*d*d*4);\n  let h,s,b,a,sw;\n  if (sty==='wireframe'){ h=(H+40)%360; s=80; b=100; a=44; sw=1.1; }\n  else if (sty==='aurora'){ h=(H+130)%360; s=35; b=95; a=22; sw=.9; }\n  else { h=H+14; s=20; b=100; a=28; sw=1.0; }\n  stroke(h,s,b, a*(.6+.5*glow)); strokeWeight(sw);\n  if (sty==='wireframe'){ drawingContext.shadowBlur=6*glow; drawingContext.shadowColor=color(h,90,100,80).toString(); }\n  line(xTop, hz, xBot, height);\n}\ndrawingContext.shadowBlur = 0;\n\n// drifting snow / frost motes (continuous)\nconst NP = Math.round(P.density * 70);\npush(); blendMode(ADD); noStroke();\nfor (let i=0;i<NP;i++){\n  const lane=fr(i*4), spd=.4+fr(i*4+1)*1.0;\n  let prog=(fr(i*4+2)+scroll*.12*spd)%1;\n  const t=1-prog; if(t<=.02) continue;\n  const y=yOf(t), hw=hwOf(t);\n  const x=cx+(lane*2-1)*hw*.97 + Math.sin(K.t*.5+i*1.3)*hw*.05;\n  const sz=(1.3+5*t)*(1+.5*S.tre);\n  const h = sty==='aurora'?(H+120)%360 : H+18;\n  fill(h, sty==='wireframe'?70:14, 100, Math.min(42,(9+34*t)*(.5+.9*glow)));\n  ellipse(x,y,sz,sz);\n}\npop();\n\n// horizon frost flare (partial, safe)\npush(); blendMode(ADD); noStroke();\nconst flare=(kick*.6+K.swell*.3)*glow;\nfor(let i=0;i<5;i++){ const rr=(5-i)*groundH*.045*(1+flare);\n  fill(H+14, 24, 96, 4+8*flare); rect(0, hz-rr*.4, width, rr); }\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

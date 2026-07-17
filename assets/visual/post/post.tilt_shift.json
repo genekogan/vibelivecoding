@@ -1,0 +1,174 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.tilt_shift",
+  "kind": "post",
+  "name": "Tilt-Shift",
+  "desc": "A swung lens laid across the frame \u2014 one plane stays sharp while everything in front and behind falls away into defocus, aerial haze lifting the far ground and a warm cast sinking the near one, patchy air drifting through the soft zones and every stray highlight opening into a rimmed bokeh disc.",
+  "tags": [
+    "tilt shift",
+    "tilt-shift",
+    "miniature",
+    "diorama",
+    "toy town",
+    "model",
+    "scale model",
+    "depth of field",
+    "dof",
+    "shallow focus",
+    "defocus",
+    "bokeh",
+    "blur",
+    "soft focus",
+    "focus",
+    "focal plane",
+    "focus plane",
+    "swing",
+    "tilt",
+    "view camera",
+    "large format",
+    "scheimpflug",
+    "lens",
+    "optics",
+    "photographic",
+    "cinematography",
+    "cinematic",
+    "aerial perspective",
+    "atmospheric",
+    "haze",
+    "depth",
+    "depth map",
+    "false colour",
+    "false color",
+    "z-depth",
+    "clinical",
+    "dreamy",
+    "reverie",
+    "soft",
+    "selective",
+    "band",
+    "gradient",
+    "overlay",
+    "post",
+    "finish",
+    "grade",
+    "subtle"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "grade + haze amplitude and bokeh bloom strength"
+    },
+    "blur": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "how far out of focus the off-plane zones go"
+    },
+    "spread": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "width of the sharp band and softness of its falloff"
+    },
+    "haze": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "aerial haze / depth-cast density"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "count of drifting haze cells and bokeh discs"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "focus-wander and air-drift rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "bokeh disc and haze cell size"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "overall strength of the pass"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "haze / far-ground hue (the near cast takes its complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "focus plane anchor when axis is vertical"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0,
+      "max": 1,
+      "doc": "focus plane anchor when axis is horizontal"
+    },
+    "axis": {
+      "default": "horizontal",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "doc": "orientation of the sharp band"
+    },
+    "style": {
+      "default": "miniature",
+      "options": [
+        "miniature",
+        "cine",
+        "dream",
+        "depth"
+      ],
+      "doc": "aesthetic: toy-town split of cool far haze against a warm sunk near ground / restrained neutral cinema defocus / soft-focus reverie blurred everywhere with a pale bloom / abstract false-colour depth chart that re-reads the frame as a z-map"
+    },
+    "act": {
+      "default": "wander",
+      "options": [
+        "wander",
+        "rack",
+        "breathe"
+      ],
+      "doc": "multi-minute program: wander lets the focus plane roam / rack pulls focus in long deliberate excursions / breathe holds the plane and pumps the band width on the swell"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "haze cell layout"
+    }
+  },
+  "acts": [
+    "wander",
+    "rack",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:31+00:00",
+    "fps": 61.7,
+    "motion": 0.0468,
+    "lum": 0.131
+  },
+  "code": "const D = { energy:.6, blur:.62, spread:.42, haze:.45, density:.5, speed:1, scale:1, alpha:.85, hue:205, x:.5, y:.56, axis:'horizontal', style:'miniature', act:'wander', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const sg=Math.floor(h/60)%6;if(sg===0){r=c;g=x;b=0;}else if(sg===1){r=x;g=c;b=0;}else if(sg===2){r=0;g=c;b=x;}else if(sg===3){r=0;g=x;b=c;}else if(sg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [((r+m)*255)|0,((g+m)*255)|0,((b+m)*255)|0];};\nconst rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${clp(a,0,1).toFixed(4)})`;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H),t=K.t,key=W+'x'+H,dc=drawingContext;\n\n// ---- size-keyed defocus buffers. Downsample IS the blur (no full-canvas filter()).\nif(!S.mid||S.key!==key){\n  const mk=n=>{ let w,h; if(W>=H){ w=n; h=Math.max(8,Math.round(n*H/W)); } else { h=n; w=Math.max(8,Math.round(n*W/H)); }\n                const q=createGraphics(w,h); q.pixelDensity(1); return q; };\n  if(S.mid&&S.mid.remove)S.mid.remove();\n  if(S.lo&&S.lo.remove)S.lo.remove();\n  S.mid=mk(128); S.lo=mk(42);\n  S.midEl=S.mid.elt||S.mid.canvas; S.loEl=S.lo.elt||S.lo.canvas;\n  S.key=key;\n}\nconst mid=S.mid, lo=S.lo;\n\nconst en=clp(P.energy,0,1);\nconst sp=0.45+clp(P.speed,.15,4)*0.55;\nconst style=P.style, vert=(P.axis==='vertical');\nconst hue=((P.hue%360)+360)%360, alpha=clp(P.alpha,0,1);\n\n// ---- capture the composited frame, then defocus it by successive downsampling\nmid.clear(); mid.drawingContext.drawImage(dc.canvas,0,0,mid.width,mid.height);\nlo.clear();  lo.drawingContext.drawImage(S.midEl,0,0,lo.width,lo.height);\n\n// ---- the focus plane wanders on four incommensurate real-time rates (never re-phases at 8s)\nlet amp=0.20, wob=1;\nif(P.act==='rack'){ amp=0.34; }\nelse if(P.act==='breathe'){ amp=0.13; wob=2.1; }\nconst anchor = vert?P.x:P.y;\nconst fc = clp(anchor + amp*Math.sin(t*0.077*sp) + 0.09*Math.sin(t*0.19*sp+2.1)\n               + 0.05*Math.sin(t*0.041*sp+0.7) + 0.03*Math.sin(t*0.29*sp+1.9), 0.04, 0.96);\nconst spread=clp(P.spread,0,1);\nconst fw = clp((0.05+spread*0.30)*(1 + 0.30*wob*Math.sin(t*0.113*sp+1.3) + 0.16*K.swell + 0.10*A.rms), 0.02, 0.55);\nconst feather = 0.10+spread*0.22;\nconst blurFloor = style==='dream'?0.34:0;\nconst bAt = v => clp(blurFloor + clp((Math.abs(v-fc)-fw)/feather,0,1)*clp(P.blur,0,1), 0, 1);\n\n// ---- cross-fade sharp -> defocused in strips along the tilt axis\nif(style!=='depth'){\n  const N=34, axLen=vert?W:H;\n  for(let k=0;k<N;k++){\n    const v0=k/N, v1=(k+1)/N, b=bAt((v0+v1)*0.5);\n    if(b<=0.015) continue;\n    const am=clp(b*1.85,0,1), al=clp((b-0.42)*2.0,0,1);\n    const d0=Math.floor(v0*axLen), dl=Math.ceil(v1*axLen)-d0+1;\n    if(vert){\n      if(am>0.01){ dc.globalAlpha=am*alpha; dc.drawImage(S.midEl, v0*mid.width,0,(v1-v0)*mid.width,mid.height, d0,0,dl,H); }\n      if(al>0.01){ dc.globalAlpha=al*alpha; dc.drawImage(S.loEl,  v0*lo.width, 0,(v1-v0)*lo.width, lo.height,  d0,0,dl,H); }\n    } else {\n      if(am>0.01){ dc.globalAlpha=am*alpha; dc.drawImage(S.midEl, 0,v0*mid.height,mid.width,(v1-v0)*mid.height, 0,d0,W,dl); }\n      if(al>0.01){ dc.globalAlpha=al*alpha; dc.drawImage(S.loEl,  0,v0*lo.height, lo.width, (v1-v0)*lo.height,  0,d0,W,dl); }\n    }\n  }\n  dc.globalAlpha=1;\n}\n\n// ---- the depth grade: aerial haze far, warm cast near. Drawn, not derived \u2014\n// this is what carries the piece over a scene with no highlights in it at all.\nconst hb = 1 + 0.30*Math.sin(t*0.089*sp+0.4) + 0.16*Math.sin(t*0.211*sp+2.7);\nconst hz = clp(clp(P.haze,0,1)*(0.45+0.75*en)*hb, 0, 1.6);\nconst hzB = clp((0.21+0.79*clp(P.haze,0,1))*(0.45+0.75*en)*hb, 0, 1.6);\nlet s1=clp(fc-fw-feather,0,1), s2=clp(fc-fw,0,1), s3=clp(fc+fw,0,1), s4=clp(fc+fw+feather,0,1);\ns2=Math.max(s1,s2); s3=Math.max(s2,s3); s4=Math.max(s3,s4);\nconst gx1=vert?W:0, gy1=vert?0:H;\nif(style==='depth'){\n  // abstract: the frame is re-read as a false-colour depth chart\n  const g2=dc.createLinearGradient(0,0,gx1,gy1);\n  for(let s=0;s<=12;s++){\n    const v=s/12, b=bAt(v);\n    g2.addColorStop(v, rgba(hsb2rgb(hue+210-170*b, 62+28*b, 10+86*b), alpha*(0.42+0.28*en)));\n  }\n  dc.fillStyle=g2; dc.fillRect(0,0,W,H);\n} else {\n  let far, near, fA, nA;\n  if(style==='cine'){      far=hsb2rgb(hue,18,64);      near=hsb2rgb(hue+8,22,10);    fA=hz*0.20; nA=hz*0.24; }\n  else if(style==='dream'){ far=hsb2rgb(hue+34,20,98);   near=hsb2rgb(hue-26,30,88);   fA=hz*0.40; nA=hz*0.26; }\n  else {                    far=hsb2rgb(hue,34,84);      near=hsb2rgb(hue-170,58,9);   fA=hz*0.34; nA=hz*0.44; }\n  const g=dc.createLinearGradient(0,0,gx1,gy1);\n  g.addColorStop(0,  rgba(far,fA*alpha));\n  g.addColorStop(s1, rgba(far,fA*alpha));\n  g.addColorStop(s2, rgba(far,0));\n  g.addColorStop(s3, rgba(near,0));\n  g.addColorStop(s4, rgba(near,nA*alpha));\n  g.addColorStop(1,  rgba(near,nA*alpha));\n  dc.fillStyle=g; dc.fillRect(0,0,W,H);\n}\n\n// ---- patchy atmosphere: soft cells of haze drifting through the defocused zones.\n// Sinusoidal drift of the focus plane CANCELS over some 8s windows; these cells\n// translate continuously and wrap, so the motion floor holds in every window.\n{\n  const nh=4+Math.round(clp(P.density,0,1)*4);\n  const hc = style==='miniature' ? hsb2rgb(hue,30,88)\n           : style==='cine'      ? hsb2rgb(hue,20,72)\n           : style==='depth'     ? hsb2rgb(hue+150,44,80)\n                                 : hsb2rgb(hue+34,18,100);\n  dc.globalCompositeOperation='lighter';\n  for(let i=0;i<nh;i++){\n    const rr=u*(0.26+0.26*fr(i*3.1+1))*Math.max(0.4,P.scale);\n    const dir=fr(i*11)<0.5?-1:1;\n    const vx=(0.029+0.031*fr(i*7+2))*dir*sp;\n    const bx=(((fr(i*5+2)+t*vx)%1+1)%1)*(W+2*rr)-rr;\n    const by=H*(0.10+0.80*fr(i*9+3)) + Math.sin(t*(0.037+0.033*fr(i*13+4))*sp+i*1.7)*u*0.13;\n    const vv=clp(vert?bx/W:by/H,0,1);\n    const ha=clp(hzB*(0.24+0.58*bAt(vv))*(0.46+0.40*fr(i*17+5))*alpha,0,0.34);\n    if(ha<0.004) continue;\n    const rg=dc.createRadialGradient(bx,by,0,bx,by,rr);\n    rg.addColorStop(0,rgba(hc,ha));\n    rg.addColorStop(0.55,rgba(hc,ha*0.42));\n    rg.addColorStop(1,rgba(hc,0));\n    dc.fillStyle=rg; dc.fillRect(bx-rr,by-rr,rr*2,rr*2);\n  }\n}\n\n// ---- true-colour bokeh: defocused highlights bloom into discs with a defined rim\nif(P.density>0.02 && style!=='depth' && en>0.02){\n  lo.loadPixels();\n  const lp=lo.pixels, lw=lo.width, lh=lo.height, nMax=Math.round(3+clp(P.density,0,1)*25), thr=0.5;\n  const step=Math.max(1,Math.floor((lw*lh)/(nMax*8))), jit=fr(5)*97;\n  let drawn=0;\n  dc.globalCompositeOperation='lighter';\n  for(let idx=(jit|0)%step; idx<lw*lh && drawn<nMax; idx+=step){\n    const o=idx*4, br=Math.max(lp[o],lp[o+1],lp[o+2])/255;\n    if(br<thr) continue;\n    const ix=idx%lw, iy=(idx/lw)|0, v=vert?(ix+0.5)/lw:(iy+0.5)/lh, b=bAt(v);\n    if(b<0.12) continue;\n    const cx=(ix+0.5)/lw*W + Math.sin(t*0.31+idx*0.7)*u*0.003;\n    const cy=(iy+0.5)/lh*H + Math.cos(t*0.27+idx*1.1)*u*0.003;\n    const r=u*(0.010+0.05*b)*Math.max(0.3,P.scale)*(1+0.10*K.swell);\n    const a=clp((br-thr)*1.7,0,1)*b*(0.25+0.75*en)*0.30*alpha;\n    dc.fillStyle=`rgba(${lp[o]},${lp[o+1]},${lp[o+2]},${a.toFixed(4)})`;\n    dc.beginPath(); dc.arc(cx,cy,r,0,6.283185); dc.fill();\n    dc.strokeStyle=`rgba(${lp[o]},${lp[o+1]},${lp[o+2]},${(a*0.85).toFixed(4)})`;\n    dc.lineWidth=Math.max(0.6,r*0.16); dc.stroke();\n    drawn++;\n  }\n}\n\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\nblendMode(BLEND); dc.shadowBlur=0; noStroke();\n"
+}

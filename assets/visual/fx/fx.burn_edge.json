@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.burn_edge",
+  "kind": "fx",
+  "name": "Burn Edge",
+  "desc": "The scene is printed on paper and the paper is burning \u2014 a ragged char front creeps in from the ignition point at x/y, an ember line licks and shimmers along its whole length, scorch browns the sheet just beyond it and ash lifts off ember-hot and tumbles up going grey; put the ignition off-frame for a classic edge burn or at 0.5/0.5 to eat it from the middle.",
+  "tags": [
+    "burn",
+    "burning",
+    "fire",
+    "flame",
+    "ember",
+    "embers",
+    "char",
+    "charred",
+    "scorch",
+    "singe",
+    "smoulder",
+    "ash",
+    "cinder",
+    "paper",
+    "film",
+    "nitrate",
+    "decay",
+    "destruction",
+    "consumed",
+    "edge",
+    "orange",
+    "warm",
+    "menacing",
+    "apocalyptic",
+    "archival",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the burn has eaten in + ember heat"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "ash flake count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.2,
+      "doc": "burn radius + ash size vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "lick, flicker and ash-rise rate"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity \u2014 high by default because char is meant to occlude"
+    },
+    "hue": {
+      "default": 22,
+      "min": 0,
+      "max": 360,
+      "doc": "fire hue (22 orange, 8 deep red, 190 cold/chemical burn)"
+    },
+    "x": {
+      "default": 0.92,
+      "min": -0.3,
+      "max": 1.3,
+      "doc": "ignition X \u2014 outside 0..1 puts the seat of the fire off-frame for an edge burn"
+    },
+    "y": {
+      "default": 1.02,
+      "min": -0.3,
+      "max": 1.3,
+      "doc": "ignition Y \u2014 1.02 burns up from the bottom, -0.02 burns down from the top"
+    },
+    "style": {
+      "default": "char",
+      "options": [
+        "char",
+        "cinder",
+        "nitrate",
+        "contour"
+      ],
+      "doc": "aesthetic: warm-black charred paper with curl highlights / no solid char, a glowing additive ember net burning through / sepia nitrate stock blistering with melt-through holes / thermal isotherm schematic, hard contour rings and no char at all"
+    },
+    "act": {
+      "default": "creep",
+      "options": [
+        "creep",
+        "consume",
+        "fan"
+      ],
+      "doc": "dramaturgy: the front breathes in and out, holding the frame / eats the whole frame over about 74s then a fresh sheet starts / the fire is fanned by the musical arc, flaring at peaks"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "char mottle + front raggedness + ash layout"
+    }
+  },
+  "acts": [
+    "creep",
+    "consume",
+    "fan"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:31:49+00:00",
+    "fps": 61.3,
+    "motion": 0.0099,
+    "lum": 0.086
+  },
+  "code": "const D = { energy:.5, density:.5, scale:1, speed:1, alpha:.85, hue:22, x:.92, y:1.02, style:'char', act:'creep', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width, Hh=height, u=Math.min(W,Hh), diag=Math.hypot(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'creep';\nconst isCin=st==='cinder', isNit=st==='nitrate', isCon=st==='contour';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.2);\nconst ix=P.x*W, iy=P.y*Hh;\n\n// ---- cached char sheet: mottled warm-black with curl highlights (texture, never flat fill) ----\nconst key=W+'x'+Hh+'|'+P.seed+'|'+st+'|'+md(Math.round(H),360);\nif(!isCon&&(!S.ch||S.key!==key)){\n  const bw=Math.max(280,Math.min(460,Math.round(W*0.3))), bh=Math.max(160,Math.round(bw*Hh/W));\n  if(!S.ch||S.bw!==bw||S.bh!==bh){ S.ch=createGraphics(bw,bh); S.bw=bw; S.bh=bh; }\n  const g=S.ch, uu=Math.min(bw,bh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  let ctr=0; const rnd=()=>fr(++ctr*1.31+7);\n  if(!isCin){ g.fill(md(H-6,360), isNit?34:16, isNit?9:5, isNit?92:96); g.rect(0,0,bw,bh); }\n  // soot mottle\n  for(let i=0;i<5200;i++){\n    const x=rnd()*bw, y=rnd()*bh, r=uu*lrp(0.0012,0.012,rnd()*rnd());\n    const up=rnd();\n    g.fill(md(H+(up>0.72?18:-10),360), isNit?lrp(40,10,up):lrp(26,4,up), up>0.9?lrp(10,26,rnd()):lrp(1,7,up), isCin?26:lrp(24,70,rnd()));\n    g.circle(x,y,r*2);\n  }\n  // curled paper lifting off the char \u2014 the tell that this is burnt sheet, not just black\n  g.noFill();\n  for(let i=0;i<44;i++){\n    const x=rnd()*bw, y=rnd()*bh, r=uu*lrp(0.02,0.09,rnd()), a0=rnd()*6.283, sw=rnd()*2.2+0.9;\n    g.stroke(md(H+16,360), isNit?30:22, lrp(14,34,rnd()), lrp(14,42,rnd())); g.strokeWeight(sw);\n    g.arc(x,y,r*2,r*lrp(0.5,1.6,rnd()),a0,a0+lrp(1.1,2.7,rnd()));\n  }\n  if(isNit){ // nitrate blisters: bubbling melt-through holes in the emulsion\n    g.noStroke();\n    for(let i=0;i<170;i++){\n      const x=rnd()*bw, y=rnd()*bh, r=uu*lrp(0.004,0.030,rnd()*rnd());\n      g.fill(md(H+26,360),18,lrp(52,96,rnd()),lrp(30,80,rnd())); g.circle(x,y,r*2);\n      g.fill(md(H-8,360),40,4,86); g.circle(x-r*0.2,y-r*0.2,r*1.1);\n    }\n  }\n  S.key=key;\n}\n\n// ---- the burn front: a licking, star-shaped isotherm around the ignition ----\nlet envR=1, envE=1;\nif(act==='consume'){ envR=0.30+1.45*frc(K.t/(74/Math.max(0.1,sp))); }       // eats the frame over ~74s, then a fresh sheet\nelse if(act==='fan'){ envR=0.80+0.55*K.intensity; envE=0.75+0.85*K.intensity; }\nconst breathe=0.55*Math.sin(K.t*0.083*sp)+0.28*Math.sin(K.t*0.197*sp+1.3)+0.17*Math.sin(K.t*0.041*sp+0.7);\nconst R0=diag*(0.05+0.55*en)*sc*envR*(0.88+0.12*breathe+0.05*A.bass);\nconst q1=fr(21)*6.283, q2=fr(22)*6.283;\nconst rimAt=(th,tt)=>{\n  const lick=0.50*Math.sin(th*7+tt*0.31*sp+q1)+0.28*Math.sin(th*13-tt*0.53*sp+q2)+0.16*Math.sin(th*23+tt*0.87*sp);\n  return R0*(0.74+0.32*lick)*(1+0.06*Math.sin(th*3+tt*0.13*sp));\n};\nconst NA=128, pts=[];\nfor(let i=0;i<NA;i++){ const th=i/NA*6.283, r=rimAt(th,K.t); pts.push([ix+Math.cos(th)*r, iy+Math.sin(th)*r, th, r]); }\n\n// ---- contour style: pure thermal isotherm schematic, no char at all ----\nif(isCon){\n  noFill();\n  for(let b=0;b<7;b++){\n    const f=b/6, kk=lrp(1.30,0.34,f);\n    stroke(md(H+f*185,360), lrp(88,54,f), lrp(100,58,f), clp((72-b*7)*al*(0.35+0.9*en),0,92));\n    strokeWeight(Math.max(0.5,u*(b===0?0.0032:0.0012)*sc));\n    beginShape();\n    for(let i=0;i<NA;i++){ const th=pts[i][2], r=pts[i][3]*kk; vertex(ix+Math.cos(th)*r, iy+Math.sin(th)*r); }\n    endShape(CLOSE);\n  }\n} else {\n  // scorch halo just beyond the front\n  noFill();\n  for(let b=0;b<3;b++){\n    stroke(md(H-4,360), lrp(52,30,b/2), lrp(30,14,b/2), clp((16-b*4)*al,0,26));\n    strokeWeight(u*lrp(0.010,0.034,b/2)*sc);\n    beginShape();\n    for(let i=0;i<NA;i++){ const th=pts[i][2], r=pts[i][3]*(1.015+b*0.030); vertex(ix+Math.cos(th)*r, iy+Math.sin(th)*r); }\n    endShape(CLOSE);\n  }\n  // char sheet, clipped to the burnt region\n  drawingContext.save();\n  drawingContext.beginPath();\n  drawingContext.moveTo(pts[0][0],pts[0][1]);\n  for(let i=1;i<NA;i++) drawingContext.lineTo(pts[i][0],pts[i][1]);\n  drawingContext.closePath();\n  drawingContext.clip();\n  if(isCin) blendMode(ADD);\n  tint(0,0,100,al*100); image(S.ch,0,0,W,Hh); noTint();\n  blendMode(BLEND);\n  drawingContext.restore();\n}\n\n// ---- ember rim: three passes of SEGMENTS (p5 cannot vary stroke inside beginShape),\n// brightness shimmering ALONG the line \u2014 never a frame flash ----\nif(!isCon){\n  const gl=(0.42+0.72*en)*envE*al;\n  noFill();\n  for(let pass=0;pass<3;pass++){\n    strokeWeight(Math.max(0.6,u*[0.026,0.010,0.0035][pass]*sc*(0.7+0.5*en)));\n    for(let i=0;i<NA;i++){\n      const a=pts[i], b=pts[(i+1)%NA], th=a[2];\n      // localized flicker travelling along the rim, small amplitude\n      const fl=0.62+0.38*(0.5+0.5*Math.sin(th*17+K.t*2.3*sp+q1))*(0.5+0.5*Math.sin(th*5-K.t*1.1*sp));\n      const sat=isNit?lrp(24,4,fl):lrp(96,58,fl);\n      const br=[lrp(56,90,fl),lrp(84,100,fl),100][pass];\n      const aa=clp([26,52,82][pass]*gl*(0.55+0.6*fl),0,94);\n      if(aa<1.5) continue;\n      stroke(md(H+[-6,6,22][pass]+fl*10,360), sat, br, aa);\n      line(a[0],a[1],b[0],b[1]);\n    }\n  }\n}\n\n// ---- ash lifting off the rim: ember-hot at birth, grey and tumbling as it climbs ----\n{\n  const nA=Math.round(lrp(26,110,dn));\n  noStroke();\n  for(let i=0;i<nA;i++){\n    const j=i*23;\n    const th=fr(j+1)*6.283;\n    const rate=(0.10+fr(j+2)*0.20)*sp*(0.5+0.8*en);\n    const ph=frc(fr(j+3)+K.t*rate);\n    const b=rimAt(th,K.t);\n    const bx=ix+Math.cos(th)*b, by=iy+Math.sin(th)*b;\n    const rise=u*lrp(0.10,0.44,fr(j+4))*sc*(0.4+1.1*en);\n    const ax2=bx + Math.sin(K.t*(0.6+fr(j+5)*1.7)*sp+fr(j+6)*6.283)*u*0.05*ph*(0.4+en) + (fr(j+7)-0.5)*u*0.08*ph;\n    const ay2=by - rise*Math.pow(ph,0.78);\n    if(ay2<-u*0.06||ax2<-u*0.06||ax2>W+u*0.06) continue;\n    const cool=Math.pow(ph,0.55);\n    const rad=u*lrp(0.0016,0.0062,fr(j+8))*sc;\n    const flip=Math.abs(Math.cos(K.t*(1.1+fr(j+9)*2.6)*sp+fr(j+10)*6.283)); // edge-on tumble\n    const aa=clp((1-ph)*(1-ph*0.45)*96*al*(0.4+0.8*en),0,92);\n    if(aa<2) continue;\n    push(); translate(ax2,ay2); rotate(K.t*(0.5+fr(j+11)*1.6)*sp+fr(j+12)*6.283);\n    if(cool<0.34){ fill(md(H+lrp(18,0,cool/0.34),360), lrp(30,96,cool/0.34), 100, aa); }\n    else { fill(md(H+8,360), lrp(30,6,(cool-0.34)/0.66), lrp(58,30,(cool-0.34)/0.66), aa*0.86); }\n    ellipse(0,0, rad*2*(0.25+0.75*flip), rad*2);\n    if(cool<0.2){ fill(md(H+26,360),18,100,aa*0.7); ellipse(0,0,rad*1.1*(0.25+0.75*flip),rad*1.1); }\n    pop();\n  }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint(); noStroke();\n"
+}

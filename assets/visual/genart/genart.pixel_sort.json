@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.pixel_sort",
+  "kind": "genart",
+  "name": "Pixel Sort Databend",
+  "desc": "Asendorf-style pixel sorting: a colourful synthesised field is databent by sorting contiguous brightness-threshold spans into melting glitch smears, the sort window drifting on the clock so the image perpetually re-melts \u2014 full-spectrum databend, VHS chroma-bleed, mono static, thermal, or channel-split chromatic.",
+  "tags": [
+    "pixel-sort",
+    "databend",
+    "glitch",
+    "asendorf",
+    "sorting",
+    "datamosh",
+    "vhs",
+    "chromatic-aberration",
+    "scanlines",
+    "corrupt",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "melt",
+    "smear",
+    "digital",
+    "vaporwave",
+    "thermal",
+    "mono",
+    "edgy",
+    "experimental",
+    "field",
+    "spectral"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "colour-band frequency of the source field (more = finer bands)"
+    },
+    "thresh": {
+      "default": 0.52,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sort coverage \u2014 how much of the frame melts into smears (wider brightness window)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure / contrast of the source field"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.1,
+      "max": 3.0,
+      "doc": "field flow + sort-window drift + direction-flip rate"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "source feature zoom (bigger = larger regions)"
+    },
+    "warp": {
+      "default": 0.28,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "domain-warp turbulence of the source (also chroma-split width in vhs/chromatic)"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "palette base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "source sample offset x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "source sample offset y"
+    },
+    "style": {
+      "default": "databend",
+      "options": [
+        "databend",
+        "vhs",
+        "chromatic",
+        "thermal",
+        "mono",
+        "scanbend"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic field seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:26:55+00:00",
+    "fps": 61.7,
+    "motion": 0.0618,
+    "lum": 0.138
+  },
+  "code": "const D = { density:.5, thresh:.52, energy:.6, speed:1, scale:1, warp:.28, hue:210, x:.5, y:.5, style:'databend', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst style = P.style;\nconst horizontal = (style === 'vhs' || style === 'scanbend');\n// coarse buffer (image()-upscaled); keep pixel budget modest for per-frame sort\nconst BW = 240, BH = Math.max(64, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  const N = BW * BH;\n  S.sr = new Float32Array(N); S.sg = new Float32Array(N); S.sb = new Float32Array(N); S.bl = new Float32Array(N);\n  S.idx = new Int32Array(Math.max(BW, BH));\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.o1 = fr(1) * 40; S.o2 = fr(2) * 40; S.hoff = fr(3);\n}\nconst sd = (P.seed | 0);\nfunction hsh(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + sd * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const uu = fx*fx*(3-2*fx), vv = fy*fy*(3-2*fy); const a = hsh(ix,iy), b = hsh(ix+1,iy), c = hsh(ix,iy+1), d = hsh(ix+1,iy+1); return a + (b-a)*uu + (c-a)*vv + (a-b-c+d)*uu*vv; }\nfunction fbm(x, y) { return 0.6*vn(x,y) + 0.27*vn(x*2.03+5.1, y*2.03-3.2) + 0.13*vn(x*4.1-2.3, y*4.1+7.7); }\n\nconst tt = K.t * (0.05 + P.speed * 0.11);\nconst zoom = 3.2 / (0.4 + P.scale * 1.2);\nconst W = 0.4 + P.warp * 2.6;\nconst sec = K.section;\nconst hb = ((P.hue + S.hoff * 60 + sec * 21) % 360 + 360) % 360;\nconst expo = 0.5 + P.energy * 0.95 + K.intensity * 0.3 + A.rms * 0.6;\nconst bands = 3.0 + P.density * 12.0;              // colour-band frequency (finer = more streaks)\n// iq cosine palette\nfunction pal(m, off) { const hr = hb/360 + off; return [\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.00)),\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.33)),\n  0.5 + 0.5*Math.cos(6.2831*(m + hr + 0.66)) ]; }\n\n// ---- 1. synth a colourful source field into S.sr/sg/sb + brightness S.bl ----\nconst sr = S.sr, sg = S.sg, sb = S.sb, bl = S.bl;\nconst panX = S.o1 + (P.x - 0.5) * zoom * 2.0, panY = S.o2 + (P.y - 0.5) * zoom * 2.0;\nfor (let j = 0; j < BH; j++) {\n  const ny = (j / BH - 0.5) * zoom + panY;\n  for (let i = 0; i < BW; i++) {\n    const idx = j * BW + i;\n    const nx = (i / BW - 0.5) * zoom * (BW / BH) + panX;\n    const qx = fbm(nx + tt*0.5, ny*1.0), qy = fbm(nx + 3.3, ny - tt*0.4 + 1.7);\n    let v0 = fbm(nx + W*qx, ny + W*qy - tt*0.2);\n    // add mid-frequency structure so brightness spans vary in length (organic glitch, not smooth stripes)\n    const detail = vn(nx*3.1 + 11.0, ny*3.1 - tt*0.3);\n    let v = v0*0.62 + detail*0.38;\n    v = Math.min(1, Math.max(0, (v - 0.5) * (1.15 + P.energy*0.85) + 0.5)); // sharpen contrast -> more tears\n    const grad = (i / BW);                          // horizontal ramp adds spectral drift\n    // HUE depends mainly on ROW position (near-horizontal rainbow bands) so the vertical sort drags colour into clean drips\n    const rowPhase = j / BH;\n    const huePhase = rowPhase * 1.5 * bands + v * 0.18 * bands + grad * 0.35 + tt * 0.13;\n    const sh = 0.16 + 0.98 * v * expo;              // deeper darks / brighter brights -> smears pop\n    let r, g2, b2;\n    if (style === 'mono') {\n      // high-contrast black/white sorted static \u2014 bulletproof linear map, always visible\n      const s = 0.1 + 0.85 * Math.min(1, Math.max(0, (v - 0.3) * 1.5 + 0.35));\n      r = g2 = b2 = s;\n    } else if (style === 'thermal') {\n      const m = Math.min(1, v * expo * 1.35);\n      r = Math.min(1, m*2.1); g2 = Math.min(1, Math.max(0, m*2.0-0.55)); b2 = Math.min(1, Math.max(0, m*3.4-2.3));\n    } else if (style === 'chromatic') {\n      const c = pal((huePhase * 0.7) % 1, 0);\n      const s2 = 0.32 + 0.85 * v * expo;\n      r = c[0]*s2; g2 = c[1]*s2; b2 = c[2]*s2;\n    } else if (style === 'vhs') {\n      const c = pal((huePhase * 0.75) % 1, 0.12);\n      const s2 = 0.34 + 0.8 * v * expo;\n      r = Math.min(1, c[0]*s2*1.15); g2 = c[1]*s2*0.9; b2 = Math.min(1, c[2]*s2*1.2);\n    } else { // databend (default) \u2014 full-spectrum\n      const c = pal(huePhase % 1, 0);\n      r = c[0]*sh; g2 = c[1]*sh; b2 = c[2]*sh;\n    }\n    sr[idx] = r; sg[idx] = g2; sb[idx] = b2;\n    bl[idx] = 0.299*r + 0.587*g2 + 0.114*b2;\n  }\n}\n\n// ---- 2. pixel-sort spans whose brightness is inside a moving threshold window ----\n// window drifts on K.t so the sort perpetually re-melts (real-time motion floor)\nconst centre = 0.42 + 0.16 * Math.sin(K.t * (0.10 + P.speed*0.12)) + A.bass * 0.12;\nconst halfw = 0.06 + P.thresh * 0.42;               // wider thresh = more of the frame melts\nconst lo = centre - halfw, hi = centre + halfw;\nconst ascending = (Math.floor(K.t * (0.05 + P.speed*0.05)) % 2 === 0); // slowly flips sort dir\nconst idxArr = S.idx;\n\nfunction sortLine(get, set, len) {\n  let s = 0;\n  while (s < len) {\n    if (get(s) < lo || get(s) > hi) { s++; continue; }\n    let e = s;\n    while (e < len && get(e) >= lo && get(e) <= hi) e++;   // [s,e) is a sortable span\n    const n = e - s;\n    if (n > 1) {\n      for (let k = 0; k < n; k++) idxArr[k] = s + k;\n      // sort indices by brightness\n      const sub = Array.prototype.slice.call(idxArr, 0, n);\n      sub.sort((a, b) => ascending ? (get(a) - get(b)) : (get(b) - get(a)));\n      // capture originals then rewrite in sorted order\n      set(s, n, sub);\n    }\n    s = e;\n  }\n}\n\nconst tmpR = S._tr || (S._tr = new Float32Array(Math.max(BW, BH)));\nconst tmpG = S._tg || (S._tg = new Float32Array(Math.max(BW, BH)));\nconst tmpB = S._tb || (S._tb = new Float32Array(Math.max(BW, BH)));\n\nif (!horizontal) {\n  for (let i = 0; i < BW; i++) {\n    const base = i;\n    const get = k => bl[(k) * BW + base];\n    const set = (start, n, order) => {\n      for (let k = 0; k < n; k++) { const o = order[k]; tmpR[k]=sr[o*BW+base]; tmpG[k]=sg[o*BW+base]; tmpB[k]=sb[o*BW+base]; }\n      for (let k = 0; k < n; k++) { const p=(start+k)*BW+base; sr[p]=tmpR[k]; sg[p]=tmpG[k]; sb[p]=tmpB[k]; }\n    };\n    sortLine(get, set, BH);\n  }\n} else {\n  for (let j = 0; j < BH; j++) {\n    const row = j * BW;\n    const get = k => bl[row + k];\n    const set = (start, n, order) => {\n      for (let k = 0; k < n; k++) { const o = order[k]; tmpR[k]=sr[row+o]; tmpG[k]=sg[row+o]; tmpB[k]=sb[row+o]; }\n      for (let k = 0; k < n; k++) { const p=row+start+k; sr[p]=tmpR[k]; sg[p]=tmpG[k]; sb[p]=tmpB[k]; }\n    };\n    sortLine(get, set, BW);\n  }\n}\n\n// ---- 3. blit to pixels ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst chroma = (style === 'chromatic' || style === 'vhs') ? Math.round(1 + A.treble*4 + P.warp*3) : 0;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const idx = j*BW + i;\n    let ri = idx, bi = idx;\n    if (chroma) { const rj = Math.min(BW-1, i+chroma), bj = Math.max(0, i-chroma); ri = j*BW+rj; bi = j*BW+bj; }\n    const p = idx*4;\n    px[p]   = Math.max(0, Math.min(255, sr[ri]*255));\n    px[p+1] = Math.max(0, Math.min(255, sg[idx]*255));\n    px[p+2] = Math.max(0, Math.min(255, sb[bi]*255));\n    px[p+3] = 255;\n  }\n}\ng.updatePixels();\n\n// scanline overlay for vhs/scanbend\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nif (style === 'vhs' || style === 'scanbend') {\n  push(); blendMode(MULTIPLY); noStroke();\n  const sl = Math.max(2, Math.round(height/220));\n  for (let y = 0; y < height; y += sl*2) { fill(0,0,0, 24); rect(0, y, width, sl); }\n  pop();\n}\n"
+}

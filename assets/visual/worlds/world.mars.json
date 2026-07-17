@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.mars",
+  "kind": "world",
+  "name": "Mars Colony",
+  "desc": "A red-planet vista of dune ridges under a butterscotch sky, a warm-glowing geodesic colony dome, twin moons crossing over minutes, and dust devils drifting past.",
+  "tags": [
+    "mars",
+    "martian",
+    "red planet",
+    "colony",
+    "dome",
+    "geodesic",
+    "habitat",
+    "dune",
+    "desert",
+    "sci-fi",
+    "science fiction",
+    "space",
+    "outer space",
+    "phobos",
+    "deimos",
+    "twin moons",
+    "dust devil",
+    "dust storm",
+    "ochre",
+    "red",
+    "rust",
+    "terraform",
+    "frontier",
+    "futuristic",
+    "cinematic",
+    "blueprint",
+    "thermal",
+    "riso",
+    "nocturne",
+    "landscape",
+    "world",
+    "planet"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "atmospheric dust / haze"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "colony dome size"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "dust-devil vigor + glow pulse"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "dome interior warm glow"
+    },
+    "dust": {
+      "default": 3,
+      "min": 0,
+      "max": 5,
+      "doc": "number of dust devils"
+    },
+    "hue": {
+      "default": 18,
+      "min": 0,
+      "max": 360,
+      "doc": "palette hue shift"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "time / motion rate"
+    },
+    "x": {
+      "default": 0.68,
+      "min": 0,
+      "max": 1,
+      "doc": "dome x position"
+    },
+    "y": {
+      "default": 0.58,
+      "min": 0.4,
+      "max": 0.8,
+      "doc": "horizon line fraction"
+    },
+    "style": {
+      "default": "ochre",
+      "options": [
+        "ochre",
+        "blueprint",
+        "thermal",
+        "riso",
+        "nocturne"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "day",
+      "options": [
+        "day",
+        "dusk",
+        "storm"
+      ],
+      "doc": "multi-minute light program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "day",
+    "dusk",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:14:42+00:00",
+    "fps": 59.5,
+    "motion": 0.0106,
+    "lum": 0.354
+  },
+  "code": "const D = { density: .5, scale: 1, energy: .55, glow: .7, dust: 3, hue: 18, speed: 1, x: .68, y: .58, style: 'ochre', act: 'day', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst ho = P.hue - 18;\nconst lerp3 = (a, b, f) => [a[0] + (b[0]-a[0])*f, a[1] + (b[1]-a[1])*f, a[2] + (b[2]-a[2])*f];\n\nconst STY = {\n  ochre:     { sky:[[20,42,48],[18,54,58],[26,64,62]], dune:[[16,58,42],[14,54,30],[12,50,20]], dome:[30,70,70], glass:[34,30,90], moon:[28,14,70], dust:[24,40,72], line:false, halftone:false },\n  blueprint: { sky:[[210,72,14],[212,64,20],[214,56,26]], dune:[[208,58,20],[210,54,15],[212,50,11]], dome:[190,26,96], glass:[190,40,80], moon:[190,20,90], dust:[196,40,54], line:true, halftone:false },\n  thermal:   { sky:[[238,56,10],[230,50,16],[220,46,22]], dune:[[210,44,20],[218,42,14],[226,40,9]], dome:[20,92,96], glass:[46,90,94], moon:[54,70,86], dust:[8,80,84], line:false, halftone:false },\n  riso:      { sky:[[32,20,88],[26,34,80],[20,44,72]], dune:[[12,72,64],[10,74,52],[8,72,42]], dome:[350,64,80], glass:[36,44,92], moon:[350,40,80], dust:[10,60,74], line:false, halftone:true },\n  nocturne:  { sky:[[250,48,10],[244,44,16],[18,40,24]], dune:[[254,40,16],[250,38,11],[246,36,8]], dome:[30,74,66], glass:[40,50,84], moon:[46,20,84], dust:[250,30,46], line:false, halftone:false } };\nconst st = STY[P.style] || STY.ochre;\nconst shift = c => [hw(c[0] + ho), c[1], c[2]];\n\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.2,.4,.6,.8,.35,.6,.9,.45][sec];\nconst ACT = { day:{ dk:.05+arc*.15, storm:.2 }, dusk:{ dk:.22+arc*.30, storm:.2 }, storm:{ dk:.15+arc*.2, storm:.6+arc*.4 } };\nconst act = ACT[P.act] || ACT.day;\nconst stormAmt = act.storm + P.density * 0.5;\n\nconst horY = height * P.y;\n\n// ---- cached sky + dunes + stars ----\nconst key = width + 'x' + height + P.style + P.seed + Math.round(P.hue) + Math.round(P.y*20);\nif (!S.bg || S.key !== key) {\n  if (!S.bg) S.bg = createGraphics(width, height); else S.bg.resizeCanvas(width, height);\n  const g = S.bg; g.colorMode(g.HSB, 360, 100, 100, 100); g.noStroke();\n  const c = st.sky.map(shift);\n  const hy = height * P.y;\n  for (let yy = 0; yy < height; yy++) {\n    const t = yy / Math.max(1, hy); let col;\n    if (yy < hy) { if (t < 0.6) col = lerp3(c[0], c[1], t/0.6); else col = lerp3(c[1], c[2], (t-0.6)/0.4); }\n    else col = shift(st.dune[0]);\n    g.fill(col[0], col[1], col[2]); g.rect(0, yy, width, 1);\n  }\n  // stars\n  const ns = 40 + Math.floor(P.seed % 30);\n  for (let i = 0; i < ns; i++) { g.fill(hw(st.moon[0]+ho), 8, st.line?90:88, 22*fr(i*4+1)); g.rect(fr(i*4+2)*width, fr(i*4+3)*height*P.y*0.7, 1.2, 1.2); }\n  // dune ridges (parallax layers)\n  const dc = st.dune.map(shift);\n  for (let L = 0; L < 3; L++) {\n    const ry = hy + (height - hy) * (L * 0.32);\n    const amp = u * (0.03 + L * 0.02);\n    g.fill(dc[L][0], dc[L][1], dc[L][2]);\n    g.beginShape(); g.vertex(-10, height+10); g.vertex(-10, ry);\n    for (let sx = 0; sx <= width+40; sx += 34) {\n      const n = Math.sin(sx*0.006 + L*2 + fr(L*11)*6) + 0.5*Math.sin(sx*0.015 + L);\n      g.vertex(sx, ry - n*amp);\n    }\n    g.vertex(width+10, height+10); g.endShape(g.CLOSE);\n    if (st.line) { g.stroke(dc[L][0], dc[L][1], 96, 40); g.strokeWeight(1); g.noFill();\n      g.beginShape(); g.vertex(-10, ry);\n      for (let sx = 0; sx <= width+40; sx += 34) { const n = Math.sin(sx*0.006 + L*2 + fr(L*11)*6) + 0.5*Math.sin(sx*0.015 + L); g.vertex(sx, ry - n*amp); }\n      g.endShape(); g.noStroke(); }\n  }\n  S.key = key;\n}\nimage(S.bg, 0, 0);\n\n// ---- twin moons crossing (continuous, long period) ----\npush(); noStroke();\nconst moons = [ { per: 88, r: 0.05, sat: 0.9, ph: 0.2 }, { per: 205, r: 0.033, sat: 0.6, ph: 0.6 } ];\nfor (let m = 0; m < 2; m++) {\n  const mo = moons[m];\n  const ph = ((K.t * P.speed / mo.per + mo.ph) % 1 + 1) % 1;\n  const mx = ph * (width + u*0.2) - u*0.1;\n  const my = horY * (0.62 - 0.42 * Math.sin(ph * Math.PI));\n  const mr = u * mo.r;\n  const mc = shift(st.moon);\n  fill(mc[0], mc[1]*mo.sat, mc[2], 96); ellipse(mx, my, mr, mr);\n  // crescent shadow (sky-toned cut-out)\n  const sh = shift(st.sky[1]);\n  fill(sh[0], sh[1], sh[2], 55);\n  ellipse(mx + mr*0.22, my - mr*0.1, mr*0.92, mr*0.92);\n  // craters\n  fill(mc[0], mc[1]*mo.sat, mc[2]*0.8, 50);\n  ellipse(mx - mr*0.18, my + mr*0.12, mr*0.2, mr*0.2);\n  ellipse(mx + mr*0.05, my - mr*0.18, mr*0.14, mr*0.14);\n}\npop();\n\n// ---- dome (colony) ----\nconst dx = P.x * width, dy = horY;\nconst dr = u * (0.26 + P.scale * 0.18);\nconst dcol = shift(st.dome), gl = shift(st.glass);\npush();\n// interior warm glow (ADD, flicker)\nblendMode(ADD); noStroke();\nconst flick = 0.7 + 0.3*Math.sin(K.t*3.1) + 0.15*Math.sin(K.t*7.7) + 0.4*A.bass + 0.3*K.swell;\nconst gv = P.glow * flick * (st.line ? 22 : 48);\nfor (let r = 0; r < 4; r++) { fill(gl[0], gl[1]*0.8, gl[2], gv*(1-r*0.2)); ellipse(dx, dy, dr*(1.1 - r*0.2), dr*(0.9 - r*0.16)); }\nblendMode(BLEND);\n// glass dome body\nnoStroke(); fill(dcol[0], dcol[1]*0.5, dcol[2]*0.55, st.line ? 0 : 40);\narc(dx, dy, dr*2, dr*2, Math.PI, TAU, CHORD);\n// struts\nstroke(dcol[0], dcol[1], dcol[2], 90); strokeWeight(Math.max(1, u*0.0022)); noFill();\narc(dx, dy, dr*2, dr*2, Math.PI, TAU);\nconst ribs = 6;\nfor (let i = 1; i < ribs; i++) { const a = Math.PI + Math.PI * (i/ribs); line(dx, dy, dx + Math.cos(a)*dr, dy + Math.sin(a)*dr); }\nfor (let ring = 1; ring < 3; ring++) { const rr = dr * ring/3; arc(dx, dy, rr*2, rr*2, Math.PI, TAU); }\n// warm windows glinting on the dome\nnoStroke();\nfor (let i = 0; i < 5; i++) {\n  const a = Math.PI + Math.PI * ((i+1)/6);\n  const rr = dr * (0.4 + fr(i*3)*0.45);\n  const wx = dx + Math.cos(a)*rr, wy = dy + Math.sin(a)*rr;\n  const tw = 0.5 + 0.5*Math.sin(K.t*(2+i*0.7) + i) + 0.5*A.treble;\n  fill(gl[0], gl[1], gl[2], 40 + 50*tw*P.glow);\n  ellipse(wx, wy, u*0.012, u*0.012);\n}\npop();\n\n// ---- dust devils (drift + swirl, continuous) ----\npush();\nconst nd = Math.max(0, Math.min(5, Math.round(P.dust)));\nconst dcl = shift(st.dust);\nif (st.line) blendMode(BLEND); else blendMode(ADD);\nfor (let i = 0; i < nd; i++) {\n  const per = 40 + i*17;\n  const ph = ((K.t * P.speed / per + fr(i*9)) % 1 + 1) % 1;\n  const cx = ph * (width + u*0.3) - u*0.15;\n  const baseY = horY + (height - horY) * (0.15 + fr(i*5)*0.5);\n  const dh = u * (0.28 + fr(i*7)*0.25) * (0.6 + P.energy);\n  const dw = u * (0.03 + fr(i*3)*0.02) * (0.7 + stormAmt);\n  const steps = 12;\n  for (let s = 0; s < steps; s++) {\n    const t = s / steps;\n    const yy = baseY - t * dh;\n    const sway = Math.sin(K.t * (2 + P.energy*3) + t * 6 + i) * dw * (1 + t*2) * (0.5 + P.energy);\n    const rw = dw * (0.4 + t * 1.6);\n    fill(dcl[0], dcl[1], dcl[2], (st.line ? 14 : 22) * (1 - t*0.7) * (0.4 + stormAmt) * (0.5 + P.energy*0.8));\n    ellipse(cx + sway, yy, rw, rw * 1.4);\n  }\n}\nblendMode(BLEND);\npop();\n\n// ---- horizon haze / dust storm veil (density) ----\npush(); noStroke();\nconst hz = shift(st.dust);\nconst hazeN = 3;\nfor (let i = 0; i < hazeN; i++) {\n  const hy2 = horY - u*0.05 + (height - horY + u*0.1) * (i/hazeN);\n  const a = (6 + P.density * 26) * (0.5 + 0.5*Math.sin(K.t*0.06 + i*1.9)) * (0.4 + stormAmt);\n  fill(hz[0], hz[1]*0.7, hz[2], a);\n  rect(0, hy2, width, (height - horY) * 0.6);\n}\n// day-dark tint\nfill(hw(240+ho), 24, 6, 40*act.dk); rect(0,0,width,height);\npop();\nblendMode(BLEND);\n"
+}

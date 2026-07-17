@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.maze",
+  "kind": "genart",
+  "name": "Growing Maze",
+  "desc": "A perfect maze carves itself in real time via randomized recursive-backtracker growth, the hot carving head snaking corridor by corridor through the grid until a glowing solver floods the solution path, then it dissolves and a fresh maze grows \u2014 rendered as a cool neon circuit board, a technical blueprint, a red Ariadne thread on cream, a sunlit hedge garden, or a torch-lit dungeon.",
+  "tags": [
+    "maze",
+    "labyrinth",
+    "recursive-backtracker",
+    "dfs",
+    "carve",
+    "growth",
+    "emergent",
+    "generative",
+    "genart",
+    "grid",
+    "procedural",
+    "circuit",
+    "circuit-board",
+    "neon",
+    "traces",
+    "blueprint",
+    "schematic",
+    "thread",
+    "ariadne",
+    "hedge",
+    "topiary",
+    "dungeon",
+    "stone",
+    "torch",
+    "solver",
+    "solution",
+    "flood-fill",
+    "path",
+    "corridor",
+    "cool",
+    "amber",
+    "hot",
+    "glow",
+    "fullbleed",
+    "background",
+    "bg",
+    "abstract",
+    "geometry",
+    "generative-network",
+    "puzzle",
+    "winding",
+    "spanning-tree"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "grid fineness / maze complexity (more cells = tighter maze)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow / bloom amplitude on carving head, solver & sparkles"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "carve rate, solve reveal & pulse speed"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "corridor ribbon thickness / feature weight"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "cool wall/trace base hue (circuit ground + corridors)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "carve start column + entrance/exit bias"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "carve start row"
+    },
+    "style": {
+      "default": "circuit",
+      "options": [
+        "circuit",
+        "blueprint",
+        "thread",
+        "hedge",
+        "dungeon"
+      ],
+      "doc": "render philosophy: neon line / schematic / ink thread / hedge mass / stone mass"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic maze structure & solution"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100 = opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-13T02:58:57+00:00",
+    "fps": 61.7,
+    "motion": 0.0989,
+    "lum": 0.316
+  },
+  "code": "const D = { density: .5, energy: .6, speed: 1, scale: 1, hue: 200, x: .5, y: .5, style: 'circuit', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst clp = (v,a,b)=>Math.max(a,Math.min(b,v));\nconst intn = (K.intensity!=null?K.intensity:.6);\nconst AL = clp(P.alpha,0,100)/100;\nconst style = P.style;\nconst glowStyle = (style==='circuit'||style==='hedge'||style==='dungeon');\nconst hue = ((P.hue%360)+360)%360;\n\n// ---- grid dims from density (rebuild-triggering) ----\nconst pitchFrac = 0.112 - clp(P.density,0,1)*0.070;\nconst cols = clp(Math.round(width/(u*pitchFrac)), 5, 54);\nconst rows = clp(Math.round(height/(u*pitchFrac)), 5, 40);\nconst N = cols*rows;\n\n// ---- buffer (size-keyed) ----\nconst sizeKey = width+'x'+height;\nif (!S.buf || S.sizeKey!==sizeKey){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(width,height); S.buf.colorMode(HSB,360,100,100,100); S.buf.pixelDensity(1); S.sizeKey=sizeKey; S.mazeKey=null; }\nif (S.seedUsed!==P.seed){ S.seedUsed=P.seed; S.epoch=0; S.mazeKey=null; }\n\nconst cw = width/cols, ch = height/rows, pit = Math.min(cw,ch);\nconst centerX = c => ((c%cols)+0.5)*cw;\nconst centerY = c => (((c/cols)|0)+0.5)*ch;\n\n// ground rep color (for dissolve wash)\nconst gCol = style==='blueprint'?[212,65,30]:style==='thread'?[38,12,80]:style==='hedge'?[120,45,26]:style==='dungeon'?[28,18,15]:[hue,58,10];\n\nfunction paintGround(){\n  const g=S.buf, ctx=g.drawingContext;\n  g.push();\n  if(style==='blueprint'){\n    g.background(212,65,30);\n    g.stroke(205,25,60,45); g.strokeWeight(1);\n    for(let x=0;x<=cols;x++) g.line(x*cw,0,x*cw,height);\n    for(let y=0;y<=rows;y++) g.line(0,y*ch,width,y*ch);\n  } else if(style==='thread'){\n    g.background(38,12,80); g.noStroke();\n    for(let i=0;i<N;i++){ g.fill(34,14,64,26); g.circle(centerX(i),centerY(i),pit*0.05); }\n  } else if(style==='hedge'){\n    g.background(122,48,24); g.noStroke();\n    const nd=Math.min(1100, N*2);\n    for(let i=0;i<nd;i++){ const rx=S.rnd()*width, ry=S.rnd()*height, sh=S.rnd(); g.fill(108+sh*30, 40+sh*35, 18+sh*26, 60); g.circle(rx,ry, pit*(0.18+sh*0.35)); }\n  } else if(style==='dungeon'){\n    g.background(28,18,15); g.noStroke();\n    const nd=Math.min(1200, N*2);\n    for(let i=0;i<nd;i++){ const rx=S.rnd()*width, ry=S.rnd()*height, sh=S.rnd(); g.fill(26+sh*14, 10+sh*18, 8+sh*22, 40); g.circle(rx,ry, pit*(0.15+sh*0.3)); }\n  } else { // circuit vignette\n    const gr=ctx.createRadialGradient(width*0.5,height*0.5,0, width*0.5,height*0.5, Math.max(width,height)*0.72);\n    gr.addColorStop(0,'hsl('+hue+',62%,17%)'); gr.addColorStop(1,'hsl('+((hue+18)%360)+',72%,7%)');\n    ctx.fillStyle=gr; ctx.fillRect(0,0,width,height);\n    g.noStroke();\n    for(let i=0;i<N;i++){ g.fill(hue,45,24,80); g.circle(centerX(i),centerY(i),pit*0.06); }\n  }\n  g.pop();\n}\n\nfunction initMaze(){\n  let z=((P.seed*2654435761)^(((S.epoch|0))*40503)^0x9e3779b1)>>>0;\n  S.rnd=()=>{ z=(z*1664525+1013904223)>>>0; return z/4294967296; };\n  S.vis=new Uint8Array(N); S.par=new Int32Array(N).fill(-1);\n  paintGround();\n  const sx=clp(Math.round(clp(P.x,0.06,0.94)*(cols-1)),0,cols-1);\n  const sy=clp(Math.round(clp(P.y,0.06,0.94)*(rows-1)),0,rows-1);\n  const start=sy*cols+sx;\n  S.vis[start]=1; S.stack=[start];\n  S.entrance = clp(Math.round(clp(P.x,0.06,0.94)*(cols-1)),0,cols-1);\n  S.exit = (rows-1)*cols + clp(Math.round((1-clp(P.x,0.06,0.94))*(cols-1)),0,cols-1);\n  S.phase='carve'; S.sol=null; S.solveT=0; S.dissT=0; S.holdStart=null;\n}\n\nconst mazeKey = cols+'|'+rows+'|'+P.seed+'|'+(S.epoch|0)+'|'+style;\nif (S.mazeKey!==mazeKey){ S.mazeKey=mazeKey; initMaze(); }\n\nfunction stampPassage(a,b){\n  const g=S.buf, ctx=g.drawingContext;\n  const ax=centerX(a),ay=centerY(a),bx=centerX(b),by=centerY(b);\n  const rw=pit*clp(0.30+P.scale*0.14,0.2,0.6);\n  g.push(); g.strokeCap(ROUND); g.strokeJoin(ROUND); g.noFill();\n  if(style==='circuit'){\n    ctx.shadowBlur=9*(0.4+P.energy); ctx.shadowColor='hsla('+hue+',85%,55%,0.9)';\n    g.stroke(hue,72,88); g.strokeWeight(rw*0.62); g.line(ax,ay,bx,by);\n    ctx.shadowBlur=0;\n    g.stroke((hue+8)%360,22,100); g.strokeWeight(rw*0.24); g.line(ax,ay,bx,by);\n  } else if(style==='blueprint'){\n    g.stroke(205,10,100); g.strokeWeight(Math.max(1.1,pit*0.06)); g.line(ax,ay,bx,by);\n  } else if(style==='thread'){\n    g.stroke(28,58,22); g.strokeWeight(Math.max(1.1,pit*0.085)); g.line(ax,ay,bx,by);\n  } else if(style==='hedge'){\n    g.stroke(38,42,52); g.strokeWeight(rw*0.7); g.line(ax,ay,bx,by);\n    g.stroke(40,30,66); g.strokeWeight(rw*0.3); g.line(ax,ay,bx,by);\n  } else { // dungeon\n    g.stroke(28,30,26); g.strokeWeight(rw*0.72); g.line(ax,ay,bx,by);\n    g.stroke(30,22,40); g.strokeWeight(rw*0.28); g.line(ax,ay,bx,by);\n  }\n  g.pop();\n}\n\nfunction computeSolution(){\n  const par=S.par;\n  const up=c=>{ const a=[]; let g=0; while(c>=0 && g++<N+2){ a.push(c); c=par[c]; } return a; };\n  const ancE=up(S.entrance), ancX=up(S.exit);\n  const posE=new Map(); ancE.forEach((c,i)=>posE.set(c,i));\n  let lca=-1, li=-1;\n  for(let i=0;i<ancX.length;i++){ if(posE.has(ancX[i])){ lca=ancX[i]; li=i; break; } }\n  let sol;\n  if(lca<0) sol=ancE; else sol=ancE.slice(0,posE.get(lca)+1).concat(ancX.slice(0,li).reverse());\n  S.sol=sol.map(c=>[centerX(c),centerY(c)]);\n  let L=0; S.solLen=[0];\n  for(let i=1;i<S.sol.length;i++){ L+=Math.hypot(S.sol[i][0]-S.sol[i-1][0],S.sol[i][1]-S.sol[i-1][1]); S.solLen.push(L); }\n  S.solTotal=Math.max(1,L);\n}\n\nfunction carveStep(){\n  if(S.stack.length===0){ S.phase='solve'; computeSolution(); return; }\n  const cur=S.stack[S.stack.length-1];\n  const cx=cur%cols, cy=(cur/cols)|0;\n  const nbs=[];\n  if(cy>0 && !S.vis[cur-cols]) nbs.push(cur-cols);\n  if(cy<rows-1 && !S.vis[cur+cols]) nbs.push(cur+cols);\n  if(cx>0 && !S.vis[cur-1]) nbs.push(cur-1);\n  if(cx<cols-1 && !S.vis[cur+1]) nbs.push(cur+1);\n  if(nbs.length===0){ S.stack.pop(); return; }\n  const pick=nbs[(S.rnd()*nbs.length)|0];\n  S.vis[pick]=1; S.par[pick]=cur; S.stack.push(pick);\n  stampPassage(cur,pick);\n}\n\n// ---- advance carve ----\nconst steps=Math.max(1, Math.round((0.8+P.speed*2.2)*(0.5+intn)+A.bass*5));\nfor(let s=0;s<steps && S.phase==='carve';s++) carveStep();\n\n// ---- phase progression ----\nif(S.phase==='solve'){ S.solveT += (0.014+P.speed*0.02)*(0.6+intn); if(S.solveT>=1){ S.solveT=1; S.phase='hold'; } }\nelse if(S.phase==='hold'){\n  if(S.holdStart==null || K.t<S.holdStart) S.holdStart=K.t;\n  const holdDur=4+intn*6;\n  if(K.t-S.holdStart>holdDur){ S.phase='dissolve'; S.dissT=0; }\n} else if(S.phase==='dissolve'){\n  const g=S.buf; g.push(); g.noStroke(); g.fill(gCol[0],gCol[1],gCol[2], 6+P.speed*4); g.rect(0,0,width,height); g.pop();\n  S.dissT += 0.02*(0.6+P.speed);\n  if(S.dissT>=1){ S.epoch=(S.epoch|0)+1; }\n}\n\n// ---- RENDER (shared drift transform) ----\nconst sc=1.05, dw=width*sc, dh=height*sc;\nconst dx=-(dw-width)/2 + Math.sin(K.t*0.13)*u*0.007;\nconst dy=-(dh-height)/2 + Math.cos(K.t*0.11)*u*0.007;\npush();\ntranslate(dx,dy); scale(sc);\nif(P.alpha<100) tint(0,0,100,P.alpha);\nimage(S.buf,0,0,width,height);\nnoTint();\n\n// carve overlays: frontier snake + hot head\nif(S.phase==='carve' && S.stack.length){\n  const head=S.stack[S.stack.length-1], hx=centerX(head), hy=centerY(head);\n  if(S.stack.length>1){ push(); noFill();\n    if(glowStyle){ blendMode(ADD); stroke(44,45,100,16*AL); } else { stroke(style==='thread'?353:210, style==='thread'?60:15, style==='thread'?55:100, 30*AL); }\n    strokeWeight(pit*0.16); strokeCap(ROUND); strokeJoin(ROUND);\n    beginShape(); const st0=Math.max(0,S.stack.length-900); for(let i=st0;i<S.stack.length;i++) vertex(centerX(S.stack[i]),centerY(S.stack[i])); endShape();\n    blendMode(BLEND); pop(); }\n  push(); const ctx=drawingContext;\n  if(glowStyle){ blendMode(ADD); noStroke();\n    const pl=0.6+0.4*Math.sin(K.t*6);\n    ctx.shadowBlur=18*(0.4+P.energy); ctx.shadowColor='hsla(40,95%,58%,0.95)';\n    fill(40,32,100,60*AL); circle(hx,hy,pit*(0.55+0.3*pl));\n    fill(48,8,100,92*AL); circle(hx,hy,pit*0.3);\n    ctx.shadowBlur=0; blendMode(BLEND);\n  } else if(style==='blueprint'){ noFill(); stroke(20,80,100,90*AL); strokeWeight(1.6); rectMode(CENTER); rect(hx,hy,pit*0.7,pit*0.7); rectMode(CORNER);\n  } else { noStroke(); fill(353,70,90,92*AL); circle(hx,hy,pit*0.34); }\n  pop();\n}\n\n// solution overlays: solve reveal + hold\nif((S.phase==='solve'||S.phase==='hold') && S.sol && S.sol.length>1){\n  const revealLen=(S.phase==='hold')?S.solTotal:clp(S.solveT,0,1)*S.solTotal;\n  const solH=(style==='thread')?353:42;\n  const sol=S.sol, sl=S.solLen;\n  push(); noFill(); strokeCap(ROUND); strokeJoin(ROUND); const ctx=drawingContext;\n  if(glowStyle){ blendMode(ADD); ctx.shadowBlur=15*(0.4+P.energy); ctx.shadowColor='hsla('+(style==='thread'?350:42)+',92%,58%,0.9)'; stroke(solH,22,100,72*AL); }\n  else if(style==='thread'){ stroke(353,72,80,95*AL); }\n  else { stroke(24,85,100,90*AL); }\n  strokeWeight(pit*clp(0.16+P.scale*0.08,0.1,0.42));\n  beginShape();\n  for(let i=0;i<sol.length;i++){\n    if(sl[i]<=revealLen){ vertex(sol[i][0],sol[i][1]); }\n    else { const t=(revealLen-sl[i-1])/Math.max(1e-3,(sl[i]-sl[i-1])); vertex(sol[i-1][0]+(sol[i][0]-sol[i-1][0])*t, sol[i-1][1]+(sol[i][1]-sol[i-1][1])*t); break; }\n  }\n  endShape();\n  ctx.shadowBlur=0; blendMode(BLEND); pop();\n  if(S.phase==='hold'){\n    const pos=((K.t*S.solTotal*0.045*(0.4+P.speed))%S.solTotal+S.solTotal)%S.solTotal;\n    let i=1; while(i<sl.length && sl[i]<pos) i++;\n    if(i<sl.length){ const t=(pos-sl[i-1])/Math.max(1e-3,(sl[i]-sl[i-1]));\n      const px=sol[i-1][0]+(sol[i][0]-sol[i-1][0])*t, py=sol[i-1][1]+(sol[i][1]-sol[i-1][1])*t;\n      push();\n      if(glowStyle||style==='blueprint'){ blendMode(ADD); noStroke(); const c2=drawingContext; c2.shadowBlur=22*(0.4+P.energy); c2.shadowColor='hsla(48,95%,65%,0.95)'; fill(48,10,100,90*AL); circle(px,py,pit*0.5); c2.shadowBlur=0; blendMode(BLEND); }\n      else { noStroke(); fill(353,50,100,95*AL); circle(px,py,pit*0.4); }\n      pop();\n    }\n  }\n}\n\n// ambient sparkles (glow styles, audio on top)\nif(glowStyle && S.vis){\n  push(); blendMode(ADD); noStroke();\n  const spk=14, tw=A.treble*40;\n  for(let i=0;i<spk;i++){\n    const idx=(((i*2654435761)>>>0) ^ (Math.floor(K.t*0.7)*40503))%N;\n    if(!S.vis[idx]) continue;\n    const pl=0.4+0.6*Math.sin(K.t*3+i*1.7);\n    fill(46,25,100,(6+pl*10+tw)*AL); circle(centerX(idx),centerY(idx), pit*0.12*(0.5+pl));\n  }\n  blendMode(BLEND); pop();\n}\npop();\n"
+}

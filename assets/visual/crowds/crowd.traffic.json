@@ -1,0 +1,145 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.traffic",
+  "kind": "crowd",
+  "name": "Traffic Stream",
+  "desc": "A miniature isometric avenue where little cars, buses and scooters flow both directions, bunching into travelling stop-and-go jam waves that thicken each section, their headlights blooming brighter as the scene dims.",
+  "tags": [
+    "traffic",
+    "cars",
+    "car",
+    "bus",
+    "scooter",
+    "vehicles",
+    "road",
+    "street",
+    "city",
+    "urban",
+    "isometric",
+    "iso",
+    "commute",
+    "rush-hour",
+    "jam",
+    "gridlock",
+    "stop-go",
+    "highway",
+    "headlights",
+    "night",
+    "neon",
+    "blueprint",
+    "noir",
+    "pixel",
+    "miniature",
+    "diorama",
+    "simcity",
+    "flow",
+    "crowd",
+    "transit",
+    "motion"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "vehicle size vs design"
+    },
+    "n": {
+      "default": 16,
+      "min": 5,
+      "max": 30,
+      "doc": "vehicle count"
+    },
+    "jam": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.4,
+      "doc": "stop-go wave strength"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "road marking / detail density"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "base flow speed"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "time / motion rate"
+    },
+    "headlight": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.5,
+      "doc": "headlight glow strength"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "road + vehicle hue shift"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor x"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "road height (anchor y)"
+    },
+    "style": {
+      "default": "iso",
+      "options": [
+        "iso",
+        "blueprint",
+        "neon",
+        "noir",
+        "pixel"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "commute",
+      "options": [
+        "commute",
+        "gridlock",
+        "freeflow"
+      ],
+      "doc": "multi-minute jam program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "commute",
+    "gridlock",
+    "freeflow"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T14:05:17+00:00",
+    "fps": 59.2,
+    "motion": 0.0129,
+    "lum": 0.175
+  },
+  "code": "const D = { scale:1, n:16, jam:.6, density:.6, energy:.55, speed:1, headlight:.7, hue:210, x:.5, y:.55, style:'iso', act:'commute', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU2 = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst N = Math.max(3, Math.min(30, Math.round(P.n)));\nconst ho = P.hue - 210;\n\nconst STY = {\n  iso:       { mode:'iso',  road:[220,14,22], lane:[210,10,34], addLight:true },\n  blueprint: { mode:'wire', road:[214,60,10], lane:[200,70,20], addLight:false },\n  neon:      { mode:'neon', road:[260,40,8],  lane:[280,50,14], addLight:true },\n  noir:      { mode:'noir', road:[220,6,10],  lane:[220,5,18],  addLight:true },\n  pixel:     { mode:'pixel',road:[210,18,20], lane:[205,14,30], addLight:true } };\nconst st = STY[P.style] || STY.iso;\n\n// iso basis (along-road + perpendicular depth), resolution-agnostic\nconst roadLen = width * 1.35;\nconst startX = -width * 0.175, startY = height * (P.y);\nconst alongX = roadLen, alongY = -height * 0.16;   // per s in 0..1\nconst perpX = u * 0.42, perpY = u * 0.30;          // per lane unit\nconst laneGap = 0.42;                               // lane separation in perp units\nconst vsX = u * 0.006 * P.scale, vsY = u * 0.006 * P.scale; // vehicle unit scale\n\n// ---- road plane (cached parallelogram buffer) ----\nconst rKey = width + 'x' + height + P.style + Math.round(P.hue) + P.seed;\nif (!S.bg || S.bgKey !== rKey) {\n  if (!S.bg) S.bg = createGraphics(width, height);\n  else S.bg.resizeCanvas(width, height);\n  const g = S.bg;\n  g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.clear();\n  g.noStroke();\n  const road = st.road, lane = st.lane;\n  const halfW = 1.05;\n  const pp = (s, lat) => [startX + alongX * s + perpX * lat, startY + alongY * s + perpY * lat];\n  g.fill(hw(road[0] + ho), road[1], road[2], st.mode === 'neon' || st.mode === 'noir' ? 92 : 100);\n  const a1 = pp(-0.05, -halfW), a2 = pp(1.05, -halfW), a3 = pp(1.05, halfW), a4 = pp(-0.05, halfW);\n  g.quad(a1[0], a1[1], a2[0], a2[1], a3[0], a3[1], a4[0], a4[1]);\n  g.fill(hw(lane[0] + ho), lane[1], lane[2], 90);\n  const d1 = pp(-0.05, -0.03), d2 = pp(1.05, -0.03), d3 = pp(1.05, 0.03), d4 = pp(-0.05, 0.03);\n  g.quad(d1[0], d1[1], d2[0], d2[1], d3[0], d3[1], d4[0], d4[1]);\n  g.fill(hw(lane[0] + ho), 8, st.mode === 'blueprint' ? 60 : 82, 70);\n  for (let k = 0; k < 26; k++) {\n    const s0 = k / 26, s1 = s0 + 0.018;\n    const m1 = pp(s0, -laneGap), m2 = pp(s1, -laneGap), m3 = pp(s1, -laneGap + 0.02), m4 = pp(s0, -laneGap + 0.02);\n    g.quad(m1[0], m1[1], m2[0], m2[1], m3[0], m3[1], m4[0], m4[1]);\n    const n1 = pp(s0, laneGap), n2 = pp(s1, laneGap), n3 = pp(s1, laneGap + 0.02), n4 = pp(s0, laneGap + 0.02);\n    g.quad(n1[0], n1[1], n2[0], n2[1], n3[0], n3[1], n4[0], n4[1]);\n  }\n  S.bgKey = rKey;\n}\nimage(S.bg, 0, 0);\n\n// ---- vehicle fleet init ----\nif (!S.v || S.vn !== N || S.vseed !== P.seed) {\n  S.v = [];\n  for (let i = 0; i < N; i++) {\n    const r = fr(i * 5 + 3);\n    const type = r < 0.16 ? 'bus' : (r < 0.42 ? 'scooter' : 'car');\n    S.v.push({\n      s0: fr(i * 5 + 1),\n      dir: (i % 2 === 0) ? 1 : -1,\n      lane: (i % 2 === 0) ? -laneGap : laneGap,\n      type,\n      spd: type === 'scooter' ? 0.09 : (type === 'bus' ? 0.045 : 0.065),\n      len: type === 'bus' ? 3.4 : (type === 'scooter' ? 1.0 : 1.9),\n      wid: type === 'bus' ? 1.1 : (type === 'scooter' ? 0.5 : 0.95),\n      hgt: type === 'bus' ? 1.9 : (type === 'scooter' ? 0.9 : 1.0),\n      hue: hw((r * 300 + i * 47) + ho) });\n  }\n  S.vn = N; S.vseed = P.seed;\n}\n\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = {\n  commute: [0.2, 0.5, 0.9, 0.4, 0.7, 1.0, 0.35, 0.6],\n  gridlock:[0.7, 0.9, 1.0, 0.85, 1.0, 0.95, 0.8, 1.0],\n  freeflow:[0.0, 0.15, 0.4, 0.1, 0.3, 0.5, 0.05, 0.25] };\nconst jamCurve = (ACT[P.act] || ACT.commute)[sec];\nconst jam = Math.min(1.4, P.jam * (0.4 + 1.2 * jamCurve));\nconst flow = (0.35 + 0.9 * P.energy) * P.speed * (1.05 - 0.55 * jam);\nconst nightF = (1 - K.intensity) * 0.7 + 0.3 + A.bass * 0.4;\n\nconst proj = (s, lat, lift) => [startX + alongX * s + perpX * lat, startY + alongY * s + perpY * lat - lift];\nconst nlen = Math.hypot(alongX, alongY);\nconst uax = alongX / nlen, uay = alongY / nlen;\nconst plen = Math.hypot(perpX, perpY);\nconst upx = perpX / plen, upy = perpY / plen;\n\nconst order = [];\nfor (let i = 0; i < N; i++) {\n  const v = S.v[i];\n  let s = v.s0 + K.t * v.spd * flow * v.dir;\n  s = ((s % 1) + 1) % 1;\n  const warp = jam * 0.06 * Math.sin(s * TAU2 * 3 - K.t * 0.5 * v.dir);\n  let sd = s + warp;\n  sd = ((sd % 1) + 1) % 1;\n  const base = proj(sd, v.lane, 0);\n  order.push({ v, sd, sy: base[1] });\n}\norder.sort((a, b) => a.sy - b.sy);\n\nconst drawBox = (cx, cy, len, wid, hgt, dir, col) => {\n  const L2 = len * vsX * 3.2, W2 = wid * vsX * 3.2, H = hgt * vsY * 5.0;\n  const axx = uax * L2, axy = uay * L2;\n  const pxx = upx * W2, pyy = upy * W2;\n  const fdir = dir >= 0 ? 1 : -1;\n  const fx = cx + axx * fdir, fy = cy + axy * fdir;\n  const bx = cx - axx * fdir, by = cy - axy * fdir;\n  const fl = [fx - pxx, fy - pyy], frr = [fx + pxx, fy + pyy];\n  const bl = [bx - pxx, by - pyy], brr = [bx + pxx, by + pyy];\n  const up = [0, -H];\n  const shade = st.mode;\n  const t = pt => [pt[0] + up[0], pt[1] + up[1]];\n  const tfl = t(fl), tfr = t(frr), tbl = t(bl), tbr = t(brr);\n  if (shade === 'wire') {\n    stroke(hw(col + ho), 70, 96, 90); strokeWeight(1.1); noFill();\n    quad(fl[0], fl[1], frr[0], frr[1], brr[0], brr[1], bl[0], bl[1]);\n    quad(tfl[0], tfl[1], tfr[0], tfr[1], tbr[0], tbr[1], tbl[0], tbl[1]);\n    line(fl[0], fl[1], tfl[0], tfl[1]); line(frr[0], frr[1], tfr[0], tfr[1]);\n    line(bl[0], bl[1], tbl[0], tbl[1]); line(brr[0], brr[1], tbr[0], tbr[1]);\n    noStroke();\n    return [fx, fy, fdir];\n  }\n  let hb, sb, top, rgt, lft, ea;\n  if (shade === 'neon') { hb = hw(col + ho); sb = 80; top = 22; rgt = 16; lft = 12; ea = 92; }\n  else if (shade === 'noir') { hb = hw(col + ho); sb = 8; top = 26; rgt = 15; lft = 8; ea = 0; }\n  else if (shade === 'pixel') { const q = 30; hb = hw(Math.round(col / q) * q + ho); sb = 55; top = 62; rgt = 44; lft = 32; ea = 0; }\n  else { hb = hw(col + ho); sb = 46; top = 74; rgt = 52; lft = 38; ea = 0; }\n  noStroke();\n  fill(hb, sb, lft); quad(bl[0], bl[1], fl[0], fl[1], tfl[0], tfl[1], tbl[0], tbl[1]);\n  fill(hb, sb, rgt); quad(fl[0], fl[1], frr[0], frr[1], tfr[0], tfr[1], tfl[0], tfl[1]);\n  fill(hb, sb, rgt * 0.9); quad(frr[0], frr[1], brr[0], brr[1], tbr[0], tbr[1], tfr[0], tfr[1]);\n  fill(hb, sb * 0.8, top); quad(tfl[0], tfl[1], tfr[0], tfr[1], tbr[0], tbr[1], tbl[0], tbl[1]);\n  if (ea > 0) {\n    stroke(hb, 30, 100, ea); strokeWeight(1);\n    line(tfl[0], tfl[1], tfr[0], tfr[1]); line(tfr[0], tfr[1], tbr[0], tbr[1]);\n    line(tbr[0], tbr[1], tbl[0], tbl[1]); line(tbl[0], tbl[1], tfl[0], tfl[1]);\n    noStroke();\n  }\n  return [fx, fy, fdir];\n};\n\nfor (let q = 0; q < order.length; q++) {\n  const v = order[q].v, sd = order[q].sd;\n  const base = proj(sd, v.lane, 0);\n  const front = drawBox(base[0], base[1], v.len, v.wid, v.hgt, v.dir, v.hue);\n  if (st.addLight && st.mode !== 'wire' && front) {\n    const fx = front[0], fy = front[1], fdir = front[2];\n    push();\n    blendMode(ADD);\n    noStroke();\n    const hi = (st.mode === 'neon' ? 0.9 : 0.6) * P.headlight * nightF;\n    const gx = fx + uax * fdir * u * 0.02, gy = fy + uay * fdir * u * 0.02;\n    fill(48, 30, 100, 34 * hi);\n    ellipse(gx, gy, u * 0.05 * P.scale, u * 0.035 * P.scale);\n    fill(52, 20, 100, 60 * hi);\n    ellipse(gx, gy, u * 0.02 * P.scale, u * 0.016 * P.scale);\n    const rx = fx - uax * fdir * v.len * vsX * 6, ry = fy - uay * fdir * v.len * vsX * 6;\n    fill(hw(2 + ho), 85, 100, 26 * hi);\n    ellipse(rx, ry, u * 0.02 * P.scale, u * 0.016 * P.scale);\n    blendMode(BLEND);\n    pop();\n  }\n}\n\nif (st.mode === 'neon') {\n  push();\n  blendMode(ADD);\n  noStroke();\n  const sw = (K.t * 0.07) % 1;\n  const sp = proj(sw, 0, 0);\n  fill(hw(300 + ho), 60, 100, 8);\n  ellipse(sp[0], sp[1], u * 0.5, u * 0.16);\n  blendMode(BLEND);\n  pop();\n}\nblendMode(BLEND);\n"
+}

@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.fireworks",
+  "kind": "fx",
+  "name": "Fireworks",
+  "desc": "Staggered rockets climb and burst continuously into gravity-fed sparks over a constant drift of glowing embers, rendered as luminous phosphor trails, pale sumi-ink splatter, a cyan schematic blueprint of arcs, thermal false-color, or chunky pixel sparks.",
+  "tags": [
+    "fireworks",
+    "firework",
+    "rockets",
+    "sparks",
+    "burst",
+    "explosion",
+    "pyrotechnics",
+    "celebration",
+    "festival",
+    "new-year",
+    "fourth-of-july",
+    "embers",
+    "phosphor",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "pixel",
+    "ink",
+    "overlay",
+    "particles",
+    "fx",
+    "night",
+    "sky",
+    "finale",
+    "spectacle"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "launch rate + ember count"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "burst size + spark velocity"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "spark size vs design"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall motion rate"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "base firework hue"
+    },
+    "gravity": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spark fall acceleration"
+    },
+    "decay": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spark fade rate"
+    },
+    "style": {
+      "default": "phosphor",
+      "options": [
+        "phosphor",
+        "ink",
+        "blueprint",
+        "thermal",
+        "pixel"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "finale",
+      "options": [
+        "finale",
+        "volley",
+        "ember"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "finale",
+    "volley",
+    "ember"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-11T18:56:49+00:00",
+    "fps": 59.9,
+    "motion": 0.0056,
+    "lum": 0.088
+  },
+  "code": "const D = { density: .5, energy: .65, scale: 1, speed: 1, hue: 30, gravity: .5, decay: .5, style: 'phosphor', act: 'finale', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst eo = p => 1 - (1 - p) * (1 - p);\nconst u = Math.min(width, height);\nconst t = K.t;\nconst sty = P.style;\nconst add = (sty === 'phosphor' || sty === 'thermal' || sty === 'pixel');\n\n// section-arcI program (multi-minute dramaturgy)\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = { finale:{load:1.15,size:1.15}, volley:{load:.85,size:1.0}, ember:{load:.6,size:.8} };\nconst ac = ACT[P.act] || ACT.finale;\nconst arcI = 0.7 + 0.5 * K.intensity * ac.load;\n\nconst nSh = Math.max(4, Math.round((6 + P.density * 10) * ac.load));\nconst scl = P.scale;\nconst gravK = 0.12 + P.gravity * 1.1;\nconst fadePow = 0.5 + P.decay * 1.9;\nconst cnt = Math.floor((16 + P.energy * 20) * (sty === 'blueprint' ? 0.55 : 1));\n\npush();\nnoStroke();\nif (add) blendMode(ADD);\n\n// ---- persistent drifting ember + smoke haze (continuous, K.t-driven, never re-phases) ----\nconst nem = Math.floor((22 + P.density * 46));\nfor (let i = 0; i < nem; i++) {\n  const spd = 0.03 + 0.07 * fr(i + 401);\n  const life = ((fr(i * 2 + 200) + t * spd * P.speed) % 1 + 1) % 1;\n  const ex = (((fr(i * 3 + 202) + Math.sin(t * 0.15 + i) * 0.03) % 1) + 1) % 1 * width;\n  const ey = (0.2 + life * 0.8) * height;\n  const flick = 0.55 + 0.45 * Math.sin(t * 5 + i * 1.7);\n  const eh = hw(P.hue + (fr(i + 203) - 0.5) * 70);\n  const ea = (0.35 + 0.65 * (1 - life)) * (16 + 18 * flick) * (0.5 + 0.5 * P.energy);\n  const esz = u * 0.009 * (0.7 + flick) * scl;\n  if (sty === 'ink') fill(hw(P.hue + 20), 8, 88, ea * 0.7);\n  else if (sty === 'thermal') fill(hw(18 + (1 - life) * 44), 88, 100, ea);\n  else if (sty === 'blueprint') { stroke(hw(P.hue + 185), 30, 100, ea * 0.8); strokeWeight(1); point(ex, ey); noStroke(); continue; }\n  else fill(eh, 55, 100, ea);\n  ellipse(ex, ey, esz, esz);\n}\n\n// ---- deterministic staggered shells: always several rising / mid-burst ----\nfor (let s = 0; s < nSh; s++) {\n  const o1 = fr(s * 4 + 11), o2 = fr(s * 4 + 12), o3 = fr(s * 4 + 13), o4 = fr(s * 4 + 14), o5 = fr(s * 7 + 15);\n  const freq = (0.14 + o1 * 0.20) * P.speed;\n  const ph = t * freq + o2;\n  const p = ph - Math.floor(ph);\n  const lx = width * (0.09 + o3 * 0.82);\n  const ty = height * (0.13 + o4 * 0.40);\n  const shue = hw(P.hue + (o5 - 0.5) * 130);\n  const pr = 0.24;\n\n  if (p < pr) {\n    // ---- rising rocket ----\n    const rp = p / pr;\n    const ry = height * 1.05 + (ty - height * 1.05) * eo(rp);\n    const ra = (28 + A.treble * 20) * (0.5 + 0.5 * rp);\n    const rsz = u * 0.007 * scl;\n    if (sty === 'blueprint') {\n      stroke(hw(P.hue + 185), 22, 100, 40); strokeWeight(1); noFill();\n      line(lx, ry, lx, Math.min(height * 1.05, ry + u * 0.06)); noStroke();\n    } else if (sty === 'ink') {\n      fill(hw(P.hue + 20), 6, 90, ra * 0.8); ellipse(lx, ry, rsz * 1.6, rsz * 3);\n    } else {\n      fill(shue, 45, 100, ra); ellipse(lx, ry, rsz, rsz * 2.4);\n      fill(hw(shue + 20), 25, 100, ra * 0.5); ellipse(lx, ry + rsz * 2, rsz * 0.8, rsz * 4);\n    }\n  } else {\n    // ---- explosion ----\n    const tb = (p - pr) / (1 - pr);\n    const maxR = u * (0.09 + P.energy * 0.15) * scl * (0.7 + o1 * 0.6) * ac.size * arcI;\n    const expand = 1 - Math.pow(1 - tb, 2.2);\n    const droop = gravK * maxR * tb * tb;\n    const aBurst = Math.pow(1 - tb, fadePow);\n    const kick = K.pulse * 0.25 + A.bass * 0.4;\n    // central flash (partial, early only)\n    if (tb < 0.22) {\n      const fa = (1 - tb / 0.22) * (30 + kick * 30);\n      if (sty !== 'blueprint' && sty !== 'ink') { fill(hw(shue + 25), 18, 100, fa); ellipse(lx, ty, maxR * 0.5, maxR * 0.5); }\n    }\n    for (let k = 0; k < cnt; k++) {\n      const an = (k / cnt) * TAU + o2 * TAU;\n      const sk = 0.5 + fr(s * 40 + k) * 0.7;\n      const rr = maxR * expand * sk;\n      const px = lx + Math.cos(an) * rr;\n      const py = ty + Math.sin(an) * rr + droop;\n      const tw = 0.6 + 0.4 * Math.sin(t * 9 + k * 1.3 + s);\n      const al = aBurst * (30 + A.treble * 18) * tw * (0.7 + 0.5 * kick);\n      const sz = u * 0.007 * scl * (0.55 + aBurst * 0.9);\n      if (sty === 'blueprint') {\n        stroke(hw(P.hue + 185 + (1 - aBurst) * 40), 26, 100, al * 1.5); strokeWeight(1.2); noFill();\n        line(lx, ty, px, py);\n        ellipse(px, py, sz * 1.6, sz * 1.6); noStroke();\n      } else if (sty === 'ink') {\n        const spread = 1 + (1 - aBurst) * 1.5;\n        fill(hw(P.hue + 20), 7, 92, al * 1.1); ellipse(px, py, sz * spread, sz * spread);\n      } else if (sty === 'thermal') {\n        fill(hw(60 - aBurst * 60), 92, 100, al); ellipse(px, py, sz, sz);\n      } else if (sty === 'pixel') {\n        const g = u * 0.013 * scl;\n        const gx = Math.round(px / g) * g, gy = Math.round(py / g) * g;\n        fill(shue, 70, 100, al); rect(gx - g * 0.4, gy - g * 0.4, g * 0.8, g * 0.8);\n      } else {\n        fill(shue, 42, 100, al * 0.55); ellipse(px, py, sz * 2.3, sz * 2.3);\n        fill(hw(shue + 18), 16, 100, al); ellipse(px, py, sz, sz);\n      }\n    }\n    // burst smoke puff (fades late)\n    if (sty === 'ink' || sty === 'thermal') {\n      fill(sty === 'ink' ? hw(P.hue) : hw(shue + 20), sty === 'ink' ? 6 : 20, sty === 'ink' ? 70 : 45, aBurst * 10);\n      ellipse(lx, ty - u * 0.02 * tb, maxR * (0.8 + tb), maxR * (0.8 + tb));\n    }\n  }\n}\n\nif (add) blendMode(BLEND);\npop();\ndrawingContext.shadowBlur = 0;\n"
+}
