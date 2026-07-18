@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.snowfall",
+  "kind": "fx",
+  "name": "Snowfall",
+  "desc": "Depth-layered falling flakes \u2014 near ones big and fast, far ones small and slow \u2014 drifting on the wind. Snow, drifting ash, pink petals, glowing embers or twinkling star-fall.",
+  "tags": [
+    "snow",
+    "snowfall",
+    "winter",
+    "flakes",
+    "falling",
+    "overlay",
+    "depth",
+    "layers",
+    "ash",
+    "petals",
+    "embers",
+    "stars",
+    "atmosphere",
+    "cold",
+    "drift",
+    "weather",
+    "parallax",
+    "3d"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fall speed"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flake count"
+    },
+    "size": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flake size"
+    },
+    "wind": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal wind"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "tint hue"
+    },
+    "sway": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flutter amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "flake scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "snow",
+      "options": [
+        "snow",
+        "ash",
+        "petals",
+        "embers",
+        "stars"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 90,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity over scene"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:33:17+00:00",
+    "fps": 60.2,
+    "motion": 0.0145,
+    "lum": 0.091
+  },
+  "code": "const D = { energy:.5, density:.6, size:.5, wind:.4, hue:200, sway:.5, x:.5, y:.5, scale:1, speed:1, style:'snow', seed:0, alpha:90 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst N=Math.floor(40+P.density*220);\nconst wind=Math.sin(t*0.3)*P.wind + P.wind*0.4;\nfunction flakeColor(dp){ if(sty==='ash') return color(0,0, 30+dp*30, (30+dp*45)*P.alpha/100); if(sty==='petals') return color((P.hue)%360,50,100,(40+dp*45)*P.alpha/100); if(sty==='embers') return color(20+dp*20,90,100,(45+dp*45)*P.alpha/100); if(sty==='stars') return color(P.hue,20,100,(30+dp*55)*P.alpha/100); return color(P.hue,8,100,(35+dp*50)*P.alpha/100); }\ndc.save();\nif(sty==='embers'||sty==='stars') blendMode(ADD);\nfor(let i=0;i<N;i++){\n  const dp=fr(i);                 // depth 0 far .. 1 near\n  const fall=(0.05+dp*0.22)*(0.5+en)*P.speed;\n  const yy=((fr(i+7)+t*fall)%1)*(H+40)-20;\n  const drift=Math.sin(t*(0.5+dp)+i)*20*dp*P.sway + wind*dp*120;\n  const xx=((fr(i)+ (sty==='embers'? -t*0.02: 0))%1)*W + drift;\n  const sz=(1.2+dp*dp*7*(0.5+P.size))*P.scale;\n  dc.fillStyle=flakeColor(dp).toString();\n  if(sty==='petals'){ push(); translate(xx%W,yy); rotate(t*(1+dp)+i); dc.beginPath(); dc.ellipse(0,0,sz*1.4,sz*0.7,0,0,TAU); dc.fill(); pop(); }\n  else if(sty==='stars'){ push(); translate(xx%W,yy); const tw=0.5+0.5*Math.sin(t*3+i); dc.globalAlpha=(0.3+tw*0.6)*P.alpha/100; dc.beginPath(); dc.arc(0,0,sz*(0.6+tw*0.5),0,TAU); dc.fill(); dc.globalAlpha=1; pop(); }\n  else { dc.beginPath(); dc.arc(xx%W, yy, sz, 0, TAU); dc.fill(); }\n}\ndc.restore(); blendMode(BLEND);\n"
+}
