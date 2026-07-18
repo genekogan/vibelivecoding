@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.coulomb_lattice",
+  "kind": "genart",
+  "name": "Coulomb Charges",
+  "desc": "A cloud of positive and negative charged particles obeying softened Coulomb law — like repels, opposite attracts — self-organizes into pulsing ionic lattices, dipole chains and plasma clumps that never stop rearranging, warm-gold and cool-cyan glows breathing on a deep indigo field.",
+  "tags": [
+    "coulomb",
+    "charges",
+    "electrostatic",
+    "ions",
+    "ionic",
+    "particle-life",
+    "particles",
+    "nbody",
+    "plasma",
+    "lattice",
+    "dipole",
+    "crystal",
+    "physics",
+    "simulation",
+    "glow",
+    "additive",
+    "warm-cool",
+    "duotone",
+    "gold",
+    "cyan",
+    "blue",
+    "red",
+    "emergent",
+    "self-organizing",
+    "field",
+    "fullbleed",
+    "background",
+    "bg",
+    "generative",
+    "genart",
+    "abstract",
+    "sparks",
+    "energy"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "glow brightness + Coulomb/repulsion force gain (first — obvious at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "charge count 60..220 (second — obvious crowd at max)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 2.5,
+      "doc": "sim rate / max charge velocity"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "charge glow size + lattice spacing"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue of + charges (- charges take the complement)"
+    },
+    "confine": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "central gather vs spread-to-the-walls"
+    },
+    "damp": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "viscosity/damping (high = calmer, more crystalline)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "cloud center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "cloud center y"
+    },
+    "style": {
+      "default": "ionic",
+      "options": [
+        "ionic",
+        "plasma",
+        "firefly",
+        "lattice",
+        "mono"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic charge layout + sign pattern"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, density: .5, speed: 1, scale: 1, hue: 20, confine: .5, damp: .5, x: .5, y: .5, style: 'ionic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nfunction hsb2rgb(h, s, b) { h = ((h % 360) + 360) % 360; s /= 100; b /= 100; const c = b * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = b - c; let r = 0, g = 0, bl = 0; if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; bl = x; } else if (h < 240) { g = x; bl = c; } else if (h < 300) { r = x; bl = c; } else { r = c; bl = x; } return [(r + m) * 255, (g + m) * 255, (bl + m) * 255]; }\n\n// coarse trail buffer (capped, upscaled) + soft glow sprite ----------------------\nconst cap = 820, sc = Math.min(1, cap / Math.max(width, height));\nconst BW = Math.max(2, Math.round(width * sc)), BH = Math.max(2, Math.round(height * sc));\nif (!S.buf || S.bw !== BW || S.bh !== BH) {\n  S.buf = createGraphics(BW, BH); S.buf.pixelDensity(1); S.buf.background(12, 14, 28); S.bw = BW; S.bh = BH;\n}\nif (!S.sprite) {\n  const SS = 64; S.sprite = createGraphics(SS, SS); S.sprite.pixelDensity(1);\n  const ctx = S.sprite.drawingContext, gr = ctx.createRadialGradient(SS/2, SS/2, 0, SS/2, SS/2, SS/2);\n  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.22, 'rgba(255,255,255,0.6)');\n  gr.addColorStop(0.55, 'rgba(255,255,255,0.16)'); gr.addColorStop(1, 'rgba(255,255,255,0)');\n  ctx.fillStyle = gr; ctx.fillRect(0, 0, SS, SS);\n}\nconst buf = S.buf, u = Math.min(BW, BH), key = BW + 'x' + BH;\nconst cx = P.x * BW, cy = P.y * BH;\nconst N = Math.max(24, Math.floor(60 + P.density * 160));   // 60..220\n\n// population — seed + size + count keyed (seed spread across the frame) --------\nif (S.seedUsed !== P.seed || S.key !== key || !S.ps || S.ps.length !== N) {\n  S.seedUsed = P.seed; S.key = key;\n  S.o1 = fr(91) * 40; S.o2 = fr(92) * 40;\n  S.ps = [];\n  for (let i = 0; i < N; i++) {\n    const q = (fr(i * 5 + 3 + K.section * 17) < 0.5 ? 1 : -1) * (0.7 + fr(i + 50) * 0.6);\n    S.ps.push({ x: (0.1 + fr(i * 2 + 1) * 0.8) * BW, y: (0.1 + fr(i * 2 + 2) * 0.8) * BH, vx: 0, vy: 0, ax: 0, ay: 0, q: q, ph: fr(i + 7) * 6.2832, sp: 0 });\n  }\n  S.lastSec = K.section;\n}\nconst ps = S.ps;\n\n// derived (read P every frame) -------------------------------------------------\nconst intn = (K.intensity != null ? K.intensity : 0.6), swell = (K.swell || 0), pulse = (K.pulse || 0);\nconst G = u * u * 0.00055 * (0.3 + P.energy * 0.9) * (0.75 + intn * 0.4) * (1 + A.bass * 0.6);   // Coulomb gain\nconst rmin = u * 0.05 * P.scale, rmin2 = rmin * rmin, REP = u * 0.05 * (0.4 + P.energy * 0.9);   // universal spacing (anti-collapse)\nconst soft = (u * 0.045) * (u * 0.045);\nconst vmax = u * (0.0045 + P.speed * 0.011) * (0.7 + intn * 0.5);\nconst friction = 0.985 - P.damp * 0.13;\nconst confK = P.confine * 0.0013 * (1 + swell * 0.5);     // gentle central bias; walls are the real container\nconst wamt = vmax * 0.11;\nconst swirl = (0.00028 + 0.00035 * Math.sin(K.t * 0.05)) * (0.5 + P.energy * 0.5);\nconst wallK = 0.03, margin = u * 0.045;\nconst st = P.style;\nconst baseR = u * (0.016 + P.energy * 0.03) * P.scale, coreA = 70;\nconst hp = P.hue, hn = (P.hue + 180) % 360;\n\n// section perturbation — reshuffle charges + electrostatic discharge impulse ----\nif (S.lastSec == null || K.section < S.lastSec) S.lastSec = K.section;\nif (K.section !== S.lastSec) {\n  S.lastSec = K.section;\n  for (let i = 0; i < N; i++) {\n    const p = ps[i];\n    p.q = (fr(i * 5 + 3 + K.section * 17) < 0.5 ? 1 : -1) * (0.7 + fr(i + 50) * 0.6);\n    const a = fr(i * 3 + K.section * 11) * 6.2832, k = vmax * (0.7 + intn);\n    p.vx += Math.cos(a) * k; p.vy += Math.sin(a) * k;\n  }\n}\n\n// ── fade trail field ──\nbuf.blendMode(BLEND); buf.noStroke();\nconst gA = st === 'lattice' ? 60 : st === 'firefly' ? 38 : 46;\nbuf.fill(12, 14, 28, gA); buf.rect(0, 0, BW, BH);\nbuf.blendMode(ADD);\n\n// ── forces: softened pairwise Coulomb (O(N^2)/2, N<=220) + optional bonds ──\nfor (let i = 0; i < N; i++) { ps[i].ax = 0; ps[i].ay = 0; }\nconst bond = st === 'lattice', bondR = u * 0.13 * P.scale, bondR2 = bondR * bondR;\nif (bond) { if (!S.bc || S.bc.length !== N) S.bc = new Int16Array(N); S.bc.fill(0); buf.strokeWeight(1); }\nconst bc = S.bc, brgb = hsb2rgb((P.hue + 185) % 360, 45, 88);\nfor (let i = 0; i < N; i++) {\n  const pi = ps[i];\n  for (let j = i + 1; j < N; j++) {\n    const pj = ps[j];\n    let dx = pj.x - pi.x, dy = pj.y - pi.y;\n    const d2 = dx * dx + dy * dy, dist = Math.sqrt(d2) + 1e-6, ux = dx / dist, uy = dy / dist;\n    // universal short-range repulsion (all pairs) — enforces spacing, prevents neutral collapse\n    if (d2 < rmin2) { const rep = REP * (1 - dist / rmin); pj.ax += rep * ux; pj.ay += rep * uy; pi.ax -= rep * ux; pi.ay -= rep * uy; }\n    // softened pairwise Coulomb — like repels, opposite attracts\n    const r2 = d2 + soft, f = G * pi.q * pj.q / r2, fx = f * ux, fy = f * uy;\n    pj.ax += fx; pj.ay += fy; pi.ax -= fx; pi.ay -= fy;\n    if (bond && d2 < bondR2 && pi.q * pj.q < 0 && bc[i] < 2 && bc[j] < 2) {\n      const prox = 1 - dist / bondR;\n      buf.stroke(brgb[0], brgb[1], brgb[2], 14 + 90 * prox * prox);\n      buf.line(pi.x, pi.y, pj.x, pj.y); bc[i]++; bc[j]++;\n    }\n  }\n}\n\n// ── integrate: confinement + swirl + wander floor + soft walls + damping ──\nfor (let i = 0; i < N; i++) {\n  const p = ps[i];\n  let ax = p.ax, ay = p.ay;\n  ax += (cx - p.x) * confK; ay += (cy - p.y) * confK;\n  const dxc = p.x - cx, dyc = p.y - cy; ax += -dyc * swirl; ay += dxc * swirl;\n  const wn = noise(p.x * 0.005 + S.o1, p.y * 0.005 + S.o2, K.t * 0.05 + S.seedUsed * 0.01) * 12.566;\n  ax += Math.cos(wn) * wamt; ay += Math.sin(wn) * wamt;\n  if (p.x < margin) ax += (margin - p.x) * wallK; else if (p.x > BW - margin) ax += (BW - margin - p.x) * wallK;\n  if (p.y < margin) ay += (margin - p.y) * wallK; else if (p.y > BH - margin) ay += (BH - margin - p.y) * wallK;\n  p.vx = (p.vx + ax) * friction; p.vy = (p.vy + ay) * friction;\n  let sp = Math.hypot(p.vx, p.vy); if (sp > vmax) { const s = vmax / sp; p.vx *= s; p.vy *= s; sp = vmax; }\n  if (!isFinite(p.x) || !isFinite(p.vx)) { p.x = cx; p.y = cy; p.vx = 0; p.vy = 0; }\n  p.x += p.vx; p.y += p.vy;\n  if (p.x < 0) p.x = 0; else if (p.x > BW) p.x = BW;\n  if (p.y < 0) p.y = 0; else if (p.y > BH) p.y = BH;\n  p.sp = sp;\n}\n\n// ── draw glowing charge dots (ADD sprite stamps) ──\nbuf.noStroke();\nfor (let i = 0; i < N; i++) {\n  const p = ps[i], sn = Math.min(1, p.sp / vmax), pos = p.q > 0;\n  let h, s, b, sizeMul = 1, aMul = 1;\n  if (st === 'plasma') { h = pos ? (P.hue + 265) % 360 : (P.hue + 172) % 360; s = 88; b = 60 + sn * 38; sizeMul = 1.3; }\n  else if (st === 'firefly') { h = (P.hue + 20) % 360; s = pos ? 92 : 78; const tw = 0.5 + 0.5 * Math.sin(K.t * 2.4 + p.ph); b = 42 + sn * 30 + 32 * tw; sizeMul = 0.68; }\n  else if (st === 'lattice') { h = pos ? hp : hn; s = 55; b = 44 + sn * 30; sizeMul = 0.72; aMul = 0.65; }\n  else if (st === 'mono') { h = 0; s = 0; b = 58 + sn * 42; sizeMul = 0.95; }\n  else { h = pos ? hp : hn; s = pos ? 86 : 82; b = 60 + sn * 40; sizeMul = 1; }\n  const rgb = hsb2rgb(h, s, Math.min(100, b));\n  const R = baseR * sizeMul * (0.72 + Math.abs(p.q) * 0.4);\n  const al = Math.min(255, coreA * aMul * (0.8 + pulse * 0.3 + A.rms * 0.6 + A.treble * 0.4));\n  buf.tint(rgb[0], rgb[1], rgb[2], al);\n  buf.image(S.sprite, p.x - R, p.y - R, R * 2, R * 2);\n}\nbuf.noTint(); buf.blendMode(BLEND);\n\n// ── composite to full canvas (tint for VJ alpha) ──\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha); else noTint();\nimage(buf, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

@@ -1,5 +1,16 @@
 """Twitch streaming + chat integration for Livecode.
 
+╔══════════════════════════════════════════════════════════════════════════╗
+║  DEFUNCT (as of 2026-07-02) — automated headless-browser streaming.       ║
+║  Not maintained. For streaming today use manual OBS:                      ║
+║      docs/livestreaming-obs.md   (X / Twitch, with sound)                 ║
+║  Archival notes + revival guide:                                          ║
+║      docs/archive/headless-browser-streaming.md                          ║
+║  Kept only for a possible future unattended/scriptable streaming path.    ║
+║  Note: this still targets the LEGACY strudel-only page (no p5 visuals)    ║
+║  and needs BlackHole 2ch on macOS. Modernize before reviving.             ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
 Launches a headed browser via Playwright into a virtual display (Xvfb on Linux,
 native window on macOS). FFmpeg captures video/audio natively via x11grab+pulse
 (Linux) or avfoundation (macOS) — no Python in the real-time capture path.

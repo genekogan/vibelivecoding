@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.split_prism",
+  "kind": "post",
+  "name": "Split Prism",
+  "desc": "Splits the scene into rotating screen-blended copies like looking through a prism filter \u2014 orbiting offsets, colour fringes and a breathing sparkle at the split point. Triad, twin, five-way or warm.",
+  "tags": [
+    "prism",
+    "split",
+    "copies",
+    "offset",
+    "rotate",
+    "fringe",
+    "kaleido",
+    "double-vision",
+    "pass",
+    "dreamy",
+    "refraction",
+    "trippy"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "orbit speed"
+    },
+    "splitN": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "split radius"
+    },
+    "spinP": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "spin"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "fringe hue"
+    },
+    "fringe": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "colour fringe"
+    },
+    "glowP": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "center sparkle"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "triad",
+      "options": [
+        "triad",
+        "twin",
+        "five",
+        "warm"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 80,
+      "min": 0,
+      "max": 100,
+      "doc": "strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:38:04+00:00",
+    "fps": 59.9,
+    "motion": 0.0068,
+    "lum": 0.175
+  },
+  "code": "const D = { energy:.4, splitN:.5, spinP:.4, hue:200, fringe:.5, glowP:.4, x:.5, y:.5, scale:1, speed:1, density:.5, style:'triad', seed:0, alpha:80 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\nconst n = sty==='five'?5 : sty==='twin'?2 : 3;\nconst baseA=t*(0.06+en*0.1)*P.speed*(0.4+P.spinP);\nconst rad=(6+P.splitN*26);\ndc.save();\ndc.globalCompositeOperation='screen';\nfor(let i=0;i<n;i++){\n  const a=baseA + i*TAU/n;\n  const ox=Math.cos(a)*rad, oy=Math.sin(a)*rad;\n  dc.globalAlpha=(0.5)*P.alpha/100;\n  dc.drawImage(S.buf.drawingContext.canvas, ox, oy, W, H);\n}\ndc.globalAlpha=1;\n// hue fringes on two of the copies\nif(P.fringe>0.03){ dc.globalCompositeOperation='color';\n for(let i=0;i<2;i++){ const a=baseA+i*Math.PI; const fx2=W/2+Math.cos(a)*W*0.3, fy2=H/2+Math.sin(a)*H*0.3;\n  const fh = sty==='warm'? (20+i*30) : (P.hue+i*140)%360;\n  const rg=dc.createRadialGradient(fx2,fy2,10,fx2,fy2,W*0.5);\n  rg.addColorStop(0,color(fh,70,60,(20)*P.fringe*P.alpha/100).toString());\n  rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\n dc.globalCompositeOperation='source-over'; }\n// prism sparkle at the split center (breathing)\nif(P.glowP>0.03){ dc.globalCompositeOperation='screen';\n const gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.91+1);\n const gx2=W*(P.x+Math.sin(t*0.31)*0.22), gy2=H*(P.y+Math.sin(t*0.53+1)*0.18);\n const rg=dc.createRadialGradient(gx2,gy2,4,gx2,gy2,W*0.3);\n rg.addColorStop(0,color((P.hue+t*10)%360,40,95,(14+18*gb)*P.glowP*P.alpha/100).toString());\n rg.addColorStop(1,'rgba(0,0,0,0)');\n dc.fillStyle=rg; dc.fillRect(0,0,W,H);\n dc.globalCompositeOperation='source-over'; }\ndc.restore(); blendMode(BLEND);\n"
+}

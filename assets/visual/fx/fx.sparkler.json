@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.sparkler",
+  "kind": "fx",
+  "name": "Sparkler",
+  "desc": "A hand-held sparkler writing slowly through the air \u2014 crackling spark arms radiating from a wandering white-hot tip, an afterglow trail, spent sparks falling. Gold, cool blue, pink, green or rainbow.",
+  "tags": [
+    "sparkler",
+    "sparks",
+    "firework",
+    "celebration",
+    "new-year",
+    "diwali",
+    "crackle",
+    "light-painting",
+    "glow",
+    "festive",
+    "july4",
+    "hand-held",
+    "trail"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "crackle"
+    },
+    "sparks": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "spark length/count"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved"
+    },
+    "armN": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "arm count"
+    },
+    "trail": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "afterglow trail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "gold",
+      "options": [
+        "gold",
+        "cool",
+        "pink",
+        "green",
+        "rainbow"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 90,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:30:01+00:00",
+    "fps": 67.1,
+    "motion": 0.0136,
+    "lum": 0.104
+  },
+  "code": "const D = { energy:.55, sparks:.7, hue:45, armN:.6, trail:.5, x:.5, y:.5, scale:1, speed:1, density:.5, style:'gold', seed:0, alpha:90 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\n// the sparkler tip wanders slowly (writing in the air)\nconst tx=W*(P.x+0.22*Math.sin(t*0.37)+0.08*Math.sin(t*0.91));\nconst ty=H*(P.y+0.18*Math.sin(t*0.53+1)+0.06*Math.sin(t*1.13));\nfunction spHue(i){ if(sty==='rainbow') return (i*40+t*30)%360; if(sty==='cool') return 190+fr(i)*40; if(sty==='pink') return 325+fr(i)*15; if(sty==='green') return 130+fr(i)*20; return 42+fr(i)*12; }\ndc.save(); blendMode(ADD);\n// ambient glow ball around the tip, breathing + moving with it (motion carrier)\n{ const gb=0.5+0.5*Math.sin(t*0.47)+0.3*Math.sin(t*1.03+1);\n  const rg=dc.createRadialGradient(tx,ty,4,tx,ty,W*0.24*(0.7+gb*0.4));\n  rg.addColorStop(0,color(spHue(0),45,95,(14+14*gb)*P.alpha/100).toString());\n  rg.addColorStop(1,color(spHue(0),45,70,0).toString());\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\n// afterglow trail of the tip (fading path \u2014 carrier)\nif(P.trail>0.05){ noFill();\n for(let k=0;k<10;k++){ const tb=t-k*0.06;\n  const px=W*(P.x+0.22*Math.sin(tb*0.37)+0.08*Math.sin(tb*0.91));\n  const py=H*(P.y+0.18*Math.sin(tb*0.53+1)+0.06*Math.sin(tb*1.13));\n  fill(color(spHue(0),50,100,(18-k*1.7)*P.trail*P.alpha/100)); noStroke(); circle(px,py,10-k*0.7); } }\n// core glow\ndc.shadowBlur=24; dc.shadowColor=color(spHue(0),60,100).toString();\nnoStroke(); fill(color(spHue(0),25,100,80*P.alpha/100)); circle(tx,ty,9);\ndc.shadowBlur=0;\n// radiating spark arms with branchlets\nconst NA=Math.floor(8+P.armN*20);\nfor(let i=0;i<NA;i++){\n  const a=fr(i)*TAU + t*(0.4+fr(i+5)*0.5)*(fr(i+3)>0.5?1:-1);\n  const len=(24+fr(i+7)*70)*(0.6+P.sparks*0.7)*(0.8+0.2*Math.sin(t*(3+fr(i)*4)+i*2));\n  const h=spHue(i);\n  stroke(color(h,55,100,(40+30*Math.sin(t*(4+fr(i)*3)+i))*P.alpha/100)); strokeWeight(1.4);\n  const ex=tx+Math.cos(a)*len, ey=ty+Math.sin(a)*len;\n  line(tx,ty,ex,ey);\n  // branch tip cluster\n  noStroke(); fill(color(h,40,100,(55+35*Math.sin(t*5+i))*P.alpha/100));\n  circle(ex,ey,2.2);\n  if(fr(i+11)>0.6){ for(let b=0;b<3;b++){ const ba=a+(b-1)*0.4; circle(ex+Math.cos(ba)*7, ey+Math.sin(ba)*7, 1.4); } }\n}\nnoStroke();\n// falling spent sparks\nfor(let i=0;i<P.sparks*16;i++){ const life=(t*(0.5+en*0.3)+fr(i))%1; const sx=tx+(fr(i+3)-0.5)*70*life*2; const sy=ty+life*life*160;\n fill(color(spHue(i),50,100,(1-life)*45*P.alpha/100)); circle(sx,sy,1.6*(1-life*0.5)); }\ndc.restore(); blendMode(BLEND);\n"
+}

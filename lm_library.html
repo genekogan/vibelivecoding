@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#120c08;}canvas{display:block;}</style>
+<script type="importmap">
+{ "imports": { "three": "/lm/lib/three.module.js", "three/addons/": "/lm/lib/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1109);
+scene.fog = new THREE.FogExp2(0x1a1109, 0.03);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 200);
+camera.position.set(0, 2.4, 9);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.02).texture;
+
+// ---- warm library lighting ----
+scene.add(new THREE.AmbientLight(0xffe6c0, 0.5));
+const lamp = new THREE.PointLight(0xffb060, 40, 30, 2); lamp.position.set(0,4,3); scene.add(lamp);
+const lamp2 = new THREE.PointLight(0xffd090, 20, 26, 2); lamp2.position.set(-5,3,-2); scene.add(lamp2);
+const lamp3 = new THREE.PointLight(0xa0c0ff, 12, 26, 2); lamp3.position.set(5,3,-2); scene.add(lamp3);
+
+// ---- materials ----
+const wood = new THREE.MeshStandardMaterial({ color:0x4a2f1a, roughness:0.7, metalness:0.05 });
+const woodDark = new THREE.MeshStandardMaterial({ color:0x33200f, roughness:0.8 });
+const bookHues = [0x8b3a2f,0x2f5b8b,0x3a7d4a,0x8b6f2f,0x6b2f6b,0x2f7d7d,0x9c4a2a,0x3a3a6b];
+
+// ---- floor + rug ----
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40,40),
+  new THREE.MeshStandardMaterial({ color:0x2a1a10, roughness:0.85 }));
+floor.rotation.x = -Math.PI/2; floor.position.y = -0.01; scene.add(floor);
+const rug = new THREE.Mesh(new THREE.CircleGeometry(4.2, 48),
+  new THREE.MeshStandardMaterial({ color:0x5a2530, roughness:0.9 }));
+rug.rotation.x = -Math.PI/2; rug.position.y = 0.01; scene.add(rug);
+const rugRing = new THREE.Mesh(new THREE.RingGeometry(3.4,3.7,48),
+  new THREE.MeshStandardMaterial({ color:0xcaa24a, roughness:0.8, side:THREE.DoubleSide }));
+rugRing.rotation.x = -Math.PI/2; rugRing.position.y = 0.02; scene.add(rugRing);
+
+// ---- a bookshelf: frame + shelves packed with colored book spines ----
+function bookshelf(){
+  const g = new THREE.Group();
+  const W=5, H=6, D=0.9, T=0.14;
+  // outer frame
+  const sides = [[-W/2,0],[W/2,0]];
+  for(const [x] of sides){ const m=new THREE.Mesh(new THREE.BoxGeometry(T,H,D),woodDark); m.position.set(x,H/2,0); g.add(m); }
+  const topbot=[0,H]; for(const y of topbot){ const m=new THREE.Mesh(new THREE.BoxGeometry(W,T,D),woodDark); m.position.set(0,y,0); g.add(m); }
+  const back=new THREE.Mesh(new THREE.BoxGeometry(W,H,0.05),wood); back.position.set(0,H/2,-D/2); g.add(back);
+  const rows=6;
+  for(let r=0;r<rows;r++){
+    const y = (r+0.5)*(H/rows);
+    const shelf=new THREE.Mesh(new THREE.BoxGeometry(W-T,T*0.8,D),woodDark); shelf.position.set(0,r*(H/rows),0); g.add(shelf);
+    // pack books along this shelf
+    let x=-W/2+T;
+    while(x < W/2-T){
+      const bw = 0.14 + Math.random()*0.16;
+      const bh = (H/rows)*(0.62+Math.random()*0.28);
+      const lean = Math.random()<0.08 ? (Math.random()-0.5)*0.3 : 0;
+      const mat = new THREE.MeshStandardMaterial({ color:bookHues[(Math.random()*bookHues.length)|0], roughness:0.6 });
+      const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, D*0.72), mat);
+      b.position.set(x+bw/2, y - (H/rows)/2 + bh/2 + T*0.4, 0.02);
+      b.rotation.z = lean;
+      g.add(b);
+      x += bw + 0.015;
+    }
+  }
+  return g;
+}
+
+// back wall + side walls of shelves
+const backWall = bookshelf(); backWall.position.set(0,0,-6); scene.add(backWall);
+const b2 = bookshelf(); b2.position.set(-5.2,0,-6); scene.add(b2);
+const b3 = bookshelf(); b3.position.set(5.2,0,-6); scene.add(b3);
+const left = bookshelf(); left.rotation.y = Math.PI/2; left.position.set(-8,0,-2); scene.add(left);
+const right = bookshelf(); right.rotation.y = -Math.PI/2; right.position.set(8,0,-2); scene.add(right);
+
+// ---- reading table + pedestal for mycos ----
+const table = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.6,0.25,32), wood);
+table.position.set(0,1.0,0); scene.add(table);
+const column = new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.5,1.0,24), woodDark);
+column.position.set(0,0.5,0); scene.add(column);
+// a green banker's lamp glow + open book on the table
+const book = new THREE.Mesh(new THREE.BoxGeometry(1.1,0.08,0.8),
+  new THREE.MeshStandardMaterial({ color:0xf0e0c0, roughness:0.5 }));
+book.position.set(0.4,1.16,0.3); book.rotation.y=0.3; scene.add(book);
+const spot = new THREE.SpotLight(0xffe0a0, 30, 12, 0.6, 0.5, 1.5);
+spot.position.set(0,5,1.5); spot.target.position.set(0,1.6,0); scene.add(spot); scene.add(spot.target);
+
+// ---- MYCOS on the pedestal ----
+const draco = new DRACOLoader(); draco.setDecoderPath('/lm/lib/jsm/libs/draco/gltf/');
+const loader = new GLTFLoader(); loader.setDRACOLoader(draco);
+let mycos = null;
+loader.load('/lm/web/mycos--characters.glb', gltf=>{
+  const m = gltf.scene;
+  const box = new THREE.Box3().setFromObject(m);
+  const size = box.getSize(new THREE.Vector3());
+  const s = 2.6 / (Math.max(size.x,size.y,size.z)||1);
+  m.scale.setScalar(s);
+  box.setFromObject(m);
+  const c = box.getCenter(new THREE.Vector3());
+  const minY = box.min.y;
+  m.position.sub(c);                 // center
+  m.position.y += c.y - minY;        // sit its base on origin
+  const pivot = new THREE.Group();
+  pivot.add(m); pivot.position.set(0,1.15,0);
+  mycos = pivot; scene.add(pivot);
+}, undefined, e=>console.warn('mycos load fail', e));
+
+// ---- dust motes in the lamplight ----
+const DUST=300, dpos=new Float32Array(DUST*3);
+for(let i=0;i<DUST;i++){ dpos[i*3]= (Math.random()-0.5)*14; dpos[i*3+1]=Math.random()*6; dpos[i*3+2]=(Math.random()-0.5)*10; }
+const dg=new THREE.BufferGeometry(); dg.setAttribute('position',new THREE.BufferAttribute(dpos,3));
+const dust=new THREE.Points(dg,new THREE.PointsMaterial({color:0xffddaa,size:0.03,transparent:true,opacity:0.5}));
+scene.add(dust);
+
+// ---- audio bridge from parent (Strudel) ----
+let AUD={bass:0,mid:0,treble:0,rms:0};
+setInterval(()=>{ try{ const a=window.parent&&window.parent.state&&window.parent.state.audio; if(a)AUD=a; }catch(e){} }, 80);
+
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.elapsedTime, dt=Math.min(clock.getDelta(),0.05);
+  // mycos slow display rotation + gentle bob to the beat
+  if(mycos){ mycos.rotation.y += dt*0.4; mycos.position.y = 1.15 + Math.sin(t*1.5)*0.03 + AUD.bass*0.08; }
+  // lamps flicker warmly with the music
+  lamp.intensity = 40 + AUD.rms*40 + Math.sin(t*7)*3;
+  spot.intensity = 30 + AUD.mid*30;
+  lamp3.intensity = 12 + AUD.treble*20;
+  // drifting dust
+  const dp=dg.attributes.position.array;
+  for(let i=0;i<DUST;i++){ dp[i*3+1]-=dt*0.15; dp[i*3]+=Math.sin(t*0.3+i)*0.002; if(dp[i*3+1]<0)dp[i*3+1]=6; }
+  dg.attributes.position.needsUpdate=true;
+  // slow camera breathing around the pedestal
+  camera.position.x = Math.sin(t*0.15)*1.6;
+  camera.position.y = 2.4 + Math.sin(t*0.2)*0.2;
+  camera.lookAt(0,1.6,0);
+  renderer.render(scene,camera);
+}
+document.documentElement.dataset.appReady='true';
+animate();
+</script>
+</body>
+</html>

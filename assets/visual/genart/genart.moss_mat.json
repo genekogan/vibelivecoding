@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.moss_mat",
+  "kind": "genart",
+  "name": "Moss Mat",
+  "desc": "A macro study of moss and liverwort fighting for a slab of rock \u2014 compact acrocarpous cushions spread in every direction while thalloid liverwort runs in forking ribbons along its own axis, sporophyte setae rise from mature turf and nod their ripening capsules until they dehisce, and necrotic centres collapse back to bare stone for the spore rain to recolonise.",
+  "tags": [
+    "moss",
+    "mosses",
+    "liverwort",
+    "bryophyte",
+    "thallus",
+    "turf",
+    "mat",
+    "cushion",
+    "sporophyte",
+    "seta",
+    "capsule",
+    "spore",
+    "rock",
+    "granite",
+    "stone",
+    "colonisation",
+    "competition",
+    "succession",
+    "growth",
+    "botanical",
+    "botany",
+    "microscopy",
+    "macro",
+    "cyanotype",
+    "ink-wash",
+    "sumi",
+    "false-color",
+    "green",
+    "damp",
+    "moisture",
+    "verdant",
+    "organic",
+    "process",
+    "emergence",
+    "decay",
+    "necrosis",
+    "clinical",
+    "study",
+    "nature",
+    "forest-floor"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "seta/tuft sway amplitude + colonisation rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much of the turf is rendered as tufts + sporophytes, and how hard it rains spores"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "magnification \u2014 0.35 is a wide slab of fine turf, 2.4 zooms to a few huge cushions"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "growth + sway rate multiplier"
+    },
+    "hue": {
+      "default": 104,
+      "min": 0,
+      "max": 360,
+      "doc": "moss hue (liverwort always sits ~50 degrees off it)"
+    },
+    "moisture": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bias of the wet/dry cycle \u2014 dry turf is dull, brittle and slow, wet turf swells and saturates"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "inoculation focus across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "inoculation focus down the frame"
+    },
+    "style": {
+      "default": "microscopy",
+      "options": [
+        "microscopy",
+        "cyanotype",
+        "ink_wash",
+        "false_color"
+      ],
+      "doc": "aesthetic \u2014 wet bright-field on damp granite; Prussian-blue photogram; sumi tonal wash on paper; clinical ironbow false-colour keyed to biomass"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the inoculation, the rock mottle and every colonisation decision"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the tufts and sporophytes over the mat"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:34+00:00",
+    "fps": 65.8,
+    "motion": 0.0462,
+    "lum": 0.37
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:104, moisture:.6, x:.5, y:.5, style:'microscopy', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.35,2.4);\nconst AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43+1.7) + .32*Math.sin(T*2.29);\nconst breeze = (.3 + .9*EN)*gust + A.lowmid*.8 + K.pulse*.24*K.intensity;\n// wet/dry breathing \u2014 a whole-frame colour+swell cycle on incommensurate rates\nconst wet = cl(cl(P.moisture,0,1)*.62 + .38*(.5 + .5*Math.sin(T*.047) + .18*Math.sin(T*.113+2.1)), 0, 1);\n\n// ---- field ---------------------------------------------------------------\nconst GW = Math.round(cl(128/SC, 40, 190));\nconst GH = Math.max(8, Math.round(GW*height/Math.max(1,width)));\nconst N = GW*GH;\nconst fKey = [GW,GH,sd].join('|');\nif (!S.sp || S.fKey !== fKey) {\n  S.fKey = fKey;\n  S.sp = new Uint8Array(N);      // 0 rock \u00b7 1 moss cushion \u00b7 2 liverwort thallus \u00b7 3 necrotic\n  S.bio = new Float32Array(N);\n  S.ag = new Float32Array(N);\n  S.ax = new Uint8Array(N);      // liverwort growth axis (dichotomous forking)\n  S.mot = new Float32Array(N);   // per-cell granite/tuft mottle\n  for (let i=0;i<N;i++) S.mot[i] = fr(i*1.7)*.55 + fr(i*4.3)*.45;\n  S.rng = (sd*2654435761 + 12345) >>> 0;\n  S.cur = 0;\n  if (S.fb && S.fb.remove) S.fb.remove();\n  S.fb = createGraphics(GW, GH); S.fb.pixelDensity(1);\n  for (let k=0;k<26;k++){                                   // inoculate around the P.x/P.y focus\n    const i = Math.floor(cl(P.x + (fr(k*3.7)-.5)*.7, .02, .98)*GW)\n            + Math.floor(cl(P.y + (fr(k*5.1)-.5)*.7, .02, .98)*GH)*GW;\n    S.sp[i] = fr(k*2.3) < .55 ? 1 : 2; S.bio[i] = .3; S.ag[i] = 0; S.ax[i] = (fr(k*7.9)*4)|0;\n  }\n  S.warm = 0;\n}\nconst rnd = () => { S.rng = (Math.imul(S.rng, 1664525) + 1013904223) >>> 0; return S.rng / 4294967296; };\n\nconst MOSS_MAT = 16, LIV_MAT = 13, MOSS_OLD = 30, LIV_OLD = 26;\nconst sp = S.sp, bio = S.bio, ag = S.ag, ax = S.ax;\nconst step = (i, dtc) => {\n  const s0 = sp[i];\n  if (s0 === 0) {                                          // bare rock \u2014 contact-inhibited colonisation\n    const x = i % GW, y = (i/GW)|0;\n    let best = 0, bb = 0, bax = 0;\n    for (let d=0; d<4; d++) {\n      const nx = x + (d===0?1:(d===1?-1:0)), ny = y + (d===2?1:(d===3?-1:0));\n      if (nx < 0 || nx >= GW || ny < 0 || ny >= GH) continue;\n      const j = nx + ny*GW; const sj = sp[j];\n      if (sj !== 1 && sj !== 2) continue;\n      let w = bio[j];\n      if (sj === 2) w *= (ax[j] === (d^1)) ? 2.6 : .16;     // liverwort spreads along its own axis\n      if (w > bb) { bb = w; best = sj; bax = (d^1); }\n    }\n    if (bb > .28 && rnd() < bb*dtc*(.5 + 1.5*wet)*(.6 + .8*EN)*.9) {\n      sp[i] = best; bio[i] = .05; ag[i] = 0;\n      // dichotomous fork: turn perpendicular (0/1 are horizontal, 2/3 vertical)\n      ax[i] = (best === 2 && rnd() < .09) ? (bax < 2 ? (rnd()<.5?2:3) : (rnd()<.5?0:1)) : bax;\n    }\n    return;\n  }\n  if (s0 === 3) { bio[i] -= dtc*.13; if (bio[i] <= 0) { sp[i] = 0; bio[i] = 0; ag[i] = 0; } return; }\n  ag[i] += dtc;\n  const oldA = s0 === 1 ? MOSS_OLD : LIV_OLD;\n  bio[i] += dtc*(.10 + .16*wet)*(1 - bio[i]);\n  if (bio[i] > 1) bio[i] = 1;\n  if (ag[i] > oldA*(.7 + S.mot[i]*.7)) { sp[i] = 3; }       // necrotic centre \u2014 the turnover\n};\nconst sweep = d => {\n  const chunk = Math.ceil(N/5);\n  const dtc = d*5;\n  for (let q=0;q<chunk;q++){ const i = S.cur; S.cur = (S.cur + 1) % N; step(i, dtc); }\n  if (rnd() < d*(2.5 + DN*7)) {                            // spore rain reseeds bare rock\n    const i = (rnd()*N)|0;\n    if (sp[i] === 0) { sp[i] = rnd() < .6 ? 1 : 2; bio[i] = .05; ag[i] = 0; ax[i] = (rnd()*4)|0; }\n  }\n};\nif (!S.warm) { S.warm = 1; for (let q=0;q<300;q++) sweep(1/12); }   // mat already established\nsweep(dt*SP);\n\n// ---- colour LUTs (rebuilt each frame \u2014 4 species x 40 tones, ~160 conversions)\nif (!S.lut) S.lut = new Uint8Array(4*40*3);\nconst lut = S.lut;\nconst putHSB = (o, h, s, b) => {\n  h = ((h % 360) + 360) % 360; s = cl(s,0,1); b = cl(b,0,1);\n  const c = b*s, x = c*(1 - Math.abs(((h/60) % 2) - 1)), m = b - c;\n  let r, g2, bl;\n  if (h < 60) { r=c; g2=x; bl=0; } else if (h < 120) { r=x; g2=c; bl=0; }\n  else if (h < 180) { r=0; g2=c; bl=x; } else if (h < 240) { r=0; g2=x; bl=c; }\n  else if (h < 300) { r=x; g2=0; bl=c; } else { r=c; g2=0; bl=x; }\n  lut[o] = (r+m)*255; lut[o+1] = (g2+m)*255; lut[o+2] = (bl+m)*255;\n};\nconst HU = P.hue;\nfor (let t2=0;t2<40;t2++) {\n  const v = t2/39;\n  if (sty === 'cyanotype') {\n    putHSB(0*120 + t2*3, 214, .84 - v*.1, .17 + v*.14);                        // rock\n    putHSB(1*120 + t2*3, 214, .5 - v*.44, .3 + v*.68);                         // moss -> white photogram\n    putHSB(2*120 + t2*3, 208, .62 - v*.4, .24 + v*.5);                         // liverwort\n    putHSB(3*120 + t2*3, 218, .7 - v*.2, .2 + v*.2);                           // necrotic\n  } else if (sty === 'ink_wash') {\n    putHSB(0*120 + t2*3, 36, .07, .74 - v*.12);\n    putHSB(1*120 + t2*3, 32, .1 + v*.06, .66 - v*.5);\n    putHSB(2*120 + t2*3, 30, .06, .58 - v*.3);\n    putHSB(3*120 + t2*3, 30, .1, .6 - v*.18);\n  } else if (sty === 'false_color') {\n    putHSB(0*120 + t2*3, 250, .5, .1 + v*.06);\n    putHSB(1*120 + t2*3, 300 - v*300, .85, .28 + v*.68);                       // ironbow on biomass\n    putHSB(2*120 + t2*3, 190 - v*80, .8, .24 + v*.6);\n    putHSB(3*120 + t2*3, 262, .55, .16 + v*.14);\n  } else {\n    putHSB(0*120 + t2*3, 34 - v*8, .1 + v*.06 + wet*.05, .5 - v*.2 - wet*.05); // damp granite\n    putHSB(1*120 + t2*3, HU + 8 - v*14, .3 + v*.42*(.55 + .55*wet), .17 + v*.42*(.8 + .3*wet));\n    putHSB(2*120 + t2*3, HU + 52 - v*10, .26 + v*.3*(.5 + .6*wet), .15 + v*.3*(.85 + .25*wet));\n    putHSB(3*120 + t2*3, 30 - v*6, .3 + v*.24, .22 + v*.2);\n  }\n}\n\n// ---- rasterise the field ------------------------------------------------\nconst fb = S.fb;\nfb.loadPixels();\nconst px = fb.pixels;\nfor (let i=0;i<N;i++) {\n  const s0 = sp[i];\n  let v;\n  if (s0 === 0) v = S.mot[i];\n  else if (s0 === 3) v = bio[i]*.8 + S.mot[i]*.2;\n  else v = cl(bio[i]*(.7 + .3*wet) + (S.mot[i]-.5)*.24 + (ag[i] > (s0===1?MOSS_MAT:LIV_MAT) ? .08 : 0), 0, 1);\n  let t2 = (v*39)|0; if (t2 < 0) t2 = 0; else if (t2 > 39) t2 = 39;\n  const o = s0*120 + t2*3, p4 = i*4;\n  px[p4] = lut[o]; px[p4+1] = lut[o+1]; px[p4+2] = lut[o+2]; px[p4+3] = 255;\n}\nfb.updatePixels();\nimage(fb, 0, 0, width, height);\n\n// ---- grain overlay: breaks the upscale's flatness back into rock tooth ---\nconst oKey = [width,height,sd,sty].join('|');\nif (!S.ov || S.oKey !== oKey) {\n  S.oKey = oKey;\n  const ow = Math.min(560, Math.max(200, width|0)), oh = Math.max(1, Math.round(ow*height/Math.max(1,width)));\n  const g = (S.ov && S.ov.width === ow && S.ov.height === oh) ? S.ov : createGraphics(ow, oh);\n  S.ov = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.clear(); g.noStroke();\n  for (let i=0;i<9000;i++){ g.fill(0, 0, fr(i*2.9)*100, 15 + fr(i*5.3)*22);\n    g.rect(fr(i*3.1)*ow, fr(i*7.3+4)*oh, 1.3, 1.3); }\n  g.pop();\n}\nblendMode(MULTIPLY); tint(0, 0, 100, 34); image(S.ov, 0, 0, width, height);\nnoTint(); blendMode(BLEND);\n\n// ---- live vectors: moss tufts + sporophyte setae (the motion floor) ------\nconst cw = width/GW, chh = height/GH;\nconst idx = (gx, gy) => (gx|0) + ((gy|0))*GW;\nconst nTuft = Math.round(30 + DN*170);\nconst tuftL = u*.016*SC*(.7 + .5*wet);\nstrokeCap(ROUND); noFill();\nfor (let k=0;k<nTuft;k++) {\n  const gx = fr(k*1.9)*GW, gy = fr(k*3.7+1)*GH;\n  const i = idx(gx, gy); const s0 = sp[i];\n  if (s0 !== 1 && s0 !== 2) continue;\n  const bx = gx*cw, by = gy*chh;\n  const vit = bio[i];\n  const sw2 = breeze*u*.004*vit*(.5 + .8*Math.sin(T*2.7 + k*1.31));\n  const L = tuftL*(.4 + .8*vit)*(s0 === 2 ? .55 : 1);\n  if (sty === 'cyanotype') stroke(214, 14, 92, 40*AL*vit);\n  else if (sty === 'ink_wash') stroke(30, 14, 26, 34*AL*vit);\n  else if (sty === 'false_color') stroke(300 - vit*300, 85, 96, 34*AL*vit);\n  else stroke(P.hue + (s0===2?52:6), 40 + 26*wet, 22 + 44*vit, 40*AL*vit);\n  strokeWeight(Math.max(.55, u*.0016*SC));\n  const nStrk = nTuft > 120 ? (s0===1?2:1) : (s0===1?3:2);   // budget: shoots per tuft\n  for (let q=0;q<nStrk;q++){\n    const aa = -Math.PI*.5 + (q-1)*.62 + fr(k*9.1+q)*.4 - .2;\n    beginShape(); vertex(bx, by);\n    vertex(bx + Math.cos(aa)*L*.5 + sw2*.4, by + Math.sin(aa)*L*.5);\n    vertex(bx + Math.cos(aa)*L + sw2, by + Math.sin(aa)*L);\n    endShape();\n  }\n}\nconst nSeta = Math.round(16 + DN*100);\nfor (let k=0;k<nSeta;k++) {\n  const gx = fr(k*5.3+7)*GW, gy = fr(k*2.1+3)*GH;\n  const i = idx(gx, gy);\n  if (sp[i] !== 1 || ag[i] < MOSS_MAT) continue;\n  const rip = cl((ag[i] - MOSS_MAT)/12, 0, 1);              // ripeness drives height + nod\n  const bx = gx*cw, by = gy*chh;\n  const hgt = u*.055*SC*rip*(.6 + .55*wet)*(.7 + .5*bio[i]);\n  const ph = fr(k*11.3)*6.28;\n  const nod = (.35 + .5*rip)*(.5 + .6*Math.sin(T*1.7 + ph));\n  const sw2 = breeze*u*.014*(.5 + .9*Math.sin(T*1.19 + ph*1.4)) + Math.sin(T*3.1 + ph)*u*.002*EN;\n  const tx = bx + sw2 + Math.cos(-Math.PI*.5 + nod*.9)*hgt*.12, ty = by - hgt;\n  if (sty === 'cyanotype') stroke(214, 8, 96, 78*AL);\n  else if (sty === 'ink_wash') stroke(28, 20, 18, 66*AL);\n  else if (sty === 'false_color') stroke(58, 90, 98, 70*AL);\n  else stroke(28 + rip*8, 44 + rip*26, 46 + rip*26, 76*AL);\n  strokeWeight(Math.max(.7, u*.0016*SC)); noFill();\n  beginShape();\n  for (let q=0;q<=4;q++){ const v = q/4;\n    vertex(bx + sw2*v*v*1.2 + nod*hgt*.2*v*v, by - hgt*v); }\n  endShape();\n  const cr = u*.011*SC*rip*(.7 + .3*bio[i]);                // the capsule, nodding\n  noStroke();\n  if (sty === 'cyanotype') fill(214, 4, 99, 88*AL);\n  else if (sty === 'ink_wash') fill(28, 22, 22, 78*AL);\n  else if (sty === 'false_color') fill(48, 95, 100, 82*AL);\n  else fill(26 + rip*10, 52 + rip*22, 40 + rip*34, 88*AL);\n  push(); translate(tx, ty); rotate(nod*.8 + Math.PI*.06);\n  ellipse(0, 0, cr*.72, cr*1.5); pop();\n  if (rip > .85 && nSeta <= 70) {                            // dehiscence \u2014 spores away\n    for (let q=0;q<3;q++){\n      const dph = (T*.31 + fr(k*13.7+q)*7) % 1;\n      noStroke();\n      if (sty === 'cyanotype') fill(214, 2, 100, 52*AL*(1-dph));\n      else if (sty === 'ink_wash') fill(28, 12, 34, 40*AL*(1-dph));\n      else fill(46, 34, 88, 46*AL*(1-dph));\n      ellipse(tx + Math.sin(T*.9 + q*2.1 + k)*u*.05*dph + breeze*u*.06*dph,\n              ty - dph*u*.09, u*.0035*SC, u*.0035*SC);\n    }\n  }\n}\nblendMode(BLEND);"
+}

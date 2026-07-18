@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.midges",
+  "kind": "fx",
+  "name": "Midges",
+  "desc": "Lek columns of midges dancing in the last warm light \u2014 each insect rises slowly and drops fast in the real gnat bob while darting sideways on two rates, the columns backlit by a soft dusk haze that makes the specks catch fire, the whole cluster wandering the frame over minutes.",
+  "tags": [
+    "midges",
+    "gnats",
+    "insects",
+    "insect",
+    "swarm",
+    "swarming",
+    "bugs",
+    "flies",
+    "mayflies",
+    "mosquitoes",
+    "cloud",
+    "lek",
+    "column",
+    "dusk",
+    "twilight",
+    "golden hour",
+    "backlit",
+    "haze",
+    "summer",
+    "evening",
+    "pond",
+    "meadow",
+    "erratic",
+    "boiling",
+    "warm",
+    "amber",
+    "eerie",
+    "atmosphere",
+    "overlay",
+    "nature"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "agitation \u2014 how hard the swarm boils, plus halo strength"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "number of columns (1-5) and insects per column"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.4,
+      "doc": "column + insect size vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "flight + wander rate"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "0 = one tight cluster at the anchor, 1 = columns scattered wide across the frame"
+    },
+    "alpha": {
+      "default": 0.7,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "dusk light hue (38 amber, 12 sunset red, 200 cold blue evening)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swarm field anchor X"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swarm field anchor Y"
+    },
+    "style": {
+      "default": "dusk",
+      "options": [
+        "dusk",
+        "silhouette",
+        "trails",
+        "schematic"
+      ],
+      "doc": "aesthetic: backlit warm motes in a golden haze / dark bodies against a pale glow, no interior / long-exposure flight arcs instead of dots / blueprint cross-hairs with velocity vectors and a bounding ellipse"
+    },
+    "act": {
+      "default": "lek",
+      "options": [
+        "lek",
+        "drift",
+        "boil"
+      ],
+      "doc": "dramaturgy: columns hold station and dance / columns roam right across the frame / agitation surges and settles with the musical arc"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "column placement + per-insect flight rates"
+    }
+  },
+  "acts": [
+    "lek",
+    "drift",
+    "boil"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy:.55, density:.5, scale:1, speed:1, spread:.5, alpha:.7, hue:38, x:.5, y:.5, style:'dusk', act:'lek', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2=(h,s,v)=>{h=md(h,360)/60;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,x=c*(1-Math.abs(h%2-1)),m=v-c;let r=0,g2=0,b=0;\n  if(h<1){r=c;g2=x;}else if(h<2){r=x;g2=c;}else if(h<3){g2=c;b=x;}else if(h<4){g2=x;b=c;}else if(h<5){r=x;b=c;}else{r=c;b=x;}\n  return [(r+m)*255,(g2+m)*255,(b+m)*255];};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'lek';\nconst isSil=st==='silhouette', isTr=st==='trails', isSch=st==='schematic';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.4), spr=clp(P.spread,0,1);\nlet envS=1, envA=1, wander=1;\nif(act==='drift'){ wander=2.6; }\nelse if(act==='boil'){ envS=0.7+1.35*K.intensity; envA=0.8+0.5*K.intensity; }\n\nconst nSw=Math.max(1,Math.round(lrp(1,5,dn)));\nlet per=Math.round(lrp(16,64,dn)*(isTr?0.45:1));\nconst agit=(0.55+1.35*en)*envS;\n\n// column centroid \u2014 slow incommensurate wander (never re-phases on the 8s gate)\nconst cenOf=(k,tt)=>{\n  const px=fr(k*7+1), py=fr(k*7+2), q=fr(k*7+3)*6.283;\n  const bx=lrp(0.14,0.86,px), by=lrp(0.18,0.82,py);\n  const dx=(0.55*Math.sin(tt*0.067*sp+q)+0.3*Math.sin(tt*0.151*sp+q*1.7)+0.16*Math.sin(tt*0.023*sp))*0.16*wander;\n  const dy=(0.5*Math.sin(tt*0.089*sp+q*2.3)+0.28*Math.sin(tt*0.197*sp+q*0.6))*0.09*wander;\n  const ax=lrp(0.5,bx,0.35+0.65*spr)+dx, ay=lrp(0.5,by,0.35+0.65*spr)+dy;\n  return [ (P.x-0.5)*W + ax*W, (P.y-0.5)*Hh + ay*Hh ];\n};\n// one midge: slow rise, fast drop (the real lek bob) + two-rate horizontal darting\nconst midge=(k,i,tt)=>{\n  const c=cenOf(k,tt), j=k*997+i*13;\n  const rx=u*lrp(0.012,0.075,fr(j+1))*sc*(0.5+spr), ry=u*lrp(0.02,0.13,fr(j+2))*sc*(0.5+spr);\n  const rt=(0.30+fr(j+3)*0.75)*agit*sp;\n  const ph=frc(fr(j+4)+tt*rt);\n  const bob=ph<0.72 ? -ph/0.72 : -(1-(ph-0.72)/0.28);\n  const w1=(1.1+fr(j+5)*2.9)*agit*sp, w2=(0.7+fr(j+6)*1.7)*agit*sp;\n  const dx=Math.sin(tt*w1+fr(j+7)*6.283)*rx + Math.sin(tt*w1*1.618+fr(j+8)*6.283)*rx*0.42;\n  const dy=bob*ry + Math.sin(tt*w2+fr(j+9)*6.283)*ry*0.22;\n  return [ c[0]+dx, c[1]+dy ];\n};\n\n// ---- backlit dusk haze per column (this is what makes the swarm read at all) ----\nif(!isSch){\n  blendMode(ADD);\n  for(let k=0;k<nSw;k++){\n    const c=cenOf(k,K.t);\n    const br=0.55+0.45*Math.sin(K.t*0.129*sp+fr(k+31)*6.283)+0.2*Math.sin(K.t*0.311*sp);\n    const gr2=u*lrp(0.14,0.30,fr(k+32))*sc*(0.7+0.6*spr)*(1+0.09*br);\n    const ga=clp((isSil?0.30:0.19)*al*(0.35+0.9*en)*envA*(0.6+0.4*br)*(1+A.lowmid*0.5),0,0.5);\n    const gc=hsb2(md(H+(isSil?6:0),360), isSil?0.22:0.52, isSil?0.95:0.88);\n    const rg=drawingContext.createRadialGradient(c[0],c[1],0,c[0],c[1],gr2);\n    rg.addColorStop(0,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+','+ga.toFixed(3)+')');\n    rg.addColorStop(0.45,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+','+(ga*0.34).toFixed(3)+')');\n    rg.addColorStop(1,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+',0)');\n    drawingContext.fillStyle=rg;\n    drawingContext.fillRect(c[0]-gr2,c[1]-gr2,gr2*2,gr2*2);\n  }\n  blendMode(BLEND);\n}\n\n// ---- the swarm ----\nfor(let k=0;k<nSw;k++){\n  if(isSch){ // clinical: bounding ellipse + centroid cross\n    const c=cenOf(k,K.t), rr=u*0.19*sc*(0.7+0.6*spr);\n    noFill(); stroke(md(H+170,360),58,92,26*al); strokeWeight(Math.max(0.5,u*0.0011));\n    ellipse(c[0],c[1],rr*1.5,rr*2.1);\n    stroke(md(H+170,360),40,100,44*al);\n    line(c[0]-u*0.012,c[1],c[0]+u*0.012,c[1]); line(c[0],c[1]-u*0.012,c[0],c[1]+u*0.012);\n  }\n  for(let i=0;i<per;i++){\n    const p=midge(k,i,K.t);\n    const dep=fr(k*997+i*13+2);\n    const rad=u*0.0022*sc*lrp(0.6,1.7,dep);\n    if(isTr){\n      noFill(); strokeWeight(Math.max(0.4,rad*0.9));\n      for(let s2=0;s2<5;s2++){\n        const a1=midge(k,i,K.t-s2*0.055), a2=midge(k,i,K.t-(s2+1)*0.055);\n        stroke(md(H+lrp(-4,16,s2/5),360),lrp(34,10,s2/5),lrp(100,64,s2/5),(58-s2*10)*al*(0.4+0.7*en));\n        line(a1[0],a1[1],a2[0],a2[1]);\n      }\n      noStroke(); fill(md(H+8,360),12,100,70*al); circle(p[0],p[1],rad*1.5);\n    } else if(isSch){\n      const q=midge(k,i,K.t-0.06);\n      stroke(md(H+170,360),52,100,64*al); strokeWeight(Math.max(0.4,u*0.0009));\n      line(p[0],p[1],p[0]+(p[0]-q[0])*2.2,p[1]+(p[1]-q[1])*2.2);\n      line(p[0]-rad*1.6,p[1],p[0]+rad*1.6,p[1]); line(p[0],p[1]-rad*1.6,p[0],p[1]+rad*1.6);\n    } else if(isSil){\n      noStroke(); fill(md(H+200,360),18,8,clp(62+24*dep,0,92)*al);\n      ellipse(p[0],p[1],rad*2.3,rad*1.5);\n    } else {\n      const glint=0.5+0.5*Math.sin(K.t*(5.1+dep*7.3)*sp+fr(k*997+i*13+11)*6.283);\n      noStroke();\n      fill(md(H+lrp(-6,18,glint),360),lrp(30,6,glint),lrp(72,100,glint),clp((44+52*glint)*(0.4+0.8*en),0,100)*al);\n      circle(p[0],p[1],rad*(1.5+1.1*glint+K.pulse*0.3+A.treble*0.8));\n      fill(md(H+210,360),24,14,26*al); circle(p[0],p[1],rad*0.7); // dark body under the backlit halo\n    }\n  }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke();\n",
+  "last_fail": {
+    "at": "2026-07-17T17:11:45+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0035 <= 0.004"
+  }
+}

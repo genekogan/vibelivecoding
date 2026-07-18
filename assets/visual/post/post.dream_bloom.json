@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.dream_bloom",
+  "kind": "post",
+  "name": "Dream Bloom",
+  "desc": "A dreamy halation pass \u2014 the scene re-exposed slightly enlarged so bright areas bloom, with a drifting soft colour veil and a gentle tinted vignette. Rosy, golden, icy, lilac or mono.",
+  "tags": [
+    "bloom",
+    "halation",
+    "dream",
+    "soft",
+    "glow",
+    "diffusion",
+    "veil",
+    "romantic",
+    "haze",
+    "pass",
+    "cinematic",
+    "pro-mist",
+    "ethereal",
+    "vignette"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "breathing"
+    },
+    "bloom": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bloom strength"
+    },
+    "veil": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting veil"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "veil hue"
+    },
+    "breathe": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "breath amount"
+    },
+    "tintAmt": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "vignette tint"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "rosy",
+      "options": [
+        "rosy",
+        "golden",
+        "icy",
+        "lilac",
+        "mono"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 75,
+      "min": 0,
+      "max": 100,
+      "doc": "pass strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:43:44+00:00",
+    "fps": 59.9,
+    "motion": 0.0054,
+    "lum": 0.112
+  },
+  "code": "const D = { energy:.4, bloom:.6, veil:.5, hue:300, breathe:.6, tintAmt:.4, x:.5, y:.5, scale:1, speed:1, density:.5, style:'rosy', seed:0, alpha:75 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nlet vh=P.hue, vs=30;\nif(sty==='golden'){ vh=45; vs=40; } else if(sty==='icy'){ vh=195; vs=25; } else if(sty==='lilac'){ vh=280; vs=30; } else if(sty==='mono'){ vs=6; }\n// fake bloom: re-draw frame slightly enlarged, SCREEN, low alpha (double-exposure halation)\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\nconst br=(0.5+0.5*Math.sin(t*0.37)+0.3*Math.sin(t*0.83+1))*P.breathe;\ndc.save();\ndc.globalCompositeOperation='screen';\nconst g1=1.012+0.02*P.bloom+0.008*br, g2=1.03+0.05*P.bloom+0.015*br;\ndc.globalAlpha=(0.20+0.16*P.bloom)*P.alpha/100;\ndc.drawImage(S.buf.drawingContext.canvas, W/2-W*g1/2, H/2-H*g1/2, W*g1, H*g1);\ndc.globalAlpha=(0.10+0.12*P.bloom)*P.alpha/100;\ndc.drawImage(S.buf.drawingContext.canvas, W/2-W*g2/2, H/2-H*g2/2, W*g2, H*g2);\ndc.globalAlpha=1; dc.restore();\n// drifting soft veil (intrinsic mover + dreamy tint)\nif(P.veil>0.02){ dc.save(); blendMode(SCREEN);\n const vx=W*(0.5+Math.sin(t*0.23)*0.4), vy=H*(0.5+Math.sin(t*0.41+1)*0.32);\n const rg=dc.createRadialGradient(vx,vy,10,vx,vy,W*0.55);\n rg.addColorStop(0,color(vh,vs,90,(7+9*br)*P.veil*P.alpha/100).toString());\n rg.addColorStop(1,color(vh,vs,70,0).toString());\n dc.fillStyle=rg; dc.fillRect(0,0,W,H); dc.restore(); blendMode(BLEND); }\n// gentle corner vignette tint\nif(P.tintAmt>0.02){ dc.save(); const vg=dc.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.hypot(W,H)*0.6);\n vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,color(vh,vs+15,20,26*P.tintAmt*P.alpha/100).toString());\n dc.fillStyle=vg; dc.fillRect(0,0,W,H); dc.restore(); }\nblendMode(BLEND);\n"
+}

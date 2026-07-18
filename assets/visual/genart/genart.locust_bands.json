@@ -1,0 +1,158 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.locust_bands",
+  "kind": "genart",
+  "name": "Locust Marching Bands",
+  "desc": "Thousands of marchers, each only steering toward whoever is within a body-length of it \u2014 crowd them past the threshold and order condenses out of the gas as a solitary band, a hard dense front that sweeps the frame and evaporates back into shimmering grain, drawn only ever as density, never as insects.",
+  "tags": [
+    "locust",
+    "locusts",
+    "marching-band",
+    "swarm",
+    "swarming",
+    "collective-motion",
+    "collective-behaviour",
+    "vicsek",
+    "self-propelled",
+    "active-matter",
+    "flocking",
+    "alignment",
+    "order-disorder",
+    "phase-transition",
+    "symmetry-breaking",
+    "order-parameter",
+    "giant-number-fluctuations",
+    "density-band",
+    "travelling-band",
+    "solitary-wave",
+    "front",
+    "gregarious",
+    "plague",
+    "entomology",
+    "ecology",
+    "emergence",
+    "self-organizing",
+    "agents",
+    "particles",
+    "density-field",
+    "material",
+    "texture",
+    "grain",
+    "shimmer",
+    "plate",
+    "photographic",
+    "false-color",
+    "thermal",
+    "ironbow",
+    "ink",
+    "austere",
+    "clinical",
+    "scientific",
+    "menacing",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "crowding \u2014 the actual Vicsek control parameter; low = a thin disordered gas, high = a packed field that condenses into hard sweeping bands"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "grain of the field (higher = coarser, chunkier density)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "exposure"
+    },
+    "noise": {
+      "default": 0.45,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how badly each individual mis-hears its neighbours \u2014 the other side of the order-disorder transition; low = a single coherent flock, high = boiling gas"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "march rate (steps per second)"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "pigment hue of the plate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan y"
+    },
+    "style": {
+      "default": "plate",
+      "options": [
+        "plate",
+        "false-color",
+        "ink",
+        "thermal",
+        "order"
+      ],
+      "doc": "aesthetic \u2014 warm photographic plate of the band / false-colour with hue keyed to marching direction / ink density on toned paper / ironbow crowding map / abstracted order-parameter field where density is dissolved and only local alignment is drawn"
+    },
+    "act": {
+      "default": "march",
+      "options": [
+        "march",
+        "transition",
+        "gust"
+      ],
+      "doc": "multi-minute program \u2014 steady near-critical marching / a full sweep of the order-disorder transition every ~3 min / a hard turning wind that keeps shoving the swarm onto a new course"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the sowing of the swarm"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "march",
+    "transition",
+    "gust"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:46:39+00:00",
+    "fps": 59.5,
+    "motion": 0.144,
+    "lum": 0.426
+  },
+  "code": "const D = { density: .55, scale: 1, energy: .6, noise: .45, speed: 1, hue: 34, x: .5, y: .5, style: 'plate', act: 'march', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ================== marching band: the locust density transition (Vicsek) ==================\n// Thousands of self-propelled individuals, each doing one stupid thing: steer toward the mean\n// heading of whoever is within a body-length or two, then take a step, plus a slug of noise.\n// Crowd them past a threshold and the noise stops winning: order condenses out of the gas as a\n// SOLITARY BAND \u2014 a sharp, dense front of marchers that sweeps across an otherwise disordered\n// field, with the giant number fluctuations that make active matter its own phase of matter.\n// Never drawn as insects: every individual is splatted into a density buffer, so what you see is\n// the material \u2014 a shifting grain that thickens into a wave and evaporates back into gas.\n\nconst RW = Math.max(56, Math.min(176, Math.round(150 / Math.max(0.4, P.scale))));\nconst RH = Math.max(40, Math.min(176, Math.round(RW * height / Math.max(1, width))));\nconst NR = RW * RH;\nconst IS = 2.6;                                        // interaction radius, in render cells\nconst IW = Math.max(12, Math.round(RW / IS)), IH = Math.max(8, Math.round(RH / IS));\nconst NI = IW * IH;\nconst invIS = IW / RW;\nconst MAXN = 9000;\nconst seedI = P.seed | 0;\nconst gh = (i, s) => { let h = (i * 374761393 + s * 668265263 + seedI * 2654435761) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };\n\nconst sig = RW + 'x' + RH + '_' + seedI;\nif (S.sig !== sig || !S.px) {\n  S.sig = sig;\n  S.px = new Float32Array(MAXN); S.py = new Float32Array(MAXN); S.pt = new Float32Array(MAXN);\n  S.pc = new Float32Array(MAXN); S.ps = new Float32Array(MAXN);\n  S.sc = new Float32Array(NI); S.ss = new Float32Array(NI); S.bc = new Float32Array(NI); S.bs = new Float32Array(NI);\n  S.dn = new Float32Array(NR); S.dc = new Float32Array(NR); S.ds = new Float32Array(NR);\n  for (let k = 0; k < MAXN; k++) {\n    S.px[k] = gh(k, 13) * RW; S.py[k] = gh(k, 17) * RH;\n    const th = gh(k, 19) * 6.2831853; S.pt[k] = th; S.pc[k] = Math.cos(th); S.ps[k] = Math.sin(th);\n  }\n  S.nUsed = 0; S.rng = ((seedI * 2654435761) ^ 0x9e3779b9) >>> 0; if (!S.rng) S.rng = 0x1234567;\n  S.done = null; S.g = null;\n}\nif (S.dn.length !== NR) { S.dn = new Float32Array(NR); S.dc = new Float32Array(NR); S.ds = new Float32Array(NR); }\n\n// ---- population: density is the Vicsek control parameter, so it is the headline knob ----\nlet n = Math.round(NI * (0.7 + P.density * 3.6));\nif (n > MAXN) n = MAXN; if (n < 60) n = 60;\nif (n > S.nUsed) {                                     // new arrivals land on fresh ground\n  for (let k = S.nUsed; k < n; k++) {\n    S.px[k] = gh(k * 3 + 1, 401) * RW; S.py[k] = gh(k * 3 + 2, 409) * RH;\n    const th = gh(k * 3 + 3, 419) * 6.2831853; S.pt[k] = th; S.pc[k] = Math.cos(th); S.ps[k] = Math.sin(th);\n  }\n}\nS.nUsed = n;\n\n// ---- acts: the noise dial is the order-disorder transition; sweeping it is the dramaturgy ---\nconst act = P.act;\nlet nz = P.noise;\nif (act === 'transition') nz = 0.14 + 0.78 * (0.5 + 0.5 * Math.sin(K.t * 0.0347 - 1.4));   // gas <-> band <-> flock, ~3 min\nelse if (act === 'gust') nz = P.noise * (0.8 + 0.28 * Math.sin(K.t * 0.081));\nelse nz = P.noise * (0.9 + 0.16 * Math.sin(K.t * 0.0219)) - K.intensity * 0.05;\nnz = Math.max(0.04, Math.min(1, nz));\nconst eta = 0.5 + nz * 4.6;                            // full-width angular noise, radians\n// a slowly turning preferred direction \u2014 the swarm changes course; incommensurate rates, never repeats\nconst gdir = K.t * 0.041 + Math.sin(K.t * 0.0127) * 2.4 + Math.sin(K.t * 0.0231 + 1.1) * 1.3;\nconst gw = (act === 'gust' ? 1.5 : 0.55) * (0.6 + 0.5 * Math.sin(K.t * 0.0163 + 0.4)) * (1 + A.lowmid * 0.5);\nconst gcx = Math.cos(gdir) * gw, gcy = Math.sin(gdir) * gw;\n\n// ---- Vicsek steps, gated on continuous K.t --------------------------------------------\nconst sps = 12 + P.speed * 24 + K.intensity * 6;\nconst target = Math.floor(K.t * sps);\nif (S.done == null || target < S.done) S.done = target;\nlet need = target - S.done; if (need > 5) need = 5; if (need < 0) need = 0;\nS.done = target;\nconst v0 = 0.34;\nlet r = S.rng >>> 0;\nconst px = S.px, py = S.py, pt = S.pt, pc = S.pc, ps = S.ps, sc = S.sc, ss = S.ss, bc = S.bc, bs = S.bs;\nfor (let st = 0; st < need; st++) {\n  sc.fill(0); ss.fill(0);\n  for (let k = 0; k < n; k++) {\n    const c = (((py[k] * invIS) | 0) % IH) * IW + (((px[k] * invIS) | 0) % IW);\n    sc[c] += pc[k]; ss[c] += ps[k];\n  }\n  for (let j = 0; j < IH; j++) {                       // 3x3 box: the \"who is near me\" average, done once\n    const jm = (j ? j - 1 : IH - 1) * IW, jp = (j + 1 < IH ? j + 1 : 0) * IW, rj = j * IW;\n    for (let i = 0; i < IW; i++) {\n      const im = i ? i - 1 : IW - 1, ip = i + 1 < IW ? i + 1 : 0, c = rj + i;\n      bc[c] = sc[rj + im] + sc[c] + sc[rj + ip] + sc[jm + im] + sc[jm + i] + sc[jm + ip] + sc[jp + im] + sc[jp + i] + sc[jp + ip] + gcx;\n      bs[c] = ss[rj + im] + ss[c] + ss[rj + ip] + ss[jm + im] + ss[jm + i] + ss[jm + ip] + ss[jp + im] + ss[jp + i] + ss[jp + ip] + gcy;\n    }\n  }\n  for (let k = 0; k < n; k++) {\n    const c = (((py[k] * invIS) | 0) % IH) * IW + (((px[k] * invIS) | 0) % IW);\n    r ^= r << 13; r ^= r >>> 17; r ^= r << 5; r >>>= 0;\n    const th = Math.atan2(bs[c], bc[c]) + (r / 4294967296 - 0.5) * eta;\n    const cx = Math.cos(th), sy = Math.sin(th);\n    pt[k] = th; pc[k] = cx; ps[k] = sy;\n    let X = px[k] + v0 * cx, Y = py[k] + v0 * sy;\n    if (X < 0) X += RW; else if (X >= RW) X -= RW;\n    if (Y < 0) Y += RH; else if (Y >= RH) Y -= RH;\n    px[k] = X; py[k] = Y;\n  }\n}\nS.rng = r >>> 0;\n\n// ---- splat into the density buffer -----------------------------------------------------\n// Raw splats are shot noise: every frame a different speckle, which reads as boiling grain and\n// carries an enormous frame-to-frame diff for no visual gain. Persistence + a small in-place\n// diffusion each frame turns the point cloud into a continuous MATERIAL \u2014 the individuals stop\n// being dots and become the density field they actually are.\nconst dn = S.dn, dc = S.dc, ds = S.ds;\nconst dec = 0.86;\nfor (let k = 0; k < NR; k++) { dn[k] *= dec; dc[k] *= dec; ds[k] *= dec; }\nfor (let k = 0; k < n; k++) {\n  const c = ((py[k] | 0) % RH) * RW + ((px[k] | 0) % RW);\n  dn[c] += 1; dc[c] += pc[k]; ds[c] += ps[k];\n}\nif (!S.tmp || S.tmp.length !== NR) S.tmp = new Float32Array(NR);\nconst tmp = S.tmp;\nconst blur = (src) => {\n  for (let j = 0; j < RH; j++) {\n    const rj = j * RW;\n    for (let i = 0; i < RW; i++) { const im = i ? i - 1 : RW - 1, ip = i + 1 < RW ? i + 1 : 0; tmp[rj + i] = (src[rj + im] + src[rj + i] + src[rj + ip]) * 0.33333; }\n  }\n  for (let j = 0; j < RH; j++) {\n    const jm = (j ? j - 1 : RH - 1) * RW, jp = (j + 1 < RH ? j + 1 : 0) * RW, rj = j * RW;\n    for (let i = 0; i < RW; i++) src[rj + i] = (tmp[jm + i] + tmp[rj + i] + tmp[jp + i]) * 0.33333;\n  }\n};\nblur(dn); blur(dc); blur(ds);\n\n// ---- render ----------------------------------------------------------------------------\nif (!S.g || S.gw !== RW || S.gh !== RH) { S.g = createGraphics(RW, RH); S.g.pixelDensity(1); S.gw = RW; S.gh = RH; }\nconst OUT = [0, 0, 0];\nfunction hsv(h, s, v, o) {\n  h = ((h % 360) + 360) % 360; v = v < 0 ? 0 : v > 1 ? 1 : v; s = s < 0 ? 0 : s > 1 ? 1 : s;\n  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;\n  let rr, gg, bb;\n  if (h < 60) { rr = c; gg = x; bb = 0; } else if (h < 120) { rr = x; gg = c; bb = 0; } else if (h < 180) { rr = 0; gg = c; bb = x; }\n  else if (h < 240) { rr = 0; gg = x; bb = c; } else if (h < 300) { rr = x; gg = 0; bb = c; } else { rr = c; gg = 0; bb = x; }\n  o[0] = (rr + m) * 255; o[1] = (gg + m) * 255; o[2] = (bb + m) * 255;\n}\nconst style = P.style;\nconst mode = style === 'false-color' ? 1 : style === 'ink' ? 2 : style === 'thermal' ? 3 : style === 'order' ? 4 : 0;\nconst ex = Math.min(1.45, 0.66 + P.energy * 0.62 + K.intensity * 0.16 + A.rms * 0.35);\nconst hb = P.hue + K.section * 5 + Math.sin(K.t * 0.029) * 8;\nconst dg = 0.5 / Math.max(0.25, n / NR * (1 / (1 - dec)));      // normalise so mean density lands mid-key\n{\n  const g = S.g; g.loadPixels(); const pxl = g.pixels;\n  for (let k = 0; k < NR; k++) {\n    const d0 = dn[k];\n    const q = 1 - Math.exp(-d0 * dg * 0.9);                      // packed -> saturating density\n    const grain = (gh(k, 7) - 0.5) * 0.06;\n    if (mode === 1) {                       // false-color: brightness = density, hue = local marching direction\n      const ang = Math.atan2(ds[k], dc[k]) * 57.2957795;\n      const pol = Math.min(1, Math.hypot(dc[k], ds[k]) / Math.max(0.4, d0));\n      hsv(hb + ang * 0.8, 0.25 + pol * 0.62, (0.09 + q * 0.82 + grain) * ex, OUT);\n    } else if (mode === 2) {                // ink: swarm printed as ink density on toned paper\n      hsv(hb - 8, 0.16 - q * 0.1, (0.66 - q * 0.56 + grain) * (0.86 + P.energy * 0.28), OUT);\n    } else if (mode === 3) {                // thermal: crowding as an ironbow heat map\n      hsv(268 - q * 254, 0.95 - q * 0.5, (0.10 + q * q * 0.5 + q * 0.42 + grain) * ex, OUT);\n    } else if (mode === 4) {                // order: density dissolved \u2014 only the LOCAL ALIGNMENT is drawn\n      const pol = Math.min(1, Math.hypot(dc[k], ds[k]) / Math.max(0.5, d0)) * Math.min(1, d0 * dg * 3);\n      hsv(hb + 190 - pol * 178, 0.2 + pol * 0.7, (0.11 + Math.pow(pol, 1.5) * 0.62 + grain * 0.5) * ex, OUT);\n    } else {                                // plate (default): a photographic plate of the band\n      const warm = hb + q * 16;\n      hsv(warm, 0.5 - q * 0.34, (0.13 + Math.pow(q, 0.82) * 0.72 + grain) * ex, OUT);\n    }\n    const o = 4 * k; pxl[o] = OUT[0]; pxl[o + 1] = OUT[1]; pxl[o + 2] = OUT[2]; pxl[o + 3] = 255;\n  }\n  g.updatePixels();\n}\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\ntranslate(width / 2 + (P.x - 0.5) * width * 0.18, height / 2 + (P.y - 0.5) * height * 0.18);\nrotate(Math.sin(K.t * 0.0141) * 0.045 + Math.sin(K.t * 0.0067 + 1.9) * 0.04);\nconst zoom = 1.5 + Math.sin(K.t * 0.049) * 0.04 + Math.sin(K.t * 0.113 + 0.6) * 0.017 + A.bass * 0.04;\nimageMode(CENTER);\nimage(S.g, 0, 0, width * zoom, height * zoom);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

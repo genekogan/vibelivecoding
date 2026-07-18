@@ -1,0 +1,108 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.music_notes",
+  "kind": "fx",
+  "name": "Music Notes",
+  "desc": "Musical notation floating up through the frame \u2014 quarter notes, flagged eighths, beamed pairs and looping treble clefs, each bobbing and swaying on its own rhythm with optional wavy staff lines drifting behind and a soft breathing glow. Styles: golden, chalk white, neon, per-note rainbow, ink black.",
+  "tags": [
+    "music",
+    "notes",
+    "notation",
+    "floating",
+    "melody",
+    "overlay",
+    "whimsical",
+    "clef",
+    "rising",
+    "song"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rise speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "note size"
+    },
+    "wobble": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sway amount"
+    },
+    "staffP": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "staff lines visibility"
+    },
+    "glowP": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "breathing wash"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "neon/staff hue"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "note count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "golden",
+      "options": [
+        "golden",
+        "chalk",
+        "neon",
+        "rainbow",
+        "ink"
+      ],
+      "doc": "note look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:09:52+00:00",
+    "fps": 61.7,
+    "motion": 0.0123,
+    "lum": 0.091
+  },
+  "code": "const D = { energy:.5, scale:1, hue:45, wobble:.6, staffP:.3, glowP:.6, x:.5, y:.5, speed:1, density:.5, style:'golden', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nlet noteC=[45,70,90],glow=true,sat=70;\nif(sty==='chalk'){ noteC=[0,0,92]; glow=false; }\nelse if(sty==='neon'){ noteC=[(P.hue+120)%360,85,100]; }\nelse if(sty==='rainbow'){ noteC=null; sat=65; }\nelse if(sty==='ink'){ noteC=[220,25,20]; glow=false; }\nfunction noteCol(i,al){ if(noteC) return color(noteC[0],noteC[1],noteC[2],al*P.alpha/100);\n return color((i*47+t*18)%360,sat,92,al*P.alpha/100); }\nnoStroke();\nconst n=Math.floor(5+P.density*14);\n// faint drifting staff lines\nif(P.staffP>0.03){ stroke(color(P.hue,20,70,12*P.staffP*P.alpha/100)); strokeWeight(1.5);\n for(let k=0;k<5;k++){ const sy=Hh*0.3+k*u*0.045;\n  beginShape(); noFill(); for(let q=0;q<=24;q++){ const s2=q/24;\n   vertex(s2*W, sy+Math.sin(s2*4+t*0.5+k*0.4)*u*0.02); } endShape(); }\n noStroke(); }\nfor(let i=0;i<n;i++){\n const ph=((t*(0.05+en*0.09)*P.speed*(0.5+fr(i)))+fr(i+30))%1;\n const nx=(fr(i)*W + Math.sin(t*(0.4+fr(i+2)*0.4)+i*2)*u*0.06*P.wobble + t*u*0.02*P.speed*(fr(i+5)-0.3))%(W+u*0.1)-u*0.05;\n const ny=Hh*1.05-ph*Hh*1.15;\n const sz=u*(0.028+fr(i+7)*0.035)*P.scale*(0.7+en*0.5);\n const rot=Math.sin(t*(0.5+fr(i+3)*0.5)+i)*0.35*P.wobble;\n const fade=Math.min(1,Math.min(ph*6,(1-ph)*3.2));\n const kind=Math.floor(fr(i+11)*4);\n const bob=Math.sin(t*(1.5+fr(i))*P.speed+i*2.4)*sz*0.18;\n push(); translate(nx,ny+bob); rotate(rot);\n if(glow){ dc.save(); dc.shadowBlur=12; dc.shadowColor=noteCol(i,70).toString(); }\n fill(noteCol(i,80*fade));\n if(kind===0){ // quarter note\n  ellipse(0,sz*0.8,sz*0.85,sz*0.62); rect(sz*0.32,-sz*0.9,sz*0.11,sz*1.72,2);\n } else if(kind===1){ // eighth note w/ flag\n  ellipse(0,sz*0.8,sz*0.85,sz*0.62); rect(sz*0.32,-sz*0.9,sz*0.11,sz*1.72,2);\n  beginShape(); vertex(sz*0.43,-sz*0.9); bezierVertex(sz*1.0,-sz*0.6,sz*0.9,-sz*0.15,sz*0.75,sz*0.1);\n  bezierVertex(sz*0.85,-sz*0.4,sz*0.65,-sz*0.55,sz*0.43,-sz*0.5); endShape(CLOSE);\n } else if(kind===2){ // beamed pair\n  ellipse(0,sz*0.8,sz*0.7,sz*0.5); ellipse(sz*1.1,sz*0.65,sz*0.7,sz*0.5);\n  rect(sz*0.26,-sz*0.75,sz*0.1,sz*1.55,2); rect(sz*1.36,-sz*0.9,sz*0.1,sz*1.55,2);\n  push(); const angB=Math.atan2(-sz*0.15,sz*1.1); translate(sz*0.26,-sz*0.75); rotate(angB);\n  rect(0,0,sz*1.25,sz*0.22,2); pop();\n } else { // treble clef approximation\n  noFill(); stroke(noteCol(i,80*fade)); strokeWeight(sz*0.14);\n  beginShape(); for(let q=0;q<=30;q++){ const s2=q/30*TAU*1.4;\n   const rr=sz*(0.15+s2*0.12); vertex(Math.sin(s2)*rr, -Math.cos(s2)*rr*1.15); } endShape();\n  line(0,-sz*1.1,0,sz*1.1); noStroke(); fill(noteCol(i,80*fade)); circle(0,sz*1.1,sz*0.3);\n }\n if(glow) dc.restore();\n pop(); }\n// soft breathing wash so density=low still moves\ndc.save(); blendMode(SCREEN);\n{ const gx=W*(0.5+Math.sin(t*0.24)*0.34); const gb=0.5+0.5*Math.sin(t*0.44)+0.3*Math.sin(t*0.9+1);\n  const rg=dc.createRadialGradient(gx,Hh*0.5,10,gx,Hh*0.5,W*0.36);\n  rg.addColorStop(0,noteCol(0,(4+6*gb)*P.glowP).toString()); rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,Hh); }\ndc.restore(); blendMode(BLEND);\n"
+}

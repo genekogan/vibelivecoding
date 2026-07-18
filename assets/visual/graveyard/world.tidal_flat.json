@@ -1,0 +1,151 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "world.tidal_flat",
+ "kind": "world",
+ "name": "Tidal Flat",
+ "desc": "An estuary at low water — a dendritic network of tidal creeks branches across mirror-wet sand toward a hazed far shore, and over minutes the tide floods it: water climbs the trunks first and then out to the finest capillary tips, sheets over the flats until the whole basin turns to sky, then drains back and leaves the network drawn in silver again.",
+ "tags": [
+  "tidal-flat",
+  "tidal",
+  "tide",
+  "estuary",
+  "mudflat",
+  "sandflat",
+  "wadden",
+  "creek",
+  "channel",
+  "dendritic",
+  "drainage",
+  "network",
+  "branching",
+  "flow-accumulation",
+  "marsh",
+  "saltmarsh",
+  "coast",
+  "coastal",
+  "shore",
+  "intertidal",
+  "ebb",
+  "flood",
+  "low-water",
+  "high-water",
+  "wet-sand",
+  "mirror",
+  "reflection",
+  "glint",
+  "specular",
+  "ripple",
+  "sediment",
+  "geomorphology",
+  "hydrology",
+  "erosion",
+  "landscape",
+  "vista",
+  "backdrop",
+  "panorama",
+  "parallax",
+  "depth",
+  "perspective",
+  "aerial-perspective",
+  "haze",
+  "dawn",
+  "overcast",
+  "silver-gelatin",
+  "monochrome",
+  "riso",
+  "duotone",
+  "silver",
+  "grey",
+  "blue",
+  "austere",
+  "serene",
+  "melancholy",
+  "sublime",
+  "desolate",
+  "generative",
+  "world",
+  "bg",
+  "background",
+  "full-bleed"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "glint intensity, specular sparkle and overall colour gain"
+  },
+  "scale": {
+   "default": 1,
+   "min": 1,
+   "max": 2.2,
+   "doc": "spread of the creek network across the flats — 2.2 fans the trunks wide into the foreground"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.1,
+   "max": 3,
+   "doc": "reserved rate control for surface motion"
+  },
+  "density": {
+   "default": 0.55,
+   "min": 0,
+   "max": 1,
+   "doc": "sand ripple count and glint count — how worked the flats read"
+  },
+  "tide": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "tidal range: 0 = a dry network stranded at dead low water, 1 = a basin that floods to a full sky mirror at every high"
+  },
+  "hue": {
+   "default": 200,
+   "min": 0,
+   "max": 360,
+   "doc": "water/sky hue anchor; rotates the whole plate"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "reserved anchor"
+  },
+  "y": {
+   "default": 0.42,
+   "min": 0.1,
+   "max": 0.8,
+   "doc": "horizon height as a canvas fraction"
+  },
+  "style": {
+   "default": "dawn",
+   "options": [
+    "dawn",
+    "overcast",
+    "silver",
+    "riso"
+   ],
+   "doc": "aesthetic: dawn = low warm sky over cool wet sand; overcast = flat grey North Sea light; silver = silver-gelatin monochrome, form from tone only; riso = two-ink halftone poster"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "creek network + micro-relief seed (regrows the whole drainage)"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "layer opacity"
+  }
+ },
+ "acts": null,
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, tide: .5, hue: 200, x: .5, y: .42, style: 'dawn', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- An estuarine tidal flat at low water ----------------------------------\n// A dendritic creek network is grown ONCE per seed by flow accumulation over a\n// seeded micro-relief (steepest descent to an outlet), so the branching is real\n// drainage, not decoration. It is then laid out in ground-plane perspective:\n// trunk creeks near, capillary tips far.\n// The dramaturgy is the TIDE. It ebbs and floods over minutes on incommensurate\n// periods and the water fills the network by BED ELEVATION — trunks first, then\n// up the branches to the tips — then sheets over the flats into a sky mirror and\n// drains back out. It is never at rest, so it can never read static.\nconst u0 = Math.min(width, height);\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\nfunction fbm(x, y) { return 0.6 * vn(x, y) + 0.28 * vn(x * 2.03 + 5.1, y * 2.03 - 3.2) + 0.12 * vn(x * 4.1 - 2.3, y * 4.1 + 7.7); }\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 200)) % 360) + 360) % 360;\n\n// ---- grow the creek network once per seed ----------------------------------\nconst GW = 96, GH = 64;\nif (S.netSeed !== P.seed) {\n  S.netSeed = P.seed;\n  const Z = new Float32Array(GW * GH), acc = new Float32Array(GW * GH);\n  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {\n    // micro-relief falling toward the outlet at the bottom-centre\n    Z[j * GW + i] = (1 - j / GH) * 0.55 + Math.abs(i / GW - 0.5) * 0.30\n                  + (fbm(i * 0.10 + 3.1, j * 0.10 - 1.7) - 0.5) * 0.30;\n  }\n  // flow accumulation: every cell drains to its steepest neighbour\n  const order = [];\n  for (let k = 0; k < GW * GH; k++) { order.push(k); acc[k] = 1; }\n  order.sort((a, b) => Z[b] - Z[a]);                   // highest first\n  const down = new Int32Array(GW * GH).fill(-1);\n  for (let j = 1; j < GH - 1; j++) for (let i = 1; i < GW - 1; i++) {\n    const k = j * GW + i;\n    let best = -1, bd = 0;\n    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {\n      if (!a && !b) continue;\n      const k2 = (j + b) * GW + (i + a);\n      const d = Z[k] - Z[k2];\n      if (d > bd) { bd = d; best = k2; }\n    }\n    down[k] = best;\n  }\n  for (let n = 0; n < order.length; n++) { const k = order[n]; const dnk = down[k]; if (dnk >= 0) acc[dnk] += acc[k]; }\n  // keep only the cells that carry real flow: those are the creeks\n  S.seg = [];\n  for (let j = 1; j < GH - 1; j++) for (let i = 1; i < GW - 1; i++) {\n    const k = j * GW + i;\n    if (acc[k] < 4 || down[k] < 0) continue;\n    const dj = (down[k] / GW) | 0, di = down[k] % GW;\n    const w = Math.min(1, Math.pow(acc[k], 0.42) / 13);          // Strahler-ish width\n    S.seg.push({ u: i / GW, v: j / GH, u2: di / GW, v2: dj / GH, w: w, d: 0 });\n  }\n  S.seg.sort((a, b) => a.w - b.w);                               // capillaries first, trunks last\n  // Cap the network: every wet reach is a line() every frame, and the raw\n  // extraction runs to ~2000 — at high water that blew the shape budget.\n  // Dropping the narrowest keeps the legible trunk-ward structure.\n  const cap = 640;\n  if (S.seg.length > cap) S.seg = S.seg.slice(S.seg.length - cap);\n  // Bed depth by RANK, not by width. Widths are heavily skewed to capillaries,\n  // so keying depth off width left 92% of the network dry until the very top of\n  // the tide and then flooded it all at once. By rank the wetted fraction tracks\n  // the tide linearly: trunks fill first, then the water climbs out to the tips.\n  for (let n = 0; n < S.seg.length; n++) S.seg[n].d = 0.06 + 0.94 * (n / Math.max(1, S.seg.length - 1));\n  S.bgKey = null;\n}\n\n// ---- cached plate: sky, far shore, flats, the dry incised network ----------\nconst key = width + 'x' + height + st + P.seed + P.hue + P.density.toFixed(2) + P.y.toFixed(2) + P.scale.toFixed(2);\nif (S.bgKey !== key) {\n  S.bgKey = key;\n  const g = S.bg || (S.bg = createGraphics(width, height));\n  if (g.width !== width || g.height !== height) g.resizeCanvas(width, height);\n  g.pixelDensity(1); g.colorMode(HSB, 360, 100, 100, 100);\n  const hz = height * (0.16 + P.y * 0.42);\n  g.push(); g.noStroke();\n  // sky\n  for (let y = 0; y < hz; y += 2) {\n    const v = y / hz;\n    if (st === 'silver') g.fill(0, 0, 92 - v * 30);\n    else if (st === 'riso') g.fill(rot(v < 0.5 ? 210 : 348), 34 - v * 12, 90 - v * 10);\n    else if (st === 'overcast') g.fill(rot(212), 8 + v * 6, 74 - v * 14);\n    else g.fill(rot(v < 0.55 ? 216 - v * 20 : 28 + v * 10), 20 + v * 22, 62 + v * 26);   // dawn\n    g.rect(0, y, width, 3);\n  }\n  // far shore: a low dark strip of marsh\n  g.fill(st === 'silver' ? 0 : rot(96), st === 'silver' ? 0 : 22, st === 'silver' ? 34 : 26, 90);\n  g.beginShape();\n  g.vertex(0, hz + 1);\n  for (let x = 0; x <= width; x += 14) g.vertex(x, hz - u0 * 0.012 * fbm(x * 0.004 + 9.1, 2.2) - u0 * 0.004);\n  g.vertex(width, hz + 1); g.endShape(CLOSE);\n  // the flats: wet sand receding to the shore, sky-tinted (they mirror)\n  for (let y = Math.floor(hz); y < height; y += 2) {\n    const v = (y - hz) / Math.max(1, height - hz);\n    if (st === 'silver') g.fill(0, 0, 54 - v * 16);\n    else if (st === 'riso') g.fill(rot(210), 16 + v * 8, 72 - v * 18);\n    else if (st === 'overcast') g.fill(rot(206), 8 + v * 6, 58 - v * 12);\n    else g.fill(rot(28 + v * 8), 12 + v * 12, 56 - v * 8);\n    g.rect(0, y, width, 3);\n  }\n  // ripple-marked sand: texture over flat fill\n  const nr = Math.round(60 + P.density * 130);\n  for (let n = 0; n < nr; n++) {\n    const v = Math.pow(fr(n * 3 + 1), 0.6);\n    const y = hz + (height - hz) * v;\n    const sc = 0.15 + v * 1.5;\n    g.stroke(0, 0, fr(n * 7) > 0.5 ? 100 : 0, 4 + v * 5);\n    g.strokeWeight(Math.max(0.6, u0 * 0.0016 * sc));\n    g.noFill(); g.beginShape();\n    for (let x = -20; x <= width + 20; x += 26) g.vertex(x, y + Math.sin(x * 0.012 + n) * u0 * 0.004 * sc + fbm(x * 0.01, n) * u0 * 0.004 * sc);\n    g.endShape();\n  }\n  g.noStroke();\n  // the DRY network, incised into the flats: dark channels with a bright bank lip\n  const proj = (u, v) => {\n    const vv = Math.pow(v, 1.9);\n    return [width / 2 + (u - 0.5) * width * (0.22 + vv * 1.5) * P.scale, hz + (height - hz) * vv];\n  };\n  for (let n = 0; n < S.seg.length; n++) {\n    const sg = S.seg[n];\n    const a = proj(sg.u, sg.v), b = proj(sg.u2, sg.v2);\n    const dep = Math.pow(sg.v, 1.9);\n    const w = Math.max(0.7, u0 * 0.011 * sg.w * (0.12 + dep * 1.5) * P.scale);\n    g.strokeCap(ROUND);\n    g.stroke(0, 0, 100, 5 + dep * 7); g.strokeWeight(w * 1.9);\n    g.line(a[0], a[1], b[0], b[1]);                                   // levee lip catches light\n    g.stroke(rot(st === 'silver' ? 0 : 26), st === 'silver' ? 0 : 22, 26 - dep * 6, 60 + dep * 26);\n    g.strokeWeight(w);\n    g.line(a[0], a[1], b[0], b[1]);                                   // the incised bed\n  }\n  g.pop();\n  S.hz = hz;\n}\n\n// ---- the tide ---------------------------------------------------------------\nconst tideOsc = 0.5 + 0.5 * (0.6 * Math.sin(K.t * 0.041) + 0.28 * Math.sin(K.t * 0.0917 + 2.2) + 0.12 * Math.sin(K.t * 0.1531 + 0.9));\nconst tide = Math.max(0, Math.min(1.25, (0.18 + P.tide * 0.72) * (0.35 + tideOsc * 1.25) + A.bass * 0.10 + K.intensity * 0.05));\nconst gain = 0.80 + P.energy * 0.40 + K.intensity * 0.10 + A.rms * 0.20;\nconst AL = P.alpha / 100;\nconst hz = S.hz;\nconst glint = 0.5 + 0.5 * Math.sin(K.t * 1.7) + A.treble * 0.4;\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(S.bg, 0, 0, width, height);\npop();\n\nconst proj = (u, v) => {\n  const vv = Math.pow(v, 1.9);\n  return [width / 2 + (u - 0.5) * width * (0.22 + vv * 1.5) * P.scale, hz + (height - hz) * vv];\n};\n// ---- water fills the network by BED ELEVATION: trunks first, then up the tips\nnoFill(); strokeCap(ROUND);\nfor (let n = 0; n < S.seg.length; n++) {\n  const sg = S.seg[n];\n  const bed = 1 - sg.d;                       // deep trunks have a low bed, tips a high one\n  const sub = tide - bed;                     // >0 = this reach is carrying water\n  if (sub <= 0) continue;\n  const a = proj(sg.u, sg.v), b = proj(sg.u2, sg.v2);\n  const dep = Math.pow(sg.v, 1.9);\n  const w = Math.max(0.8, u0 * 0.011 * sg.w * (0.12 + dep * 1.5) * P.scale) * Math.min(1.5, 0.7 + sub * 2.2);\n  const lit = Math.min(1, sub * 3.4);\n  if (st === 'silver') stroke(0, 0, 70 + lit * 26 + glint * 6, (55 + lit * 40) * AL);\n  else if (st === 'riso') stroke(rot(210), 40, 84 + glint * 8, (55 + lit * 40) * AL);\n  else if (st === 'overcast') stroke(rot(206), 14, 72 + lit * 16 + glint * 5, (55 + lit * 40) * AL);\n  else stroke(rot(206 - lit * 10), 24 + lit * 12, 66 + lit * 26 + glint * 7, (55 + lit * 40) * AL);\n  strokeWeight(w);\n  line(a[0], a[1], b[0], b[1]);\n}\nnoStroke();\n\n// ---- at high water the flats drown: a sky mirror sheets over them ----------\nif (tide > 0.62) {\n  const f = Math.min(1, (tide - 0.62) / 0.38);\n  const edgeV = Math.pow(1 - f, 0.8);\n  const ey = hz + (height - hz) * edgeV;\n  for (let y = Math.floor(ey); y < height; y += 3) {\n    const v = (y - hz) / Math.max(1, height - hz);\n    const rip = Math.sin(y * 0.09 + K.t * 1.1) * 0.5 + Math.sin(y * 0.031 - K.t * 0.7) * 0.5;\n    const al = Math.min(88, (14 + f * 62) * (0.55 + v * 0.7));\n    if (st === 'silver') fill(0, 0, 74 + rip * 4, al * AL);\n    else if (st === 'riso') fill(rot(210), 36, 80 + rip * 4, al * AL);\n    else if (st === 'overcast') fill(rot(208), 12, 66 + rip * 4, al * AL);\n    else fill(rot(212 - v * 14), 18 + v * 10, 60 + v * 16 + rip * 4, al * AL);\n    rect(0, y, width, 4);\n  }\n  // the advancing edge itself: a bright lace of foam\n  stroke(0, 0, 100, 30 * f * AL); strokeWeight(Math.max(1, u0 * 0.002));\n  noFill(); beginShape();\n  for (let x = -10; x <= width + 10; x += 22) vertex(x, ey + Math.sin(x * 0.02 + K.t * 0.9) * u0 * 0.004 + fbm(x * 0.008, K.t * 0.1) * u0 * 0.006);\n  endShape(); noStroke();\n}\n\n// ---- specular glint path + drifting cloud reflections ----------------------\nconst gx = width * (0.5 + 0.16 * Math.sin(K.t * 0.047));\nconst ng = Math.round(6 + P.density * 14);\nfor (let n = 0; n < ng; n++) {\n  const v = fr(n * 5 + 2);\n  const y = hz + (height - hz) * Math.pow(0.1 + v * 0.9, 1.6);\n  const tw = 0.5 + 0.5 * Math.sin(K.t * (1.1 + fr(n) * 2.2) + n);\n  fill(0, 0, 100, (5 + tw * 12 + glint * 5) * P.energy * AL);\n  ellipse(gx + (fr(n * 3 + 7) - 0.5) * width * 0.20, y, width * (0.02 + v * 0.10), u0 * 0.004 * (0.4 + v));\n}\nfor (let n = 0; n < 3; n++) {\n  const cx2 = ((K.t * (5 + n * 4) + fr(n * 11) * 900) % (width * 1.6)) - width * 0.3;\n  fill(rot(220), 12, st === 'silver' ? 40 : 34, 7 * AL);\n  ellipse(cx2, hz + (height - hz) * (0.18 + n * 0.22), width * 0.5, u0 * 0.05);\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint(); noStroke();\n"
+}

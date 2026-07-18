@@ -1,0 +1,165 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.radar_ppi",
+  "kind": "genart",
+  "name": "Radar PPI",
+  "desc": "A surveillance radar plan-position indicator: the sweep rakes around the tube painting a hot coastline, drifting weather cells and labelled aircraft tracks into the phosphor, and the whole return decays behind it into a long trailing wedge while the bearing scale, bezel and readouts sit engraved on a lit console panel.",
+  "tags": [
+    "radar",
+    "ppi",
+    "plan-position-indicator",
+    "sweep",
+    "scope",
+    "scan",
+    "phosphor",
+    "persistence",
+    "afterglow",
+    "crt",
+    "tube",
+    "air-traffic",
+    "atc",
+    "surveillance",
+    "tracking",
+    "contact",
+    "blip",
+    "target",
+    "aircraft",
+    "coastline",
+    "clutter",
+    "weather-cell",
+    "bearing",
+    "range-rings",
+    "graticule",
+    "nautical",
+    "marine",
+    "aviation",
+    "military",
+    "mission-control",
+    "console",
+    "instrument",
+    "telemetry",
+    "signal",
+    "data",
+    "amber",
+    "green",
+    "blueprint",
+    "thermal",
+    "graphite",
+    "clinical",
+    "austere",
+    "cold-war",
+    "retro",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "return brightness / phosphor glow"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of aircraft tracks and weather cells"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "scope diameter vs design size"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "sweep rate (1 = ~4.7 s per revolution)"
+    },
+    "persist": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "phosphor decay time \u2014 how far the trailing wedge reaches"
+    },
+    "clutter": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sea clutter, receiver speckle and weather intensity"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "trace + ground hue (offset from the style anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scope centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "scope centre y"
+    },
+    "style": {
+      "default": "phosphor",
+      "options": [
+        "phosphor",
+        "amber",
+        "blueprint",
+        "thermal",
+        "graphite"
+      ],
+      "doc": "aesthetic: P7 green phosphor on a lit console / amber CRT / printed drafting plot with no glow / ironbow false-colour returns / hard white vector on graphite"
+    },
+    "act": {
+      "default": "patrol",
+      "options": [
+        "patrol",
+        "approach",
+        "storm"
+      ],
+      "doc": "multi-minute programme: steady watch / tracks converging on the scope centre / heavy weather swamping the returns"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "coastline, track and panel seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "patrol",
+    "approach",
+    "storm"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:41+00:00",
+    "fps": 59.2,
+    "motion": 0.0556,
+    "lum": 0.192
+  },
+  "code": "const D = { energy: .62, density: .55, scale: 1, speed: 1, persist: .55, clutter: .5, hue: 135, x: .5, y: .5, style: 'phosphor', act: 'patrol', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy); const a = h2(ix,iy), b = h2(ix+1,iy), c = h2(ix,iy+1), d = h2(ix+1,iy+1); return a + (b-a)*ux + (c-a)*uy + (a-b-c+d)*ux*uy; }\nfunction fbm(x, y) { let s = 0, am = .5, f = 1; for (let i = 0; i < 3; i++) { s += am * vn(x*f, y*f); f *= 2.03; am *= .5; } return s / 0.875; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), clut = clp(P.clutter, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 135;   // hue offset from the style anchor: default hue == no shift\n\n// ---- style: ground / trace / panel / ink / accent, all HSB ----\nconst ST = {\n  phosphor: { g:[130,60,9],  tr:[124,80,96], pn:[100,7,25],  ink:[95,14,70],  ac:[45,92,96], glow:1,   met:1 },\n  amber:    { g:[28,62,10],  tr:[38,92,97],  pn:[26,10,23],  ink:[34,22,68],  ac:[8,88,92],  glow:1,   met:1 },\n  blueprint:{ g:[214,66,27], tr:[200,8,97],  pn:[216,58,18], ink:[203,22,80], ac:[16,86,90], glow:0,   met:0 },\n  thermal:  { g:[248,52,11], tr:[32,95,99],  pn:[240,18,17], ink:[200,8,74],  ac:[330,78,92],glow:.6,  met:1 },\n  graphite: { g:[220,6,13],  tr:[0,0,98],    pn:[220,5,29],  ink:[220,6,66],  ac:[10,80,88], glow:0,   met:1 }\n};\nconst st = ST[P.style] || ST.phosphor;\nconst GH = md(st.g[0] + hs, 360), TH = md(st.tr[0] + hs, 360), PH = md(st.pn[0] + hs, 360), IH = md(st.ink[0] + hs, 360);\n\n// ---- act dramaturgy (multi-minute programs) ----\nlet nTg = 6 + Math.round(dens * 12), wxAmt = .5 + clut * .9, clutAmt = clut, closing = 0;\nif (P.act === 'approach') { nTg = 4 + Math.round(dens * 8); closing = 1; }\nelse if (P.act === 'storm') { wxAmt = 1.5 + clut * 1.9; clutAmt = clut * 1.6; nTg = 3 + Math.round(dens * 6); }\nnTg = clp(nTg, 2, 20);\n\nconst cx = P.x * W, cy = P.y * H, R = 0.43 * u * clp(P.scale, .2, 3);\nconst NB = 400, RB = NB * 0.5 - 3;\n\n// ---- persistence buffer (scope-local) ----\nif (!S.pers || S.pk !== NB) { if (S.pers && S.pers.remove) S.pers.remove(); S.pers = createGraphics(NB, NB); S.pers.pixelDensity(1); S.pers.colorMode(S.pers.HSB, 360, 100, 100, 100); S.pers.background(GH, st.g[1], st.g[2]); S.pk = NB; }\nconst pg = S.pers;\n\n// ---- seeded world: targets on wide incommensurate orbits (perpetual, no teleport) ----\nif (S.seedUsed !== P.seed || !S.tg) {\n  S.seedUsed = P.seed; S.tg = [];\n  for (let i = 0; i < 20; i++) {\n    S.tg.push({ ox: (fr(i*5+1)-.5)*1.1, oy: (fr(i*5+2)-.5)*1.1, rad: .35 + fr(i*5+3)*.75,\n      w: (.012 + fr(i*5+4)*.03) * (fr(i*9+7) > .5 ? 1 : -1), ph: fr(i*5+5)*TAU,\n      w2: .0091 + fr(i*11+3)*.019, ph2: fr(i*11+4)*TAU,\n      id: (1000 + Math.floor(fr(i*7+6)*8999)), alt: 40 + Math.floor(fr(i*7+8)*340) });\n  }\n  S.wx = [];\n  for (let i = 0; i < 5; i++) S.wx.push({ ox:(fr(i*3+41)-.5)*1.5, oy:(fr(i*3+42)-.5)*1.5, r:.16+fr(i*3+43)*.2, vx:(fr(i*3+44)-.5)*.016, vy:(fr(i*3+45)-.5)*.016 });\n  S.pkey = '';\n}\n\n// ---- own-ship drift: the coastline creeps forever (slow, incommensurate) ----\nconst shx = K.t * 0.0042 + 0.6 * Math.sin(K.t * 0.037), shy = K.t * 0.0027 + 0.6 * Math.cos(K.t * 0.029);\n\n// ---- panel cache (brushed metal + fixed lettering) ----\nconst pkey = W + 'x' + H + '|' + P.style + '|' + (P.seed|0) + '|' + Math.round(P.hue);\nif (!S.panel || S.pkey !== pkey) {\n  if (S.panel && S.panel.remove) S.panel.remove();\n  const g = createGraphics(W, H); g.pixelDensity(1); g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.background(PH, st.pn[1], st.pn[2]);\n  if (st.met) {           // brushed aluminium: fine horizontal grain + a broad sheen\n    g.noStroke();\n    for (let i = 0; i < 1500; i++) {\n      const yy = fr(i*3+11) * H, ln = 40 + fr(i*3+12) * (W * .5), xx = fr(i*3+13) * W;\n      g.fill(PH, st.pn[1] * .8, st.pn[2] * (0.6 + fr(i*3+14) * 0.95), 16);\n      g.rect(xx, yy, ln, 1);\n    }\n    for (let i = 0; i < 60; i++) { const yy = (i / 60) * H; g.fill(PH, st.pn[1], st.pn[2] * (1 + .5 * Math.sin(i * .21)), 7); g.rect(0, yy, W, H / 60); }\n  } else {                // blueprint: flat paper + faint drafting grid\n    g.stroke(IH, 18, st.pn[2] * 1.5, 22); g.strokeWeight(1);\n    for (let i = 0; i * 34 < W; i++) g.line(i*34, 0, i*34, H);\n    for (let j = 0; j * 34 < H; j++) g.line(0, j*34, W, j*34);\n  }\n  // corner rivets\n  g.noStroke();\n  const pd = u * .035;\n  for (const [rx, ry] of [[pd,pd],[W-pd,pd],[pd,H-pd],[W-pd,H-pd]]) {\n    g.fill(PH, st.pn[1]*.6, st.pn[2]*1.7, 70); g.ellipse(rx, ry, u*.016);\n    g.fill(PH, st.pn[1], st.pn[2]*.45, 80); g.ellipse(rx, ry, u*.010);\n  }\n  // engraved lettering\n  g.textFont('Courier New'); g.noStroke();\n  g.fill(IH, st.ink[1], st.ink[2], 88);\n  g.textSize(u * .019); g.textAlign(g.LEFT, g.TOP);\n  g.text('PPI  \u00b7  SURVEILLANCE RADAR', u * .035, u * .028);\n  g.textSize(u * .012); g.fill(IH, st.ink[1], st.ink[2] * .8, 70);\n  g.text('BAND S  \u00b7  PRF 1030 Hz  \u00b7  PULSE 1.2 \u00b5s', u * .035, u * .052);\n  g.textAlign(g.RIGHT, g.TOP);\n  g.text('TRACK TABLE', W - u * .035, u * .028);\n  g.textAlign(g.LEFT, g.BOTTOM);\n  g.text('RANGE  80 NM  \u00b7  NORTH UP  \u00b7  REL', u * .035, H - u * .028);\n  g.textAlign(g.RIGHT, g.BOTTOM);\n  g.text('SEA CLUTTER  AUTO', W - u * .035, H - u * .028);\n  S.panel = g; S.pkey = pkey;\n}\n\n// ---- sweep angle: irrational period (~4.68 s) so t and t+8s never re-phase ----\nconst rev = 0.2137 * (0.35 + clp(P.speed, 0, 3) * 0.65);\nconst sw = K.t * rev * TAU;\nif (S.lastAng == null) S.lastAng = sw - 0.02;\nlet dA = sw - S.lastAng;\nif (dA < 0 || dA > 0.7) dA = 0.02;      // tolerate t0 reset / frame hitch\nS.lastAng = sw;\nlet dt = K.t - (S.lastT == null ? K.t - 1/60 : S.lastT);\nif (dt < 0 || dt > 0.25) dt = 1/60;     // tolerate t0 reset\nS.lastT = K.t;\n\n// ---- decay the phosphor toward the scope ground (soft, slow \u2014 never a flicker) ----\nconst tau = 0.85 + P.persist * 2.6;\npg.noStroke(); pg.blendMode(pg.BLEND);\npg.fill(GH, st.g[1], st.g[2], Math.max(1.15, 100 * (1 - Math.exp(-dt / tau))));\npg.rect(0, 0, NB, NB);\n\n// ---- paint the returns the sweep just crossed ----\nconst nRay = clp(Math.ceil(dA * RB / 1.4), 2, 14);\nconst BINS = 44, ls = 2.7 / clp(P.scale, .2, 3);\nconst cb = NB * 0.5;\npg.strokeCap(pg.SQUARE);\nfor (let k = 0; k < nRay; k++) {\n  const a = sw - dA + dA * (k + 1) / nRay, sa = Math.sin(a), ca = Math.cos(a);\n  let atten = 1;\n  for (let j = 0; j < BINS; j++) {\n    const rr = (j + 0.5) / BINS;\n    const wx = shx + rr * sa * 1.6, wy = shy - rr * ca * 1.6;\n    let s = 0;\n    // land mass + a hot coastline first-return, with radar shadow behind the shore\n    const n = fbm(wx * ls + 4.7, wy * ls - 2.1);\n    if (n > 0.545) { s = 0.42 + 0.5 * clp((n - 0.545) * 5, 0, 1); }\n    else if (n > 0.505) { s = 0.95 * clp((n - 0.505) * 25, 0, 1); }\n    if (s > 0.5) atten = Math.min(atten, 0.22);\n    else atten = Math.min(1, atten + 0.055);\n    s *= atten;\n    // weather cells (diffuse, drifting)\n    for (let m = 0; m < S.wx.length; m++) {\n      const c = S.wx[m], dx = wx - (c.ox + c.vx * K.t), dy = wy - (c.oy + c.vy * K.t);\n      const dd = Math.sqrt(dx*dx + dy*dy);\n      if (dd < c.r) s += wxAmt * 0.5 * (1 - dd / c.r) * (0.55 + 0.45 * vn(wx * 7 + K.t * .3, wy * 7));\n    }\n    // sea clutter near own ship + receiver speckle\n    if (rr < 0.17) s += clutAmt * 0.85 * (1 - rr / 0.17) * h2((j * 31 + k) | 0, (K.t * 9) | 0);\n    s += 0.045 * clutAmt * h2((j * 7 + k * 13) | 0, ((K.t * 24) | 0) + j);\n    if (s < 0.035) continue;\n    s = clp(s, 0, 1.35);\n    const r0 = rr * RB, r1 = (rr + 1 / BINS) * RB;\n    const bri = clp(st.tr[2] * (0.3 + 0.7 * s) * (0.55 + 0.7 * en), 0, 100);\n    const th = P.style === 'thermal' ? md(TH + 200 - 200 * clp(s, 0, 1), 360) : TH;\n    pg.stroke(th, st.tr[1] * (P.style === 'thermal' ? 1 : (0.35 + 0.55 * (1 - s))), bri, clp(30 + 68 * s, 0, 100));\n    pg.strokeWeight(2.2 + 1.6 * s);\n    pg.line(cb + r0 * sa, cb - r0 * ca, cb + r1 * sa, cb - r1 * ca);\n  }\n}\n// blips: stamped as the sweep crosses each track's bearing\nconst trk = [];\nfor (let i = 0; i < nTg; i++) {\n  const g0 = S.tg[i];\n  const shrink = closing ? Math.max(0.18, 1 - md(K.t * 0.0085 + fr(i * 3 + 77), 1) * 0.9) : 1;\n  const ang = g0.ph + g0.w * K.t * TAU, ang2 = g0.ph2 + g0.w2 * K.t * TAU;\n  const tx = g0.ox + g0.rad * shrink * Math.cos(ang) * 0.9, ty = g0.oy + g0.rad * shrink * Math.sin(ang2) * 0.9;\n  const rr = Math.sqrt(tx*tx + ty*ty) / 1.6, br = Math.atan2(tx, -ty);\n  if (rr > 0.985) continue;\n  trk.push({ rr, br, id: g0.id, alt: g0.alt, i });\n  let d = md(sw - br, TAU);\n  if (d > TAU - dA - 0.02 || d < 0.02) {\n    const bx = cb + rr * RB * Math.sin(br), by = cb - rr * RB * Math.cos(br);\n    pg.noStroke();\n    pg.fill(md(TH + 8, 360), st.tr[1] * .5, st.tr[2], 96);\n    pg.ellipse(bx, by, 5.5 + 3.5 * en);\n    pg.fill(md(TH + 8, 360), st.tr[1] * .8, st.tr[2] * .8, 42);\n    pg.ellipse(bx, by, 12 + 7 * en);\n  }\n}\n// the leading sweep line burns in bright; the decay turns it into the trailing wedge for free\npg.stroke(md(TH + 4, 360), st.tr[1] * .35, st.tr[2], 92);\npg.strokeWeight(2.6);\npg.line(cb, cb, cb + RB * Math.sin(sw), cb - RB * Math.cos(sw));\n\n// =================== composite ===================\nimage(S.panel, 0, 0, W, H);\n\nconst dc = drawingContext;\n// scope glass + phosphor, clipped to the tube\ndc.save();\ndc.beginPath(); dc.arc(cx, cy, R, 0, TAU); dc.clip();\nnoStroke(); fill(GH, st.g[1], st.g[2]); ellipse(cx, cy, R * 2);\nimage(pg, cx - R, cy - R, R * 2, R * 2);\n// soft phosphor bloom (few shapes only, shadowBlur reset below)\nif (st.glow > 0) {\n  blendMode(ADD);\n  dc.shadowBlur = u * 0.05 * st.glow; dc.shadowColor = color(TH, 60, 90, 45 * en);\n  noFill(); stroke(TH, 40, 90, 12 * en * st.glow); strokeWeight(2);\n  arc(cx, cy, R * 1.02, R * 1.02, sw - 0.55, sw + 0.02);\n  dc.shadowBlur = 0;\n  blendMode(BLEND);\n}\n// range rings + bearing spokes etched on the glass\nnoFill(); stroke(IH, st.ink[1] * .8, st.ink[2], 34); strokeWeight(1);\nfor (let i = 1; i <= 4; i++) ellipse(cx, cy, R * 2 * i / 4);\nfor (let i = 0; i < 8; i++) { const a = i * TAU / 8; line(cx + R * .06 * Math.sin(a), cy - R * .06 * Math.cos(a), cx + R * Math.sin(a), cy - R * Math.cos(a)); }\n// track labels + leaders\ntextFont('Courier New'); textSize(clp(u * .0115, 7, 22)); textAlign(LEFT, CENTER);\nfor (let m = 0; m < Math.min(trk.length, 6); m++) {\n  const t0 = trk[m], bx = cx + t0.rr * R * Math.sin(t0.br), by = cy - t0.rr * R * Math.cos(t0.br);\n  stroke(md(TH, 360), st.tr[1] * .4, st.tr[2] * .8, 44); strokeWeight(1);\n  line(bx, by, bx + u * .028, by - u * .022);\n  noStroke(); fill(md(TH, 360), st.tr[1] * .3, st.tr[2], 78);\n  text('TK' + t0.id, bx + u * .031, by - u * .026);\n  fill(md(TH, 360), st.tr[1] * .3, st.tr[2] * .8, 58);\n  text('FL' + t0.alt + '  ' + Math.round(t0.rr * 80) + 'NM', bx + u * .031, by - u * .011);\n}\ndc.restore();\n\n// bezel: bevelled ring + engraved bearing scale (live \u2014 R follows P.scale)\nnoFill();\nstroke(PH, st.pn[1] * .5, st.pn[2] * 2.0, 60); strokeWeight(u * .010); ellipse(cx, cy, R * 2 + u * .022);\nstroke(PH, st.pn[1], st.pn[2] * .3, 70); strokeWeight(u * .006); ellipse(cx, cy, R * 2 + u * .036);\nstroke(IH, st.ink[1] * .7, st.ink[2], 60); strokeWeight(1.2); ellipse(cx, cy, R * 2 + u * .004);\nfor (let i = 0; i < 36; i++) {\n  const a = i * TAU / 36, maj = i % 3 === 0;\n  const r0 = R + u * (maj ? .004 : .008), r1 = R + u * .016;\n  stroke(IH, st.ink[1] * .7, st.ink[2], maj ? 88 : 46); strokeWeight(maj ? 1.6 : 1);\n  line(cx + r0 * Math.sin(a), cy - r0 * Math.cos(a), cx + r1 * Math.sin(a), cy - r1 * Math.cos(a));\n}\nnoStroke(); fill(IH, st.ink[1], st.ink[2], 82); textAlign(CENTER, CENTER); textSize(clp(u * .0125, 7, 24));\nfor (let i = 0; i < 12; i++) {\n  const a = i * TAU / 12, rr = R + u * .030;\n  text(String(i * 30).padStart(3, '0'), cx + rr * Math.sin(a), cy - rr * Math.cos(a));\n}\n\n// live readout block \u2014 the instrument's voice\nconst bearDeg = md(sw / TAU * 360, 360);\ntextAlign(RIGHT, TOP); textSize(clp(u * .0125, 7, 24));\nfill(IH, st.ink[1], st.ink[2], 86);\ntext('BRG ' + bearDeg.toFixed(1).padStart(5, '0'), W - u * .035, u * .055);\ntext('CONTACTS ' + String(trk.length).padStart(2, '0'), W - u * .035, u * .075);\ntext('SCAN ' + (1 / Math.max(rev, .001)).toFixed(1) + ' s', W - u * .035, u * .095);\nfill(md(st.ac[0] + hs, 360), st.ac[1], st.ac[2], 60 + 34 * K.swell);\ntext(P.act.toUpperCase(), W - u * .035, u * .115);\n\n// glass: raking specular + vignette (broad, slow, incommensurate \u2014 reads as real glass)\nblendMode(ADD);\nconst gl = 0.5 + 0.5 * Math.sin(K.t * 0.083 + 1.3);\nnoStroke();\nfor (let i = 0; i < 3; i++) {\n  fill(0, 0, 100, 3.2 - i * 0.8);\n  push(); translate(cx, cy); rotate(-0.7 + 0.25 * Math.sin(K.t * 0.061));\n  ellipse((gl - 0.5) * R * 1.1, -R * 0.42 + i * R * .06, R * 1.5, R * 0.10 + i * R * .03);\n  pop();\n}\nblendMode(BLEND);\nnoFill(); stroke(0, 0, 0, 30); strokeWeight(R * 0.12); ellipse(cx, cy, R * 2 - R * 0.11);\ndc.shadowBlur = 0;\nblendMode(BLEND);\nif (P.alpha < 100) { noStroke(); fill(PH, st.pn[1], st.pn[2], 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

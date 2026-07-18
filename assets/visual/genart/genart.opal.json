@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.opal",
+  "kind": "genart",
+  "name": "Opal",
+  "desc": "Play-of-colour drifting across an opal \u2014 angular harlequin patches of pure spectral fire igniting one after another as a slow light band rakes over the milky silica, each fleck flashing its own colour then fading back into the opalescent body.",
+  "tags": [
+    "opal",
+    "precious-opal",
+    "black-opal",
+    "boulder-opal",
+    "fire-opal",
+    "play-of-colour",
+    "play-of-color",
+    "opalescence",
+    "iridescence",
+    "iridescent",
+    "diffraction",
+    "silica",
+    "harlequin",
+    "pinfire",
+    "gemstone",
+    "gem",
+    "gemmology",
+    "mineral",
+    "lapidary",
+    "cabochon",
+    "spectral",
+    "rainbow",
+    "shimmer",
+    "flash",
+    "schiller",
+    "milky",
+    "precious",
+    "jewel",
+    "loupe",
+    "macro",
+    "specimen",
+    "abstract",
+    "soft",
+    "dreamy",
+    "luminous",
+    "texture",
+    "fullbleed",
+    "background"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "flecks": {
+      "default": 20,
+      "min": 4,
+      "max": 64,
+      "doc": "number of play-of-colour patches across the stone \u2014 broad harlequin to fine pinfire"
+    },
+    "energy": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness of the colour flash"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flash breadth \u2014 low: sparse sharp pinfire, high: broad soft harlequin"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "patch scale \u2014 zoom into the fire"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "tint of the opal body / milky opalescence (spectral flashes stay full-spectrum)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the light band travels and the stone rocks"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "direction the light band sweeps across the stone"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical bias of the flashing band"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "stone opacity"
+    },
+    "style": {
+      "default": "precious",
+      "options": [
+        "precious",
+        "black",
+        "boulder",
+        "fire"
+      ],
+      "doc": "precious: milky white-blue body with vivid spectral flecks \u00b7 black: near-black potch, most brilliant contrast \u00b7 boulder: colour veins running through brown ironstone matrix \u00b7 fire: warm honey-orange body with red and gold flashes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "a new stone \u2014 fresh patch layout, colours and phases"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:40:40+00:00",
+    "fps": 59.5,
+    "motion": 0.0546,
+    "lum": 0.558
+  },
+  "code": "const D = { flecks: 20, energy: .7, density: .5, scale: 1, hue: 205, speed: 1, x: .5, y: .5, alpha: 1, style: 'precious', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, TAU=Math.PI*2;\nconst h2=(a,b)=>{const s=Math.sin(a*127.1+b*311.7+P.seed*57.31)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=((h%360)+360)%360/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;}else if(h<2){r=x;g=c;l=0;}else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;}else if(h<5){r=x;g=0;l=c;}else{r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, asp=W/Math.max(1,Hh);\nconst spd=cl(P.speed,.1,4), T=K.t*spd;\nconst en=cl(P.energy,0,1), dens=cl(P.density,0,1), sc=cl(P.scale,.4,2.4);\nconst nf=cl(Math.round(P.flecks*sc),4,64), H=((P.hue%360)+360)%360, al=cl(P.alpha,0,1);\nconst sty=P.style;\nS.tre=(S.tre||0)*.9+(A.treble||0)*.1;\n\nconst BW=Math.max(360,Math.min(720,Math.round(W/2.4))), BH=cl(Math.round(BW*Hh/Math.max(1,W)),96,720);\nif(!S.g||S.gk!==BW+'x'+BH){ if(S.g&&S.g.remove)S.g.remove(); S.g=createGraphics(BW,BH); S.gk=BW+'x'+BH; S.mapK=''; }\nconst G=S.g;\n\n// ---- baked play-of-colour domain map ----\nconst mapK=P.seed+'|'+nf+'|'+BW+'x'+BH;\nif(S.mapK!==mapK){ S.mapK=mapK; const n=BW*BH;\n  const DH=new Float32Array(n), DP=new Float32Array(n), ED=new Float32Array(n), MK=new Uint8Array(n);\n  for(let j=0;j<BH;j++){ const ny=(j/BH)*nf;\n    for(let i=0;i<BW;i++){ const nx=(i/BW)*asp*nf;\n      const xi=Math.floor(nx), yi=Math.floor(ny);\n      let f1=1e9,f2=1e9,cbx=0,cby=0;\n      for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){\n        const cx=xi+di, cy=yi+dj, hh=h2(cx,cy);\n        const sx=cx+.12+.76*hh, sy=cy+.12+.76*h2(cx+17.3,cy-4.4);\n        const dx=nx-sx, dy=ny-sy, d=dx*dx+dy*dy;\n        if(d<f1){f2=f1;f1=d;cbx=cx;cby=cy;}else if(d<f2){f2=d;}\n      }\n      const o=j*BW+i, gh=h2(cbx*1.9+3.1,cby*1.4-6.6), gh2=h2(cbx-8.1,cby*2.3+2.2);\n      DH[o]=gh;                       // domain base hue (sphere-size \u2192 resonant wavelength)\n      DP[o]=gh2;                      // per-domain flash phase (decorrelates twinkle)\n      const eProx=cl((Math.sqrt(f2)-Math.sqrt(f1))*3.0,0,1);\n      ED[o]=0.35+0.65*Math.min(1,eProx*1.4);\n      MK[o]=gh<0.55?1:0;              // vein / harlequin mask for boulder & sparse looks\n    }\n  }\n  S.DH=DH; S.DP=DP; S.ED=ED; S.MK=MK;\n}\nconst DH=S.DH, DP=S.DP, ED=S.ED, MK=S.MK;\n\n// ---- slow light sweep across the stone: a travelling band of colour ----\nconst gd = P.x*TAU + 0.6*Math.sin(T*0.037) + 0.4*Math.sin(T*0.071+1.4);\nconst gx=Math.cos(gd), gy=Math.sin(gd);\nconst sweepT = 0.11*T + 0.05*Math.sin(T*0.09+0.7);\nconst rockA = 0.06*Math.sin(T*0.043)+0.04*Math.sin(T*0.101+2.0);   // stone rocks slowly\nconst flashAmt = (0.55+0.6*en) + S.tre*0.3*en;\nconst sharp = 4.0 - 2.0*dens;        // low density \u2192 sparse pinfire; high \u2192 broad harlequin (smooth \u2192 non-strobe)\nconst yBias = (cl(P.y,0,1)-0.5)*0.5;\n\n// base grounds\nlet baseH,baseS,baseB, milk=0, veinOnly=0, sat=92, warm=0;\nif(sty==='black'){ baseH=H+25; baseS=34; baseB=9; sat=98; }\nelse if(sty==='boulder'){ baseH=26; baseS=48; baseB=20; sat=90; veinOnly=1; }\nelse if(sty==='fire'){ baseH=26; baseS=66; baseB=44; sat=95; warm=1; }\nelse { baseH=H; baseS=15; baseB=50; milk=1; sat=90; }   // precious \u2014 milky opalescence\n\nG.loadPixels(); const px=G.pixels;\nfor(let o=0,p=0;o<BW*BH;o++,p+=4){\n  const vx=(o%BW)/BW-.5, vy=(Math.floor(o/BW))/BH-.5;\n  const proj = vx*gx+vy*gy + rockA + yBias;\n  const dh=DH[o], ph=DP[o], ed=ED[o], mk=MK[o];\n  // base opal body\n  const spk=(h2(o*0.17+1.1,o*0.09)-.5)*8;\n  let r,g,b;\n  { const c=hsb2rgb(baseH+spk*0.4, baseS, baseB+spk); r=c[0]; g=c[1]; b=c[2]; }\n  if(milk){ // diffuse blue-white opalescence pooling toward the light\n    const op=cl(0.5+0.9*(proj*1.6)+0.3,0,1); const c=hsb2rgb(H+8,10,30*op);\n    r+=c[0]*0.6; g+=c[1]*0.6; b+=c[2]*0.7; }\n  // play-of-colour flash\n  if(!(veinOnly && mk===0)){\n    const phase=(sweepT + proj*2.6 + ph)*TAU;\n    let fl=0.5+0.5*Math.sin(phase); fl=Math.pow(fl,sharp);\n    const hue=dh*300 + sweepT*140 + proj*80 + (warm? -0 : 0);\n    const hh = warm ? (16 + dh*70 + proj*40) : hue;\n    const c=hsb2rgb(hh, sat, 100*fl*flashAmt*ed);\n    r+=c[0]; g+=c[1]; b+=c[2];\n  }\n  // vignette\n  const rr2=vx*vx*1.05+vy*vy, vig=cl(1.12-rr2*1.6,0,1);\n  r*=vig; g*=vig; b*=vig;\n  px[p]=r<0?0:r>255?255:r; px[p+1]=g<0?0:g>255?255:g; px[p+2]=b<0?0:b>255?255:b; px[p+3]=255;\n}\nG.updatePixels();\n\nnoStroke();\nif(al<1){ push(); drawingContext.globalAlpha=al; image(G,0,0,W,Hh); pop(); } else image(G,0,0,W,Hh);\nblendMode(BLEND); drawingContext.globalAlpha=1; drawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

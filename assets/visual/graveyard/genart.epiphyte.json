@@ -1,0 +1,131 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "genart.epiphyte",
+ "kind": "genart",
+ "name": "Epiphyte",
+ "desc": "Epiphytes colonising the boughs of a host tree in humid gloom — windborne plumed propagules land on bare bark and each site walks the whole successional sequence from pioneer crust to moss cushion to strap-leaved bromeliad rosette to orchid with pseudobulbs and an arching flower spike, aerial roots dangling and swaying beneath, until the mature growth lets go and drops and the freed bark is colonised again.",
+ "tags": [
+  "epiphyte",
+  "epiphytes",
+  "bromeliad",
+  "tillandsia",
+  "orchid",
+  "airplant",
+  "rosette",
+  "pseudobulb",
+  "aerial-roots",
+  "moss",
+  "crust",
+  "bark",
+  "bough",
+  "branch",
+  "canopy",
+  "succession",
+  "colonisation",
+  "competition",
+  "growth",
+  "botanical",
+  "botany",
+  "plant",
+  "jungle",
+  "rainforest",
+  "humid",
+  "gloom",
+  "dapple",
+  "depth",
+  "layers",
+  "plate",
+  "cyanotype",
+  "photogram",
+  "xray",
+  "nocturne",
+  "chiaroscuro",
+  "green",
+  "organic",
+  "process",
+  "emergence",
+  "senescence",
+  "nature",
+  "study"
+ ],
+ "slots": [
+  "bg"
+ ],
+ "budget": "medium",
+ "params": {
+  "energy": {
+   "default": 0.6,
+   "min": 0,
+   "max": 1,
+   "doc": "breeze through the boughs — root sway, leaf flutter, spike whip — plus succession rate"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "how many colonised sites are rendered (3 at 0 -> 16 at 1) and how thick the propagule rain is"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.4,
+   "max": 2.2,
+   "doc": "epiphyte size vs frame (2.2 = a macro study of a few plants)"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.05,
+   "max": 4,
+   "doc": "succession + sway rate multiplier"
+  },
+  "hue": {
+   "default": 118,
+   "min": 0,
+   "max": 360,
+   "doc": "foliage hue (flowers always sit opposite it, senescence drifts it warm)"
+  },
+  "boughs": {
+   "default": 3,
+   "min": 1,
+   "max": 3,
+   "doc": "how many host branches, each on its own depth plane"
+  },
+  "x": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "colonisation focus — where the propagule rain converges, and therefore where new sites establish along the boughs"
+  },
+  "y": {
+   "default": 0.5,
+   "min": 0,
+   "max": 1,
+   "doc": "height of the bough stack in the frame"
+  },
+  "style": {
+   "default": "humid_plate",
+   "options": [
+    "humid_plate",
+    "cyanotype",
+    "xray",
+    "nocturne"
+   ],
+   "doc": "aesthetic — dense botanical wash w/ bark fissures and top-light; Atkins photogram on Prussian blue; additive translucent radiograph; nocturne where form is built only from a drifting canopy dapple"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "seeds the boughs, colonisation sites, plant proportions and root counts"
+  },
+  "alpha": {
+   "default": 100,
+   "min": 0,
+   "max": 100,
+   "doc": "opacity of the epiphytes over the boughs"
+  }
+ },
+ "acts": null,
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:118, boughs:3, x:.5, y:.5, style:'humid_plate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.4,2.2);\nconst NB = Math.round(cl(P.boughs,1,3)), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43+1.7) + .32*Math.sin(T*2.29) + .38*Math.sin(T*.149);\nconst breeze = (.28 + .9*EN)*gust + A.lowmid*.85 + K.pulse*.2*K.intensity;\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet mode;\nif (sty === 'cyanotype') mode = 1; else if (sty === 'xray') mode = 2;\nelse if (sty === 'nocturne') mode = 3; else mode = 0;\n\n// ---- humid gloom + a drifting canopy dapple (a moving luminance field) ---\nconst bgKey = [width,height,sd,sty,H].join('|');\nif (!S.g || S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const bw = Math.min(560, Math.max(220, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke();\n  for (let y=0;y<bh;y++){ const v = y/bh;\n    if (mode === 1) g.fill(214, 82 - v*6, 32 - v*12);\n    else if (mode === 2) g.fill(196, 42, 16 - v*4);\n    else if (mode === 3) g.fill(28, 44, 17 - v*7);\n    else g.fill(H - 26 + v*10, 22 + v*10, 60 - v*26);\n    g.rect(0, y, bw, 1.2); }\n  for (let i=0;i<2400;i++){ g.fill(0, 0, mode===0 ? 40 : 92, 4 + fr(i*3.9)*8);\n    g.rect(fr(i*2.7)*bw, fr(i*6.3+2)*bh, 1.5, 1.5); }\n  g.pop();\n  // the dapple is a SEPARATE, oversized buffer that drifts -> whole-frame slow motion\n  const dw = 300, dh = Math.max(1, Math.round(dw*height/Math.max(1,width)));\n  if (S.dp && S.dp.remove) S.dp.remove();\n  const d2 = createGraphics(dw, dh);\n  S.dp = d2; d2.colorMode(HSB, 360, 100, 100, 100);\n  d2.push(); d2.clear(); d2.noStroke();\n  for (let i=0;i<120;i++){                                   // soft light pools through the canopy\n    const px2 = fr(i*5.3)*dw, py2 = fr(i*7.1)*dh, r = dw*(.03 + fr(i*2.3)*.13);\n    for (let k=5;k>0;k--) { d2.fill(mode===1?208:(mode===3?42:52), mode===1?20:26, 100, 2.4);\n      d2.ellipse(px2, py2, r*k*.42, r*k*.36); }\n  }\n  d2.pop();\n}\nimage(S.g, 0, 0, width, height);\nblendMode(mode === 3 ? ADD : SCREEN);\nconst dox = (Math.sin(T*.037) + .3*Math.sin(T*.0911 + 2.1))*width*.06;\nconst doy = (Math.cos(T*.029) + .3*Math.sin(T*.0713))*height*.05;\ntint(0, 0, 100, mode===2 ? 22 : 40);\nimage(S.dp, -width*.08 + dox, -height*.08 + doy, width*1.16, height*1.16);\nnoTint(); blendMode(BLEND);\n\n// ---- boughs (host surfaces the epiphytes compete for) --------------------\nconst bough = k => {                                        // k = 0 far .. NB-1 near\n  const z = NB === 1 ? 1 : .3 + .7*(k/(NB-1));\n  const j = k*13.7 + 3;\n  return { z: z,\n    y: (.22 + .3*(1 - z) + (k===NB-1 ? .42 : 0) + (fr(j*1.3)-.5)*.06 + (P.y-.5)*.5),\n    tilt: (fr(j*2.7)-.5)*.34, bow: (fr(j*3.9)-.5)*.16, ph: fr(j*5.1)*6.28 };\n};\nconst boughY = (b, xn) => (b.y + b.tilt*(xn-.5) + b.bow*Math.sin((xn-.1)*3.4 + b.ph))*height\n  + breeze*u*.004*b.z*Math.sin(T*.71 + b.ph);\nconst boughR = b => u*(.017 + .026*b.z)*SC;\n\n// ---- epiphyte sites: each site walks the successional sequence ----------\n// gen 0 crust -> 1 moss cushion -> 2 tillandsia/bromeliad rosette -> 3 orchid w/ pseudobulbs\nconst NMAX = 16;\nconst reseed = (s, hard) => {\n  const j = s.id*23.7 + (s.rr = (s.rr||0)+1)*9.1;\n  // the site establishes where the propagule rain actually lands -> clusters on the P.x focus\n  if (hard) { s.gen = 0; s.bg = (s.id % Math.max(1,NB));\n    s.xn = cl(P.x + (fr(j*1.7) + fr(j*2.9) - 1)*.62, .04, .96); }\n  else s.gen = Math.min(3, (s.gen||0) + 1);                 // succession: the site matures\n  s.age = 0;\n  s.life = 22 + fr(j*2.3)*16 + s.gen*7;\n  s.hold = 8 + fr(j*3.1)*10;\n  s.sen = 8 + fr(j*4.3)*8;\n  s.dead = 0;\n  s.sz = .72 + fr(j*5.7)*.6;\n  s.ph = fr(j*6.9)*6.28;\n  s.nl = 6 + ((fr(j*7.3)*3)|0);\n  s.hj = (fr(j*8.1)-.5)*40;\n  s.side = fr(j*9.3) < .5 ? -1 : 1;\n  s.roots = 1 + ((fr(j*11.7)*2.6)|0);\n};\nconst adv = (s, d) => {\n  s.age += d;\n  const tot = s.life + s.hold + s.sen;\n  if (s.age > tot) {\n    if (s.gen >= 3) reseed(s, true);                        // the whole site falls and starts over\n    else reseed(s, false);\n  }\n};\nif (!S.si || S.si.length !== NMAX || S.szKey !== width+'x'+height+sd+NB) {\n  S.szKey = width+'x'+height+sd+NB; S.si = [];\n  for (let i=0;i<NMAX;i++){ const s = { id:i }; reseed(s, true);\n    const w = fr(i*15.1)*140; for (let q=0;q<Math.round(w*8);q++) adv(s, 1/8);\n    S.si.push(s); }\n}\nfor (let i=0;i<NMAX;i++) adv(S.si[i], dt*SP*(.6 + .8*EN)*(.7 + .5*K.intensity));\n\n// ---- draw boughs ---------------------------------------------------------\nstrokeCap(ROUND); strokeJoin(ROUND);\nconst BS = [];\nfor (let k=0;k<NB;k++) BS.push(bough(k));\nfor (let k=0;k<NB;k++) {\n  const b = BS[k], r = boughR(b), haze = .32 + .68*b.z;\n  noFill();\n  if (mode === 1) stroke(216, 66 - b.z*18, 14 + b.z*8, 96*AL);\n  else if (mode === 2) stroke(200, 26, 34*haze, 46*AL);\n  else if (mode === 3) stroke(26, 40, 8 + 12*b.z, 96*AL);\n  else stroke(26, 30 + b.z*10, (16 + 14*b.z), 92*AL*(.5 + .5*haze));\n  strokeWeight(r*2);\n  beginShape();\n  for (let q=0;q<=12;q++){ const xn = q/12 - .06; vertex(xn*width*1.12, boughY(b, xn)); }\n  endShape();\n  if (mode !== 2) {                                          // bark fissures — texture over flat fill\n    strokeWeight(Math.max(.5, r*.11));\n    for (let q=0;q<22;q++){\n      const xn = fr(k*7.7 + q*2.1)*1.05 - .03, off = (fr(k*3.3 + q*5.7)-.5)*1.7;\n      const y0 = boughY(b, xn) + off*r, ln = r*(.5 + fr(k*9.1+q)*1.6);\n      if (mode === 1) stroke(216, 50, 26, 40*AL);\n      else if (mode === 3) stroke(30, 34, 22 + 14*b.z, 34*AL);\n      else stroke(28, 26, 30 + 18*b.z, 34*AL);\n      line(xn*width*1.12, y0, xn*width*1.12 + ln, y0 + ln*.16*(q%2?1:-1));\n    }\n    stroke(mode===1?214:(mode===3?40:36), mode===1?12:26, mode===1?60:(38 + 22*b.z), 34*AL);\n    strokeWeight(Math.max(.6, r*.16)); beginShape();        // top-lit rim\n    for (let q=0;q<=12;q++){ const xn = q/12 - .06; vertex(xn*width*1.12, boughY(b, xn) - r*.72); }\n    endShape();\n  }\n}\n\n// ---- epiphytes -----------------------------------------------------------\nconst nDraw = Math.max(2, Math.round(3 + DN*13));\nfor (let n=0;n<nDraw;n++) {\n  const s = S.si[n]; if (!s) continue;\n  const b = BS[Math.min(s.bg, NB-1)]; if (!b) continue;\n  const gx = (s.xn - .06)*width*1.12, gy = boughY(b, s.xn) - boughR(b)*.55;\n  const grow = cl(s.age/Math.max(1,s.life), 0, 1);\n  const gr = grow*grow*(3 - 2*grow);\n  const ph2 = s.life + s.hold;\n  const dry = s.age > ph2 ? cl((s.age - ph2)/s.sen, 0, 1) : 0;\n  const fade = 1 - dry*.55;\n  const R = u*.05*SC*s.sz*b.z*(.25 + .75*gr);\n  const hh = ((P.hue + s.hj + dry*30) % 360 + 360) % 360;\n  const ss = (54 - dry*30)*(.5 + .5*b.z), bb = (32 + 24*b.z)*(1 - dry*.2) + dry*22;\n  const swy = breeze*u*.008*b.z*(.5 + .8*Math.sin(T*1.23 + s.ph));\n  const alp = AL*fade*(.35 + .65*b.z);\n  push(); translate(gx + swy*.4, gy);\n  if (mode === 2) blendMode(ADD);\n  // --- gen 0: pioneer crust\n  if (s.gen === 0) {\n    noStroke();\n    for (let k=0;k<7;k++){\n      const a2 = fr(s.id*3.1 + k*7.7)*6.28, rr = R*(.35 + fr(s.id*5.3+k)*.75)*1.2;\n      if (mode === 1) fill(214, 24, 82, 40*alp);\n      else if (mode === 2) fill(hh, 40, 40, 12*alp);\n      else fill(hh + 18, ss*.5, bb*.9, 46*alp);\n      ellipse(Math.cos(a2)*R*.5, Math.sin(a2)*R*.22, rr, rr*.5);\n    }\n  }\n  // --- gen 1: moss cushion + short shoots\n  if (s.gen === 1) {\n    noStroke();\n    if (mode === 1) fill(214, 16, 90, 66*alp); else if (mode === 2) fill(hh, 46, 34, 15*alp);\n    else fill(hh, ss, bb*.85, 76*alp);\n    ellipse(0, -R*.12, R*1.5, R*.72);\n    noFill(); strokeWeight(Math.max(.5, R*.05));\n    if (mode === 1) stroke(214, 10, 96, 50*alp); else if (mode === 2) stroke(hh, 40, 66, 16*alp);\n    else stroke(hh, ss + 10, bb + 16, 56*alp);\n    for (let k=0;k<9;k++){\n      const a2 = -Math.PI*.5 + (fr(s.id*2.7+k*3.3)-.5)*2.2;\n      const L = R*(.3 + fr(s.id*4.1+k)*.5)*(1 - dry*.35);\n      const w2 = breeze*R*.12*(.4 + Math.sin(T*2.3 + k + s.ph));\n      line((k/8-.5)*R*1.2, -R*.2, (k/8-.5)*R*1.2 + Math.cos(a2)*L + w2, -R*.2 + Math.sin(a2)*L);\n    }\n  }\n  // --- gen 2: tillandsia / bromeliad rosette\n  if (s.gen === 2) {\n    for (let k=0;k<s.nl;k++){\n      const a2 = -Math.PI*.5 + ((k + .5)/s.nl - .5)*2.7 + s.side*.16;\n      const fl = Math.sin(T*(1.5 + (k%4)*.31) + s.ph + k)*(.05 + .17*EN);\n      const L = R*(1.5 + fr(s.id*6.1+k)*.7)*(1 - dry*.2);\n      const arc = .55 + dry*.5;                             // straps recurve as they dry\n      push(); rotate(a2 + fl + swy*.006);\n      if (mode === 1) { noStroke(); fill(214, 8 + k*.6, 94 - k*1.2, 82*alp); }\n      else if (mode === 2) { noStroke(); fill(hh, 48, 40, 16*alp); }\n      else if (mode === 3) { noStroke(); fill(hh, ss*.8, (10 + bb*.9)*(1 - k*.02), 92*alp); }\n      else { stroke(24, 46, 18, 44*alp); strokeWeight(Math.max(.4, R*.035));\n        fill(hh + k*1.4, ss + 8, bb + (k%2?7:0), 90*alp); }\n      beginShape(); vertex(0, 0);\n      bezierVertex(R*.28, -R*.12*arc, L*.62, -R*.16*arc, L, -R*.05*arc);\n      bezierVertex(L*.62, R*.13*arc, R*.28, R*.16*arc, 0, 0);\n      endShape(CLOSE);\n      if (mode === 0) { stroke(hh, ss*.4, bb + 26, 40*alp); strokeWeight(Math.max(.35, R*.02));\n        line(R*.1, 0, L*.9, -R*.03*arc); }\n      pop();\n    }\n  }\n  // --- gen 3: orchid — pseudobulbs + an arching flower spike\n  if (s.gen === 3) {\n    noStroke();\n    for (let k=0;k<3;k++){                                   // pseudobulbs\n      if (mode === 1) fill(214, 12, 92, 84*alp); else if (mode === 2) fill(hh, 44, 44, 16*alp);\n      else fill(hh - 8, ss - 10, bb + 10 - dry*8, 92*alp);\n      ellipse((k-1)*R*.6, -R*.35, R*.5, R*.95);\n    }\n    for (let k=0;k<4;k++){                                   // strap leaves\n      const a2 = -Math.PI*.5 + (k/3 - .5)*1.9;\n      const L = R*(1.5 + fr(s.id*3.7+k)*.5)*(1 - dry*.25);\n      const fl = Math.sin(T*(1.3 + k*.27) + s.ph)*(.04 + .14*EN);\n      push(); rotate(a2 + fl);\n      if (mode === 1) fill(214, 10, 90, 80*alp); else if (mode === 2) fill(hh, 46, 38, 15*alp);\n      else fill(hh + 4, ss, bb, 88*alp);\n      beginShape(); vertex(0, -R*.5);\n      bezierVertex(R*.3, -R*.7, L*.7, -R*.66, L, -R*.5);\n      bezierVertex(L*.7, -R*.34, R*.3, -R*.3, 0, -R*.5);\n      endShape(CLOSE); pop();\n    }\n    const spk = cl((s.age - s.life*.7)/12, 0, 1)*(1 - dry);  // the arching inflorescence\n    if (spk > .02) {\n      noFill(); strokeWeight(Math.max(.7, R*.07));\n      if (mode === 1) stroke(214, 14, 86, 70*alp); else if (mode === 2) stroke(hh, 40, 62, 18*alp);\n      else stroke(hh - 14, ss - 8, bb + 6, 76*alp);\n      const SL = R*3.1*spk, sw2 = breeze*R*.5*(.4 + .7*Math.sin(T*.93 + s.ph));\n      beginShape();\n      for (let q=0;q<=7;q++){ const v = q/7;\n        vertex(s.side*(v*SL*.75 + sw2*v*v), -R*.7 - SL*(v*.72 - v*v*.3)); }\n      endShape();\n      noStroke();\n      for (let q=1;q<=4;q++){ const v = q/4.4;\n        const fx = s.side*(v*SL*.75 + sw2*v*v), fy = -R*.7 - SL*(v*.72 - v*v*.3);\n        if (mode === 1) fill(214, 2, 100, 88*alp); else if (mode === 2) fill(hh + 180, 50, 70, 22*alp);\n        else fill((hh + 178) % 360, 40 + 20*spk, 76 + 14*b.z, 92*alp);\n        ellipse(fx, fy, R*.34*spk, R*.28*spk); }\n    }\n  }\n  // --- aerial roots dangling off the bough — the piece's motion floor\n  if (s.gen >= 2) {\n    noFill();\n    if (mode === 1) stroke(214, 12, 84, 56*alp); else if (mode === 2) stroke(hh + 20, 24, 66, 16*alp);\n    else stroke(38, 16 + dry*10, 40 + 20*b.z, 52*alp);\n    strokeWeight(Math.max(.5, R*.055));\n    for (let k=0;k<s.roots;k++){\n      const rp = s.ph + k*2.3;\n      const RL = u*.10*SC*b.z*cl((s.age - s.life*.4)/22, 0, 1.35)*(.6 + fr(s.id*7.1+k)*.8);\n      const rx = (k - (s.roots-1)*.5)*R*.5;\n      beginShape();\n      for (let q=0;q<=6;q++){ const v = q/6;\n        vertex(rx + breeze*u*.022*b.z*v*v*(.4 + .7*Math.sin(T*(.97 + k*.21) + rp))\n               + Math.sin(T*1.7 + v*3.1 + rp)*u*.004*v*(.4+EN),\n               R*.2 + RL*v); }\n      endShape();\n    }\n  }\n  blendMode(BLEND);\n  pop();\n}\n// ---- windborne propagules hunting for a free site ------------------------\nconst nS = Math.round(10 + DN*26);\nnoStroke();\nfor (let k=0;k<nS;k++) {\n  const ph = fr(k*4.7)*6.28;\n  const dv = ((T*(.021 + fr(k*6.1)*.03) + fr(k*8.3)) % 1);\n  // ...and the rain itself converges on that focus, live\n  const conv = (P.x - .5)*2*Math.sin(dv*Math.PI)*.34;\n  const sx = ((dv*1.14 - .07) + conv)*width + breeze*u*.03;\n  const syy = (fr(k*2.9)*1.05 - .02)*height + Math.sin(T*(.8 + fr(k*3.1)) + ph)*u*.03;\n  if (mode === 1) fill(214, 4, 100, 30*AL); else if (mode === 2) fill(H, 20, 90, 12*AL);\n  else fill(mode===3 ? 44 : 52, 12, 88, 26*AL);\n  const r = u*.0035*SC*(.5 + fr(k*9.7));\n  ellipse(sx, syy, r*2, r*2);\n  if (mode !== 2) {                                          // the plumose pappus that carries it\n    stroke(mode===1?214:50, 8, 92, 12*AL); strokeWeight(.6);\n    for (let q=0;q<4;q++){ const a2 = ph + q*1.57 + T*.3;\n      line(sx, syy, sx + Math.cos(a2)*r*3.4, syy + Math.sin(a2)*r*3.4); }\n    noStroke();\n  }\n}\nblendMode(BLEND);"
+}

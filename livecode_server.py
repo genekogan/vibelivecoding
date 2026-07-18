@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -41,6 +42,10 @@ class LivecodeController:
         self._server = None
         self._thread: threading.Thread | None = None
         self._pending: dict[str, asyncio.Future] = {}
+        # One reentrant lock guards track-stack + timeline mutations. HTTP
+        # requests are handled on concurrent threads (ThreadingHTTPServer);
+        # a single lock avoids any ordering deadlock between the two.
+        self._lock = threading.RLock()
 
         # Strudel state
         self._tracks: dict[str, str] = {}
@@ -72,6 +77,30 @@ class LivecodeController:
         self._autosave_thread: threading.Thread | None = None
         self._autosave_stop = threading.Event()
 
+        # Conductor: quantized command queue. Commands submitted with a bar
+        # quantum are held and fired ON the next matching bar line, decoupling
+        # the client's think-time from musical timing (no mid-bar seams).
+        self._queue: list[dict] = []
+        self._queue_history: deque = deque(maxlen=30)
+        self._queue_seq = 0
+        self._queue_cv = threading.Condition()
+        self._conductor_stop = threading.Event()
+        self._conductor_thread: threading.Thread | None = None
+
+        # Conductor score: declared musicological intent (key / energy /
+        # section / tags + a bar-stamped note blackboard), shared between
+        # independent performing sessions (music seat / visual seat). The
+        # queue above is the conductor's firing arm (WHEN commands land);
+        # the score is its intent (WHAT the music means right now). rev is
+        # monotonic for the server's lifetime — never reset — so the browser
+        # can drop out-of-order pushes from concurrent seats.
+        self._score: dict = {"key": None, "energy": None, "section": None,
+                             "tags": [], "rev": 0, "updated": None}
+        self._score_notes: deque = deque(maxlen=16)
+        # Last value per /p5/state key, replayed to a reconnecting browser
+        # (P.<slot> params, secBeats/arc, binds otherwise die with the tab).
+        self._state_keys: OrderedDict = OrderedDict()
+
     # ── Lifecycle ────────────────────────────────────────────────
 
     def start(self):
@@ -88,6 +117,10 @@ class LivecodeController:
             target=self._autosave_loop, daemon=True, name="autosave"
         )
         self._autosave_thread.start()
+        self._conductor_thread = threading.Thread(
+            target=self._conductor_loop, daemon=True, name="conductor"
+        )
+        self._conductor_thread.start()
         print(f"Livecode controller listening on ws://{self.host}:{self.ws_port}")
         print(f"Open http://{self.host}:{self.http_port}/livecode.html?v={self._cache_bust}")
         print(f"Autosaving session to {self._autosave_path}")
@@ -108,14 +141,20 @@ class LivecodeController:
         controller = self
 
         class LivecodeHTTPHandler(http.server.SimpleHTTPRequestHandler):
+            # HTTP/1.1 keep-alive: module-graph pages (threejs browser = 500+ ES
+            # modules) fetch in parallel bursts; per-request connections under
+            # HTTP/1.0 overflow the accept backlog and fail the whole import.
+            protocol_version = "HTTP/1.1"
             # REST API routes
             API_ROUTES = {
-                "GET": {"/status", "/state", "/errors", "/transport", "/show/steps", "/show/save"},
+                "GET": {"/status", "/state", "/errors", "/transport", "/q",
+                        "/conductor", "/show/steps", "/show/save"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
                     "/strudel/cps", "/strudel/reset", "/strudel/send",
                     "/p5/layer", "/p5/remove", "/p5/clear",
                     "/p5/setup", "/p5/send", "/p5/state", "/p5/fps",
+                    "/q", "/q/cancel", "/conductor",
                     "/show/next", "/show/prev", "/show/goto",
                     "/show/mark", "/show/recording", "/show/load",
                     "/show/load_file", "/show/save_file",
@@ -156,6 +195,9 @@ class LivecodeController:
                         "step": controller._step_index,
                         "totalSteps": len(controller._steps),
                         "recording": controller._recording,
+                        "queued": len(controller._queue),
+                        "conductor": controller.conductor_summary(),
+                        "lastError": controller._errors[-1] if controller._errors else None,
                     })
                 elif self.path == "/state":
                     # Autopilot: full code dump for self-correction
@@ -167,6 +209,7 @@ class LivecodeController:
                         "setup": controller._setup_code,
                         "tracks": controller.tracks,
                         "layers": controller.layers,
+                        "conductor": controller.score_snapshot(),
                     })
                 elif self.path == "/errors":
                     # Autopilot: recent browser-side runtime errors
@@ -176,6 +219,10 @@ class LivecodeController:
                         self._reply({"ok": True, "transport": controller.transport_snapshot()})
                     except Exception as e:
                         self._reply({"ok": False, "error": str(e)}, 503)
+                elif self.path == "/q":
+                    self._reply(controller.queue_status())
+                elif self.path == "/conductor":
+                    self._reply(controller.conductor_view())
                 elif self.path.startswith("/p5/read"):
                     # Read a window.state key from the browser (validation/review tooling)
                     from urllib.parse import urlparse, parse_qs
@@ -197,114 +244,146 @@ class LivecodeController:
                         "total": len(controller._steps),
                     })
                 elif self.path == "/show/save":
-                    import datetime
-                    self._reply({
-                        "format": "livecode-show-v1",
-                        "name": controller._current_label() or "untitled",
-                        "created": datetime.datetime.now().isoformat(),
-                        "steps": controller._steps,
-                    })
+                    self._reply(controller.show_snapshot())
                 else:
                     super().do_GET()
 
             def do_POST(self):
                 path = self.path
+                t0 = time.perf_counter()
+                d = {}
+                err = None
                 try:
                     d = self._read_json()
-
-                    # Strudel routes
-                    if path == "/strudel/track":
-                        controller.set_track(d["name"], d["code"])
-                        controller._record_step(path, d)
-                    elif path == "/strudel/stop":
-                        controller.stop_track(d["name"])
-                        controller._record_step(path, d)
-                    elif path == "/strudel/hush":
-                        controller.hush()
-                        controller._record_step(path, d)
-                    elif path == "/strudel/cps":
-                        controller.set_cps(d["cps"])
-                        controller._record_step(path, d)
-                    elif path == "/strudel/reset":
-                        result = controller.reset_transport(d.get("quantumCycles", 1))
-                        controller._record_step(path, d)
-                        return self._reply({"ok": True, "transport": result.get("result")})
-                    elif path == "/strudel/send":
-                        r = controller.send_strudel(d["code"], d.get("evaluate", False))
-                        return self._reply({"ok": True, "response": r})
-
-                    # p5 routes
-                    elif path == "/p5/layer":
-                        controller.set_layer(d["name"], d["code"])
-                        controller._record_step(path, d)
-                    elif path == "/p5/remove":
-                        controller.remove_layer(d["name"])
-                        controller._record_step(path, d)
-                    elif path == "/p5/clear":
-                        controller.clear()
-                        controller._record_step(path, d)
-                    elif path == "/p5/setup":
-                        controller.set_setup(d["code"])
-                        controller._record_step(path, d)
-                    elif path == "/p5/send":
-                        r = controller.send_p5(d["code"])
-                        return self._reply({"ok": True, "response": r})
-                    elif path == "/p5/state":
-                        controller.set_state(d["key"], d["value"])
-                        controller._record_step(path, d)
-                    elif path == "/p5/fps":
-                        controller.set_fps(d["fps"])
-                        controller._record_step(path, d)
-
-                    # Show navigation routes
-                    elif path == "/show/next":
-                        result = controller.step_next()
-                        return self._reply(result)
-                    elif path == "/show/prev":
-                        result = controller.step_prev()
-                        return self._reply(result)
-                    elif path == "/show/goto":
-                        result = controller.step_goto(d["step"])
-                        return self._reply(result)
-                    elif path == "/show/mark":
-                        controller.step_mark(d.get("label", ""))
-                        return self._reply({"ok": True, "step": controller._step_index})
-                    elif path == "/show/recording":
-                        controller._recording = d.get("enabled", True)
-                    elif path == "/show/load":
-                        controller.load_steps(d["steps"])
-                        return self._reply({"ok": True, "total": len(controller._steps)})
-                    elif path == "/show/load_file":
-                        result = controller.load_show_from_file(d["path"])
-                        return self._reply(result)
-                    elif path == "/show/save_file":
-                        result = controller.save_show_to_file(d["path"])
-                        return self._reply(result)
-
-                    # Music factory: taste grading (bad/ok/good) -> grades.jsonl.
-                    # Append-only; the prune tool does any actual deletion later.
-                    elif path == "/music/grade":
-                        import datetime
-                        gid, grade = d.get("id"), d.get("grade")
-                        if not gid or grade not in ("bad", "ok", "good"):
-                            return self._reply({"ok": False, "error": "need id + grade in {bad,ok,good}"}, 400)
-                        rec = {"ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-                               "id": gid, "grade": grade}
-                        gpath = os.path.join(root, "assets", "music", "grades.jsonl")
-                        with open(gpath, "a") as gf:
-                            gf.write(json.dumps(rec) + "\n")
-                        return self._reply({"ok": True, **rec})
-                    else:
-                        return self._reply({"error": "not found"}, 404)
-
-                    self._reply({"ok": True})
+                    resp, status = self._dispatch_post(path, d)
+                    if status >= 400:
+                        err = resp.get("error", f"HTTP {status}")
+                    self._reply(resp, status)
                 except Exception as e:
-                    self._reply({"ok": False, "error": str(e)}, 500)
+                    err = str(e)
+                    self._reply({"ok": False, "error": err}, 500)
+                controller._log_command(path, d, (time.perf_counter() - t0) * 1000, err)
+
+            def _dispatch_post(self, path, d):
+                """Handle one POST route; return (response_dict, status)."""
+                # Strudel routes
+                if path == "/strudel/track":
+                    if not isinstance(d.get("name"), str) or not d["name"].strip():
+                        return {"ok": False, "error": "strudel track requires a non-empty name"}, 400
+                    if not isinstance(d.get("code"), str) or not d["code"].strip():
+                        return {"ok": False, "error": "strudel track requires non-empty code"}, 400
+                    controller.set_track(d["name"], d["code"])
+                    controller._record_step(path, d)
+                elif path == "/strudel/stop":
+                    controller.stop_track(d["name"])
+                    controller._record_step(path, d)
+                elif path == "/strudel/hush":
+                    controller.hush()
+                    controller._record_step(path, d)
+                elif path == "/strudel/cps":
+                    controller.set_cps(d["cps"])
+                    controller._record_step(path, d)
+                elif path == "/strudel/reset":
+                    result = controller.reset_transport(d.get("quantumCycles", 1))
+                    controller._record_step(path, d)
+                    return {"ok": True, "transport": result.get("result")}, 200
+                elif path == "/strudel/send":
+                    r = controller.send_strudel(d["code"], d.get("evaluate", False))
+                    return {"ok": True, "response": r}, 200
+
+                # p5 routes
+                elif path == "/p5/layer":
+                    controller.set_layer(d["name"], d["code"])
+                    controller._record_step(path, d)
+                elif path == "/p5/remove":
+                    controller.remove_layer(d["name"])
+                    controller._record_step(path, d)
+                elif path == "/p5/clear":
+                    controller.clear()
+                    controller._record_step(path, d)
+                elif path == "/p5/setup":
+                    controller.set_setup(d["code"])
+                    controller._record_step(path, d)
+                elif path == "/p5/send":
+                    r = controller.send_p5(d["code"])
+                    return {"ok": True, "response": r}, 200
+                elif path == "/p5/state":
+                    controller.set_state(d["key"], d["value"])
+                    controller._record_step(path, d)
+                elif path == "/p5/fps":
+                    controller.set_fps(d["fps"])
+                    controller._record_step(path, d)
+
+                # Conductor score route (declared musicological intent)
+                elif path == "/conductor":
+                    try:
+                        r = controller.conductor_update(d)
+                    except ValueError as e:
+                        return {"ok": False, "error": str(e)}, 400
+                    controller._record_step(path, d)
+                    return r, 200
+
+                # Conductor queue routes
+                elif path == "/q":
+                    if "items" in d:
+                        queued = controller.queue_batch(d["items"])
+                    else:
+                        queued = [controller.queue_command(
+                            d["route"], d.get("payload") or {},
+                            d.get("at", 4), d.get("offset", 0))]
+                    return {"ok": True, "queued": queued}, 200
+                elif path == "/q/cancel":
+                    r = controller.queue_cancel(d.get("id"), bool(d.get("all")))
+                    return r, (200 if r.get("ok") else 404)
+
+                # Show navigation routes
+                elif path == "/show/next":
+                    return controller.step_next(), 200
+                elif path == "/show/prev":
+                    return controller.step_prev(), 200
+                elif path == "/show/goto":
+                    return controller.step_goto(d["step"]), 200
+                elif path == "/show/mark":
+                    controller.step_mark(d.get("label", ""))
+                    return {"ok": True, "step": controller._step_index}, 200
+                elif path == "/show/recording":
+                    controller._recording = bool(d.get("enabled", True))
+                elif path == "/show/load":
+                    controller.load_steps(d["steps"])
+                    return {"ok": True, "total": len(controller._steps)}, 200
+                elif path == "/show/load_file":
+                    return controller.load_show_from_file(d["path"]), 200
+                elif path == "/show/save_file":
+                    return controller.save_show_to_file(d["path"]), 200
+
+                # Music factory: taste grading (bad/ok/good) -> grades.jsonl.
+                # Append-only; the prune tool does any actual deletion later.
+                elif path == "/music/grade":
+                    import datetime
+                    gid, grade = d.get("id"), d.get("grade")
+                    if not gid or grade not in ("bad", "ok", "good"):
+                        return {"ok": False, "error": "need id + grade in {bad,ok,good}"}, 400
+                    rec = {"ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                           "id": gid, "grade": grade}
+                    gpath = os.path.join(root, "assets", "music", "grades.jsonl")
+                    with open(gpath, "a") as gf:
+                        gf.write(json.dumps(rec) + "\n")
+                    return {"ok": True, **rec}, 200
+                else:
+                    return {"error": "not found"}, 404
+
+                return {"ok": True}, 200
 
             def log_message(self, format, *args):
-                pass  # suppress request logging
+                pass  # suppress static-file noise; API commands log via _log_command
 
-        self._httpd = http.server.HTTPServer((self.host, self.http_port), LivecodeHTTPHandler)
+        # Threaded: a slow browser round-trip on one command must not block
+        # /status polls, file serving, or other commands behind it.
+        class LivecodeHTTPServer(http.server.ThreadingHTTPServer):
+            daemon_threads = True
+            request_queue_size = 128   # default 5 drops connections under module-fetch bursts
+
+        self._httpd = LivecodeHTTPServer((self.host, self.http_port), LivecodeHTTPHandler)
         t = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         t.start()
 
@@ -316,7 +395,12 @@ class LivecodeController:
 
     def close(self):
         """Shut down the server and background thread."""
+        self._conductor_stop.set()
+        with self._queue_cv:
+            self._queue_cv.notify_all()
         self._final_autosave()
+        if self._autosave_thread:
+            self._autosave_thread.join(timeout=2)
         if self._server and self._loop:
             asyncio.run_coroutine_threadsafe(self._close_ws_server(), self._loop).result(timeout=3)
         if self._loop and self._loop.is_running():
@@ -333,9 +417,45 @@ class LivecodeController:
             self._server.close()
             await self._server.wait_closed()
 
+    # ── Console logging ──────────────────────────────────────────
+
+    _GLYPHS = {"strudel": "♪", "p5": "▦", "show": "⏭", "music": "★", "conductor": "𝄞"}
+
+    @staticmethod
+    def _tint(code: str, s: str) -> str:
+        """ANSI-color s when stdout is a terminal."""
+        return f"\033[{code}m{s}\033[0m" if sys.stdout.isatty() else s
+
+    def _log_command(self, route: str, payload: dict, ms: float, error: str | None = None):
+        """One-line performance log per API command: what landed and how fast."""
+        ts = self._tint("2", time.strftime("%H:%M:%S"))
+        head, _, verb = route.strip("/").partition("/")
+        bits = []
+        name = payload.get("name") or payload.get("label")
+        if name:
+            bits.append(str(name))
+        if isinstance(payload.get("code"), str):
+            bits.append(f"{len(payload['code'])}ch")
+        if head == "show":
+            bits.append(f"{self._step_index + 1}/{len(self._steps)}")
+        if head == "conductor":
+            kv = " ".join(f"{k}={v}" for k, v in payload.items()
+                          if k in ("key", "energy", "section", "note", "tags", "clear"))
+            if kv:
+                bits.append(kv[:48])
+        detail = "  ".join(bits)
+        # flush: under nohup/pipes stdout is block-buffered and lines would
+        # otherwise sit invisible for minutes
+        if error:
+            print(f"{ts}  {self._tint('31', '✗')} {route}  {detail}  "
+                  f"{self._tint('31', error)}  ({ms:.0f}ms)", flush=True)
+        else:
+            glyph = self._GLYPHS.get(head, "·")
+            print(f"{ts}  {glyph} {verb or head:<9} {detail:<28} {ms:>5.0f}ms", flush=True)
+
     # ── WebSocket handler ────────────────────────────────────────
 
-    EXPECTED_VERSION = 3
+    EXPECTED_VERSION = 4
 
     async def _handler(self, ws):
         self._connections.add(ws)
@@ -346,9 +466,12 @@ class LivecodeController:
                     v = msg.get("version", 0)
                     diag = msg.get("diag", {})
                     if v != self.EXPECTED_VERSION:
-                        print(f"\n  *** STALE BROWSER: v{v} (need v{self.EXPECTED_VERSION}) — hard-refresh! (Cmd+Shift+R) ***\n")
+                        print(f"\n  *** STALE BROWSER: v{v} (need v{self.EXPECTED_VERSION}) — hard-refresh! (Cmd+Shift+R) ***\n", flush=True)
+                        # Disconnect so a stale tab can't receive commands or
+                        # answer _send_and_wait ahead of the current browser.
+                        await ws.close(code=4000, reason=f"stale client v{v}, need v{self.EXPECTED_VERSION}")
                         continue
-                    print(f"  (browser v{v} OK)")
+                    print(f"  (browser v{v} OK)", flush=True)
                     if diag:
                         for dk, dv in diag.items():
                             print(f"    {dk}: {dv}")
@@ -366,12 +489,17 @@ class LivecodeController:
                         if not fut.done():
                             fut.set_result(msg)
                 elif msg.get("type") == "log_error":
-                    # Autopilot: browser-side runtime error forwarded for self-correction
-                    self._errors.append({
+                    # Browser-side runtime error: keep for /errors polling AND
+                    # surface immediately — a broken layer/pattern must not
+                    # fail silently while the terminal shows nothing.
+                    entry = {
                         "ts": msg.get("ts"),
                         "system": msg.get("system", "?"),
                         "message": msg.get("message", ""),
-                    })
+                    }
+                    self._errors.append(entry)
+                    print(self._tint("31", f"  [browser:{entry['system']}] {entry['message']}"),
+                          flush=True)
         except websockets.ConnectionClosed:
             pass
         finally:
@@ -410,6 +538,23 @@ class LivecodeController:
             })
             await ws.send(msg)
 
+        # Restore pushed window.state keys (P.<slot> params, secBeats/arc,
+        # binds) BEFORE layers — mirroring fire_visual's params-before-layer
+        # ordering so the first restored frame reads the right values. Then
+        # the conductor score, so K derivations resume immediately.
+        with self._lock:
+            state_items = list(self._state_keys.items())
+        restore_codes = [self._state_assignment(k, v) for k, v in state_items]
+        score_push = self._score_push_payload()
+        if score_push is not None:
+            restore_codes.append(self._score_push_code(score_push))
+        for code in restore_codes:
+            mid = f"msg_{uuid.uuid4().hex[:8]}"
+            await ws.send(json.dumps({
+                "type": "execute", "target": "p5",
+                "code": code, "id": mid, "mode": "eval",
+            }))
+
         # Restore p5 layers
         for name, code in self._layers.items():
             mid = f"msg_{uuid.uuid4().hex[:8]}"
@@ -421,6 +566,13 @@ class LivecodeController:
             await ws.send(msg)
 
     # ── Sending (internal) ───────────────────────────────────────
+
+    @staticmethod
+    def _raise_for_browser_error(result: dict) -> None:
+        """Turn browser-side execution failures into REST-visible failures."""
+        if result.get("type") == "error" or result.get("success") is False:
+            message = result.get("message") or result.get("error") or "unknown browser error"
+            raise RuntimeError(f"Browser rejected command: {message}")
 
     def _send_and_wait_sync(self, payload: str, mid: str, timeout: float | None = None) -> dict:
         """Send payload to all connections and wait for response."""
@@ -435,8 +587,11 @@ class LivecodeController:
         except TimeoutError:
             self._pending.pop(mid, None)
             raise TimeoutError(f"Browser did not respond within {wait_timeout}s")
-        if result.get("type") == "error":
-            print(f"Browser error: {result.get('message', '?')}")
+        try:
+            self._raise_for_browser_error(result)
+        except RuntimeError as error:
+            print(error)
+            raise
         return result
 
     async def _send_and_wait(self, payload: str, mid: str, timeout: float) -> dict:
@@ -483,24 +638,44 @@ class LivecodeController:
 
     def set_track(self, name: str, code: str):
         """Set or update a named track, then replay all tracks as a stack."""
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("track name must be a non-empty string")
+        if not isinstance(code, str) or not code.strip():
+            raise ValueError("track code must be a non-empty string")
         code = self._strip_play(code)
-        self._tracks[name] = code
-        self._replay_all()
+        with self._lock:
+            missing = object()
+            previous = self._tracks.get(name, missing)
+            self._tracks[name] = code
+            try:
+                return self._replay_all()
+            except Exception:
+                if previous is missing:
+                    self._tracks.pop(name, None)
+                else:
+                    self._tracks[name] = previous
+                try:
+                    self._replay_all()
+                except Exception as rollback_error:
+                    print(f"Track rollback failed for {name!r}: {rollback_error}")
+                raise
 
     def stop_track(self, name: str):
         """Remove a named track, then replay remaining tracks."""
-        self._tracks.pop(name, None)
-        self._replay_all()
+        with self._lock:
+            self._tracks.pop(name, None)
+            self._replay_all()
 
     def hush(self):
         """Stop all tracks and clear the track dict."""
-        self._tracks.clear()
-        self._transport_generation += 1
-        return self._send_transport(
-            "hush",
-            serverGeneration=self._transport_generation,
-            reason="server-hush",
-        )
+        with self._lock:
+            self._tracks.clear()
+            self._transport_generation += 1
+            return self._send_transport(
+                "hush",
+                serverGeneration=self._transport_generation,
+                reason="server-hush",
+            )
 
     def set_cps(self, cps: float):
         """Change the owned scheduler's CPS without replacing its pattern/phase."""
@@ -576,16 +751,44 @@ class LivecodeController:
         """Resize the canvas."""
         self.send_p5(f"resizeCanvas({width}, {height});", mode="eval")
 
+    @staticmethod
+    def _validate_state_key(key: str):
+        """Require a plain dotted identifier path — anything else becomes a confusing JS error."""
+        if not re.fullmatch(r"[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*", key or ""):
+            raise ValueError(f"invalid state key: {key!r}")
+
+    @classmethod
+    def _state_assignment(cls, key: str, value) -> str:
+        """JS assignment for a dotted state key, guarding each parent path so a
+        fresh page can't throw (state.P.subA = … with state.P undefined)."""
+        cls._validate_state_key(key)
+        val_json = json.dumps(value)
+        parts = key.split(".")
+        guards = []
+        prefix = ""
+        for part in parts[:-1]:
+            prefix = f"{prefix}.{part}" if prefix else part
+            guards.append(f"window.state.{prefix} = window.state.{prefix} || {{}};")
+        assign = f"window.state.{key} = {val_json};"
+        return (" ".join(guards) + " " + assign) if guards else assign
+
     def set_state(self, key: str, value):
         """Set a key in the persistent window.state object."""
-        val_json = json.dumps(value)
-        self.send_p5(f"window.state.{key} = {val_json};", mode="eval")
+        code = self._state_assignment(key, value)
+        # Record intent before sending: a reconnecting browser replays the
+        # last value per key (see _restore_all) — params, arc inputs, and
+        # binds otherwise die with the tab. Bounded, insertion-ordered.
+        with self._lock:
+            self._state_keys[key] = value
+            self._state_keys.move_to_end(key)
+            while len(self._state_keys) > 64:
+                self._state_keys.popitem(last=False)
+        self.send_p5(code, mode="eval")
 
     def read_state(self, key: str):
         """Read a (dotted-path) key from window.state in the browser.
         Used by validation/review tooling: /p5/read?key=clk, key=audio, ..."""
-        if not re.fullmatch(r"[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*", key or ""):
-            raise ValueError(f"invalid state key: {key!r}")
+        self._validate_state_key(key)
         code = (
             f"(function() {{ try {{ return window.state.{key}; }} "
             f"catch (e) {{ return null; }} }})()"
@@ -596,6 +799,7 @@ class LivecodeController:
     def init_state(self, **kwargs):
         """Initialize multiple keys in window.state (only sets if not already defined)."""
         for key, value in kwargs.items():
+            self._validate_state_key(key)
             val_json = json.dumps(value)
             self.send_p5(
                 f"if (window.state.{key} === undefined) window.state.{key} = {val_json};",
@@ -610,35 +814,38 @@ class LivecodeController:
 
     def _record_step(self, route: str, payload: dict, label: str = ""):
         """Record a command as a step in the timeline."""
-        if not self._recording:
-            return
-        # If we navigated backward and are now making new commands,
-        # truncate future steps
-        if self._step_index < len(self._steps) - 1:
-            self._steps = self._steps[:self._step_index + 1]
-        self._steps.append({"route": route, "payload": dict(payload), "label": label})
-        self._step_index = len(self._steps) - 1
-        self._notify_step()
+        with self._lock:
+            if not self._recording:
+                return
+            # If we navigated backward and are now making new commands,
+            # truncate future steps
+            if self._step_index < len(self._steps) - 1:
+                self._steps = self._steps[:self._step_index + 1]
+            self._steps.append({"route": route, "payload": dict(payload), "label": label})
+            self._step_index = len(self._steps) - 1
+            self._notify_step()
 
     def load_steps(self, steps: list):
         """Load a list of steps without executing them. For step-through mode."""
-        self._reset_state()
-        self._steps = steps
-        self._step_index = -1
-        self._notify_step()
+        with self._lock:
+            self._reset_state()
+            self._steps = steps
+            self._step_index = -1
+            self._notify_step()
 
     # ── Show file I/O ───────────────────────────────────────────
 
     def show_snapshot(self) -> dict:
         """Return the current timeline as a livecode-show-v1 document."""
         import datetime
-        return {
-            "format": "livecode-show-v1",
-            "name": self._current_label() or self._session_id,
-            "created": datetime.datetime.now().isoformat(timespec="seconds"),
-            "cps_at_start": self._cps,
-            "steps": list(self._steps),
-        }
+        with self._lock:
+            return {
+                "format": "livecode-show-v1",
+                "name": self._current_label() or self._session_id,
+                "created": datetime.datetime.now().isoformat(timespec="seconds"),
+                "cps_at_start": self._cps,
+                "steps": list(self._steps),
+            }
 
     def save_show_to_file(self, path: str) -> dict:
         """Write current timeline to disk as JSON."""
@@ -684,17 +891,18 @@ class LivecodeController:
 
     def _final_autosave(self):
         """Write a final autosave snapshot. Called from close()."""
+        self._autosave_stop.set()
         try:
             if self._steps:
                 self.save_show_to_file(self._autosave_path)
         except Exception as e:
             print(f"final autosave failed: {e}")
-        self._autosave_stop.set()
 
     def step_mark(self, label: str):
         """Add a label/marker to the current step position."""
-        if self._steps and self._step_index >= 0:
-            self._steps[self._step_index]["label"] = label
+        with self._lock:
+            if self._steps and self._step_index >= 0:
+                self._steps[self._step_index]["label"] = label
 
     def _section_boundaries(self) -> list[int]:
         """Return sorted list of step indices that have labels (section starts)."""
@@ -702,6 +910,10 @@ class LivecodeController:
 
     def step_next(self) -> dict:
         """Advance to next section (or single step if no labels)."""
+        with self._lock:
+            return self._step_next_locked()
+
+    def _step_next_locked(self) -> dict:
         if self._step_index >= len(self._steps) - 1:
             return {"ok": False, "error": "at end", "step": self._step_index, "total": len(self._steps)}
         boundaries = self._section_boundaries()
@@ -742,6 +954,10 @@ class LivecodeController:
 
     def step_prev(self) -> dict:
         """Go back to previous section (or single step if no labels)."""
+        with self._lock:
+            return self._step_prev_locked()
+
+    def _step_prev_locked(self) -> dict:
         if self._step_index < 0:
             return {"ok": True, "step": -1, "total": len(self._steps)}
         boundaries = self._section_boundaries()
@@ -796,17 +1012,18 @@ class LivecodeController:
 
     def step_goto(self, target: int) -> dict:
         """Jump to a specific step index."""
-        if target < -1 or target >= len(self._steps):
-            return {"ok": False, "error": "out of range", "step": self._step_index, "total": len(self._steps)}
-        if target == -1:
-            self._step_index = -1
-            self._reset_state()
+        with self._lock:
+            if target < -1 or target >= len(self._steps):
+                return {"ok": False, "error": "out of range", "step": self._step_index, "total": len(self._steps)}
+            if target == -1:
+                self._step_index = -1
+                self._reset_state()
+                self._notify_step()
+                return {"ok": True, "step": -1, "total": len(self._steps)}
+            self._step_index = target
+            self._replay_to(target)
             self._notify_step()
-            return {"ok": True, "step": -1, "total": len(self._steps)}
-        self._step_index = target
-        self._replay_to(target)
-        self._notify_step()
-        return {"ok": True, "step": self._step_index, "total": len(self._steps)}
+            return {"ok": True, "step": self._step_index, "total": len(self._steps)}
 
     def _reset_state(self):
         """Reset to clean state (no tracks, no layers)."""
@@ -823,6 +1040,21 @@ class LivecodeController:
             )
             self._layers.clear()
             self.send_p5("", mode="clear")
+            # Conductor score + replayable state die with the show: stale
+            # key/energy from a previous set must not poison the next one.
+            # rev stays monotonic (never reset) so the browser's out-of-order
+            # push guard keeps working across the reset.
+            with self._lock:
+                self._score = {"key": None, "energy": None, "section": None,
+                               "tags": [], "rev": self._score["rev"] + 1,
+                               "updated": None}
+                self._score_notes.clear()
+                self._state_keys.clear()
+            try:
+                self.send_p5("window.state.conductor = null; window.state.binds = {};",
+                             mode="eval")
+            except Exception:
+                pass  # no browser — restore covers it on connect
         finally:
             self._recording = was_recording
 
@@ -841,16 +1073,7 @@ class LivecodeController:
         was_recording = self._recording
         self._recording = False
         try:
-            self._tracks.clear()
-            self._cps = None
-            self.hush()
-            self._send_transport(
-                "set_cps", cps=0.5,
-                serverGeneration=self._transport_generation,
-                reason="show-reset-default-cps",
-            )
-            self._layers.clear()
-            self.send_p5("", mode="clear")
+            self._reset_state()
             for i in range(target + 1):
                 self._execute_step(self._steps[i])
         finally:
@@ -887,6 +1110,10 @@ class LivecodeController:
             self.set_fps(d["fps"])
         elif route == "/p5/send":
             self.send_p5(d["code"], mode="eval")
+        elif route == "/conductor":
+            # Re-stamps section startBar from the live transport — recorded
+            # payloads are the raw request, never the stamped score.
+            self.conductor_update(d)
         elif route == "/show/mark":
             pass  # no-op — marker steps are just for section boundaries
 
@@ -925,6 +1152,391 @@ class LivecodeController:
         """Set a persistent background layer."""
         args_str = ", ".join(str(a) for a in args)
         self.set_layer("__bg", f"background({args_str});")
+
+    # ── Conductor: score (declared musicological intent) ─────────
+    #
+    # POST /conductor {key, energy, section, tags, note, from, clear} merges a
+    # partial declaration; GET /conductor returns the conductor's complete
+    # view (score + live transport + bar-line ETAs). The browser receives the
+    # asset-relevant subset as window.state.conductor and derives K fields
+    # (keyHue, intensity override, sectionName/sectionBars) that every asset
+    # already reads. Tempo is NOT a score field — /strudel/cps stays the one
+    # writer; bpm here is derived from the transport for display only.
+
+    _PITCH_CLASS = {"c": 0, "d": 2, "e": 4, "f": 5, "g": 7, "a": 9, "b": 11}
+
+    @classmethod
+    def _parse_key(cls, value):
+        """Normalize a key declaration to {root, mode, pc}.
+
+        Accepts 'f# minor' / 'Ab' / 'am' / 'c dorian' / {'root','mode'} / None
+        (= clear). pc is the pitch class 0-11; only pc drives keyHue, mode is
+        carried for keyMinor and author use."""
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            root = str(value.get("root", "")).strip()
+            mode = str(value.get("mode") or "major").strip() or "major"
+        else:
+            parts = str(value).strip().split(None, 1)
+            if not parts:
+                raise ValueError("empty key declaration")
+            root = parts[0]
+            mode = parts[1].strip() if len(parts) > 1 else "major"
+        root = root.lower().replace("♯", "#").replace("♭", "b")
+        # Compact minor forms: 'am', 'f#m', 'abm'
+        if mode == "major" and len(root) >= 2 and root.endswith("m"):
+            cand = root[:-1]
+            if cand[0] in cls._PITCH_CLASS and all(ch in "#b" for ch in cand[1:]):
+                root, mode = cand, "minor"
+        if not root or root[0] not in cls._PITCH_CLASS \
+                or not all(ch in "#b" for ch in root[1:]):
+            raise ValueError(f"unparseable key: {value!r} (want e.g. 'f# minor', 'Ab', 'am')")
+        pc = cls._PITCH_CLASS[root[0]]
+        for ch in root[1:]:
+            pc += 1 if ch == "#" else -1
+        return {"root": root, "mode": mode.lower(), "pc": pc % 12}
+
+    def score_snapshot(self) -> dict:
+        """Full score incl. notes — for GET /conductor, /state, responses."""
+        with self._lock:
+            score = dict(self._score)
+            score["notes"] = list(self._score_notes)
+        return score
+
+    def conductor_summary(self):
+        """Compact score line for /status: None until something is declared."""
+        with self._lock:
+            s = self._score
+            if not s["rev"]:
+                return None
+            key = s["key"]
+            return {"key": f"{key['root']} {key['mode']}" if key else None,
+                    "energy": s["energy"],
+                    "section": s["section"]["name"] if s["section"] else None,
+                    "tags": s["tags"]}
+
+    def _score_push_payload(self) -> dict | None:
+        """Asset-relevant subset for the browser (notes/tags stay server-side).
+        None while nothing has ever been declared."""
+        with self._lock:
+            if not self._score["rev"]:
+                return None
+            return {"key": self._score["key"], "energy": self._score["energy"],
+                    "section": self._score["section"], "rev": self._score["rev"],
+                    "updated": self._score["updated"]}
+
+    @staticmethod
+    def _score_push_code(payload: dict) -> str:
+        """Guarded assignment: pushes travel outside the lock, so two seats'
+        pushes can cross — the browser keeps the higher rev."""
+        return ("(function(v){var c=window.state.conductor;"
+                "if(!c||!(c.rev>v.rev)){window.state.conductor=v;}})("
+                + json.dumps(payload) + ");")
+
+    def _push_score(self) -> bool:
+        """Best-effort push to the browser. False when none is connected or it
+        errors — declaring key/section before the show starts is the normal
+        pre-show sequence; _restore_all replays the score on connect."""
+        payload = self._score_push_payload()
+        if payload is None:
+            return False
+        try:
+            self.send_p5(self._score_push_code(payload), mode="eval")
+            return True
+        except (ConnectionError, TimeoutError, RuntimeError):
+            return False
+
+    def conductor_update(self, payload: dict) -> dict:
+        """Merge a partial score declaration; push to the browser best-effort.
+
+        Presence-based: {'key': null} clears the key, absent fields are left
+        alone; energy 0 is a legitimate value everywhere (never truthiness).
+        Never mutates `payload` — recorded steps carry the raw request, so
+        show replay re-stamps section bars from the live transport."""
+        if not isinstance(payload, dict):
+            raise ValueError("conductor payload must be an object")
+        unknown = set(payload) - {"key", "energy", "section", "tags", "note", "from", "clear"}
+        if unknown:
+            raise ValueError(f"unknown conductor fields: {sorted(unknown)}")
+
+        # Bar stamp for section declarations + notes. Snapshot OUTSIDE the
+        # lock: a hung-browser WS stall must not serialize locked routes.
+        bar = None
+        if payload.get("section") is not None or payload.get("note"):
+            try:
+                snap = self.transport_snapshot() or {}
+                if snap.get("playing"):
+                    bar = round(float(snap.get("cycle") or 0.0), 3)
+            except Exception:
+                bar = None
+
+        # Validate/parse everything BEFORE merging — a bad field must not
+        # leave a half-applied declaration.
+        updates: dict = {}
+        if "key" in payload:
+            updates["key"] = self._parse_key(payload["key"])
+        if "energy" in payload:
+            e = payload["energy"]
+            if e is not None:
+                try:
+                    e = float(e)
+                except (TypeError, ValueError):
+                    raise ValueError("energy must be a number 0..1 or null")
+                if not math.isfinite(e) or not (0.0 <= e <= 1.0):
+                    raise ValueError("energy must be 0..1 or null")
+            updates["energy"] = e
+        if "section" in payload:
+            s = payload["section"]
+            if s is None:
+                updates["section"] = None
+            else:
+                name = s.get("name") if isinstance(s, dict) else s
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError("section needs a name string (or null to clear)")
+                updates["section"] = {"name": name.strip(), "startBar": bar}
+        if "tags" in payload:
+            t = payload["tags"]
+            if t is None:
+                t = []
+            if isinstance(t, str):
+                t = [x.strip() for x in t.split(",") if x.strip()]
+            if not isinstance(t, list):
+                raise ValueError("tags must be a list, comma string, or null")
+            updates["tags"] = [str(x) for x in t]
+        note = None
+        if payload.get("note"):
+            note = {"bar": bar, "from": str(payload.get("from") or "anon"),
+                    "text": str(payload["note"]), "ts": time.time()}
+
+        with self._lock:
+            if payload.get("clear"):
+                self._score.update({"key": None, "energy": None,
+                                    "section": None, "tags": []})
+                self._score_notes.clear()
+            self._score.update(updates)
+            if note:
+                self._score_notes.append(note)
+            self._score["rev"] += 1
+            self._score["updated"] = time.time()
+
+        pushed = self._push_score()
+        return {"ok": True, "score": self.score_snapshot(), "bar": bar,
+                "pushed": pushed}
+
+    def conductor_view(self) -> dict:
+        """GET /conductor — the conductor's complete view: score (intent) +
+        transport position + next bar-line ETAs (its firing arm's grid)."""
+        snap = {}
+        try:
+            snap = self.transport_snapshot() or {}
+        except Exception:
+            pass
+        playing = bool(snap.get("playing"))
+        cps = float(snap.get("cps") or self._cps or 0.5)
+        transport = None
+        boundaries = {}
+        if snap:
+            cycle = float(snap.get("cycle") or 0.0)
+            transport = {"playing": playing, "bar": round(cycle, 3),
+                         "cps": cps, "bpm": round(cps * 240, 1)}
+            if playing:
+                boundaries = {
+                    str(n): round(((math.floor(cycle / n) + 1) * n - cycle) / cps, 2)
+                    for n in (1, 2, 4, 8, 16, 32)
+                }
+        return {"ok": True, "score": self.score_snapshot(), "transport": transport,
+                "nextBoundarySeconds": boundaries, "queued": len(self._queue)}
+
+    # ── Conductor: quantized command queue ───────────────────────
+    #
+    # queue_command("/strudel/track", {...}, at=8, offset=2) holds the command
+    # and fires it 2 bars after the next 8-bar line (cycle == bar). Targets are
+    # cycle numbers, so cps changes mid-wait shift the ETA but never the grid.
+
+    QUEUEABLE_ROUTES = {
+        "/strudel/track", "/strudel/stop", "/strudel/hush", "/strudel/cps",
+        "/p5/layer", "/p5/remove", "/p5/fps", "/p5/state",
+        "/conductor",
+    }
+    _QUEUE_LEAD = 0.08  # fire this many seconds before the downbeat (like boundary.py)
+
+    def queue_command(self, route: str, payload: dict, at: float = 4, offset: float = 0) -> dict:
+        """Enqueue a command to fire on the next `at`-bar line (+ offset bars).
+
+        at=0 fires immediately. While the transport is stopped, grid-quantized
+        items hold (there is no grid yet) — visible via GET /q.
+        """
+        if route not in self.QUEUEABLE_ROUTES:
+            raise ValueError(f"route not queueable: {route}")
+        at, offset = float(at), float(offset)
+        if not math.isfinite(at) or at < 0 or not math.isfinite(offset) or offset < 0:
+            raise ValueError("at/offset must be finite and >= 0")
+        if route in ("/strudel/track", "/p5/layer"):
+            if not isinstance(payload.get("name"), str) or not payload["name"].strip():
+                raise ValueError(f"{route} requires a non-empty name")
+            if not isinstance(payload.get("code"), str) or not payload["code"].strip():
+                raise ValueError(f"{route} requires non-empty code")
+        with self._queue_cv:
+            self._queue_seq += 1
+            item = {
+                "id": f"q{self._queue_seq}", "seq": self._queue_seq,
+                "route": route, "payload": dict(payload),
+                "at": at, "offset": offset, "target": None,
+                "queued_ts": time.time(), "status": "pending",
+            }
+            self._queue.append(item)
+            self._queue_cv.notify_all()
+        when = "now" if at <= 0 else f"next {at:g}-bar line" + (f" +{offset:g}" if offset else "")
+        print(f"{self._tint('2', time.strftime('%H:%M:%S'))}  ⏱ queued {item['id']} "
+              f"{route}  {payload.get('name', '')}  → {when}", flush=True)
+        return self._queue_item_summary(item)
+
+    def queue_batch(self, items: list) -> list[dict]:
+        """Enqueue several commands (e.g. a staggered phase-in) in one call."""
+        return [
+            self.queue_command(i["route"], i.get("payload") or {},
+                               i.get("at", 4), i.get("offset", 0))
+            for i in items
+        ]
+
+    def queue_cancel(self, qid: str | None = None, cancel_all: bool = False) -> dict:
+        with self._queue_cv:
+            if cancel_all:
+                n = len(self._queue)
+                for item in self._queue:
+                    item["status"] = "cancelled"
+                    self._queue_history.append(item)
+                self._queue.clear()
+                return {"ok": True, "cancelled": n}
+            for item in self._queue:
+                if item["id"] == qid:
+                    item["status"] = "cancelled"
+                    self._queue.remove(item)
+                    self._queue_history.append(item)
+                    return {"ok": True, "cancelled": 1, "id": qid}
+        return {"ok": False, "error": f"no pending item {qid!r}"}
+
+    def _queue_item_summary(self, item: dict, cycle: float | None = None,
+                            cps: float | None = None) -> dict:
+        code = item["payload"].get("code")
+        out = {
+            "id": item["id"], "route": item["route"],
+            "name": item["payload"].get("name"),
+            "at": item["at"], "offset": item["offset"],
+            "target": item["target"], "status": item["status"],
+        }
+        if isinstance(code, str):
+            out["codeChars"] = len(code)
+        if item.get("error"):
+            out["error"] = item["error"]
+        if item.get("fired_cycle") is not None:
+            out["firedCycle"] = round(item["fired_cycle"], 3)
+        if cycle is not None and cps and item["status"] == "pending" and item["at"] > 0:
+            target = item["target"]
+            if target is None:
+                target = (math.floor(cycle / item["at"]) + 1) * item["at"] + item["offset"]
+            out["etaSeconds"] = round(max(0.0, (target - cycle) / cps), 2)
+        return out
+
+    def queue_status(self) -> dict:
+        """Transport position, upcoming boundaries, pending + recent items."""
+        snap = {}
+        try:
+            snap = self.transport_snapshot() or {}
+        except Exception:
+            pass
+        playing = bool(snap.get("playing"))
+        cycle = float(snap.get("cycle") or 0.0)
+        cps = float(snap.get("cps") or self._cps or 0.5)
+        with self._queue_cv:
+            pending = [self._queue_item_summary(i, cycle if playing else None, cps)
+                       for i in self._queue]
+            history = [self._queue_item_summary(i) for i in list(self._queue_history)[-10:]]
+        boundaries = {}
+        if playing:
+            boundaries = {
+                str(n): round(((math.floor(cycle / n) + 1) * n - cycle) / cps, 2)
+                for n in (1, 2, 4, 8, 16, 32)
+            }
+        return {"ok": True, "playing": playing, "cycle": round(cycle, 3), "cps": cps,
+                "nextBoundarySeconds": boundaries, "pending": pending, "history": history}
+
+    def _conductor_loop(self):
+        """Daemon: watch the transport, fire queued items on their bar lines."""
+        while not self._conductor_stop.is_set():
+            with self._queue_cv:
+                if not self._queue:
+                    self._queue_cv.wait(timeout=1.0)
+                    continue
+            snap = None
+            try:
+                snap = self.transport_snapshot() or {}
+            except Exception:
+                pass
+            playing = bool(snap and snap.get("playing"))
+            cycle = float(snap.get("cycle") or 0.0) if snap else 0.0
+            cps = float((snap.get("cps") if snap else None) or self._cps or 0.5)
+
+            to_fire, sleep_for = [], 1.0
+            with self._queue_cv:
+                for item in list(self._queue):
+                    if item["at"] <= 0:
+                        to_fire.append(item)
+                        continue
+                    if not playing:
+                        continue  # no grid yet — hold until the transport runs
+                    # A hard reset rewinds the cycle counter; a stale target
+                    # would then sit unreachably far in the future — recompute.
+                    if item["target"] is not None and \
+                            item["target"] - cycle > item["at"] + item["offset"] + 0.01:
+                        item["target"] = None
+                    if item["target"] is None:
+                        item["target"] = (math.floor(cycle / item["at"]) + 1) * item["at"] \
+                            + item["offset"]
+                    dt = (item["target"] - cycle) / cps
+                    if dt <= self._QUEUE_LEAD:
+                        to_fire.append(item)
+                    else:
+                        sleep_for = min(sleep_for, dt - self._QUEUE_LEAD)
+                for item in to_fire:
+                    self._queue.remove(item)
+            for item in sorted(to_fire, key=lambda i: (i["target"] or 0, i["seq"])):
+                self._fire_queued(item, cycle if playing else None)
+            if to_fire:
+                continue  # more items may share the boundary we just crossed
+            with self._queue_cv:
+                self._queue_cv.wait(timeout=max(0.02, min(sleep_for, 1.0)))
+
+    def _fire_queued(self, item: dict, cycle: float | None):
+        t0 = time.perf_counter()
+        try:
+            self._execute_step({"route": item["route"], "payload": item["payload"]})
+            self._record_step(item["route"], item["payload"])
+            item["status"] = "fired"
+        except Exception as e:
+            item["status"] = "failed"
+            item["error"] = str(e)
+        item["fired_ts"] = time.time()
+        item["fired_cycle"] = cycle
+        self._queue_history.append(item)
+        ms = (time.perf_counter() - t0) * 1000
+        ts = self._tint("2", time.strftime("%H:%M:%S"))
+        name = item["payload"].get("name", "")
+        tgt = f"@bar {item['target']:g}" if item.get("target") is not None else "now"
+        verb = item["route"].rsplit("/", 1)[-1]
+        if item["status"] == "fired":
+            print(f"{ts}  ⏱ fired {verb} {name}  {tgt}  {ms:.0f}ms", flush=True)
+        else:
+            print(f"{ts}  {self._tint('31', '✗')} queue {item['id']} {item['route']} {name}  "
+                  f"{self._tint('31', item['error'])}", flush=True)
+        if self._connections:
+            asyncio.run_coroutine_threadsafe(
+                self._broadcast(json.dumps({
+                    "type": "queue_update",
+                    "pending": len(self._queue),
+                    "fired": {"route": item["route"], "name": name, "status": item["status"]},
+                })), self._loop)
 
     # ── Properties ───────────────────────────────────────────────
 

@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.baker_mixing",
+  "kind": "genart",
+  "name": "Baker's Mixing",
+  "desc": "Chaotic advection caught mid-fold \u2014 two pigments pulled through an alternating sine flow that stretches and folds them like taffy into razor-thin lamellae, exponentially finer every pass, while elliptic islands of unmixed fluid ride serenely inside the chaos and never blend at all; as pigment lamellae in a dark bath, banded agate strata, a mixing-intensity field that shows only where the fluid is working, sumi ink marbling, or an iridescent oil film.",
+  "tags": [
+    "chaotic-advection",
+    "mixing",
+    "baker-map",
+    "horseshoe",
+    "smale",
+    "sine-flow",
+    "stretch-and-fold",
+    "lamellae",
+    "striation",
+    "striations",
+    "folding",
+    "taffy",
+    "dye",
+    "pigment",
+    "lagrangian",
+    "kam",
+    "island",
+    "chaos",
+    "lyapunov",
+    "turbulence",
+    "laminar",
+    "stirring",
+    "fluid",
+    "fluid-dynamics",
+    "flow",
+    "advection",
+    "continuum",
+    "dynamical-systems",
+    "simulation",
+    "physics",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "agate",
+    "gneiss",
+    "mineral",
+    "strata",
+    "marbling",
+    "sumi",
+    "ink",
+    "iridescent",
+    "oil-film",
+    "spectral",
+    "indigo",
+    "amber",
+    "austere",
+    "sublime",
+    "hypnotic",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture",
+    "filament"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "the Lyapunov exponent \u2014 shear per half-step: low leaves a regular flow with fat unmixed islands, high drives global chaos that shreds everything"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "true optical zoom into the mixing pattern (resolves finer striations, does not enlarge pixels)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "stirring rate \u2014 how fast the flow alternates between the two shears"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "striation COUNT \u2014 how many half-steps of stretching are folded into the frame (mixing age)"
+    },
+    "sharp": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "dye edge hardness \u2014 soft diffuse gradient through to a hard two-tone partition"
+    },
+    "hue": {
+      "default": 212,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the first pigment (the second takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan across the flow (the domain is a torus \u2014 every position wraps seamlessly)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pan down the flow"
+    },
+    "style": {
+      "default": "lamellae",
+      "options": [
+        "lamellae",
+        "mineral",
+        "mixing_index",
+        "ink_marble",
+        "spectral"
+      ],
+      "doc": "aesthetic: pigment lamellae glowing in a dark bath / matte banded agate strata / abstracted mixing-intensity field where islands go dark / sumi ink on bone paper / iridescent oil film"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the flow phases and the initial dye placement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:11+00:00",
+    "fps": 64.5,
+    "motion": 0.0845,
+    "lum": 0.45
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .5, sharp: .55, hue: 212, x: .5, y: .5, style: 'lamellae', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Chaotic advection \u2014 the alternating sine flow (a continuous baker's map) ------------\n// Half a period shears in x by sin(2*pi*y); the next half shears in y by sin(2*pi*x). Neither\n// map alone does anything interesting, but ALTERNATED they compose into a Smale horseshoe:\n// dye is stretched and folded, striations thin like e^(lambda*t), and yet elliptic KAM islands\n// sit inside the chaos and never mix at all.\n//\n// The trick that makes this renderable: each half-step is an EXACT closed-form shear (the\n// shear velocity depends only on the coordinate the shear does not move), so it inverts in\n// closed form. Rather than advect a dye field forward and watch numerical diffusion smear the\n// striations into grey mush, every pixel walks the map BACKWARD N half-steps and reads the\n// initial dye analytically. Zero diffusion \u2014 the lamellae stay razor sharp forever, and the\n// only cutoff is the pixel grid itself (which is exactly the physical Batchelor scale).\n//\n// The phases drift on incommensurate rates (the \"random-phase sine flow\"). That is not\n// decoration: with fixed phases the backward composition at t and t+period is the SAME map,\n// so the frame would be byte-identical one period later.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(64, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.C = new Float32Array(N); S.AC = new Float32Array(N);\n}\nconst C = S.C, AC = S.AC;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\n\nconst tt = K.t;\nconst L = BW / BH;                 // torus is [0,L] x [0,1] \u2014 square in PIXELS, so no stretch\nconst KX = 2;                      // shear cells across the frame\nconst sph = fr(3) * TAU, sph2 = fr(7) * TAU;\n\n// energy IS the Lyapunov exponent: the shear displacement per half step. Low = regular flow\n// with fat islands, high = global chaos that mixes everything.\nconst amp = 0.35 + P.energy * 1.15;\nconst h = 1.45 / (0.35 + P.speed * 0.65);         // half-period, seconds\nconst NST = 6 + Math.round(P.density * 18);        // striation count / how far back we look\n\nconst m0 = Math.floor(tt / h);\nconst fr0 = tt / h - m0;\n\n// ---- phases + amplitudes are per-half-step, not per-pixel: precompute the whole history ----\nif (!S.PH || S.PH.length < NST + 2) { S.PH = new Float64Array(64); S.AM = new Float64Array(64); }\nconst PH = S.PH, AM = S.AM;\nfor (let k = 0; k <= NST; k++) {\n  const m = m0 - k;\n  PH[k] = (m & 1)\n    ? 0.29 * Math.cos(m * 0.1873 + 0.4) + 0.21 * Math.sin(m * 0.1117 + 2.2) + sph2\n    : 0.31 * Math.sin(m * 0.2417 + 1.7) + 0.19 * Math.sin(m * 0.0913) + sph;\n  AM[k] = amp * (0.85 + 0.30 * Math.sin(m * 0.0731 + 0.9));\n}\n\n// ---- true optical zoom: the buffer covers a sub-rectangle of the torus, so magnifying\n// resolves FINER striations instead of enlarging pixels. The torus wraps, so any x/y pans. ----\nconst z = Math.max(1, P.scale);\nconst spanX = L / z, spanY = 1 / z;\nconst ox = P.x * L - spanX * 0.5 + 0.021 * Math.sin(tt * 0.047);\nconst oy = P.y - spanY * 0.5 + 0.017 * Math.cos(tt * 0.039 + 1.1);\n\nconst shp = 1.2 + P.sharp * 5.5;\nconst kxl = KX / L;\n\nfor (let j = 0; j < BH; j++) {\n  const Y0 = oy + (j + 0.5) / BH * spanY;\n  for (let i = 0; i < BW; i++) {\n    let X = ox + (i + 0.5) / BW * spanX, Y = Y0;\n    // undo the partially-elapsed current half-step, then whole ones back through the history\n    if (m0 & 1) Y -= fr0 * AM[0] * Math.sin(TAU * (X * kxl + PH[0]));\n    else        X -= fr0 * AM[0] * Math.sin(TAU * (Y + PH[0]));\n    for (let k = 1; k <= NST; k++) {\n      if ((m0 - k) & 1) Y -= AM[k] * Math.sin(TAU * (X * kxl + PH[k]));\n      else              X -= AM[k] * Math.sin(TAU * (Y + PH[k]));\n    }\n    // read the initial dye analytically at the pre-image\n    const yw = Y - Math.floor(Y);\n    const xw = X / L - Math.floor(X / L);\n    const s1 = Math.sin(TAU * (yw + 0.12));\n    const s2 = Math.sin(TAU * (xw * 0.5 + 0.31));\n    const p = j * BW + i;\n    C[p] = 0.5 + 0.5 * Math.tanh(s1 * shp);      // the two pigments\n    AC[p] = 0.5 + 0.5 * Math.tanh(s2 * shp * 0.45);\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.019) * 9 + sec * 6) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cA = pal(0.02, 0.14, 0.0), cB = pal(0.46, 0.14, 0.0), cC = pal(0.72, 0.20, 0.0);\nconst en = P.energy;\nconst glow = (0.35 + en * 0.9) * (0.85 + A.bass * 0.45 + K.swell * 0.12);\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1, p = jc + i;\n    const c = C[p], a = AC[p];\n    // |grad c| is the striation density \u2014 high in the chaotic sea, ~0 inside a KAM island\n    const gx = (C[jc + ip] - C[jc + im]) * 0.5, gy = (C[jp + i] - C[jm + i]) * 0.5;\n    const gm = Math.sqrt(gx * gx + gy * gy);\n    const mix = Math.tanh(gm * 3.4);\n    let r, gg, b;\n    if (style === 'mineral') {\n      // banded gneiss / agate: matte strata, no glow, stone grain\n      const gr = (fr(i * 3.1 + j * 7.7) - 0.5) * 0.06;\n      const band = c * 0.72 + a * 0.28;\n      const v = 0.20 + band * 0.44 + gr;\n      r = v * (0.86 + 0.30 * band); gg = v * (0.74 + 0.20 * band); b = v * (0.58 + 0.10 * band);\n      r += mix * 0.05; gg += mix * 0.035; b += mix * 0.02;\n    } else if (style === 'mixing_index') {\n      // abstracted: forget the dye, show only WHERE the fluid is mixing. Islands go dark.\n      const m = Math.min(1, mix * (0.6 + en * 1.1) + 0.05);\n      const cc = pal(0.10 + m * 0.62, 0.28, 0.0);\n      const v = 0.10 + m * 0.72;\n      r = v * (0.35 + cc[0] * 0.9); gg = v * (0.35 + cc[1] * 0.9); b = v * (0.40 + cc[2] * 0.9);\n    } else if (style === 'ink_marble') {\n      // sumi lamellae on bone paper \u2014 the ink is the mass, the paper is the ground\n      const gr = (fr(i * 5.3 + j * 2.9) - 0.5) * 0.07;\n      const v = 0.86 - c * 0.70 + gr - mix * 0.10;\n      r = v * 0.99; gg = v * 0.975; b = v * 0.93;\n    } else if (style === 'spectral') {\n      // iridescent oil film: the dye phase drives a full cosine spectrum\n      const ph = c * 0.55 + a * 0.28 + mix * 0.14;\n      const cc = pal(ph, 0.33, 0.0);\n      const v = 0.24 + 0.34 * (0.4 + mix * 0.6);\n      r = v * (0.30 + cc[0] * 1.25); gg = v * (0.30 + cc[1] * 1.25); b = v * (0.32 + cc[2] * 1.25);\n    } else {                                   // lamellae (default)\n      // two pigments in a dark bath; the interfaces between them catch the light\n      const bl = 0.26 + a * 0.13;\n      r = (cA[0] * (1 - c) + cB[0] * c) * bl + cC[0] * 0.05;\n      gg = (cA[1] * (1 - c) + cB[1] * c) * bl + cC[1] * 0.05;\n      b = (cA[2] * (1 - c) + cB[2] * c) * bl + cC[2] * 0.07;\n      const ed = mix * glow * 0.42;\n      r += ed * 1.0; gg += ed * 0.94; b += ed * 0.78;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,158 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.face",
+  "kind": "subject",
+  "name": "Parametric Face",
+  "desc": "A posable human face \u2014 jaw shape, eyes, brows, nose, mouth expression, ears and hair all on dials, blinking and breathing, rendered flat, as line-art, pop-art halftone, cubist facets, a ceremonial mask, or chrome.",
+  "tags": [
+    "face",
+    "portrait",
+    "head",
+    "person",
+    "human",
+    "figurative",
+    "eyes",
+    "mouth",
+    "expression",
+    "character",
+    "avatar",
+    "emotion",
+    "smile",
+    "mask",
+    "popart",
+    "cubist",
+    "lineart",
+    "hair",
+    "skin",
+    "visage",
+    "mugshot",
+    "icon",
+    "identity",
+    "people"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness \u2014 mouth open, blink rate, sway"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "head size vs frame"
+    },
+    "skin": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "skin/base hue"
+    },
+    "round": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "jaw roundness (long/narrow -> round/full)"
+    },
+    "eyes": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "eye size"
+    },
+    "gaze": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "eye direction L..R"
+    },
+    "mouth": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "expression frown(0)..smile(1)"
+    },
+    "brow": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "brow angle (worried..raised)"
+    },
+    "hair": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hair amount/volume"
+    },
+    "ears": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ear size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "flat",
+      "options": [
+        "flat",
+        "lineart",
+        "popart",
+        "cubist",
+        "mask",
+        "chrome"
+      ],
+      "doc": "render look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:56:20+00:00",
+    "fps": 54.9,
+    "motion": 0.0244,
+    "lum": 0.138
+  },
+  "code": "const D = { energy:.55, scale:1, skin:28, round:.5, eyes:.5, gaze:.5, mouth:.5, brow:.5, hair:.6, ears:.5, x:.5, y:.5, speed:1, density:.5, style:'flat', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst TAU=Math.PI*2, sty=P.style, en=P.energy;\nconst u=Math.min(width,height), sc=u*0.0042*P.scale, cx=P.x*width, cy=P.y*height, t=K.t;\nconst sway = 0.9*Math.sin(t*0.47)+0.5*Math.sin(t*1.13+1.7)+0.3*Math.sin(t*2.19);\n// blink: occasional, from a seeded pseudo-clock\nconst blinkPhase=(t*0.31+fr(3)*10)%(3.2- en*1.4); const blink = blinkPhase<0.14 ? 1-Math.abs(blinkPhase-0.07)/0.07 : 0;\nconst gz = (P.gaze-0.5)*2, breath=Math.sin(t*0.9+1)*0.5+0.5;\nfunction Cc(h,s,b,a){ return color(h,s,b,(a==null?100:a)*P.alpha/100); }\n\n// palette per style\nlet skin=[P.skin,42,88], skin2=[P.skin,55,66], hairc=[(P.skin+320)%360,45,28], lip=[(P.skin+340)%360,60,74], eyeW=[40,6,99], iris=[(P.skin+180)%360,55,60], ink=[P.skin,50,18], dots=false, facet=false, contourOnly=false;\nif(sty==='lineart'){ skin=[40,8,98]; skin2=[40,8,98]; hairc=[220,15,20]; lip=[220,15,20]; eyeW=[40,8,98]; iris=[220,15,20]; ink=[220,20,16]; contourOnly=true; }\nelse if(sty==='popart'){ skin=[45,60,99]; skin2=[45,70,90]; hairc=[0,85,95]; lip=[350,85,98]; eyeW=[40,6,100]; iris=[210,80,90]; ink=[240,60,12]; dots=true; }\nelse if(sty==='cubist'){ facet=true; ink=[30,30,20]; }\nelse if(sty==='mask'){ skin=[(P.skin+10)%360,55,55]; skin2=[(P.skin+20)%360,65,38]; hairc=[35,70,45]; lip=[10,70,60]; eyeW=[45,30,92]; iris=[0,0,8]; ink=[20,60,12]; }\nelse if(sty==='chrome'){ skin=[210,10,86]; skin2=[210,16,60]; hairc=[210,20,40]; lip=[350,25,80]; eyeW=[210,6,99]; iris=[200,30,55]; ink=[210,25,25]; }\n\npush();\ntranslate(cx + sway*9*sc*(0.4+en), cy + (breath*4 + sway*3*(0.4+en))*sc);\nrotate(sway*0.05*(0.4+en));\nscale(sc);\n\n// ---- face silhouette (morph jaw/round)\nconst rw=52, rh=64*(1.15-P.round*0.5);   // width/height\nfunction faceShape(){\n  const jl = 0.5+P.round*0.6;   // jaw fullness\n  beginShape();\n  vertex(0,-rh);\n  bezierVertex(rw*0.9,-rh*0.9, rw*1.02,-rh*0.1, rw*0.8, rh*0.25);\n  bezierVertex(rw*0.6, rh*0.7*jl, rw*0.28, rh, 0, rh*1.02);\n  bezierVertex(-rw*0.28, rh, -rw*0.6, rh*0.7*jl, -rw*0.8, rh*0.25);\n  bezierVertex(-rw*1.02,-rh*0.1, -rw*0.9,-rh*0.9, 0,-rh);\n  endShape(CLOSE);\n}\n// hair behind\nif(P.hair>0.15 && !contourOnly){\n  noStroke(); fill(Cc(hairc[0],hairc[1],hairc[2]));\n  const hs = P.hair;\n  push(); scale(1.18,1.05); translate(0,-rh*0.15*hs);\n  beginShape(); vertex(-rw*1.05, rh*0.2);\n  for(let i=0;i<=14;i++){ const a=Math.PI+i/14*Math.PI; const rr=rh*(0.95+0.25*hs+0.12*Math.sin(i*1.7+fr(i)*3)); vertex(Math.cos(a)*rw*1.05, Math.sin(a)*rr - rh*0.1); }\n  vertex(rw*1.05, rh*0.2); endShape(CLOSE);\n  pop();\n}\n// skin\nif(facet){\n  // cubist: fragmented planes\n  const seedn=(P.seed|0);\n  for(let i=0;i<26;i++){ const a0=i/26*TAU, a1=(i+1)/26*TAU; const r0=rw*(0.7+fr(i)*0.5), r1=rw*(0.7+fr(i+7)*0.5);\n    const sh=fr(i+3); fill(Cc(P.skin, 30+sh*40, 45+sh*45)); noStroke();\n    triangle(0,0, Math.cos(a0)*r0, Math.sin(a0)*rh/rw*r0, Math.cos(a1)*r1, Math.sin(a1)*rh/rw*r1); }\n} else {\n  if(sty==='chrome'){ drawingContext.shadowBlur=0; }\n  noStroke(); fill(Cc(skin[0],skin[1],skin[2])); if(contourOnly){ fill(Cc(skin[0],skin[1],skin[2])); }\n  faceShape();\n  // cheek/jaw shading\n  if(!contourOnly){ fill(Cc(skin2[0],skin2[1],skin2[2],38)); push(); translate(0,rh*0.25); scale(1,0.7); arc(0,0,rw*1.5,rh*1.1,0.15,Math.PI-0.15); pop();\n    if(sty==='chrome'){ fill(Cc(0,0,100,45)); ellipse(-rw*0.4,-rh*0.3,rw*0.5,rh*0.6); } }\n}\nif(!facet){ noFill(); stroke(Cc(ink[0],ink[1],ink[2])); strokeWeight(contourOnly?1.4:1.0); faceShape(); }\n\n// ears\nif(P.ears>0.1 && !contourOnly){ noStroke(); fill(Cc(skin[0],skin[1],skin[2])); const ee=P.ears*rw*0.35;\n  ellipse(-rw*0.92, rh*0.05, ee, ee*1.4); ellipse(rw*0.92, rh*0.05, ee, ee*1.4);\n  fill(Cc(skin2[0],skin2[1],skin2[2],60)); ellipse(-rw*0.92,rh*0.05,ee*0.5,ee*0.8); ellipse(rw*0.92,rh*0.05,ee*0.5,ee*0.8); }\n\n// ---- eyes\nconst es=(0.6+P.eyes*0.9), ey=-rh*0.08, ex=rw*0.42;\nfor(const sgn of [-1,1]){\n  push(); translate(sgn*ex, ey);\n  // white\n  noStroke(); fill(Cc(eyeW[0],eyeW[1],eyeW[2]));\n  const ow=13*es, oh=(9*es)*(1-blink*0.9);\n  if(!contourOnly) ellipse(0,0,ow,oh);\n  // iris + pupil\n  const ix=gz*ow*0.22, iy=(P.gaze-0.5)*0 + (breath-0.5)*1;\n  fill(Cc(iris[0],iris[1],iris[2])); if(oh>1.5) ellipse(ix,iy, 7*es*(1-blink*0.8), 7*es*(1-blink*0.8));\n  fill(Cc(0,0,6)); if(oh>1.5) ellipse(ix,iy, 3.4*es, 3.4*es);\n  fill(Cc(0,0,100,90)); if(oh>1.5) ellipse(ix-1.2,iy-1.2, 1.6*es,1.6*es);\n  // lid line / outline\n  noFill(); stroke(Cc(ink[0],ink[1],ink[2])); strokeWeight(contourOnly?1.2:0.9);\n  arc(0,0,ow,oh, Math.PI, TAU); if(blink>0.5||contourOnly) line(-ow/2,0,ow/2,0);\n  // popart dot cheek handled globally\n  noStroke();\n  // brow\n  const ba=(P.brow-0.5)*0.9*sgn + (P.mouth-0.5)*0.2;   // mood-coupled\n  stroke(Cc(hairc[0],hairc[1],hairc[2])); strokeWeight(2.4*es); strokeCap(ROUND);\n  push(); translate(0,-oh*0.9-3); rotate(-sgn*ba); line(-ow*0.5,0, ow*0.5,-2); pop();\n  noStroke();\n  pop();\n}\n// nose\nstroke(Cc(ink[0],ink[1],ink[2])); strokeWeight(contourOnly?1.2:1.0); noFill();\nconst nl=rh*0.28; beginShape(); vertex(-2,-rh*0.02); vertex(-4, nl*0.6); vertex(0,nl); vertex(5,nl*0.6); endShape();\nif(!contourOnly){ noStroke(); fill(Cc(skin2[0],skin2[1],skin2[2],50)); ellipse(0,nl*0.9, 12, 7); }\n\n// ---- mouth (expression)\nconst sm=(P.mouth-0.5)*2;            // -1 frown .. +1 smile\nconst open=breath*en*6 + (sty==='popart'?2:0);\npush(); translate(0, rh*0.5);\nnoStroke();\nif(open>2.5){ fill(Cc(10,60,30)); // open mouth\n  beginShape(); vertex(-16,0); bezierVertex(-8,-open*0.4, 8,-open*0.4, 16,0); bezierVertex(8, open+sm*4, -8, open+sm*4, -16,0); endShape(CLOSE);\n  fill(Cc(0,0,100)); rect(-10,-open*0.3,20,3,2); // teeth\n}\nnoFill(); stroke(Cc(lip[0],lip[1],lip[2])); strokeWeight(contourOnly?2:3.2); strokeCap(ROUND);\nbeginShape(); vertex(-18,0); bezierVertex(-8, sm*8, 8, sm*8, 18,0); endShape();\nif(sm<0.2){ stroke(Cc(lip[0],lip[1],lip[2],70)); strokeWeight(2); beginShape(); vertex(-16,2); bezierVertex(-6,sm*6+3,6,sm*6+3,16,2); endShape(); }\nnoStroke(); pop();\n\n// popart halftone dots over cheeks\nif(dots){ fill(Cc(350,70,99,55)); noStroke(); for(let gx=-rw;gx<rw;gx+=7){ for(let gy=-rh*0.2;gy<rh*0.8;gy+=7){ const d=Math.hypot(gx,gy-rh*0.35); if(d>rw*0.3&&d<rw*0.9) circle(gx+((Math.round(gy/7))%2)*3.5, gy, 2.2); } } }\n\nblendMode(BLEND); drawingContext.shadowBlur=0;\npop();\n"
+}

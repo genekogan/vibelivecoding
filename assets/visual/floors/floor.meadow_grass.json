@@ -1,0 +1,107 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.meadow_grass",
+  "kind": "floor",
+  "name": "Meadow Grass",
+  "desc": "Grassy ground plane in four waving depth rows with scattered five-petal flowers swaying on the same wind, a travelling patch of cloud-light sliding across the field, and drifting pollen motes. Styles: spring green, autumn gold, glowing night meadow, dry savanna, and a hue-dialed candy field.",
+  "tags": [
+    "grass",
+    "meadow",
+    "floor",
+    "field",
+    "wind",
+    "flowers",
+    "nature",
+    "pollen",
+    "ground",
+    "pastoral"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "wind strength"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "blade height"
+    },
+    "flowers": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flower density"
+    },
+    "windS": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sway amplitude"
+    },
+    "cliplight": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "travelling light patch"
+    },
+    "hue": {
+      "default": 105,
+      "min": 0,
+      "max": 360,
+      "doc": "candy style hue"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "blade count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "wind rate"
+    },
+    "style": {
+      "default": "spring",
+      "options": [
+        "spring",
+        "autumn",
+        "night",
+        "dry",
+        "candy"
+      ],
+      "doc": "season/look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "layout seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:15:40+00:00",
+    "fps": 59.9,
+    "motion": 0.0104,
+    "lum": 0.175
+  },
+  "code": "const D = { energy:.4, scale:1, hue:105, flowers:.5, windS:.5, cliplight:.5, x:.5, y:.5, speed:1, density:.6, style:'spring', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst horY=Hh*0.55;\nlet gA=[105,45,40],gB=[95,50,26],fl=[[350,60,90],[45,70,95],[280,45,85],[15,70,90]];\nif(sty==='autumn'){ gA=[45,55,55]; gB=[30,60,35]; fl=[[15,75,80],[35,80,85],[355,60,70]]; }\nelse if(sty==='night'){ gA=[220,40,16]; gB=[230,45,9]; fl=[[190,60,80],[280,50,80],[150,50,85]]; }\nelse if(sty==='dry'){ gA=[50,40,60]; gB=[42,45,42]; fl=[[0,0,95],[50,30,90]]; }\nelse if(sty==='candy'){ gA=[(P.hue+180)%360,45,55]; gB=[(P.hue+200)%360,50,35]; fl=[[P.hue,70,95],[(P.hue+60)%360,65,90],[(P.hue+300)%360,60,92]]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nnoStroke();\n// ground gradient\n{ const g=dc.createLinearGradient(0,horY,0,Hh);\n  g.addColorStop(0,Cc(gA).toString()); g.addColorStop(1,Cc(gB).toString());\n  dc.fillStyle=g; dc.fillRect(0,horY,W,Hh-horY); }\n// travelling cloud-light patch (motion carrier)\nif(P.cliplight>0.02){ dc.save(); blendMode(SCREEN);\n const lx=W*(0.5+Math.sin(t*0.16*P.speed)*0.5); const gb=0.5+0.5*Math.sin(t*0.37)+0.3*Math.sin(t*0.79+1);\n const rg=dc.createRadialGradient(lx,Hh*0.75,20,lx,Hh*0.75,W*0.34);\n rg.addColorStop(0,color(gA[0],Math.max(0,gA[1]-20),Math.min(100,gA[2]+35),(8+10*gb)*P.cliplight*P.alpha/100).toString());\n rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(0,horY,W,Hh-horY);\n dc.restore(); blendMode(BLEND); }\n// grass blades in 4 depth rows, waving\nconst rows=4;\nfor(let ry=0;ry<rows;ry++){ const rd=ry/(rows-1);\n const by=horY+(Hh-horY)*(0.18+rd*0.82);\n const bh=u*(0.03+rd*0.10)*(0.6+P.scale*0.5);\n const nb=Math.floor((14+P.density*30)*(0.6+rd*0.7));\n const windPh=t*(0.6+en*0.8)*P.speed;\n for(let i=0;i<nb;i++){ const bx=((fr(i+ry*97)+ry*0.13)%1)*W;\n  const sway=(Math.sin(windPh+bx*0.006+ry)+0.5*Math.sin(windPh*1.7+bx*0.01+i))*bh*0.24*(0.3+P.windS);\n  const gl=gA[2]+(fr(i+ry*31)-0.5)*14+rd*8;\n  fill(color(gA[0]+(fr(i)-0.5)*18,gA[1]+8,Math.max(8,gl),(88)*P.alpha/100));\n  beginShape(); vertex(bx-bh*0.06,by); vertex(bx+bh*0.06,by);\n  vertex(bx+sway+bh*0.02,by-bh); vertex(bx+sway-bh*0.02,by-bh); endShape(CLOSE); }\n // flowers per row\n if(P.flowers>0.03){ const nf=Math.floor(P.flowers*7*(0.5+rd));\n  for(let i=0;i<nf;i++){ const bx=fr(i*13+ry*57)*W; const fc=fl[Math.floor(fr(i+ry)*fl.length)];\n   const fy2=by-bh*(0.5+fr(i+3)*0.5); const fsz=u*(0.006+rd*0.008);\n   const sway=Math.sin(windPh+bx*0.008+i)*fsz*1.2*(0.3+P.windS);\n   push(); translate(bx+sway,fy2);\n   if(sty==='night'){ dc.save(); dc.shadowBlur=8; dc.shadowColor=color(fc[0],fc[1],fc[2],70).toString(); }\n   for(let q=0;q<5;q++){ push(); rotate(q/5*TAU+Math.sin(t*0.7+i)*0.1); fill(Cc(fc,92)); ellipse(0,-fsz,fsz*0.9,fsz*1.5); pop(); }\n   fill(Cc([48,70,95],95)); circle(0,0,fsz);\n   if(sty==='night') dc.restore(); pop(); } } }\n// drifting pollen/fireflies near ground\ndc.save(); blendMode(SCREEN);\nfor(let i=0;i<10;i++){ const mx=(fr(i+80)+Math.sin(t*(0.13+fr(i)*0.1)+i)*0.04)%1*W;\n const my=horY+(Hh-horY)*(0.3+((fr(i+85)+t*0.015*(0.4+fr(i+3)))%1)*0.6);\n const tw=0.5+0.5*Math.sin(t*(0.8+fr(i))+i*2);\n fill(color(55,25,95,(6+tw*12)*P.alpha/100)); circle(mx,my,1.5+fr(i+7)*2.5); }\ndc.restore(); blendMode(BLEND);\n"
+}

@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.vaulting",
+  "kind": "genart",
+  "name": "Rib Vaulting",
+  "desc": "Looking up into a gothic rib vault as the nave walks past overhead \u2014 true groin-vault geometry springs from the piers, diagonal ribs cross at a carved boss in every bay, ashlar courses band the severies and a slow light crawls the stone from clerestory to clerestory.",
+  "tags": [
+    "vault",
+    "vaulting",
+    "rib",
+    "ribbed",
+    "groin",
+    "cross-vault",
+    "gothic",
+    "cathedral",
+    "nave",
+    "bay",
+    "arch",
+    "arcade",
+    "boss",
+    "severy",
+    "ceiling",
+    "looking-up",
+    "architecture",
+    "architectural",
+    "romanesque",
+    "masonry",
+    "stone",
+    "ashlar",
+    "perspective",
+    "depth",
+    "receding",
+    "blueprint",
+    "engraving",
+    "chiaroscuro",
+    "polychrome",
+    "sacred",
+    "sublime",
+    "austere",
+    "structure",
+    "built",
+    "geometry"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light amplitude, glow and camera sway"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "nave width and vault rise (2.4 = a colossal wide vault filling the frame; Z spacing is fixed so this is never a no-op)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many bays recede down the nave"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "walking rate down the nave"
+    },
+    "rise": {
+      "default": 0.85,
+      "min": 0.25,
+      "max": 1.4,
+      "doc": "vault crown height vs half-span \u2014 flat romanesque to soaring gothic"
+    },
+    "hue": {
+      "default": 36,
+      "min": 0,
+      "max": 360,
+      "doc": "stone / light hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.45,
+      "max": 1.05,
+      "doc": "eye level as canvas fraction \u2014 high values put the camera under the vault looking up"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "stone",
+      "options": [
+        "stone",
+        "polychrome",
+        "blueprint",
+        "engraving",
+        "chiaroscuro"
+      ],
+      "doc": "aesthetic: coursed limestone mass / painted medieval polychrome cells / cyan schematic line drawing / hatched engraved plate / pure chiaroscuro \u2014 only the lit ribs, cells swallowed by black"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for cell tone, boss carving and dead clerestories"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:33+00:00",
+    "fps": 59.9,
+    "motion": 0.0422,
+    "lum": 0.172
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:36, x:.5, y:.82, rise:.85, style:'stone', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\n// ---- real-time walk down the nave; bay content keyed on ABSOLUTE index ------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z = (S.z||0) + dt * P.speed * (.13 + .16*K.intensity) * (.65 + .5*P.energy);\nconst trav = S.z - Math.floor(S.z), zbase = Math.floor(S.z);\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.3;\n// incommensurate camera sway + a light that crawls the vault, never re-aligning\nconst swx = .55*Math.sin(K.t*.083) + .30*Math.sin(K.t*.211+1.6) + .16*Math.sin(K.t*.487+.3);\nconst swy = .50*Math.sin(K.t*.127+2.2) + .28*Math.sin(K.t*.353+.7);\nconst lz = S.z + 2.4 + 2.0*Math.sin(K.t*.101) + 1.0*Math.sin(K.t*.257+1.9) + .6*Math.sin(K.t*.613);\nconst lx = .70*Math.sin(K.t*.067) + .30*Math.sin(K.t*.179+1.2);\n\nconst VPX = cl(P.x,.15,.85)*width  + u*.035*P.energy*swx;\nconst VPY = cl(P.y,.45,1.05)*height + u*.022*P.energy*swy;\nconst f = u*1.0;\n// `scale` widens the NAVE only (Z spacing fixed) so the poke is never a no-op\nconst RW = u*.46*cl(P.scale,.3,2.4);\nconst RISE = RW*cl(P.rise,.25,1.4);\nconst CH = u*.30;                       // springing height above eye\nconst SP = u*.86, ZMIN = SP*.16;\nconst NB = Math.round(5 + P.density*6);\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst bp = (sty==='blueprint'), paper = (sty==='engraving'), dark = (sty==='chiaroscuro'), poly = (sty==='polychrome');\n\nconst PX = (x,z) => VPX + f*x/z;\nconst PY = (y,z) => VPY + f*y/z;\nconst hOf = (xa,dz) => { const m = Math.min(xa*xa, dz*dz); return -(CH + RISE*Math.sqrt(Math.max(0,1-m))); };\n\n// ---- ground -----------------------------------------------------------------\nlet gc = [H, 12, 8];\nif (bp) gc = [212, 62, 20]; else if (paper) gc = [40, 9, 85];\nelse if (dark) gc = [H, 30, 4]; else if (poly) gc = [18, 30, 12];\nnoStroke(); fill(gc[0], gc[1], gc[2], 100); rect(0,0,width,height);\n\nfunction ink(a, w){\n  if (bp) stroke(190, 30, 100, a);\n  else if (paper) stroke(28, 26, 14, a);\n  else if (dark) stroke(H, 16, 96, a);\n  else if (poly) stroke(20, 40, 12, a);\n  else stroke(H, 10, 92, a);\n  strokeWeight(Math.max(.8, w));\n}\n// cell tone. cell 0=E 1=W 2=N 3=S\nfunction cellTone(cell, bi, near, lit){\n  const tv = fr(bi*4.7 + cell*.37);\n  const face = (cell===0) ? (.72 + .28*lx) : (cell===1) ? (.72 - .28*lx) : .40;\n  const v = (.18 + .70*lit*face + .10*tv) * (.5 + .5*near);\n  if (bp)    return [212, 58, cl(12 + 16*v, 8, 34)];\n  if (paper) return [40, 7, cl(93 - 42*(1-v), 40, 96)];\n  if (dark)  return [H, cl(26 - 14*lit, 3, 36), cl(2 + 46*v*v*1.5, 1, 66)];\n  if (poly){ const hh = [8, 210, 44, 150][cell];\n             return [hh, cl(52 + 16*tv, 20, 84), cl(20 + 54*v, 10, 82)]; }\n  return [H, cl(8 + 9*tv, 2, 22), cl(8 + 74*v, 4, 88)];   // stone\n}\n\n// severy boundary in (xa,dz) plan coords, cell 0=E 1=W 2=N 3=S\nfunction severy(cell){\n  const pts = [];\n  const N1 = 11, N2 = 7;\n  if (cell===0 || cell===1){\n    const sx = cell===0 ? 1 : -1;\n    for (let i=0;i<=N1;i++){ const s=i/N1; pts.push([sx, -1 + 2*s]); }       // wall arch\n    for (let i=1;i<=N2;i++){ const s=i/N2; pts.push([sx*(1-s), 1-s]); }      // diagonal in\n    for (let i=1;i<=N2;i++){ const s=i/N2; pts.push([sx*s, -s]); }           // diagonal out\n  } else {\n    const sz = cell===2 ? -1 : 1;\n    for (let i=0;i<=N1;i++){ const s=i/N1; pts.push([-1 + 2*s, sz]); }       // transverse arch\n    for (let i=1;i<=N2;i++){ const s=i/N2; pts.push([1-s, sz*(1-s)]); }\n    for (let i=1;i<=N2;i++){ const s=i/N2; pts.push([-s, sz*s]); }\n  }\n  return pts;\n}\nconst SEV = [severy(0), severy(1), severy(2), severy(3)];\n\n// stroke an arc/rib sampled along a (xa,dz) path within the bay centred at zc\nfunction arc3(zc, fnc, n, w, a){\n  ink(a, w); noFill(); beginShape();\n  for (let i=0;i<=n;i++){ const s=i/n, p2=fnc(s), z=Math.max(zc + p2[1]*SP*.5, ZMIN);\n    vertex(PX(p2[0]*RW, z), PY(hOf(p2[0],p2[1]), z)); }\n  endShape();\n}\n\n// ---- bays, far -> near ------------------------------------------------------\nfor (let k = NB-1; k >= 0; k--){\n  const zc0 = (k + .5 - trav)*SP;\n  if (zc0 + SP*.5 <= ZMIN) continue;\n  const bi = zbase + k;\n  const near = cl(1 - k/NB, 0, 1);\n  const pd = bi - lz;\n  const lit = cl(.16 + .84*Math.exp(-pd*pd*.34), 0, 1) * (.45 + .55*glow);\n  const zOf = dz => Math.max(zc0 + dz*SP*.5, ZMIN);\n\n  // side walls dropping away below the springing (frames the vault, kills dead space)\n  if (!bp){\n    const zn = Math.max(zc0 - SP*.5, ZMIN), zf = zc0 + SP*.5;\n    const wc = cellTone(2, bi, near, lit*.5);\n    noStroke(); fill(wc[0], wc[1], cl(wc[2]*.5, 1, 60), 100);\n    for (let sx=-1; sx<=1; sx+=2){\n      quad(PX(sx*RW,zf), PY(-CH,zf), PX(sx*RW,zf), PY(u*4,zf), PX(sx*RW,zn), PY(u*4,zn), PX(sx*RW,zn), PY(-CH,zn));\n    }\n    // clerestory light behind the lateral cells\n    const win = fr(bi*9.1) > .12;\n    if (win && !paper){\n      push(); blendMode(ADD); noStroke();\n      const fl = .55 + .45*Math.sin(K.t*.31 + bi*1.7);\n      for (let sx=-1; sx<=1; sx+=2){\n        const wz = zc0, wy = -(CH + RISE*.34);\n        fill(poly?46:H, poly?60:30, 100, cl(3 + 8*glow*fl, 0, 16));\n        ellipse(PX(sx*RW*.92, wz), PY(wy, wz), f*RW*.55/wz, f*RISE*.9/wz);\n      }\n      pop(); blendMode(BLEND);\n    }\n  }\n\n  // the four severies\n  for (let cell=0; cell<4; cell++){\n    const c = cellTone(cell, bi, near, lit);\n    const pts = SEV[cell];\n    if (!bp && !dark){\n      noStroke(); fill(c[0], c[1], c[2], 100);\n      beginShape();\n      for (let i=0;i<pts.length;i++){ const xa=pts[i][0], dz=pts[i][1], z=zOf(dz);\n        vertex(PX(xa*RW, z), PY(hOf(xa,dz), z)); }\n      endShape(CLOSE);\n    }\n    // ashlar courses / hatching across the cell (texture, near bays only)\n    if (k < 3 && !dark){\n      const nh = paper ? Math.round(1 + 5*cl(1-(c[2]-40)/56,0,1)) : (bp ? 3 : 4);\n      ink(paper?30:(bp?42:16), u*.0012); noFill();\n      for (let i=1;i<=nh;i++){ const q = i/(nh+1);\n        beginShape();\n        for (let j=0;j<=10;j++){ const s=j/10;\n          let xa, dz;\n          if (cell<2){ const sx = cell===0?1:-1; dz = -1 + 2*s; xa = sx*(Math.abs(dz) + (1-Math.abs(dz))*(1-q*.92)); }\n          else { const sz = cell===2?-1:1; xa = -1 + 2*s; dz = sz*(Math.abs(xa) + (1-Math.abs(xa))*(1-q*.92)); }\n          const z = zOf(dz); vertex(PX(xa*RW, z), PY(hOf(xa,dz), z));\n        }\n        endShape();\n      }\n    }\n  }\n\n  // ---- ribs: two diagonals, the transverse arch, two wall arches ------------\n  const rw2 = Math.max(1.2, u*.0075*cl(near+.3,0,1.3)*(.6+.5*cl(P.scale,.3,2.4)/1.4));\n  const rl = cl((dark?.30:.24) + (dark?.70:.62)*lit*glow, 0, 1);\n  const ra = cl(100*rl, 8, 100);\n  arc3(zc0, s => [-1 + 2*s, -1 + 2*s], 14, rw2, ra);      // diagonal rib\n  arc3(zc0, s => [-1 + 2*s,  1 - 2*s], 14, rw2, ra);      // diagonal rib\n  arc3(zc0, s => [-1 + 2*s, -1], 12, rw2*1.15, ra);       // transverse arch\n  arc3(zc0, s => [ 1, -1 + 2*s], 12, rw2*.8, ra*.85);     // wall arch +x\n  arc3(zc0, s => [-1, -1 + 2*s], 12, rw2*.8, ra*.85);     // wall arch -x\n\n  // boss at the crown \u2014 a small carved knot, seeded per bay\n  const zb = zOf(0), bs = f*RW*.07/zb;\n  if (bs > 1.4){\n    const bh = 4 + Math.floor(fr(bi*13.3)*4);\n    if (dark || bp){ ink(cl(ra*1.1,8,100), rw2*.7); noFill(); }\n    else { noStroke(); fill(poly?46:H, poly?55:cl(14,0,60), cl(20 + 62*rl, 6, 94), 100); }\n    beginShape();\n    for (let i=0;i<bh*2;i++){ const a2 = i/(bh*2)*Math.PI*2 + K.t*.05 + bi;\n      const q = (i%2) ? 1 : .5;\n      vertex(PX(0,zb) + Math.cos(a2)*bs*q*1.2, PY(hOf(0,0), zb) + Math.sin(a2)*bs*q); }\n    endShape(CLOSE);\n  }\n}\n\n// ---- soft haze in the vault, and the light pool ----------------------------\nif (!bp && !paper){\n  push(); blendMode(ADD); noStroke();\n  const zg = Math.max((lz - S.z)*SP, SP*.4);\n  for (let i=4;i>=1;i--){\n    fill(poly?46:H, poly?45:26, 100, 1.6 + 2.6*glow);\n    ellipse(PX(lx*RW*.5, zg), PY(-(CH+RISE*.7), zg), f*RW*(.5+.30*i)/zg, f*RISE*(.5+.30*i)/zg);\n  }\n  pop(); blendMode(BLEND);\n}\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.copperplate",
+  "kind": "genart",
+  "name": "Copperplate Engraving",
+  "desc": "An old-master burin plate: a draped ovoid volume modelled entirely out of line \u2014 swelling hatch ribbons that bend to follow the surface they describe, cross-hatched to solid black in the shadow and thinning to bare paper on the lit crown, the drapery folds breathing while a raking studio lamp crawls slowly around the form.",
+  "tags": [
+    "engraving",
+    "copperplate",
+    "burin",
+    "intaglio",
+    "etching",
+    "hatching",
+    "cross-hatch",
+    "hatch",
+    "line",
+    "linework",
+    "print",
+    "plate",
+    "mezzotint",
+    "sanguine",
+    "chalk",
+    "drawing",
+    "old-master",
+    "chiaroscuro",
+    "monochrome",
+    "ink",
+    "paper",
+    "laid",
+    "tonal",
+    "stipple",
+    "flick",
+    "lozenge",
+    "austere",
+    "clinical",
+    "sober",
+    "classical",
+    "banknote",
+    "woodcut",
+    "engraved",
+    "contour",
+    "relief",
+    "texture",
+    "material",
+    "drapery",
+    "volume",
+    "still life",
+    "modelled",
+    "raking light"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "relief depth of the form under the raking lamp \u2014 at max the modelling is brutal and the darks go solid"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the draped volume + hatch pitch"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of hatch lines + burin flicks"
+    },
+    "weight": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.6,
+      "doc": "line weight \u2014 hairline to fat solid burin"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue (28 = warm bistre black)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the lamp rakes across the plate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "form centre x"
+    },
+    "y": {
+      "default": 0.52,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "form centre y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "ink opacity"
+    },
+    "style": {
+      "default": "burin",
+      "options": [
+        "burin",
+        "mezzotint",
+        "sanguine",
+        "contour"
+      ],
+      "doc": "burin: bistre ink on toned laid paper \u00b7 mezzotint: light scraped out of a velvet-black ground \u00b7 sanguine: red chalk on toned buff \u00b7 contour: uniform hairlines, no tone at all \u2014 the form as pure schematic line"
+    },
+    "act": {
+      "default": "plate",
+      "options": [
+        "plate",
+        "proof",
+        "burnish"
+      ],
+      "doc": "plate: steady \u00b7 proof: the lamp orbits fast, pulling the form through every angle \u00b7 burnish: the plate is reworked, tone deepening with the section arc"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "plate",
+    "proof",
+    "burnish"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:55+00:00",
+    "fps": 56.5,
+    "motion": 0.0935,
+    "lum": 0.434
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, weight: .6, hue: 28, speed: 1, x: .5, y: .52, alpha: 1, style: 'burin', act: 'plate', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst wt=cl(P.weight,0,1.6), sc=cl(P.scale,.5,2.2), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.2,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst cx=cl(P.x,.1,.9)*W, cy=cl(P.y,.1,.9)*Hh;\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nconst kick=Math.min(1, K.pulse*.45 + S.bass*.55);\n\n// ---- style: how form is BUILT, not just its hue ----\n// NOTE (rescue): every ground here is TONED \u2014 mid-key. The first cut of this\n// asset printed pale bistre onto near-ivory (paper b=92) and the whole plate\n// washed out to an empty cream page at lum .78. Tone is the point of an\n// engraving: it is built ENTIRELY from hatch density, so the paper must sit\n// low enough for the ink to have somewhere to go.\nconst mezz=(sty==='mezzotint'), cont=(sty==='contour'), sang=(sty==='sanguine');\nlet pH,pS,pB, iH,iS,iB, xhatch=true, tonal=true;\nif(mezz){ pH=252; pS=26; pB=7;  iH=md(H+18,360);  iS=6;  iB=95; tonal=true; }\nelse if(cont){ pH=208; pS=48; pB=14; iH=md(H+160,360); iS=30; iB=97; xhatch=false; tonal=false; }\nelse if(sang){ pH=34; pS=18; pB=66; iH=md(H-14,360); iS=66; iB=44; }\nelse { pH=42; pS=14; pB=58; iH=md(H+6,360); iS=36; iB=10; }\n\n// ---- the plate: laid paper / mezzotint ground / burnished copper (cached) ----\nconst pkey=W+'x'+Hh+'|'+sty+'|'+P.seed;\nif(!S.pl||S.plKey!==pkey){\n  const g=(S.pl&&S.pl.width===W&&S.pl.height===Hh)?S.pl:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.noStroke(); g.background(pH,pS,pB);\n  const up=(mezz||cont);\n  g.strokeWeight(1);\n  for(let i=0;i<Math.round(W/26);i++){ g.stroke(pH,pS+6,up?pB+7:pB-9,12); g.line(i*26+7,0,i*26+7,Hh); }\n  for(let i=0;i<620;i++){ const x=fr(i*19)*W, y=fr(i*19+1)*Hh, a=fr(i*19+2)*TAU, L=2+fr(i*19+3)*13;\n    g.stroke(pH,pS+9,up?pB+16:pB+13,8+fr(i*19+4)*14); g.line(x,y,x+Math.cos(a)*L,y+Math.sin(a)*L); }\n  g.noStroke();\n  for(let i=0;i<760;i++){ const x=fr(i*37)*W, y=fr(i*37+1)*Hh;\n    g.fill(pH,pS+10,up?pB+21:pB-16,6+fr(i*37+2)*11); g.circle(x,y,.7+fr(i*37+3)*2.3); }\n  const m=u*0.045; g.noFill(); g.strokeWeight(Math.max(2,u*0.004));\n  g.stroke(pH,pS+4,up?pB+18:pB-20,34); g.rect(m,m,W-2*m,Hh-2*m,u*0.006);\n  g.strokeWeight(1); g.stroke(pH,pS+2,pB+22,26); g.rect(m+2,m+2,W-2*m-4,Hh-2*m-4,u*0.006);\n  g.noStroke(); S.pl=g; S.plKey=pkey; }\nimage(S.pl,0,0);\n\n// ---- THE SUBJECT: a modelled volume. A draped ovoid under a raking lamp. ----\n// An ellipsoid height field + drapery folds that taper to nothing at the\n// silhouette. Everything downstream reads tone off this \u2014 the engraving has a\n// body to describe instead of an empty page.\nconst RX=.46*sc, RY=.52*sc, RZ=.40*sc;\nconst FOLD=.055*sc*(.45+en*.95);\nconst FW=7.4/sc;\nconst fd=T*.043+.8*Math.sin(T*.017)+.4*Math.sin(T*.0071);   // folds breathe, never repeat\nconst bf=2.1/sc, bg=1.7/sc, bt1=T*.037, bt2=T*.029;\nconst BAMP=.16;\nlet _gx=0,_gy=0,_in=0;\nconst field=(x,y)=>{\n  const sa=Math.sin(x*bf+bt1), ca=Math.cos(x*bf+bt1), sb=Math.sin(y*bg-bt2), cb=Math.cos(y*bg-bt2);\n  let h=BAMP*sa*cb, gx=BAMP*bf*ca*cb, gy=-BAMP*bg*sa*sb;\n  let ins=0;\n  const X=x/RX, Y=y/RY, rr=X*X+Y*Y;\n  if(rr<1){\n    ins=1;\n    const q=Math.max(.09,Math.sqrt(1-rr));\n    h+=RZ*q; gx+=RZ*(-X/RX)/q; gy+=RZ*(-Y/RY)/q;\n    const tap=1-rr, sf=Math.sin(x*FW+fd), cf=Math.cos(x*FW+fd);\n    h+=FOLD*tap*sf;\n    gx+=FOLD*(tap*FW*cf - 2*X/RX*sf);\n    gy+=FOLD*(-2*Y/RY*sf);\n  }\n  _gx=gx; _gy=gy; _in=ins; return h;\n};\n\n// ---- raking light on two incommensurate orbits (the primary motion floor) ----\nlet phi=T*.13+.75*Math.sin(T*.061)+1.1*Math.sin(T*.0237);\nif(act==='proof') phi=T*.27+.9*Math.sin(T*.083);\nconst psi=.30+.20*Math.sin(T*.089)+.08*Math.sin(T*.0413);\nconst Lz=Math.sin(psi), Lc=Math.cos(psi), Lx=Math.cos(phi)*Lc, Ly=Math.sin(phi)*Lc;\nconst rel=(1.0+1.8*en)*(1+.28*kick*en);\nconst amb=mezz?.13:.19;\nlet inkTone=1; if(act==='burnish') inkTone=.6+.9*K.intensity;\n// backdrop: a graded studio sweep, NOT lambert \u2014 a flat wall under a raking\n// lamp would be uniformly black and swallow the whole frame.\nconst BD0=.60, BD1=.30;\nconst val=(px,py)=>{\n  const x=(px-cx)/u, y=(py-cy)/u;\n  field(x,y);\n  if(_in){\n    const gx=_gx*rel, gy=_gy*rel, nl=Math.sqrt(gx*gx+gy*gy+1);\n    const v=(-gx*Lx-gy*Ly+Lz)/nl;\n    return cl(amb+(1-amb)*cl(v,0,1),0,1);\n  }\n  const X=x/RX, Y=y/RY, rr=X*X+Y*Y;\n  const roll=.10*Math.sin(x*bf+bt1)*Math.cos(y*bg-bt2);\n  let vb=BD0+BD1*(.5-y)+roll;\n  vb*=1-.40*Math.exp(-(rr-1)*2.6);          // occlusion halo hugging the form\n  return cl(vb,0,1);\n};\n\n// ---- hatch: swelling burin ribbons that follow the surface contour ----\nconst a0=(sang?-.35:-.22)+.16*Math.sin(T*.023);\nconst fam=(ang,N,pitch,gamma,bend,wmul,shade)=>{\n  const ca=Math.cos(ang), sa2=Math.sin(ang);\n  const L=Math.abs(W*ca)+Math.abs(Hh*sa2)+u*.12;\n  const NS=38, step=L/NS;\n  const px=S._px||(S._px=new Float32Array(64)), py=S._py||(S._py=new Float32Array(64));\n  const nxA=S._nx||(S._nx=new Float32Array(64)), nyA=S._ny||(S._ny=new Float32Array(64)), wA=S._w||(S._w=new Float32Array(64));\n  for(let k=0;k<N;k++){\n    const o=(k-(N-1)/2)*pitch + (fr(k*3+ang*17)-.5)*pitch*.34;\n    let x=cx-ca*L/2-sa2*o, y=cy-sa2*L/2+ca*o;\n    let dx=ca, dy=sa2, any=false;\n    for(let s=0;s<=NS;s++){\n      const v=val(x,y);\n      let mark = shade? cl(v-.10,0,1) : cl(1-v,0,1);\n      if(!tonal) mark=cl(.30+Math.min(Math.sqrt(_gx*_gx+_gy*_gy)*.30,.6),0,1);\n      const w=pitch*wmul*Math.pow(mark,gamma)*wt*inkTone;\n      px[s]=x; py[s]=y; nxA[s]=-dy; nyA[s]=dx; wA[s]=w; if(w>.30) any=true;\n      const gl=Math.sqrt(_gx*_gx+_gy*_gy)+1e-5;\n      let tx=-_gy/gl, ty=_gx/gl;\n      if(tx*dx+ty*dy<0){ tx=-tx; ty=-ty; }\n      const bnd=_in?bend:bend*.25;              // the backdrop hatch runs straight\n      dx=dx*(1-bnd)+tx*bnd; dy=dy*(1-bnd)+ty*bnd;\n      const dl=Math.sqrt(dx*dx+dy*dy)+1e-6; dx/=dl; dy/=dl;\n      x+=dx*step; y+=dy*step;\n    }\n    if(!any) continue;\n    beginShape();\n    for(let s=0;s<=NS;s++) vertex(px[s]+nxA[s]*wA[s], py[s]+nyA[s]*wA[s]);\n    for(let s=NS;s>=0;s--) vertex(px[s]-nxA[s]*wA[s], py[s]-nyA[s]*wA[s]);\n    endShape(CLOSE);\n  }\n};\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nnoStroke();\ndc.globalCompositeOperation = mezz||cont ? 'lighter' : 'multiply';\nconst N1=Math.round(56+dens*48);\nconst ext1=Math.abs(W*Math.sin(a0))+Math.abs(Hh*Math.cos(a0))+u*.1;\nfill(iH,iS,iB, (mezz?70:cont?64:92)*al);\nfam(a0, N1, ext1/N1, sang?1.10:1.25, cont?.34:.52, .86, mezz);\nif(xhatch){\n  const a1=a0+(sang?1.02:1.18);\n  const N2=Math.round(N1*(sang?.40:.60));\n  const ext2=Math.abs(W*Math.sin(a1))+Math.abs(Hh*Math.cos(a1))+u*.1;\n  fill(iH,iS,mezz?iB:iB+(sang?8:5), (mezz?52:sang?62:82)*al);\n  fam(a1, N2, ext2/N2, mezz?2.4:2.15, .40, .62, mezz);\n}\n\n// ---- burin flicks in the deepest darks (the engraver's lozenge dots) ----\nconst NFL=Math.round(90+dens*140);\nfill(iH,iS,mezz?100:iB+8,(mezz?60:74)*al);\nfor(let i=0;i<NFL;i++){\n  const x=fr(i*41)*W, y=fr(i*41+1)*Hh, v=val(x,y);\n  const m=mezz? cl(v-.35,0,1) : cl(.40-v,0,1);\n  if(m<.03) continue;\n  const a=fr(i*41+2)*TAU, len=u*.004*(1+m*4)*wt;\n  push(); translate(x,y); rotate(a+_gx*.4); ellipse(0,0,len*2.4,len*.7+.7); pop();\n}\n\n// ---- ink tone: a slow wash that deepens the plate over the section arc ----\ndc.globalCompositeOperation = mezz||cont ? 'source-over' : 'multiply';\nif(!(mezz||cont)){ noStroke(); fill(iH,iS*.6,iB+30, (4+8*K.intensity)*al); rect(0,0,W,Hh); }\ndc.globalCompositeOperation=oldOp;\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

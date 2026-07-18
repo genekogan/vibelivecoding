@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.floaters",
+  "kind": "fx",
+  "name": "Floaters",
+  "desc": "Eye floaters over the whole frame \u2014 out-of-focus collagen debris in chained strands, squiggles and Weiss rings, each a soft haze inside a bright refractive rim, sinking under gravity and lagging the gaze: every few seconds the eye flicks, the vitreous keeps going, overshoots and settles with a damped wobble. Clinical, entoptic and quietly unnerving.",
+  "tags": [
+    "floaters",
+    "eye floaters",
+    "muscae volitantes",
+    "vitreous",
+    "entoptic",
+    "collagen",
+    "debris",
+    "strands",
+    "squiggles",
+    "weiss ring",
+    "eye",
+    "vision",
+    "sight",
+    "ophthalmic",
+    "medical",
+    "clinical",
+    "microscope",
+    "darkfield",
+    "blurred",
+    "defocus",
+    "drift",
+    "saccade",
+    "eerie",
+    "unsettling",
+    "austere",
+    "bodily",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "debris size, rim contrast and how far the gaze lurches"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "number of floaters and beads per strand"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.4,
+      "doc": "debris size vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "sink, wobble and saccade rate"
+    },
+    "alpha": {
+      "default": 0.72,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity \u2014 high by default because floaters are inherently faint"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "debris hue (190 cold vitreous, 40 warm sclera, 300 phosphene violet)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the debris field"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "centre of the debris field"
+    },
+    "style": {
+      "default": "vitreous",
+      "options": [
+        "vitreous",
+        "graphic",
+        "microscope",
+        "phosphene"
+      ],
+      "doc": "aesthetic: soft defocused haze inside refractive rims, as they really look / hard-edged high-contrast marks, no blur, pure graphic silhouette / darkfield slide with a graticule and measurement ticks, clinical / entoptic light instead of shadow, additive blooms in odd colours"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "saccade",
+        "settle"
+      ],
+      "doc": "dramaturgy: slow sink with the odd eye flick / restless eyes, the field lurching often / no saccades at all, just the sink and wobble \u2014 meditative"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "debris shapes, kinds and placement"
+    }
+  },
+  "acts": [
+    "drift",
+    "saccade",
+    "settle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:06+00:00",
+    "fps": 58.1,
+    "motion": 0.0048,
+    "lum": 0.093
+  },
+  "code": "const D = { energy:.55, density:.5, scale:1, speed:1, alpha:.72, hue:190, x:.5, y:.45, style:'vitreous', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'drift';\nconst isGra=st==='graphic', isMic=st==='microscope', isPho=st==='phosphene';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.4);\nconst cx=P.x*W, cy=P.y*Hh;\nlet sacA=1, sinkR=1;\nif(act==='saccade'){ sacA=2.1; sinkR=0.6; }\nelse if(act==='settle'){ sacA=0; sinkR=1.5; }\n\n// ---- pre-blurred debris sprites: out-of-focus is the whole point, so blur once at build ----\nif(!S.sp){\n  const SZ=64; S.sp=[];\n  const g0=createGraphics(SZ,SZ); g0.pixelDensity(1); g0.colorMode(HSB,360,100,100,100); g0.clear(); g0.noStroke();\n  for(let r=24;r>0;r-=1.5){ g0.fill(0,0,100,2.0); g0.circle(32,32,r*2); }        // soft interior haze\n  g0.noFill(); g0.stroke(0,0,100,72); g0.strokeWeight(3.4); g0.circle(32,32,40); // refractive rim\n  g0.filter(BLUR,4); S.sp.push(g0);\n  const g1=createGraphics(SZ,SZ); g1.pixelDensity(1); g1.colorMode(HSB,360,100,100,100); g1.clear();\n  g1.noFill(); g1.stroke(0,0,100,88); g1.strokeWeight(5); g1.circle(32,32,44);   // Weiss ring\n  g1.filter(BLUR,3); S.sp.push(g1);\n}\n\n// ---- gaze: two incommensurate saccade trains (7.3s and 11.9s \u2014 never in step with the 8s gate) ----\nconst sacc=(per,salt)=>{\n  const idx=Math.floor(K.t/per+fr(salt)), ph=frc(K.t/per+fr(salt));\n  const tx=(fr(idx*3+salt+1)-0.5), ty=(fr(idx*3+salt+2)-0.5);\n  const px=(fr((idx-1)*3+salt+1)-0.5), py=(fr((idx-1)*3+salt+2)-0.5);\n  // the vitreous keeps going after the eye stops: overshoot, then a damped settle\n  const e=1-Math.exp(-ph*9);\n  const ring=Math.exp(-ph*2.6)*Math.sin(ph*13.5)*0.42;\n  return [lrp(px,tx,e)+(tx-px)*ring, lrp(py,ty,e)+(ty-py)*ring];\n};\nconst s1=sacc(7.3/Math.max(0.15,sp),1), s2=sacc(11.9/Math.max(0.15,sp),9);\nconst lurch=u*0.16*sacA*(0.4+0.9*en)*sc;\nconst gx=(s1[0]*0.62+s2[0]*0.38)*lurch;\nconst gy=(s1[1]*0.62+s2[1]*0.38)*lurch + K.t*0.0083*sp*sinkR*u; // unbounded sink ramp; each floater wraps on its own via md()\n\n// ---- vitreous haze: the faint base the debris floats in ----\nif(!isGra&&!isMic){\n  noStroke();\n  for(let b=0;b<3;b++){\n    const bb=0.5+0.5*Math.sin(K.t*(0.037+b*0.029)*sp+fr(b+60)*6.283);\n    fill(md(H+b*8,360), isPho?42:20, isPho?26:34, clp((isPho?5:4)*al*(0.4+0.8*en)*(0.5+0.5*bb),0,7));\n    ellipse(cx+Math.sin(K.t*0.041*sp+b*2.1)*u*0.10, cy+Math.cos(K.t*0.033*sp+b)*u*0.07,\n            u*lrp(1.5,0.8,b/2)*sc, u*lrp(1.1,0.6,b/2)*sc);\n  }\n}\n// ---- microscope graticule: the clinical frame this style lives in ----\nif(isMic){\n  stroke(md(H+150,360),46,74,16*al); strokeWeight(Math.max(0.4,u*0.0008));\n  for(let i=-6;i<=6;i++){ line(cx+i*u*0.075,cy-u*0.42,cx+i*u*0.075,cy+u*0.42); line(cx-u*0.42,cy+i*u*0.075,cx+u*0.42,cy+i*u*0.075); }\n  stroke(md(H+150,360),52,96,44*al); strokeWeight(Math.max(0.5,u*0.0014));\n  for(let i=-5;i<=5;i++){ const tx=cx+i*u*0.075; line(tx,cy+u*0.40,tx,cy+u*0.40-(i%5===0?u*0.022:u*0.010)); }\n  noFill(); stroke(md(H+150,360),40,88,28*al); circle(cx,cy,u*0.86);\n}\n\n// ---- the debris: chained collagen strands, squiggles and Weiss rings ----\nconst nF=Math.max(2,Math.round(lrp(5,22,dn)));\nimageMode(CENTER);\nfor(let i=0;i<nF;i++){\n  const j=i*37;\n  const kind=fr(j+1);                                     // <0.20 ring, <0.62 bead chain, else squiggle thread\n  const depth=fr(j+2);                                    // parallax: deep debris lags and blurs more\n  const bx=cx+(fr(j+3)-0.5)*u*1.5*sc + gx*lrp(0.55,1.25,depth);\n  const by=cy+(fr(j+4)-0.5)*u*1.1*sc + gy*lrp(0.55,1.25,depth);\n  const wy=md(by+u*0.35, Hh+u*0.7)-u*0.35;                // sink wraps back to the top\n  const wob=Math.sin(K.t*(0.19+fr(j+5)*0.37)*sp+fr(j+6)*6.283)*u*0.018*(0.4+en)*sc;\n  const ang=fr(j+7)*6.283+K.t*(0.017+fr(j+8)*0.041)*sp;\n  const sz=u*lrp(0.016,0.052,fr(j+9))*sc*(0.5+0.9*en)*lrp(0.7,1.25,depth);\n  const aa=clp((isGra?62:isMic?58:isPho?40:46)*al*lrp(0.55,1,depth)*(0.35+0.9*en),0,88);\n  if(aa<1.5) continue;\n  push(); translate(bx+wob,wy); rotate(ang);\n  if(isPho) blendMode(ADD);\n  const beads=kind<0.20?1:Math.max(2,Math.round(lrp(3,8,fr(j+10))*(0.4+0.8*dn)));\n  for(let b=0;b<beads;b++){\n    const f=beads>1?b/(beads-1):0.5;\n    // beads strung along a bent path \u2014 collagen fibrils clump, they are never a neat line\n    const px2=(f-0.5)*sz*lrp(3.5,7.5,fr(j+11));\n    const py2=Math.sin(f*Math.PI*lrp(0.8,2.4,fr(j+12))+fr(j+13)*6.283)*sz*1.5\n             + Math.sin(K.t*(0.4+fr(j+14)*0.9)*sp+f*3.1)*sz*0.28*(0.3+en);\n    const br=sz*lrp(0.55,1.25,fr(j*2+b+20));\n    if(isGra){\n      noStroke(); fill(md(H+6,360), 8, 96, aa*lrp(0.7,1,f));\n      ellipse(px2,py2,br*2*(kind<0.20?1.6:1),br*1.5);\n      noFill(); stroke(md(H+6,360),12,100,aa*0.5); strokeWeight(Math.max(0.5,br*0.16));\n      if(b>0) line(px2,py2,(( (b-1)/(Math.max(1,beads-1)) )-0.5)*sz*lrp(3.5,7.5,fr(j+11)),py2*0.6);\n    } else if(isMic){\n      noFill(); stroke(md(H+150,360),lrp(30,4,f),100,aa); strokeWeight(Math.max(0.5,br*0.22));\n      circle(px2,py2,br*1.9);\n      stroke(md(H+150,360),56,88,aa*0.5); strokeWeight(Math.max(0.4,br*0.10));\n      circle(px2,py2,br*0.8);\n    } else {\n      tint(md(H+(isPho?fr(j*2+b+30)*90:8),360), isPho?lrp(64,22,f):lrp(26,6,f), isPho?100:lrp(72,100,f), aa*lrp(0.72,1,f));\n      image(S.sp[kind<0.20?1:0], px2, py2, br*2*(kind<0.20?2.4:1.9), br*2*(kind<0.20?2.0:1.9));\n    }\n  }\n  if(isPho) blendMode(BLEND);\n  pop();\n}\nimageMode(CORNER);\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint(); noStroke();\n"
+}

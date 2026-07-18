@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.islimi",
+  "kind": "genart",
+  "name": "Islimi",
+  "desc": "Islamic biomorphic arabesque scrollwork -- split-leaf rumi vines spiral out of a central rosette in N-fold symmetry, forever unfurling, while a band of gilding shimmer travels around and through the medallion so the symmetry never freezes and the leaf tips breathe as if still growing; rendered as gold leaf on a tinted ground, cloisonne enamel in jewel tones, copperplate engraving, or a cyan schematic tracing.",
+  "tags": [
+    "islimi",
+    "arabesque",
+    "arabesk",
+    "rumi",
+    "scrollwork",
+    "scroll",
+    "vine",
+    "vinescroll",
+    "tendril",
+    "foliate",
+    "split-leaf",
+    "biomorphic",
+    "ornament",
+    "ornamental",
+    "decorative",
+    "islamic",
+    "moorish",
+    "persian",
+    "ottoman",
+    "medallion",
+    "rosette",
+    "radial",
+    "symmetry",
+    "kaleidoscopic",
+    "illuminated",
+    "manuscript",
+    "gilt",
+    "gold",
+    "gold-leaf",
+    "gilding",
+    "cloisonne",
+    "enamel",
+    "damascene",
+    "engraving",
+    "copperplate",
+    "blueprint",
+    "sacred",
+    "ornate",
+    "filigree",
+    "unfurling",
+    "growth",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "backdrop",
+    "austere",
+    "sublime",
+    "rich"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "gilding glow, shimmer amplitude and vine highlight contrast"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2.2,
+      "doc": "medallion radius -- vines grow larger and spill past the frame"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate of rotation, shimmer sweep and leaf-tip unfurl"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved foliage richness weighting"
+    },
+    "fold": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "N-fold arm count of the arabesque, 5 to 14 arms"
+    },
+    "hue": {
+      "default": 42,
+      "min": 0,
+      "max": 360,
+      "doc": "base metal / leaf hue (42 = gold)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "medallion centre, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "medallion centre, vertical"
+    },
+    "style": {
+      "default": "gilt",
+      "options": [
+        "gilt",
+        "enamel",
+        "engraving",
+        "blueprint"
+      ],
+      "doc": "aesthetic: gold leaf on tinted ground / cloisonne enamel jewel tones / copperplate engraving line / cyan schematic tracing"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic -- re-throws strand spirals, leaf placement and split pattern"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:39:33+00:00",
+    "fps": 59.9,
+    "motion": 0.151,
+    "lum": 0.235
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .55, fold: .5, hue: 42, x: .5, y: .5, style: 'gilt', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// ISLIMI -- Islamic biomorphic arabesque scrollwork. Split-leaf (rumi) vines\n// spiral out of a central rosette in N-fold symmetry, forever unfurling. A band\n// of gilding shimmer travels around and through the medallion on incommensurate\n// rates so the symmetry never freezes; leaf tips breathe as if still growing.\n// gilt leaf on a tinted ground, cloisonne enamel, copperplate engraving, or a\n// cyan schematic.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst sd = (P.seed | 0);\nconst fr = i => { let h = (Math.imul((i ^ sd) | 0, 374761393) + 0x9e3779b9) | 0; h = Math.imul(h ^ (h >>> 15), 668265263); h ^= h >>> 13; return ((h >>> 0) % 100000) / 100000; };\n\n// ---- geometry: build two master strands (spiral vine + leaf anchors) --------\nconst nFold = Math.round(5 + P.fold * 9);          // 5..14 arms\nfunction buildStrand(off) {\n  const pts = [], leaves = [];\n  const turns = 1.6 + fr(off * 3 + 1) * 0.9;\n  const NS = 44;\n  const wav = 0.12 + fr(off * 5 + 2) * 0.1;\n  for (let i = 0; i <= NS; i++) {\n    const s = i / NS;\n    const ang = s * turns * Math.PI * 2 + fr(off + 9) * 6.28;\n    const rad = 0.12 + s * 0.92;                    // spiral outward, normalized\n    const wob = wav * Math.sin(s * 9 + off) * (0.3 + s);\n    pts.push({ x: Math.cos(ang) * rad + Math.cos(ang + 1.57) * wob, y: Math.sin(ang) * rad + Math.sin(ang + 1.57) * wob, s });\n  }\n  const nl = 6 + Math.round(fr(off + 3) * 4);\n  for (let l = 0; l < nl; l++) {\n    const t = 0.18 + (l / nl) * 0.78 + fr(l * 7 + off) * 0.04;\n    leaves.push({ t, side: (l % 2 ? 1 : -1), size: 0.09 + fr(l * 11 + off) * 0.09, ph: fr(l * 13 + off) * 6.28, split: fr(l * 3 + off) > 0.5 });\n  }\n  return { pts, leaves };\n}\nif (!S.built || S.seedUsed !== P.seed || S.foldUsed !== nFold) {\n  S.seedUsed = P.seed; S.foldUsed = nFold;\n  S.A = buildStrand(1.3); S.B = buildStrand(7.7);\n}\n\n// ---- palette per style ------------------------------------------------------\nconst st = P.style;\nlet grd, veinLo, veinHi, leafLo, leafHi, edge, sat, engrave = false;\nif (st === 'enamel') {\n  grd = [ (P.hue + 200) % 360, 55, 10 ]; veinLo = [40, 30, 22]; veinHi = [46, 22, 78];\n  leafLo = [(P.hue + 180) % 360, 78, 30]; leafHi = [(P.hue + 170) % 360, 82, 62]; edge = [45, 20, 92]; sat = 1;\n} else if (st === 'engraving') {\n  grd = [34, 16, 50]; veinLo = [32, 22, 16]; veinHi = [34, 12, 40];\n  leafLo = [33, 18, 30]; leafHi = [33, 10, 60]; edge = [34, 8, 74]; sat = 0.5; engrave = true;\n} else if (st === 'blueprint') {\n  grd = [220, 62, 14]; veinLo = [200, 60, 40]; veinHi = [190, 45, 78];\n  leafLo = [205, 55, 26]; leafHi = [195, 50, 60]; edge = [188, 40, 92]; sat = 0.8; engrave = true;\n} else { // gilt (default)\n  grd = [ (P.hue + 205) % 360, 62, 15 ]; veinLo = [ (P.hue - 6 + 360) % 360, 70, 28 ]; veinHi = [ (P.hue + 8) % 360, 55, 92 ];\n  leafLo = [ (P.hue - 4 + 360) % 360, 72, 34 ]; leafHi = [ (P.hue + 6) % 360, 48, 96 ]; edge = [ (P.hue + 12) % 360, 30, 100 ]; sat = 1;\n}\n\n// ---- background ground with radial burnish ----------------------------------\npush();\nnoStroke(); rectMode(CORNER);\nfill(grd[0], grd[1], grd[2]); rect(0, 0, width, height);\n// vignette / central pool of light so ground is textured, not flat\nfor (let r = 6; r >= 0; r--) {\n  const rr = u * (0.18 + r * 0.16);\n  fill(grd[0], Math.max(0, grd[1] - 8), grd[2] + (6 - r) * (engrave ? 3 : 4), engrave ? 8 : 11);\n  ellipse(cx, cy, rr * 2, rr * 2);\n}\npop();\n\n// ---- animation drivers ------------------------------------------------------\nconst sp = 0.3 + P.speed * 0.9;\nconst glow = 0.5 + P.energy * 1.2 + A.rms * 0.25;\nconst rot = K.t * 0.035 * sp + 0.18 * Math.sin(K.t * 0.11 * sp);     // two incommensurate rotation rates\nconst shimAng = K.t * 0.23 * sp;                                     // gilding hotspot travels around\nconst shimRad = 0.55 + 0.42 * Math.sin(K.t * 0.37 * sp + 1.1);      // ...and in/out\nconst R = u * (0.62 + 0.16 * Math.sin(K.t * 0.5)) * P.scale * (0.85 + P.fold * 0.0);\nconst RR = u * 0.72 * P.scale;\n\nfunction shimmer(ax, ay, rn) {                                       // hotspot brightness 0..1, breaks symmetry\n  let da = Math.atan2(ay, ax) - shimAng;\n  da = Math.atan2(Math.sin(da), Math.cos(da));\n  const dr = rn - shimRad;\n  return Math.exp(-(da * da) * 2.2) * Math.exp(-(dr * dr) * 5.5);\n}\n\n// ---- draw one strand (vine + leaves) in normalized space --------------------\nfunction leaf(px, py, nx, ny, size, ph, split, brt) {\n  const tx = -ny, ty = nx;                                           // tangent\n  const w = size * RR;\n  const unf = 0.82 + 0.18 * Math.sin(K.t * 0.9 * sp + ph);           // unfurl breathe (growth)\n  const L = w * (1.7) * unf, W = w * 0.9;\n  push(); translate(px, py);\n  const bx = nx, by = ny;                                            // outward normal = leaf grows outward\n  // leaf body: teardrop via bezier\n  const lo = leafLo, hi = leafHi;\n  noStroke();\n  fill(lo[0], lo[1] * sat, lo[2]);\n  beginShape();\n  vertex(0, 0);\n  bezierVertex(bx * L * 0.3 + tx * W, by * L * 0.3 + ty * W, bx * L * 0.8 + tx * W * 0.5, by * L * 0.8 + ty * W * 0.5, bx * L, by * L);\n  bezierVertex(bx * L * 0.8 - tx * W * 0.5, by * L * 0.8 - ty * W * 0.5, bx * L * 0.3 - tx * W, by * L * 0.3 - ty * W, 0, 0);\n  endShape(CLOSE);\n  // highlight lobe (offset toward light) -> modelled, not flat\n  const hb = Math.min(100, hi[2] * (0.6 + 0.5 * brt) * glow);\n  fill(hi[0], hi[1] * sat, hb, engrave ? 55 : 80);\n  beginShape();\n  vertex(bx * L * 0.12, by * L * 0.12);\n  bezierVertex(bx * L * 0.35 + tx * W * 0.5, by * L * 0.35 + ty * W * 0.5, bx * L * 0.75 + tx * W * 0.2, by * L * 0.75 + ty * W * 0.2, bx * L * 0.95, by * L * 0.95);\n  bezierVertex(bx * L * 0.7, by * L * 0.7, bx * L * 0.4, by * L * 0.4, bx * L * 0.12, by * L * 0.12);\n  endShape(CLOSE);\n  if (split) { // second small lobe -> split-leaf rumi\n    fill(lo[0], lo[1] * sat, lo[2] + 6, 78);\n    ellipse(bx * L * 0.5 - tx * W * 0.7, by * L * 0.5 - ty * W * 0.7, W * 0.9, W * 1.3);\n  }\n  // bright rim\n  stroke(edge[0], edge[1] * sat, Math.min(100, edge[2] * (0.5 + 0.6 * brt)), engrave ? 40 : 70);\n  strokeWeight(Math.max(0.5, RR * 0.004));\n  noFill();\n  beginShape();\n  vertex(0, 0);\n  bezierVertex(bx * L * 0.3 + tx * W, by * L * 0.3 + ty * W, bx * L * 0.8 + tx * W * 0.5, by * L * 0.8 + ty * W * 0.5, bx * L, by * L);\n  endShape();\n  pop();\n}\n\nfunction drawStrand(strand) {\n  const pts = strand.pts;\n  // vine: layered tapered line segments for metallic relief (weight varies per seg + shimmer)\n  noFill();\n  for (let i = 1; i < pts.length; i++) {\n    const a = pts[i - 1], b = pts[i];\n    const rn = (a.s + b.s) * 0.5;                                    // 0..~1 along radius\n    const sh = shimmer((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 0.12 + rn);\n    const taper = 1 - rn * 0.7;\n    const brt = Math.min(1, 0.35 + sh * 1.4 * glow);\n    // shadow underlay\n    stroke(veinLo[0], veinLo[1] * sat, veinLo[2], engrave ? 60 : 90);\n    strokeWeight(RR * 0.03 * taper + 1.2);\n    line(a.x * RR, a.y * RR, b.x * RR, b.y * RR);\n    // gold body\n    stroke(veinHi[0], veinHi[1] * sat, Math.min(100, veinHi[2] * (0.55 + 0.5 * brt)), engrave ? 70 : 100);\n    strokeWeight(RR * 0.016 * taper + 0.6);\n    line(a.x * RR, a.y * RR, b.x * RR, b.y * RR);\n    // bright core highlight\n    if (!engrave) { stroke(edge[0], edge[1] * sat * 0.6, Math.min(100, 60 + brt * 40), 70 * brt); strokeWeight(RR * 0.006 * taper + 0.3); line(a.x * RR, a.y * RR, b.x * RR, b.y * RR); }\n  }\n  // leaves\n  for (const lf of strand.leaves) {\n    const idx = Math.min(pts.length - 2, Math.floor(lf.t * (pts.length - 1)));\n    const a = pts[idx], b = pts[idx + 1];\n    const px = a.x * RR, py = a.y * RR;\n    let nx = a.x, ny = a.y; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;\n    nx *= lf.side; ny *= lf.side;\n    const sh = shimmer(a.x, a.y, 0.12 + a.s);\n    const brt = Math.min(1, 0.3 + sh * 1.5 * glow);\n    leaf(px, py, nx, ny, lf.size, lf.ph, lf.split, brt);\n  }\n}\n\n// ---- compose the medallion --------------------------------------------------\npush();\ntranslate(cx, cy);\nif (st === 'enamel') blendMode(BLEND);\nfor (let k = 0; k < nFold; k++) {\n  push();\n  rotate(rot + (k / nFold) * Math.PI * 2);\n  drawStrand(k % 2 ? S.B : S.A);\n  pop();\n}\n// central rosette\nconst cShim = 0.6 + 0.4 * Math.sin(shimAng * 2);\nnoStroke();\nfor (let r = 5; r >= 0; r--) {\n  const rr = u * 0.02 * P.scale * (r + 1);\n  fill(veinHi[0], veinHi[1] * sat, Math.min(100, veinHi[2] * (0.5 + 0.5 * cShim) * (1 - r * 0.12)), engrave ? 70 : 100);\n  const petals = nFold * 2;\n  beginShape();\n  for (let a = 0; a <= petals; a++) {\n    const ang = (a / petals) * Math.PI * 2 + rot * 0.5;\n    const pr = rr * (0.75 + 0.25 * Math.cos(ang * petals * 0.5 + rot));\n    curveVertex(Math.cos(ang) * pr, Math.sin(ang) * pr);\n  }\n  endShape(CLOSE);\n}\nfill(edge[0], edge[1] * sat, Math.min(100, 70 + cShim * 30), 90);\nellipse(0, 0, u * 0.03 * P.scale, u * 0.03 * P.scale);\npop();\n\nblendMode(BLEND);\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(grd[0], grd[1], grd[2], 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\ndrawingContext.shadowBlur = 0;\n"
+}

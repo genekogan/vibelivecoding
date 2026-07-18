@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.paper_planes",
+  "kind": "fx",
+  "name": "Paper Planes",
+  "desc": "Paper airplanes swooping across on sine dips with occasional loop-the-loops, dashed trails behind \u2014 white, pastel, gold, neon or sunset.",
+  "tags": [
+    "paper",
+    "planes",
+    "airplane",
+    "fly",
+    "swoop",
+    "origami",
+    "playful",
+    "school",
+    "glide",
+    "loop",
+    "whimsical",
+    "overlay",
+    "trails"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "n": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plane count"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "neon hue"
+    },
+    "loops": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "loop-the-loops"
+    },
+    "trailsP": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dashed trails"
+    },
+    "sizeP": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plane size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "white",
+      "options": [
+        "white",
+        "pastel",
+        "gold",
+        "neon",
+        "sunset"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 95,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:55:30+00:00",
+    "fps": 59.2,
+    "motion": 0.0257,
+    "lum": 0.103
+  },
+  "code": "const D = { energy:.5, n:.5, hue:210, loops:.5, trailsP:.5, sizeP:.5, x:.5, y:.5, scale:1, speed:1, style:'white', seed:0, alpha:95 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nfunction planeHue(i){ if(sty==='pastel') return (i*61)%360; if(sty==='gold') return 45; if(sty==='neon') return (P.hue+i*40)%360; if(sty==='sunset') return 20+fr(i)*20; return 210; }\nconst psat= sty==='white'?4 : sty==='pastel'?35 : 70;\n// drifting sky-light wash (motion carrier)\ndc.save(); blendMode(SCREEN);\n{ const gx=W*(0.5+Math.sin(t*0.31)*0.4); const gb=0.5+0.5*Math.sin(t*0.47)+0.3*Math.sin(t*0.97);\n  const rg=dc.createRadialGradient(gx,H*0.4,10,gx,H*0.4,W*0.45);\n  rg.addColorStop(0,color(210,15,90,(8+11*gb)*P.alpha/100).toString()); rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\ndc.restore(); blendMode(BLEND);\nconst N=Math.floor(3+P.n*6);\nfor(let i=0;i<N;i++){\n  const dp=fr(i);\n  const spd=(0.06+dp*0.05)*(0.5+en)*P.speed;\n  const prog=(fr(i+3)+t*spd)%1.2-0.1;\n  const px=prog*W;\n  // swooping path: sine dips + a loop-the-loop occasionally\n  const loopPh=(prog*3+fr(i*7))%1;\n  let py=H*(0.25+fr(i+5)*0.5) + Math.sin(prog*7+i)*H*0.08;\n  let ang=Math.atan2(Math.cos(prog*7+i)*H*0.08*7/W, 1)*0.8;\n  if(P.loops>0.05 && loopPh<0.25 && fr(i+9)>0.5){ const la=loopPh/0.25*TAU;\n    py+=Math.sin(la)*-34*P.loops; ang=la; }\n  const sz=(12+dp*16)*(0.5+P.sizeP)*P.scale;\n  const h=planeHue(i);\n  // dashed trail\n  if(P.trailsP>0.05){ stroke(color(h,psat,90,(26)*P.trailsP*P.alpha/100)); strokeWeight(1.2);\n   for(let k=1;k<8;k++){ if(k%2){ const tb=prog-k*0.012; const tx2=tb*W; const ty2=H*(0.25+fr(i+5)*0.5)+Math.sin(tb*7+i)*H*0.08;\n    point(tx2,ty2); line(tx2,ty2,tx2-4,ty2); } } noStroke(); }\n  push(); translate(px,py); rotate(ang);\n  // paper plane: two triangles + fold line\n  fill(color(h,psat,96,(90)*P.alpha/100));\n  triangle(-sz,-sz*0.36, sz,0, -sz,sz*0.1);\n  fill(color(h,psat+6,82,(90)*P.alpha/100));\n  triangle(-sz,sz*0.1, sz,0, -sz,sz*0.42);\n  stroke(color(h,psat+10,55,70*P.alpha/100)); strokeWeight(1); line(-sz,0,sz,0); noStroke();\n  pop();\n}\nblendMode(BLEND);\n"
+}

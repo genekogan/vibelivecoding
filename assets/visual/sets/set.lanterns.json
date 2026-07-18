@@ -1,0 +1,158 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.lanterns",
+  "kind": "set",
+  "name": "Lanterns",
+  "desc": "Rows of festival paper lanterns strung on catenary wires across the upper frame, glowing warm and swinging on the wind so a slow wave travels down each row; hung in a band that leaves the rest of the frame open \u2014 warm ribbed paper, an electric festoon of Edison bulbs, a two-ink riso print, sumi silhouettes, or a schematic line drawing.",
+  "tags": [
+    "lantern",
+    "lanterns",
+    "paper-lantern",
+    "chochin",
+    "festival",
+    "matsuri",
+    "carnival",
+    "fete",
+    "string-lights",
+    "festoon",
+    "fairy-lights",
+    "bulb",
+    "bulbs",
+    "edison",
+    "garland",
+    "bunting",
+    "catenary",
+    "wire",
+    "row",
+    "rows",
+    "strung",
+    "hanging",
+    "overhead",
+    "canopy",
+    "market",
+    "night-market",
+    "chinatown",
+    "diwali",
+    "lampion",
+    "glow",
+    "warm",
+    "amber",
+    "swing",
+    "sway",
+    "wind",
+    "breeze",
+    "pendulum",
+    "flicker",
+    "celebration",
+    "street",
+    "plaza",
+    "courtyard",
+    "set",
+    "scenery",
+    "midground",
+    "overhead-band",
+    "decor",
+    "decoration",
+    "ambient",
+    "riso",
+    "ink",
+    "sumi",
+    "silhouette",
+    "blueprint",
+    "schematic",
+    "texture",
+    "ribbed",
+    "festive",
+    "cozy",
+    "atmospheric",
+    "orange",
+    "red"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glow intensity and the amplitude of the swing/sway motion"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "lantern size \u2014 min a dense sprinkle of small lamps, max big paper globes"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many strings (2 to 5) and how many lanterns hang on each"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the wind swings the lanterns"
+    },
+    "wind": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wind strength \u2014 wire sag, string drift and how far the lanterns swing"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "lantern hue (warm amber default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "centre of the band across frame"
+    },
+    "y": {
+      "default": 0.34,
+      "min": 0.08,
+      "max": 0.7,
+      "doc": "height of the band \u2014 where the strings hang so the rest of the frame stays open"
+    },
+    "style": {
+      "default": "paper",
+      "options": [
+        "paper",
+        "festoon",
+        "riso",
+        "ink",
+        "blueprint"
+      ],
+      "doc": "aesthetic: warm ribbed paper lanterns lit from within / an electric festoon of little Edison bulbs / a two-ink riso print / sumi-black lantern silhouettes with no glow / a cyan schematic line drawing"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "hang lottery \u2014 per-lantern hue drift, flicker phase and swing lag"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark so it dissolves into the background rather than veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:48:50+00:00",
+    "fps": 63.3,
+    "motion": 0.032,
+    "lum": 0.117
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, wind: .5, hue: 28, x: .5, y: .34, style: 'paper', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Rows of festival paper lanterns strung on catenary wires across the upper frame,\n// glowing warm and swinging on the wind. A SET: it hangs in a band and leaves the rest of\n// the frame open so the bg reads through; alpha scales every mark (never an opaque panel).\n// Not signage (set.neon_sign), not a fire (set.campfire). ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, en = cl(P.energy,0,1), dn = cl(P.density,0,1), wnd = cl(P.wind,0,1);\nconst HU = ((P.hue%360)+360)%360, tt = K.t;\nconst ink = sty==='ink', bp = sty==='blueprint', riso = sty==='riso', fest = sty==='festoon';\nconst AL = cl(P.alpha,0,100);\nif (AL > 0.5) {\n\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst glowB = (.42+.58*en)*(.55+.5*K.intensity) + bass*.28;\n\n// ---- soft glow sprite, built once (cheap per-lantern glow via tint()+image, no shadowBlur) ----\nif (!S.spr){ const G=createGraphics(64,64); G.pixelDensity(1); G.loadPixels();\n  for(let y=0;y<64;y++)for(let x=0;x<64;x++){ const dx=(x-32)/32,dy=(y-32)/32; const d=Math.sqrt(dx*dx+dy*dy);\n    const a=Math.pow(cl(1-d,0,1),2.2)*255; const o=4*(y*64+x); G.pixels[o]=255;G.pixels[o+1]=255;G.pixels[o+2]=255;G.pixels[o+3]=a; }\n  G.updatePixels(); S.spr=G; }\n\nconst cx = cl(P.x,.05,.95)*width, cy = cl(P.y,.08,.7)*height;\nconst rL = u*.030*cl(P.scale,.3,2.4);\nconst nStr = 2 + Math.round(dn*3);                       // 2..5 strings\nconst perStr = 6 + Math.round(dn*7);                     // lanterns per string\nconst spanW = width*1.15;\n\npush();\ntranslate(0,0);\nfor (let s=0;s<nStr;s++){\n  const sy0 = cy + (s - (nStr-1)/2)*rL*3.4;               // stack the strings in a band\n  const ph = fr(s*7.3)*6.28;\n  // whole-string wind sway + a slow sag breathing (incommensurate real-time rates)\n  const sag = (u*.05 + u*.05*wnd) * (1 + .5*Math.sin(tt*.19*P.speed + ph));\n  const drift = (u*.02+u*.05*wnd)*(.7*Math.sin(tt*.23*P.speed+ph)+.4*Math.sin(tt*.41*P.speed+ph*1.7));\n  const x0 = cx - spanW*.5 + drift*.3, x1 = cx + spanW*.5 + drift*.3;\n  const wy0 = sy0 + (fr(s*3.1)-.5)*rL*1.5, wy1 = sy0 + (fr(s*5.7)-.5)*rL*1.5;\n  // ---- the wire (thin, taut catenary) ----\n  if (!ink){\n    stroke(bp?200:HU, bp?30:10, bp?100:38, (ink?0:26)*AL/100);\n    strokeWeight(Math.max(1,u*.0012)); noFill();\n    beginShape();\n    for (let k=0;k<=24;k++){ const q=k/24; const wx=x0+(x1-x0)*q;\n      const wy=wy0+(wy1-wy0)*q + sag*4*q*(1-q); vertex(wx,wy); }\n    endShape();\n  }\n  // ---- the lanterns hung along it ----\n  for (let n=0;n<perStr;n++){\n    const q=(n+.5)/perStr; const wx=x0+(x1-x0)*q;\n    const wy=wy0+(wy1-wy0)*q + sag*4*q*(1-q);\n    // pendulum swing with phase lag along the string -> a wave travels the row\n    const lag = q*4.0 + ph;\n    const swing = (0.10+0.34*wnd)*(Math.sin(tt*(1.0+ .12*s)*P.speed + lag) + .4*Math.sin(tt*1.7*P.speed+lag*1.4));\n    const hl = rL*2.2;\n    const lx = wx + hl*Math.sin(swing);\n    const ly = wy + hl*Math.cos(swing) + rL*.4;\n    const li = fr(s*31.7+n*13.3);\n    // slow warm flicker per lantern (never a strobe)\n    const flick = .72 + .28*Math.sin(tt*(.7+li*.9) + li*6.28);\n    const on = glowB*flick;\n    const w = rL*(fest?.5:1.5), h = rL*(fest?.7:1.9);\n    // hue drift a little per lantern\n    const lh = (HU + (li-.5)*30 + 360)%360;\n    // glow halo (ADD)\n    if (!ink && !bp){\n      push(); blendMode(ADD); noStroke();\n      const gsz = rL*(fest?4.2:5.0)*(.7+on*.6);\n      tint(fest?45:lh, fest?24:44, 100, cl((fest?24:16)*on*AL/100,0,60));\n      image(S.spr, lx-gsz/2, ly-gsz/2, gsz, gsz);\n      noTint(); blendMode(BLEND); pop();\n    }\n    // hanging string from wire to cap\n    if (!ink){ stroke(bp?200:lh, bp?30:12, bp?100:30, 30*AL/100); strokeWeight(Math.max(1,u*.001));\n      line(wx,wy,lx,ly-h*.5); }\n    // body\n    if (bp){\n      noFill(); stroke(196,60,100,80*AL/100); strokeWeight(Math.max(1,u*.0016));\n      ellipse(lx,ly,w*2,h*2);\n      line(lx,ly-h,lx,ly+h);\n    } else if (ink){\n      noStroke(); fill(HU,14,10, 92*AL/100); ellipse(lx,ly,w*2,h*2);\n      fill(HU,14,4, 96*AL/100); ellipse(lx,ly-h*.9,w*.7,h*.35);   // cap silhouette\n    } else if (fest){\n      noStroke(); fill(45,20,100, cl(70+on*30,0,100)*AL/100); ellipse(lx,ly,w*2,h*2);\n      fill(48,10,100, cl(90*on,0,100)*AL/100); ellipse(lx-w*.3,ly-h*.3,w,h);  // filament hot spot\n    } else {\n      // paper lantern: warm translucent body, lit from within, ribbed\n      noStroke();\n      const base = cl(28+on*30,0,100);\n      fill(lh, riso?70:52, cl(base,10,96), (riso?86:82)*AL/100);\n      ellipse(lx,ly,w*2,h*2);\n      // inner glow core\n      push(); blendMode(riso?BLEND:ADD);\n      fill(lh, riso?50:34, 100, cl(30*on,0,70)*AL/100); ellipse(lx,ly,w*1.3,h*1.3);\n      blendMode(BLEND); pop();\n      // vertical ribs (texture, not flat fill)\n      stroke(lh, 60, base*.5, 34*AL/100); strokeWeight(Math.max(1,u*.0009)); noFill();\n      for(let rb=-2;rb<=2;rb++){ const rx=rb/2.4; const bx=lx+rx*w;\n        beginShape(); for(let vv=-3;vv<=3;vv++){ const ty=vv/3; const bw=Math.sqrt(cl(1-ty*ty,0,1));\n          vertex(lx+rx*w*bw, ly+ty*h*.96); } endShape(); }\n      // top cap + bottom tassel\n      noStroke(); fill(HU, ink?14:44, base*.42, 80*AL/100);\n      ellipse(lx,ly-h*.92,w*.8,h*.28); ellipse(lx,ly+h*.92,w*.5,h*.22);\n      stroke(HU,50,base*.4,60*AL/100); strokeWeight(Math.max(1,u*.001));\n      line(lx,ly+h,lx,ly+h+rL*.7);\n    }\n  }\n}\npop();\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0; strokeWeight(1);\n}\n"
+}

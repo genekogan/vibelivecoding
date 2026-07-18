@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.drapery",
+  "kind": "genart",
+  "name": "Drapery",
+  "desc": "A heavy cloth hanging in deep folds with no outline anywhere \u2014 the whole form is carved out by a single raking light that drifts across the catenary ridges, sinking the valleys to near-black while the crests catch and the weave tooth breaks up every surface.",
+  "tags": [
+    "drapery",
+    "drape",
+    "cloth",
+    "fabric",
+    "fold",
+    "folds",
+    "curtain",
+    "velvet",
+    "silk",
+    "satin",
+    "marble",
+    "carved",
+    "stone",
+    "chiaroscuro",
+    "light",
+    "raking",
+    "shadow",
+    "form",
+    "modelled",
+    "volume",
+    "sculptural",
+    "weave",
+    "tooth",
+    "textile",
+    "baroque",
+    "old-master",
+    "renaissance",
+    "zurbaran",
+    "bernini",
+    "austere",
+    "sublime",
+    "eerie",
+    "melancholy",
+    "dark-key",
+    "material",
+    "texture",
+    "surface",
+    "relief",
+    "topographic",
+    "monochrome"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "relief": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1.6,
+      "doc": "fold depth \u2014 flat sheet to dramatic canyon folds"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "fold width and spread across the frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light intensity + sheen amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of folds"
+    },
+    "hue": {
+      "default": 12,
+      "min": 0,
+      "max": 360,
+      "doc": "cloth hue (12 = deep crimson-umber)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the light rakes and the cloth settles"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "drape centre / light falloff anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "light falloff anchor y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "weave + falloff opacity"
+    },
+    "style": {
+      "default": "chiaroscuro",
+      "options": [
+        "chiaroscuro",
+        "marble",
+        "silk",
+        "contour"
+      ],
+      "doc": "chiaroscuro: heavy velvet, one warm raking source, near-black valleys \u00b7 marble: the drape read as carved stone, cool, wrapped subsurface light \u00b7 silk: high anisotropic sheen streaking along each fold \u00b7 contour: the fold height field as bright iso-lines on a dark ground \u2014 pure topographic abstraction"
+    },
+    "act": {
+      "default": "hang",
+      "options": [
+        "hang",
+        "gather",
+        "breathe"
+      ],
+      "doc": "hang: settled and still \u00b7 gather: the drape slowly gathers and releases over ~5 minutes \u00b7 breathe: the whole cloth billows on the swell"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "hang",
+    "gather",
+    "breathe"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:16+00:00",
+    "fps": 58.8,
+    "motion": 0.0752,
+    "lum": 0.311
+  },
+  "code": "const D = { relief: .6, scale: 1, energy: .6, density: .5, hue: 12, speed: 1, x: .5, y: .5, alpha: 1, style: 'chiaroscuro', act: 'hang', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=(((h%360)+360)%360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst rlf=cl(P.relief,0,1.6), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,.05,.95), ay=cl(P.y,.05,.95);\n\nS.bass=(S.bass||0)*.87+(A.bass||0)*.13;\nconst kick=Math.min(1,K.pulse*.4+S.bass*.55);\nconst sm = sty==='marble'?1 : sty==='silk'?2 : sty==='contour'?3 : 0;\n\n// ---- the folds: catenary axes that lean, curve and drift ----\nconst NF=5+Math.round(dens*7);\nif(S.fSeed!==P.seed||S.fN!==NF){ S.fSeed=P.seed; S.fN=NF; S.f0=[];\n  for(let i=0;i<NF;i++) S.f0.push({ c:(i+.5)/NF+(fr(i*3)-.5)*.34/NF, w:.045+fr(i*3+1)*.075,\n    a:.55+fr(i*3+2)*.75, lean:(fr(i*5)-.5)*.30, curv:(fr(i*5+1)-.5)*.16, kk:1.4+fr(i*5+2)*2.6,\n    d1:.021+fr(i*7)*.038, d2:.013+fr(i*7+1)*.026, ph:fr(i*7+2)*TAU }); }\nconst FF=S.f0;\nlet gather=1, spread=1;\nif(act==='gather'){ const q=.5+.5*Math.sin(T*.021); gather=.55+.85*q; spread=1.28-.58*q; }\nelse if(act==='breathe'){ gather=.90+.20*Math.sin(T*.047)+.12*K.swell; }\nconst fc=new Array(NF), fw=new Array(NF), fa=new Array(NF), fl=new Array(NF), fv=new Array(NF), fk=new Array(NF);\nfor(let i=0;i<NF;i++){ const q=FF[i];\n  fc[i]=ax+(q.c-.5)*spread*Math.max(.45,sc)+.018*Math.sin(T*q.d1*2.3+q.ph)+.011*Math.sin(T*q.d2*3.7+q.ph*1.7);\n  fw[i]=Math.max(.012,q.w*sc*(.85+.28*Math.sin(T*q.d2+q.ph)));\n  fa[i]=q.a*gather*(.82+.30*Math.sin(T*q.d1+q.ph*.7));\n  fl[i]=q.lean+.05*Math.sin(T*.037+q.ph); fv[i]=q.curv; fk[i]=q.kk; }\n\n// ---- raking light on incommensurate orbits (the primary motion floor) ----\nconst phi=T*.115+.85*Math.sin(T*.053)+1.15*Math.sin(T*.0197);\nconst el=.30+.16*Math.sin(T*.077)+.07*Math.sin(T*.0311);\nlet Lx=Math.cos(phi)*Math.cos(el), Ly=-.40*Math.cos(el)*Math.sin(phi*.55)-.30, Lz=Math.sin(el)+.36;\nconst ll=Math.sqrt(Lx*Lx+Ly*Ly+Lz*Lz); Lx/=ll; Ly/=ll; Lz/=ll;\nconst rel=(1.1+2.4*rlf)*(1+.22*kick*en);\n\n// ---- separable height field -> normals -> shading, into a coarse buffer ----\nconst GW=cl(Math.round(168*(W>=Hh?1:W/Math.max(1,Hh))),64,168);\nconst GH=cl(Math.round(GW*Hh/Math.max(1,W)),48,168), NC=GW*GH;\nif(!S.h||S.hk!==GW+'x'+GH){ S.h=new Float32Array(NC); S.hk=GW+'x'+GH;\n  S.cA=new Float32Array(GW); S.cB=new Float32Array(GW); S.cC=new Float32Array(GW); S.cxr=new Float32Array(24); }\nif(!S.buf||S.bw!==GW||S.bh!==GH){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(GW,GH); S.bw=GW; S.bh=GH; }\nconst hf=S.h, cA=S.cA, cB=S.cB, cC=S.cC, cxr=S.cxr;\nconst swf=3.1/sc, swt=T*.031, wrf=16.0/sc, wrt=T*.043;\nfor(let i=0;i<GW;i++){ const x=(i+.5)/GW;\n  cA[i]=Math.cos(x*swf*.9-swt*1.3); cB[i]=Math.sin(x*wrf+wrt); cC[i]=Math.cos(x*wrf*1.4+wrt); }\nfor(let j=0;j<GH;j++){\n  const y=(j+.5)/GH, jc=j*GW;\n  const sy=.30*Math.sin(y*swf*1.7+swt), wy1=.05*Math.cos(y*wrf*1.21-wrt), wy2=.035*Math.sin(y*wrf*.7-wrt*1.3);\n  for(let k=0;k<NF;k++) cxr[k]=fc[k]+fl[k]*(y-.5)+fv[k]*Math.sin(y*fk[k]+T*.019+k);\n  for(let i=0;i<GW;i++){\n    const x=(i+.5)/GW; let h=0;\n    for(let k=0;k<NF;k++){ const t=(x-cxr[k])/fw[k], q=t*t, d=1+q; h+=fa[k]/(d*d*d); }\n    hf[jc+i]=h + sy*cA[i] + cB[i]*wy1 + wy2*cC[i];\n  }\n}\n\nlet bH,bS,bB, ambI, gam, specP, specI;\nif(sm===1){ bH=md(H+192,360); bS=8; bB=86; ambI=.20; gam=1.0; specP=26; specI=52; }\nelse if(sm===2){ bH=H; bS=64; bB=88; ambI=.13; gam=1.15; specP=9; specI=88; }\nelse if(sm===3){ bH=md(H+186,360); bS=32; bB=96; ambI=.10; gam=1.0; specP=1; specI=0; }\nelse { bH=H; bS=56; bB=74; ambI=.09; gam=1.6; specP=34; specI=26; }\n\nconst buf=S.buf; buf.loadPixels();\nconst px=buf.pixels;\nconst base=hsb2rgb(bH,bS,bB);\nconst bounce=hsb2rgb(md(bH+(sm===1?4:16),360), sm===1?12:70, sm===1?36:28);\nconst glow=(.55+.75*en), isoK=7.5/(.25+rlf);\nfor(let j=0;j<GH;j++){\n  const jm=(j>0?j-1:0)*GW, jp=(j<GH-1?j+1:GH-1)*GW, jc=j*GW;\n  for(let i=0;i<GW;i++){\n    const im=i>0?i-1:0, ip=i<GW-1?i+1:GW-1;\n    const gx=(hf[jc+ip]-hf[jc+im])*rel*GW*.0062, gy=(hf[jp+i]-hf[jm+i])*rel*GH*.0062;\n    const nl=Math.sqrt(gx*gx+gy*gy+1);\n    const nx=-gx/nl, ny=-gy/nl, nz=1/nl, o=(jc+i)*4;\n    if(sm===3){\n      const q=((hf[jc+i]*isoK)%1+1)%1;\n      const edge=Math.sqrt(gx*gx+gy*gy);\n      const line=cl((.13-Math.min(q,1-q))*8.5,0,1)*(.30+.70*cl(edge*.5,0,1));\n      const lam=cl(nx*Lx+ny*Ly+nz*Lz,0,1), g0=7+18*lam;\n      px[o]=cl(g0+line*base[0]*glow,0,255);\n      px[o+1]=cl(g0*1.06+line*base[1]*glow,0,255);\n      px[o+2]=cl(g0*1.4+line*base[2]*glow,0,255);\n      px[o+3]=255; continue;\n    }\n    let lam=nx*Lx+ny*Ly+nz*Lz;\n    if(sm===1) lam=(lam+.36)/1.36;\n    lam=Math.pow(cl(lam,0,1),gam);\n    const hz2=Lz+1, hl=Math.sqrt(Lx*Lx+Ly*Ly+hz2*hz2);\n    let sp=cl((nx*Lx+ny*Ly+nz*hz2)/hl,0,1);\n    if(sm===2) sp=cl(sp*(.5+.85*cl(Math.abs(gx)*.9,0,1)),0,1);\n    sp=Math.pow(sp,specP)*specI*glow;\n    const bo=cl(-ny,0,1)*(sm===0?.42:.24);\n    const li=ambI+(1-ambI)*lam*(.62+.65*glow);\n    px[o]=cl(base[0]*li+bounce[0]*bo+sp,0,255);\n    px[o+1]=cl(base[1]*li+bounce[1]*bo+sp*.99,0,255);\n    px[o+2]=cl(base[2]*li+bounce[2]*bo+sp*1.03,0,255);\n    px[o+3]=255;\n  }\n}\nbuf.updatePixels();\ndrawingContext.imageSmoothingEnabled=true;\nimage(buf,0,0,W,Hh);\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// ---- the weave: thread tooth over the whole cloth (cached) ----\nconst tkey=W+'x'+Hh+'|'+sty+'|'+P.seed;\nif(!S.tex||S.tk!==tkey){\n  const g=(S.tex&&S.tex.width===W&&S.tex.height===Hh)?S.tex:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.strokeWeight(1);\n  const pit=Math.max(3,u*(sm===1?.010:.0045));\n  for(let y=0;y<Hh;y+=pit){ g.stroke(0,0,100,sm===1?3:6); g.line(0,y,W,y); }\n  for(let x=0;x<W;x+=pit){ g.stroke(0,0,0,sm===1?3:5); g.line(x,0,x,Hh); }\n  g.noStroke();\n  for(let i=0;i<900;i++){ const x=fr(i*23)*W, y=fr(i*23+1)*Hh;\n    g.fill(0,0,fr(i*23+2)>.5?100:0,3+fr(i*23+3)*7); g.circle(x,y,.7+fr(i*23+4)*2.1); }\n  S.tex=g; S.tk=tkey; }\ndc.globalCompositeOperation='overlay'; image(S.tex,0,0); dc.globalCompositeOperation=oldOp;\n\n// ---- lint lifting off the lit ridges, drifting on the air ----\nnoStroke(); dc.globalCompositeOperation='lighter';\nconst NL=Math.round(26+dens*44);\nfor(let i=0;i<NL;i++){\n  const lx=((fr(i*31)+.06*Math.sin(T*.11+i)+T*.004*(.4+fr(i*31+2)))%1+1)%1;\n  const ly=((fr(i*31+1)-T*.011*(.3+fr(i*31+3)))%1+1)%1;\n  fill(md(bH+20,360),sm===1?6:24,100,(6+16*en)*al);\n  circle(lx*W,ly*Hh,u*.0044*(.5+fr(i*31+4)*2.2));\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- depth: the light falls off toward the wings of the frame ----\nconst vg=dc.createRadialGradient(ax*W, ay*Hh, u*.10, ax*W, ay*Hh, u*(.80+.10*Math.sin(T*.043)));\nvg.addColorStop(0,'rgba(0,0,0,0)');\nvg.addColorStop(.60,'rgba(0,0,0,'+(0.14*al).toFixed(3)+')');\nvg.addColorStop(1,'rgba(0,0,0,'+((sm===3?0.40:0.60)*al).toFixed(3)+')');\ndc.fillStyle=vg; dc.fillRect(0,0,W,Hh);\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

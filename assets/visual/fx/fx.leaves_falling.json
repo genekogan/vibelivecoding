@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.leaves_falling",
+  "kind": "fx",
+  "name": "Falling Leaves",
+  "desc": "Leaves seesawing down on the wind, tumbling and drifting sideways through a warm wandering light \u2014 autumn mix, golden, crimson, spring green or sakura petals.",
+  "tags": [
+    "leaves",
+    "autumn",
+    "falling",
+    "fall",
+    "tumble",
+    "wind",
+    "foliage",
+    "seasonal",
+    "drift",
+    "orange",
+    "sakura",
+    "nature",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "leaf count"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved"
+    },
+    "tumble": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tumble spin"
+    },
+    "windL": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "side wind"
+    },
+    "sizeL": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "leaf size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "autumn",
+      "options": [
+        "autumn",
+        "golden",
+        "crimson",
+        "spring",
+        "sakura"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 95,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:54:23+00:00",
+    "fps": 66.7,
+    "motion": 0.0226,
+    "lum": 0.099
+  },
+  "code": "const D = { energy:.45, density:.6, hue:30, tumble:.6, windL:.4, sizeL:.5, x:.5, y:.5, scale:1, speed:1, style:'autumn', seed:0, alpha:95 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nfunction leafHue(i){ if(sty==='spring') return 90+fr(i)*40; if(sty==='sakura') return 330+fr(i)*15; if(sty==='golden') return 42+fr(i)*10; if(sty==='crimson') return 355+fr(i)*15; return [18,32,45,8][i%4]+fr(i)*8; }\n// warm drifting light (carrier)\ndc.save(); blendMode(SCREEN);\n{ const gx=W*(0.5+Math.sin(t*0.27)*0.4); const gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.91);\n  const rg=dc.createRadialGradient(gx,H*0.45,10,gx,H*0.45,W*0.45);\n  rg.addColorStop(0,color(40,25,90,(6+8*gb)*P.alpha/100).toString()); rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\ndc.restore(); blendMode(BLEND);\nconst N=Math.floor(10+P.density*36);\nfor(let i=0;i<N;i++){\n  const dp=fr(i);\n  const fall=(0.04+dp*0.10)*(0.5+en)*P.speed;\n  const yy=((fr(i+3)+t*fall)%1.15)*H*1.15-20;\n  // side-to-side falling-leaf sway (seesaw)\n  const sway2=Math.sin(t*(0.8+dp*0.7)+i*2)*50*(0.4+P.windL) + t*24*P.windL;\n  const xx=(fr(i)*W+sway2)%W;\n  const sz=(7+dp*dp*17*(0.5+P.sizeL))*P.scale;\n  const rot=Math.sin(t*(1.2+dp)+i)*1.2*P.tumble + i;\n  const h=leafHue(i);\n  push(); translate(xx,yy); rotate(rot);\n  noStroke(); fill(color(h, sty==='sakura'?35:70, sty==='sakura'?98:70+dp*20, (70+dp*25)*P.alpha/100));\n  if(sty==='sakura'){ ellipse(0,0,sz,sz*0.65); }\n  else { // simple leaf: two arcs + stem\n    beginShape(); vertex(0,-sz*0.6); bezierVertex(sz*0.7,-sz*0.2, sz*0.55,sz*0.4, 0,sz*0.62); bezierVertex(-sz*0.55,sz*0.4, -sz*0.7,-sz*0.2, 0,-sz*0.6); endShape(CLOSE);\n    stroke(color(h,70,40,60*P.alpha/100)); strokeWeight(1); line(0,-sz*0.5,0,sz*0.6); noStroke();\n  }\n  pop();\n}\nblendMode(BLEND);\n"
+}

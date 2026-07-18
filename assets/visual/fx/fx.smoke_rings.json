@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.smoke_rings",
+  "kind": "fx",
+  "name": "Smoke Rings",
+  "desc": "Wobbling smoke rings rising and expanding through drifting haze, thinning as they climb \u2014 silver smoke, rainbow, violet, teal or gold.",
+  "tags": [
+    "smoke",
+    "rings",
+    "vape",
+    "rising",
+    "haze",
+    "hookah",
+    "wobble",
+    "chill",
+    "lounge",
+    "overlay",
+    "circles",
+    "zen"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rise speed"
+    },
+    "riseN": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rise rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "ring hue"
+    },
+    "ringsN": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ring count"
+    },
+    "wobble": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wobble"
+    },
+    "sizeR": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ring growth"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "source x"
+    },
+    "y": {
+      "default": 0.75,
+      "min": 0.3,
+      "max": 1,
+      "doc": "source y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "silver",
+      "options": [
+        "silver",
+        "rainbow",
+        "violet",
+        "teal",
+        "gold"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 85,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:28:56+00:00",
+    "fps": 56.5,
+    "motion": 0.0114,
+    "lum": 0.09
+  },
+  "code": "const D = { energy:.4, riseN:.5, hue:210, ringsN:.5, wobble:.6, sizeR:.5, x:.5, y:.75, scale:1, speed:1, density:.5, style:'silver', seed:0, alpha:85 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst ox=P.x*W, oy=P.y*H;\nfunction ringHue(i){ if(sty==='rainbow') return (i*70+t*15)%360; if(sty==='violet') return 270+fr(i)*30; if(sty==='teal') return 175+fr(i)*20; if(sty==='gold') return 42; return P.hue; }\nconst rsat=sty==='silver'?8:55;\n// ambient haze drift (carrier)\ndc.save(); blendMode(SCREEN);\n{ const gx=ox+Math.sin(t*0.29)*W*0.15; const gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.9);\n  const rg=dc.createRadialGradient(gx,oy-H*0.2,10,gx,oy-H*0.2,W*0.4);\n  rg.addColorStop(0,color(ringHue(0),rsat,70,(6+7*gb)*P.alpha/100).toString()); rg.addColorStop(1,color(ringHue(0),rsat,50,0).toString());\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\ndc.restore(); blendMode(BLEND);\nconst NR=Math.floor(2+P.ringsN*5);\ndc.save(); blendMode(sty==='silver'?SCREEN:ADD);\nfor(let i=0;i<NR;i++){\n  const cycle=3.2+fr(i)*2.4;\n  const life=((t*(0.24+en*0.22)*P.speed*(0.5+P.riseN))/cycle + fr(i+9))%1;\n  const yy=oy - life*H*0.62;\n  const xx=ox + Math.sin(t*(0.5+fr(i)*0.4)+i*2)*40*P.wobble + Math.sin(life*6+i)*20*P.wobble;\n  const r=(16+life*110*(0.5+P.sizeR))* (0.7+P.scale*0.3);\n  const squish=0.32+Math.sin(t*(0.8+fr(i))+i)*0.06;\n  const a=(1-life)*(30+20*Math.sin(t+i));\n  const h=ringHue(i);\n  noFill();\n  for(let k=0;k<3;k++){ stroke(color(h,rsat,90,(a-k*8)*P.alpha/100)); strokeWeight((7-k*2)*(1-life*0.5));\n    dc.save(); dc.translate(xx,yy); dc.scale(1,squish); dc.beginPath(); dc.arc(0,0,r+k*3,0,TAU); dc.stroke(); dc.restore(); }\n}\ndc.restore(); blendMode(BLEND); noStroke();\n"
+}

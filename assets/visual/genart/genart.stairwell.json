@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.stairwell",
+  "kind": "genart",
+  "name": "Stairwell",
+  "desc": "The view straight down an endless stairwell shaft \u2014 rectangular landings nest and pinwheel away into the dark, treads and balustrades spiralling floor after floor while a band of light wanders up and down the void and the whole shaft slowly precesses.",
+  "tags": [
+    "stairwell",
+    "staircase",
+    "stairs",
+    "steps",
+    "shaft",
+    "well",
+    "spiral",
+    "descent",
+    "vertigo",
+    "looking-down",
+    "recursion",
+    "recursive",
+    "nested",
+    "depth",
+    "perspective",
+    "architecture",
+    "architectural",
+    "interior",
+    "brutalist",
+    "concrete",
+    "terrazzo",
+    "balustrade",
+    "handrail",
+    "landing",
+    "flight",
+    "bauhaus",
+    "blueprint",
+    "engraving",
+    "noir",
+    "chiaroscuro",
+    "austere",
+    "sublime",
+    "vertical",
+    "structure",
+    "built"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light amplitude, glow and shaft drift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.4,
+      "doc": "landing size vs shaft \u2014 drives the recursion ratio (2.4 = few colossal floors, 0.35 = a deep tight nest of many)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "treads per flight"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "descent rate down the shaft"
+    },
+    "turn": {
+      "default": 0.5,
+      "min": 0,
+      "max": 2,
+      "doc": "rotation per floor in quarter-turns (0 = straight nest, 2 = a half-turn per flight)"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "primary light/material hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "shaft centre x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "shaft centre y as canvas fraction"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "concrete",
+      "options": [
+        "concrete",
+        "terrazzo",
+        "blueprint",
+        "engraving",
+        "noir"
+      ],
+      "doc": "aesthetic: board-formed concrete mass / polished terrazzo + brass grand stair / cyan schematic plan drawing (line only) / hatched engraved plate / pure chiaroscuro \u2014 form built from lit edges alone"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for per-floor tone variation"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:13:37+00:00",
+    "fps": 59.5,
+    "motion": 0.1548,
+    "lum": 0.445
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, turn:.5, hue:32, x:.5, y:.5, style:'concrete', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\n// `scale` drives the RECURSION RATIO \u2014 big scale = chunky landings, few floors\nconst rr = cl(.87 - .165*cl(P.scale,.35,2.4), .50, .87);\nconst asp = .74, B0 = u*.90;\nconst NL = Math.min(26, Math.ceil(Math.log(B0/1.4)/Math.log(1/rr)) + 1);\nconst LMIN = -(Math.ceil(Math.log(2.5*u/B0)/Math.log(1/rr)) + 1);\nconst turn = cl(P.turn,0,2) * Math.PI/2;\n\n// ---- real-time descent; floor content keyed on ABSOLUTE index -> no re-phase\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.d = (S.d||0) + dt * P.speed * (.10 + .12*K.intensity) * (.6 + .5*P.energy);\nconst ph = S.d - Math.floor(S.d), lbase = Math.floor(S.d);\n\n// ---- incommensurate precession: the shaft never re-aligns -------------------\nconst th0 = K.t*.0305 + .22*Math.sin(K.t*.173) + .10*Math.sin(K.t*.412+1.1);\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.3;\nconst lz = 3.0 + 3.2*Math.sin(K.t*.091) + 1.4*Math.sin(K.t*.233+2.0) + .8*Math.sin(K.t*.571);\n\nconst cx = cl(P.x,.15,.85)*width  + u*.014*Math.sin(K.t*.37)*P.energy;\nconst cy = cl(P.y,.15,.85)*height + u*.014*Math.sin(K.t*.61+1.4)*P.energy;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst bp = (sty==='blueprint'), paper = (sty==='engraving'), noir = (sty==='noir');\n\nconst rot = (px,py,a) => [cx + px*Math.cos(a) - py*Math.sin(a), cy + px*Math.sin(a) + py*Math.cos(a)];\nfunction per(hx,hy,a,t){\n  const q = (((t%1)+1)%1)*4, si = Math.floor(q)%4, fq = q - Math.floor(q);\n  let px, py;\n  if (si===0){ px=-hx+2*hx*fq; py=-hy; }\n  else if (si===1){ px=hx; py=-hy+2*hy*fq; }\n  else if (si===2){ px=hx-2*hx*fq; py=hy; }\n  else { px=-hx; py=hy-2*hy*fq; }\n  return rot(px,py,a);\n}\n\n// ---- cached ground + shaft-bottom glow --------------------------------------\nconst gk = width+'x'+height+'|'+sty+'|'+Math.round(H)+'|'+Math.round(cx/6)+'|'+Math.round(cy/6);\nif (!S.bgb || S.gk !== gk){\n  const g = (S.bgb && S.bgb.width===width && S.bgb.height===height) ? S.bgb : createGraphics(width,height);\n  g.colorMode(HSB,360,100,100,100); g.noStroke();\n  let gc = [H, 10, 9];\n  if (bp) gc = [212, 62, 19]; else if (paper) gc = [40, 9, 85];\n  else if (noir) gc = [H, 24, 6]; else if (sty==='terrazzo') gc = [38, 12, 22];\n  g.fill(gc[0],gc[1],gc[2],100); g.rect(0,0,width,height);\n  if (!bp && !paper){\n    g.blendMode(ADD);\n    for (let i=20;i>=1;i--){ const q=i/20;\n      g.fill(H, 36, 100, 1.4 + 2.4*(1-q));\n      g.ellipse(cx, cy, u*.40*q, u*.40*q*asp);\n    }\n    g.blendMode(BLEND);\n  }\n  S.bgb = g; S.gk = gk;\n}\nimage(S.bgb, 0, 0);\n\n// ---- tones ------------------------------------------------------------------\nfunction landing(ai, near, lit){\n  const tv = fr(ai*3.11);\n  const v = (.16 + .70*lit + .12*tv) * (.42 + .58*near);\n  if (bp)  return [212, 60, cl(12 + 16*v, 8, 34)];\n  if (paper) return [40, 8, cl(92 - 42*(1-v), 38, 95)];\n  if (noir)  return [H, cl(30 - 18*lit, 4, 40), cl(2 + 44*v*v*1.4, 1, 62)];\n  if (sty==='terrazzo') return [38, cl(16 + 10*tv, 4, 34), cl(24 + 62*v, 12, 92)];\n  return [H, cl(5 + 9*tv, 2, 18), cl(6 + 76*v, 3, 88)];\n}\nfunction ink(a){\n  if (bp) stroke(190, 30, 100, a);\n  else if (paper) stroke(30, 24, 14, a);\n  else if (noir) stroke(H, 20, 96, a);\n  else if (sty==='terrazzo') stroke(44, 24, 92, a);\n  else stroke(H, 8, 92, a);\n}\n\n// ---- floors, deep -> near ---------------------------------------------------\nconst SW = Math.max(1, u*.0016);\nstrokeWeight(SW);\nconst ntd = Math.round(9 + P.density*15);\nfor (let L = NL; L >= LMIN; L--){\n  const e = L - ph;\n  const s = B0 * Math.pow(rr, e);\n  if (s < 1.2 || s > u*11) continue;\n  const ai = lbase + L;\n  const near = cl(1 - (e - LMIN)/(NL - LMIN), 0, 1);\n  const pd = e - lz;\n  const lit = cl(.14 + .86*Math.exp(-pd*pd*.16), 0, 1) * (.45 + .55*glow);\n  const th = th0 + e*turn;\n  const hx = s, hy = s*asp, ihx = s*rr, ihy = s*rr*asp, ith = th + turn;\n  const ringPx = s*(1-rr)*.7;\n  const c = landing(ai, near, lit);\n\n  // landing slab = outer rect with the NEXT floor's rotated rect knocked out\n  if (!bp && !noir){\n    noStroke(); fill(c[0], c[1], c[2], 100);\n    beginShape();\n    const o0=rot(-hx,-hy,th), o1=rot(hx,-hy,th), o2=rot(hx,hy,th), o3=rot(-hx,hy,th);\n    vertex(o0[0],o0[1]); vertex(o1[0],o1[1]); vertex(o2[0],o2[1]); vertex(o3[0],o3[1]);\n    beginContour();\n    const i3=rot(-ihx,ihy,ith), i2=rot(ihx,ihy,ith), i1=rot(ihx,-ihy,ith), i0=rot(-ihx,-ihy,ith);\n    vertex(i3[0],i3[1]); vertex(i2[0],i2[1]); vertex(i1[0],i1[1]); vertex(i0[0],i0[1]);\n    endContour();\n    endShape(CLOSE);\n  }\n\n  // engraved hatching across the landing\n  if (paper && ringPx > 4 && s < B0*1.7){\n    const dark = cl(1 - (c[2]-38)/57, 0, 1), nh = Math.round(1 + 5*dark);\n    ink(30); noFill();\n    for (let i=0;i<nh;i++){ const q=(i+1)/(nh+1);\n      beginShape();\n      for (let t=0;t<=16;t++){ const tt=t/16;\n        const a2=per(hx,hy,th,tt), b2=per(ihx,ihy,ith,tt);\n        vertex(a2[0]+(b2[0]-a2[0])*q, a2[1]+(b2[1]-a2[1])*q);\n      }\n      endShape();\n    }\n  }\n\n  // two flights of treads spanning opposite quadrants of the ring\n  if (ringPx > 3 && s < B0*3.4){\n    const nt2 = Math.max(2, Math.round(ntd * cl(ringPx/(u*.055), .12, 1)));\n    const filled = ringPx > 6 && !bp && !noir && !paper;\n    for (let fs=0; fs<2; fs++){\n      const t0 = fs*.5, t1 = t0 + .25;\n      for (let i=0;i<nt2;i++){\n        const ta = t0 + (t1-t0)*(i/nt2), tb = t0 + (t1-t0)*((i+1)/nt2);\n        const oa = per(hx,hy,th,ta), ob = per(hx,hy,th,tb);\n        const ia = per(ihx,ihy,ith,ta), ib = per(ihx,ihy,ith,tb);\n        if (filled){\n          const nose = (i & 1) ? 1.24 : .78;\n          noStroke(); fill(c[0], cl(c[1]*.9,0,100), cl(c[2]*nose + ((i&1) ? 6*lit : -3), 2, 96), 100);\n          quad(oa[0],oa[1], ob[0],ob[1], ib[0],ib[1], ia[0],ia[1]);\n        } else {\n          ink(bp?76:(noir? 24+62*lit : 38)); noFill();\n          line(oa[0],oa[1], ia[0],ia[1]);\n        }\n      }\n    }\n  }\n\n  // balustrade around the void \u2014 the bright metal edge (carries the noir style)\n  if (s > u*.025 && s < B0*3.8){\n    ink(cl(bp?86 : (noir ? 32 + 64*lit : 28 + 60*lit*glow), 0, 100));\n    strokeWeight(Math.max(1, u*.0024*cl(near+.35,0,1.4)));\n    noFill(); beginShape();\n    for (let t=0;t<4;t++){ const p2 = per(ihx*1.055, ihy*1.055, ith, t/4); vertex(p2[0],p2[1]); }\n    endShape(CLOSE);\n    strokeWeight(SW);\n  }\n\n  // outer wall edge\n  if (!noir && s < B0*3.4 && s > u*.02){\n    ink(bp?60:(paper?42:20)); noFill(); beginShape();\n    for (let t=0;t<4;t++){ const p2 = per(hx,hy,th,t/4); vertex(p2[0],p2[1]); }\n    endShape(CLOSE);\n  }\n}\n\n// ---- skylight bloom over the void ------------------------------------------\nif (!bp && !paper){\n  push(); blendMode(ADD); noStroke();\n  const fl = .5 + .5*Math.sin(K.t*.147+.6);\n  for (let i=4;i>=1;i--){\n    fill(H, 24, 100, 2.0 + 3.2*glow*fl);\n    ellipse(cx, cy, u*(.10+.085*i), u*(.10+.085*i)*asp);\n  }\n  pop(); blendMode(BLEND);\n}\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

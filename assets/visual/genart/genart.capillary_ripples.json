@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.capillary_ripples",
+  "kind": "genart",
+  "name": "Capillary Ripples",
+  "desc": "Rain on still water, rendered by its dispersion: because surface tension carries short waves faster than gravity carries long ones, every impact ring turns inside out \u2014 a hair-fine fringe of capillary ripples sprints out ahead while the fat swell it was born with lags behind and the water inside falls quiet again; as a dark pond mirroring a bright sky, a false-color map of the local wavelength, liquid mercury, optical iso-fringes, or a sumi ink pond.",
+  "tags": [
+    "capillary",
+    "capillary-waves",
+    "surface-tension",
+    "ripples",
+    "ripple",
+    "dispersion",
+    "dispersive",
+    "gravity-waves",
+    "water-waves",
+    "wave",
+    "waves",
+    "group-velocity",
+    "phase-velocity",
+    "stationary-phase",
+    "wavenumber",
+    "raindrop",
+    "droplet",
+    "impact",
+    "pond",
+    "water",
+    "pool",
+    "rain",
+    "concentric",
+    "ring",
+    "wake",
+    "viscous-damping",
+    "fluid",
+    "fluid-dynamics",
+    "physics",
+    "simulation",
+    "laboratory",
+    "scientific",
+    "clinical",
+    "optics",
+    "interferogram",
+    "fringe",
+    "mercury",
+    "liquid-metal",
+    "specular",
+    "sumi",
+    "ink",
+    "false-color",
+    "spectral",
+    "blue",
+    "teal",
+    "calm",
+    "meditative",
+    "eerie",
+    "sublime",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture",
+    "reflection"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wave amplitude, wind-ripple texture and glint intensity (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "capillary length \u2014 the whole wave scale, from a fine misted surface to slow heavy swell"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "time rate \u2014 impact frequency and how fast the rings run out"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many impacts are live at once, and how often they fall"
+    },
+    "tension": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "surface tension vs gravity \u2014 slides the balance between a long rolling swell and a surface shivering with fine capillary fringe"
+    },
+    "hue": {
+      "default": 202,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the water (the mirrored sky takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center of the impact zone across the pond"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center of the impact zone down the pond"
+    },
+    "style": {
+      "default": "water",
+      "options": [
+        "water",
+        "dispersion",
+        "mercury",
+        "interferogram",
+        "ink_pond"
+      ],
+      "doc": "aesthetic: dark pond mirroring a bright sky / abstracted false-color map of the LOCAL wavelength / liquid mercury under hard specular / optical iso-fringes / sumi ink pond"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for impact placement, timing and the wind-ripple spectrum"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:13+00:00",
+    "fps": 59.9,
+    "motion": 0.0698,
+    "lum": 0.296
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, tension: .5, hue: 202, x: .5, y: .5, style: 'water', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Capillary-gravity ripples \u2014 dispersion is the whole piece --------------------------\n// Water waves obey w^2 = g*k + (sigma/rho)*k^3. Long waves are carried by gravity and the\n// LONGEST run fastest; short waves are carried by surface tension and the SHORTEST run\n// fastest. Between the two the group velocity passes through a minimum, and that is why a\n// raindrop ring looks the way it does: hair-fine capillary ripples race out AHEAD of the\n// swell they were born with, while the long gravity wake trails behind.\n//\n// Rendered by stationary phase rather than by stepping a wave equation. At radius r and age\n// tau the only wavenumbers that have arrived are those whose GROUP velocity equals r/tau \u2014\n// and because c_g has a minimum, there are exactly TWO of them at every point (one gravity,\n// one capillary) or, inside the minimum-group-velocity radius, none at all, which is why the\n// water behind the ring goes quiet again. A 256-entry table inverts c_g(k) = v on each\n// branch once per parameter change, so each pixel costs two cosines per drop, not a spectrum.\n// A wave equation on a grid cannot do this at all: it is non-dispersive, every wavelength\n// travels at one speed, and the ripples could never outrun the swell.\n//\n// Fine ripples are killed by viscosity as exp(-2*nu*k^2*tau) \u2014 real physics, and it also\n// happens to be exactly the anti-aliasing the leading edge needs.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(60, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.H = new Float32Array(NC); S.KL = new Float32Array(NC);\n  S.init = false;\n}\nconst H = S.H, KL = S.KL;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\n\nconst L = BW / BH;\nconst tt = K.t;\nconst en = P.energy;\n\n// ---- the dispersion constants. lamMin (the wavelength of minimum phase speed \u2014 the real\n// one is 1.7cm) is the piece's length scale; scale stretches it. ----\nconst lamMin = 0.090 * Math.max(0.35, P.scale);\nconst kMinP = TAU / lamMin;                     // = sqrt(g/T)\nconst cMinP = 0.15 * Math.max(0.45, Math.sqrt(P.scale));\n// solve  sqrt(g/T) = kMinP  and  sqrt(2*sqrt(g*T)) = cMinP\nconst gT = Math.pow(cMinP, 4) / 4;\nconst gg0 = Math.sqrt(gT * kMinP * kMinP);\nconst Tt = gg0 / (kMinP * kMinP) * (0.35 + P.tension * 1.3);   // tension shifts the balance\nconst nu = 6.0e-6 * (1 / Math.max(0.35, P.scale));\n\nfunction omg(k) { return Math.sqrt(gg0 * k + Tt * k * k * k); }\nfunction cgr(k) { const w = Math.sqrt(gg0 * k + Tt * k * k * k); return (gg0 + 3 * Tt * k * k) / (2 * w + 1e-9); }\n\n// ---- invert c_g(k) = v on both branches into a table (once per parameter change) ----\nconst NL = 256;\nconst sig = (lamMin * 1e4 | 0) + '_' + (Tt * 1e9 | 0) + '_' + (gg0 * 1e4 | 0);\nif (!S.KG || S.sig !== sig) {\n  S.sig = sig;\n  S.KG = new Float64Array(NL); S.KC = new Float64Array(NL);\n  S.WG = new Float64Array(NL); S.WC = new Float64Array(NL);\n  // locate the group-velocity minimum by scanning in log k\n  let kc = kMinP, best = 1e9;\n  for (let i = 0; i < 400; i++) {\n    const k = Math.exp(Math.log(kMinP * 0.02) + (i / 399) * Math.log(3000));\n    const c = cgr(k);\n    if (c < best) { best = c; kc = k; }\n  }\n  S.kc = kc; S.cmin = best;\n  for (let i = 0; i < NL; i++) {\n    const u = (i + 0.5) / NL;            // u = cmin/v in (0,1]\n    const v = best / u;\n    let lo = kc * 1e-5, hi = kc;         // gravity branch: c_g falls from inf to cmin\n    for (let it = 0; it < 44; it++) { const m = (lo + hi) * 0.5; if (cgr(m) > v) lo = m; else hi = m; }\n    S.KG[i] = Math.max((lo + hi) * 0.5, kMinP * 0.05); S.WG[i] = omg(S.KG[i]);\n    lo = kc; hi = kc * 6000;             // capillary branch: c_g climbs from cmin to inf\n    for (let it = 0; it < 44; it++) { const m = (lo + hi) * 0.5; if (cgr(m) < v) lo = m; else hi = m; }\n    S.KC[i] = (lo + hi) * 0.5; S.WC[i] = omg(S.KC[i]);\n  }\n}\nconst KG = S.KG, KC = S.KC, WG = S.WG, WC = S.WC, cmin = S.cmin;\n\n// ---- drops ----\nconst NDMAX = 7;\nif (!S.DX) { S.DX = new Float64Array(NDMAX); S.DY = new Float64Array(NDMAX); S.DT = new Float64Array(NDMAX); S.DA = new Float64Array(NDMAX); S.ND = 0; }\nconst DX = S.DX, DYy = S.DY, DT = S.DT, DA = S.DA;\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed; S.ND = 0; S.T = 0; S.nextD = 0.25; S.dn = 0;\n}\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dtr = K.t - S.lastT; S.lastT = K.t;\ndtr = dtr < 0 ? 0 : (dtr > 0.05 ? 0.05 : dtr);\nS.T += dtr * (0.25 + P.speed * 0.75);\nconst ts = S.T;\n\nconst nd = 2 + Math.round(P.density * 4);\nconst Td = 2.6 / (0.4 + P.density * 1.5);\nif (ts > S.nextD) {\n  S.nextD = ts + Td * (0.7 + fr(S.dn * 5 + 1) * 0.6);\n  const n = S.dn | 0; S.dn = n + 1;\n  const slot = n % nd;\n  const sx = Math.min(1, Math.max(0, P.x)), sy = Math.min(1, Math.max(0, P.y));\n  DX[slot] = (sx * L + (fr(n * 7 + 2) - 0.5) * L * 0.85);\n  DYy[slot] = (sy + (fr(n * 7 + 3) - 0.5) * 0.85);\n  DT[slot] = ts;\n  DA[slot] = 0.55 + fr(n * 7 + 4) * 0.75;\n  if (S.ND < nd) S.ND = nd;\n}\nconst ND = Math.min(S.ND, nd);\n\n// ---- wind ripples: a dispersion-correct background so the pond is never glassy ----\nif (!S.WK || S.wkSeed !== P.seed || S.wkSig !== sig) {\n  S.wkSeed = P.seed; S.wkSig = sig;\n  S.WK = new Float64Array(24);\n  for (let q = 0; q < 6; q++) {\n    const k = kMinP * (0.30 + fr(q * 11 + 21) * 1.9);\n    const th = fr(q * 11 + 22) * TAU;\n    S.WK[q * 4] = k * Math.cos(th); S.WK[q * 4 + 1] = k * Math.sin(th);\n    S.WK[q * 4 + 2] = omg(k); S.WK[q * 4 + 3] = fr(q * 11 + 23) * TAU;\n  }\n}\nconst WK = S.WK;\nconst windA = (0.05 + en * 0.10) * (0.85 + K.swell * 0.2 + A.lowmid * 0.4);   // steepness\nconst amp0 = (0.10 + en * 0.20);                                              // steepness\n\n// ---- height field ----\nfor (let j = 0; j < BH; j++) {\n  const y = (j + 0.5) / BH;\n  for (let i = 0; i < BW; i++) {\n    const x = (i + 0.5) / BW * L, p = j * BW + i;\n    let h = 0, kdom = 0, kw = 0;\n    for (let q = 0; q < 6; q++) {\n      const o = q * 4;\n      const kq = Math.sqrt(WK[o] * WK[o] + WK[o + 1] * WK[o + 1]);\n      h += (windA / kq) * Math.cos(WK[o] * x + WK[o + 1] * y - WK[o + 2] * tt + WK[o + 3]);\n    }\n    for (let d = 0; d < ND; d++) {\n      const tau = ts - DT[d];\n      if (tau <= 0.02) continue;\n      const dx = x - DX[d], dy = y - DYy[d];\n      const r = Math.sqrt(dx * dx + dy * dy) + 1e-4;\n      const v = r / tau;\n      if (v < cmin) continue;            // inside the minimum-group-velocity radius: no waves\n      const u = cmin / v;\n      let fi = u * NL - 0.5; fi = fi < 0 ? 0 : (fi > NL - 1.001 ? NL - 1.001 : fi);\n      const i0 = fi | 0, ff = fi - i0, i1 = i0 + 1 < NL ? i0 + 1 : i0;\n      const kg = KG[i0] + (KG[i1] - KG[i0]) * ff, wg = WG[i0] + (WG[i1] - WG[i0]) * ff;\n      const kc2 = KC[i0] + (KC[i1] - KC[i0]) * ff, wc = WC[i0] + (WC[i1] - WC[i0]) * ff;\n      const env = DA[d] * amp0 / (0.35 + r * 2.4) / (0.5 + tau * 0.28);   // steepness\n      // viscous cutoff: fine ripples die fast \u2014 this is why you only ever glimpse them\n      const dg = Math.exp(-nu * kg * kg * tau * 2);\n      const dc = Math.exp(-nu * kc2 * kc2 * tau * 2);\n      const ag = env * dg * 0.55 / kg, ac = env * dc * 0.45 / kc2;\n      h += ag * Math.cos(kg * r - wg * tau - 0.7854);\n      h += ac * Math.cos(kc2 * r - wc * tau - 0.7854);\n      const w2 = ag * kg + ac * kc2;\n      kdom += (kg * ag * kg + kc2 * ac * kc2); kw += w2;\n    }\n    H[p] = h;\n    KL[p] = kw > 1e-5 ? (kdom / kw) / kMinP : 0;    // local wavenumber, in units of k_minphase\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.021) * 9 + sec * 5) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cW = pal(0.55, 0.12, 0.0), cSky = pal(0.10, 0.16, 0.0);\nconst gsc = BH * 0.5 * (1.1 + en * 1.1);   // finite diff -> true slope, x a modest exaggeration\nconst sunx = 0.42 + 0.18 * Math.sin(tt * 0.037), suny = -0.86;\nconst gl = 0.88 + A.treble * 0.4 + K.pulse * 0.06;\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1, p = jc + i;\n    const sx2 = (H[jc + ip] - H[jc + im]) * gsc, sy2 = (H[jp + i] - H[jm + i]) * gsc;\n    const nl = 1 / Math.sqrt(sx2 * sx2 + sy2 * sy2 + 1);\n    const nz = nl;                                  // surface normal, z up\n    const spec = Math.max(0, -(sx2 * nl * sunx + sy2 * nl * suny) + nz * 0.30);\n    const sp4 = spec * spec * spec * spec;\n    const kk = KL[p];\n    let r, gg2, b;\n    if (style === 'dispersion') {\n      // abstracted: colour BY the local wavenumber. The dispersion is drawn directly \u2014\n      // the fine capillary edge and the long gravity wake fall into different hues.\n      const m = Math.min(1, Math.log(1 + kk * 2.2) * 0.52);\n      const cc = pal(0.08 + m * 0.62, 0.30, 0.0);\n      const v = 0.14 + m * 0.50 + Math.abs(H[p]) * 0.9;\n      r = v * (0.35 + cc[0] * 1.1); gg2 = v * (0.35 + cc[1] * 1.1); b = v * (0.40 + cc[2] * 1.1);\n    } else if (style === 'mercury') {\n      const v = 0.30 + nz * 0.16 + sp4 * 2.2 * gl + spec * 0.34;\n      r = v * 0.98; gg2 = v * 1.0; b = v * 1.04;\n    } else if (style === 'interferogram') {\n      // an optical flat: contour the surface height into iso-fringes\n      const fr2 = 0.5 + 0.5 * Math.cos(H[p] * 46 + tt * 0.3);\n      const cc = pal(0.14 + kk * 0.16, 0.30, 0.0);\n      const v = 0.16 + fr2 * 0.44;\n      r = v * (0.45 + cc[0] * 1.0); gg2 = v * (0.45 + cc[1] * 1.0); b = v * (0.50 + cc[2] * 1.0);\n    } else if (style === 'ink_pond') {\n      const v = 0.72 - Math.max(0, -sy2) * 0.11 - sp4 * 0.30 + sx2 * 0.035;\n      r = v * 0.98; gg2 = v * 0.965; b = v * 0.925;\n    } else {                                       // water (default)\n      // dark pond under a bright sky: the slope decides how much sky each facet mirrors\n      const facing = Math.max(0, Math.min(1, 0.5 - sy2 * 0.28));\n      const base = 0.16 + facing * 0.30;\n      r = base * (0.30 + cW[0] * 0.85) + cSky[0] * facing * 0.14;\n      gg2 = base * (0.32 + cW[1] * 0.85) + cSky[1] * facing * 0.15;\n      b = base * (0.40 + cW[2] * 0.90) + cSky[2] * facing * 0.20;\n      const s2 = sp4 * 1.9 * gl;\n      r += s2 * 0.95; gg2 += s2 * 0.98; b += s2 * 1.0;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg2 < 0 ? 0 : (gg2 > 1 ? 255 : gg2 * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

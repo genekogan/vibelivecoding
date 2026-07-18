@@ -1,0 +1,123 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.planetary_nebula",
+  "kind": "genart",
+  "name": "Planetary Nebula",
+  "desc": "The glowing shroud a dying sun-like star casts off \u2014 nested ionization shells of gas, a hot blue-white core fading through teal oxygen to a red hydrogen ring, drawn out into soft bipolar lobes and lit from within by the ember of a white dwarf, the whole shell slowly breathing.",
+  "tags": [
+    "planetary nebula",
+    "ring nebula",
+    "cat's eye",
+    "butterfly nebula",
+    "helix",
+    "dying star",
+    "white dwarf",
+    "stellar death",
+    "ionization",
+    "shells",
+    "bipolar",
+    "gas shell",
+    "emission nebula",
+    "oxygen",
+    "hydrogen",
+    "cosmology",
+    "astrophysics",
+    "nebula",
+    "hubble",
+    "false-color",
+    "teal",
+    "red",
+    "deep-space",
+    "sublime",
+    "scientific",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "gas glow brightness / exposure"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "nebula radial size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "breathing + rotation + turbulence rate"
+    },
+    "bipolar": {
+      "default": 0.4,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bipolar-lobe / hourglass elongation vs round ring"
+    },
+    "turb": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wispy angular turbulence of the gas"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "OIII mid-shell hue (teal default)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "nebula center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "nebula center y"
+    },
+    "style": {
+      "default": "ring",
+      "options": [
+        "ring",
+        "oxygen",
+        "xray",
+        "ink"
+      ],
+      "doc": "stratified color vs teal OIII vs hot Chandra vs schematic ionization contours"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic axis + turbulence phase"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:06+00:00",
+    "fps": 61.3,
+    "motion": 0.0325,
+    "lum": 0.344
+  },
+  "code": "const D = { energy:.62, scale:1, speed:1, bipolar:.4, turb:.5, hue:190, x:.5, y:.5, style:'ring', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst BW = Math.max(360, Math.min(560, Math.round(width / 3.0)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.gfx || S.bw !== BW || S.bh !== BH) { S.gfx = createGraphics(BW, BH); S.gfx.pixelDensity(1); S.bw = BW; S.bh = BH; }\nconst g = S.gfx;\n\n// seeded shell radii / widths / colors\nif (S.pnSeed !== sd) { S.pnSeed = sd;\n  S.axis = fr(1) * 3.14159;\n  S.asym = 0.7 + fr(2) * 0.5;\n  S.tphase = fr(3) * 6.2831;\n}\n\nconst T = K.t * (0.4 + P.speed * 0.6);\nconst sc = 0.5 + P.scale * 0.55;                          // nebula radial scale\nconst expo = 0.55 + P.energy * 1.4;\nconst gain = 1 + K.swell * 0.14 + A.rms * 0.25;\nconst axis = S.axis + T * 0.02;                            // slow bipolar-axis rotation\nconst ca = Math.cos(axis), sa = Math.sin(axis);\n// breathing shell radii (incommensurate, slow) \u2014 perpetual, non-strobe\nconst br1 = 1 + 0.05 * Math.sin(T * 0.11) + 0.03 * Math.sin(T * 0.047 + 1.3);\nconst br2 = 1 + 0.045 * Math.sin(T * 0.083 + 2.1);\nconst R1 = 0.15 * sc * br1, R2 = 0.30 * sc * br2, R3 = 0.46 * sc * br1, R4 = 0.66 * sc * br2;\nconst cxB = P.x * BW, cyB = P.y * BH;\nconst RB = Math.min(BW, BH) * 1.0;\nconst bip = P.bipolar, tb = P.turb;\nconst hb = P.hue;\nconst hue2rgb = (h, out, m) => { // simple HSB(h,90,100)->rgb *m\n  const c = 1, x = 1 - Math.abs(((h / 60) % 2) - 1); let r, gg, b;\n  if (h < 60) { r = c; gg = x; b = 0; } else if (h < 120) { r = x; gg = c; b = 0; }\n  else if (h < 180) { r = 0; gg = c; b = x; } else if (h < 240) { r = 0; gg = x; b = c; }\n  else if (h < 300) { r = x; gg = 0; b = c; } else { r = c; gg = 0; b = x; }\n  out[0] += r * 255 * m; out[1] += gg * 255 * m; out[2] += b * 255 * m;\n};\nconst acc = [0, 0, 0];\n\ng.loadPixels(); const pix = g.pixels;\nconst contour = style === 'ink';\nfor (let j = 0; j < BH; j++) {\n  const ny = (j - cyB) / RB;\n  for (let i = 0; i < BW; i++) {\n    const nx = (i - cxB) / RB;\n    // rotate into nebula frame\n    let ex = nx * ca + ny * sa, ey = -nx * sa + ny * ca;\n    const r = Math.sqrt(ex * ex + ey * ey) + 1e-4;\n    const th = Math.atan2(ey, ex);\n    const o = 4 * (j * BW + i);\n    if (r > 0.95) { pix[o] = 6; pix[o + 1] = 7; pix[o + 2] = 13; pix[o + 3] = 255; continue; }\n    // angular turbulence (wispy gas)\n    const turb = 0.72 + tb * (0.28 * Math.sin(th * 6 + S.tphase + T * 0.15) + 0.18 * Math.sin(th * 11 - T * 0.1) + 0.12 * Math.sin(th * 3 + r * 8));\n    // bipolar lobe factor: emission enhanced along axis (cos^2), pinched at waist\n    const lobe = 1 + bip * (2.2 * Math.pow(Math.cos(th), 4) - 0.5);\n    acc[0] = 0; acc[1] = 0; acc[2] = 0;\n    // nested ionization shells (inner hot/blue -> outer red)\n    const s1 = Math.exp(-Math.pow((r - R1) / (0.10 * sc), 2));   // inner high-ion (blue-white)\n    const s2 = Math.exp(-Math.pow((r - R2) / (0.075 * sc), 2));  // OIII teal\n    const s3 = Math.exp(-Math.pow((r - R3) / (0.065 * sc), 2));  // main ring red/pink (H-alpha)\n    const s4 = Math.exp(-Math.pow((r - R4) / (0.11 * sc), 2)) * 0.6; // faint outer halo\n    const inner = Math.exp(-r * r / (0.02 * sc)) * 1.4;          // central star glow\n    hue2rgb(210, acc, s1 * 0.9 * turb);\n    hue2rgb(hb % 360, acc, s2 * 1.15 * turb * lobe);            // OIII (hue param ~ teal default 190)\n    hue2rgb(345, acc, s3 * 1.05 * turb);\n    hue2rgb(320, acc, s4 * turb);\n    // central white dwarf + hot inner\n    acc[0] += inner * 235; acc[1] += inner * 240; acc[2] += inner * 255;\n    let R = acc[0], G = acc[1], B = acc[2];\n    let I = expo * gain;\n    if (contour) {\n      // schematic ionization contours (mono cyan)\n      const em = (s1 + s2 + s3 + s4) * turb;\n      const band = Math.pow(0.5 + 0.5 * Math.cos(em * 26), 6);\n      const m = (0.14 + em * 0.5 + band * 0.7);\n      R = m * 120; G = m * 210; B = m * 255; I = 1;\n    } else if (style === 'oxygen') { const t = (R + G + B); R = t * 0.06; G = R * 3.0; B = t * 0.22; }\n    else if (style === 'xray') { const t = (R * 0.3 + G * 0.5 + B); R = t * 0.5; G = t * 0.8; B = t; }\n    R *= I; G *= I; B *= I;\n    pix[o] = R > 255 ? 255 : R; pix[o + 1] = G > 255 ? 255 : G; pix[o + 2] = B > 255 ? 255 : B; pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\nnoTint();\n// crisp central white dwarf spark (few shapes)\nblendMode(ADD); noStroke();\nconst ccx = P.x * width, ccy = P.y * height;\nconst tw = 0.75 + 0.25 * Math.sin(T * 1.0) + K.pulse * 0.2 + A.bass * 0.3;\nif (!contour) {\n  fill(0, 0, 100, (16 + P.energy * 16) * tw * (P.alpha / 100));\n  circle(ccx, ccy, u * 0.02 * tw);\n  fill(210, 30, 100, (10 + P.energy * 10) * (P.alpha / 100));\n  circle(ccx, ccy, u * 0.05);\n}\nblendMode(BLEND);\npop();\n"
+}

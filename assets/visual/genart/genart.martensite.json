@@ -1,0 +1,153 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.martensite",
+  "kind": "genart",
+  "name": "Martensite",
+  "desc": "A diffusionless military shear caught mid-avalanche: lenticular plates snap into the austenite along their habit planes at the speed of sound, each with a midrib and internal twins, each stopping dead where it strikes another plate, and because the strain at a plate tip triggers the next one they arrive in autocatalytic cascades that partition the parent grains hierarchically into ever finer self-accommodating wedges - then the specimen is cycled around its hysteresis loop and the plates reverse last-formed-first; read as an etched metallographic section, tint-etched variant colour, latent-heat thermal, or a blueprint of habit-plane traces.",
+  "tags": [
+    "martensite",
+    "martensitic",
+    "austenite",
+    "shape-memory",
+    "nitinol",
+    "steel",
+    "quench",
+    "transformation",
+    "diffusionless",
+    "shear",
+    "habit-plane",
+    "lath",
+    "plate",
+    "lenticular",
+    "midrib",
+    "twinning",
+    "twins",
+    "variant",
+    "self-accommodation",
+    "autocatalytic",
+    "avalanche",
+    "cascade",
+    "hysteresis",
+    "thermoelastic",
+    "latent-heat",
+    "phase-transition",
+    "first-order",
+    "nucleation",
+    "metallography",
+    "micrograph",
+    "microstructure",
+    "materials-science",
+    "metallurgy",
+    "crystallography",
+    "tint-etch",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "simulation",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "scientific",
+    "clinical",
+    "laboratory",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "angular",
+    "texture",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "etch contrast and the latent-heat flash as each plate snaps in"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into the section - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "thermal cycling rate around the hysteresis loop, and how fast plates snap out (0.2 still cycles)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "peak transformed fraction and plate fineness - a few bold laths vs a dense fine-plate cascade"
+    },
+    "twin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "internal twin striation frequency and contrast across each plate"
+    },
+    "grain": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "polishing scratches and etch tooth on the austenite"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue; the four habit-plane variants fan out from it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the section when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan down the section when magnified"
+    },
+    "style": {
+      "default": "micrograph",
+      "options": [
+        "micrograph",
+        "polarized",
+        "thermal",
+        "schematic"
+      ],
+      "doc": "aesthetic: etched metallographic section / tint-etched variant colour / latent-heat ironbow thermal / blueprint of habit-plane traces"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic parent grains, variant orientations and nucleation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:08+00:00",
+    "fps": 65.8,
+    "motion": 0.103,
+    "lum": 0.448
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, twin: .5, grain: .45, hue: 210, x: .5, y: .5, style: 'micrograph', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Martensitic transformation: a diffusionless, military shear. Plates snap into\n// existence along habit planes at the speed of sound, each one lenticular with a\n// midrib and internal twins, each one stopping dead where it strikes another\n// plate or a parent grain boundary -- so the structure partitions space\n// hierarchically, big plates first, ever finer ones self-accommodating into the\n// wedges left over. Nucleation is AUTOCATALYTIC: the strain field at a plate tip\n// triggers the next one, so it arrives in avalanches, not evenly.\n//\n// Perpetual by thermodynamics rather than by trickery: the specimen is cycled\n// around its hysteresis loop forever. Cooling past Ms drives the forward cascade;\n// heating past As reverses the plates LIFO (thermoelastic, last-formed first-gone).\n// Ms/As are separated, so the loop has real area and can never sit still, and the\n// cycle rate plus the nucleation-site field drift on incommensurate K.t rates, so\n// no two cycles lay down the same microstructure.\n// ---------------------------------------------------------------------------\nconst BW = 200, BH = Math.max(100, Math.round(BW * height / width));\nconst N = BW * BH;\nconst MAXP = 190, NG = 4;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.occ = new Int32Array(N); S.mtx = new Float32Array(N);\n  S.px = new Float32Array(MAXP); S.py = new Float32Array(MAXP); S.pa = new Float32Array(MAXP);\n  S.pL = new Float32Array(MAXP); S.pM = new Float32Array(MAXP); S.pT = new Float32Array(MAXP);\n  S.pv = new Float32Array(MAXP); S.pb = new Float32Array(MAXP); S.pr = new Float32Array(MAXP);\n  S.pTe = new Float32Array(MAXP);\n  S.gx = new Float32Array(NG); S.gy = new Float32Array(NG); S.ga = new Float32Array(NG);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn2(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a0 = hs3(ix, iy, 1), a1 = hs3(ix + 1, iy, 1), a2 = hs3(ix, iy + 1, 1), a3 = hs3(ix + 1, iy + 1, 1);\n  return (a0 + (a1 - a0) * u) * (1 - v) + (a2 + (a3 - a2) * u) * v;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\nfunction rnd() { let x = S.rng; x ^= x << 13; x |= 0; x ^= x >>> 17; x ^= x << 5; x |= 0; S.rng = x; return (x >>> 0) / 4294967296; }\n\nconst occ = S.occ, mtx = S.mtx;\nconst pxs = S.px, pys = S.py, pas = S.pa, pLs = S.pL, pMs = S.pM, pTs = S.pT, pvs = S.pv, pbs = S.pb, prs = S.pr;\nconst pTe = S.pTe;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  S.rng = (sd * 2654435761 + 0x9e3779b9) | 0; if (S.rng === 0) S.rng = 1;\n  S.n = 0; S.frac = 0; S.dir = -1; S.T = 1;\n  for (let k = 0; k < NG; k++) {                      // parent austenite grains\n    S.gx[k] = hs3(k, 1, 5) * BW; S.gy[k] = hs3(k, 2, 9) * BH; S.ga[k] = hs3(k, 3, 13) * 3.14159265;\n  }\n  const kk = 5.0 / BH;                                // polished austenite matrix texture\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    mtx[j * BW + i] = 0.6 * vn2(i * kk, j * kk) + 0.25 * vn2(i * kk * 3.1 + 7.7, j * kk * 3.1 - 2.9)\n                    + 0.15 * (hs3(i, j, 33) - 0.5);\n  }\n}\nconst ggx = S.gx, ggy = S.gy, gga = S.ga;\n\nconst tt = K.t;\nconst u0 = Math.min(BW, BH);\n\n// ---- thermal cycling around the hysteresis loop ----\nconst cyr = 0.33 * (0.35 + P.speed * 0.75);\nconst Tt = Math.max(0, Math.min(1, 0.5 + 0.44 * Math.sin(tt * cyr) + 0.075 * Math.sin(tt * cyr * 0.431 + 1.1) + 0.035 * Math.sin(tt * cyr * 0.237 + 0.5)));\nconst dT = Tt - (S.Tprev == null ? Tt : S.Tprev);\nS.Tprev = Tt;\nif (dT < -1e-5) S.dir = -1; else if (dT > 1e-5) S.dir = 1;\nconst Ms = 0.50, Mf = 0.20, As = 0.60, Af = 0.90;     // As > Ms -> the loop has area\nlet ftar;\nif (S.dir < 0) ftar = Math.max(0, Math.min(1, (Ms - Tt) / (Ms - Mf)));\nelse ftar = Math.max(0, Math.min(1, (Af - Tt) / (Af - As)));\nftar *= 0.34 + P.density * 0.52;\nftar = Math.min(0.94, ftar * (0.9 + K.swell * 0.12 + A.bass * 0.2));\n\nlet n = S.n;\nconst Lbase = u0 * (0.30 - P.density * 0.16);\nconst cool = (0.45 + P.speed * 0.9);\n\n// ---- forward cascade: autocatalytic nucleation where the strain field is loaded ----\nconst nx = tt * 0.019 + 1.4 * Math.sin(tt * 0.037);\nconst ny = tt * 0.014 + 1.1 * Math.cos(tt * 0.053);\nlet guard = 0;\nwhile (S.frac < ftar && n < MAXP && guard < 4) {\n  guard++;\n  let sx2, sy2, ok = false;\n  for (let a2 = 0; a2 < 12 && !ok; a2++) {\n    if (n > 0 && rnd() < 0.66) {                       // autocatalytic: burst off an existing tip\n      const q = (rnd() * n) | 0;\n      const L = pLs[q], ca = Math.cos(pas[q]), sa = Math.sin(pas[q]);\n      const s2 = rnd() < 0.5 ? 1 : -1;\n      sx2 = pxs[q] + ca * L * s2 * (0.85 + rnd() * 0.4) + (rnd() - 0.5) * 9;\n      sy2 = pys[q] + sa * L * s2 * (0.85 + rnd() * 0.4) + (rnd() - 0.5) * 9;\n    } else {\n      sx2 = rnd() * BW; sy2 = rnd() * BH;\n    }\n    if (sx2 < 2 || sx2 > BW - 2 || sy2 < 2 || sy2 > BH - 2) continue;\n    const st = vn2(sx2 * 0.05 + nx, sy2 * 0.05 + ny);\n    if (st < 0.34) continue;                           // only where stored strain is high\n    if (occ[(sy2 | 0) * BW + (sx2 | 0)] !== 0) continue;\n    ok = true;\n  }\n  if (!ok) break;\n  // which parent grain? -> that grain's variant set\n  let bg = 0, bd = 1e9;\n  for (let k = 0; k < NG; k++) { const dx = sx2 - ggx[k], dy = sy2 - ggy[k], d = dx * dx + dy * dy; if (d < bd) { bd = d; bg = k; } }\n  const vr = (rnd() * 4) | 0;\n  const ang = gga[bg] + vr * 0.7853981 + (rnd() - 0.5) * 0.10;\n  // march both ways along the habit plane until the plate strikes something\n  const ca = Math.cos(ang), sa = Math.sin(ang);\n  let lmax = Lbase * (0.35 + rnd() * 0.9);\n  for (let d = 2; d < lmax; d += 1.5) {\n    const x1 = sx2 + ca * d, y1 = sy2 + sa * d, x2 = sx2 - ca * d, y2 = sy2 - sa * d;\n    if (x1 < 1 || x1 > BW - 2 || y1 < 1 || y1 > BH - 2 || x2 < 1 || x2 > BW - 2 || y2 < 1 || y2 > BH - 2) { lmax = d; break; }\n    if (occ[(y1 | 0) * BW + (x1 | 0)] !== 0 || occ[(y2 | 0) * BW + (x2 | 0)] !== 0) { lmax = d; break; }\n  }\n  if (lmax < 3) continue;\n  pxs[n] = sx2; pys[n] = sy2; pas[n] = ang; pMs[n] = lmax; pLs[n] = 1.5;\n  pTs[n] = Math.max(1.0, lmax * (0.09 + 0.06 * rnd()));    // lenticular aspect\n  pvs[n] = vr; pbs[n] = tt; prs[n] = rnd(); n++;\n  S.frac += 3.14159265 * lmax * pTs[n - 1] / N;   // provisional; re-measured from occ below\n}\n\n// ---- reverse transformation on heating: thermoelastic, last-formed first-gone ----\nif (S.frac > ftar + 0.004) {\n  let rev = 0;\n  while (n > 0 && rev < 5) {\n    const q = n - 1;\n    pMs[q] *= 0.72;\n    if (pLs[q] > pMs[q]) pLs[q] = pMs[q];\n    if (pMs[q] < 2.2) { n--; rev++; } else break;\n  }\n}\nS.n = n;\n\n// plates snap out at the speed of sound -> a few frames from nucleus to full length\nfor (let k = 0; k < n; k++) {\n  const L = pLs[k], M = pMs[k];\n  pLs[k] = L + (M - L) * Math.min(1, 0.22 * cool);\n}\n\n// ---- rasterise every live plate (rebuilt each frame, so reversal is free) ----\nfor (let k = 0; k < n; k++) {\n  pTe[k] = pTs[k] * (1 + 0.13 * Math.sin(tt * (0.33 + prs[k] * 0.85) + prs[k] * 7.1));\n}\nocc.fill(0);\nfor (let k = 0; k < n; k++) {\n  const L = pLs[k], T = pTe[k], ca = Math.cos(pas[k]), sa = Math.sin(pas[k]);\n  const hw = Math.sqrt(L * L * ca * ca + T * T * sa * sa);\n  const hh = Math.sqrt(L * L * sa * sa + T * T * ca * ca);\n  const i0 = Math.max(0, Math.floor(pxs[k] - hw)), i1 = Math.min(BW - 1, Math.ceil(pxs[k] + hw));\n  const j0 = Math.max(0, Math.floor(pys[k] - hh)), j1 = Math.min(BH - 1, Math.ceil(pys[k] + hh));\n  const iL2 = 1 / (L * L), iT2 = 1 / (T * T);\n  for (let j = j0; j <= j1; j++) {\n    const dy = j + 0.5 - pys[k];\n    for (let i = i0; i <= i1; i++) {\n      const dx = i + 0.5 - pxs[k];\n      const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;\n      if (u * u * iL2 + v * v * iT2 < 1) occ[j * BW + i] = k + 1;\n    }\n  }\n}\n\n// measured transformed fraction -- authoritative, replaces the provisional estimate\n{\n  let cnt = 0;\n  for (let p = 0; p < N; p++) if (occ[p] !== 0) cnt++;\n  S.frac = cnt / N;\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.023 + Math.sin(tt * 0.016) * 0.016;\nconst gain = 0.45 + P.energy * 1.05 + A.rms * 0.3;\nconst gr = P.grain, twf = P.twin;\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const id = occ[p];\n    const tex = mtx[p];\n    const th = (hs3(i, j, 43) - 0.5) * 0.07 * gr;\n    let r, gg, b;\n    if (id === 0) {\n      // retained austenite: polished, scratched, never a flat fill\n      const scr = Math.max(0, Math.sin((i * 0.79 + j * 0.24) * 1.6)) * 0.045 * gr;\n      if (style === 'polarized') { hsv(hb + 0.46, 0.17, 0.52 + tex * 0.15 + scr); r = RR; gg = GG; b = BB; }\n      else if (style === 'thermal') { const m = 0.09 + tex * 0.07; r = m * 2.1; gg = Math.max(0, m * 2.0 - 0.5); b = Math.max(0, 0.36 - m * 1.4); }\n      else if (style === 'schematic') { const v = 0.055 + tex * 0.03; r = v * 0.5; gg = v * 0.9; b = v * 1.9; }\n      else { const v = 0.51 + tex * 0.16 * (0.4 + gr) + scr; r = v * 1.0; gg = v * 0.99; b = v * 0.95; }\n    } else {\n      const k = id - 1;\n      const ca = Math.cos(pas[k]), sa = Math.sin(pas[k]);\n      const dx = i + 0.5 - pxs[k], dy = j + 0.5 - pys[k];\n      const u = dx * ca + dy * sa, v = -dx * sa + dy * ca;\n      const un = u / pLs[k], vn = v / pTe[k];\n      const rr2 = Math.min(1, un * un + vn * vn);\n      const rim = Math.pow(rr2, 4);                       // lenticular edge\n      const midrib = Math.max(0, 1 - Math.abs(vn) * 3.2); // the plate's midrib\n      const twin = 0.5 + 0.5 * Math.sin(u * (1.5 + twf * 3.4) + prs[k] * 12 + tt * (0.20 + prs[k] * 0.55));   // internal twins, jogging elastically\n      const refl = 0.30 + 0.44 * Math.abs(Math.cos(pas[k] - 0.6));  // variant catches light\n      const fresh = Math.max(0, 1 - (tt - pbs[k]) * 1.4);           // latent heat of transformation\n      if (style === 'polarized') {\n        // tint etching: each habit-plane variant colours differently\n        hsv(hb + pvs[k] * 0.17 + prs[k] * 0.03, 0.42 + twin * 0.16, 1);\n        const val = (0.26 + refl * 0.5 + twin * 0.10 * twf) * (0.55 + gain * 0.5) * (1 - rim * 0.45);\n        r = RR * val; gg = GG * val; b = BB * val;\n        r += fresh * 0.20; gg += fresh * 0.17; b += fresh * 0.10;\n      } else if (style === 'thermal') {\n        const m = Math.min(1, (0.20 + refl * 0.42 + midrib * 0.12 + fresh * 0.55) * (0.5 + P.energy * 0.85));\n        r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55));\n        b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.42 - m * 1.5));\n      } else if (style === 'schematic') {\n        const out = Math.max(0, rr2 - 0.66) * 3.0;\n        const mr = midrib * (0.30 + 0.34 * Math.sin(tt * (0.30 + prs[k] * 0.62) + prs[k] * 9.3));\n        r = 0.06 + out * 0.42 * gain + mr * 0.20;\n        gg = 0.09 + out * 0.82 * gain + mr * 0.42;\n        b = 0.17 + out * 1.0 * gain + mr * 0.58 + fresh * 0.25;\n      } else {\n        // micrograph (default): lath plates darker than the austenite, twin\n        // striations across them, midrib bright, tips lenticular\n        const v = (0.05 + refl * 0.24 + twin * 0.20 * twf + midrib * 0.10) * (0.62 + gain * 0.38) * (1 - rim * 0.35);\n        r = v * 1.0 + tex * 0.04; gg = v * 0.99 + tex * 0.04; b = v * 0.97 + tex * 0.04;\n        r += fresh * 0.16; gg += fresh * 0.14; b += fresh * 0.08;\n      }\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + th) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + th) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + th) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

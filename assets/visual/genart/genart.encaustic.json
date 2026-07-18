@@ -1,0 +1,176 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.encaustic",
+  "kind": "genart",
+  "name": "Encaustic",
+  "desc": "Pigmented beeswax built up in fused layers you can see down through \u2014 each stroke veiled in milk by the clear wax laid over it, the whole slab never quite setting so the marks creep, while a heat gun keeps orbiting the panel and everything it passes bleeds at the edges, levels, and comes up wet.",
+  "tags": [
+    "encaustic",
+    "wax",
+    "beeswax",
+    "damar",
+    "resin",
+    "cold-wax",
+    "medium",
+    "pigment",
+    "paint",
+    "painting",
+    "layers",
+    "layered",
+    "translucent",
+    "translucency",
+    "depth",
+    "veil",
+    "milky",
+    "fuse",
+    "fused",
+    "fusing",
+    "heat",
+    "heat-gun",
+    "torch",
+    "molten",
+    "melt",
+    "flow",
+    "pool",
+    "pooling",
+    "level",
+    "scrape",
+    "scraped",
+    "incise",
+    "stroke",
+    "mark",
+    "impasto",
+    "buffed",
+    "satin",
+    "sheen",
+    "gloss",
+    "wet",
+    "encausto",
+    "fayum",
+    "jasper-johns",
+    "studio",
+    "panel",
+    "slab",
+    "relief",
+    "topography",
+    "raking",
+    "light",
+    "nocturne",
+    "dark-key",
+    "earth",
+    "ochre",
+    "material",
+    "surface",
+    "texture",
+    "macro",
+    "swatch",
+    "process",
+    "slow",
+    "meditative",
+    "sensual",
+    "melancholy",
+    "austere",
+    "abstract",
+    "non-figurative",
+    "organic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "layers": {
+      "default": 4,
+      "min": 1,
+      "max": 6,
+      "doc": "how many fused wax layers are stacked \u2014 depth you can see down through"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "size of the stroke work against the frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen off the buffed wax and the glow of the molten pass"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much of each layer the strokes actually cover, and how crisp their edges sit"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "anchors the working palette (34 = warm wax and earths)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "rate of the wax creep, the heat-gun pass and the light"
+    },
+    "x": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "raking studio-light azimuth"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "light elevation across the wax topography"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "panel opacity"
+    },
+    "style": {
+      "default": "encaustic",
+      "options": [
+        "encaustic",
+        "cold_wax",
+        "resin",
+        "relief",
+        "nocturne"
+      ],
+      "doc": "encaustic: hot pigmented beeswax, warm and milky with real depth \u00b7 cold_wax: cold-wax medium and oil, matte, scraped, earthy \u00b7 resin: clear poured resin with pigment suspended in it \u2014 glassy, deep, high gloss \u00b7 relief: non-representational \u2014 the wax topography alone under a raking survey light, no pigment at all \u00b7 nocturne: a dark-key near-monochrome slab, cold and melancholy"
+    },
+    "act": {
+      "default": "fuse",
+      "options": [
+        "fuse",
+        "build",
+        "scrape"
+      ],
+      "doc": "fuse: the gun keeps passing and the wax keeps reflowing \u00b7 build: layers accrete and recede across sections \u2014 the painting being made \u00b7 scrape: the upper layers get cut back to reveal what is buried, then rebuilt"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "a new panel \u2014 fresh strokes, palette picks and layer order"
+    }
+  },
+  "acts": [
+    "fuse",
+    "build",
+    "scrape"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:55+00:00",
+    "fps": 62.1,
+    "motion": 0.057,
+    "lum": 0.407
+  },
+  "code": "const D = { layers: 4, scale: 1, energy: .6, density: .5, hue: 34, speed: 1, x: .3, y: .5, alpha: 1, style: 'encaustic', act: 'fuse', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height;\nconst sty=P.style, act=P.act;\nconst nLp=cl(P.layers,1,6), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4), en=cl(P.energy,0,1);\nconst H=md(P.hue,360), T=K.t*spd;\nconst TD=K.t*(.45+.55*Math.min(spd,3));\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\n\n// ---- seeded wrapping fBm field (once per seed) ----\nconst NZ=160;\nif(S.nzK!==P.seed || !S.nz){ S.nzK=P.seed; const F=new Float32Array(NZ*NZ); let amp=1, tot=0;\n  for(let o=0;o<4;o++){ const per=4<<o, cell=NZ/per;\n    const lv=new Float32Array(per*per);\n    for(let k=0;k<per*per;k++) lv[k]=fr(o*977.3+k*1.317+3.7);\n    for(let j=0;j<NZ;j++){ const gy=j/cell, jy=Math.floor(gy), fy=gy-jy, vv=fy*fy*(3-2*fy);\n      const j0=(jy%per)*per, j1=((jy+1)%per)*per;\n      for(let i=0;i<NZ;i++){ const gx=i/cell, ix=Math.floor(gx), fx=gx-ix, uu=fx*fx*(3-2*fx);\n        const i0=ix%per, i1=(ix+1)%per;\n        const a=lv[j0+i0], b=lv[j0+i1], c=lv[j1+i0], d=lv[j1+i1];\n        F[j*NZ+i]+=amp*(a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv); } }\n    tot+=amp; amp*=0.52; }\n  for(let k=0;k<NZ*NZ;k++) F[k]=F[k]/tot;\n  S.nz=F; }\nconst NF=S.nz, CEL=NZ/4;\nconst nzAt=(x,y)=>{ x*=CEL; y*=CEL;\n  let xi=Math.floor(x), yi=Math.floor(y); const fx=x-xi, fy=y-yi;\n  xi=md(xi,NZ); yi=md(yi,NZ); const x1=(xi+1)%NZ, y1=(yi+1)%NZ, r0=yi*NZ, r1=y1*NZ;\n  const a=NF[r0+xi], b=NF[r0+x1], c=NF[r1+xi], d=NF[r1+x1];\n  return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy; };\n\nconst BW=Math.max(360, Math.min(720, Math.round(W/2.4))), BH=cl(Math.round(BW*Hh/Math.max(1,W)),56,720);\nif(!S.g || S.gk!==BW+'x'+BH){ if(S.g&&S.g.remove)S.g.remove();\n  S.g=createGraphics(BW,BH); S.gk=BW+'x'+BH; S.h=new Float32Array(BW*BH); S.ht=new Float32Array(BW*BH); }\nconst G=S.g, HF=S.h, HT=S.ht;\n\n// ---- dramaturgy ----\nconst sec=((K.section|0)%8+8)%8;\nlet nL=Math.round(nLp), gunR=1, scrape=0;\nif(act==='build'){ nL=Math.max(1,Math.round(1+(nLp-1)*(.35+.65*(.5+.5*Math.sin(sec*.72+T*.015))))); gunR=1.15; }\nelse if(act==='scrape'){ scrape=.45+.45*Math.sin(sec*.85+T*.021); gunR=.7; }\n\n// ---- the heat gun: it orbits the panel, and where it passes the wax goes molten \u2014\n// stroke edges bleed, the surface levels and comes up wet. A monotonic angle, plus a\n// second incommensurate epicycle so the pass never exactly repeats.\nconst gAng=.052*TD*gunR, gAng2=.131*TD*gunR+2.1;\nconst gx0=.52*Math.cos(gAng)+.19*Math.cos(gAng2), gy0=.33*Math.sin(gAng)+.13*Math.sin(gAng2);\nconst gunRad=(.30+.20*dens)*Math.max(.5,sc);\n// the wax never fully sets \u2014 every layer creeps, the deep ones slower. Monotonic: the\n// motion floor cannot re-phase away.\nconst flow=.055*TD;\n// raking studio light on the buffed surface\nconst lAz=cl(P.x,0,1)*TAU + .0125*TD + .24*Math.sin(TD*.047+.4) + .12*Math.sin(TD*.103+2.2);\nconst lx=Math.cos(lAz), ly=Math.sin(lAz);\nconst lEl=(cl(P.y,0,1)-.5)*1.2 + .14*Math.sin(TD*.061+1.1) + .06*Math.sin(TD*.131+2.6) + .03*K.swell;\n\n// ---- style ----\nlet GROUND, WAX, spTint, relief=0, milkK=1, satK=1, glossK=1;\nif(sty==='cold_wax'){ GROUND=hsb2rgb(H-8,16,26); WAX=hsb2rgb(H+6,10,58); spTint=[250,246,236]; milkK=.55; satK=.72; glossK=.42; }\nelse if(sty==='resin'){ GROUND=hsb2rgb(H+180,30,12); WAX=hsb2rgb(H+4,6,70); spTint=[255,255,255]; milkK=.42; satK=1.25; glossK=2.1; }\nelse if(sty==='relief'){ GROUND=hsb2rgb(H,4,42); WAX=hsb2rgb(H,3,52); spTint=[255,252,245]; relief=1; milkK=0; satK=0; glossK=1.5; }\nelse if(sty==='nocturne'){ GROUND=hsb2rgb(H+200,44,7); WAX=hsb2rgb(H+196,26,26); spTint=[210,224,255]; milkK=.75; satK=.55; glossK=1.3; }\nelse { GROUND=hsb2rgb(H-10,22,34); WAX=hsb2rgb(H+8,13,80); spTint=[255,248,230]; milkK=1; satK=1; glossK=1; }\n\n// ---- the palette: a seeded set of pigments the painter is actually working with ----\nconst NPL=8, plK=P.seed+'|'+sty+'|'+Math.round(H)+'|'+Math.round(satK*10);\nif(S.plK!==plK){ S.plK=plK; const PL=new Float32Array(NPL*3);\n  for(let k=0;k<NPL;k++){\n    const r1=fr(k*4.3+700), r2=fr(k*4.3+701), r3=fr(k*4.3+702);\n    let hh,ss,bb;\n    if(sty==='nocturne'){ hh=H+180+r1*90; ss=(14+40*r2)*satK; bb=8+40*r3; }\n    else if(sty==='resin'){ hh=H+r1*300; ss=(45+50*r2)*satK; bb=26+56*r3; }\n    else { // a working palette: two earths, a saturated accent, a near-black, a bone white\n      const p=r1;\n      if(p<.30){ hh=H-6+r2*22; ss=(38+30*r2)*satK; bb=32+30*r3; }        // earth\n      else if(p<.52){ hh=H+r2*30-10; ss=(58+34*r2)*satK; bb=44+34*r3; }  // warm accent\n      else if(p<.70){ hh=H+165+r2*70; ss=(40+40*r2)*satK; bb=26+34*r3; } // cool complement\n      else if(p<.86){ hh=H+8+r2*16; ss=(5+10*r2)*satK; bb=72+22*r3; }    // bone / wax white\n      else { hh=H+10+r2*40; ss=(20+30*r2)*satK; bb=6+12*r3; }            // near-black\n    }\n    const c=hsb2rgb(hh,ss,bb); PL[k*3]=c[0]; PL[k*3+1]=c[1]; PL[k*3+2]=c[2];\n  }\n  S.pl=PL; }\nconst PL=S.pl;\n\nconst asp=W/Math.max(1,Hh);\nconst sf=1.55/Math.max(.35,sc);\n// per-layer constants: hoisted OUT of the pixel loop. Calling the seeded hash per layer\n// per pixel cost ~490k Math.sin/frame and dominated the whole asset.\nconst LA=new Float32Array(nL*8);\nfor(let L=0;L<nL;L++){\n  LA[L*8]=(md(Math.floor(fr(L*2.7+800)*NPL),NPL)|0)*3;\n  LA[L*8+1]=fr(L*2.7+801)*17.3;\n  LA[L*8+2]=fr(L*2.7+802)*11.9;\n  LA[L*8+3]=flow*(.40+.60*(L+1)/nL);\n  LA[L*8+4]=.72+.28*fr(L*2.7+803);\n  LA[L*8+5]=.030+.030*fr(L*2.7+804);\n  LA[L*8+6]=(.070+.075*fr(L*2.7+805))*milkK;\n  LA[L*8+7]=.72-.24*dens+(scrape>0?scrape*.42*((L+1)/nL):0);\n}\nconst camX=.010*Math.sin(TD*.039+.7), camY=.010*Math.cos(TD*.053+2.4);\n\n// ---- PASS 1: composite the layers bottom-up, veiling each with its own clear wax ----\nG.loadPixels();\nconst px=G.pixels;\nfor(let j=0;j<BH;j++){\n  const sy=(j/BH-.5)+camY;\n  for(let i=0;i<BW;i++){\n    const sx=(i/BW-.5)*asp+camX;\n    const dgx=sx-gx0, dgy=sy-gy0;\n    const heat=Math.exp(-(dgx*dgx+dgy*dgy)/(gunRad*gunRad));\n    HT[j*BW+i]=heat;\n    let R=GROUND[0], Gc=GROUND[1], B=GROUND[2], hh=0;\n    const soft=.030+.30*heat+.04*(1-dens), isoft=1/(2*soft);\n    for(let L=0;L<nL;L++){\n      const b=L*8, pi=LA[b], cr=LA[b+3];           // upper layers creep faster\n      const fx=sx*sf+LA[b+1]+cr, fy=sy*sf+LA[b+2]+cr*.6;\n      const n1=nzAt(fx,fy), n2=nzAt(fx*2.7+11.1, fy*2.7+7.3);\n      const raw=n1*.78+n2*.34;\n      // heat bleeds the stroke edge; a scrape act cuts the upper layers back\n      let cov=cl((raw-(LA[b+7]-soft))*isoft,0,1); cov=cov*cov*(3-2*cov);\n      cov*=LA[b+4];\n      if(cov>0){\n        R=R*(1-cov)+PL[pi]*cov; Gc=Gc*(1-cov)+PL[pi+1]*cov; B=B*(1-cov)+PL[pi+2]*cov;\n        hh+=cov*LA[b+5];                           // wax builds where the stroke sits\n      }\n      // this layer's clear wax veils everything already down \u2014 depth reads as milk\n      const veil=LA[b+6];\n      R=R*(1-veil)+WAX[0]*veil; Gc=Gc*(1-veil)+WAX[1]*veil; B=B*(1-veil)+WAX[2]*veil;\n      hh+=.012;\n    }\n    // molten wax levels itself \u2014 the gun flattens the topography where it passes\n    hh*=(1-.55*heat);\n    HF[j*BW+i]=hh;\n    const o=(j*BW+i)*4;\n    px[o]=R; px[o+1]=Gc; px[o+2]=B; px[o+3]=255;\n  }\n}\n\n// ---- PASS 2: surface. Satin sheen off the wax topography, wet gloss where it is molten.\nconst sR=spTint[0], sG=spTint[1], sB=spTint[2];\nconst NG=52;\nconst spAmt=(.20+.85*en)*glossK*(.6+.6*K.intensity)+S.tre*.25*en;\nfor(let j=0;j<BH;j++){\n  const j0=Math.max(0,j-1)*BW, j1=Math.min(BH-1,j+1)*BW, jr=j*BW;\n  for(let i=0;i<BW;i++){\n    const idx=jr+i, o=idx*4;\n    const nx=-(HF[jr+Math.min(BW-1,i+1)]-HF[jr+Math.max(0,i-1)])*.5*NG;\n    const ny=-(HF[j1+i]-HF[j0+i])*.5*NG;\n    const nl=1/Math.sqrt(nx*nx+ny*ny+1);\n    const Nx=nx*nl, Ny=ny*nl, Nz=nl;\n    const heat=HT[idx];\n    const lam=cl(.52+(Nx*lx+Ny*ly)*.85+Nz*.12,.14,1.5);\n    // sheen: tight where the wax is molten and levelling, broad on set wax\n    const hn=cl(Nx*lx+Ny*ly-lEl*.55,-3,3);\n    const tight=2.4+7.0*heat;\n    const spec=spAmt*(.35+1.5*heat)/(1+hn*hn*tight*tight);\n    let R=px[o], Gc=px[o+1], B=px[o+2];\n    if(relief){ // the wax topography alone, no pigment \u2014 a raking survey of the surface\n      const v=cl(.30+lam*.62,0,1.4);\n      R=GROUND[0]*v; Gc=GROUND[1]*v; B=GROUND[2]*v;\n    } else { R*=(.46+.62*lam); Gc*=(.46+.62*lam); B*=(.46+.62*lam); }\n    const s2=spec*70;\n    R+=sR*s2/255; Gc+=sG*s2/255; B+=sB*s2/255;\n    // the molten pass glows faintly warm through the wax\n    if(!relief){ const gl=heat*heat*22*(.4+.6*en); R+=gl*1.0; Gc+=gl*.62; B+=gl*.28; }\n    const vx=(i/BW-.5), vy=(j/BH-.5), vg=1-.30*(vx*vx*1.1+vy*vy*1.5);\n    R*=vg; Gc*=vg; B*=vg;\n    px[o]=R<0?0:R>255?255:R; px[o+1]=Gc<0?0:Gc>255?255:Gc; px[o+2]=B<0?0:B>255?255:B;\n  }\n}\nG.updatePixels();\n\nnoStroke();\nif(al<1){ push(); drawingContext.globalAlpha=al; image(G,0,0,W,Hh); pop(); }\nelse image(G,0,0,W,Hh);\nconst dc=drawingContext;\nblendMode(BLEND); dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

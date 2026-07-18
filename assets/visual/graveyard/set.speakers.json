@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.speakers",
+  "kind": "set",
+  "name": "Speaker Stacks",
+  "desc": "Stacked matte-black PA cabinets whose woofer cones visibly pump with the bass, grille LEDs metering the mix, edges rattling at peak.",
+  "tags": [
+    "speaker",
+    "speakers",
+    "speaker stack",
+    "pa",
+    "sound system",
+    "soundsystem",
+    "subwoofer",
+    "sub",
+    "woofer",
+    "cabinet",
+    "cabinets",
+    "amp",
+    "amplifier",
+    "monolith",
+    "cone",
+    "bass",
+    "dub",
+    "dubstep",
+    "rig",
+    "stage",
+    "concert",
+    "festival",
+    "club",
+    "loud",
+    "monitor",
+    "vu",
+    "led",
+    "wood",
+    "vintage",
+    "set",
+    "prop"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "stacks": {
+      "default": 2,
+      "min": 1,
+      "max": 4,
+      "doc": "number of speaker stacks"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.8,
+      "doc": "cabinet size"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "glow / accent hue"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pump + glow amplitude"
+    },
+    "punch": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1.4,
+      "doc": "cone excursion depth"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "motion rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grille detail"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "group center x"
+    },
+    "y": {
+      "default": 0.96,
+      "min": 0.6,
+      "max": 1,
+      "doc": "floor line y"
+    },
+    "style": {
+      "default": "monolith",
+      "options": [
+        "monolith",
+        "vintage",
+        "wireframe",
+        "neon",
+        "riso"
+      ],
+      "doc": "render look (wireframe = schematic cross-section)"
+    },
+    "act": {
+      "default": "steady",
+      "options": [
+        "steady",
+        "build",
+        "wobble"
+      ],
+      "doc": "multi-minute pump program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed"
+    }
+  },
+  "acts": [
+    "steady",
+    "build",
+    "wobble"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { stacks: 2, scale: 1, hue: 210, energy: .6, punch: .7, speed: 1, density: .5, x: .5, y: .96, style: 'monolith', act: 'steady', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst u = Math.min(width, height);\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\n\nconst STY = {\n  monolith: { wire:false, cab:[220,12,10], bev:[220,10,20], edge:[210,8,42], grill:[220,8,6],  cone:[30,8,26],  cap:[35,10,60], glow:[195,80,100], led:[120,80,100], wood:0 },\n  vintage:  { wire:false, cab:[28,45,34],  bev:[28,52,46],  edge:[30,40,58],  grill:[32,30,20], cone:[34,26,70], cap:[36,30,86], glow:[40,70,100],  led:[45,80,100],  wood:1 },\n  wireframe:{ wire:true,  cab:[190,60,50], bev:[190,50,70], edge:[190,70,92], grill:[190,40,30],cone:[190,50,60], cap:[190,40,90], glow:[190,70,100], led:[190,80,100], wood:0 },\n  neon:     { wire:false, cab:[260,40,8],  bev:[280,60,30],  edge:[300,80,100],grill:[260,30,6], cone:[300,50,30], cap:[310,60,80], glow:[315,90,100], led:[135,90,100], wood:0 },\n  riso:     { wire:false, cab:[220,55,60], bev:[350,60,66],  edge:[350,65,84], grill:[220,50,40],cone:[350,55,72], cap:[45,60,90],  glow:[350,70,100], led:[190,70,100], wood:0 }\n};\nconst st = STY[P.style] || STY.monolith;\nconst ho = P.hue - 210;\nconst sh = c => [hw(c[0] + ho*0.35), c[1], c[2]];\n\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst arc = [.3,.5,.7,.9,.4,.7,1,.5][sec];\nconst ACT = {\n  steady: { amp: .8,  rattle: 0.25, sub: .8 },\n  build:  { amp: .5 + arc*.9, rattle: arc*0.7, sub: .6 + arc*.6 },\n  wobble: { amp: 1,  rattle: .5, sub: 1, wob: 1 }\n};\nconst act = ACT[P.act] || ACT.steady;\n\nconst nStacks = Math.max(1, Math.min(4, Math.round(P.stacks)));\nconst cw = u * (0.15 * P.scale);\nconst baseY = P.y * height;\n\n// ---- build layout + static cabinet cache ----\nconst key = width+'x'+height+'|'+nStacks+'|'+P.style+'|'+P.seed+'|'+Math.round(P.scale*40)+'|'+Math.round(P.x*40)+'|'+Math.round(P.y*40)+'|'+Math.round(ho);\nif (!S.bg || S.key !== key) {\n  if (!S.bg) S.bg = createGraphics(width, height); else S.bg.resizeCanvas(width, height);\n  const g = S.bg; g.clear(); g.colorMode(g.HSB, 360, 100, 100, 100);\n  const cab = sh(st.cab), bev = sh(st.bev), edge = sh(st.edge), grill = sh(st.grill);\n  const cones = [];\n  const spanTotal = nStacks * cw + (nStacks-1) * cw*0.18;\n  const startX = P.x*width - spanTotal/2 + cw/2;\n  for (let s = 0; s < nStacks; s++) {\n    const sx = startX + s * (cw + cw*0.18);\n    // stack = sub box (bottom) + top box (2 mids + horn)\n    const subH = cw * 1.02, topH = cw * 0.92;\n    const subY = baseY - subH, topY = subY - topH - cw*0.03;\n    // draw a cabinet box helper inline\n    const drawBox = (bx, by, bw, bh) => {\n      if (st.wire) {\n        g.noFill(); g.stroke(edge[0],edge[1],edge[2],85); g.strokeWeight(Math.max(1.2,u*0.0018));\n        g.rect(bx, by, bw, bh, bw*0.04);\n        g.line(bx, by+bh*0.5, bx+bw, by+bh*0.5);\n        return;\n      }\n      // body\n      g.noStroke(); g.fill(cab[0],cab[1],cab[2]); g.rect(bx, by, bw, bh, bw*0.03);\n      // raking shadow (right/bottom dark, top-left light)\n      g.fill(cab[0],cab[1],Math.max(0,cab[2]-6), 60); g.rect(bx+bw*0.62, by, bw*0.38, bh, bw*0.03);\n      g.fill(bev[0],bev[1],Math.min(100,bev[2]), 55); g.rect(bx, by, bw*0.05, bh);\n      g.fill(bev[0],bev[1],Math.min(100,bev[2]+10), 45); g.rect(bx, by, bw, bh*0.04);\n      // wood grain\n      if (st.wood) { g.stroke(cab[0],cab[1]*0.7,cab[2]*0.7,22); g.strokeWeight(1);\n        for (let w=0; w<8; w++){ const wy=by+bh*(w+0.5)/8; g.line(bx, wy+Math.sin(w)*2, bx+bw, wy-Math.sin(w*1.3)*2);} g.noStroke(); }\n      // corner hardware\n      g.fill(edge[0],edge[1],edge[2],70);\n      [[bx+bw*0.06,by+bh*0.05],[bx+bw*0.94,by+bh*0.05],[bx+bw*0.06,by+bh*0.95],[bx+bw*0.94,by+bh*0.95]].forEach(p=>g.ellipse(p[0],p[1],bw*0.05,bw*0.05));\n    };\n    drawBox(sx - cw/2, subY, cw, subH);\n    drawBox(sx - cw*0.44, topY, cw*0.88, topH);\n    // grill dot texture on faces (static) \u2014 skip for wire\n    if (!st.wire) {\n      g.noStroke(); g.fill(grill[0],grill[1],grill[2],55);\n      const gdo = cw*0.08;\n      for (let gx = sx-cw*0.4; gx < sx+cw*0.4; gx += gdo)\n        for (let gy = subY+cw*0.1; gy < subY+subH-cw*0.1; gy += gdo)\n          g.ellipse(gx, gy, cw*0.02, cw*0.02);\n    }\n    // register cone centers (dynamic layers drawn each frame)\n    cones.push({ x: sx, y: subY + subH*0.5, r: cw*0.38, kind:'sub' });\n    cones.push({ x: sx - cw*0.2, y: topY + topH*0.32, r: cw*0.16, kind:'mid' });\n    cones.push({ x: sx + cw*0.2, y: topY + topH*0.32, r: cw*0.16, kind:'mid' });\n    cones.push({ x: sx, y: topY + topH*0.72, r: cw*0.1, kind:'horn' });\n  }\n  S.cones = cones;\n  S.stacks = [];\n  for (let s=0;s<nStacks;s++){ const sx = startX + s*(cw+cw*0.18); S.stacks.push({x:sx}); }\n  S.key = key;\n}\nimage(S.bg, 0, 0);\n\nconst cone = sh(st.cone), cap = sh(st.cap), glow = sh(st.glow), led = sh(st.led);\n\n// ---- animated cones (pump) + bass halos ----\nconst cones = S.cones || [];\nfor (let i = 0; i < cones.length; i++) {\n  const c = cones[i];\n  let drive;\n  if (c.kind === 'sub')  drive = (K.pulse*0.5 + K.swell*0.28) * act.sub + A.bass * 1.0;\n  else if (c.kind === 'mid') drive = (K.pulse*0.32 + K.swell*0.2) + A.lowmid*0.7 + A.mid*0.5;\n  else drive = (K.pulse*0.25) + A.treble*0.8;\n  if (act.wob) drive *= 0.6 + 0.7*Math.abs(Math.sin(K.t*3.3 + i));\n  const pump = Math.max(0, Math.min(1.4, drive * P.punch * (0.7 + P.energy*0.6)));\n  // rattle jitter at peak\n  const jx = act.rattle * pump * Math.sin(K.t*40 + i*7) * u*0.002;\n  const jy = act.rattle * pump * Math.cos(K.t*37 + i*3) * u*0.002;\n  const x = c.x + jx, y = c.y + jy, r = c.r;\n  push();\n  if (st.wire) {\n    noFill(); stroke(cone[0],cone[1],cone[2],80); strokeWeight(Math.max(1,u*0.0014));\n    for (let k=1;k<=3;k++) ellipse(x, y, r*2*(k/3)*(1-pump*0.12), r*2*(k/3)*(1-pump*0.12));\n  } else {\n    // surround\n    noStroke(); fill(cone[0],cone[1]*0.7,cone[2]*0.7,90); ellipse(x, y, r*2.1, r*2.1);\n    // cone body pushed in (darker toward center as it pumps)\n    for (let k=4;k>=1;k--){ const t=k/4; const dim = 1 - pump*0.35*(1-t);\n      fill(cone[0],cone[1],cone[2]*dim, 92); ellipse(x, y, r*2*t, r*2*t); }\n    // dust cap highlight (scales with pump -> visible motion)\n    fill(cap[0],cap[1],cap[2],95); ellipse(x - r*0.12, y - r*0.12, r*(0.5 - pump*0.16), r*(0.5 - pump*0.16));\n  }\n  // bass halo (additive, large area -> motion + energy)\n  blendMode(ADD); noStroke();\n  fill(glow[0], glow[1], glow[2], Math.min(34, 6 + pump*30));\n  ellipse(x, y, r*(2.4 + pump*2.2), r*(2.4 + pump*2.2));\n  blendMode(BLEND);\n  pop();\n}\n\n// ---- VU / LED bar on each stack (grill glow) ----\npush();\nconst stk = S.stacks || [];\nfor (let s = 0; s < stk.length; s++) {\n  const sx = stk[s].x;\n  const barY = baseY - cw*0.06;\n  const nLed = 7;\n  const level = Math.min(1, K.intensity*0.4 + K.pulse*0.4 + A.rms*2.2 + 0.15*Math.sin(K.t*1.3+s));\n  for (let l = 0; l < nLed; l++) {\n    const lit = (l/nLed) < level;\n    const lx = sx - cw*0.32 + (l/(nLed-1))*cw*0.64;\n    const lh = l/nLed;\n    const lc = lh < 0.6 ? led : (lh < 0.85 ? [45,90,100] : [0,85,100]);\n    if (lit) { blendMode(ADD); noStroke(); fill(lc[0],lc[1],lc[2], 55); ellipse(lx, barY, cw*0.06, cw*0.04); blendMode(BLEND);\n      fill(lc[0],lc[1]*0.8,100,95); ellipse(lx, barY, cw*0.03, cw*0.02); }\n    else { noStroke(); fill(lc[0],lc[1]*0.5,lc[2]*0.2, 70); ellipse(lx, barY, cw*0.028, cw*0.018); }\n  }\n}\npop();\n\nblendMode(BLEND);\nif (drawingContext) drawingContext.shadowBlur = 0;\n",
+  "last_fail": {
+    "at": "2026-07-11T14:27:27+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0014 <= 0.004"
+  }
+}

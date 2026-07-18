@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.batik",
+  "kind": "genart",
+  "name": "Batik",
+  "desc": "Wax-resist batik cloth: a kawung quatrefoil field in cream on soga-brown or indigo, threaded everywhere by a fine dark crackle-vein network where the cracked wax let dye seep in, wet beads of pooled dye perpetually creeping along the veins as the colour develops in slow sweeps.",
+  "tags": [
+    "batik",
+    "wax-resist",
+    "canting",
+    "crackle",
+    "crack",
+    "veins",
+    "javanese",
+    "indonesia",
+    "soga",
+    "kawung",
+    "parang",
+    "ceplok",
+    "isen",
+    "tulis",
+    "cap",
+    "peranakan",
+    "indigo",
+    "brown",
+    "cream",
+    "resist",
+    "dye",
+    "cloth",
+    "fabric",
+    "textile",
+    "seep",
+    "bleed",
+    "craft",
+    "organic",
+    "warm",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "development-sweep & dye-seep amplitude"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "motif size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "motif count & crackle-vein count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "development & seep rate"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "ground/dye hue (28 = soga brown)"
+    },
+    "crackle": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "crackle-vein weight & darkness"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drift phase"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drift phase"
+    },
+    "style": {
+      "default": "javanese_soga",
+      "options": [
+        "javanese_soga",
+        "indigo_biru",
+        "peranakan",
+        "malam_negative",
+        "hand_drawn_tulis"
+      ],
+      "doc": "palette: soga brown / indigo blue / bright peranakan / wax-heavy dark negative / muted hand-drawn"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "crackle & motif seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:54+00:00",
+    "fps": 62.1,
+    "motion": 0.1183,
+    "lum": 0.506
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, hue: 28, crackle: .6, x: .5, y: .5, style: 'javanese_soga', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\nfunction tone(style,hue){\n  if(style==='indigo_biru') return {grd:[218,.70,.34], wax:[210,.10,.88], acc:[hue,.55,.62], vein:[218,.60,.10], veinLight:false};\n  if(style==='peranakan')   return {grd:[338,.55,.50], wax:[46,.30,.92], acc:[172,.55,.62], vein:[300,.55,.14], veinLight:false};\n  if(style==='malam_negative') return {grd:[hue,.45,.12], wax:[hue+6,.30,.40], acc:[hue+20,.40,.55], vein:[42,.20,.72], veinLight:true};\n  if(style==='hand_drawn_tulis') return {grd:[32,.34,.48], wax:[40,.16,.82], acc:[8,.42,.52], vein:[26,.50,.14], veinLight:false};\n  return {grd:[28,.60,.44], wax:[40,.22,.84], acc:[10,.60,.50], vein:[24,.65,.10], veinLight:false}; // javanese_soga\n}\nconst T=tone(P.style,P.hue);\n\nconst key=[P.style,P.seed,Math.round(P.density*30),Math.round(P.hue),Math.round(P.scale*20),width>height?1:0].join('_');\nif(S.mkey!==key || !S.g){\n  S.mkey=key;\n  const BW=Math.max(360,Math.min(680,Math.round(width/2.1))), BH=Math.max(120,Math.round(BW*height/width));\n  const g=createGraphics(BW,BH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  g.fill(T.grd[0],T.grd[1]*100,T.grd[2]*100); g.rect(0,0,BW,BH);\n  // kawung / ceplok motif \u2014 grid of overlapping quatrefoil ellipses in wax-cream\n  const cell=BW/(3.2+P.density*4)/P.scale, cols=Math.ceil(BW/cell)+2, rows=Math.ceil(BH/cell)+2;\n  for(let r=-1;r<rows;r++) for(let c=-1;c<cols;c++){\n    const cx=c*cell+ (r&1?cell/2:0), cy=r*cell*0.86;\n    g.push(); g.translate(cx,cy);\n    for(let k=0;k<4;k++){ const a=k*Math.PI/2;\n      g.fill(T.wax[0],T.wax[1]*100,T.wax[2]*100,92);\n      g.push(); g.rotate(a); g.ellipse(cell*0.30,0,cell*0.52,cell*0.34); g.pop(); }\n    g.fill(T.acc[0],T.acc[1]*100,T.acc[2]*100,80); g.ellipse(0,0,cell*0.24,cell*0.24);\n    // isen fine dots\n    g.fill(T.wax[0],T.wax[1]*100,T.wax[2]*100,55);\n    for(let d=0;d<6;d++){ const ang=d*1.047+ (r+c)*0.4; g.ellipse(Math.cos(ang)*cell*0.42,Math.sin(ang)*cell*0.42,cell*0.05,cell*0.05); }\n    g.pop();\n  }\n  // fine cloth grain\n  g.stroke(0,0,0,4); g.strokeWeight(1);\n  for(let yy=0;yy<BH;yy+=3) g.line(0,yy,BW,yy);\n  g.noStroke();\n  S.g=g;\n  // crackle veins in normalized coords\n  const nV=Math.round(18+P.density*70); const veins=[];\n  for(let i=0;i<nV;i++){\n    let x=fr(i*5+1), y=fr(i*5+2), h=fr(i*5+3)*6.283;\n    const steps=Math.round(16+fr(i*5+4)*46), st=0.006+fr(i*5+5)*0.004;\n    const pts=[[x,y]];\n    for(let s=0;s<steps;s++){ h += (fr(i*13+s)-0.5)*0.9 + 0.3*Math.sin(x*11+y*7); x+=Math.cos(h)*st; y+=Math.sin(h)*st;\n      if(x<-0.05||x>1.05||y<-0.05||y>1.05) break; pts.push([x,y]); }\n    if(pts.length>3) veins.push({pts, off:fr(i*7+9), sp:0.4+fr(i*7+3)});\n  }\n  S.veins=veins;\n}\n\npush();\nimageMode(CENTER);\nconst ov=1.09, ddx=0.028*uMin*drift, ddy=0.028*uMin*Math.sin(t*0.33+1.4);\nimage(S.g, width/2+ddx, height/2+ddy, width*ov, height*ov);\n\n// dye-development sweep (deepen colour in a travelling front)\nblendMode(MULTIPLY); noStroke();\nconst fx=(0.5+0.55*Math.sin(t*0.16*P.speed))*width;\nfor(let i=0;i<24;i++){ const w=width/24, x0=i*w; const dd=Math.abs(x0+w/2-fx)/width; const a=Math.max(0,1-dd*2)*(6+10*P.energy);\n  fill(T.grd[0],T.grd[1]*100,18,a); rect(x0,0,w+1,height); }\nblendMode(BLEND);\n\n// crackle veins \u2014 drawn live, with a travelling wet-dye seep bead\nconst cr=P.crackle;\ntranslate(width/2+ddx, height/2+ddy); scale(ov); translate(-width/2,-height/2);\nconst light=T.veinLight;\nstrokeCap(ROUND); noFill();\nfor(let v=0;v<S.veins.length;v++){\n  const V=S.veins[v], pts=V.pts;\n  stroke(T.vein[0], T.vein[1]*100, T.vein[2]*100, (36+40*cr));\n  strokeWeight(Math.max(0.7, uMin*0.0016*(0.7+cr)));\n  beginShape();\n  for(let i=0;i<pts.length;i++) vertex(pts[i][0]*width, pts[i][1]*height);\n  endShape();\n  // seep bead travelling along the vein (wet pooled dye)\n  const s=((t*0.09*V.sp*P.speed + V.off)%1+1)%1; const idx=Math.floor(s*(pts.length-1)); const p=pts[idx];\n  if(p){ const glowA=(0.4+0.6*P.energy)*(0.5+0.5*Math.sin(t*1.7+v));\n    if(light) stroke(46,20,95, 40*glowA); else stroke(T.grd[0],T.grd[1]*100,6, 46*glowA);\n    strokeWeight(Math.max(1.2, uMin*0.004*(0.6+cr)));\n    const i2=Math.min(pts.length-1,idx+1); line(p[0]*width,p[1]*height, pts[i2][0]*width, pts[i2][1]*height);\n  }\n}\npop();\nif(P.alpha<100){ push(); noStroke(); fill(T.grd[0],T.grd[1]*100,T.grd[2]*100,100-P.alpha); rect(0,0,width,height); pop(); }\n"
+}

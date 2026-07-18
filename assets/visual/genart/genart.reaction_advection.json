@@ -1,0 +1,160 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.reaction_advection",
+  "kind": "genart",
+  "name": "Reaction-Advection",
+  "desc": "Gray-Scott Turing chemistry running inside a moving fluid \u2014 every step the reagents are advected along a divergence-free curl field before they react, so the spots are never allowed to sit still: they stretch into streaming comet filaments, shear, fold and tear apart, then re-nucleate downstream while feed and kill march the chemistry through spots, worms and mitosis over minutes; vivid streaming reagents, ironbow thermal, edge-lit radiograph, verdigris patina on bronze, or silky graphite.",
+  "tags": [
+    "reaction-advection",
+    "advection-reaction-diffusion",
+    "gray-scott",
+    "turing",
+    "turing-pattern",
+    "reaction-diffusion",
+    "chemistry",
+    "chemical",
+    "reagent",
+    "morphogenesis",
+    "peclet",
+    "advection",
+    "flow",
+    "flow-field",
+    "curl-noise",
+    "divergence-free",
+    "incompressible",
+    "shear",
+    "stretching",
+    "filament",
+    "comet",
+    "streaming",
+    "mixing",
+    "chaotic-mixing",
+    "fluid",
+    "turbulence",
+    "pde",
+    "simulation",
+    "field",
+    "continuum",
+    "emergent",
+    "self-organizing",
+    "hybrid",
+    "scientific",
+    "laboratory",
+    "thermal",
+    "ironbow",
+    "x-ray",
+    "radiograph",
+    "patina",
+    "verdigris",
+    "bronze",
+    "oxidised",
+    "graphite",
+    "silky",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "organic",
+    "alive",
+    "sophisticated"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness + colour gain of the reagent field"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into a sub-region of the reactor \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "reaction steps/frame + flow evolution rate (0.2 still streams)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number and size of the drifting injectors that keep seeding fresh reagent (this is what stops the chemistry dying out)"
+    },
+    "peclet": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "Peclet number \u2014 advection vs diffusion. 0 collapses to plain isotropic Gray-Scott; 1 shreds every spot into long streaming filaments. THE knob of this piece"
+    },
+    "feed": {
+      "default": 0.036,
+      "min": 0.01,
+      "max": 0.09,
+      "doc": "Gray-Scott feed rate \u2014 with kill, selects the regime (spots / worms / maze / mitosis); it also marches slowly on its own"
+    },
+    "kill": {
+      "default": 0.062,
+      "min": 0.03,
+      "max": 0.072,
+      "doc": "Gray-Scott kill rate \u2014 the other half of the regime coordinate"
+    },
+    "hue": {
+      "default": 172,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue anchoring the reagent ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan + the centre of the global swirl"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan + the centre of the global swirl"
+    },
+    "style": {
+      "default": "chemical",
+      "options": [
+        "chemical",
+        "thermal",
+        "xray",
+        "patina",
+        "graphite"
+      ],
+      "doc": "aesthetic: vivid streaming reagents / ironbow thermal / edge-lit radiograph / verdigris patina on bronze / silky flow-shaded graphite"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the initial nucleation, the flow and the injectors"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:45:08+00:00",
+    "fps": 57.1,
+    "motion": 0.1025,
+    "lum": 0.229
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, peclet: .6, feed: .036, kill: .062, hue: 172, x: .5, y: .5, style: 'chemical', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Reaction-ADVECTION: Gray-Scott chemistry running inside a moving fluid. Every step the\n// reagents are semi-Lagrangian-advected along a divergence-free curl field before they react,\n// so the Turing spots never sit still \u2014 they are stretched into comet filaments, sheared,\n// folded and torn, and re-nucleate downstream. At Peclet ~0 it collapses to ordinary\n// Gray-Scott; the whole identity of the piece lives at HIGH Peclet. ----\nconst BW = 168, BH = Math.max(72, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.U = new Float32Array(N); S.V = new Float32Array(N);\n  S.U2 = new Float32Array(N); S.V2 = new Float32Array(N);\n  S.VX = new Float32Array(N); S.VY = new Float32Array(N); S.PS = new Float32Array(N);\n  S.init = false;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hsh(ix, iy, iz), a1 = hsh(ix + 1, iy, iz), a2 = hsh(ix, iy + 1, iz), a3 = hsh(ix + 1, iy + 1, iz);\n  const b0 = hsh(ix, iy, iz + 1), b1 = hsh(ix + 1, iy, iz + 1), b2 = hsh(ix, iy + 1, iz + 1), b3 = hsh(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nfunction fbm3(x, y, z) { return 0.57 * vn3(x, y, z) + 0.28 * vn3(x * 2.05 + 5.1, y * 2.05 - 3.2, z * 1.6 + 1.3) + 0.15 * vn3(x * 4.11 - 2.3, y * 4.11 + 7.7, z * 2.7 - 4.1); }\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  S.U.fill(1); S.V.fill(0);\n  for (let b = 0; b < 26; b++) {\n    const cx = hsh(b * 3 + 1, 1, 3) * BW, cy = hsh(b * 3 + 2, 2, 3) * BH;\n    const rad = 2 + hsh(b * 3 + 3, 4, 3) * 4;\n    const r2 = rad * rad;\n    for (let j = Math.max(0, (cy - rad) | 0); j <= Math.min(BH - 1, (cy + rad) | 0); j++)\n      for (let i = Math.max(0, (cx - rad) | 0); i <= Math.min(BW - 1, (cx + rad) | 0); i++) {\n        const dx = i - cx, dy = j - cy;\n        if (dx * dx + dy * dy > r2) continue;\n        S.U[j * BW + i] = 0.5; S.V[j * BW + i] = 0.28;\n      }\n  }\n}\n\nconst tt = K.t;\nconst sp = 0.3 + P.speed * 0.9;\nconst U = S.U, V = S.V, U2 = S.U2, V2 = S.V2, VX = S.VX, VY = S.VY, PS = S.PS;\n\n// ---- the flow: curl of a drifting stream function (incompressible). psi to a grid, then\n// difference the grid \u2014 a per-cell finite difference would cost 4x the fbm evals. ----\nconst zf = tt * 0.061 * sp + 4.1;\nconst ox = 1.5 * Math.sin(tt * 0.043) + 0.7 * Math.sin(tt * 0.107 + 1.7);\nconst oy = 1.2 * Math.cos(tt * 0.067) + 0.55 * Math.sin(tt * 0.139 + 0.5);\nconst fs = 2.2 / BH;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) PS[j * BW + i] = fbm3(i * fs + ox, j * fs + oy, zf);\n// Peclet: advective transport vs diffusive. High = long comet filaments.\nconst pe = (0.06 + P.peclet * 1.05) * sp;\nconst swirl = 0.30 * Math.sin(tt * 0.0233 + 1.1);   // slow global rotation, incommensurate\nfor (let j = 0; j < BH; j++) {\n  const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n  const ry = (j / BH - P.y);\n  for (let i = 0; i < BW; i++) {\n    const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n    const rx = (i / BW - P.x);\n    VX[jc + i] = ((PS[jp + i] - PS[jm + i]) * 26 - ry * swirl * 5.5) * pe;\n    VY[jc + i] = (-(PS[jc + ip] - PS[jc + im]) * 26 + rx * swirl * 5.5) * pe;\n  }\n}\n\n// ---- feed/kill march slowly on incommensurate sines: the chemistry walks through regimes\n// (spots -> worms -> maze -> mitosis) over minutes ----\nconst fk = 0.006 * Math.sin(tt * 0.0197) + 0.003 * Math.sin(tt * 0.0431 + 1.6);\nconst F = Math.max(0.008, Math.min(0.09, P.feed + fk + A.bass * 0.004));\nconst KL = Math.max(0.03, Math.min(0.073, P.kill + 0.0035 * Math.sin(tt * 0.0263 + 0.8)));\nconst Du = 0.16, Dv = 0.08;\nconst steps = Math.max(1, Math.min(4, Math.round(1 + P.speed * 1.2)));\n\nfor (let st = 0; st < steps; st++) {\n  // (1) advect both reagents along the flow (semi-Lagrangian, periodic)\n  for (let j = 0; j < BH; j++) {\n    const jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const p = jc + i;\n      let bx = i - VX[p], by = j - VY[p];\n      bx = ((bx % BW) + BW) % BW; by = ((by % BH) + BH) % BH;\n      const x0 = bx | 0, y0 = by | 0, fx = bx - x0, fy = by - y0;\n      const x1 = (x0 + 1) % BW, y1 = (y0 + 1) % BH;\n      const ua = U[y0 * BW + x0], ub = U[y0 * BW + x1], uc = U[y1 * BW + x0], ud = U[y1 * BW + x1];\n      const va = V[y0 * BW + x0], vb = V[y0 * BW + x1], vc = V[y1 * BW + x0], vd = V[y1 * BW + x1];\n      const ut = ua + (ub - ua) * fx, ubt = uc + (ud - uc) * fx;\n      const vt = va + (vb - va) * fx, vbt = vc + (vd - vc) * fx;\n      U2[p] = ut + (ubt - ut) * fy;\n      V2[p] = vt + (vbt - vt) * fy;\n    }\n  }\n  // (2) react + diffuse\n  for (let j = 0; j < BH; j++) {\n    const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n      const p = jc + i;\n      const u = U2[p], v = V2[p];\n      const lu = U2[jc + im] + U2[jc + ip] + U2[jm + i] + U2[jp + i] - 4 * u;\n      const lv = V2[jc + im] + V2[jc + ip] + V2[jm + i] + V2[jp + i] - 4 * v;\n      const uvv = u * v * v;\n      let nu = u + (Du * lu - uvv + F * (1 - u));\n      let nv = v + (Dv * lv + uvv - (F + KL) * v);\n      U[p] = nu < 0 ? 0 : (nu > 1.4 ? 1.4 : nu);\n      V[p] = nv < 0 ? 0 : (nv > 1.4 ? 1.4 : nv);\n    }\n  }\n}\n\n// ---- perpetual nucleation: a few drifting injectors keep seeding fresh reagent, so the\n// chemistry never dies out or settles into a fixed frame ----\nconst nInj = 1 + Math.round(P.density * 4);\nfor (let s = 0; s < nInj; s++) {\n  const a1 = 0.21 + hsh(s * 7 + 1, 2, 8) * 0.5, a2 = 0.19 + hsh(s * 7 + 2, 3, 8) * 0.46;\n  const cx = (0.5 + 0.40 * Math.sin(tt * a1 * 0.27 + hsh(s, 5, 8) * 6.28)) * BW;\n  const cy = (0.5 + 0.38 * Math.cos(tt * a2 * 0.23 + hsh(s, 7, 8) * 6.28)) * BH;\n  const rad = (1.6 + hsh(s, 9, 8) * 2.6) * (0.6 + P.density * 0.9);\n  const r2 = rad * rad;\n  for (let j = Math.max(0, (cy - rad) | 0); j <= Math.min(BH - 1, (cy + rad) | 0); j++)\n    for (let i = Math.max(0, (cx - rad) | 0); i <= Math.min(BW - 1, (cx + rad) | 0); i++) {\n      const dx = i - cx, dy = j - cy, d2 = dx * dx + dy * dy;\n      if (d2 > r2) continue;\n      const w = (1 - d2 / r2) * 0.30;\n      const p = j * BW + i;\n      V[p] = Math.min(1.4, V[p] + w * 0.5); U[p] = Math.max(0, U[p] - w * 0.28);\n    }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 11 + Math.sin(tt * 0.0181) * 17) % 360 + 360) % 360;\nconst gain = 0.5 + P.energy * 1.35 + A.rms * 0.4;\nfunction pal(m, spx, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx * 2))];\n}\nfor (let j = 0; j < BH; j++) {\n  const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n    const p = jc + i;\n    const v = Math.min(1, V[p] * 2.6);\n    // Gray-Scott's V is sparse, so rendering V alone leaves most of the frame dead black\n    // (straight into the luminance floor). U is the UNREACTED SUBSTRATE and fills everywhere\n    // V does not \u2014 rendering it as the medium is both honest and what fills the frame.\n    const uu2 = Math.min(1, U[p]);\n    const gx = V[jc + ip] - V[jc + im], gy = V[jp + i] - V[jm + i];\n    const gm = Math.min(1, Math.sqrt(gx * gx + gy * gy) * 5.5);\n    // the flow direction shades the filaments so the advection READS as motion\n    const sxv = VX[p], syv = VY[p];\n    const along = (gx * sxv + gy * syv) * 3.0;\n    let r, gg, b;\n    if (style === 'thermal') {\n      const m = Math.min(1, (0.15 + uu2 * 0.06 + v * 0.68 + gm * 0.12) * (0.5 + P.energy * 0.85));\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55)); b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.4 - m * 1.5));\n    } else if (style === 'xray') {          // grey inverse density, edge-lit\n      const d = 1 - v;\n      const base = 0.04 + Math.pow(d, 1.9) * 0.46 * gain * 0.72;\n      const rim = gm * gm * 0.6 * gain;\n      r = base * 0.87 + rim * 0.9; gg = base * 0.95 + rim * 0.96; b = base * 1.05 + rim;\n    } else if (style === 'patina') {        // oxidised bronze: verdigris crust on dark metal\n      const ox2 = Math.pow(v, 0.8);\n      const cc = pal(0.42 + ox2 * 0.1, 0.1, 0.0);\n      const metal = 0.045 + (1 - ox2) * 0.30 * (0.4 + uu2 * 0.6);\n      const speck = (hsh(i, j, 5) - 0.5) * 0.10 + (vn3(i * 0.5, j * 0.5, 3) - 0.5) * 0.22 * (0.3 + ox2);\n      r = Math.min(1, metal * 1.25 + ox2 * cc[0] * 0.72 * gain * 0.7 + speck * 0.6);\n      gg = Math.min(1, metal * 1.05 + ox2 * cc[1] * 0.95 * gain * 0.7 + speck * 0.6);\n      b = Math.min(1, metal * 0.80 + ox2 * cc[2] * 0.80 * gain * 0.7 + speck * 0.5);\n    } else if (style === 'graphite') {      // silky mono, form from the flow-aligned shading\n      const s2 = 0.5 + along * 0.5;\n      const val = 0.13 + uu2 * 0.05 + v * 0.16 + Math.max(0, s2 - 0.5) * 1.9 * (0.25 + gm * 2.2) * gain * 0.7 + gm * 0.30;\n      r = Math.min(1, val * 1.02 + 0.03); gg = Math.min(1, val * 1.0 + 0.03); b = Math.min(1, val * 0.98 + 0.045);\n    } else {                                // chemical (default) \u2014 vivid reagents streaming\n      const cc = pal(0.06 + v * 0.5, 0.2, 0.0);\n      const sub = pal(0.66, 0.13, 0.0);     // the unreacted substrate \u2014 the medium itself\n      const gsh = (0.30 + uu2 * 0.24) * (0.7 + gain * 0.3);\n      const vsh = (0.25 + v * 0.85) * (0.62 + gain * 0.42);\n      const lit = 1 + along * 0.55;         // filaments catch light along the flow\n      r = Math.min(1, (sub[0] * gsh * (1 - v * 0.8) + cc[0] * vsh * v * 1.3) * lit + v * v * 0.16);\n      gg = Math.min(1, (sub[1] * gsh * (1 - v * 0.8) + cc[1] * vsh * v * 1.3) * lit + v * v * 0.14);\n      b = Math.min(1, (sub[2] * gsh * (1 - v * 0.8) + cc[2] * vsh * v * 1.3) * lit + v * v * 0.20);\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

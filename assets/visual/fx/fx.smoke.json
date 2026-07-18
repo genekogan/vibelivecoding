@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.smoke",
+  "kind": "fx",
+  "name": "Smoke",
+  "desc": "Smoke crossing the frame with real curl \u2014 puffs are advected through a divergence-free curl-noise field, so they roll and shear into tendrils instead of just sliding, growing and going translucent as they climb away from the source at x/y; sits mid-frame at any height rather than banking along the floor.",
+  "tags": [
+    "smoke",
+    "smoky",
+    "smoulder",
+    "plume",
+    "tendrils",
+    "wisps",
+    "curl",
+    "vortex",
+    "billow",
+    "drifting",
+    "haze",
+    "vapour",
+    "incense",
+    "joss",
+    "cigarette",
+    "chimney",
+    "bonfire",
+    "ink",
+    "dispersal",
+    "turbulence",
+    "grey",
+    "soft",
+    "moody",
+    "noir",
+    "melancholy",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "curl strength, buoyancy and opacity \u2014 how violently it rolls"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "puff count"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.25,
+      "max": 2.4,
+      "doc": "puff size and curl cell size vs design size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "advection + field evolution rate"
+    },
+    "wind": {
+      "default": 0.35,
+      "min": -1,
+      "max": 1,
+      "doc": "lateral draught carrying the plume across (negative blows left)"
+    },
+    "alpha": {
+      "default": 0.6,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "smoke hue (210 cool grey, 30 warm woodsmoke, 275 stage haze)"
+    },
+    "x": {
+      "default": 0.12,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "source X \u2014 put it off-frame to have smoke drift in from outside"
+    },
+    "y": {
+      "default": 0.95,
+      "min": -0.2,
+      "max": 1.2,
+      "doc": "source Y \u2014 0.95 sits the seat of it just off the bottom"
+    },
+    "style": {
+      "default": "smoke",
+      "options": [
+        "smoke",
+        "incense",
+        "ink",
+        "flow_field"
+      ],
+      "doc": "aesthetic: soft grey volumetric rolls with a lit rim / a thin thread that stays laminar then breaks into turbulence as it rises / dark bleeding sumi tendrils dispersing in water / the advection field itself as a vector diagram, no smoke at all"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "billow",
+        "dissipate"
+      ],
+      "doc": "dramaturgy: steady plume / the source pumps out billows with the musical arc / thins away and re-thickens over minutes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "curl field phases + puff shapes"
+    }
+  },
+  "acts": [
+    "drift",
+    "billow",
+    "dissipate"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:11:49+00:00",
+    "fps": 62.5,
+    "motion": 0.0048,
+    "lum": 0.09
+  },
+  "code": "const D = { energy:.55, density:.5, scale:1, speed:1, wind:.35, alpha:.6, hue:210, x:.12, y:.95, style:'smoke', act:'drift', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'drift';\nconst isInc=st==='incense', isInk=st==='ink', isFF=st==='flow_field';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.4);\nconst sx=P.x*W, sy=P.y*Hh;\nlet envR=1, envA=1;\nif(act==='billow'){ envR=0.5+1.4*Math.pow(K.intensity,1.3); envA=0.75+0.6*K.intensity; }\nelse if(act==='dissipate'){ envA=0.35+0.85*Math.pow(clp(0.5+0.5*Math.sin(K.t*0.023+0.6),0,1),1.2); }\n\n// ---- pre-blurred puff sprites, built once (never blur the canvas \u2014 12ms/frame) ----\nif(!S.sp||S.spSeed!==P.seed){\n  const SZ=64; S.sp=[];\n  for(let k=0;k<3;k++){\n    const g=createGraphics(SZ,SZ); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n    if(k===0){ for(let r=26;r>0;r-=2){ g.fill(0,0,100,3.4); g.circle(32,32,r*2); } }\n    else if(k===1){ for(let l=0;l<5;l++){ const a2=fr(k*9+l)*6.283, d2=6+fr(k*9+l+40)*9;\n        for(let r=15;r>0;r-=2){ g.fill(0,0,100,2.6); g.ellipse(32+Math.cos(a2)*d2,32+Math.sin(a2)*d2,r*2.4,r*1.3); } } }\n    else { for(let r=26;r>6;r-=2){ g.fill(0,0,100,3.0); g.circle(32,32,r*2); }\n           for(let r=10;r>0;r-=2){ g.fill(0,0,0,2.2); g.circle(32,32,r*2); } }   // hollow vortex core\n    g.filter(BLUR,3);\n    S.sp.push(g);\n  }\n  S.spSeed=P.seed;\n}\n\n// ---- curl-noise velocity: v = (dPsi/dy, -dPsi/dx) \u2014 divergence-free, so it really curls ----\nconst T=K.t*sp, w1=fr(1)*6.283, w2=fr(2)*6.283, w3=fr(3)*6.283;\nconst kk=2.6/(u*sc);\nconst psi=(x,y)=>\n   Math.sin(x*kk*1.0+T*0.21+w1)*Math.cos(y*kk*1.3-T*0.17)\n + 0.55*Math.sin(x*kk*2.3-y*kk*1.7+T*0.37+w2)\n + 0.30*Math.cos(x*kk*4.1+y*kk*3.3-T*0.53+w3);\nconst eps=u*0.006;\nconst vel=(x,y)=>{\n  const dy=(psi(x,y+eps)-psi(x,y-eps))/(2*eps), dx=(psi(x+eps,y)-psi(x-eps,y))/(2*eps);\n  return [dy,-dx];\n};\n\n// ---- flow_field: the advection field itself, made visible. No puffs. ----\nif(isFF){\n  const cols=26, rows=Math.max(8,Math.round(26*Hh/W));\n  strokeWeight(Math.max(0.5,u*0.0014*sc));\n  for(let cxi=0;cxi<cols;cxi++) for(let ry=0;ry<rows;ry++){\n    const x=(cxi+0.5)/cols*W, y=(ry+0.5)/rows*Hh;\n    const v=vel(x,y), sp2=Math.hypot(v[0],v[1])*u*0.6+P.wind;\n    const ln=u*0.026*sc*(0.3+1.5*en)*clp(Math.abs(sp2)*0.9,0.15,2.2);\n    const ang=Math.atan2(v[1]+0.30,v[0]+P.wind*0.9);\n    const f=clp(Math.abs(sp2)*0.7,0,1);\n    stroke(md(H+f*70,360),lrp(20,68,f),lrp(48,100,f),clp((16+62*f)*al*(0.35+0.9*en)*envA,0,90));\n    line(x,y,x+Math.cos(ang)*ln,y+Math.sin(ang)*ln);\n  }\n  blendMode(BLEND); drawingContext.shadowBlur=0; noStroke(); noTint();\n} else {\n\n// ---- puffs advected through the field ----\nconst n=Math.max(6,Math.round(lrp(30,130,dn)*(isInc?0.42:1)));\nif(!S.pp||S.pn!==n||S.pseed!==P.seed){\n  const old=S.pp||[]; S.pp=[];\n  for(let i=0;i<n;i++){ const l0=fr(i*5+1);\n    S.pp.push(old[i]||{x:sx+(fr(i*5+6)-0.5)*u*0.55*l0+P.wind*u*0.5*l0, y:sy-u*0.6*l0*(0.4+0.9*en),\n                       vx:0, vy:0, l:l0, r:fr(i*5+2), s:Math.floor(fr(i*5+3)*3), o:fr(i*5+4)}); }\n  S.pn=n; S.pseed=P.seed;\n}\nconst dt=clp(K.t-(S.pt==null?K.t:S.pt),0,0.09); S.pt=K.t;   // real-time integration, survives a t0 reset\nconst rate=(0.11+0.20*en)*sp*envR;\nconst buoy=-u*(0.05+0.30*en)*(isInc?1.35:1);\nconst wind=P.wind*u*(0.16+0.30*en)+Math.sin(K.t*0.137)*u*0.03;\nconst jet=u*0.10*sc;\n\nfor(let i=0;i<n;i++){\n  const p=S.pp[i];\n  p.l+=dt*rate*(0.6+p.r*0.9);\n  if(p.l>=1||p.x<-u*0.3||p.x>W+u*0.3||p.y<-u*0.3){\n    p.l=0; p.r=fr(i*5+2+Math.floor(K.t*7)%97); p.o=fr(i*5+4+Math.floor(K.t*11)%89);\n    p.x=sx+(p.o-0.5)*jet*(isInc?0.25:1); p.y=sy+(p.r-0.5)*jet*0.5;\n    p.vx=0; p.vy=0;\n    continue;\n  }\n  const v=vel(p.x,p.y);\n  // laminar near the source, turbulent once it has risen \u2014 the real incense transition\n  const turb=isInc?clp((sy-p.y)/(u*0.30),0,1):1;\n  const cA=u*(0.30+1.35*en)*turb;\n  p.vx=lrp(p.vx, v[0]*cA+wind, 0.10);\n  p.vy=lrp(p.vy, v[1]*cA+buoy*(0.4+0.9*p.l), 0.10);\n  p.x+=p.vx*dt; p.y+=p.vy*dt;\n}\n\n// draw far/old puffs first so the young dense core reads on top\nconst ord=S.pp.map((p,i)=>i).sort((a,b)=>S.pp[b].l-S.pp[a].l);\nif(!isInk) blendMode(BLEND);\nfor(let q=0;q<ord.length;q++){\n  const p=S.pp[ord[q]];\n  const life=clp(p.l,0,1);\n  const grow=lrp(0.30,1.9,Math.pow(life,0.62));\n  const sz=u*lrp(0.06,0.20,p.r)*sc*grow*(isInc?0.55:1);\n  const fade=Math.sin(Math.PI*Math.pow(life,0.8));           // in and out, never a hard pop\n  const aa=clp((isInk?26:isInc?15:20)*fade*al*envA*(0.4+0.9*en)*(1+A.lowmid*0.35),0,44);\n  if(aa<0.6) continue;\n  const rimlit=clp(1-life*1.2,0,1);\n  push(); translate(p.x,p.y);\n  rotate(Math.atan2(p.vy,p.vx)*0.5 + K.t*(0.06+p.r*0.19)*sp + p.o*6.283);\n  if(isInk){ tint(md(H+8,360), lrp(30,6,life), lrp(18,44,life), aa*2.1); }\n  else { tint(md(H+lrp(14,-8,life),360), lrp(isInc?8:18,4,life), lrp(58,96,life)*lrp(0.75,1,rimlit), aa*2.1); }\n  imageMode(CENTER);\n  image(S.sp[p.s], 0, 0, sz*lrp(1.5,1,life), sz*lrp(0.8,1,life));\n  imageMode(CORNER);\n  pop();\n}\nnoTint();\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint(); noStroke();\n"
+}

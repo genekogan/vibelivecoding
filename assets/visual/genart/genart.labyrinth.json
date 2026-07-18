@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.labyrinth",
+  "kind": "genart",
+  "name": "Unicursal Labyrinth",
+  "desc": "The classical unicursal labyrinth \u2014 one path, no junctions, no choice \u2014 cut as a worn channel into a full-frame pavement of jointed limestone, its lit and shadowed lips swapping sides as a lamp rakes slowly across the floor, while lit walkers thread the Cretan level sequence circuit by circuit toward a six-petal rosette and the whole floor precesses under them.",
+  "tags": [
+    "labyrinth",
+    "unicursal",
+    "cretan",
+    "chartres",
+    "classical",
+    "meander",
+    "circuits",
+    "path",
+    "pilgrimage",
+    "walk",
+    "spiral",
+    "concentric",
+    "rings",
+    "pavement",
+    "flagstone",
+    "limestone",
+    "cathedral",
+    "turf",
+    "incised",
+    "carved",
+    "channel",
+    "groove",
+    "sacred",
+    "ritual",
+    "meditative",
+    "geometry",
+    "ancient",
+    "minoan",
+    "knossos",
+    "rosette",
+    "single-line",
+    "blueprint",
+    "engraving",
+    "thread",
+    "stone",
+    "floor",
+    "raking light",
+    "austere",
+    "structure",
+    "contemplative",
+    "texture",
+    "material"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "depth of the incision (how far the lit and shadowed lips separate), walker speed and lamp strength"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.0,
+      "doc": "labyrinth radius \u2014 1 fills ~85% of the frame; at 2 you are standing inside two circuits"
+    },
+    "density": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "number of walkers threading the path"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "how fast the walkers make the circuit"
+    },
+    "circuits": {
+      "default": 0.12,
+      "min": 0,
+      "max": 1,
+      "doc": "circuit count \u2014 steps through the classical family 7 (Cretan) / 11 (Chartres) / 15 / 19"
+    },
+    "hue": {
+      "default": 38,
+      "min": 0,
+      "max": 360,
+      "doc": "stone hue and lamp colour"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "centre y"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "style": {
+      "default": "stone",
+      "options": [
+        "stone",
+        "turf",
+        "blueprint",
+        "engraving",
+        "thread"
+      ],
+      "doc": "stone: worn jointed limestone flags, the channel cut into them \u00b7 turf: a sward maze with the path cut down to soil \u00b7 blueprint: the setting-out drawing, no material at all \u00b7 engraving: incised into toned laid paper \u00b7 thread: pure abstraction \u2014 the material vanishes and only the single lit line remains"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same floor"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:05:36+00:00",
+    "fps": 55.2,
+    "motion": 0.0538,
+    "lum": 0.376
+  },
+  "code": "const D = { energy:.6, scale:1, density:.4, speed:1, circuits:.12, hue:38, x:.5, y:.5, style:'stone', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 drew the path as a hairline (pw ~.02u) in light stroke on a\n// near-black ground (b=10..20), with the disc at .44u so half the frame was\n// dead. It read as flat clipart at lum .227. Now: the MATERIAL fills the whole\n// frame (a worn pavement, textured, precessing with the labyrinth because the\n// path is cut INTO it), the disc is .82u so the figure covers ~85% of frame,\n// the path is an incised channel with a lit lip and a shadowed lip that swap\n// sides as the lamp rakes, and a lamp pool sweeps the floor for a real motion\n// floor at incommensurate K.t rates.\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst TAU = Math.PI*2;\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\nconst sty = P.style;\nconst bp = (sty==='blueprint'), paper = (sty==='engraving'), thread = (sty==='thread'), turf = (sty==='turf');\nconst H = ((P.hue%360)+360)%360;\nconst NC = [7,11,15,19][cl(Math.floor(cl(P.circuits,0,1)*3.999), 0, 3)];   // classical circuit counts\nconst RAD = u*.82*cl(P.scale,.35,2.0);\nconst cx = cl(P.x,.1,.9)*width, cy = cl(P.y,.1,.9)*height;\nconst RIN = .12;                                    // goal radius, normalised\nconst drn = (1-RIN)/(NC+1);                         // circuit spacing, normalised\nconst pw = Math.max(3, RAD*drn*.62);                // the incised channel width\n\n// ---- the classical (Cretan / Chartres) level sequence -----------------------\nfunction levelSeq(N){\n  const q = [];\n  for (let k=(N-1)/2; k>=1; k--) q.push(k);\n  q.push((N+1)/2);\n  for (let k=N; k>=(N+3)/2; k--) q.push(k);\n  q.push(N+1);\n  return q;\n}\n// ---- build the ONE unicursal path (normalised radius, angle) ---------------\nif (S.ncU !== NC){\n  S.ncU = NC;\n  const seq = levelSeq(NC), eps = .105, th0 = Math.PI/2;\n  const nrOf = lv => 1 - lv*drn;\n  let cth = th0 + eps;\n  const pts = [[nrOf(0)*1.14, cth]];\n  for (let i=0;i<seq.length;i++){\n    const dir = (i%2===0) ? 1 : -1;\n    const nr = nrOf(seq[i]);\n    pts.push([nr, cth]);\n    if (i === seq.length-1) break;\n    const sw = TAU - 2*eps, ST = 56;\n    for (let j=1;j<=ST;j++) pts.push([nr, cth + dir*sw*j/ST]);\n    cth += dir*sw;\n  }\n  let tot = 0; const cum = [0];\n  for (let i=1;i<pts.length;i++){\n    const a = pts[i-1], b = pts[i];\n    const ax = a[0]*Math.cos(a[1]), ay = a[0]*Math.sin(a[1]);\n    const bx = b[0]*Math.cos(b[1]), by = b[0]*Math.sin(b[1]);\n    tot += Math.hypot(bx-ax, by-ay); cum.push(tot);\n  }\n  const M = 780, rs = [];\n  let idx = 1;\n  for (let m=0;m<=M;m++){\n    const d = tot*m/M;\n    while (idx < cum.length-1 && cum[idx] < d) idx++;\n    const c0 = cum[idx-1], c1 = cum[idx], s = (c1>c0) ? (d-c0)/(c1-c0) : 0;\n    const a = pts[idx-1], b = pts[idx];\n    rs.push([a[0] + (b[0]-a[0])*s, a[1] + (b[1]-a[1])*s]);\n  }\n  S.pts = pts; S.rs = rs;\n}\nconst pts = S.pts, rs = S.rs;\n\n// ---- motion ----------------------------------------------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.w = (S.w||0) + dt * P.speed * .0125 * (.5 + .8*K.intensity) * (.5 + .8*P.energy);\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.35;\nconst rot = K.t*.021 + .13*Math.sin(K.t*.077) + .06*Math.sin(K.t*.191+1.2);\nconst NW = Math.max(1, 1 + Math.round(cl(P.density,0,1)*3));\n// the lamp: rakes across the floor on two incommensurate rates, so the incised\n// lips swap sides and the pool crawls \u2014 the piece is never the same 8s later\nconst laz = K.t*.037 + .70*Math.sin(K.t*.019+.4) + .28*Math.sin(K.t*.0083);\nconst lpx = cx + Math.cos(laz*.63 + .8)*width*.30 + Math.sin(K.t*.011)*width*.08;\nconst lpy = cy + Math.sin(laz*.51)*height*.30 + Math.cos(K.t*.0157)*height*.07;\n\n// ---- palette ---------------------------------------------------------------\n// MATERIAL is the base colour of the floor itself; TROUGH is the recessed\n// channel floor; LIP is stone catching the lamp; SHAD is the shadowed lip.\nlet MAT, JOINT, TROUGH, LIP, SHAD, LITE;\nif (bp)         { MAT=[212,55,30]; JOINT=[200,30,74]; TROUGH=[214,62,18]; LIP=[196,20,96]; SHAD=[216,66,12]; LITE=[186,26,100]; }\nelse if (paper) { MAT=[40,12,68];  JOINT=[32,26,34];  TROUGH=[34,22,40];  LIP=[42,6,92];   SHAD=[30,30,24];  LITE=[34,44,74]; }\nelse if (thread){ MAT=[230,44,9];  JOINT=[230,30,16]; TROUGH=[230,44,7];  LIP=[H,26,100];  SHAD=[230,50,4];  LITE=[H,26,100]; }\nelse if (turf)  { MAT=[96,42,44];  JOINT=[92,46,30];  TROUGH=[30,38,30];  LIP=[74,34,70];  SHAD=[96,50,16];  LITE=[52,50,96]; }\nelse            { MAT=[H-8,10,48]; JOINT=[H-10,18,24]; TROUGH=[H-6,14,30]; LIP=[H+2,7,82]; SHAD=[H-12,20,15]; LITE=[H+8,40,100]; }\n\n// ---- the material: a full-frame worn floor, blitted rotated -----------------\n// Sized to the frame DIAGONAL so the precessing floor always covers the canvas.\n// This is the fix for \"enormous dead space\": there is no ground left unmade.\nconst BS = Math.ceil(Math.hypot(width, height)) + 2;\nconst ck = [BS, sty, Math.round(H), sd].join('|');\nif (!S.mat || S.ck !== ck){\n  if (S.mat) { try { S.mat.remove(); } catch(e){} }\n  const g = createGraphics(BS, BS); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100);\n  g.noStroke(); g.background(MAT[0], MAT[1], MAT[2]);\n  const U = BS/1400;\n  if (turf){\n    for (let i=0;i<26000;i++){                                  // sward\n      const x=fr(i*1.7)*BS, y=fr(i*2.3)*BS, l2=(2+fr(i*3.1)*5)*U;\n      g.stroke(MAT[0]+(fr(i*4.3)-.5)*26, MAT[1]+fr(i*5.1)*18, MAT[2]*(.5+fr(i*6.1)*1.1), 46);\n      g.strokeWeight(U); g.line(x, y, x+(fr(i*5.7)-.5)*3*U, y-l2);\n    }\n    g.noStroke();\n  } else if (bp){\n    g.stroke(JOINT[0], JOINT[1], JOINT[2], 12); g.strokeWeight(Math.max(1,U));\n    for (let i=0;i*34*U<BS;i++){ g.line(i*34*U,0,i*34*U,BS); g.line(0,i*34*U,BS,i*34*U); }\n    g.noStroke();\n    for (let i=0;i<5000;i++) { g.fill(MAT[0], MAT[1]*.8, MAT[2]*1.5, 6); g.circle(fr(i*11)*BS, fr(i*13)*BS, U*1.6); }\n  } else if (paper){\n    g.strokeWeight(Math.max(1,U));\n    for (let i=0;i*26*U<BS;i++){ g.stroke(MAT[0], MAT[1]+6, MAT[2]-9, 12); g.line(i*26*U,0,i*26*U,BS); }\n    for (let i=0;i<9000;i++){ const x=fr(i*19)*BS, y=fr(i*19+1)*BS, a=fr(i*19+2)*TAU, L=(2+fr(i*19+3)*11)*U;\n      g.stroke(MAT[0], MAT[1]+9, MAT[2]+13, 7+fr(i*19+4)*12); g.line(x,y,x+Math.cos(a)*L,y+Math.sin(a)*L); }\n    g.noStroke();\n  } else if (thread){\n    for (let i=0;i<7000;i++){ g.fill(MAT[0]+(fr(i*7)-.5)*30, MAT[1], MAT[2]*(1+fr(i*9)*3), 10);\n      g.circle(fr(i*11)*BS, fr(i*13)*BS, (1+fr(i*17)*3)*U); }\n  } else {\n    // worn limestone flags: slab joints, aggregate, scratches, damp blooms\n    const fl = Math.max(40, RAD*.34);\n    g.strokeWeight(Math.max(1.5, U*2.2)); g.stroke(JOINT[0], JOINT[1], JOINT[2], 66);\n    for (let i=0;i*fl<BS;i++){\n      const jx = i*fl + (fr(i*3.3)-.5)*fl*.14;\n      g.line(jx, 0, jx + (fr(i*4.1)-.5)*fl*.1, BS);\n      const jy = i*fl + (fr(i*5.3)-.5)*fl*.14;\n      g.line(0, jy, BS, jy + (fr(i*6.1)-.5)*fl*.1);\n    }\n    g.noStroke();\n    for (let i=0;i<9000;i++){                                    // aggregate\n      const x=fr(i*1.9)*BS, y=fr(i*2.7)*BS;\n      g.fill(MAT[0]+(fr(i*3.1)-.5)*20, MAT[1]*(.4+fr(i*4.7)), MAT[2]*(.55+fr(i*5.9)*1.05), 30);\n      g.circle(x, y, (.9+fr(i*6.7)*2.6)*U);\n    }\n    g.strokeWeight(Math.max(1,U));\n    for (let i=0;i<2200;i++){                                    // scuff scratches\n      const x=fr(i*7.1)*BS, y=fr(i*8.3)*BS, a=fr(i*9.1)*TAU, L=(4+fr(i*10.3)*22)*U;\n      g.stroke(MAT[0], MAT[1]+6, MAT[2]*(fr(i*11.7)>.5?1.35:.6), 16);\n      g.line(x,y,x+Math.cos(a)*L,y+Math.sin(a)*L);\n    }\n    g.noStroke();\n    for (let i=0;i<160;i++){                                     // damp / wear blooms\n      g.fill(MAT[0]+(fr(i*13)-.5)*16, MAT[1]+fr(i*17)*14, MAT[2]*(.7+fr(i*19)*.5), 12);\n      g.ellipse(fr(i*23)*BS, fr(i*29)*BS, (40+fr(i*31)*230)*U, (40+fr(i*37)*230)*U);\n    }\n  }\n  S.mat = g; S.ck = ck;\n}\n\n// The floor is the WORLD, so it is centred on the frame and sized to the frame\n// diagonal \u2014 that way it covers the canvas at any rotation. The labyrinth is\n// anchored at P.x/P.y separately; both share `rot`, so the path stays cut into\n// the stone. (Centring the material on the anchor would uncover a corner as\n// soon as P.x/P.y left the middle.)\npush(); translate(width/2, height/2); rotate(rot);\nimage(S.mat, -BS/2, -BS/2);\npop();\n\npush(); translate(cx, cy); rotate(rot);\n\n// ---- the path, INCISED into the floor --------------------------------------\nconst PXY = p => [p[0]*RAD*Math.cos(p[1]), p[0]*RAD*Math.sin(p[1])];\nconst stroke_path = (src, ox, oy, w, c, a) => {\n  stroke(c[0], c[1], c[2], a); strokeWeight(w);\n  beginShape();\n  for (let i=0;i<src.length;i++){ const q=PXY(src[i]); vertex(q[0]+ox, q[1]+oy); }\n  endShape();\n};\nstrokeCap(ROUND); strokeJoin(ROUND); noFill();\nconst ll = laz - rot;                       // lamp direction inside the turning floor\nconst off = pw*.17*(.5 + .8*P.energy);\nconst ox = Math.cos(ll)*off, oy = Math.sin(ll)*off;\nif (!thread){\n  stroke_path(pts,  ox,  oy, pw*1.30, LIP,  86);   // the lip catching the lamp\n  stroke_path(pts, -ox, -oy, pw*1.30, SHAD, 90);   // the lip in its own shadow\n  stroke_path(pts,   0,   0, pw,      TROUGH, 100);// the worn channel floor\n  // grit in the channel\n  stroke(LIP[0], LIP[1], LIP[2], 20); strokeWeight(Math.max(1, pw*.10));\n  for (let i=0;i<rs.length;i+=7){\n    const q=PXY(rs[i]), j=fr(i*1.3);\n    line(q[0]+(j-.5)*pw*.5, q[1]+(fr(i*2.1)-.5)*pw*.5, q[0]+(fr(i*3.7)-.5)*pw*.5, q[1]+(fr(i*4.3)-.5)*pw*.5);\n  }\n} else {\n  stroke_path(pts, 0, 0, pw*1.5, [LITE[0], cl(LITE[1]*.9,0,100), 56], 55);\n  stroke_path(pts, 0, 0, Math.max(1.2, pw*.34), [LITE[0], LITE[1], 100], 92);\n}\n\n// ---- walkers: a lit head with a decaying trail, threading the one path -----\nconst M = rs.length - 1, TL = Math.round(M*.13);\npush(); blendMode(ADD); noFill();\nfor (let w=0; w<NW; w++){\n  const prog = ((S.w + w/NW) % 1 + 1) % 1;\n  const hi = Math.floor(prog*M);\n  const hw = (H + w*47) % 360;\n  for (let b2=0;b2<6;b2++){\n    const q0 = b2/6, q1 = (b2+1)/6;\n    const i0 = Math.max(0, hi - Math.round(TL*(1-q0))), i1 = Math.max(0, hi - Math.round(TL*(1-q1)));\n    if (i1 <= i0) continue;\n    stroke(thread?hw:LITE[0], cl((thread?40:LITE[1])*(1-q1*.4),0,100), 100, cl((1.6 + 9*glow)*(q0*q0*1.2+.10), 0, 30));\n    strokeWeight(pw*(.42 + .55*q1));\n    beginShape(); for (let i=i0;i<=i1;i++){ const q=PXY(rs[i]); vertex(q[0],q[1]); } endShape();\n  }\n  const hd = PXY(rs[hi]);\n  noStroke();\n  for (let i=4;i>=1;i--){ fill(thread?hw:LITE[0], cl(LITE[1]*.8,0,100), 100, cl(3 + 9*glow, 0, 20));\n    ellipse(hd[0], hd[1], pw*(.7+.85*i), pw*(.7+.85*i)); }\n  noFill();\n}\npop(); blendMode(BLEND);\n\n// ---- the goal rosette at the centre ---------------------------------------\nconst pet = 6, rr = RAD*RIN*.92, rz = rot*.5 + K.t*.031;\nnoFill(); stroke(thread?LITE[0]:SHAD[0], thread?LITE[1]:SHAD[1], thread?100:SHAD[2], thread?70:92);\nstrokeWeight(Math.max(1.4, pw*.34));\nfor (let i=0;i<pet;i++){ const a=rz + i*TAU/pet;\n  beginShape();\n  for (let j=0;j<=14;j++){ const s=j/14, ang=a - .52 + 1.04*s;\n    const q = rr*(.30 + .70*Math.sin(s*Math.PI));\n    vertex(Math.cos(ang)*q*1.6, Math.sin(ang)*q*1.6); }\n  endShape();\n}\nif (!thread){ noStroke(); fill(TROUGH[0], TROUGH[1], TROUGH[2], 100); ellipse(0,0, rr*.62, rr*.62); }\npush(); blendMode(ADD); noStroke();\nfor (let i=3;i>=1;i--){ fill(LITE[0], cl(LITE[1]*.7,0,100), 100, 1.6 + 3.6*glow*(.5+.5*K.swell));\n  ellipse(0, 0, rr*(1.1+.9*i), rr*(1.1+.9*i)); }\npop(); blendMode(BLEND);\npop();\n\n// ---- the lamp pool: raking light crawling the floor in WORLD space ----------\n// The floor turns under it; the lamp stays in the room. This sweeps a broad\n// luminance gradient across the frame and is the primary motion floor.\n{\n  const dc = drawingContext, R2 = u*(.72 + .16*Math.sin(K.t*.027));\n  const c = color(LITE[0], cl(LITE[1]*.45,0,100), 100);\n  const cs = Math.round(red(c))+','+Math.round(green(c))+','+Math.round(blue(c));\n  const g2 = dc.createRadialGradient(lpx, lpy, 0, lpx, lpy, R2);\n  const pk = cl((.055 + .10*P.energy)*(.6 + .6*K.intensity), 0, .20);\n  g2.addColorStop(0, 'rgba('+cs+','+pk.toFixed(4)+')');\n  g2.addColorStop(.5, 'rgba('+cs+','+(pk*.42).toFixed(4)+')');\n  g2.addColorStop(1, 'rgba('+cs+',0)');\n  const oldOp = dc.globalCompositeOperation;\n  dc.globalCompositeOperation = 'lighter';\n  dc.fillStyle = g2; dc.fillRect(0,0,width,height);\n  dc.globalCompositeOperation = oldOp;\n}\n\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1); strokeCap(ROUND);\n"
+}

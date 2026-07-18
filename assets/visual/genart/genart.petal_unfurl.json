@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.petal_unfurl",
+  "kind": "genart",
+  "name": "Petal Unfurl",
+  "desc": "A dense herbarium plate of flowers opening by differential growth rather than by keyframe \u2014 the adaxial surface outgrows the abaxial until each petal's curvature reverses through zero and the bud reflexes itself open, stamens tremble at anthesis, then turgor fails, the ribbons go slack and the petals abscise one by one to leave a bare receptacle for the next bud; sixteen blooms staggered across the sheet at depth, so something is always unfurling and something always shedding.",
+  "tags": [
+    "flower",
+    "flowers",
+    "petal",
+    "petals",
+    "bloom",
+    "blossom",
+    "unfurl",
+    "opening",
+    "anthesis",
+    "bud",
+    "calyx",
+    "sepal",
+    "stamen",
+    "anther",
+    "botanical",
+    "botany",
+    "plant",
+    "growth",
+    "morphogenesis",
+    "differential-growth",
+    "curvature",
+    "wilt",
+    "turgor",
+    "abscission",
+    "senescence",
+    "plate",
+    "engraving",
+    "cyanotype",
+    "photogram",
+    "xray",
+    "chiaroscuro",
+    "organic",
+    "process",
+    "elegant",
+    "sublime",
+    "melancholy",
+    "nature",
+    "garden"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "life-cycle rate + sway/tremble amplitude + petal flutter (master knob)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many blooms of the 16-flower pool are on the sheet (2 at 0 -> 14 at 1)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "bloom size vs frame (0.35 = a scattered plate of small specimens, 2.2 = a single corolla fills the view)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "unfurl + sway rate multiplier"
+    },
+    "hue": {
+      "default": 342,
+      "min": 0,
+      "max": 360,
+      "doc": "corolla hue (wilt always drifts it warmer)"
+    },
+    "petals": {
+      "default": 8,
+      "min": 3,
+      "max": 13,
+      "doc": "petals per whorl"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "planting anchor across the frame"
+    },
+    "y": {
+      "default": 0.56,
+      "min": 0,
+      "max": 1,
+      "doc": "planting anchor down the frame"
+    },
+    "style": {
+      "default": "plate",
+      "options": [
+        "plate",
+        "cyanotype",
+        "xray",
+        "chiaroscuro"
+      ],
+      "doc": "aesthetic \u2014 botanical plate w/ ink line + stipple modelling; Atkins photogram on Prussian blue; additive translucent radiograph; form built from a single pool of light, no outline"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds placement, view tilt, proportions and the petal-shedding order"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the flowers over the ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:25:18+00:00",
+    "fps": 64.1,
+    "motion": 0.0117,
+    "lum": 0.433
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:342, petals:8, x:.5, y:.56, style:'plate', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Flowers opening by differential growth rather than by keyframe: the adaxial surface\n// outgrows the abaxial until each petal's curvature reverses through zero and the bud reflexes\n// itself open. A DENSE PLATE of 16 staggered blooms on a ~40s cycle \u2014 bud, anthesis, turgor loss,\n// abscission, bare receptacle, new bud \u2014 so something is always opening and something always\n// shedding; the sheet never converges and never empties. Herbarium rigour, not a cartoon flower:\n// ink line, stipple modelling, sepals, androecium, cauline leaves, a ruled specimen sheet.\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.35,2.2);\nconst NP = Math.round(cl(P.petals,3,13)), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43+1.7) + .32*Math.sin(T*2.29) + .35*Math.sin(T*.163);\nconst breeze = (.25 + .85*EN)*gust + A.lowmid*.75 + K.pulse*.2*K.intensity;\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet papH, papS, papB, inkH, inkS, inkB, mode;\nif (sty === 'cyanotype') { papH = (213 + (H-213)*.16 + 360)%360; papS = 84; papB = 26; inkH = papH; inkS = 4; inkB = 98; mode = 1; }\nelse if (sty === 'xray') { papH = 198; papS = 44; papB = 15; inkH = H; inkS = 42; inkB = 96; mode = 2; }\nelse if (sty === 'chiaroscuro') { papH = 26; papS = 48; papB = 13; inkH = H; inkS = 30; inkB = 90; mode = 3; }\nelse { papH = 40; papS = 16; papB = 54; inkH = 24; inkS = 55; inkB = 17; mode = 0; }\n\n// ---- ground: a ruled specimen sheet --------------------------------------\nconst bgKey = [width,height,sd,sty,H].join('|');\nif (!S.g || S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const bw = Math.min(620, Math.max(240, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke(); g.background(papH, papS, papB);\n  if (mode === 1) {\n    for (let i=0;i<190;i++){ const w2 = bw*(.25+fr(i*2.9)*.95);\n      g.fill(papH, papS-fr(i*4.4)*26, papB + (fr(i*6.6)-.44)*19, 25);\n      g.rect(fr(i*8.1)*bw-w2*.3, fr(i*5.3)*bh, w2, bh*.014 + fr(i*9.9)*bh*.022); }\n  } else if (mode === 2) {\n    for (let i=0;i<2400;i++){ g.fill(196, 30, 44+fr(i*4.4)*46, 8); g.rect(fr(i*3.9)*bw, fr(i*6.1+3)*bh, 1.3, 1.3); }\n  } else if (mode === 3) {\n    const dc0 = g.drawingContext;                          // a single pool of light\n    const lg = dc0.createRadialGradient(bw*.42, bh*.4, bw*.02, bw*.42, bh*.4, bw*.72);\n    lg.addColorStop(0, 'rgba(255,238,214,0.30)'); lg.addColorStop(.5, 'rgba(210,180,150,0.09)');\n    lg.addColorStop(1, 'rgba(0,0,0,0)'); dc0.fillStyle = lg; dc0.fillRect(0,0,bw,bh);\n    for (let i=0;i<2600;i++){ g.fill(28, 40, 30+fr(i*4.1)*46, 7); g.rect(fr(i*3.7)*bw, fr(i*8.3+2)*bh, 1.4, 1.4); }\n  } else {\n    for (let i=0;i<2800;i++){ g.fill(papH, papS*(.5+fr(i*2.3)), papB + (fr(i*5.1)-.5)*26, 44);\n      g.rect(fr(i*3.1)*bw, fr(i*7.7+9)*bh, 1.4, 1.4); }\n    for (let i=0;i<18;i++){ const fx=fr(i*13.3+2)*bw, fy=fr(i*17.1+5)*bh, r=bw*(.015+fr(i*3.7)*.05);\n      for (let k=0;k<3;k++){ g.fill(24, 46, 40, 5); g.ellipse(fx, fy, r*(1+k*.7), r*(.85+k*.6)); } }\n    g.noFill(); g.stroke(inkH, 30, 40, 20); g.strokeWeight(1);        // sheet rule\n    g.rect(bw*.03, bh*.04, bw*.94, bh*.92); g.noStroke();\n  }\n  const dc = g.drawingContext;\n  const rg = dc.createRadialGradient(bw*.5, bh*.5, bw*.12, bw*.5, bh*.5, bw*.82);\n  rg.addColorStop(0, 'rgba(0,0,0,0)');\n  rg.addColorStop(1, mode===3 ? 'rgba(0,0,0,0.55)' : mode===0 ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.36)');\n  dc.fillStyle = rg; dc.fillRect(0, 0, bw, bh);\n  g.pop();\n}\n\n// ---- flower pool: staggered bud -> anthesis -> wilt -> shed -> bud -------\n// 16 blooms on a jittered 4x4 with depth, cycling in ~40s (the first cut ran 6 blooms on a ~74s\n// cycle and drew 4 of them: three sparse flowers that had all finished opening. It converged.)\nconst NMAX = 16;\nconst ORD = [5,10,0,15,7,2,12,9,4,14,1,11,6,13,3,8];      // spread the drawn subset over the sheet\nconst TB = 6, TO = 17, TA = 24, TW = 33, TD = 40, TZ = 44;\nconst reseed = f => {\n  const j = f.id*37.1 + (f.gen = (f.gen||0)+1)*13.3;\n  const c0 = ORD[f.id];\n  f.ox = (.10 + (c0 % 4)*.27 + (fr(j*1.3)-.5)*.15);\n  f.oy = (.20 + ((c0/4)|0)*.24 + (fr(j*2.1)-.5)*.13);\n  f.dep = .55 + fr(j*1.9)*.85;                 // depth: near blooms bigger, far ones smaller\n  f.sz = (.72 + fr(j*3.3)*.62)*f.dep;\n  f.tilt = .42 + fr(j*4.7)*.7;                 // view tilt: 0 = face-on, 1.1 = three-quarter\n  f.spin = fr(j*5.9)*6.28;\n  f.hj = (fr(j*6.3)-.5)*44;\n  f.ph = fr(j*7.1)*6.28;\n  f.rate = .82 + fr(j*8.9)*.42;\n  f.spr = (.07 + fr(j*10.3)*.06)*(f.id%2 ? 1 : -1);        // head rotation, two senses\n  f.shed = [];\n  for (let k=0;k<13;k++) f.shed.push(fr(j*9.7 + k*3.1));   // per-petal abscission order\n  f.age = 0;\n};\nif (!S.fl || S.fl.length !== NMAX || S.szKey !== width+'x'+height+sd) {\n  S.szKey = width+'x'+height+sd; S.fl = [];\n  for (let i=0;i<NMAX;i++){ const f = { id:i }; reseed(f); f.age = fr(i*21.3)*TZ; S.fl.push(f); }\n}\nfor (let i=0;i<NMAX;i++){ const f = S.fl[i];\n  f.age += dt*SP*f.rate*(.6 + .85*EN)*(.7 + .6*K.intensity);\n  if (f.age > TZ) reseed(f); }\n\n// ---- draw ----------------------------------------------------------------\nimage(S.g, 0, 0, width, height);\nconst nDraw = cl(Math.round(4 + DN*10), 2, NMAX);\nconst NSG = 15;                                  // integration steps along the petal\nif (mode === 2) blendMode(ADD);\nstrokeJoin(ROUND); strokeCap(ROUND);\nconst wprof = s => Math.pow(Math.sin(Math.PI*Math.pow(cl(s,0,1), .72)), .6);\nconst order2 = [];\nfor (let n=0;n<nDraw;n++) order2.push(n);\norder2.sort((a,b) => S.fl[a].dep - S.fl[b].dep);           // far blooms behind near ones\n\nfor (let oi=0;oi<order2.length;oi++) {\n  const f = S.fl[order2[oi]]; if (!f) continue;\n  const a = f.age;\n  const swell = cl(a/TB, 0, 1);\n  const opn = cl((a - TB)/(TO - TB), 0, 1);                // 0 = bud, 1 = fully reflexed\n  const o = opn*opn*(3 - 2*opn);\n  const wilt = cl((a - TA)/(TW - TA), 0, 1);\n  const shedP = cl((a - TW)/(TD - TW), 0, 1);\n  const R = u*.155*SC*f.sz;                                // petal length at anthesis\n  const cx = (f.ox + (P.x-.5))*width, cyy = (f.oy + (P.y-.56))*height;\n  const sway = breeze*u*.030*f.sz*(.6 + .7*Math.sin(T*.87 + f.ph));\n  const bob = Math.sin(T*1.13 + f.ph*1.9)*u*.008*(.4+EN);\n  // the head rotates on its own sense and rate: over 8s this walks each corolla by roughly a\n  // whole petal index, which decorrelates the frame without anything jumping.\n  const spin = f.spin + T*f.spr;\n  const tl = f.tilt, ct = Math.cos(tl), stl = Math.sin(tl);\n  const hh = ((P.hue + f.hj + wilt*22) % 360 + 360) % 360;\n\n  push(); translate(cx + sway, cyy + bob);\n  // --- stem down out of frame, swaying, with a cauline leaf or two for plate density\n  const stH = height - (cyy + bob) + u*.06;\n  noFill();\n  stroke(mode===1 ? inkH : (mode===2 ? 120 : 96), mode===1?18:52, mode===1?70:(mode===3?28:34), 78*AL);\n  strokeWeight(Math.max(1.1, R*.06));\n  beginShape();\n  for (let q=0;q<=8;q++){ const v = q/8;\n    vertex(-sway*v*1.6 + Math.sin(T*.53 + f.ph + v*2.2)*u*.006*v*(.5+EN), stH*v); }\n  endShape();\n  for (let q=0;q<2;q++){\n    const v = .30 + q*.26, sg = q%2 ? 1 : -1;\n    const lx = -sway*v*1.6 + Math.sin(T*.53 + f.ph + v*2.2)*u*.006*v*(.5+EN), ly = stH*v;\n    const LL = R*(.42 + .2*fr(f.id*3.7+q))*(.4 + .6*swell);\n    const fl2 = Math.sin(T*(1.7 + q*.63) + f.ph*1.4)*(.16 + .34*EN);\n    push(); translate(lx, ly); rotate(sg*(1.05 + fl2) + .25);\n    if (mode === 1) { noStroke(); fill(inkH, 5, 94, 80*AL); }\n    else if (mode === 2) { noStroke(); fill(126, 46, 30, 15*AL); }\n    else { stroke(inkH, inkS, inkB, 54*AL); strokeWeight(Math.max(.5, R*.009));\n      fill(mode===3?96:104, 46 - wilt*14, mode===3?26:(34 - wilt*6), 78*AL); }\n    beginShape(); vertex(0,0); bezierVertex(LL*.3,-LL*.30, LL*.76,-LL*.26, LL,0);\n    bezierVertex(LL*.76, LL*.26, LL*.3, LL*.30, 0, 0); endShape(CLOSE);\n    pop();\n  }\n\n  // --- petals, back-to-front\n  const order = [];\n  for (let k=0;k<NP;k++) order.push(k);\n  order.sort((p, q) => Math.sin(spin + p*6.2832/NP) - Math.sin(spin + q*6.2832/NP));\n  for (let oi2=0; oi2<NP; oi2++) {\n    const k = order[oi2];\n    const phi = spin + k*6.2832/NP;\n    const cf = Math.cos(phi), sf = Math.sin(phi);\n    const sh = cl((shedP*1.35 - f.shed[k % 13]*1.0)*2.4, 0, 1);   // this petal's abscission\n    if (sh >= 1) continue;\n    // differential growth: adaxial outgrows abaxial -> curvature reverses through zero\n    const k0 = 2.55*(1 - o*2.05) - wilt*1.5;\n    // petals tremble at ALL times, not only while wilting (the first cut gated this behind\n    // (.3 + wilt), so an open flower was a still life)\n    const trem = (.35*Math.sin(T*1.7 + phi*2.3) + .22*Math.sin(T*2.63 + phi*1.31 + f.ph))\n               * (.25 + .6*EN) * (.55 + .45*wilt);\n    const kT = -.55*o - wilt*1.9 + trem;\n    const psi0 = 1.5 - o*.62 + wilt*.2;\n    const len = R*(.28 + .72*o)*(.35 + .65*swell);\n    const wid = R*(.30 + .1*o)*(.4 + .6*swell);\n    const xs = [], zs = [];\n    let psi = psi0, rr = R*.1, zz = 0;\n    for (let q=0;q<=NSG;q++){\n      const s = q/NSG;\n      xs.push(rr); zs.push(zz);\n      const kk = (k0 + kT*s*2.4) / NSG;\n      psi += kk;\n      rr += Math.cos(psi)*len/NSG; zz += Math.sin(psi)*len/NSG;\n    }\n    const px = [], py = [];\n    for (let side=0; side<2; side++) {\n      for (let q=0;q<=NSG;q++){\n        const idx = side ? NSG - q : q;\n        const s = idx/NSG;\n        const w = wprof(s)*wid*(side ? -1 : 1);\n        const X3 = xs[idx]*cf - w*sf, Y3 = xs[idx]*sf + w*cf, Z3 = zs[idx];\n        px.push(X3); py.push(-Z3*ct + Y3*stl);\n      }\n    }\n    const dropY = sh*sh*u*.5, dropX = sh*breeze*u*.09;\n    const lightF = .42 + .58*(.5 + .5*Math.cos(phi - 2.2));       // modeled by azimuth\n    const al = (1 - sh)*AL;\n    if (mode === 1) { noStroke(); fill(inkH, 3 + (1-lightF)*7, 99 - (1-lightF)*22 - wilt*18, 88*al); }\n    else if (mode === 2) { noStroke(); fill(hh, 48, 30, 17*al); }\n    else if (mode === 3) { noStroke(); fill(hh, 34 + wilt*16, (12 + 76*lightF)*(1 - wilt*.3), 94*al); }\n    else { stroke(inkH, inkS, inkB, 62*al); strokeWeight(Math.max(.5, R*.010));\n      fill(hh, (58 - wilt*24)*(.5 + .5*lightF), (44 + 42*lightF)*(1 - wilt*.22), 90*al); }\n    push(); translate(dropX, dropY); if (sh>0) rotate(sh*3.2*(k%2?1:-1));\n    beginShape();\n    for (let q=0;q<px.length;q++) vertex(px[q], py[q]);\n    endShape(CLOSE);\n    if (mode === 0 || mode === 3) {                        // stipple modelling on the shaded half\n      noStroke(); fill(inkH, mode===3?30:inkS, mode===3?6:inkB, (mode===3?26:16)*al);\n      for (let q=0;q<11;q++){ const s = .12 + fr(k*5.1 + q*2.7)*.8;\n        const w2 = (fr(k*7.3 + q*1.9) - .5)*wprof(s)*wid*1.5;\n        const i2 = Math.min(NSG, Math.round(s*NSG));\n        const X3 = xs[i2]*cf - w2*sf, Y3 = xs[i2]*sf + w2*cf;\n        const sx = X3, sy = -zs[i2]*ct + Y3*stl;\n        ellipse(sx, sy, R*.026*(1-lightF+.25), R*.026*(1-lightF+.25)); }\n    }\n    pop();\n  }\n  // --- calyx sepals reflexing as it opens\n  for (let k=0;k<5;k++){\n    const phi = spin*.6 + k*1.2566 + .3;\n    const cf = Math.cos(phi), sf = Math.sin(phi);\n    const ln = R*(.42 + .1*o)*(.4 + .6*swell), aw = -.35 - o*.75 - wilt*.3;\n    const X3 = cf*ln*Math.cos(aw), Y3 = sf*ln*Math.cos(aw), Z3 = ln*Math.sin(aw);\n    if (mode === 1) { stroke(inkH, 14, 78, 68*AL); }\n    else if (mode === 2) { stroke(118, 44, 60, 22*AL); }\n    else { stroke(mode===3?96:100, 48, mode===3?24:32, 72*AL); }\n    strokeWeight(Math.max(.9, R*.045)); noFill();\n    beginShape(); vertex(0, 0);\n    vertex(X3*.55, -Z3*.55*ct + Y3*.55*stl);\n    vertex(X3, -Z3*ct + Y3*stl);\n    endShape();\n  }\n  // --- androecium: filaments + anthers, revealed at anthesis, trembling\n  const anth = cl((o - .5)*2.4, 0, 1)*(1 - wilt*.8);\n  if (anth > .02) {\n    const ns = 9 + ((NP*1.3)|0);\n    for (let k=0;k<ns;k++){\n      const phi = spin*1.4 + k*6.2832/ns, cf = Math.cos(phi), sf = Math.sin(phi);\n      const tr = Math.sin(T*(3.1 + (k%5)*.37) + k)*(.05 + .12*EN) + K.pulse*.05*K.intensity;\n      const ln = R*(.30 + .1*fr(k*3.3))*anth, lift = .95 + tr;\n      const X3 = cf*ln*Math.cos(lift), Y3 = sf*ln*Math.cos(lift), Z3 = ln*Math.sin(lift) + R*.06;\n      const ex = X3, ey = -Z3*ct + Y3*stl;\n      if (mode === 1) stroke(inkH, 6, 96, 66*AL); else if (mode === 2) stroke(52, 60, 90, 26*AL);\n      else stroke(48, 34, mode===3?62:56, 70*AL);\n      strokeWeight(Math.max(.6, R*.014)); line(0, R*.02, ex, ey);\n      noStroke();\n      if (mode === 1) fill(inkH, 0, 100, 88*AL); else if (mode === 2) fill(52, 70, 100, 34*AL);\n      else fill(46, 74, mode===3?90:76, 92*AL);\n      ellipse(ex, ey, R*.044*anth, R*.031*anth);\n    }\n  }\n  pop();\n}\nnoFill();\nblendMode(BLEND);\n"
+}

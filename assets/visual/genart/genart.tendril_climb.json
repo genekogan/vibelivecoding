@@ -1,0 +1,142 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.tendril_climb",
+  "kind": "genart",
+  "name": "Tendril Climb",
+  "desc": "A creeper hunting its way up a trellis and never finishing \u2014 free apices circumnutate in live searching sweeps until a tendril finds a batten and coils onto it, the stem zigzags up the support shedding fluttering leaves, and old growth dries to gold and is pruned so a new shoot can take the freed lattice; a pool of eighteen staggered generations, so something is always germinating, always racing, always senescing.",
+  "tags": [
+    "vine",
+    "creeper",
+    "tendril",
+    "climber",
+    "ivy",
+    "bean",
+    "trellis",
+    "lattice",
+    "espalier",
+    "botanical",
+    "botany",
+    "plant",
+    "growth",
+    "grow",
+    "climbing",
+    "circumnutation",
+    "tropism",
+    "leaves",
+    "foliage",
+    "garden",
+    "herbarium",
+    "specimen",
+    "cyanotype",
+    "photogram",
+    "engraving",
+    "wall",
+    "green",
+    "organic",
+    "process",
+    "emergence",
+    "senescence",
+    "wind",
+    "sway",
+    "flutter",
+    "nature",
+    "verdant",
+    "austere",
+    "study"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wind/flutter amplitude + how wildly the free apices circumnutate + growth rate (master knob)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many vines of the 18-stem pool are on the trellis (2 at 0 -> 12 at 1)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "trellis pitch and leaf/stem size vs frame (2.4 = coarse, huge foliage)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "growth + wind rate multiplier"
+    },
+    "hue": {
+      "default": 112,
+      "min": 0,
+      "max": 360,
+      "doc": "foliage hue (also tones the cyanotype ground)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "trellis pattern anchor across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "trellis pattern anchor down the frame"
+    },
+    "leafiness": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "node spacing + leaf size \u2014 bare whips at 0, a dense climbing mass at 1"
+    },
+    "trellis": {
+      "default": "lattice",
+      "options": [
+        "lattice",
+        "grid",
+        "fan",
+        "wires"
+      ],
+      "doc": "support geometry the vine has to find and follow"
+    },
+    "style": {
+      "default": "herbarium",
+      "options": [
+        "herbarium",
+        "cyanotype",
+        "xray",
+        "silhouette"
+      ],
+      "doc": "aesthetic \u2014 toned plate w/ ink line + wash; Atkins photogram (pale mass on Prussian blue, no line); additive translucent radiograph; flat dark mass on a graded warm ground"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds the trellis jitter, germination points and every growth decision"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the plant over its trellis"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:25:34+00:00",
+    "fps": 55.2,
+    "motion": 0.0081,
+    "lum": 0.441
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:112, x:.5, y:.5, leafiness:.6, trellis:'lattice', style:'herbarium', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A creeper hunting up a trellis. The piece is a PERPETUAL PROCESS, not a picture of a vine:\n// a pool of 18 stems runs staggered generations, so at any instant some are germinating, some are\n// racing, some are drying to gold and being pruned to free the lattice for the next shoot. Nothing\n// ever converges. The motion floor is botanical rather than decorative: free apices CIRCUMNUTATE\n// (real tendrils sweep circles hunting for support) at incommensurate rates, every leaf flutters on\n// its own frequency, and the whole climbing mass sways with a wind built from incommensurate terms.\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style, tw = P.trellis;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.4,2.4);\nconst LF = cl(P.leafiness,0,1), AL = cl(P.alpha,0,100)/100;\n\n// ---- monotonic internal clock (immune to t0 resets, fps-independent) ----\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\n\n// incommensurate wind floor \u2014 the pose never repeats at 8s\nconst gust = .9*Math.sin(T*.61) + .5*Math.sin(T*1.43+1.7) + .32*Math.sin(T*2.29) + .4*Math.sin(T*.187);\nconst breeze = (.3 + .95*EN)*gust + A.lowmid*.9 + K.pulse*.22*K.intensity;\n// slow season drift: fresh green -> deep -> senescent gold (section-linked, never frozen)\nconst season = cl(((K.section||0)/7)*.62 + .38*(.5+.5*Math.sin(T*.037+1.1)), 0, 1);\n\n// ---- style palette -------------------------------------------------------\nconst H = P.hue;\nlet inkH, inkS, inkB, papH, papS, papB, batH, batS, batB, lit;\nif (sty === 'cyanotype') {\n  papH = (214 + (H-214)*.22 + 360) % 360; papS = 82; papB = 27; inkH = papH; inkS = 6; inkB = 96;\n  batH = papH; batS = 70; batB = 15; lit = 1;\n} else if (sty === 'xray') {\n  papH = 192; papS = 44; papB = 16; inkH = H; inkS = 55; inkB = 92;\n  batH = 200; batS = 30; batB = 40; lit = 1;\n} else if (sty === 'silhouette') {\n  papH = 34; papS = 16; papB = 70; inkH = (H*.22 + 22) % 360; inkS = 36; inkB = 13;\n  batH = 32; batS = 12; batB = 86; lit = 0;\n} else {\n  papH = 38; papS = 18; papB = 61; inkH = 28; inkS = 55; inkB = 16;\n  batH = 34; batS = 30; batB = 48; lit = 0;\n}\n\n// ---- static ground + trellis buffer (also builds the constraint field) ---\nconst pit = u*.155*SC;\nconst geoKey = [width,height,sd,sty,tw,SC,P.x,P.y,H].join('|');\nconst simKey = [width,height,sd,tw,SC,P.x,P.y].join('|');\nif (!S.g || S.geoKey !== geoKey) {\n  S.geoKey = geoKey;\n  const bw = Math.min(660, Math.max(240, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; S.sx = bw/Math.max(1,width);\n  g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke();\n  g.background(papH, papS, papB);\n  if (sty === 'herbarium') {\n    for (let i=0;i<2600;i++){ g.fill(papH, papS*(.55+fr(i*2.3)), papB + (fr(i*5.1)-.5)*27, 46);\n      g.rect(fr(i*3.1)*bw, fr(i*7.7+9)*bh, 1.4, 1.4); }\n    for (let i=0;i<16;i++){ const fx=fr(i*13.3+2)*bw, fy=fr(i*17.1+5)*bh, r=bw*(.02+fr(i*3.7)*.06);\n      for (let k=0;k<3;k++){ g.fill(26, 44, 42, 5); g.ellipse(fx, fy, r*(1+k*.7), r*(.8+k*.6)); } }\n  } else if (sty === 'cyanotype') {\n    for (let i=0;i<180;i++){ const w2=bw*(.2+fr(i*2.9)*.9);\n      g.fill(papH, papS-fr(i*4.4)*24, papB + (fr(i*6.6)-.42)*18, 26);\n      g.rect(fr(i*8.1)*bw-w2*.3, fr(i*5.3)*bh, w2, bh*.012 + fr(i*9.9)*bh*.02); }\n  } else if (sty === 'xray') {\n    for (let i=0;i<2400;i++){ g.fill(190, 30, 42+fr(i*4.4)*44, 8); g.rect(fr(i*3.9)*bw, fr(i*6.1+3)*bh, 1.3, 1.3); }\n  } else {\n    for (let y=0;y<bh;y++){ g.fill(papH, papS*(1-y/bh*.32), papB - (y/bh)*30); g.rect(0, y, bw, 1.2); }\n    for (let i=0;i<1900;i++){ g.fill(papH, papS+8, papB-20, 11); g.rect(fr(i*3.3)*bw, fr(i*8.8+1)*bh, 1.5, 1.5); }\n  }\n\n  const segs = [];\n  const ox = (P.x-.5)*width, oy = (P.y-.5)*height, R = Math.hypot(width, height);\n  const addSeg = (x1,y1,x2,y2) => { const dx=x2-x1, dy=y2-y1, L=Math.hypot(dx,dy);\n    if (L > 2) segs.push({ x1:x1, y1:y1, x2:x2, y2:y2, ux:dx/L, uy:dy/L, L:L }); };\n  if (tw === 'grid') {\n    for (let x=-R; x<=R; x+=pit) addSeg(width*.5+ox+x, -R*.2, width*.5+ox+x, height+R*.2);\n    for (let y=-R; y<=R; y+=pit) addSeg(-R*.2, height*.5+oy+y, width+R*.2, height*.5+oy+y);\n  } else if (tw === 'wires') {\n    for (let x=-R; x<=R; x+=pit*.6) addSeg(width*.5+ox+x, -R*.2, width*.5+ox+x, height+R*.2);\n    for (let k=0;k<3;k++){ const y=height*(.2+.29*k)+oy; addSeg(-R*.2, y, width+R*.2, y); }\n  } else if (tw === 'fan') {\n    const fx = width*.5+ox, fy = height*1.16+oy, n = 8 + ((fr(3.3)*6)|0);\n    for (let i=0;i<n;i++){ const a = -Math.PI*.5 + (i/(n-1)-.5)*1.4;\n      addSeg(fx, fy, fx+Math.cos(a)*R*1.8, fy+Math.sin(a)*R*1.8); }\n    for (let k=0;k<4;k++){ const y=height*(.1+.25*k)+oy; addSeg(-R*.2, y, width+R*.2, y); }\n  } else {\n    const s2 = pit*1.3;\n    for (let c=-height-R; c<=width+R; c+=s2) addSeg(c-R*.2, -R*.2, c+height+R*.2, height+R*.2);\n    for (let c=-R; c<=width+height+R; c+=s2) addSeg(c+R*.2, -R*.2, c-height-R*.2, height+R*.2);\n  }\n  S.segs = segs;\n\n  const k = S.sx; g.strokeCap(ROUND);\n  for (let i=0;i<segs.length;i++){\n    const s = segs[i], jit = fr(i*11.7), w2 = (pit*(.075 + jit*.045))*k;\n    if (!lit) { g.stroke(papH, papS+10, papB-26, sty==='herbarium'?34:26); g.strokeWeight(w2*1.25);\n      g.line(s.x1*k+w2*.7, s.y1*k+w2*.9, s.x2*k+w2*.7, s.y2*k+w2*.9); }\n    g.stroke(batH, batS, batB + (jit-.5)*14, sty==='xray'?55:100); g.strokeWeight(w2);\n    g.line(s.x1*k, s.y1*k, s.x2*k, s.y2*k);\n    if (lit === 0) {\n      for (let q=0;q<3;q++){ const o=(q-1)*w2*.28; g.stroke(batH, batS+8, batB+(sty==='silhouette'?10:16), 34);\n        g.strokeWeight(w2*.13); g.line(s.x1*k-s.uy*o, s.y1*k+s.ux*o, s.x2*k-s.uy*o, s.y2*k+s.ux*o); }\n      g.stroke(inkH, inkS, inkB, sty==='silhouette'?66:52); g.strokeWeight(Math.max(.55, w2*.09));\n      g.line(s.x1*k-s.uy*w2*.5, s.y1*k+s.ux*w2*.5, s.x2*k-s.uy*w2*.5, s.y2*k+s.ux*w2*.5);\n      g.line(s.x1*k+s.uy*w2*.5, s.y1*k-s.ux*w2*.5, s.x2*k+s.uy*w2*.5, s.y2*k-s.ux*w2*.5);\n    }\n  }\n  const dc = g.drawingContext;                            // one-op edge vignette\n  const rg = dc.createRadialGradient(bw*.5, bh*.5, bw*.1, bw*.5, bh*.5, bw*.8);\n  rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(1, 'rgba(0,0,0,0.4)');\n  dc.fillStyle = rg; dc.fillRect(0, 0, bw, bh);\n  g.pop();\n}\nif (S.simKey !== simKey) { S.simKey = simKey; S.stems = null; }\n\n// ---- vine pool: always simulate NMAX, density selects how many are DRAWN --\n// SHORT generations (26-42s) and a big pool: turnover is the point, so growth and senescence are\n// always on screen somewhere. The first cut ran 53-90s generations against a 10-vine pool, so most\n// vines sat fully grown and motionless -> the whole frame converged (motion 0.0038 = STATIC).\nconst NMAX = 18, STEP = u*.0135, MAXP = 58, MAXL = 22;\nconst segs = S.segs || [];\nconst reach = pit*.30;\n\nconst reseed = s => {\n  const j = s.id*31.7 + (s.gen = (s.gen||0) + 1)*7.13;\n  s.pts = [{ x: (fr(j*1.7)*1.20 - .10)*width, y: height*(1.02 + fr(j*2.9)*.06), f: 1 }];\n  s.ang = -Math.PI*.5 + (fr(j*3.3)-.5)*.5;\n  s.grip = -1; s.gripAng = 0; s.held = 0; s.nut = fr(j*4.1)*6.28; s.acc = 0;\n  s.tend = []; s.leaf = []; s.gap = 0; s.age = 0;\n  s.hj = (fr(j*5.5)-.5)*26; s.vig = .7 + fr(j*6.7)*.6;\n  s.life = 15 + fr(j*7.9)*8; s.hold = 5 + fr(j*8.3)*6; s.sen = 6 + fr(j*9.1)*5;\n  s.ph = fr(j*11.3)*6.28; s.sense = (s.id % 2) ? 1 : -1;\n};\nconst adv = (s, d) => {\n  s.age += d;\n  if (s.age > s.life + s.hold + s.sen) { reseed(s); return; }\n  if (s.age < s.life && s.pts.length < MAXP) {\n    s.acc += d * (2.6 + EN*2.4) * (.6 + .8*K.intensity);\n    let guard = 0;\n    while (s.acc > 1 && s.pts.length < MAXP && guard++ < 6) {\n      s.acc -= 1;\n      const p = s.pts[s.pts.length-1];\n      s.nut += .42 + fr(s.id*7.7)*.3;\n      let tgt;\n      if (s.grip >= 0) { tgt = s.gripAng + Math.sin(s.nut*.5)*.1;\n        if (++s.held > 7 + fr(s.id*3.9 + s.gen)*15) { s.grip = -1; s.held = 0; }\n      } else { tgt = -Math.PI*.5 + Math.sin(s.nut)*(.55 + .85*EN) + (fr(s.pts.length*1.9 + s.id)-.5)*.22; }\n      let df = tgt - s.ang; while (df > Math.PI) df -= 6.2832; while (df < -Math.PI) df += 6.2832;\n      s.ang += df*.3;\n      const nx = p.x + Math.cos(s.ang)*STEP, ny = p.y + Math.sin(s.ang)*STEP;\n      if (s.grip < 0) {                                   // circumnutating tendril finds a support\n        let best = -1, bd = reach;\n        for (let q=0;q<segs.length;q++){\n          const sg = segs[q];\n          let tp = (nx-sg.x1)*sg.ux + (ny-sg.y1)*sg.uy; tp = tp<0?0:(tp>sg.L?sg.L:tp);\n          const dx = nx - (sg.x1+sg.ux*tp), dy = ny - (sg.y1+sg.uy*tp), dd = Math.sqrt(dx*dx+dy*dy);\n          if (dd < bd) { bd = dd; best = q; }\n        }\n        if (best >= 0) {\n          const sg = segs[best]; let ga = Math.atan2(sg.uy, sg.ux);\n          if (Math.sin(ga) > .12) ga += Math.PI;           // always take the climbing sense\n          s.grip = best; s.gripAng = ga; s.held = 0;\n          s.tend.push({ i: s.pts.length, a: ga, ph: fr(s.pts.length*2.7 + s.id)*6.28 });\n        }\n      }\n      // a gripped node is TIED to the batten so it barely moves, but it is never nailed down \u2014\n      // the first cut set f = 0 on every gripped point, which zeroed the sway of the entire\n      // climbed stem and was half of why the frame read as frozen.\n      s.pts.push({ x:nx, y:ny, f: s.grip >= 0 ? .30 : 1 });\n      if (++s.gap >= 3 + Math.round((1-LF)*4)) { s.gap = 0;\n        if (s.leaf.length < MAXL) { const li = s.pts.length-1;\n          s.leaf.push({ i:li, sg: (li%2)?1:-1, ph: fr(li*3.1 + s.id)*6.28, sz: .75+fr(li*5.9)*.55,\n            born: s.age, rt: .8 + fr(li*7.1)*1.9 }); }\n      }\n    }\n  }\n  const ph = s.life + s.hold;\n  s.fade = s.age > ph ? cl(1 - (s.age-ph)/s.sen, 0, 1) : 1;\n  s.dry  = s.age > ph ? cl((s.age-ph)/s.sen, 0, 1) : 0;\n};\nif (!S.stems || S.stems.length !== NMAX) {                // warm-up: stagger the generations\n  S.stems = [];\n  for (let i=0;i<NMAX;i++){ const s = { id:i }; reseed(s);\n    const w = fr(i*23.1)*40; for (let q=0; q<Math.round(w*12); q++) adv(s, 1/12);\n    S.stems.push(s); }\n}\nfor (let i=0;i<NMAX;i++) adv(S.stems[i], dt*SP);\n\n// ---- render --------------------------------------------------------------\nimage(S.g, 0, 0, width, height);\nconst nDraw = cl(Math.round(3 + DN*9), 2, NMAX);\nconst detail = (nDraw*MAXL <= 200);\nconst swayA = u*(.012 + .048*EN);\nif (sty === 'xray') blendMode(ADD);\nstrokeCap(ROUND); strokeJoin(ROUND);\n// sway grows as the square of the height up the stem and is damped (not killed) where the vine\n// is tied on: a climbed mass still breathes.\nconst wob = (s, i, n2) => { const p = s.pts[i], h = i/Math.max(1, n2-1);\n  return breeze*swayA*p.f*h*h*(1 + .5*Math.sin(T*1.9 + s.id*2.1 + p.y*.004)); };\n\nfor (let n=0;n<nDraw;n++) {\n  const s = S.stems[n]; if (!s || !s.pts || s.pts.length < 2) continue;\n  const np = s.pts.length;\n  const fade = s.fade == null ? 1 : s.fade, dry = s.dry || 0;\n  const lh = ((P.hue + s.hj + season*46*(1-dry*.3)) % 360 + 360) % 360;\n  const ls = (66 - season*22)*(1-dry*.55) + 14;\n  const lb = (52 + season*10)*(1-dry*.25) + dry*30;\n  const a0 = 100*AL*fade, sw = u*(.0046 + .0044*SC)*s.vig;\n  for (let pass=0; pass<(sty==='herbarium'?2:1); pass++) {\n    if (sty === 'cyanotype') { stroke(inkH, inkS, inkB, 92*AL*fade); strokeWeight(sw*1.5); }\n    else if (sty === 'xray') { stroke(lh, 40, 62, 26*AL*fade); strokeWeight(sw*2.4); }\n    else if (sty === 'silhouette') { stroke(inkH, inkS, inkB+dry*22, a0); strokeWeight(sw*1.7); }\n    else if (pass === 0) { stroke(inkH, inkS, inkB, 74*AL*fade); strokeWeight(sw*1.9); }\n    else { stroke(lh, ls*.8, lb+16, 80*AL*fade); strokeWeight(sw*.95); }\n    noFill(); beginShape();\n    for (let i=0;i<np;i++){ const p = s.pts[i], w = wob(s,i,np); vertex(p.x+w, p.y+w*.28); }\n    endShape();\n  }\n  for (let q=0;q<s.tend.length;q++){                      // tendrils coiled onto the battens\n    const td = s.tend[q], p = s.pts[td.i]; if (!p) continue;\n    const w = wob(s,td.i,np), px = p.x+w, py = p.y+w*.28;\n    const r = STEP*(.9 + .45*Math.sin(td.ph + T*.7));\n    if (sty === 'cyanotype') stroke(inkH, inkS, inkB, 80*AL*fade);\n    else if (sty === 'xray') stroke(lh, 50, 86, 30*AL*fade);\n    else stroke(inkH, inkS, sty==='silhouette'?inkB:inkB+10, 72*AL*fade);\n    strokeWeight(sw*.62); noFill(); beginShape();\n    for (let c=0;c<9;c++){ const cv = c/8, aa = td.a + Math.PI*.5 + cv*10.5, rr = r*(1.05 - cv*.35);\n      vertex(px + Math.cos(td.a)*(cv-.5)*r*2.4 + Math.cos(aa)*rr*.5,\n             py + Math.sin(td.a)*(cv-.5)*r*2.4 + Math.sin(aa)*rr*.5); }\n    endShape();\n  }\n  for (let q=0;q<s.leaf.length;q++){                      // distributed flutter keeps the frame alive\n    const lf = s.leaf[q], p = s.pts[lf.i], p2 = s.pts[Math.max(0, lf.i-2)]; if (!p || !p2) continue;\n    const w = wob(s,lf.i,np), px = p.x+w, py = p.y+w*.28;\n    const base = Math.atan2(p.y-p2.y, p.x-p2.x);\n    // every leaf on its own incommensurate pair of rates -> the canopy never re-phases\n    const flut = Math.sin(T*(2.1 + lf.rt) + lf.ph)*(.25 + .55*EN)*(.4 + Math.abs(breeze)*.5)\n               + .35*Math.sin(T*(.83 + lf.rt*.37) + lf.ph*1.7)*(.3 + .7*EN);\n    const exp = Math.pow(cl((s.age - lf.born)/5, 0, 1), .7);   // each leaf expands after it is laid down\n    const L = u*.055*SC*lf.sz*(.6 + .7*LF)*(.25 + .75*exp);\n    push(); translate(px, py); rotate(base + lf.sg*(.85 + flut*.5));\n    scale(1, .35 + .65*Math.abs(Math.cos(flut*1.3)));\n    if (sty === 'cyanotype') { noStroke(); fill(inkH, 4, 97, 88*AL*fade); }\n    else if (sty === 'xray') { noStroke(); fill(lh, 55, 48, 22*AL*fade); }\n    else if (sty === 'silhouette') { noStroke(); fill(inkH, inkS+dry*10, inkB+dry*26, a0); }\n    else { stroke(inkH, inkS, inkB, 66*AL*fade); strokeWeight(Math.max(.5, sw*.3));\n           fill(lh, ls, lb, 84*AL*fade); }\n    beginShape(); vertex(0,0); bezierVertex(L*.3,-L*.34, L*.78,-L*.3, L,0);\n    bezierVertex(L*.78, L*.3, L*.3, L*.34, 0, 0); endShape(CLOSE);\n    if (detail && sty === 'herbarium') { stroke(inkH, inkS, inkB+18, 46*AL*fade);\n      strokeWeight(Math.max(.4, sw*.2)); line(0, 0, L*.92, 0);\n      for (let v=1; v<4; v++){ const vx = L*v*.23;\n        line(vx, 0, vx+L*.19, -L*.16*(1-v*.14)); line(vx, 0, vx+L*.19, L*.16*(1-v*.14)); } }\n    else if (detail && sty === 'xray') { stroke(lh, 30, 96, 26*AL*fade);\n      strokeWeight(Math.max(.4, sw*.22)); line(0, 0, L*.9, 0); }\n    pop();\n  }\n  if (s.age < s.life && np > 3) {\n    // CIRCUMNUTATION \u2014 a free apex sweeps a searching ellipse, live, hunting for a batten. This\n    // is real tendril behaviour and it is also the motion floor: each stem sweeps on its own\n    // sense and rate, so the canopy is incommensurate with itself and never repeats at 8s.\n    const p = s.pts[np-1], w = wob(s,np-1,np), px = p.x+w, py = p.y+w*.28;\n    const r2 = u*.05*SC*(.5 + .9*EN); noFill();\n    const sweep = T*(1.1 + .6*EN)*s.sense + s.ph;\n    if (sty === 'cyanotype') stroke(inkH, 0, 100, 74*AL*fade);\n    else if (sty === 'xray') stroke(lh, 60, 100, 48*AL*fade);\n    else stroke(lh, ls+16, lb+26, 76*AL*fade);\n    strokeWeight(sw*.8); beginShape();\n    for (let c=0;c<12;c++){ const cv = c/11, aa = s.ang + Math.sin(sweep + cv*2.2)*1.35;\n      vertex(px + Math.cos(aa)*r2*cv, py + Math.sin(aa)*r2*cv*.85); }\n    endShape();\n    noStroke(); fill(lh, ls+10, lb+18, 70*AL*fade);      // the apex itself\n    const ax2 = px + Math.cos(s.ang + Math.sin(sweep + 2.2)*1.35)*r2;\n    const ay2 = py + Math.sin(s.ang + Math.sin(sweep + 2.2)*1.35)*r2*.85;\n    ellipse(ax2, ay2, sw*2.2, sw*2.2);\n  }\n}\nnoFill();\nblendMode(BLEND);\n"
+}

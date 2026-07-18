@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.lens_flare",
+  "kind": "fx",
+  "name": "Lens Flare",
+  "desc": "An honest lens rather than a cheesy one — a wandering source throws veiling glare that quietly kills contrast, a chain of dim iris-polygon ghosts re-imaged along the axis through frame centre, cat's-eye squash as they near the edge, and a soft anamorphic streak; everything slow, desaturated and low-alpha by default.",
+  "tags": [
+    "lens flare",
+    "flare",
+    "lens",
+    "ghost",
+    "ghosting",
+    "veiling glare",
+    "glare",
+    "iris",
+    "aperture",
+    "blades",
+    "anamorphic",
+    "streak",
+    "bokeh",
+    "optics",
+    "cinematography",
+    "cinematic",
+    "camera",
+    "photographic",
+    "sun",
+    "light",
+    "backlight",
+    "bloom",
+    "haze",
+    "veil",
+    "chromatic",
+    "cats eye",
+    "vignetting",
+    "schematic",
+    "raytrace",
+    "widescreen",
+    "film",
+    "overlay",
+    "atmosphere",
+    "air"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flare strength — veiling glare, source glow, ghost brightness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "size of the source, veil and ghost chain"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many ghosts sit along the axis"
+    },
+    "streak": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "anamorphic horizontal streak length and strength"
+    },
+    "blades": {
+      "default": 6,
+      "min": 3,
+      "max": 10,
+      "doc": "iris blade count — the ghosts are that polygon"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "source hue (32 = warm sun); ghosts scatter around it, the veil goes complementary"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "source drift rate"
+    },
+    "x": {
+      "default": 0.78,
+      "min": 0,
+      "max": 1,
+      "doc": "light-source x — the ghost chain mirrors through frame centre"
+    },
+    "y": {
+      "default": 0.22,
+      "min": 0,
+      "max": 1,
+      "doc": "light-source y"
+    },
+    "alpha": {
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity over the scene below"
+    },
+    "style": {
+      "default": "anamorphic",
+      "options": [
+        "anamorphic",
+        "spherical",
+        "schematic",
+        "bokeh"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "swing",
+        "veil"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "ghost spacing, tint, size and rotation seeding"
+    }
+  },
+  "acts": [
+    "drift",
+    "swing",
+    "veil"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .5, scale: 1, density: .5, streak: .55, blades: 6, hue: 32, speed: 1, x: .78, y: .22, alpha: .8, style: 'anamorphic', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sm=(e0,e1,x)=>{const t=cl((x-e0)/((e1-e0)||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dens=cl(P.density,0,1);\nconst stk=cl(P.streak,0,1), nb=Math.max(3,Math.round(cl(P.blades,3,10)));\nconst H0=md(P.hue,360), spd=cl(P.speed,.1,4);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst MODE = sty==='spherical'?1 : sty==='schematic'?2 : sty==='bokeh'?3 : 0;\nconst T=K.t*spd;\n\n// heavily smoothed — this asset must never be able to flash\nS.rms=(S.rms||0)*.93+(A.rms||0)*.07;\nS.tre=(S.tre||0)*.93+(A.treble||0)*.07;\n\n// ---- the source wanders; incommensurate rates so it never re-phases ----\nconst dxr=.9*Math.sin(T*.061)+.5*Math.sin(T*.143+1.7)+.32*Math.sin(T*.229);\nconst dyr=.9*Math.cos(T*.053+.6)+.5*Math.sin(T*.127+2.3)+.32*Math.sin(T*.191);\nlet sx,sy,veilM=1,ghostM=1;\nif(act==='swing'){ sx=(.5+.60*Math.sin(T*.026)+.07*Math.sin(T*.113))*W; sy=(ay+.12*Math.sin(T*.041+1.2)+.04*dyr)*Hh; }\nelse if(act==='veil'){ sx=ax*W+u*.05*dxr; sy=ay*Hh+u*.045*dyr; veilM=2.3+.5*Math.sin(T*.033); ghostM=.42; }\nelse { sx=ax*W+u*.075*dxr; sy=ay*Hh+u*.062*dyr; }\nconst cxm=W*.5, cym=Hh*.5;\nconst axv=sx-cxm, ayv=sy-cym;\n\n// slow swell only — no K.pulse, no beat lock, nothing that can strobe\nconst sw=.70+.17*Math.sin(T*.19)+.09*Math.sin(T*.43+1.2)+.10*Math.sin(T*.077+2.6);\nconst amp=(.35+.85*en)*sw*(.72+.42*K.intensity)*al;\nconst aud=1+.22*S.rms;\n\ndc.globalCompositeOperation = MODE===2?'source-over':'lighter';\n\n// ---- veiling glare: the broad contrast-killing wash on the source ----\nif(MODE!==2){\n  const vc=MODE===0?hsb(md(H0+178,360),24,92):hsb(md(H0+6,360),20,96);\n  const vr=u*(.55+.30*Math.sin(T*.027))*sc*(MODE===3?1.25:1);\n  const gg=dc.createRadialGradient(sx,sy,0,sx,sy,vr);\n  gg.addColorStop(0,rs(vc,cl(.115*amp*veilM*aud,0,.13)));\n  gg.addColorStop(.35,rs(vc,cl(.048*amp*veilM,0,.09)));\n  gg.addColorStop(1,rs(vc,0));\n  dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n}\n\n// ---- the source itself ----\n{ const sr=u*(MODE===3?.11:.045)*sc*(.8+.35*sw);\n  const cc=MODE===2?hsb(md(H0+160,360),60,92):hsb(md(H0+(MODE===0?150:8),360),MODE===0?18:12,100);\n  if(MODE===3){\n    const gg=dc.createRadialGradient(sx,sy,sr*.55,sx,sy,sr);\n    gg.addColorStop(0,rs(cc,cl(.16*amp,0,.3))); gg.addColorStop(.80,rs(cc,cl(.30*amp,0,.5)));\n    gg.addColorStop(.93,rs(cc,cl(.44*amp,0,.62))); gg.addColorStop(1,rs(cc,0));\n    dc.fillStyle=gg; dc.fillRect(sx-sr*1.2,sy-sr*1.2,sr*2.4,sr*2.4);\n  } else if(MODE===2){\n    dc.strokeStyle=rs(cc,cl(.75*amp,0,.85)); dc.lineWidth=Math.max(.6,u*.0016);\n    dc.beginPath(); dc.arc(sx,sy,sr*.5,0,TAU); dc.stroke();\n    dc.beginPath(); dc.moveTo(sx+axv*1.35,sy+ayv*1.35); dc.lineTo(cxm-axv*1.35,cym-ayv*1.35); dc.stroke();\n  } else {\n    const gg=dc.createRadialGradient(sx,sy,0,sx,sy,sr);\n    gg.addColorStop(0,rs(cc,cl(.62*amp*aud,0,.72))); gg.addColorStop(.22,rs(cc,cl(.24*amp,0,.4)));\n    gg.addColorStop(1,rs(cc,0));\n    dc.fillStyle=gg; dc.fillRect(sx-sr,sy-sr,sr*2,sr*2);\n  } }\n\n// ---- anamorphic streak: a horizontal smear of the source, soft at both ends ----\nif(stk>.01&&(MODE===0||MODE===3)){\n  const L=u*(.32+.62*stk)*sc, th=u*(.006+.010*stk)*sc;\n  const cc=hsb(md(H0+182,360),44,96);\n  for(let p=0;p<3;p++){\n    const ll=L*(1-p*.28), tt=th*(1+p*2.1);\n    const gg=dc.createLinearGradient(sx-ll,sy,sx+ll,sy);\n    const aa=cl((.20-p*.055)*amp*stk*aud,0,.34);\n    gg.addColorStop(0,rs(cc,0)); gg.addColorStop(.30,rs(cc,aa*.28));\n    gg.addColorStop(.5,rs(cc,aa)); gg.addColorStop(.70,rs(cc,aa*.28)); gg.addColorStop(1,rs(cc,0));\n    dc.fillStyle=gg; dc.beginPath(); dc.ellipse(sx,sy,ll,tt,0,0,TAU); dc.fill();\n  }\n}\n\n// ---- the ghost chain: the iris re-imaged along the source->centre axis ----\nconst NG=Math.max(2,Math.round(4+dens*11));\nfor(let k=0;k<NG;k++){\n  const j1=fr(k*3.1), j2=fr(k*3.1+1), j3=fr(k*3.1+2), j4=fr(k*7.7);\n  const tk=-1.10+2.35*((k+.5)/NG)+(j1-.5)*.14;\n  const gx=cxm+axv*tk, gy=cym+ayv*tk;\n  let r=u*(.010+.052*j2)*sc*(.55+.75*Math.abs(tk));\n  if(MODE===3) r*=2.1;\n  if(gx<-r*2||gx>W+r*2||gy<-r*2||gy>Hh+r*2) continue;\n  // mechanical (cat's-eye) vignetting squashes ghosts toward the frame edge\n  const de=Math.sqrt((gx-cxm)*(gx-cxm)+(gy-cym)*(gy-cym))/(u*.5);\n  const cats=cl((de-.55)*.9,0,1);\n  const ra=Math.atan2(gy-cym,gx-cxm), ca=Math.cos(ra), sa=Math.sin(ra);\n  const sq=1-.55*cats;\n  const rot=T*(.02+.05*j3)*(j4<.5?-1:1)+j1*TAU;\n  const tw=.72+.28*Math.sin(T*(.09+.17*j2)+j3*TAU);\n  const c=hsb(md(H0+(j3-.5)*96,360),18+34*j2,MODE===2?90:94);\n  const aa=cl((.030+.085*j4)*amp*ghostM*tw*(MODE===2?2.4:1),0,MODE===2?.5:.24);\n  if(MODE===3){\n    const gg=dc.createRadialGradient(gx,gy,r*.5,gx,gy,r);\n    gg.addColorStop(0,rs(c,aa*.55)); gg.addColorStop(.84,rs(c,aa)); gg.addColorStop(.97,rs(c,aa*1.5)); gg.addColorStop(1,rs(c,0));\n    dc.fillStyle=gg;\n    dc.beginPath(); dc.ellipse(gx,gy,r*sq,r,ra,0,TAU); dc.fill();\n    continue;\n  }\n  dc.beginPath();\n  for(let p=0;p<nb;p++){\n    const a=p/nb*TAU+rot, lx=Math.cos(a)*r*sq, ly=Math.sin(a)*r;\n    const X=gx+lx*ca-ly*sa, Y=gy+lx*sa+ly*ca;\n    if(p===0) dc.moveTo(X,Y); else dc.lineTo(X,Y);\n  }\n  dc.closePath();\n  const ring=(j2>.58);\n  if(MODE===2){ dc.strokeStyle=rs(c,aa); dc.lineWidth=Math.max(.5,u*.0011); dc.stroke(); }\n  else if(ring){ dc.strokeStyle=rs(c,aa*2.0); dc.lineWidth=Math.max(.8,r*.17); dc.stroke(); }\n  else { dc.fillStyle=rs(c,aa); dc.fill();\n    dc.strokeStyle=rs(c,aa*1.3); dc.lineWidth=Math.max(.5,r*.06); dc.stroke(); }\n}\ndc.globalAlpha=1;\nblendMode(BLEND); dc.globalCompositeOperation='source-over'; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

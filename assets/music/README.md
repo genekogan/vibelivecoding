@@ -4,12 +4,19 @@ The music equivalent of `.claude/skills/p5.md`. If you're going to **run, use,
 author, verify, or grade** the Strudel music catalog, read this first — it's the
 map to everything else.
 
-> **What it is:** a *retrieval-based performance library*, not a live-coding
-> improviser. Performance = **grep the index → fill params → fire a curl**, never
-> generating Strudel from scratch on stage. Everything is pre-written, verified,
-> parametric code.
+> **What it is:** a *retrieval-based performance library*. For the **Manual and
+> Showrunner** surfaces, performance = **grep the index → fill params → fire a
+> curl** — pre-written, verified, parametric code, fired verbatim, guaranteed
+> audible. That's the promise those modes make.
+>
+> **Improv mode consumes this catalog differently** — as *context and
+> inspiration*, not as the vocabulary it fires. There the performing agent
+> **hand-writes its own Strudel by default** (reading kits/stems for voicings,
+> grooves, and param ranges) precisely to force diversity; it only fires an asset
+> verbatim when the user names one or references a past show. Same library, two
+> consumers. See `.claude/skills/livecode-improv.md`.
 
-**Current catalog:** 407 stems · 44 kits · 12 arcs · 41 genres · 463 indexed
+**Current catalog:** 707 stems · 132 kits · 12 arcs · 92 genres · 851 indexed
 assets. (Live count: `wc -l assets/music/index.jsonl`. Coverage: `assets/music/INDEX.md`.)
 
 ---
@@ -99,7 +106,12 @@ docs/strudel-*.md                 ← raw Strudel API reference + examples
 | **validate.py** | mechanical gate: schema + all-3-variants deploy clean + `/errors` empty + audible (`audio.rms` > 0.01 full/peak, > 0.003 sparse) + (kits) combined rms > 0.02. Passing stamps `verified` and moves inbox→catalog. | `validate.py --port 9766 --inbox music` · `--audit music` (re-check whole catalog, demote silent) · `validate.py <file.json>` (one asset) |
 | **verify_arcs.py** | **the section-audibility gate.** Fires every kit THROUGH every arc it lists, section by section, and fails on any silent/too-quiet section. validate.py never tests kits through arcs — this does. **RUN BEFORE ANY HANDOFF.** | `verify_arcs.py` · `--arcs slow_burn,waves` · `--kits kit.house_deep` · `--wait-load` |
 | **build_index.py** | regenerate `index.jsonl` + `INDEX.md` from verified assets. Run after any add/prune. | `build_index.py music` |
-| **arc_compile.py** | compile a kit+arc into per-slot self-evolving `arrange()` code; `--fire` plays it. | `arc_compile.py <kit> <arc> --fire --port 9766` |
+| **arc_compile.py** | compile a kit+arc into per-slot self-evolving `arrange()` code; `--fire` plays it. **Only fires the slots the NEW kit declares — orphan slots from the outgoing kit keep playing in the old key.** | `arc_compile.py <kit> <arc> --fire --port 9766` |
+| **set_play.py** | fire a **saved set** (`assets/sets/*.json` = kit×arc + visual stack + params). Waits for a bar line (`--at 8`), phases slots in (`--phase 2`), auto-stops orphan slots, verifies fps/errors. | `set_play.py weight --at 8 --port 9766` |
+| **set_save.py** | bank a set that worked, with grade + notes. `--list` shows saved sets. | `set_save.py --list` |
+| **boundary.py** | block until the next N-bar line — **transitions must land on the grid, never mid-bar**. | `boundary.py --bars 8 --port 9766` |
+| **fire_visual.py** | deploy a visual asset to a slot: binds `__SLOT__`, disposes leaked slot state, inits `window.state.P`, pushes params. (No such tool existed before; arc_compile is music-only.) | `fire_visual.py genart.aurora --slot bg --port 9766` |
+| **peek.py** | grab the live canvas → PNG, on demand. **`/status` 200 + no errors does NOT prove anything is visible** (a whiteout reports 60fps). Look before you claim. | `peek.py --port 9766 --out /tmp/p.png` |
 | **valloop_music.py** | autonomous background loop: *drains* the inbox (auto-validates + indexes + commits when load is low) and *audits* the verified catalog hourly (demotes regressions). No LLM. | `nohup python assets/tools/valloop_music.py > /tmp/lc_music_valloop.log 2>&1 &` |
 | **prune_graded.py** | apply Gene's grades: move `bad` assets to `graveyard/`, reindex. Refuses to break a kept kit by pruning a stem it uses. Dry-run by default. | `prune_graded.py` (plan) · `--apply` |
 | **review.py** | *legacy* 1–5 CLI grader → `review.jsonl`. Superseded by browser `bad/ok/good` grading, but still works. | `review.py music --port 9766` |

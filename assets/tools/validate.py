@@ -45,7 +45,10 @@ KIND_DIR = {  # kind -> catalog directory under assets/visual/
 SLOT_ORBIT = {"drums": 1, "perc": 2, "bass": 3, "chords": 4,
               "lead": 5, "pad": 6, "texture": 7, "vox": 8}
 SLOT_ORDER = list(SLOT_ORBIT)  # drums first — kit firing order
-BANNED_STEM = [".cps(", "gm_", "setcps", ".swingBy"]
+BANNED_STEM = [
+    ".cps(", "gm_", "setcps", ".swingBy", ".swing(",
+    ".duck", ".tremolo", ".scrub(",
+]
 
 
 class Gate(Exception):

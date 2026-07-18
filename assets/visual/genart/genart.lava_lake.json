@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lava_lake",
+  "kind": "genart",
+  "name": "Lava Lake",
+  "desc": "Plate tectonics running in fast-forward on a lava lake \u2014 a divergent flow field tears the black crust open along incandescent ridges, new skin is born there and rafted outward cooling from white-hot through orange to basalt, and where plates collide the margin founders and is swallowed, so the whole surface is created and destroyed forever; rendered as molten blackbody rind, a seafloor magnetic-anomaly age plate, ironbow thermal, or sumi ink.",
+  "tags": [
+    "lava",
+    "lava-lake",
+    "volcano",
+    "volcanic",
+    "magma",
+    "molten",
+    "basalt",
+    "crust",
+    "plate-tectonics",
+    "tectonics",
+    "spreading",
+    "ridge",
+    "subduction",
+    "foundering",
+    "seafloor",
+    "seafloor-spreading",
+    "magnetic-anomaly",
+    "geology",
+    "geophysics",
+    "geomorphology",
+    "advection",
+    "divergence",
+    "convection",
+    "incandescent",
+    "blackbody",
+    "thermal",
+    "ironbow",
+    "heat",
+    "glow",
+    "ember",
+    "orange",
+    "red",
+    "black",
+    "hot",
+    "kilauea",
+    "erta-ale",
+    "false-colour",
+    "age-map",
+    "survey",
+    "plate",
+    "ink",
+    "sumi",
+    "simulation",
+    "field",
+    "emergent",
+    "self-organizing",
+    "process",
+    "menacing",
+    "sublime",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "incandescence + colour/contrast gain, and how hard the crust pulses on the beat"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the lake around x/y \u2014 1 shows the whole surface, 2.6 crops to a single ridge"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "plate velocity \u2014 how fast crust is rafted, cooled and consumed"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how readily the crust tears: 0 = a few wide plates, 1 = a fine web of glowing cracks"
+    },
+    "tau": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "cooling time \u2014 how far the skin glows before it goes to basalt, i.e. how wide the age bands read"
+    },
+    "hue": {
+      "default": 24,
+      "min": 0,
+      "max": 360,
+      "doc": "incandescence hue anchor (24 = orange lava; try 200 for a cryovolcanic read)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "basalt",
+      "options": [
+        "basalt",
+        "seafloor",
+        "ironbow",
+        "ink"
+      ],
+      "doc": "aesthetic: basalt = molten blackbody skin over a warm textured rind; seafloor = abstracted magnetic-anomaly age stripes, a seafloor-age plate; ironbow = false-colour thermal; ink = sumi tonal wash"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "plate-driving mode seed (rebuilds the flow field)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:05:44+00:00",
+    "fps": 61.0,
+    "motion": 0.2654,
+    "lum": 0.253
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, tau: .5, hue: 24, x: .5, y: .5, style: 'basalt', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Plate tectonics in miniature, on a lava lake ---------------------------\n// A COMPRESSIBLE velocity field v = grad(phi) drives a crustal AGE field by\n// semi-Lagrangian advection. Where the flow diverges the crust is torn open and\n// new skin is born (age 0, incandescent); where it converges the plate founders\n// and is consumed (age 0 again, the margin glows). Age then cools to black\n// basalt as it is rafted away, so symmetric age bands spread from every ridge \u2014\n// which is exactly what a seafloor magnetic-anomaly map looks like.\n// Anti-convergence: crust is created and destroyed at matched rates forever, and\n// phi drifts on incommensurate frequencies so the plate layout never repeats.\nconst BW = Math.max(340, Math.min(480, Math.round(width / 2.8))), BH = Math.max(96, Math.round(BW * height / width)), N = BW * BH;\nconst CW = 45, CH = 26;                      // coarse grid for the (expensive) trig\n\nconst sd = P.seed | 0;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\n\nif (!S.g) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1);\n  S.age = new Float32Array(N); S.age2 = new Float32Array(N);\n  S.glow = new Float32Array(N); S.glow2 = new Float32Array(N);\n  S.vx = new Float32Array(CW * CH); S.vy = new Float32Array(CW * CH); S.dv = new Float32Array(CW * CH);\n  S.seedUsed = null;\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.K = [];                                  // 5 incommensurate plate-driving modes\n  for (let m = 0; m < 5; m++) {\n    S.K.push({\n      kx: (fr(m * 7 + 1) - 0.5) * 6.6, ky: (fr(m * 7 + 2) - 0.5) * 6.6,\n      w: (fr(m * 7 + 3) - 0.5) * 0.30, ph: fr(m * 7 + 4) * 6.283,\n      a: 0.5 + fr(m * 7 + 5) * 0.7,\n    });\n  }\n  for (let k = 0; k < N; k++) { S.age[k] = hsh(k % BW, (k / BW) | 0) * 0.7; S.glow[k] = 0; }\n}\n\nconst spd = 0.35 + P.speed * 1.0;\nconst tt = K.t;\n// ---- velocity + divergence, analytic, on the coarse grid -------------------\nfor (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {\n  const x = i / CW * 6.0, y = j / CH * 3.4;\n  let vx = 0, vy = 0, dv = 0;\n  for (let m = 0; m < 5; m++) {\n    const M = S.K[m], ang = M.kx * x + M.ky * y + M.w * tt + M.ph;\n    const c = Math.cos(ang), s2 = Math.sin(ang);\n    vx += M.a * M.kx * c; vy += M.a * M.ky * c;\n    dv -= M.a * (M.kx * M.kx + M.ky * M.ky) * s2;      // div(grad phi) = laplacian(phi)\n  }\n  const k = j * CW + i; S.vx[k] = vx; S.vy[k] = vy; S.dv[k] = dv;\n}\n// Normalise against the field's OWN statistics. The raw amplitudes depend on the\n// seeded wavenumbers, so a fixed threshold either tears every cell (a white-hot\n// mush with no plates) or none. Ridges = the top tail of |div|.\nlet sv = 0, sd2 = 0;\nfor (let k = 0; k < CW * CH; k++) { sv += S.vx[k] * S.vx[k] + S.vy[k] * S.vy[k]; sd2 += S.dv[k] * S.dv[k]; }\nconst rmsV = Math.sqrt(sv / (CW * CH)) + 1e-6, rmsD = Math.sqrt(sd2 / (CW * CH)) + 1e-6;\nconst samp = (F, u, v) => {                  // bilinear on the coarse grid\n  let x = u * (CW - 1), y = v * (CH - 1);\n  if (x < 0) x = 0; else if (x > CW - 1.001) x = CW - 1.001;\n  if (y < 0) y = 0; else if (y > CH - 1.001) y = CH - 1.001;\n  const i = x | 0, j = y | 0, fx = x - i, fy = y - j, k = j * CW + i;\n  return F[k] * (1 - fx) * (1 - fy) + F[k + 1] * fx * (1 - fy) + F[k + CW] * (1 - fx) * fy + F[k + CW + 1] * fx * fy;\n};\n\n// ---- advect the crust ------------------------------------------------------\n// Plate speed and age growth BOTH scale with spd, so band width (speed x cooling\n// time) stays the same and `speed` reads as tempo, not as a different picture.\nconst vn2 = 0.22 * spd / rmsV;\nconst tau = 20 + P.tau * 130;                // cooling time -> how wide the age bands read\nconst thr = rmsD * (2.3 - P.density * 1.1); // only the top tail of |div| tears the crust\nconst age = S.age, age2 = S.age2;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const u = i / (BW - 1), v = j / (BH - 1);\n  const vx = samp(S.vx, u, v) * vn2, vy = samp(S.vy, u, v) * vn2;\n  // Trace back. The wrap MUST land bx in [0,BW) with fx in [0,1): a stray\n  // negative weight turns this bilinear interpolation into an extrapolation,\n  // which feeds back through the age field and blows up to +/-Infinity.\n  let bx = (i - vx) % BW; if (bx < 0) bx += BW;\n  let by = j - vy; if (by < 0) by = 0; else if (by > BH - 1) by = BH - 1;\n  const ii = bx | 0, i2 = (ii + 1) % BW, fx = bx - ii;\n  let jj = by | 0; if (jj > BH - 2) jj = BH - 2;\n  const j2 = jj + 1, fy = by - jj;\n  const a = age[jj * BW + ii] * (1 - fx) * (1 - fy) + age[jj * BW + i2] * fx * (1 - fy)\n          + age[j2 * BW + ii] * (1 - fx) * fy + age[j2 * BW + i2] * fx * fy;\n  const dvv = samp(S.dv, u, v);\n  let na = a + spd;\n  // crust torn open (div>0) or foundered (div<0): either way fresh skin\n  if (dvv > thr || dvv < -thr) na = 0;\n  if (na > 900) na = 900;\n  age2[j * BW + i] = na;\n}\nS.age = age2; S.age2 = age;\n\n// ---- cheap separable bloom on the hot channel ------------------------------\nconst AG = S.age, GL = S.glow, G2 = S.glow2;\nfor (let k = 0; k < N; k++) GL[k] = Math.exp(-AG[k] / (tau * 0.55));\nfor (let j = 0; j < BH; j++) for (let i = 2; i < BW - 2; i++) {\n  const k = j * BW + i;\n  G2[k] = (GL[k - 2] + GL[k - 1] * 2 + GL[k] * 3 + GL[k + 1] * 2 + GL[k + 2]) * 0.1111;\n}\nfor (let j = 2; j < BH - 2; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  GL[k] = (G2[k - 2 * BW] + G2[k - BW] * 2 + G2[k] * 3 + G2[k + BW] * 2 + G2[k + 2 * BW]) * 0.1111;\n}\n\n// ---- render ----------------------------------------------------------------\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 24)) % 360) + 360) % 360;\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c;\n  let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; }\n  else if (h < 3) { r = 0; g2 = c; b2 = xx; } else if (h < 4) { r = 0; g2 = xx; b2 = c; }\n  else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n}\nconst gain = 0.76 + P.energy * 0.5 + K.intensity * 0.14 + A.rms * 0.3;\nconst puls = 1 + (K.pulse * 0.05 + A.bass * 0.10) * P.energy;   // partial, never a full-frame flash\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n  const k = j * BW + i;\n  const a = S.age[k];\n  const T = Math.exp(-a / tau);                 // 1 = fresh skin, 0 = cold basalt\n  const bloom = S.glow[k];\n  const gr = 0.86 + hsh(i * 3 + 11, j * 3 + 7) * 0.28;   // crust granularity\n  let r, g2, b;\n  if (st === 'seafloor') {\n    // abstracted: magnetic-anomaly age stripes, exactly a seafloor-age plate\n    const band = a / 15, f2 = band - Math.floor(band);\n    const c = hsv((200 - Math.min(1, a / 200) * 210 + 360) % 360, 0.62 + f2 * 0.20,\n                  (0.36 + (1 - Math.min(1, a / 220)) * 0.36 + (f2 < 0.12 ? 0.13 : 0) + bloom * 0.30) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (st === 'ironbow') {\n    const m = Math.min(1, (T * 1.1 + bloom * 0.5) * puls);\n    const c = hsv(rot(250 - m * 250), 0.85 - m * 0.55, (0.16 + m * 0.80) * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else if (st === 'ink') {\n    const v = 0.80 - Math.min(1, T * 1.2 + bloom * 0.4) * 0.66;\n    const c = hsv(rot(30), 0.07, Math.max(0, v) * gr * gain);\n    r = c[0]; g2 = c[1]; b = c[2];\n  } else {\n    // basalt (default): blackbody skin over a warm, textured, never-black rind\n    const m = Math.min(1, T * puls);\n    let h2, s2, v2;\n    if (m > 0.72) { h2 = rot(52) - (m - 0.72) * 20; s2 = 0.20 + (1 - m) * 1.6; v2 = 0.96; }\n    else if (m > 0.40) { h2 = rot(30) + (m - 0.40) * 46; s2 = 0.92; v2 = 0.62 + (m - 0.40) * 1.05; }\n    else if (m > 0.14) { h2 = rot(12) + (m - 0.14) * 62; s2 = 0.95; v2 = 0.24 + (m - 0.14) * 1.45; }\n    else { h2 = rot(18); s2 = 0.30 + m * 3.4; v2 = 0.15 + m * 0.65; }        // rind: warm grey, not black\n    const c = hsv(h2, Math.min(1, s2), Math.min(1, (v2 * gr + bloom * 0.42 * (1 - m)) * gain));\n    r = c[0]; g2 = c[1]; b = c[2];\n  }\n  const o = k * 4; px[o] = r; px[o + 1] = g2; px[o + 2] = b; px[o + 3] = 255;\n}\ng.updatePixels();\n\nconst z2 = Math.max(1, P.scale), hw = 0.5 / z2;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BH, 2 * hw * BW, 2 * hw * BH);\npop();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

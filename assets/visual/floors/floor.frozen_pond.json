@@ -1,0 +1,162 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.frozen_pond",
+  "kind": "floor",
+  "name": "Frozen Pond",
+  "desc": "A sheet of black ice running away to the horizon \u2014 a dark mirror crazed with white feathery thermal cracks and strings of bubbles frozen mid-rise, the reflection of overhead lights smeared down it and wobbling as the ice is never quite flat; nocturne black ice, a bright daylight pond with snow dust, a teal-glass tarn, or a white-line engraving.",
+  "tags": [
+    "frozen",
+    "ice",
+    "black-ice",
+    "pond",
+    "lake",
+    "tarn",
+    "pool",
+    "skating",
+    "rink",
+    "winter",
+    "cold",
+    "freeze",
+    "frost",
+    "cryo",
+    "crack",
+    "cracks",
+    "cracked",
+    "craquelure",
+    "feather",
+    "feathering",
+    "thermal-crack",
+    "star-crack",
+    "fracture",
+    "bubble",
+    "bubbles",
+    "trapped-air",
+    "glass",
+    "mirror",
+    "reflection",
+    "reflective",
+    "specular",
+    "sheen",
+    "smear",
+    "wobble",
+    "ripple",
+    "still",
+    "nocturne",
+    "moonlit",
+    "glacial",
+    "arctic",
+    "polar",
+    "clear-ice",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "recession",
+    "receding",
+    "depth",
+    "horizon",
+    "plane",
+    "ground",
+    "floor",
+    "surface",
+    "engraving",
+    "blueprint",
+    "schematic",
+    "texture",
+    "eerie",
+    "serene",
+    "austere",
+    "sublime",
+    "melancholy",
+    "dark",
+    "blue",
+    "teal",
+    "cyan",
+    "material"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how bright and how far the reflected light streaks smear and slide across the ice"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "crack and bubble scale \u2014 min a dense fine crazing, max a few great feather cracks"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "frost motes / snow drifting low over the ice"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "rate the frost motes drift"
+    },
+    "cracks": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how heavily the ice is crazed \u2014 from a nearly clear sheet to a dense feather-crack network"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "ice hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x as a canvas fraction"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0.18,
+      "max": 0.78,
+      "doc": "horizon y as a canvas fraction \u2014 everything above stays fully transparent so the bg shows through"
+    },
+    "style": {
+      "default": "black_ice",
+      "options": [
+        "black_ice",
+        "day",
+        "teal",
+        "engraving",
+        "blueprint"
+      ],
+      "doc": "aesthetic: dark nocturne black ice mirroring overhead lights / a bright daylight pond with settled snow dust / a teal-glass tarn / a white-line engraving of the crack network on near-black / a cyan setting-out plan"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "crack lottery \u2014 the branching of the feather cracks and the placement of the bubble strings"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:14+00:00",
+    "fps": 63.7,
+    "motion": 0.0082,
+    "lum": 0.15
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, cracks: .55, hue: 205, x: .5, y: .44, style: 'black_ice', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A sheet of black ice on a still pond, seen in perspective. Not an etched ice-crack\n// GRID with snow and aurora (floor.arctic) and not dried mud polygons (floor.playa): a\n// smooth mirror-dark surface with white feathery thermal cracks, strings of trapped\n// bubbles frozen mid-rise, and the reflection of overhead lights smeared down it and\n// wobbling as the ice is never quite flat. Painted BELOW the horizon only. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nfunction hsh(ix,iy){ let h=(Math.imul(ix,374761393)+Math.imul(iy,668265263)+Math.imul(sd,1442695041))|0;\n  h=Math.imul(h^(h>>>13),1274126177)|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1);\n  return a+(b-a)*wx+(c-a)*wy+(a-b-c+d)*wx*wy; }\nfunction rdg(x,y){ return 1-Math.abs(2*vn(x,y)-1); }\nfunction fbmR(x,y){ return .55*rdg(x,y)+.27*rdg(x*2.03+5.1,y*2.03-3.3)+.18*rdg(x*4.1-2.7,y*4.1+7.9); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c;\n  let r,g2,b2;\n  if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}\n  else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx}\n  return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\n\nconst sty = P.style, en = cl(P.energy,0,1), cr = cl(P.cracks,0,1), dn = cl(P.density,0,1);\nconst Hh = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', day = sty==='day', teal = sty==='teal', eng = sty==='engraving';\n\nconst vy = cl(P.y,.18,.78)*height, vx = cl(P.x,.05,.95)*width;\nconst f = u*.92, H0 = 1;\nconst CScl = cl(P.scale,.35,2.6);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nS.pt = K.t;\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\n\n// two reflected overhead lights, their world-X drifting on incommensurate rates so the\n// smeared reflections slide across the ice (this is the broad motion element)\nconst Lx1 = .8*Math.sin(tt*.13) + .38*Math.sin(tt*.29+1.1);\nconst Lx2 = -1.0*Math.sin(tt*.097+2.0) - .42*Math.sin(tt*.207+.4);\nconst rw = .34 + .30*(1-en);                          // reflection streak width\nconst glow = (.45+.55*en)*(.55+.5*K.intensity) + bass*.28;\n// a luminous stress-bloom crawling along the cracks (perpetual, never settles)\nconst bloomPh = tt*.55;\n\nlet iceDeep, iceSky, refl, crackC, bub;\nif (bp)        { iceDeep=[212,80,10]; iceSky=[200,55,30]; refl=[188,45,74]; crackC=[186,52,92]; bub=[190,40,88]; }\nelse if (day)  { iceDeep=[Hh,34,22];  iceSky=[Hh-6,20,66]; refl=[Hh-10,10,92]; crackC=[Hh-14,6,98]; bub=[Hh,8,96]; }\nelse if (teal) { iceDeep=[176,60,13]; iceSky=[172,44,42]; refl=[168,26,80]; crackC=[166,20,96]; bub=[170,24,92]; }\nelse if (eng)  { iceDeep=[30,6,9];    iceSky=[32,5,30];   refl=[34,4,66];   crackC=[36,3,96];   bub=[34,4,90]; }\nelse           { iceDeep=[Hh+4,52,11]; iceSky=[Hh-4,30,40]; refl=[Hh-12,12,84]; crackC=[Hh-16,7,97]; bub=[Hh-6,14,92]; }\nconst ID = hsv(iceDeep[0],iceDeep[1]/100,iceDeep[2]/100);\nconst ISk = hsv(iceSky[0],iceSky[1]/100,iceSky[2]/100);\nconst RF = hsv(refl[0],refl[1]/100,refl[2]/100);\nconst CC = hsv(crackC[0],crackC[1]/100,crackC[2]/100);\nconst BB = hsv(bub[0],bub[1]/100,bub[2]/100);\n\nconst BW = Math.max(360,Math.min(720,Math.round(width/2.4))), BH = Math.max(44, Math.round(BW*height/width));\nif (!S.g || S.bk !== BW+'x'+BH){ if(S.g){ try{S.g.remove();}catch(e){} }\n  S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bk = BW+'x'+BH; }\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nconst AL = P.alpha/100;\nconst thr = .90 - cr*.16;                             // crack threshold (lower = more cracks)\nconst j0 = Math.max(0, Math.floor((vy/height)*BH));\nfor (let j=0;j<j0;j++) for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0;\n\nfor (let j=j0;j<BH;j++){\n  const sy = (j+.5)/BH*height, dy = sy - vy;\n  if (dy < .35){ for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0; continue; }\n  const Z = f*H0/dy, wz = Z;\n  const far = cl((Z-1.1)/9, 0, 1);\n  const graze = cl(far*1.15, 0, 1);                  // grazing angle far -> more mirror-like\n  const det = cl(1 - far*1.0, .06, 1);\n  for (let i=0;i<BW;i++){\n    const sx = (i+.5)/BW*width, X = (sx-vx)*Z/f;\n    const o = 4*(j*BW+i);\n    // ---- base ice: dark mirror lifting to a pale reflected glow toward the horizon ----\n    let m = graze*.55;\n    let r = ID[0]+(ISk[0]-ID[0])*m, g2 = ID[1]+(ISk[1]-ID[1])*m, b2 = ID[2]+(ISk[2]-ID[2])*m;\n    // ---- reflected light streaks: brighter toward the horizon, wobbling on the ripple ----\n    const rip = .10*Math.sin(wz*3.1 - tt*.9) + .06*vn(X*2.2, wz*2.2 - tt*.3);\n    const s1 = Math.exp(-Math.pow((X - Lx1 + rip)/rw, 2))*(.35+graze*1.0);\n    const s2 = Math.exp(-Math.pow((X - Lx2 + rip*1.3)/(rw*1.4), 2))*(.25+graze*.8)*.8;\n    const streak = (s1+s2)*glow;\n    r += (RF[0]-r)*cl(streak,0,1); g2 += (RF[1]-g2)*cl(streak,0,1); b2 += (RF[2]-b2)*cl(streak,0,1);\n    // ---- feathery thermal cracks (ridged, domain-warped) ----\n    const cs = 5.5/CScl;\n    const wX = X*cs + .7*vn(X*1.6+3, wz*1.6), wY = wz*cs + .7*vn(X*1.6+9, wz*1.6+4);\n    const cf = fbmR(wX, wY)*det + (1-det)*.55;\n    let crack = cl((cf - thr)/(.055), 0, 1);\n    // feathering: fine barbs off the trunk cracks\n    crack = Math.max(crack, cl((fbmR(wX*2.6+11, wY*2.6)-thr-.02)/.05,0,1)*.55*det);\n    // a slow luminous bloom travels along the crack network (keeps it alive, no settle)\n    const bloom = .6 + .4*Math.sin(cf*40 - bloomPh + X*.5);\n    const cv = crack*(.6+.5*bloom)*(.7+glow*.6);\n    r += (CC[0]-r)*cl(cv,0,1); g2 += (CC[1]-g2)*cl(cv,0,1); b2 += (CC[2]-b2)*cl(cv,0,1);\n    // ---- trapped bubble strings: little bright beads in vertical clusters ----\n    const bcx = Math.floor(X*7/CScl), bseed = hsh(bcx&1023, (Math.floor(wz*1.5)&1023)+41);\n    if (bseed > .82){\n      const bx = (bcx+ .5 + (hsh(bcx,7)-.5)*.3)*CScl/7;\n      const bd = Math.abs(X-bx)*22/CScl;\n      const bead = Math.exp(-bd*bd) * (.5+.5*Math.sin(wz*46/CScl));\n      const bv = bead*(.5+graze*.4)*det;\n      r += (BB[0]-r)*bv; g2 += (BB[1]-g2)*bv; b2 += (BB[2]-b2)*bv;\n    }\n    if (day){ // fine snow dust settled on the ice\n      const dust = cl((vn(X*30+2,wz*30)-.6)*3,0,1)*.25*det;\n      r += (240-r)*dust*.4; g2 += (240-g2)*dust*.4; b2 += (245-b2)*dust*.4;\n    }\n    if (bp){\n      const on = crack>.30?1:0; const v2=.12+.10*(1-far);\n      r=on?74:v2*40 + streak*30; g2=on?196*det+34:v2*100 + streak*60; b2=on?244:v2*172 + streak*90;\n    }\n    // ---- aerial haze into the vanishing point ----\n    const hazeK = far*far*.8;\n    const hc = bp? [40,120,190] : [ISk[0]*.9, ISk[1]*.9, ISk[2]*.95];\n    r += (hc[0]-r)*hazeK; g2 += (hc[1]-g2)*hazeK; b2 += (hc[2]-b2)*hazeK;\n    px[o]=cl(r,0,255); px[o+1]=cl(g2,0,255); px[o+2]=cl(b2,0,255);\n    px[o+3]=255*AL*cl(1-far*far*.7,0,1)*cl(dy/2.2,0,1);\n  }\n}\ng.updatePixels();\npush(); image(g,0,0,width,height); pop();\n\n// ---- faint frost motes / snow drifting low, crisp ----\npush(); blendMode(ADD); noStroke();\nconst NM = Math.round(4 + dn*30);\nfor (let i=0;i<NM;i++){\n  const a1=hsh(i*13+7,3), a2=hsh(i*13+8,5), a3=hsh(i*13+9,11);\n  const mz=((a2+tt*(.02+a3*.05)*P.speed)%1.05);\n  const my=vy+Math.pow(mz,2.0)*(height-vy)*1.02;\n  const mx=(a1+Math.sin(tt*(.15+a3*.35)+a1*6.28)*.05)*width;\n  const sz=u*(.0012+a3*.0035)*(.4+mz*1.6);\n  fill(bp?200:Hh-10, bp?40:6, 100, (5+a3*10)*(.3+en)*AL*(1-mz*.4));\n  ellipse(mx,my,sz,sz*.7);\n}\nblendMode(BLEND); pop();\n\nblendMode(BLEND); drawingContext.shadowBlur=0; drawingContext.globalAlpha=1;\n"
+}

@@ -1,0 +1,155 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.cracked_glass",
+  "kind": "fx",
+  "name": "Cracked Glass",
+  "desc": "A pane of glass drops in between the audience and the scene and starts quietly failing \u2014 impacts arrive one at a time and bloom rather than bang, their radials creeping outward and arresting ragged, a milky bruise spreading around each strike, concentric rings bowing in behind the tips and a glint crawling slowly out along one crack while the oldest damage anneals away.",
+  "tags": [
+    "cracked-glass",
+    "crack",
+    "cracks",
+    "cracked",
+    "shatter",
+    "shattered",
+    "smash",
+    "broken",
+    "glass",
+    "pane",
+    "window",
+    "windscreen",
+    "windshield",
+    "lens",
+    "screen",
+    "laminated",
+    "safety-glass",
+    "impact",
+    "strike",
+    "bruise",
+    "fracture",
+    "spiderweb",
+    "spider-web",
+    "radial",
+    "concentric",
+    "hertzian",
+    "crumb",
+    "splinter",
+    "shard",
+    "brittle",
+    "failure",
+    "damage",
+    "creep",
+    "annealing",
+    "glint",
+    "specular",
+    "overlay",
+    "veil",
+    "screen-effect",
+    "frost",
+    "crazing",
+    "ink",
+    "sumi",
+    "schematic",
+    "hairline",
+    "outline",
+    "wireframe",
+    "forensic",
+    "eerie",
+    "menacing",
+    "austere",
+    "cold",
+    "subtle",
+    "sparse",
+    "fx",
+    "effect",
+    "atmosphere",
+    "transparent",
+    "composite"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crack weight, specular lip and glint brightness \u2014 max drives thick bright fractures"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "how far the cracks reach from each impact \u2014 max throws them right across the frame"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "crack-tip creep rate and how often a fresh impact arrives (0.2 still visibly propagates)"
+    },
+    "density": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "how many impacts live at once (1-5) and how many radials each throws \u2014 keep low to stay polite over a scene"
+    },
+    "bruise": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "the milky halo of pulverised glass around each strike \u2014 the thing that makes it read as glass rather than scratches"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "tint of the glass and its specular lip"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal centre of the impact cluster"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical centre of the impact cluster"
+    },
+    "style": {
+      "default": "impact",
+      "options": [
+        "impact",
+        "windscreen",
+        "frost",
+        "ink",
+        "outline"
+      ],
+      "doc": "aesthetic: clean glass with cool specular lips / laminated windscreen gone milky and dense / pale cyan feathered frost crazing / warm dry-brush ink lines / pure cyan hairline schematic of the fracture net, no bruise and no glass at all"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for impact placement, radial count and tip wander"
+    },
+    "alpha": {
+      "default": 55,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 defaults low so the scene behind stays legible"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:31:49+00:00",
+    "fps": 60.2,
+    "motion": 0.0136,
+    "lum": 0.103
+  },
+  "code": "const D = { energy: .5, scale: 1, speed: 1, density: .45, bruise: .5, hue: 205, x: .5, y: .45, style: 'impact', seed: 0, alpha: 55 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A pane of glass between the audience and the scene, quietly failing.\n// This is an OVERLAY: it draws nothing but crack lines, a soft bruise and a few glints, so the\n// scene behind stays legible. Default alpha is low and coverage is a few percent of the frame.\n// Anti-strobe doctrine: an impact FADES IN over ~1.4s and its cracks CREEP outward over a few\n// seconds \u2014 glass under load creeps, so this is honest as well as safe. Nothing ever snaps.\n// Anti-convergence: sites live staggered lives and anneal away, so the pane is never \"done\".\nconst u = Math.min(width, height);\nconst sd = P.seed | 0;\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst tt = K.t, style = P.style;\nconst dr1 = Math.sin(tt * 0.061), dr2 = Math.sin(tt * 0.143 + 1.7), dr3 = Math.sin(tt * 0.229 + 0.4);\n\n// ---- site lifecycles (tolerate t0 resets: K.t can jump backwards at any time) ----\nif (!S.sites || S.seedUsed !== P.seed || S.lastT == null || tt < S.lastT - 0.5) {\n  S.seedUsed = P.seed; S.sites = []; S.next = tt - 6; S.ctr = 0;\n}\nS.lastT = tt;\nconst LIFE = 30 + (1 - P.density) * 26;\nconst GAP = (9.0 - P.density * 5.5) / Math.max(0.2, P.speed);\nconst MAXS = Math.max(1, Math.round(1 + P.density * 4));\nwhile (S.next <= tt && S.sites.length < MAXS + 2) {\n  const c = S.ctr++;\n  S.sites.push({\n    t0: S.next, c: c,\n    x: P.x + (fr(c * 13.3 + 1) - 0.5) * 0.78,\n    y: P.y + (fr(c * 13.3 + 2) - 0.5) * 0.72,\n    n: 5 + Math.floor(fr(c * 13.3 + 3) * 8),\n    r: 0.13 + 0.20 * fr(c * 13.3 + 4),\n    sp: 0.5 + 0.7 * fr(c * 13.3 + 5)\n  });\n  S.next += GAP * (0.6 + 0.8 * fr(c * 13.3 + 6));\n}\nS.sites = S.sites.filter(s => tt - s.t0 < LIFE);\nif (S.next > tt + GAP * 4) S.next = tt;\n\nconst ctx = drawingContext;\nconst aa = Math.max(0, Math.min(100, P.alpha)) / 100;\nconst hb = ((P.hue % 360) + 360) % 360;\n// crack ink + specular lip per style\nlet INK, SPEC, BRU;\nif (style === 'ink') { INK = [38, 30, 22]; SPEC = [250, 244, 226]; BRU = [120, 104, 82]; }\nelse if (style === 'frost') { INK = [188, 236, 254]; SPEC = [238, 252, 255]; BRU = [150, 210, 240]; }\nelse if (style === 'outline') { INK = [96, 214, 236]; SPEC = [180, 240, 250]; BRU = [40, 120, 150]; }\nelse if (style === 'windscreen') { INK = [28, 30, 34]; SPEC = [246, 240, 226]; BRU = [226, 224, 218]; }\nelse { INK = [10, 12, 16]; SPEC = [214, 236, 255]; BRU = [180, 206, 232]; }\n\n// Where the room's reflection currently sits on the pane. Drifts on incommensurate rates\n// (~48s and ~103s beats), so it never returns to the same place.\nconst REFX = (0.5 + 0.26 * Math.sin(tt * 0.131) + 0.16 * Math.sin(tt * 0.061 + 1.1)) * width;\nconst REFY = (0.5 + 0.22 * Math.cos(tt * 0.097 + 0.7) + 0.13 * Math.sin(tt * 0.043 + 2.2)) * height;\n\nctx.save();\nctx.lineCap = 'round'; ctx.lineJoin = 'round';\nfor (const s of S.sites) {\n  const age = tt - s.t0;\n  if (age < 0) continue;\n  const cx = s.x * width, cy = s.y * height;\n  const reach = s.r * u * Math.max(0.4, P.scale);\n  // Two-stage growth, both real: a fast dynamic burst that arrests within ~1.5s, then\n  // SUBCRITICAL CREEP for the rest of the site's life \u2014 glass genuinely keeps growing its\n  // cracks for as long as it is loaded. It also means the cracks are visibly longer across\n  // any 8s window instead of saturating early and reading as a frozen decal.\n  const fast = Math.min(1, Math.pow(age * s.sp * P.speed * 0.7, 0.6));\n  const creep = Math.min(1, (age * P.speed) / (LIFE * 0.8));\n  const L = reach * (0.42 * fast + 0.58 * creep);\n  if (L < u * 0.008) continue;\n  const fin = Math.min(1, age / 1.4);                       // no impact ever appears in one frame\n  const fout = Math.min(1, Math.max(0, (LIFE - age) / (LIFE * 0.85)));\n  const op = fin * fout * (0.35 + 0.65 * P.energy) * aa;\n  if (op < 0.010) continue;\n  const nr = Math.max(3, Math.round(s.n * (0.5 + P.density * 0.7)));\n\n  // ---- the bruise: laminated glass goes milky around a strike. Soft, wide, very low alpha \u2014\n  // it is what keeps the overlay reading as GLASS rather than as scratches on the lens. ----\n  if (P.bruise > 0.01 && style !== 'outline') {\n    const br = L * (0.42 + 0.22 * Math.sin(tt * 0.23 + s.c));\n    const gd = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(1, br));\n    const bi = P.bruise * op * (style === 'windscreen' ? 0.50 : 0.28);\n    gd.addColorStop(0, 'rgba(' + BRU[0] + ',' + BRU[1] + ',' + BRU[2] + ',' + bi.toFixed(3) + ')');\n    gd.addColorStop(1, 'rgba(' + BRU[0] + ',' + BRU[1] + ',' + BRU[2] + ',0)');\n    ctx.fillStyle = gd; ctx.fillRect(cx - br, cy - br, br * 2, br * 2);\n  }\n\n  // ---- radials ----\n  const paths = [];\n  for (let j = 0; j < nr; j++) {\n    const ang = (j / nr) * 6.2831 + fr(s.c * 5.1 + j) * 0.7;\n    const ll = L * (0.5 + 0.5 * fr(s.c * 3.7 + j * 2.3));\n    const pts = [cx, cy];\n    let px = cx, py = cy, a = ang;\n    for (let k = 1; k <= 6; k++) {\n      a += (fr(s.c * 91.7 + j * 17.3 + k * 3.1) - 0.5) * 0.34;\n      px += Math.cos(a) * (ll / 6); py += Math.sin(a) * (ll / 6);\n      pts.push(px, py);\n    }\n    paths.push(pts);\n  }\n  ctx.beginPath();\n  for (const p of paths) { ctx.moveTo(p[0], p[1]); for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]); }\n  ctx.strokeStyle = 'rgba(' + INK[0] + ',' + INK[1] + ',' + INK[2] + ',' + (op * 0.8).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.6, u * 0.0018 * (0.5 + P.energy * 0.9));\n  ctx.stroke();\n  if (style !== 'outline') {   // the bright lip that reads as a fracture in glass\n    // a crack lip only fires where light actually rakes it, so the lips flare and fade as\n    // the room's reflection wanders over them\n    const dref = Math.hypot(cx - REFX, cy - REFY) / u;\n    const rake = 0.45 + 0.85 * Math.exp(-dref * dref * 1.6);\n    ctx.beginPath();\n    const off = u * 0.0013;\n    for (const p of paths) { ctx.moveTo(p[0] + off, p[1] - off); for (let k = 2; k < p.length; k += 2) ctx.lineTo(p[k] + off, p[k + 1] - off); }\n    ctx.strokeStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + Math.min(0.95, op * 0.42 * rake).toFixed(3) + ')';\n    ctx.lineWidth = Math.max(0.4, u * 0.0009); ctx.stroke();\n  }\n\n  // ---- concentrics, lagging behind the running tips ----\n  ctx.beginPath();\n  let any = false;\n  for (let q = 1; q <= 3; q++) {\n    const rr = reach * (q / 3.6) * (0.55 + 0.45 * fr(s.c + q * 9.1));\n    if (rr > L * 0.84) continue;\n    any = true;\n    for (let j = 0; j < nr; j++) {\n      const a0 = (j / nr) * 6.2831 + fr(s.c * 5.1 + j) * 0.7;\n      const a1 = ((j + 1) / nr) * 6.2831 + fr(s.c * 5.1 + j + 1) * 0.7;\n      const am = (a0 + a1) * 0.5, bow = rr * 1.12;\n      ctx.moveTo(cx + Math.cos(a0) * rr, cy + Math.sin(a0) * rr);\n      ctx.quadraticCurveTo(cx + Math.cos(am) * bow, cy + Math.sin(am) * bow, cx + Math.cos(a1) * rr, cy + Math.sin(a1) * rr);\n    }\n  }\n  if (any) {\n    ctx.strokeStyle = 'rgba(' + INK[0] + ',' + INK[1] + ',' + INK[2] + ',' + (op * 0.5).toFixed(3) + ')';\n    ctx.lineWidth = Math.max(0.4, u * 0.0011); ctx.stroke();\n  }\n\n  // ---- crumb zone + a glint crawling out along one radial (small, soft, never a flash) ----\n  if (style !== 'outline') {\n    const cz = u * 0.008 * (0.7 + 0.6 * fr(s.c + 3)) * Math.min(1, age * 0.8);\n    ctx.beginPath(); ctx.arc(cx, cy, cz, 0, 6.2831);\n    ctx.fillStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + (op * 0.45).toFixed(3) + ')';\n    ctx.fill();\n  }\n  const gi = (tt * 0.33 * P.speed + s.c * 0.37) % 1;\n  const ga = (Math.floor(tt * 0.17 + s.c) % nr) / nr * 6.2831 + fr(s.c * 5.1) * 0.7;\n  ctx.beginPath();\n  ctx.arc(cx + Math.cos(ga) * L * gi, cy + Math.sin(ga) * L * gi, u * 0.0045 * (1 - gi * 0.6), 0, 6.2831);\n  ctx.fillStyle = 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + (op * 0.55 * (1 - gi) * (0.4 + P.energy)).toFixed(3) + ')';\n  ctx.fill();\n}\n\n// ---- A wandering reflection on the pane's own surface. A sheet of glass between you and the\n// scene always catches the room, so this is honest \u2014 and it is what carries the motion floor:\n// crack hairlines are far too sparse to move a frame mean on their own, whereas this is a\n// broad, very low-alpha veil drifting on incommensurate rates. Polite by construction: it is\n// a ~4% wash, it never obscures what is behind it.\n{\n  const rr = u * (0.54 + 0.12 * dr3);\n  const gd = ctx.createRadialGradient(REFX, REFY, 0, REFX, REFY, rr);\n  const gi = (0.070 + 0.160 * P.energy) * aa * (0.85 + K.swell * 0.3);\n  gd.addColorStop(0, 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',' + gi.toFixed(3) + ')');\n  gd.addColorStop(1, 'rgba(' + SPEC[0] + ',' + SPEC[1] + ',' + SPEC[2] + ',0)');\n  ctx.fillStyle = gd; ctx.fillRect(REFX - rr, REFY - rr, rr * 2, rr * 2);\n}\nctx.restore();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

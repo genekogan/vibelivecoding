@@ -1,0 +1,129 @@
+{
+ "format": "livecode-visual-v1",
+ "id": "fx.sparks",
+ "kind": "fx",
+ "name": "Sparks",
+ "desc": "An angle grinder biting steel — a jet of white-hot sparks fires from the contact point on a true ballistic arc, and the good ones deflagrate mid-flight into little carbon star-bursts before they cool to orange and die; hard, fast and industrial, nothing like a drifting ember.",
+ "tags": [
+  "sparks",
+  "spark",
+  "grinder",
+  "angle grinder",
+  "welding",
+  "weld",
+  "steel",
+  "metal",
+  "workshop",
+  "foundry",
+  "forge",
+  "flint",
+  "thermite",
+  "ballistic",
+  "shower",
+  "jet",
+  "burst",
+  "deflagration",
+  "white-hot",
+  "incandescent",
+  "orange",
+  "industrial",
+  "harsh",
+  "menacing",
+  "atmosphere",
+  "overlay"
+ ],
+ "slots": [
+  "fxA",
+  "fxB"
+ ],
+ "budget": "light",
+ "params": {
+  "energy": {
+   "default": 0.55,
+   "min": 0,
+   "max": 1,
+   "doc": "launch speed, cone width and heat"
+  },
+  "density": {
+   "default": 0.5,
+   "min": 0.05,
+   "max": 1,
+   "doc": "spark count"
+  },
+  "scale": {
+   "default": 1,
+   "min": 0.25,
+   "max": 2.2,
+   "doc": "throw distance + spark thickness vs design size"
+  },
+  "speed": {
+   "default": 1,
+   "min": 0.15,
+   "max": 4,
+   "doc": "emission rate"
+  },
+  "spray": {
+   "default": 205,
+   "min": 0,
+   "max": 360,
+   "doc": "jet direction in degrees (0 = right, 90 = down, 205 = down-left)"
+  },
+  "alpha": {
+   "default": 0.75,
+   "min": 0.05,
+   "max": 1,
+   "doc": "overlay opacity"
+  },
+  "hue": {
+   "default": 35,
+   "min": 0,
+   "max": 360,
+   "doc": "spark hue (35 steel orange, 200 cold/plasma, 60 brass)"
+  },
+  "x": {
+   "default": 0.78,
+   "min": -0.2,
+   "max": 1.2,
+   "doc": "contact point X — where the wheel meets the work"
+  },
+  "y": {
+   "default": 0.22,
+   "min": -0.2,
+   "max": 1.2,
+   "doc": "contact point Y"
+  },
+  "style": {
+   "default": "grinder",
+   "options": [
+    "grinder",
+    "flint",
+    "thermite",
+    "vector"
+   ],
+   "doc": "aesthetic: white-hot steel with orange tails and carbon fork-bursts / sparse dull flint strikes, short-lived, no forks / fat slow incandescent thermite droplets / schematic ballistic traces with velocity ticks, instrument cyan"
+  },
+  "act": {
+   "default": "grind",
+   "options": [
+    "grind",
+    "bursts",
+    "sweep"
+   ],
+   "doc": "dramaturgy: steady shower / the wheel bites in pulses driven by the musical arc / the contact point walks right across the frame"
+  },
+  "seed": {
+   "default": 0,
+   "min": 0,
+   "max": 9999,
+   "doc": "launch angles, speeds and which grains fork"
+  }
+ },
+ "acts": [
+  "grind",
+  "bursts",
+  "sweep"
+ ],
+ "deps": [],
+ "verified": null,
+ "code": "const D = { energy:.55, density:.5, scale:1, speed:1, spray:205, alpha:.75, hue:35, x:.78, y:.22, style:'grinder', act:'grind', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2=(h,s,v)=>{h=md(h,360)/60;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,x=c*(1-Math.abs(h%2-1)),m=v-c;let r=0,g2=0,b=0;\n  if(h<1){r=c;g2=x;}else if(h<2){r=x;g2=c;}else if(h<3){g2=c;b=x;}else if(h<4){g2=x;b=c;}else if(h<5){r=x;b=c;}else{r=c;b=x;}\n  return [(r+m)*255,(g2+m)*255,(b+m)*255];};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'grind';\nconst isFli=st==='flint', isTher=st==='thermite', isVec=st==='vector';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\nconst sp=P.speed, sc=clp(P.scale,0.25,2.2);\nlet envN=1, envE=1, walk=0;\nif(act==='bursts'){ envN=0.30+1.5*Math.pow(K.intensity,1.4); envE=0.7+0.8*K.intensity; }\nelse if(act==='sweep'){ walk=1; }\n// the contact point wanders — the grinder is being worked by a hand, never dead still\nconst ox=P.x*W + (walk?Math.sin(K.t*0.079*sp)*W*0.30:0) + Math.sin(K.t*0.61*sp)*u*0.010 + Math.sin(K.t*1.43*sp+1.7)*u*0.005;\nconst oy=P.y*Hh + (walk?Math.sin(K.t*0.117*sp+2.2)*Hh*0.16:0) + Math.sin(K.t*0.89*sp+0.9)*u*0.008;\nconst dir=P.spray*Math.PI/180 + Math.sin(K.t*0.23*sp)*0.10;\nconst cone=(isFli?0.20:isTher?0.30:0.46)*(0.45+0.9*en);\nconst V0=u*(isTher?0.30:isFli?0.42:0.95)*(0.35+1.1*en)*sc;\nconst G=u*(isTher?1.05:0.72)*sc;\nconst DUR=isFli?0.42:isTher?1.5:0.95;\n\n// ballistic closed form — no state, so a t0 reset can never desync the shower\nconst posAt=(vx,vy,T)=>[ox+vx*T, oy+vy*T+0.5*G*T*T];\n\n// ---- source flare: the wheel biting the steel ----\n{\n  blendMode(ADD);\n  const fl=0.62+0.38*(0.5+0.5*Math.sin(K.t*7.3*sp))*(0.5+0.5*Math.sin(K.t*3.1*sp+1.1)); // fast but tiny + local, never full-frame\n  const rr=u*(isVec?0.03:0.10)*sc*(0.4+1.0*en)*(0.85+0.15*fl);\n  const fa=clp((isVec?0.16:0.34)*al*(0.3+0.9*en)*envE*(0.7+0.3*fl),0,0.42);\n  const fc=hsb2(isVec?md(H+165,360):md(H+18,360), isVec?0.55:0.14, 1);\n  const rg=drawingContext.createRadialGradient(ox,oy,0,ox,oy,rr);\n  rg.addColorStop(0,'rgba('+(fc[0]|0)+','+(fc[1]|0)+','+(fc[2]|0)+','+fa.toFixed(3)+')');\n  rg.addColorStop(0.4,'rgba('+(fc[0]|0)+','+(fc[1]|0)+','+(fc[2]|0)+','+(fa*0.3).toFixed(3)+')');\n  rg.addColorStop(1,'rgba('+(fc[0]|0)+','+(fc[1]|0)+','+(fc[2]|0)+',0)');\n  drawingContext.fillStyle=rg; drawingContext.fillRect(ox-rr,oy-rr,rr*2,rr*2);\n  blendMode(BLEND);\n}\n\n// ---- the shower ----\nconst nS=Math.max(4,Math.round(lrp(22,88,dn)*envN));\nconst nFork=isFli?0:isTher?1:2;\nif(!isVec) blendMode(ADD);\nnoFill();\nconst drawSpark=(vx,vy,T,heat,wq,tail)=>{\n  if(T<0||T>DUR) return;\n  const p=posAt(vx,vy,T), q=posAt(vx,vy,Math.max(0,T-tail));\n  if(p[1]>Hh+u*0.1||p[0]<-u*0.1||p[0]>W+u*0.1) return;\n  const cool=T/DUR;\n  const aa=clp((1-cool*cool)*96*al*(0.35+0.85*en)*envE,0,96);\n  if(aa<2) return;\n  if(isVec){\n    stroke(md(H+165,360),52,100,aa*0.55); strokeWeight(Math.max(0.4,u*0.0008));\n    line(q[0],q[1],p[0],p[1]);\n    stroke(md(H+165,360),18,100,aa); strokeWeight(Math.max(0.6,u*0.0016));\n    point(p[0],p[1]);\n    return;\n  }\n  stroke(md(H+lrp(6,-14,cool),360), lrp(isTher?18:34,96,cool), lrp(100,58,cool), aa*0.30);\n  strokeWeight(Math.max(0.5,u*wq*2.6*sc));\n  line(q[0],q[1],p[0],p[1]);\n  stroke(md(H+lrp(24,-4,cool),360), lrp(2,88,Math.pow(cool,0.7)), 100, aa);\n  strokeWeight(Math.max(0.4,u*wq*sc*heat));\n  line(q[0],q[1],p[0],p[1]);\n};\nfor(let i=0;i<nS;i++){\n  const j=i*29;\n  const rate=(0.7+fr(j+1)*0.7)/DUR*sp;\n  const T=frc(fr(j+2)+K.t*rate)*DUR;\n  const a0=dir+(fr(j+3)-0.5)*cone;\n  const v0=V0*lrp(0.55,1.35,fr(j+4));\n  const vx=Math.cos(a0)*v0, vy=Math.sin(a0)*v0;\n  const wq=isTher?0.0042:lrp(0.0011,0.0026,fr(j+5));\n  drawSpark(vx,vy,T,1,wq*sc,isTher?0.10:0.055);\n  // carbon deflagration: the grain bursts mid-flight into a little star of daughter sparks\n  const ft=DUR*lrp(0.34,0.62,fr(j+6));\n  if(nFork>0&&T>ft&&fr(j+7)>0.42){\n    const fp=posAt(vx,vy,ft), dT=T-ft;\n    for(let k=0;k<nFork;k++){\n      const ang=fr(j*3+k+50)*6.283, fv=V0*lrp(0.10,0.28,fr(j*3+k+51));\n      const cvx=vx*0.35+Math.cos(ang)*fv, cvy=vy*0.35+Math.sin(ang)*fv;\n      const cp=[fp[0]+cvx*dT, fp[1]+cvy*dT+0.5*G*dT*dT];\n      const cq=[fp[0]+cvx*Math.max(0,dT-0.04), fp[1]+cvy*Math.max(0,dT-0.04)+0.5*G*Math.pow(Math.max(0,dT-0.04),2)];\n      const ca=clp((1-dT/(DUR*0.45))*88*al*(0.3+0.9*en)*envE,0,90);\n      if(ca<2||cp[1]>Hh+u*0.1) continue;\n      if(isVec){ stroke(md(H+165,360),40,100,ca*0.7); strokeWeight(Math.max(0.4,u*0.0007)); }\n      else { stroke(md(H+22,360),lrp(4,70,dT/(DUR*0.45)),100,ca); strokeWeight(Math.max(0.4,u*0.0013*sc)); }\n      line(cq[0],cq[1],cp[0],cp[1]);\n    }\n  }\n}\nblendMode(BLEND);\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

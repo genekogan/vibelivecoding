@@ -1,0 +1,147 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.haboob",
+  "kind": "genart",
+  "name": "Haboob",
+  "desc": "A wall of dust bearing down on a desert plain \u2014 parallax curtains of ochre stack far to near with real aerial perspective, Kelvin-Helmholtz rolls boil along the leading edge, torn streamers race across the foreground and the sun slowly drowns behind it as the wall closes, engulfs and passes over minutes.",
+  "tags": [
+    "haboob",
+    "dust",
+    "duststorm",
+    "sandstorm",
+    "storm",
+    "wall",
+    "desert",
+    "sand",
+    "wind",
+    "weather",
+    "atmosphere",
+    "air",
+    "ochre",
+    "amber",
+    "umber",
+    "arid",
+    "sahara",
+    "arizona",
+    "monsoon",
+    "grit",
+    "haze",
+    "obscuration",
+    "visibility",
+    "horizon",
+    "plain",
+    "sun",
+    "parallax",
+    "curtain",
+    "billow",
+    "roll",
+    "menacing",
+    "ominous",
+    "apocalyptic",
+    "austere",
+    "sublime",
+    "duotone",
+    "halftone",
+    "lidar",
+    "nocturne",
+    "landscape"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "wind strength \u2014 leading-edge lobe amplitude, roll vigour, streamer speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "wall height and lobe size against the frame"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of parallax dust curtains, edge rolls and streamers"
+    },
+    "grain": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dust texture inside the curtains (halftone dots in duotone)"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "dust hue (30 = ochre); sky and shadow derive from it"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "advance + scroll rate multiplier"
+    },
+    "x": {
+      "default": 0.68,
+      "min": 0,
+      "max": 1,
+      "doc": "sun position across the sky"
+    },
+    "y": {
+      "default": 0.74,
+      "min": 0.4,
+      "max": 0.95,
+      "doc": "horizon height"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity"
+    },
+    "style": {
+      "default": "photo",
+      "options": [
+        "photo",
+        "duotone",
+        "lidar",
+        "nocturne"
+      ],
+      "doc": "aesthetic"
+    },
+    "act": {
+      "default": "approach",
+      "options": [
+        "approach",
+        "engulf",
+        "clear"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "lobe profile + plain texture seeding"
+    }
+  },
+  "acts": [
+    "approach",
+    "engulf",
+    "clear"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:27+00:00",
+    "fps": 59.5,
+    "motion": 0.0175,
+    "lum": 0.531
+  },
+  "code": "const D = { energy: .55, scale: 1, density: .5, grain: .5, hue: 30, speed: 1, x: .68, y: .74, alpha: 1, style: 'photo', act: 'approach', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst sm=(e0,e1,x)=>{const t=cl((x-e0)/((e1-e0)||1e-6),0,1);return t*t*(3-2*t);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nconst rs=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act, dc=drawingContext;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dens=cl(P.density,0,1);\nconst grn=cl(P.grain,0,1), H0=md(P.hue,360), spd=cl(P.speed,.1,4);\nconst ax=cl(P.x,0,1), ay=cl(P.y,.4,.95), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\nconst MODE = sty==='duotone'?1 : sty==='lidar'?2 : sty==='nocturne'?3 : 0;\n\nS.bass=(S.bass||0)*.9+(A.bass||0)*.1;\n\n// ---- dramaturgy: the wall closes, engulfs, passes ----\nconst wob=.030*Math.sin(K.t*.117)+.018*Math.sin(K.t*.263+1.4)+.011*Math.sin(K.t*.431+2.7);\nlet adv;\nif(act==='engulf'){ const q=md(T*.0072,1); adv=cl(.30+1.05*sm(0,.55,q)-.30*sm(.72,1,q),.22,1.22); }\nelse if(act==='clear'){ const q=md(T*.0068,1); adv=cl(1.10-1.02*sm(.05,.75,q),.08,1.18); }\nelse { const q=md(T*.0058,1); adv=cl(.16+.74*(.5-.5*Math.cos(q*TAU)),.14,.92); }\nadv=cl(adv*(.86+.26*K.intensity)+wob,.06,1.30);\n\nconst hz=ay, hzp=hz*Hh;\nconst NL=Math.max(2,3+Math.round(dens*2));\n\n// ---- cached sky + plain ----\nlet SKW,SKH;\nif(W>=Hh){ SKW=150; SKH=Math.max(56,Math.round(150*Hh/Math.max(1,W))); }\nelse { SKH=150; SKW=Math.max(56,Math.round(150*W/Math.max(1,Hh))); }\nconst skk=SKW+'x'+SKH+'|'+sty+'|'+Math.round(H0)+'|'+P.seed+'|'+Math.round(hz*300);\nif(!S.sky||S.skk!==skk){\n  if(S.sky&&S.sky.remove)S.sky.remove();\n  const g=createGraphics(SKW,SKH); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const hr=hz*SKH;\n  for(let j=0;j<SKH;j++){\n    const k=cl((j/SKH)/Math.max(.05,hz),0,1); let hh,ss,bb;\n    if(MODE===1){ hh=md(H0+2,360); ss=16-6*k; bb=88; }\n    else if(MODE===2){ hh=md(H0+200,360); ss=40; bb=5+2*k; }\n    else if(MODE===3){ hh=md(H0+192,360); ss=52-20*k; bb=10+16*k*k; }\n    else { hh=md(H0+16-14*k,360); ss=12+26*k*k; bb=80-4*k+5*Math.sin(k*7.7); }\n    g.fill(hh,ss,bb); g.rect(0,j,SKW,1.02);\n  }\n  if(MODE===3) for(let i=0;i<90;i++){ const sx=fr(i*1.7)*SKW, sy=fr(i*1.7+1)*hr*.9;\n    g.fill(md(H0+190,360),16,86,26+fr(i*3.3)*54); g.rect(sx,sy,1,1); }\n  for(let j=Math.floor(hr);j<SKH;j++){\n    const v=(j-hr)/Math.max(1,SKH-hr); let hh,ss,bb;\n    if(MODE===1){ hh=md(H0,360); ss=54; bb=72; }\n    else if(MODE===2){ hh=md(H0+200,360); ss=30; bb=4+3*v; }\n    else if(MODE===3){ hh=md(H0+196,360); ss=40; bb=16-6*v; }\n    else { hh=md(H0-4,360); ss=40+12*v; bb=58-16*v; }\n    g.fill(hh,ss,bb); g.rect(0,j,SKW,1.02);\n  }\n  // wind-raked ripple dashes converging toward the horizon = the plain has grain, not flat fill\n  for(let i=0;i<420;i++){\n    const q=fr(i*2.9), v=Math.pow(fr(i*2.9+1),1.9);\n    const gy=hr+v*Math.max(1,SKH-hr), gx=(q-.5)*SKW*(.4+1.4*v)+SKW*.5;\n    g.fill(0,0,MODE===1?40:(MODE===2?70:10),6+fr(i*5.3)*(MODE===2?30:26));\n    g.rect(gx,gy,(1+fr(i*2.9+2)*7)*(.4+1.3*v),Math.max(1,v*1.6));\n  }\n  S.sky=g; S.skk=skk;\n}\ndc.imageSmoothingEnabled=true;\nimage(S.sky,0,0,W,Hh);\n\n// ---- the sun, extinguishing behind the dust ----\n{ const sx=ax*W, sy=(hz-.10-.05*Math.sin(K.t*.019))*Hh;\n  const ext=cl(1-adv*.86,0,1);\n  const sr=u*(.05+.03*Math.sin(K.t*.037))*sc*(MODE===3?.62:1);\n  const cc=MODE===3?hsb(md(H0+186,360),12,96):(MODE===2?hsb(md(H0+40,360),70,60):hsb(md(H0+12,360),Math.max(0,26-14*(1-ext)),100));\n  const gg=dc.createRadialGradient(sx,sy,0,sx,sy,sr*(3.4+2*ext));\n  gg.addColorStop(0,rs(cc,(MODE===2?.35:.92)*ext*al));\n  gg.addColorStop(.16,rs(cc,.42*ext*al));\n  gg.addColorStop(.5,rs(cc,.12*ext*al));\n  gg.addColorStop(1,rs(cc,0));\n  dc.fillStyle=gg; dc.fillRect(0,0,W,Hh); }\n\n// ---- cached textures: dust grain + halftone dots ----\nconst tk='tex|'+P.seed;\nif(!S.grain||S.tk!==tk){\n  if(S.grain&&S.grain.remove)S.grain.remove();\n  if(S.dots&&S.dots.remove)S.dots.remove();\n  const g=createGraphics(256,256); g.pixelDensity(1); g.loadPixels();\n  const q=g.pixels;\n  for(let i=0;i<256*256;i++){\n    const s1=Math.sin(i*12.9898+P.seed*3.71)*43758.5453, r1=s1-Math.floor(s1);\n    const s2=Math.sin(i*39.3468+P.seed*7.13)*24634.6345, r2=s2-Math.floor(s2);\n    const xx=i%256, yy=(i/256)|0;\n    const cw=.5+.5*Math.sin(xx*.11+yy*.05)*Math.sin(yy*.09-xx*.03);\n    const v=cl(128+(r1+r2-1)*74+(cw-.5)*46,0,255), o=i*4;\n    q[o]=v; q[o+1]=v; q[o+2]=v; q[o+3]=255;\n  }\n  g.updatePixels(); S.grain=g;\n  const d2=createGraphics(256,256); d2.pixelDensity(1); d2.colorMode(HSB,360,100,100,100);\n  d2.background(0,0,100); d2.noStroke(); d2.fill(0,0,0);\n  for(let j=0;j<32;j++) for(let i=0;i<32;i++){\n    const px2=i*8+(j%2)*4, py2=j*8, rr=1.4+3.2*fr(i*31.1+j*7.7);\n    d2.ellipse(px2,py2,rr,rr);\n  }\n  S.dots=d2; S.tk=tk;\n}\n\n// ---- cached roll stamps, one warm blob per depth layer ----\nconst rk='roll|'+sty+'|'+Math.round(H0)+'|'+NL;\nif(!S.roll||S.rk!==rk){\n  if(S.roll) for(let i=0;i<S.roll.length;i++) if(S.roll[i].remove) S.roll[i].remove();\n  S.roll=[];\n  for(let L=0;L<NL;L++){\n    const dl=NL>1?L/(NL-1):1;\n    const g=createGraphics(64,64); g.pixelDensity(1); g.clear();\n    let c;\n    if(MODE===1) c=hsb(md(H0,360),64,90);\n    else if(MODE===2) c=hsb(md(H0+150-110*dl,360),80,96);\n    else if(MODE===3) c=hsb(md(H0+190,360),26,52+18*dl);\n    else c=hsb(md(H0+10-6*dl,360),22+22*dl,92-16*dl);\n    const gd=g.drawingContext.createRadialGradient(32,32,0,32,32,32);\n    gd.addColorStop(0,rs(c,1)); gd.addColorStop(.44,rs(c,.6));\n    gd.addColorStop(.74,rs(c,.18)); gd.addColorStop(1,rs(c,0));\n    g.drawingContext.fillStyle=gd; g.drawingContext.fillRect(0,0,64,64);\n    S.roll.push(g);\n  }\n  S.rk=rk;\n}\n\n// ---- the wall: NL parallax curtains, far -> near ----\nconst STEP=Math.max(6,Math.round(W/52));\nfor(let L=0;L<NL;L++){\n  const dl=NL>1?L/(NL-1):1;\n  const ph=fr(L*13.7)*TAU;\n  const hL=(.05+.62*adv*(.42+.78*dl))*sc;\n  const amp=(.026+.085*en)*sc*(.45+.85*dl);\n  const scr=T*(.006+.021*dl)*(.35+1.3*en)+fr(L*5.1);\n  // path\n  dc.beginPath();\n  let minY=Hh;\n  for(let x=-STEP;x<=W+STEP;x+=STEP){\n    const xn=x/Math.max(1,W);\n    const r=Math.sin((xn+scr)*6.1+ph)*.55+Math.sin((xn+scr*1.37)*11.3+ph*1.7)*.30+Math.sin((xn+scr*.71)*19.7+ph*2.3)*.15;\n    const y=hzp-hL*Hh-amp*Hh*r;\n    if(y<minY)minY=y;\n    if(x<=-STEP+.5) dc.moveTo(x,y); else dc.lineTo(x,y);\n  }\n  dc.lineTo(W+STEP,Hh+4); dc.lineTo(-STEP,Hh+4); dc.closePath();\n  // body: aerial perspective -> far curtains pale toward the sky, near ones bite\n  let cTop,cBot,aBase;\n  if(MODE===1){ cTop=hsb(md(H0,360),62,88); cBot=hsb(md(H0+204,360),56,28); aBase=.94; }\n  else if(MODE===2){ cTop=hsb(md(H0+150-110*dl,360),82,72); cBot=hsb(md(H0+210,360),70,10); aBase=.80; }\n  else if(MODE===3){ cTop=hsb(md(H0+192,360),30,38+14*dl); cBot=hsb(md(H0+198,360),44,9); aBase=.90; }\n  else { cTop=hsb(md(H0+12-14*dl,360),20+34*dl,74-28*dl); cBot=hsb(md(H0-6,360),46+10*dl,30-12*dl); aBase=.62+.34*dl; }\n  const gg=dc.createLinearGradient(0,minY,0,Hh);\n  const aa=aBase*al;\n  if(MODE===1){ gg.addColorStop(0,rs(cTop,aa)); gg.addColorStop(.34,rs(cTop,aa));\n    gg.addColorStop(.341,rs(cBot,aa*.9)); gg.addColorStop(.66,rs(cBot,aa*.9));\n    gg.addColorStop(.661,rs(cTop,aa*.75)); gg.addColorStop(1,rs(cTop,aa*.75)); }\n  else if(MODE===2){ const mid=hsb(md(H0+60,360),85,60);\n    gg.addColorStop(0,rs(cTop,aa)); gg.addColorStop(.28,rs(cTop,aa));\n    gg.addColorStop(.281,rs(mid,aa)); gg.addColorStop(.62,rs(mid,aa));\n    gg.addColorStop(.621,rs(cBot,aa)); gg.addColorStop(1,rs(cBot,aa)); }\n  else { gg.addColorStop(0,rs(cTop,aa*.88)); gg.addColorStop(.30,rs(cTop,aa));\n    gg.addColorStop(1,rs(cBot,aa)); }\n  dc.fillStyle=gg; dc.fill();\n  // texture inside the curtain \u2014 never a flat fill\n  dc.save(); dc.clip();\n  const tw=u*(1.3+.5*dl), tx=-md(T*(6+26*dl)*(.3+1.2*en),tw), ty=-md(T*(2+7*dl),tw*.7);\n  dc.globalCompositeOperation=MODE===1?'multiply':'overlay';\n  dc.globalAlpha=cl((MODE===1?.34:.30)*grn*(.5+.6*dl)*al,0,.7);\n  image(MODE===1?S.dots:S.grain,tx,ty,tw,tw);\n  image(MODE===1?S.dots:S.grain,tx+tw,ty,tw,tw);\n  image(MODE===1?S.dots:S.grain,tx,ty+tw,tw,tw);\n  image(MODE===1?S.dots:S.grain,tx+tw,ty+tw,tw,tw);\n  dc.globalAlpha=1; dc.globalCompositeOperation='source-over';\n  dc.restore();\n  // Kelvin-Helmholtz rolls riding the leading edge\n  const NR=Math.round(5+11*dens);\n  dc.globalCompositeOperation=MODE===2?'lighter':'source-over';\n  for(let i=0;i<NR;i++){\n    const q=(i+.5)/NR+.07*Math.sin(K.t*(.21+fr(L*3+i)*.3)+i);\n    const xn=md(q,1), x=xn*W;\n    const r=Math.sin((xn+scr)*6.1+ph)*.55+Math.sin((xn+scr*1.37)*11.3+ph*1.7)*.30+Math.sin((xn+scr*.71)*19.7+ph*2.3)*.15;\n    const y=hzp-hL*Hh-amp*Hh*r;\n    const rr=amp*Hh*(1.5+1.9*fr(L*17+i*2.3))*(.7+.5*en);\n    dc.globalAlpha=cl((.16+.20*en)*(.35+.6*dl)*al,0,.5);\n    image(S.roll[L],x-rr,y-rr*1.15,rr*2,rr*2);\n  }\n  dc.globalAlpha=1; dc.globalCompositeOperation='source-over';\n}\n\n// ---- torn streamers racing across the foreground ----\nconst NS=Math.round((10+dens*30)*(.3+.8*adv));\nnoStroke();\nfor(let i=0;i<NS;i++){\n  const q1=fr(500+i*3.1), q2=fr(500+i*3.1+1), q3=fr(500+i*3.1+2);\n  const sp=(.05+.16*q1)*(.35+1.4*en)*spd;\n  const x=md(fr(500+i*3.1+3)+K.t*sp,1.25)*W*1.2-W*.1;\n  const y=(hz-.30*adv*q2*sc+.10*q3)*Hh+u*.02*Math.sin(K.t*(.9+q1*1.7)+q2*TAU);\n  const ln=u*(.03+.11*q1)*sc*(.5+.8*en), th=u*(.004+.012*q2)*sc;\n  let c;\n  if(MODE===2) c=hsb(md(H0+90,360),80,80); else if(MODE===3) c=hsb(md(H0+190,360),24,44);\n  else if(MODE===1) c=hsb(md(H0,360),60,86); else c=hsb(md(H0+8,360),26+20*q3,84-14*q2);\n  dc.globalAlpha=cl((.06+.13*en)*(.3+.8*adv)*al,0,.34);\n  dc.fillStyle=rs(c,1);\n  dc.beginPath(); dc.ellipse(x,y,ln,th,.06*Math.sin(K.t*.5+i),0,TAU); dc.fill();\n}\ndc.globalAlpha=1;\n\n// ---- inside the dust: a slow ochre veil (soft, gradual \u2014 never a flash) ----\n{ const inside=cl((adv-.72)/.5,0,1);\n  if(inside>.004){\n    let c;\n    if(MODE===2) c=hsb(md(H0+120,360),70,40); else if(MODE===3) c=hsb(md(H0+194,360),34,26);\n    else if(MODE===1) c=hsb(md(H0,360),58,80); else c=hsb(md(H0+4,360),44,66);\n    const vx=(.5+.16*Math.sin(K.t*.041))*W, vy=(hz*.7+.08*Math.sin(K.t*.067+1.1))*Hh;\n    const gg=dc.createRadialGradient(vx,vy,0,vx,vy,u*1.25);\n    gg.addColorStop(0,rs(c,.82*inside*al)); gg.addColorStop(.6,rs(c,.68*inside*al)); gg.addColorStop(1,rs(c,.46*inside*al));\n    dc.fillStyle=gg; dc.fillRect(0,0,W,Hh);\n    dc.globalCompositeOperation='overlay'; dc.globalAlpha=cl(.26*grn*inside*al,0,.4);\n    const tw=u*1.5, tx=-md(K.t*22,tw);\n    image(S.grain,tx,0,tw,tw); image(S.grain,tx+tw,0,tw,tw);\n    dc.globalAlpha=1; dc.globalCompositeOperation='source-over';\n  } }\nblendMode(BLEND); dc.globalAlpha=1; dc.globalCompositeOperation='source-over'; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

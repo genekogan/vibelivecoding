@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.craquelure",
+  "kind": "genart",
+  "name": "Craquelure",
+  "desc": "An ageing surface tearing itself apart \u2014 crack tips run along the stress field, arrest dead against older cracks in perfect T-junctions and branch into ever-finer generations, while raking light sweeps their lifted edges and the oldest fractures sink slowly back under the varnish.",
+  "tags": [
+    "craquelure",
+    "crack",
+    "cracks",
+    "cracking",
+    "fracture",
+    "crackle",
+    "crazing",
+    "glaze",
+    "ceramic",
+    "porcelain",
+    "kintsugi",
+    "gold",
+    "mud",
+    "desiccation",
+    "polygon",
+    "patina",
+    "aged",
+    "antique",
+    "conservation",
+    "painting",
+    "stress",
+    "material",
+    "decay",
+    "austere",
+    "eerie",
+    "process",
+    "emergence",
+    "growth"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "crack propagation rate and surface light contrast"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crack nucleation count and surface grime"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "surface hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on growth and process time"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "stress-field feature size (rebuilds)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stress focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stress focus y"
+    },
+    "branch": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "crack branching rate"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "shatter",
+        "settle"
+      ],
+      "doc": "multi-minute program"
+    },
+    "style": {
+      "default": "glaze",
+      "options": [
+        "glaze",
+        "kintsugi",
+        "mud",
+        "xray"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "shatter",
+    "settle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:14:43+00:00",
+    "fps": 55.9,
+    "motion": 0.1204,
+    "lum": 0.442
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 34, speed: 1, scale: 1, x: .5, y: .5, branch: .4, act: 'cycle', style: 'glaze', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = Math.max(360, Math.min(1180, Math.round(width * .68)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst GW = 176, GH = Math.max(64, Math.round(GW * height / width));\nconst LW = 128, LH = Math.max(48, Math.round(LW * height / width));\nconst MAXT = 420;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);\n  const a = hsh2(xi, yi), b = hsh2(xi + 1, yi), c = hsh2(xi, yi + 1), d = hsh2(xi + 1, yi + 1);\n  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;\n};\n\nconst st = P.style;\nconst gndV = st === 'kintsugi' ? 26 : st === 'mud' ? 62 : st === 'xray' ? 12 : 78;\nconst crkV = st === 'kintsugi' ? 93 : st === 'mud' ? 11 : st === 'xray' ? 96 : 15;\nconst edgV = st === 'kintsugi' ? 42 : st === 'mud' ? 79 : st === 'xray' ? 30 : 97;\nconst wMul = st === 'kintsugi' ? 1.7 : st === 'mud' ? 2.5 : st === 'xray' ? .8 : 1;\nconst hOff = st === 'kintsugi' ? 12 : st === 'mud' ? -8 : st === 'xray' ? 172 : 0;\nconst tSat = st === 'kintsugi' ? 62 : st === 'mud' ? 38 : st === 'xray' ? 22 : 20;\n\nif (!S.cr || S.bw !== BW || S.bh !== BH || S.styleUsed !== st || S.seedUsed !== P.seed || S.scaleUsed !== P.scale) {\n  if (S.cr && S.cr.remove) S.cr.remove();\n  if (S.gnd && S.gnd.remove) S.gnd.remove();\n  if (S.lg && S.lg.remove) S.lg.remove();\n  S.gnd = createGraphics(BW, BH); S.gnd.pixelDensity(1);\n  S.cr = createGraphics(BW, BH); S.cr.pixelDensity(1);\n  S.lg = createGraphics(LW, LH); S.lg.pixelDensity(1);\n  S.bw = BW; S.bh = BH; S.styleUsed = st; S.seedUsed = P.seed; S.scaleUsed = P.scale; S.tick = 0; S.cur = 0; S.gen = 0;\n  const g = S.gnd; g.colorMode(HSB, 360, 100, 100, 100); g.noStroke(); g.background(0, 0, gndV);\n  const U0 = BW / 900;\n  for (let i = 0; i < 340; i++) {          // ground / glaze mottle\n    const dv = (fr(i * 4 + 4) - .5) * (st === 'xray' ? 4 : 12);\n    g.fill(0, 0, Math.max(2, Math.min(97, gndV + dv)), 22);\n    g.ellipse(fr(i * 4 + 1) * BW, fr(i * 4 + 2) * BH, (20 + fr(i * 4 + 3) * 150) * U0 * 2, (18 + fr(i * 6 + 1) * 140) * U0 * 2);\n  }\n  S.cr.colorMode(HSB, 360, 100, 100, 100);\n  S.cr.image(S.gnd, 0, 0);\n  // stress-orientation field + surface grime, cached\n  S.ang = new Float32Array(GW * GH); S.cg = new Float32Array(GW * GH);\n  const fq = .055 / Math.max(.35, P.scale);\n  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n    S.ang[y * GW + x] = (vn(x * fq, y * fq) + .5 * vn(x * fq * 2.1, y * fq * 2.1)) * 7.4;\n  }\n  S.grime = new Float32Array(LW * LH);\n  for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) {\n    const a = vn(x * .07, y * .07), b = vn(x * .19 + 40, y * .19 + 40);\n    S.grime[y * LW + x] = Math.max(0, Math.min(1, a * .75 + b * .5 - .28));\n  }\n  S.tx = new Float32Array(MAXT); S.ty = new Float32Array(MAXT); S.px = new Float32Array(MAXT); S.py = new Float32Array(MAXT);\n  S.td = new Float32Array(MAXT); S.ta = new Float32Array(MAXT); S.tw = new Float32Array(MAXT); S.al = new Uint8Array(MAXT);\n}\n\nconst gnd = S.gnd, cr = S.cr, lg = S.lg, ang = S.ang, cg = S.cg, grime = S.grime;\nconst tx = S.tx, ty = S.ty, ppx = S.px, ppy = S.py, td = S.td, ta = S.ta, tw = S.tw, al = S.al;\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst U = BW / 900, TAU = Math.PI * 2;\n\n// ---- act: multi-minute ageing program -------------------------------------\nlet stress;\nif (P.act === 'shatter') stress = 1.9;\nelse if (P.act === 'settle') stress = .34;\nelse stress = .45 + 1.35 * (.5 + .5 * Math.sin(K.t * .0119 + .85 * Math.sin(K.t * .0041 + 2.3)));\n\n// ---- varnish: old cracks slowly sink back into the ground ------------------\nif (S.tick % 30 === 0) { cr.push(); cr.tint(0, 0, 100, .55 + P.speed * .38); cr.image(gnd, 0, 0); cr.pop(); }\n\nconst cgAt = (gx, gy) => {\n  let ix = Math.floor(gx), iy = Math.floor(gy);\n  if (ix < 0) ix = 0; if (iy < 0) iy = 0; if (ix >= GW) ix = GW - 1; if (iy >= GH) iy = GH - 1;\n  return cg[iy * GW + ix];\n};\nconst angAt = (gx, gy) => {\n  let ix = Math.floor(gx), iy = Math.floor(gy);\n  if (ix < 0) ix = 0; if (iy < 0) iy = 0; if (ix >= GW) ix = GW - 1; if (iy >= GH) iy = GH - 1;\n  return ang[iy * GW + ix];\n};\nconst spawn = (x, y, d, w) => {\n  for (let n = 0; n < MAXT; n++) {\n    S.cur = (S.cur + 1) % MAXT;\n    if (!al[S.cur]) { const k = S.cur; al[k] = 1; tx[k] = x; ty[k] = y; ppx[k] = x; ppy[k] = y; td[k] = d; ta[k] = 0; tw[k] = w; return true; }\n  }\n  return false;\n};\n\n// ---- crack tips propagate along the stress field, arresting at T-junctions --\nconst SP = (.9 + P.energy * 2.6) * (.45 + P.speed * .8) * U;\nconst brP = (.002 + P.branch * .013) * (.4 + P.speed * .8);\ncr.strokeCap(ROUND);\nlet alive = 0;\nfor (let k = 0; k < MAXT; k++) {\n  if (!al[k]) continue;\n  alive++;\n  const gx = tx[k] / BW * GW, gy = ty[k] / BH * GH;\n  let a = angAt(gx, gy);\n  if (st === 'mud') { const q = Math.round((td[k] - a) / (Math.PI * .5)); a = a + q * Math.PI * .5; }\n  else { let da = a - td[k]; while (da > Math.PI * .5) da -= Math.PI; while (da < -Math.PI * .5) da += Math.PI; a = td[k] + da; }\n  let d = td[k] + (a - td[k]) * (.1 + P.energy * .16) + (rnd(k * 3 + 1) - .5) * (.03 + (1 - P.energy) * .09);\n  td[k] = d;\n  const nx = tx[k] + Math.cos(d) * SP, ny = ty[k] + Math.sin(d) * SP;\n  if (nx < 2 || nx > BW - 2 || ny < 2 || ny > BH - 2) { al[k] = 0; continue; }\n  const ngx = nx / BW * GW, ngy = ny / BH * GH;\n  // arrest on an existing crack (the T-junction that makes craquelure read true)\n  if (ta[k] > 7 && cgAt(ngx + Math.cos(d) * 2.4, ngy + Math.sin(d) * 2.4) > 1.4) {\n    cr.strokeWeight(Math.max(.6, tw[k] * wMul * U)); cr.stroke(0, 0, crkV, 92); cr.line(ppx[k], ppy[k], nx, ny);\n    al[k] = 0; continue;\n  }\n  const gi = Math.min(GH - 1, Math.max(0, Math.floor(ngy))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(ngx)));\n  cg[gi] += .9;\n  const ww = Math.max(.6, tw[k] * wMul * U);\n  // lifted edge: a bright hairline offset to one side reads as an engraved groove\n  if (st !== 'xray') {\n    const pa = d - 1.5708, off = ww * .82;\n    cr.strokeWeight(Math.max(.5, ww * .55)); cr.stroke(0, 0, edgV, st === 'kintsugi' ? 26 : 40);\n    cr.line(ppx[k] + Math.cos(pa) * off, ppy[k] + Math.sin(pa) * off, nx + Math.cos(pa) * off, ny + Math.sin(pa) * off);\n  }\n  cr.strokeWeight(ww); cr.stroke(0, 0, crkV, 90);\n  cr.line(ppx[k], ppy[k], nx, ny);\n  ppx[k] = nx; ppy[k] = ny; tx[k] = nx; ty[k] = ny; ta[k]++;\n  if (alive < MAXT - 6 && ta[k] > 14 && rnd(k * 9 + 5) < brP * stress) {\n    spawn(nx, ny, d + (rnd(k * 11) > .5 ? 1 : -1) * (.55 + rnd(k * 13) * .6), Math.max(.5, tw[k] * .74));\n  }\n  if (ta[k] > 900) al[k] = 0;\n}\n\n// ---- nucleate the next generation into the largest intact islands ----------\nconst want = Math.round(6 + P.density * 34);\nif (alive < want) {\n  const add = Math.min(5, want - alive);\n  for (let s = 0; s < add; s++) {\n    let bx = GW * .5, by = GH * .5, best = 1e9;\n    for (let q = 0; q < 8; q++) {\n      const cx = 3 + rnd(s * 37 + q * 3 + 1) * (GW - 6), cy = 3 + rnd(s * 37 + q * 3 + 2) * (GH - 6);\n      const v = cgAt(cx, cy) + cgAt(cx + 3, cy) + cgAt(cx - 3, cy) + cgAt(cx, cy + 3) + cgAt(cx, cy - 3)\n        + Math.hypot(cx / GW - P.x, cy / GH - P.y) * 2.6;    // stress focused on the anchor\n      if (v < best) { best = v; bx = cx; by = cy; }\n    }\n    const px2 = bx / GW * BW, py2 = by / GH * BH;\n    const a0 = angAt(bx, by) + (rnd(s * 53 + 3) - .5) * .5;\n    const w0 = (1.4 + rnd(s * 59 + 1) * 1.5) / (1 + S.gen * .12);\n    spawn(px2, py2, a0, w0); spawn(px2, py2, a0 + Math.PI, w0);\n    S.gen = (S.gen + .02) % 8;\n  }\n}\nfor (let i = 0; i < GW * GH; i++) cg[i] *= .99975;\n\n// ---- raking light + grime (the surface is always being re-lit) -------------\nlg.loadPixels(); const lp = lg.pixels;\nconst ph = K.t * .085 + .5 * Math.sin(K.t * .037 + 1.1);\nconst az = .8 * Math.sin(K.t * .037) + .35 * Math.sin(K.t * .091 + .7);\nconst dx = Math.cos(az), dy = Math.sin(az);\nconst lc = .18 + P.energy * .3;\nconst gm = .12 + P.density * .5;\nconst bmp = 1.1 + P.energy * .9;\nfor (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) {\n  const i = y * LW + x;\n  const u = (x / LW - .5) * dx + (y / LH - .5) * dy;\n  const band = Math.cos(u * 1.45 * bmp - ph);   // ONE broad sweep, not a band train\n  const spot = Math.max(0, 1 - Math.hypot(x / LW - (.5 + .34 * Math.sin(K.t * .047)), y / LH - (.5 + .27 * Math.sin(K.t * .0713 + 2))) * 2.1);\n  let v = 1 + band * lc + spot * spot * (.1 + P.energy * .2) - grime[i] * gm;\n  v = v < .12 ? .12 : v > 1.35 ? 1.35 : v;\n  const o = 4 * i, q = v * 190;\n  lp[o] = Math.min(255, q * 1.02); lp[o + 1] = Math.min(255, q); lp[o + 2] = Math.min(255, q * .95); lp[o + 3] = 255;\n}\nlg.updatePixels();\n\nconst expo = 70 + P.energy * 22 + K.intensity * 6 + A.rms * 14;\npush();\ntint(P.hue + hOff, tSat, Math.min(100, expo + 26), P.alpha);\nimage(cr, 0, 0, width, height);\nblendMode(MULTIPLY);\ntint(0, 0, 100, P.alpha);\nimage(lg, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

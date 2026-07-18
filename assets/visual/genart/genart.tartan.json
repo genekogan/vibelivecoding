@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.tartan",
+  "kind": "genart",
+  "name": "Tartan Sett",
+  "desc": "A real tartan sett \u2014 a symmetric thread-count stripe sequence run in both warp and weft and interlaced in 2/2 twill, so the crossings blend optically and a 45-degree wale runs through the cloth, round wool threads catching a soft sheen as the bolt scrolls.",
+  "tags": [
+    "tartan",
+    "plaid",
+    "sett",
+    "thread-count",
+    "twill",
+    "wale",
+    "weave",
+    "woven",
+    "wool",
+    "scottish",
+    "highland",
+    "clan",
+    "check",
+    "checked",
+    "stripe",
+    "warp",
+    "weft",
+    "black-watch",
+    "royal-stewart",
+    "hunting",
+    "dress",
+    "cloth",
+    "fabric",
+    "textile",
+    "kilt",
+    "bolt",
+    "tactile",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen amplitude & scroll punch"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "thread/sett size (bigger check at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of stripes in the sett"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "bolt-scroll & sheen rate"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "primary sett hue"
+    },
+    "twill": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "twill-wale contrast / weave depth"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal phase / sheen origin"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sheen origin"
+    },
+    "style": {
+      "default": "black_watch",
+      "options": [
+        "black_watch",
+        "royal_stewart",
+        "hunting_moss",
+        "dress_mono",
+        "faded_antique"
+      ],
+      "doc": "palette+treatment: sombre military / bright festive red / earthy hunting / graphic monochrome dress / washed antique"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "sett generation seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:47:39+00:00",
+    "fps": 59.9,
+    "motion": 0.051,
+    "lum": 0.189
+  },
+  "code": "const D = { energy: .5, scale: 1, density: .5, speed: 1, hue: 210, twill: .6, x: .5, y: .5, style: 'black_watch', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\nfunction h2r(h,s,v){ h=((h%360)+360)%360; const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c; let r,g,b; const hp=h/60;\n  if(hp<1){r=c;g=x;b=0;}else if(hp<2){r=x;g=c;b=0;}else if(hp<3){r=0;g=c;b=x;}else if(hp<4){r=0;g=x;b=c;}else if(hp<5){r=x;g=0;b=c;}else{r=c;g=0;b=x;}\n  return [(r+m)*255,(g+m)*255,(b+m)*255]; }\n\nfunction palette(style,hue){\n  if(style==='royal_stewart') return {cols:[[hue-208,.78,.72],[142,.60,.34],[222,.55,.32],[0,0,.94],[48,.80,.80]], sheen:.30, matte:0.7};\n  if(style==='hunting_moss')  return {cols:[[104,.42,.30],[36,.44,.30],[150,.36,.24],[28,.30,.42],[70,.30,.20]], sheen:.16, matte:0.85};\n  if(style==='dress_mono')    return {cols:[[0,0,.10],[0,0,.92],[0,0,.55],[0,0,.74],[0,0,.30]], sheen:.10, matte:1.0};\n  if(style==='faded_antique') return {cols:[[hue,.28,.44],[110,.24,.40],[18,.30,.46],[44,.24,.66],[0,0,.30]], sheen:.14, matte:0.9};\n  return {cols:[[hue,.62,.32],[145,.55,.31],[0,0,.12],[hue-10,.40,.46],[150,.30,.24]], sheen:.18, matte:0.85}; // black_watch\n}\nconst PL=palette(P.style,P.hue);\n\nconst key=[P.style,P.seed,Math.round(P.density*24),Math.round(P.hue),Math.round(P.scale*20)].join('_');\nif(S.key!==key || !S.g){\n  S.key=key;\n  // build symmetric sett: pivot sequence of (colorIdx,count) then mirror\n  const nC=PL.cols.length; const counts=[2,4,6,8,12,16,24]; const nStripe=Math.round(4+P.density*6);\n  const piv=[]; for(let i=0;i<nStripe;i++){ const ci=Math.floor(fr(i*3+1)*nC); const cn=counts[Math.floor(fr(i*3+2)*counts.length)]; piv.push([ci,cn]); }\n  // expand palindrome sett -> thread color array\n  const seq=[]; for(const s of piv) for(let k=0;k<s[1];k++) seq.push(s[0]);\n  for(let i=piv.length-2;i>=1;i--){ for(let k=0;k<piv[i][1];k++) seq.push(piv[i][0]); }\n  const nT=seq.length;\n  const tw=Math.max(3,Math.round(4*P.scale));      // px per thread\n  const dim=Math.min(760, nT*tw);\n  const g=createGraphics(dim,dim); g.pixelDensity(1); g.loadPixels();\n  const rgb=PL.cols.map(c=>h2r(c[0],c[1],c[2])); // s,v in 0..1\n  const matte=PL.matte, tw2=P.twill;\n  for(let y=0;y<dim;y++){\n    const j=(Math.floor(y/tw))%nT; const wc=seq[j]; const sy=(y%tw)/tw;\n    for(let x=0;x<dim;x++){\n      const i=(Math.floor(x/tw))%nT; const wr=seq[i]; const sx=(x%tw)/tw;\n      const warpUp=((((i - j)%4)+4)%4) < 2;\n      const col = warpUp? rgb[wr] : rgb[wc];\n      // round-thread cylindrical shading along the visible thread\n      const rough = warpUp? Math.sin(Math.PI*sx) : Math.sin(Math.PI*sy);\n      let sh = (0.72 + 0.34*rough);\n      sh = 1 + (sh-1)*matte;                          // flatten for graphic styles\n      // twill float shadow at the 45deg boundary + wale emphasis\n      const wale = 0.5+0.5*Math.sin((x - y)*(Math.PI/2/tw));\n      sh *= (0.94 + 0.10*wale*tw2);\n      const idx=4*(y*dim+x);\n      g.pixels[idx]  =Math.max(0,Math.min(255,col[0]*sh));\n      g.pixels[idx+1]=Math.max(0,Math.min(255,col[1]*sh));\n      g.pixels[idx+2]=Math.max(0,Math.min(255,col[2]*sh));\n      g.pixels[idx+3]=255;\n    }\n  }\n  g.updatePixels(); S.g=g; S.dim=dim;\n  if(!S.sheen){ const sh=createGraphics(200,200); sh.pixelDensity(1); sh.noStroke();\n    for(let r=100;r>0;r--){ const a=Math.pow(1-r/100,1.7)*80; sh.fill(46,10,100,a); sh.ellipse(100,100,r*2,r*2);} S.sheen=sh; }\n}\n\n// on-screen tile size chosen so upscale stays near 1x\nconst reps=Math.max(2,Math.round(width/(uMin*0.62*P.scale)));\nconst tsz=width/reps;\nS.scroll=(S.scroll||0)+(0.35+0.7*P.speed)*(1+0.4*A.bass*P.energy);\nconst ph=((S.scroll%tsz)+tsz)%tsz;\nconst xdr=(P.x-0.5)*0.15*width + 0.015*uMin*drift;\npush();\nimageMode(CORNER); noStroke();\nconst nx=Math.ceil(width/tsz)+2, ny=Math.ceil(height/tsz)+2;\nfor(let j=-1;j<ny;j++) for(let i=-1;i<nx;i++) image(S.g, i*tsz+(xdr%tsz), j*tsz-ph, tsz, tsz);\n// soft wool sheen sweep\nconst shA=PL.sheen*(0.5+0.9*P.energy)*(0.6+0.6*K.swell);\nif(shA>0.02){ blendMode(ADD); imageMode(CENTER);\n  const cx=width*(0.5+0.4*Math.sin(t*0.17+P.x*3)), cy=height*(0.5+0.42*Math.sin(t*0.23+0.5));\n  tint(255,255*Math.min(1,shA)); image(S.sheen,cx,cy,uMin*1.6,uMin*0.9); noTint(); blendMode(BLEND); }\nif(P.alpha<100){ noStroke(); fill(PL.cols[0][0],PL.cols[0][1]*100,PL.cols[0][2]*100,100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}

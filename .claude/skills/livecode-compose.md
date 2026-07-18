@@ -4,10 +4,19 @@ How to **build**, **record**, and **replay** audiovisual performances against th
 
 ## TL;DR
 
+**Prerequisites for ANY showrunner mode — autoplay does nothing without these:**
+1. `python livecode.py` running (server on :8766)
+2. A browser tab at `http://localhost:8766/livecode.html` with **Start Audio & Visuals** clicked
+   - Or: `python autopilot_host.py` which launches a headed Playwright Chromium and auto-clicks Start
+3. `curl localhost:8766/status` must show `"ready": true` before running `autoplay.py`
+
+If `ready` is false, `autoplay.py` will sit in `wait_ready()` for 60s then exit with `TimeoutError: browser never connected`. **The server being up is not enough — the browser client must be connected and Started.**
+
 ```bash
 # Start server
 python livecode.py
-# (open http://localhost:8766/livecode.html, click Start)
+# Connect browser: open http://localhost:8766/livecode.html + click Start
+# (or: python autopilot_host.py to auto-launch + auto-click)
 
 # A. Replay a saved show
 python autoplay.py --show shows/disco_set.show.json --dwell 16beats
@@ -210,10 +219,13 @@ post("/strudel/send", {"code": "samples('https://strudel.b-cdn.net/tidal-drum-ma
 python autoplay.py --show shows/disco_set.show.json [--dwell 16beats] [--loop] [--port 8766]
 ```
 
+**What `--dwell` controls:** autoplay calls `/show/next` on a clock. Each call jumps to the **next section boundary** (next labeled step), executing every sub-step in between. So `--dwell` is **time per section**, not time per individual step. At cps 0.5, `64beats` = 32s/section; `16beats` = 8s/section; `8beats` = 4s/section. If a show only has a few labels, sections will be long no matter how short the dwell.
+
 - `--dwell`: `Ns` / `Nbeats` / `Nbars` / `Ncycles` / `auto` (use per-step `dwell` field, fallback to show's `default_dwell`, fallback to `16beats`)
 - CLI value overrides anything in the show file
 - Re-reads CPS from server before each step (so tempo changes mid-show feel right)
 - `--loop` resets to step -1 at end and restarts
+- Run autoplay in the foreground (or `tee` to a log) — Python buffers stdout when backgrounded, so the per-step `step N/total cps=… dwell=… (Xs) label` lines may not appear until exit. To watch progress, poll `curl localhost:8766/status` for `step`.
 
 ## Server endpoints (step-related)
 

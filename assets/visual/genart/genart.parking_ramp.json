@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.parking_ramp",
+  "kind": "genart",
+  "name": "Parking Ramp",
+  "desc": "A helical parking deck driven forever \u2014 the camera corkscrews and climbs so the whole structure banks around it, mushroom columns and sodium tubes whip past, and daylight cuts through the spandrel slots between the parapet and the deck one turn overhead.",
+  "tags": [
+    "parking",
+    "garage",
+    "carpark",
+    "ramp",
+    "helix",
+    "helical",
+    "spiral",
+    "deck",
+    "storey",
+    "levels",
+    "columns",
+    "mushroom-column",
+    "spandrel",
+    "parapet",
+    "concrete",
+    "board-formed",
+    "brutalist",
+    "perspective",
+    "vanishing-point",
+    "depth",
+    "recession",
+    "banking",
+    "camera",
+    "drive",
+    "corkscrew",
+    "architecture",
+    "architectural",
+    "interior",
+    "infrastructure",
+    "sodium",
+    "oxide",
+    "rust",
+    "blueprint",
+    "engraving",
+    "liminal",
+    "austere",
+    "decayed",
+    "eerie",
+    "structure",
+    "built",
+    "geometry"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tube output, headlamp wash, camera drift and climb rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "deck depth + storey height (2.2 = a cavernous deck; the helix radius and eye height stay fixed so this is never a no-op)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far around the helix you can see \u2014 1 reveals well past a full turn"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "rate the camera drives the ramp (this is also the rate the frame rotates)"
+    },
+    "hue": {
+      "default": 26,
+      "min": 0,
+      "max": 360,
+      "doc": "daylight/lamp hue; concrete takes its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "principal point across frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.28,
+      "max": 0.78,
+      "doc": "eye line height"
+    },
+    "decay": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rust bleed and water staining down the spandrels"
+    },
+    "style": {
+      "default": "concrete",
+      "options": [
+        "concrete",
+        "sodium",
+        "oxide",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "aesthetic: cool board-formed concrete / amber sodium night / rust-bled decay / cyan schematic linework / hatched paper plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "weathering, dead tubes, stain placement (absolute-segment keyed, so no two turns of the helix repeat)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:33:21+00:00",
+    "fps": 63.7,
+    "motion": 0.0465,
+    "lum": 0.419
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:26, x:.5, y:.5, decay:.4, style:'concrete', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, HU = ((P.hue%360)+360)%360;\nconst wire = (sty === 'blueprint'), paper = (sty === 'engraving');\nconst TAU = Math.PI*2;\n\n// ---- the camera DRIVES A HELIX: it corkscrews and climbs, forever, without repeat\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z = (S.z||0) + dt * P.speed * (.16 + .18*K.intensity + .16*P.energy);\nconst bsm = (S.bm = (S.bm||0)*.84 + (A.bass||0)*.16);\nconst gl = (.44 + .56*P.energy) * (.55 + .5*K.intensity) + bsm*.26;\n\nconst dA = .55*Math.sin(K.t*.41) + .30*Math.sin(K.t*.97+1.7) + .17*Math.sin(K.t*1.63+.4);\nconst dB = .50*Math.sin(K.t*.53+2.1) + .32*Math.sin(K.t*1.19+.9) + .20*Math.sin(K.t*2.29+2.6);\nconst dC = .60*Math.sin(K.t*.089) + .40*Math.sin(K.t*.211+1.1);\n\nconst NSEG = 24, dth = TAU/NSEG;\n// Rin / Rcam FIXED, deck depth + storey height scale -> P.scale can't be a no-op\nconst Rin = u*.95, Rout = Rin + u*.74*P.scale, Rcol = Rin + u*.15;\nconst RISE = u*.60*P.scale, PARA = RISE*.30, LINT = RISE*.17, eh = u*.22;\nconst Rcam = Rin + u*.36 + u*.05*dB*P.energy;\nconst NF = Math.round(NSEG*1.05 + cl(P.density,0,1)*NSEG*.55);\n\nconst th = S.z*dth;\nconst camX = Rcam*Math.cos(th), camZ = Rcam*Math.sin(th);\nconst camY = -(S.z/NSEG)*RISE - eh + u*.012*dC*P.energy;\nconst yaw = -th + .05*dA*P.energy;                 // heading stays tangent to the ramp\nconst ca = Math.cos(yaw), sa = Math.sin(yaw);\nconst f = u*1.05, NEAR = u*.08;\nconst vcx = cl(P.x,.15,.85)*width, vcy = cl(P.y,.28,.78)*height;\nconst jc = Math.floor(S.z);\nconst YD = j => -(j/NSEG)*RISE;                    // deck height at segment j\nconst PXo = (r,a2) => r*Math.cos(a2), PZo = (r,a2) => r*Math.sin(a2);\n\n// a sodium tube fails and relights on its own slow clock\nconst flick = j => .62 + .38*Math.sin(K.t*(.6 + fr(j*2.7)*.7) + j*2.1);\n\n// ---- projection ---------------------------------------------------------------\nconst AX = new Float64Array(12), AY = new Float64Array(12), AZ = new Float64Array(12);\nconst BX = new Float64Array(18), BY = new Float64Array(18);\nfunction poly(v){\n  const n = v.length/3;\n  for (let i=0;i<n;i++){\n    const X = v[i*3]-camX, Y = v[i*3+1]-camY, Z = v[i*3+2]-camZ;\n    AX[i] = X*ca - Z*sa; AY[i] = Y; AZ[i] = X*sa + Z*ca;\n  }\n  let m = 0;\n  for (let i=0;i<n;i++){\n    const j = (i+1)%n, az = AZ[i], bz = AZ[j], ai = az>NEAR, bi2 = bz>NEAR;\n    if (ai){ BX[m] = vcx + f*AX[i]/az; BY[m] = vcy + f*AY[i]/az; m++; }\n    if (ai !== bi2){\n      const tt = (NEAR-az)/(bz-az);\n      BX[m] = vcx + f*(AX[i]+(AX[j]-AX[i])*tt)/NEAR;\n      BY[m] = vcy + f*(AY[i]+(AY[j]-AY[i])*tt)/NEAR; m++;\n    }\n  }\n  if (m < 3) return false;\n  beginShape(); for (let i=0;i<m;i++) vertex(BX[i], BY[i]); endShape(CLOSE);\n  return true;\n}\nfunction pt2(X,Y,Z){\n  const dx = X-camX, dy = Y-camY, dz = Z-camZ;\n  const rz = dx*sa + dz*ca;\n  if (rz <= NEAR) return null;\n  return [vcx + f*(dx*ca - dz*sa)/rz, vcy + f*dy/rz, rz];\n}\n\n// ---- tone tables ---------------------------------------------------------------\nfunction mixc(c,d,t){ const dh = ((d[0]-c[0])%360+540)%360-180;\n  return [c[0]+dh*t, c[1]+(d[1]-c[1])*t, c[2]+(d[2]-c[2])*t]; }\nconst HAZE = paper ? [40, 6, 90] : wire ? [212, 58, 20]\n           : sty === 'sodium' ? [30, 44, 24] : sty === 'oxide' ? [18, 40, 26] : [(HU+184)%360, 12, 28];\nconst fogA = (paper||wire) ? .28 : .66;\nfunction tone(v, tv){\n  if (paper) return [40, 5 + 4*tv, cl(97 - 52*(1-v), 40, 97)];\n  if (wire)  return [212, 60, cl(11 + 10*v, 7, 30)];\n  if (sty === 'sodium') return [cl(28 + 10*tv, 18, 44), cl(54 - 22*v, 8, 68), cl(5 + 76*v, 3, 93)];\n  if (sty === 'oxide')  return [cl(16 + 16*tv - 6*v, 4, 40), cl(30 + 30*tv - 10*v, 6, 62), cl(7 + 74*v, 4, 92)];\n  return [(HU + 180 - 150*v)%360, cl(12 - 7*v + 7*tv, 2, 22), cl(8 + 78*v, 4, 95)];\n}\nfunction ink(a){\n  if (wire) stroke(190, 30, 100, a);\n  else if (paper) stroke(30, 20, 14, a);\n  else stroke((HU+180)%360, 10, 82, a*.30);\n}\nconst LTH = sty === 'sodium' ? 32 : sty === 'oxide' ? 34 : (HU+4)%360;\n\n// ---- daylight beyond the openings (banded) --------------------------------------\nnoStroke();\nconst NBD = 30;\nfunction outC(s){\n  if (paper) return [40, 4 + 4*s, 97 - 5*s];\n  if (wire)  return [214, 64, 12 + 8*s];\n  if (sty === 'oxide')  return [(HU+8)%360, cl(52 - 26*s, 6, 60), 34 + 44*Math.pow(s,1.6)];\n  if (sty === 'sodium') return [(HU+2)%360, cl(50 - 30*s, 4, 60), 26 + 50*Math.pow(s,1.7)];\n  return [(HU + 176 - 96*Math.pow(s,1.8))%360, cl(34 - 20*s, 4, 40), 30 + 52*Math.pow(s,1.5)];\n}\nfor (let i=0;i<NBD;i++){\n  const s = i/(NBD-1), c = outC(1-s);\n  fill(c[0], c[1], cl(c[2] + (fr(i*5.7)-.5)*1.8, 0, 100));\n  rect(0, s*height - 1.5, width, height/NBD + 3);\n}\n\n// ---- gather the helix, depth-sort, paint far -> near -----------------------------\nconst segs = [];\nfor (let j = jc-5; j <= jc+NF; j++){\n  const a0 = j*dth, a1 = (j+1)*dth, am = (a0+a1)*.5;\n  const rm = (Rin+Rout)*.5;\n  const p = pt2(PXo(rm,am), YD(j), PZo(rm,am));\n  if (!p) continue;\n  if (p[0] < -u*.9 || p[0] > width + u*.9) continue;\n  segs.push([p[2], j, a0, a1]);\n}\nsegs.sort((a,b) => b[0]-a[0]);\nconst NC = Math.min(segs.length, 46);\n\nstrokeWeight(Math.max(1, u*.0013));\nfor (let q = segs.length-NC; q < segs.length; q++){\n  const sg = segs[q], rz = sg[0], j = sg[1], a0 = sg[2], a1 = sg[3];\n  const hz = cl(rz/(u*5.2), 0, 1);\n  const tv = fr(j*31.7);\n  const y0 = YD(j), y1 = YD(j+1);\n  const isCeil = (y0 < camY);                     // above the eye => we are reading its UNDERSIDE\n  const rust = cl(P.decay,0,1) * fr(j*13.9);\n\n  // ---- the deck helicoid: a floor ahead of us, a ceiling one turn up\n  const dv = isCeil ? (.09 + .07*tv) : (.30 + .17*tv) * (.55+.5*gl);\n  let c = mixc(tone(cl(dv,0,1), tv), HAZE, hz*fogA);\n  if (sty === 'oxide') c = mixc(c, [14, 62, 34], rust*.5);\n  if (wire){ noFill(); ink(44); } else { noStroke(); fill(c[0], c[1], c[2], 100); }\n  poly([PXo(Rin,a0), y0, PZo(Rin,a0), PXo(Rout,a0), y0, PZo(Rout,a0),\n        PXo(Rout,a1), y1, PZo(Rout,a1), PXo(Rin,a1), y1, PZo(Rin,a1)]);\n\n  if (!isCeil && !wire){\n    // tyre-polished lane down the middle of the deck + a radial stall line\n    const c2 = mixc(tone(cl(dv*.62,0,1), tv), HAZE, hz*fogA);\n    noStroke(); fill(c2[0], c2[1], c2[2], paper?40:74);\n    const rA = Rin + (Rout-Rin)*.24, rB = Rin + (Rout-Rin)*.62;\n    poly([PXo(rA,a0), y0, PZo(rA,a0), PXo(rB,a0), y0, PZo(rB,a0),\n          PXo(rB,a1), y1, PZo(rB,a1), PXo(rA,a1), y1, PZo(rA,a1)]);\n    const lc = paper ? [42,10,72] : [50, 66, cl(48+30*gl, 16, 94)];\n    const lc2 = mixc(lc, HAZE, hz*fogA);\n    fill(lc2[0], lc2[1], lc2[2], 100);\n    const rC = Rin + (Rout-Rin)*.66, rD = Rout - (Rout-Rin)*.06, wA = dth*.022;\n    poly([PXo(rC,a0-wA), y0, PZo(rC,a0-wA), PXo(rD,a0-wA), y0, PZo(rD,a0-wA),\n          PXo(rD,a0+wA), y0, PZo(rD,a0+wA), PXo(rC,a0+wA), y0, PZo(rC,a0+wA)]);\n  }\n  if (isCeil && !wire && !paper){\n    // sodium tube on the soffit + the pool it drops on the deck below\n    if (fr(j*5.1+3) > .18 && (j % 2 === 0)){\n      const fl = flick(j);\n      noStroke(); fill(LTH, sty==='oxide'?36:16, cl(58 + 36*gl*fl, 8, 97), 100);\n      const rA = Rin + (Rout-Rin)*.40, rB = Rin + (Rout-Rin)*.56;\n      poly([PXo(rA,a0), y0, PZo(rA,a0), PXo(rB,a0), y0, PZo(rB,a0),\n            PXo(rB,a1), y1, PZo(rB,a1), PXo(rA,a1), y1, PZo(rA,a1)]);\n      push(); blendMode(ADD); noStroke();\n      fill(LTH, 24, 100, cl(2.6 + 5.0*gl*fl, 0, 15));\n      poly([PXo(Rin,a0), y0+RISE, PZo(Rin,a0), PXo(Rout,a0), y0+RISE, PZo(Rout,a0),\n            PXo(Rout,a1), y1+RISE, PZo(Rout,a1), PXo(Rin,a1), y1+RISE, PZo(Rin,a1)]);\n      pop(); blendMode(BLEND);\n    }\n  }\n\n  // ---- outer spandrel band: parapet above the deck + edge beam hanging below\n  const bv = (.22 + .30*Math.pow(1-hz,1.3) + .10*tv) * (.5+.5*gl);\n  let bc = mixc(tone(cl(bv,0,1), tv), HAZE, hz*fogA);\n  if (sty === 'oxide') bc = mixc(bc, [12, 68, 30], rust*.7);\n  if (wire){ noFill(); ink(58); } else { noStroke(); fill(bc[0], bc[1], bc[2], 100); }\n  poly([PXo(Rout,a0), y0-PARA, PZo(Rout,a0), PXo(Rout,a1), y1-PARA, PZo(Rout,a1),\n        PXo(Rout,a1), y1+LINT, PZo(Rout,a1), PXo(Rout,a0), y0+LINT, PZo(Rout,a0)]);\n  // board-form grain on the parapet \u2014 never a flat fill\n  if (!wire && !paper){\n    noStroke();\n    for (let b2=0; b2<3; b2++){\n      const yy = -PARA + (PARA+LINT)*(b2+.5)/3;\n      const bc2 = mixc(tone(cl(bv*(.72+.14*b2), 0, 1), tv), HAZE, hz*fogA);\n      fill(bc2[0], bc2[1], bc2[2], 52);\n      poly([PXo(Rout,a0), y0+yy, PZo(Rout,a0), PXo(Rout,a1), y1+yy, PZo(Rout,a1),\n            PXo(Rout,a1), y1+yy+(PARA+LINT)*.20, PZo(Rout,a1), PXo(Rout,a0), y0+yy+(PARA+LINT)*.20, PZo(Rout,a0)]);\n    }\n    if (rust > .35){\n      const rc = mixc([14, 66, cl(24+16*rust,0,60)], HAZE, hz*fogA);\n      fill(rc[0], rc[1], rc[2], cl(30+40*rust, 0, 76));\n      const wA = dth*.13;\n      poly([PXo(Rout,a0+wA), y0-PARA*.5, PZo(Rout,a0+wA), PXo(Rout,a0+wA*2.2), y0-PARA*.5, PZo(Rout,a0+wA*2.2),\n            PXo(Rout,a0+wA*2.2), y0+LINT, PZo(Rout,a0+wA*2.2), PXo(Rout,a0+wA), y0+LINT, PZo(Rout,a0+wA)]);\n    }\n  }\n  ink(paper ? 30 : 26); noFill();\n  poly([PXo(Rout,a0), y0, PZo(Rout,a0), PXo(Rout,a1), y1, PZo(Rout,a1)]);\n\n  // ---- inner core wall\n  const iv = (.13 + .12*tv) * (.5+.6*gl);\n  const ic = mixc(tone(cl(iv,0,1), tv), HAZE, hz*fogA*.7);\n  if (wire){ noFill(); ink(40); } else { noStroke(); fill(ic[0], ic[1], ic[2], 100); }\n  poly([PXo(Rin,a0), y0, PZo(Rin,a0), PXo(Rin,a1), y1, PZo(Rin,a1),\n        PXo(Rin,a1), y1-RISE, PZo(Rin,a1), PXo(Rin,a0), y0-RISE, PZo(Rin,a0)]);\n\n  // ---- mushroom column every third bay, deck -> deck above\n  if (j % 3 === 0){\n    const am = (a0+a1)*.5;\n    const p = pt2(PXo(Rcol,am), y0, PZo(Rcol,am));\n    if (p){\n      const rw = f*(u*.045)/p[2];\n      const yb = vcy + f*(y0 - camY)/p[2], yt = vcy + f*(y0 - RISE - camY)/p[2];\n      const NS = cl(Math.round(rw/(u*.010)), 1, 6);\n      for (let s2=0; s2<NS; s2++){\n        const p0 = -1 + 2*s2/NS, p1 = -1 + 2*(s2+1)/NS, pm = (p0+p1)*.5;\n        const lamb = cl(.18 + .86*Math.cos((pm - .5)*1.4), 0, 1);\n        let cc = mixc(tone(cl(lamb*(.42+.5*gl), 0, 1), tv), HAZE, hz*fogA);\n        if (sty === 'oxide') cc = mixc(cc, [14, 60, 32], rust*.4);\n        if (wire){ noFill(); ink(50); } else { noStroke(); fill(cc[0], cc[1], cc[2], 100); }\n        rect(p[0] + p0*rw, yt, (p1-p0)*rw + 1.1, yb-yt);\n      }\n      if (!wire){\n        const cc = mixc(tone(cl(.34*(.5+.5*gl),0,1), tv), HAZE, hz*fogA);\n        noStroke(); fill(cc[0], cc[1], cc[2], 100);\n        rect(p[0] - rw*1.55, yt, rw*3.10, Math.abs(yb-yt)*.09 + 1);   // mushroom capital\n      }\n    }\n  }\n}\n\n// ---- headlamp wash sliding along the deck ahead (partial frame, ADD) -------------\nif (!paper && !wire){\n  push(); blendMode(ADD); noStroke();\n  for (let i=0;i<3;i++){\n    const aa = th + (1.1 + i*.5)*dth*2.2;\n    const jj = jc + Math.round((aa-th)/dth);\n    fill(LTH, 22, 100, 2.2 + 3.8*gl);\n    poly([PXo(Rin,aa), YD(jj), PZo(Rin,aa), PXo(Rout,aa), YD(jj), PZo(Rout,aa),\n          PXo(Rout,aa+dth*.5), YD(jj)-0, PZo(Rout,aa+dth*.5), PXo(Rin,aa+dth*.5), YD(jj)-0, PZo(Rin,aa+dth*.5)]);\n  }\n  pop(); blendMode(BLEND);\n}\n\n// ---- cached grain + vignette -----------------------------------------------------\nif (!S.gv || S.gk !== width+'x'+height+'|'+sty){\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const N = Math.min(9000, Math.floor(width*height/230));\n  for (let i=0;i<N;i++){\n    const px = Math.abs((Math.sin(i*12.9898)*43758.5453)%1)*width;\n    const py = Math.abs((Math.sin(i*78.233+2.1)*43758.5453)%1)*height;\n    g.fill(0,0, (i%2) ? 100 : 0, paper ? 8 : 6);\n    g.rect(px, py, 1.7, 1.7);\n  }\n  for (let i=0;i<26;i++){ const s=i/26, bw=(1-s)*.095;\n    g.fill(0,0,0, 1.1 + 3.8*s*s);\n    g.rect(0,0,width,height*bw); g.rect(0,height*(1-bw),width,height*bw);\n    g.rect(0,0,width*bw,height); g.rect(width*(1-bw),0,width*bw,height);\n  }\n  S.gv = g; S.gk = width+'x'+height+'|'+sty;\n}\nimage(S.gv, 0, 0);\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

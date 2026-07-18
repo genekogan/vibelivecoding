@@ -1,0 +1,107 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.kites",
+  "kind": "crowd",
+  "name": "Kite Flock",
+  "desc": "A sky full of kites riding the wind \u2014 diamonds with crossed spars, box kites, flapping bird deltas and hexagonal rokkakus \u2014 each swaying on incommensurate gusts with rippling bowed ribbon tails and a breathing sun wash drifting across the sky. Mono-hue or full festival rainbow.",
+  "tags": [
+    "kites",
+    "sky",
+    "wind",
+    "festival",
+    "flying",
+    "colorful",
+    "tails",
+    "playful",
+    "summer",
+    "floating"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gust bounce"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "kite size"
+    },
+    "tails": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "ribbon tail length"
+    },
+    "windS": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal sway"
+    },
+    "skyGlow": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sun wash"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "kite count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "diamond",
+      "options": [
+        "diamond",
+        "box",
+        "bird",
+        "rokkaku",
+        "mono"
+      ],
+      "doc": "kite type (mono = diamond single-hue)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "layout seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:10:09+00:00",
+    "fps": 60.2,
+    "motion": 0.0148,
+    "lum": 0.091
+  },
+  "code": "const D = { energy:.5, scale:1, hue:200, tails:.7, windS:.5, skyGlow:.5, x:.5, y:.5, speed:1, density:.5, style:'diamond', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nnoStroke();\nconst n=Math.floor(3+P.density*7);\n// breathing sky wash (motion carrier)\nif(P.skyGlow>0.02){ dc.save(); blendMode(SCREEN);\n const gx=W*(0.5+Math.sin(t*0.21)*0.36); const gb=0.5+0.5*Math.sin(t*0.39)+0.3*Math.sin(t*0.83+1);\n const rg=dc.createRadialGradient(gx,Hh*0.3,10,gx,Hh*0.3,W*0.4);\n rg.addColorStop(0,color(45,25,95,(5+7*gb)*P.skyGlow*P.alpha/100).toString());\n rg.addColorStop(1,'rgba(0,0,0,0)');\n dc.fillStyle=rg; dc.fillRect(0,0,W,Hh); dc.restore(); blendMode(BLEND); }\nfor(let i=0;i<n;i++){\n const depth=0.4+fr(i+20)*0.6;\n const kx=W*(0.08+fr(i)*0.84) + Math.sin(t*(0.23+fr(i+1)*0.2)*P.speed+i*2)*W*0.06*(0.4+P.windS);\n const ky=Hh*(0.12+fr(i+9)*0.5) + (0.9*Math.sin(t*(0.41+fr(i+2)*0.23)*P.speed+i)+0.5*Math.sin(t*(0.9+fr(i+3)*0.4)*P.speed+i*3))*Hh*0.05*(0.4+en);\n const sz=u*(0.05+fr(i+5)*0.05)*P.scale*depth;\n const tilt=Math.sin(t*(0.5+fr(i+4)*0.4)+i*1.7)*0.3*(0.3+P.windS);\n const hueK=sty==='mono'? P.hue : (P.hue+fr(i+30)*280)%360;\n push(); translate(kx,ky); rotate(tilt);\n // tail: ribbon with bows\n if(P.tails>0.03){ noFill(); stroke(color(hueK,50,85,60*depth*P.alpha/100)); strokeWeight(Math.max(1.2,sz*0.05));\n  beginShape(); for(let q=0;q<=16;q++){ const s2=q/16;\n   vertex(Math.sin(s2*5+t*(2+fr(i))*P.speed)*sz*0.5*s2*P.tails, sz*0.8+s2*sz*2.4*P.tails); } endShape(); noStroke();\n  for(let q=1;q<=4;q++){ const s2=q/4.6;\n   const bx=Math.sin(s2*5+t*(2+fr(i))*P.speed)*sz*0.5*s2*P.tails; const by=sz*0.8+s2*sz*2.4*P.tails;\n   push(); translate(bx,by); rotate(Math.sin(t*3+q+i)*0.6);\n   fill(color((hueK+40*q)%360,65,90,75*depth*P.alpha/100));\n   triangle(0,0,-sz*0.16,-sz*0.08,-sz*0.16,sz*0.08); triangle(0,0,sz*0.16,-sz*0.08,sz*0.16,sz*0.08); pop(); } }\n // body\n if(sty==='box'){ // box kite\n  fill(color(hueK,70,88,90*depth*P.alpha/100)); rect(-sz*0.45,-sz*0.85,sz*0.9,sz*0.62,2);\n  rect(-sz*0.45,sz*0.1,sz*0.9,sz*0.62,2);\n  fill(color((hueK+180)%360,60,80,80*depth*P.alpha/100)); rect(-sz*0.45,-sz*0.23,sz*0.9,sz*0.33);\n } else if(sty==='bird'){ // bird/delta kite\n  fill(color(hueK,65,85,90*depth*P.alpha/100)); const fl=Math.sin(t*(2.2+fr(i))*P.speed+i)*sz*0.25;\n  triangle(0,0,-sz*1.1,-sz*0.35+fl,0,-sz*0.28); triangle(0,0,sz*1.1,-sz*0.35+fl,0,-sz*0.28);\n  fill(color((hueK+25)%360,70,75,90*depth*P.alpha/100)); triangle(0,0,0,-sz*0.28,sz*0.16,sz*0.34);\n } else if(sty==='rokkaku'){ // hexagon\n  fill(color(hueK,65,88,92*depth*P.alpha/100));\n  beginShape(); for(let q=0;q<6;q++){ const a=q/6*TAU-Math.PI/2; vertex(Math.cos(a)*sz*0.72,Math.sin(a)*sz*0.86); } endShape(CLOSE);\n  fill(color((hueK+150)%360,55,92,70*depth*P.alpha/100)); circle(0,0,sz*0.5);\n } else { // diamond\n  fill(color(hueK,70,88,92*depth*P.alpha/100));\n  quad(0,-sz,sz*0.62,0,0,sz*0.85,-sz*0.62,0);\n  stroke(color(hueK,40,30,50*depth*P.alpha/100)); strokeWeight(1.2);\n  line(0,-sz,0,sz*0.85); line(-sz*0.62,0,sz*0.62,0); noStroke();\n  fill(color((hueK+180)%360,60,95,70*depth*P.alpha/100)); triangle(0,-sz,sz*0.62,0,0,0);\n }\n pop(); }\nblendMode(BLEND);\n"
+}

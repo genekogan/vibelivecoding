@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.dancer",
+  "kind": "subject",
+  "name": "Dancer",
+  "desc": "A lone dancer grooving through a cycle of moves \u2014 arms up, side-stepping, spinning and pointing \u2014 hips swaying, bouncing on the beat, with a few sparkles. Disco, contemporary, breakdance, silhouette or neon.",
+  "tags": [
+    "dancer",
+    "dancing",
+    "disco",
+    "groove",
+    "figure",
+    "person",
+    "character",
+    "figurative",
+    "moves",
+    "party",
+    "club",
+    "silhouette",
+    "breakdance",
+    "boogie",
+    "rhythm",
+    "neon",
+    "stage"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "dance tempo/energy"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "size"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "body/accent hue"
+    },
+    "groove": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "hip sway amount"
+    },
+    "limbs": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "limb throw"
+    },
+    "glow": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "glow (neon)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "floor y"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "disco",
+      "options": [
+        "disco",
+        "contemp",
+        "break",
+        "silhouette",
+        "neon"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:48:58+00:00",
+    "fps": 65.4,
+    "motion": 0.0145,
+    "lum": 0.094
+  },
+  "code": "const D = { energy:.65, scale:1, hue:320, groove:.6, limbs:.6, glow:.4, x:.5, y:.62, speed:1, density:.5, style:'disco', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style, en=P.energy, t=K.t, dc=drawingContext;\nconst u=Math.min(width,height), sc=u*0.0042*P.scale, cx=P.x*width, cy=P.y*height;\nconst beat=t*(2.0+en*1.5)*P.speed;\n// slow incommensurate groove drift so the pose never re-phases at 8s\nconst drift=(0.9*Math.sin(t*0.37)+0.5*Math.sin(t*0.83+1.5))*30*sc*(0.4+en);\nconst kick=K.pulse*0.4+A.bass*0.5;\n\nlet body=[0,0,8], accent=[P.hue,80,100], glow=false;\nif(sty==='neon'){ body=[P.hue,80,60]; accent=[(P.hue+150)%360,90,100]; glow=true; }\nelse if(sty==='disco'){ body=[P.hue,70,55]; accent=[45,90,100]; }\nelse if(sty==='contemp'){ body=[P.hue,20,30]; accent=[P.hue,30,70]; }\nelse if(sty==='break'){ body=[210,15,20]; accent=[15,80,95]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nconst outline=(sty==='neon');\nfunction limb(x1,y1,x2,y2,w){ if(outline){ stroke(Cc(accent,90)); strokeWeight(w); } else { stroke(Cc(body,100)); strokeWeight(w);} line(x1,y1,x2,y2); }\n\n// dance move selection (evolves slowly)\nconst move=Math.floor((t*0.12 + fr(2)*3)%3);   // 0 arms-up groove, 1 side-step, 2 spin/point\n\npush();\ntranslate(cx+drift, cy);\nscale(sc);\nnoStroke(); fill(0,0,0,14); ellipse(0,96,110*(1+Math.abs(Math.sin(beat))*0.1),16);\n\nconst hipSway=Math.sin(beat)*18*P.groove;\nconst bounce=Math.abs(Math.sin(beat))*10*(0.5+en);\nconst shoulder=-bounce*0.5;\npush(); translate(hipSway*0.5, -bounce);\nstrokeCap(ROUND); noFill();\n// legs\nconst stepA=Math.sin(beat+ (move===1?1.5:0));\nif(move===1){ limb(hipSway*0.3,10, hipSway*0.3-30-stepA*20, 78, 12); limb(hipSway*0.3,10, hipSway*0.3+30+stepA*20, 78, 12); }\nelse { limb(0,10, -14-stepA*10, 78, 12); limb(0,10, 14+stepA*10, 78-Math.max(0,stepA)*14, 12); }\n// torso\nlimb(hipSway*0.4,10, shoulder*0+0,-52, 16);\n// head\nif(outline){ noFill(); stroke(Cc(accent,90)); strokeWeight(6); circle(0,-64,26);} else { fill(Cc(body,100)); noStroke(); circle(0,-64,26); }\nnoFill();\n// arms \u2014 depends on move\nconst armT=Math.sin(beat*1.0)*P.limbs;\nif(move===0){ // arms up\n  limb(0,-46, -34, -76-Math.max(0,armT)*24, 11); limb(0,-46, 34, -76-Math.max(0,-armT)*24, 11);\n} else if(move===1){ // side arms\n  limb(0,-46, -44+armT*10, -40-armT*20, 11); limb(0,-46, 44+armT*10, -40+armT*20, 11);\n} else { // point / spin\n  limb(0,-46, 44*Math.cos(beat), -46+44*Math.sin(beat)*0.6, 11); limb(0,-46, -20, -20, 11);\n}\npop();\n// glow rim / sparkle\nif(glow){ dc.save(); dc.shadowBlur=18; dc.shadowColor=Cc(accent,90).toString(); noStroke(); fill(Cc(accent,40)); circle(0,-40,6); dc.restore(); }\n// a couple beat sparkles\nif(sty==='disco'||sty==='neon'){ for(let i=0;i<4;i++){ const a=beat+i*1.6; const sx=Math.cos(a)*70, sy=-40+Math.sin(a)*50; fill(Cc(accent, 30+40*Math.max(0,Math.sin(beat*2+i)))); noStroke(); circle(sx,sy,3+kick*3); } }\nblendMode(BLEND); dc.shadowBlur=0;\npop();\n"
+}

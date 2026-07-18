@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mimeograph",
+  "kind": "genart",
+  "name": "Spirit Duplicator",
+  "desc": "Copies landing in the delivery tray of a ditto machine \u2014 a typed and hand-drawn master coming off the drum in aniline purple, each sheet skewed a little further and a little fainter than the last, drum streaks and starved edges and the ghost of the sheet underneath, until the master gives out and a fresh one goes on.",
+  "tags": [
+    "mimeograph",
+    "ditto",
+    "spirit-duplicator",
+    "duplicator",
+    "purple",
+    "aniline",
+    "stencil",
+    "copy",
+    "photocopy",
+    "print",
+    "office",
+    "school",
+    "worksheet",
+    "handout",
+    "zine",
+    "samizdat",
+    "typewriter",
+    "schematic",
+    "diagram",
+    "document",
+    "paper",
+    "stack",
+    "machine",
+    "streak",
+    "starvation",
+    "faded",
+    "degraded",
+    "analog",
+    "retro",
+    "institutional",
+    "clinical",
+    "decayed",
+    "bureaucratic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how fast the operator is cranking \u2014 feed rate, streak contrast, how hard the basement light falls off"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how deep the tray is stacked (3 to 5 sheets) and how full the master is typed"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the machine"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2,
+      "doc": "sheet size in the frame, and the body size of the typing"
+    },
+    "hue": {
+      "default": 282,
+      "min": 0,
+      "max": 360,
+      "doc": "duplicator ink hue \u2014 282 is ditto purple; carries stock and machine bed with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the tray sits, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the tray sits, y"
+    },
+    "starve": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "drum streaking and how badly the ink runs out across the sheet"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    },
+    "act": {
+      "default": "run",
+      "options": [
+        "run",
+        "dying",
+        "fresh"
+      ],
+      "doc": "multi-minute program: a normal run / short runs, the master gives out fast and gets replaced / a long clean run off a new master"
+    },
+    "style": {
+      "default": "ditto",
+      "options": [
+        "ditto",
+        "mimeo",
+        "carbon",
+        "redline",
+        "negative"
+      ],
+      "doc": "aesthetic: aniline purple spirit duplicator / dark blue-black stencil mimeograph / a smudged grey carbon flimsy / red duplicator ink / not a copy at all: the cut wax stencil itself, the image reading as holes in a solid ink field"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic master \u2014 the lock-up, typing, diagram, per-copy skew and streaks"
+    }
+  },
+  "acts": [
+    "run",
+    "dying",
+    "fresh"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:17+00:00",
+    "fps": 64.9,
+    "motion": 0.0299,
+    "lum": 0.456
+  },
+  "code": "const D = { energy: .6, density: .5, speed: 1, scale: 1, hue: 282, x: .5, y: .5, starve: .55, alpha: 100, act: 'run', style: 'ditto', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst rgbv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [Math.round((r + m) * 255), Math.round((g2 + m) * 255), Math.round((b2 + m) * 255)];\n};\nconst css = (h, s, v, a) => { const c = rgbv(h, s, v); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; };\n\nconst W = width, H = height, u = Math.min(W, H), dc = drawingContext;\nconst en = clp(P.energy, 0, 1), de = clp(P.density, 0, 1), sv = clp(P.starve, 0, 1);\nconst spd = Math.max(.1, P.speed), sc = Math.max(.35, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360, la = clp(P.alpha, 0, 100) / 100;\nconst neg = st === 'negative';\n\nlet inkH = hb, inkS = .64, inkV = .46, paH = hb + 52, paS = .05, paV = .80, trH = hb + 88, trS = .30, trV = .13;\nif (st === 'mimeo') { inkH = hb - 55; inkS = .72; inkV = .30; paH = hb + 60; paS = .07; paV = .82; }\nelse if (st === 'carbon') { inkH = hb - 45; inkS = .26; inkV = .34; paH = hb + 70; paS = .04; paV = .84; trH = hb + 80; trS = .18; trV = .16; }\nelse if (st === 'redline') { inkH = hb + 78; inkS = .78; inkV = .58; paH = hb + 60; paS = .05; paV = .82; }\nelse if (neg) { inkH = hb - 40; inkS = .60; inkV = .28; paH = hb + 55; paS = .06; paV = .86; trH = hb + 90; trS = .32; trV = .10; }\nconst inkCss = css(inkH, inkS, inkV, 1), paCss = css(paH, paS, paV, 1);\n\n// ---- the master on the drum --------------------------------------------------\nconst MW = Math.max(400, Math.min(980, Math.round(W * .58))), MH = Math.max(240, Math.round(MW / 1.29));\nconst dq = Math.round(de * 4), sq = Math.round(sc * 6), hq = Math.round(hb / 8);\nconst key = MW + '|' + P.seed + '|' + st + '|' + dq + '|' + sq + '|' + hq;\nif (!S.mas || S.key !== key) {\n  if (S.mas && S.mas.remove) S.mas.remove();\n  S.mas = createGraphics(MW, MH); S.mas.pixelDensity(1); S.key = key;\n  const g = S.mas.drawingContext;\n  if (neg) { g.fillStyle = inkCss; g.fillRect(0, 0, MW, MH); }\n  g.globalCompositeOperation = neg ? 'destination-out' : 'source-over';\n  const mkc = neg ? '#000' : inkCss;\n  g.fillStyle = mkc; g.strokeStyle = mkc; g.lineCap = 'round'; g.lineJoin = 'round';\n  const mg = MH * .075, cw = MW - 2 * mg;\n  let yy = mg;\n  // stencil-cut heading\n  const nh = 4 + Math.round(fr(1) * 4);\n  const gh = MH * .062 * (.7 + .5 * sc);\n  let px = mg;\n  for (let k = 0; k < nh && px < mg + cw * .8; k++) {\n    const gw = gh * (.46 + .5 * fr(k * 3 + 2));\n    g.globalAlpha = .88 + .12 * fr(k * 3 + 3);\n    g.fillRect(px, yy, gw, gh);\n    g.globalCompositeOperation = 'destination-out'; g.globalAlpha = 1; g.fillStyle = '#000';\n    if (fr(k * 3 + 4) < .75) g.fillRect(px + gw * .24, yy + gh * (.18 + .4 * fr(k * 3 + 5)), gw * .56, gh * (.13 + .2 * fr(k * 3 + 6)));\n    g.globalCompositeOperation = neg ? 'destination-out' : 'source-over'; g.fillStyle = mkc;\n    px += gw + gh * .16;\n  }\n  yy += gh * 1.5;\n  g.globalAlpha = 1; g.fillRect(mg, yy, cw, MH * .006); yy += MH * .028;\n  g.fillRect(mg, yy, cw, MH * .0022); yy += MH * .035;\n  // typed body \u2014 the strike is never even\n  const cwd = MW * .0112 / Math.max(.5, sc * .9), lh = MH * .0305 * Math.max(.5, sc * .9);\n  const colW = fr(7) < .45 ? cw : cw * .52;\n  const ncol = colW < cw ? 2 : 1;\n  const bodyH = MH * (.42 + de * .26);\n  const diagY = yy + bodyH + MH * .03;\n  for (let c = 0; c < ncol; c++) {\n    const cx0 = mg + c * (cw - colW);\n    let ly = yy, li = 0;\n    while (ly < yy + bodyH - lh) {\n      let cxp = cx0 + (fr(c * 71 + li * 7 + 8) < .14 ? cwd * 4 : 0);\n      const lim = cx0 + colW * (fr(c * 71 + li * 7 + 9) < .12 ? .35 + .4 * fr(li + 10) : .93 + .07 * fr(li + 11));\n      let wi = 0;\n      while (cxp < lim && wi++ < 30) {\n        const nc = 1 + Math.floor(fr(c * 31 + li * 13 + wi * 3 + 12) * 8);\n        for (let ch = 0; ch < nc; ch++) {\n          if (cxp + cwd > lim) break;\n          g.globalAlpha = .55 + .45 * fr(c * 17 + li * 23 + wi * 5 + ch + 13);\n          g.fillRect(cxp + cwd * .13, ly + lh * (.24 + .06 * fr(ch + wi + li)), cwd * .66, lh * .46);\n          cxp += cwd;\n        }\n        cxp += cwd;\n      }\n      ly += lh; li++;\n    }\n  }\n  // a hand-drawn diagram down at the bottom, biro over the wax\n  g.globalAlpha = 1;\n  const nb = 3 + Math.round(de * 3), bxs = [];\n  for (let k = 0; k < nb; k++) {\n    const bw = cw * (.10 + .09 * fr(k * 5 + 20)), bh = MH * (.05 + .05 * fr(k * 5 + 21));\n    const bx = mg + fr(k * 5 + 22) * (cw - bw), by = diagY + fr(k * 5 + 23) * Math.max(1, (MH - mg - diagY - bh));\n    bxs.push([bx + bw * .5, by + bh * .5, bw, bh]);\n    g.lineWidth = MW * (.0016 + .0022 * fr(k * 5 + 24));\n    g.beginPath();\n    for (let e = 0; e <= 24; e++) {\n      const t = e / 24, pm = t * 4, sd2 = Math.floor(pm), ft = pm - sd2;\n      const cxs = [bx, bx + bw, bx + bw, bx, bx], cys = [by, by, by + bh, by + bh, by];\n      const wob = (fr(k * 40 + e + 30) - .5) * MW * .004;\n      g.lineTo(cxs[sd2] + (cxs[sd2 + 1] - cxs[sd2]) * ft + wob, cys[sd2] + (cys[sd2 + 1] - cys[sd2]) * ft + wob);\n    }\n    g.stroke();\n  }\n  for (let k = 1; k < nb; k++) {\n    const a = bxs[k - 1], b = bxs[k];\n    g.lineWidth = MW * .002; g.beginPath();\n    for (let e = 0; e <= 12; e++) {\n      const t = e / 12, wob = (fr(k * 60 + e + 40) - .5) * MW * .005;\n      g.lineTo(a[0] + (b[0] - a[0]) * t + wob, a[1] + (b[1] - a[1]) * t + wob);\n    }\n    g.stroke();\n    const an = Math.atan2(b[1] - a[1], b[0] - a[0]), ah = MW * .012;\n    g.beginPath(); g.moveTo(b[0], b[1]);\n    g.lineTo(b[0] - Math.cos(an - .45) * ah, b[1] - Math.sin(an - .45) * ah);\n    g.lineTo(b[0] - Math.cos(an + .45) * ah, b[1] - Math.sin(an + .45) * ah);\n    g.closePath(); g.fill();\n  }\n  // a signature scrawled across the bottom\n  g.lineWidth = MW * .0026; g.beginPath();\n  for (let e = 0; e <= 60; e++) {\n    const t = e / 60;\n    g.lineTo(mg + cw * (.62 + .3 * t), MH * (.94 + .022 * Math.sin(t * 22 + fr(50) * 6) * Math.sin(t * 3.1)));\n  }\n  g.stroke();\n  g.globalAlpha = 1;\n  g.globalCompositeOperation = 'source-over';\n}\n// bond fibre\nconst TW = Math.max(240, Math.min(600, Math.round(W * .38))), TH = Math.max(140, Math.round(TW * H / W));\nif (!S.tile || S.tw !== TW || S.th !== TH || S.tseed !== P.seed) {\n  if (S.tile && S.tile.remove) S.tile.remove();\n  S.tile = createGraphics(TW, TH); S.tile.pixelDensity(1); S.tw = TW; S.th = TH; S.tseed = P.seed;\n  S.tile.loadPixels(); const tp = S.tile.pixels;\n  for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {\n    const f1 = hsh(x * .91 + y * .23, y * .89 + x * .17);\n    const f2 = hsh(x * .33 - y * .29 + 2.7, y * .41 + x * .37 + 6.1);\n    const fib = Math.pow(clp(f1 * .78 + f2 * .5 - .13, 0, 1), 1.2);\n    const v = 255 - 40 * fib;\n    const o = 4 * (y * TW + x); tp[o] = v; tp[o + 1] = v; tp[o + 2] = v; tp[o + 3] = 255;\n  }\n  S.tile.updatePixels();\n}\n\n// ---- act: how the run goes ---------------------------------------------------\nlet fade = 1, RUN = 34;\nif (P.act === 'dying') { fade = 1.5; RUN = 22; }\nelse if (P.act === 'fresh') { fade = .5; RUN = 60; }\nconst wet = .84 + .34 * (.5 + .5 * Math.sin(K.t * .0083 + .6 * Math.sin(K.t * .0029 + 1.9))) * (.7 + .6 * K.intensity);\n\n// ---- the machine cranks ------------------------------------------------------\nconst rate = .30 * spd * (.7 + .6 * en);\nconst ph = K.t * rate + .04 * Math.sin(K.t * .037) + .02 * Math.sin(K.t * .109 + 2.1);\nconst idx = Math.floor(ph), prog0 = ph - idx;\nconst NS = 3 + Math.round(de * 2);\nconst shH = H * .96 * sc, shW = shH * 1.29;\nconst cx0 = W * P.x, cy0 = H * P.y;\nconst jx = u * .004 * (Math.sin(K.t * .29) + .6 * Math.sin(K.t * .67 + 1.1));\nconst jy = u * .0034 * (Math.sin(K.t * .43 + 2.2) + .6 * Math.sin(K.t * .89));\n\nconst oldA = dc.globalAlpha;\nblendMode(BLEND); noStroke();\ndc.globalAlpha = la;\n// the machine bed\ndc.fillStyle = css(trH, trS, trV, 1); dc.fillRect(0, 0, W, H);\nconst bg2 = dc.createLinearGradient(0, 0, W * .3, H);\nbg2.addColorStop(0, css(trH, trS * .8, trV * 1.9, .5)); bg2.addColorStop(1, css(trH, trS, trV * .4, .6));\ndc.fillStyle = bg2; dc.fillRect(0, 0, W, H);\n\nfor (let j = NS - 1; j >= 0; j--) {\n  const i = idx - j;\n  const op = (j === NS - 1 && NS > 1) ? (1 - prog0) : 1;\n  if (op < .006) continue;\n  const q = k => fr(i * 5.7 + k * 1.3 + 1);\n  const land = j === 0 ? clp(prog0 * 1.7, 0, 1) : 1;\n  const ease = 1 - Math.pow(1 - land, 3);\n  const dxs = (q(1) - .5) * u * .06, dys = (q(2) - .5) * u * .05;\n  const rot = (q(3) - .5) * .06 + (1 - ease) * .10;\n  const sx = cx0 + dxs + jx + (1 - ease) * W * 1.05;\n  const sy = cy0 + dys + jy - (1 - ease) * H * .06;\n  // how far into the run this copy is: the master gives up a little more each time\n  const rp = (((i % RUN) + RUN) % RUN) / RUN;\n  const inkA = clp((1 - Math.pow(rp, .8) * .78 * fade) * wet, .04, 1);\n\n  // the shadow this sheet throws onto the one below (outside the clip)\n  dc.save(); dc.translate(sx, sy); dc.rotate(rot);\n  dc.globalAlpha = la * op * .45;\n  dc.fillStyle = 'rgba(4,2,8,1)';\n  if (j === 0) { dc.shadowColor = 'rgba(0,0,0,0.55)'; dc.shadowBlur = u * .022; }\n  dc.fillRect(-shW * .5 + u * .006, -shH * .5 + u * .009, shW, shH);\n  dc.shadowBlur = 0;\n  dc.restore();\n\n  dc.save();\n  dc.save(); dc.translate(sx, sy); dc.rotate(rot);\n  dc.beginPath(); dc.rect(-shW * .5, -shH * .5, shW, shH);\n  dc.restore();\n  dc.clip();\n  dc.globalAlpha = la * op;\n  dc.save(); dc.translate(sx, sy); dc.rotate(rot);\n  dc.fillStyle = paCss; dc.fillRect(-shW * .5, -shH * .5, shW, shH);\n  if (j <= 1) {\n    // set-off: the sheet under this one gave up a little of its own image\n    if (j === 0) {\n      dc.globalAlpha = la * op * inkA * .10;\n      dc.drawImage(S.mas.drawingContext.canvas, -shW * .5 + u * .012, -shH * .5 - u * .008, shW, shH);\n    }\n    dc.globalAlpha = la * op * inkA;\n    dc.drawImage(S.mas.drawingContext.canvas, -shW * .5, -shH * .5, shW, shH);\n    // drum streaks, along the feed\n    const nst = 3 + Math.round(sv * 6);\n    for (let k = 0; k < nst; k++) {\n      const hgt = shH * (.01 + .07 * q(k + 10)), yb = (q(k + 30) - .5) * shH;\n      const starve = q(k + 50) < .5;\n      dc.fillStyle = starve ? paCss : inkCss;\n      dc.globalAlpha = la * op * sv * (.10 + .30 * en) * (.3 + .7 * q(k + 70)) * (starve ? 1 : inkA);\n      dc.fillRect(-shW * .5, yb, shW, hgt);\n    }\n    // the ink starves out across the sheet\n    const sg = dc.createLinearGradient(-shW * .5, 0, shW * .5, 0);\n    sg.addColorStop(0, css(paH, paS, paV, 0));\n    sg.addColorStop(1, css(paH, paS, paV, (.20 + .55 * sv * rp).toFixed(3)));\n    dc.globalAlpha = la * op; dc.fillStyle = sg; dc.fillRect(-shW * .5, -shH * .5, shW, shH);\n  }\n  // three-hole punch + a staple in the corner\n  dc.globalAlpha = la * op;\n  dc.fillStyle = css(trH, trS, trV * .8, 1);\n  for (let k = 0; k < 3; k++) { dc.beginPath(); dc.arc(-shW * .44, shH * (k - 1) * .30, u * .011, 0, 6.2832); dc.fill(); }\n  dc.fillStyle = css(0, 0, .62, 1);\n  dc.fillRect(-shW * .46 + shW * .02, -shH * .44, u * .028, u * .006);\n  dc.restore();\n  dc.restore();\n  dc.globalAlpha = la;\n}\n\n// ---- the drum the sheets come off --------------------------------------------\ndc.save();\nconst drx = W * 1.02, dry = H * .5;\ndc.fillStyle = css(trH, trS * 1.1, trV * .55, 1);\ndc.globalAlpha = la;\ndc.beginPath(); dc.ellipse(drx, dry, W * .17, H * .62, 0, 0, 6.2832);\ndc.fill();\ndc.clip();\nfor (let k = 0; k < 9; k++) {\n  const a = ph * 6.2832 * .5 + k * .698;\n  const cs = Math.cos(a);\n  if (cs < .05) continue;\n  dc.globalAlpha = la * cs * .5;\n  dc.fillStyle = css(trH + 10, trS * .7, trV * (1.4 + cs * 2.4), 1);\n  dc.fillRect(drx - W * .17 * cs, dry - H * .62, W * .012, H * 1.24);\n}\ndc.restore();\n\n// ---- basement lighting -------------------------------------------------------\nblendMode(MULTIPLY);\ndc.globalAlpha = la * .88;\ndc.drawImage(S.tile.drawingContext.canvas, 0, 0, W, H);\nblendMode(BLEND);\nconst vg = dc.createRadialGradient(W * (.42 + .07 * Math.sin(K.t * .031)), H * .4, u * .22, W * .5, H * .5, u * 1.05);\nvg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(6,4,10,' + (.26 + .34 * en).toFixed(3) + ')');\ndc.globalAlpha = la; dc.fillStyle = vg; dc.fillRect(0, 0, W, H);\n\ndc.globalAlpha = oldA;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

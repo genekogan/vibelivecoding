@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.patterned_ground",
+  "kind": "genart",
+  "name": "Patterned Ground",
+  "desc": "Periglacial ground sorting itself \u2014 freeze-thaw cycling drives stones apart from silt into polygonal nets on the flat crown that stretch out into downslope stripes on the flanks, the whole pattern creeping steadily downhill under a low raking arctic sun.",
+  "tags": [
+    "patterned ground",
+    "periglacial",
+    "permafrost",
+    "arctic",
+    "tundra",
+    "frost",
+    "freeze-thaw",
+    "sorting",
+    "stone polygon",
+    "stone circle",
+    "stripes",
+    "solifluction",
+    "clast",
+    "silt",
+    "granular",
+    "aerial",
+    "survey",
+    "geomorphology",
+    "geology",
+    "svalbard",
+    "coarsening",
+    "self-organisation",
+    "austere",
+    "cold",
+    "scientific",
+    "process",
+    "emergence",
+    "growth"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sorting rate and frost-heave shading contrast"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "clast fraction \u2014 how much of the ground is stone"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "ground hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on growth and process time"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "heave relief exaggeration"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "frost-mound crown x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "frost-mound crown y"
+    },
+    "tilt": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "hillslope gradient: flat holds nets, steep draws them into stripes"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "churn",
+        "freeze"
+      ],
+      "doc": "multi-minute program"
+    },
+    "style": {
+      "default": "survey",
+      "options": [
+        "survey",
+        "map",
+        "thermal",
+        "ink"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "churn",
+    "freeze"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:49+00:00",
+    "fps": 61.0,
+    "motion": 0.0393,
+    "lum": 0.389
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 32, speed: 1, scale: 1, x: .5, y: .5, tilt: .35, act: 'cycle', style: 'survey', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst GW = 124, GH = Math.max(48, Math.round(GW * height / width));\nconst RW = GW * 2, RH = GH * 2;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n};\n\nif (!S.phi || S.gw !== GW || S.gh !== GH || S.seedUsed !== P.seed) {\n  if (S.g && S.g.remove) S.g.remove();\n  S.g = createGraphics(RW, RH); S.g.pixelDensity(1);\n  S.gw = GW; S.gh = GH; S.seedUsed = P.seed; S.tick = 0; S.thaw = 0; S.secUsed = -1;\n  const n = GW * GH;\n  S.phi = new Float32Array(n); S.mu = new Float32Array(n); S.sh = new Float32Array(n);\n  for (let i = 0; i < n; i++) S.phi[i] = (fr(i * 1.7 + 3) - .5) * .35;\n  S.clast = new Float32Array(RW * RH);\n  for (let i = 0; i < RW * RH; i++) S.clast[i] = fr(i * 2.13 + 11);\n  S.tf = new Float32Array(n);\n}\n\nconst phi = S.phi, mu = S.mu, sh = S.sh, clast = S.clast, tf = S.tf, n = GW * GH;\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst st = P.style;\n\n// ---- act: multi-minute periglacial climate --------------------------------\nlet cyc;\nif (P.act === 'freeze') cyc = .28;\nelse if (P.act === 'churn') cyc = 1.85;\nelse cyc = .4 + 1.4 * (.5 + .5 * Math.sin(K.t * .0111 + .85 * Math.sin(K.t * .0039 + 1.3)));\n\n// ---- thaw events remix the active layer; sorting then re-runs -------------\nif (S.secUsed !== K.section) { S.secUsed = K.section; S.thaw = (30 + rnd(1) * 80) * cyc; }\nif (S.thaw > 0) S.thaw -= 1;\nconst churn = (S.thaw > 0 ? .05 : .0035) * cyc * (.5 + .6 * K.intensity + .6 * A.rms);\n\n// ---- local gradient: flat crown at the anchor, steepening onto the flanks --\n// this is what sorts the ground into circles at the centre and stripes outboard\nfor (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {\n  const rr = Math.hypot(x / GW - P.x, y / GH - P.y) * 2.6;\n  tf[y * GW + x] = P.tilt * (rr > 1 ? 1 : rr);\n}\n\n// ---- lateral sorting: phase separation of clasts from fines ----------------\n// anisotropic interface stiffness + downslope creep turns nets into stripes\nconst KAP = 1.8, DT = .05 * (.35 + P.energy * 1.5) * (.4 + P.speed * .9);\nconst creepK = (.004 + P.energy * .016) * (.4 + P.speed * .9);\nconst tgt = (P.density - .5) * 1.1;\nconst steps = K.fps > 45 ? 2 : 1;\nfor (let s2 = 0; s2 < steps; s2++) {\n  for (let y = 0; y < GH; y++) {\n    const yc = y * GW, yu = (y > 0 ? y - 1 : y) * GW, yd = (y < GH - 1 ? y + 1 : y) * GW;\n    for (let x = 0; x < GW; x++) {\n      const i = yc + x, xl = yc + (x > 0 ? x - 1 : GW - 1), xr = yc + (x < GW - 1 ? x + 1 : 0);\n      const p = phi[i], tt = tf[i];\n      const lap = (phi[xl] + phi[xr] - 2 * p) * (1 + tt * 2.3) + (phi[yu + x] + phi[yd + x] - 2 * p) * (1 - tt * .5);\n      const m = p * p * p - p - KAP * lap;\n      mu[i] = m > 12 ? 12 : m < -12 ? -12 : m;\n    }\n  }\n  for (let y = 0; y < GH; y++) {\n    const yc = y * GW, yu = (y > 0 ? y - 1 : y) * GW, yd = (y < GH - 1 ? y + 1 : y) * GW;\n    for (let x = 0; x < GW; x++) {\n      const i = yc + x, xl = yc + (x > 0 ? x - 1 : GW - 1), xr = yc + (x < GW - 1 ? x + 1 : 0);\n      const lm = mu[xl] + mu[xr] + mu[yu + x] + mu[yd + x] - 4 * mu[i];\n      let v = phi[i] + DT * lm;\n      v += (phi[yu + x] - v) * tf[i] * creepK;              // solifluction: the pattern creeps downslope\n      v += (tgt - v) * .0016;                               // slow drift toward the commanded clast fraction\n      v += (rnd(i * .011 + s2) - .5) * churn;\n      phi[i] = v > 1.7 ? 1.7 : v < -1.7 ? -1.7 : v;\n    }\n  }\n}\n\n// ---- frost-heave relief + hillshade (sim res) -----------------------------\nconst az = K.t * .039 + .6 * Math.sin(K.t * .109 + .4) + .25 * Math.sin(K.t * .251 + 1.7);\nconst lx = Math.cos(az), ly = Math.sin(az), lz = .68 - .15 * Math.sin(K.t * .073);\nconst ex = (2.6 + P.energy * 5.4) * (.5 + P.scale * .9);\nfor (let y = 0; y < GH; y++) {\n  const yc = y * GW, yu = (y > 0 ? y - 1 : y) * GW, yd = (y < GH - 1 ? y + 1 : y) * GW;\n  for (let x = 0; x < GW; x++) {\n    const i = yc + x, xl = yc + (x > 0 ? x - 1 : GW - 1), xr = yc + (x < GW - 1 ? x + 1 : 0);\n    const dzdx = -(phi[xr] - phi[xl]) * ex, dzdy = -(phi[yd + x] - phi[yu + x]) * ex;\n    sh[i] = (-dzdx * lx - dzdy * ly + lz) / Math.sqrt(dzdx * dzdx + dzdy * dzdy + 1);\n  }\n}\n\n// ---- render ----------------------------------------------------------------\nconst g = S.g; g.loadPixels(); const pix = g.pixels;\nconst thr = (.5 - P.density) * 1.15;\nconst ctr = .5 + P.energy * .85;\nconst hb = P.hue;\nfor (let ry = 0; ry < RH; ry++) {\n  const fy = ry * .5, y0 = Math.min(GH - 1, Math.floor(fy)), y1 = Math.min(GH - 1, y0 + 1), ty2 = fy - y0;\n  for (let rx = 0; rx < RW; rx++) {\n    const fx = rx * .5, x0 = Math.min(GW - 1, Math.floor(fx)), x1 = Math.min(GW - 1, x0 + 1), tx2 = fx - x0;\n    const i00 = y0 * GW + x0, i10 = y0 * GW + x1, i01 = y1 * GW + x0, i11 = y1 * GW + x1;\n    const pv = (phi[i00] * (1 - tx2) + phi[i10] * tx2) * (1 - ty2) + (phi[i01] * (1 - tx2) + phi[i11] * tx2) * ty2;\n    const sv = (sh[i00] * (1 - tx2) + sh[i10] * tx2) * (1 - ty2) + (sh[i01] * (1 - tx2) + sh[i11] * tx2) * ty2;\n    const ri = ry * RW + rx;\n    const cl = clast[ri];\n    let so = (pv - thr) * 3.4; so = so < -1 ? 0 : so > 1 ? 1 : so * .5 + .5;   // clast coverage\n    const edge = 1 - Math.min(1, Math.abs(pv - thr) * 3.2);\n    const shade = Math.max(.08, Math.min(1.35, .46 + sv * ctr));\n    const o = 4 * ri; let r, gg, b;\n    if (st === 'map') {\n      // soft-keyed boundary + a trace of the drifting relief: a hard binary cut\n      // quantises away the slow sorting motion and reads STATIC 8s apart\n      const m = Math.max(0, Math.min(1, (so - .5) * 5.5 + .5));\n      const lg2 = .82 + shade * .3;\n      const c0 = hsv(hb + 178, .12, .72 * lg2), c1 = hsv(hb, .5, .62 * lg2);\n      r = c0[0] * (1 - m) + c1[0] * m; gg = c0[1] * (1 - m) + c1[1] * m; b = c0[2] * (1 - m) + c1[2] * m;\n      const k2 = 1 - edge * edge * .85; r *= k2; gg *= k2; b *= k2;\n    } else if (st === 'thermal') {\n      const m = Math.min(1, (.5 - pv * .42) * shade * 1.05);\n      r = Math.min(255, m * 2.5 * 255);\n      gg = Math.max(0, Math.min(255, (m * 2.1 - .55) * 255));\n      b = Math.max(0, Math.min(255, (m * 3.4 - 2.35) * 255)) + (1 - Math.min(1, m * 3)) * 48;\n      const k2 = 1 + (cl - .5) * .1; r *= k2; gg *= k2; b *= k2;\n    } else if (st === 'ink') {\n      const v = (.9 - so * .58 - (1 - shade) * .22 - edge * .12) * (1 - (cl - .5) * .07);\n      r = v * 244; gg = v * 240; b = v * 230;\n    } else {\n      const stone = hsv(hb + 12, .07 + cl * .07, Math.min(1, (.4 + cl * .34) * shade));\n      const fine = hsv(hb + 4 - cl * 6, .34 + cl * .16, Math.min(1, (.5 + cl * .2) * shade * 1.06));\n      r = fine[0] * (1 - so) + stone[0] * so; gg = fine[1] * (1 - so) + stone[1] * so; b = fine[2] * (1 - so) + stone[2] * so;\n      const k2 = 1 - edge * edge * .3; r *= k2; gg *= k2; b *= k2;\n    }\n    pix[o] = r < 0 ? 0 : r > 255 ? 255 : r;\n    pix[o + 1] = gg < 0 ? 0 : gg > 255 ? 255 : gg;\n    pix[o + 2] = b < 0 ? 0 : b > 255 ? 255 : b;\n    pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,150 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.nematic",
+  "kind": "genart",
+  "name": "Nematic",
+  "desc": "A nematic liquid crystal under a polarising microscope: the director field tangles into the classic schlieren texture where dark brushes sweep out of every half-integer disclination, birefringence washes the terraces in interference colour, and pools of isotropic melt open and re-order as the temperature drifts through the transition - each quench throwing a fresh crop of defects that hunt, pair off and annihilate; offered as crossed polars, a raw director streak field, a false-colour order-parameter map, or a blueprint of the disclination cores.",
+  "tags": [
+    "nematic",
+    "liquid-crystal",
+    "mesophase",
+    "director",
+    "disclination",
+    "defect",
+    "topological-defect",
+    "schlieren",
+    "brushes",
+    "order-parameter",
+    "ginzburg-landau",
+    "isotropic-nematic",
+    "phase-transition",
+    "kibble-zurek",
+    "quench",
+    "annealing",
+    "birefringence",
+    "polarized-light",
+    "crossed-polars",
+    "michel-levy",
+    "interference-colour",
+    "polarising-microscope",
+    "micrograph",
+    "microscopy",
+    "texture",
+    "soft-matter",
+    "condensed-matter",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "coarsening",
+    "pde",
+    "simulation",
+    "field",
+    "continuum",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "scientific",
+    "clinical",
+    "laboratory",
+    "false-colour",
+    "blueprint",
+    "schematic",
+    "iridescent",
+    "eerie",
+    "austere",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness of the brushes and how hard the aligning field twists the director"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into the cell - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "relaxation rate, drift of the temperature field, and the polariser rotation (0.2 still churns)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how deep the temperature swings through the transition - the amount of isotropic melt and so the defect count"
+    },
+    "order": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "mean quench depth below the clearing point (0 = mostly isotropic and dark, 1 = a strongly ordered, brightly birefringent cell)"
+    },
+    "grain": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "film tooth over the plate"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "base of the interference-colour ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the cell when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan down the cell when magnified"
+    },
+    "style": {
+      "default": "polarized",
+      "options": [
+        "polarized",
+        "director",
+        "retardance",
+        "schematic"
+      ],
+      "doc": "aesthetic: crossed-polar schlieren texture / raw director streak field / false-colour order-parameter map / blueprint of the disclination cores"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic quench - re-throws the whole defect population"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:25+00:00",
+    "fps": 61.0,
+    "motion": 0.1453,
+    "lum": 0.367
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, order: .55, grain: .4, hue: 44, x: .5, y: .5, style: 'polarized', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// A nematic liquid crystal, seen the way a polarising microscope sees one.\n// The order parameter is the complex field  Psi = S e^(2i*theta)  -- the factor\n// two is the nematic's head-tail symmetry, and it is what makes Psi's integer\n// windings show up as the HALF-integer +/-1/2 disclinations a real nematic has.\n//        Psi_t = D lap Psi + (r - |Psi|^2) Psi + forcing\n// Between crossed polars the transmitted intensity goes as sin^2(2(theta - pol)),\n// so each defect throws off the dark brushes of the classic schlieren texture,\n// and isotropic melt (|Psi| -> 0) goes black because it cannot rotate light.\n//\n// Left alone, defects pair up and annihilate and the texture anneals to a blank\n// uniform field -- dead by ~20s. Kept perpetual by:\n//   (1) r(x,y,t), the reduced temperature, drifts through the isotropic-nematic\n//       transition, so melt pools open and re-order and every re-ordering\n//       quench throws fresh defects (the Kibble-Zurek mechanism);\n//   (2) a drifting aligning field keeps twisting the preferred director, so the\n//       texture is permanently frustrated and defects keep being created.\n// ---------------------------------------------------------------------------\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(88, Math.round(BW * height / width));\nconst N = BW * BH;\nconst RW = 40, RH = Math.max(20, Math.round(RW * BH / BW));\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.u = new Float32Array(N); S.v = new Float32Array(N);\n  S.lu = new Float32Array(N); S.lv = new Float32Array(N);\n  S.rf = new Float32Array(N); S.fx = new Float32Array(N); S.fy = new Float32Array(N);\n  S.rc = new Float32Array(RW * RH); S.tc = new Float32Array(RW * RH);\n  S.nz = new Float32Array(N); S.th = new Float32Array(N);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hs3(ix, iy, iz), a1 = hs3(ix + 1, iy, iz), a2 = hs3(ix, iy + 1, iz), a3 = hs3(ix + 1, iy + 1, iz);\n  const b0 = hs3(ix, iy, iz + 1), b1 = hs3(ix + 1, iy, iz + 1), b2 = hs3(ix, iy + 1, iz + 1), b3 = hs3(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\n\nconst uf = S.u, vf = S.v, lu = S.lu, lv = S.lv, rf = S.rf, fxf = S.fx, fyf = S.fy;\nconst rc = S.rc, tc = S.tc, nz = S.nz, thf = S.th;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    uf[p] = (hs3(i, j, 3) - 0.5) * 0.20;      // isotropic quench -> defects everywhere\n    vf[p] = (hs3(i, j, 4) - 0.5) * 0.20;\n    nz[p] = hs3(i, j, 17);                    // static field the director LIC streaks sample\n    thf[p] = 0.6 + hs3(i, j, 23) * 0.8;       // cell thickness -> interference order\n  }\n}\n\nconst tt = K.t;\nfunction lap(src, dst) {\n  for (let j = 0; j < BH; j++) {\n    const jm = (j > 0 ? j - 1 : BH - 1) * BW, jp = (j < BH - 1 ? j + 1 : 0) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i > 0 ? i - 1 : BW - 1, ip = i < BW - 1 ? i + 1 : 0;\n      dst[jc + i] = src[jm + i] + src[jp + i] + src[jc + im] + src[jc + ip] - 4 * src[jc + i];\n    }\n  }\n}\n\n// ---- drifting temperature + drifting aligning field, both on incommensurate rates ----\nconst sp = 0.3 + P.speed * 0.8;\nconst ox = tt * 0.048 * sp + 1.6 * Math.sin(tt * 0.051) + 0.8 * Math.sin(tt * 0.121 + 1.7);\nconst oy = tt * 0.033 * sp + 1.2 * Math.cos(tt * 0.073) + 0.6 * Math.sin(tt * 0.157 + 0.4);\nconst zt = tt * 0.039 * sp;\nconst ax = tt * 0.031 * sp + 1.1 * Math.sin(tt * 0.061 + 2.2);\nconst ay = tt * 0.027 * sp + 0.9 * Math.cos(tt * 0.089 + 0.5);\nconst az = tt * 0.055 * sp + 31.7;\nconst r0 = -0.10 + P.order * 0.62;\nconst rAmp = 0.10 + P.density * 0.42 + A.bass * 0.08;\nconst kc = 3.0 / RH;\nfor (let j = 0; j < RH; j++) for (let i = 0; i < RW; i++) {\n  rc[j * RW + i] = r0 + rAmp * (vn3(i * kc + ox, j * kc + oy, zt) - 0.5) * 2.1;\n  tc[j * RW + i] = vn3(i * kc * 0.75 + ax, j * kc * 0.75 + ay, az) * 6.2831853;   // preferred director\n}\n{ // bilinear upsample of both coarse fields\n  const sxr = (RW - 1) / (BW - 1), syr = (RH - 1) / (BH - 1);\n  const gam = 0.012 + P.energy * 0.030;\n  for (let j = 0; j < BH; j++) {\n    const gy = j * syr, j0 = gy | 0, j1 = j0 < RH - 1 ? j0 + 1 : j0, ty = gy - j0;\n    for (let i = 0; i < BW; i++) {\n      const gx = i * sxr, i0 = gx | 0, i1 = i0 < RW - 1 ? i0 + 1 : i0, tx = gx - i0;\n      const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;\n      const p = j * BW + i;\n      rf[p] = rc[j0 * RW + i0] * w00 + rc[j0 * RW + i1] * w10 + rc[j1 * RW + i0] * w01 + rc[j1 * RW + i1] * w11;\n      const an = tc[j0 * RW + i0] * w00 + tc[j0 * RW + i1] * w10 + tc[j1 * RW + i0] * w01 + tc[j1 * RW + i1] * w11;\n      fxf[p] = gam * Math.cos(2 * an); fyf[p] = gam * Math.sin(2 * an);\n    }\n  }\n}\n\n// ---- relax the order parameter ----\nconst Dc = 8.0;\nconst dt = 0.024;                    // Dc*dt = 0.19 < 0.25, the explicit 5-point limit\nconst sub = Math.max(1, Math.min(4, Math.round(1 + P.speed * 1.4)));\nfor (let st = 0; st < sub; st++) {\n  lap(uf, lu); lap(vf, lv);\n  for (let p = 0; p < N; p++) {\n    const u = uf[p], v = vf[p];\n    const m2 = u * u + v * v;\n    const rr = rf[p];\n    let nu = u + dt * (Dc * lu[p] + (rr - m2) * u + fxf[p]);\n    let nv = v + dt * (Dc * lv[p] + (rr - m2) * v + fyf[p]);\n    if (!(nu > -2)) nu = -2; else if (nu > 2) nu = 2;\n    if (!(nv > -2)) nv = -2; else if (nv > 2) nv = 2;\n    uf[p] = nu; vf[p] = nv;\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.021 + Math.sin(tt * 0.015) * 0.016;\nconst gain = 0.45 + P.energy * 1.1 + A.rms * 0.3;\nconst gr = P.grain;\n// polariser turns slowly on incommensurate rates; brushes must sweep, not flash\nconst pol = tt * 0.019 * (0.4 + P.speed * 0.7) + 0.09 * Math.sin(tt * 0.041) + 0.045 * Math.sin(tt * 0.113 + 1.3);\nconst msc = 1 / Math.max(0.18, Math.sqrt(Math.max(0.02, r0 + rAmp * 0.5)));\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const u = uf[p], v = vf[p];\n    const m = Math.min(1, Math.sqrt(u * u + v * v) * msc);       // scalar order parameter\n    const th2 = Math.atan2(v, u) * 0.5;                          // director angle (theta = arg/2)\n    const iso = 1 - Math.min(1, m * 2.4);                        // isotropic melt / defect core\n    const tk = thf[p];\n    const gtooth = (hs3(i, j, 81) - 0.5) * 0.085 * gr;\n    let r, gg, b;\n    if (style === 'director') {\n      // the director field itself, as a line-integral streak texture sampled\n      // along n(x,y) -- a schematic reading, no birefringence at all\n      const cx = Math.cos(th2), cy = Math.sin(th2);\n      let acc = 0;\n      for (let d = -2; d <= 2; d++) {\n        let si = (i + cx * d * 1.6) | 0, sj = (j + cy * d * 1.6) | 0;\n        si = ((si % BW) + BW) % BW; sj = ((sj % BH) + BH) % BH;\n        acc += nz[sj * BW + si];\n      }\n      acc *= 0.2;\n      const streak = (acc - 0.5) * (0.9 + gain * 0.8) + 0.5;\n      hsv(hb + 0.5, 0.22, 1);\n      const val = (0.16 + streak * 0.62) * (1 - iso * 0.55);\n      r = RR * val; gg = GG * val; b = BB * val;\n    } else if (style === 'retardance') {\n      // scalar order-parameter map: Michel-Levy false colour on |Psi|, cores dark\n      hsv(hb + m * 0.68, 0.34 + m * 0.34, 1);\n      const val = (0.12 + m * 0.72) * (0.55 + gain * 0.5);\n      r = RR * val; gg = GG * val; b = BB * val;\n    } else if (style === 'schematic') {\n      // blueprint: only the disclination cores and a faint director hatch\n      const core = Math.min(1, Math.max(0, iso - 0.35) * 2.2);\n      const hatch = 0.5 + 0.5 * Math.sin((i * Math.cos(th2) + j * Math.sin(th2)) * 1.9);\n      const base = 0.06 + hatch * 0.05 * m;\n      r = base * 0.5 + core * 0.55 * gain;\n      gg = base * 0.9 + core * 0.88 * gain;\n      b = base * 1.9 + core * 1.0 * gain;\n    } else {\n      // polarized (default): crossed polars. sin^2(2(theta - pol)) gives the dark\n      // schlieren brushes radiating from every disclination; the interference\n      // colour comes from the retardance |Psi| * cell thickness.\n      const s2 = Math.sin(2 * (th2 - pol));\n      const brush = s2 * s2;\n      const delta = m * tk;\n      hsv(hb + delta * 0.74, 0.40 + 0.30 * Math.sin(delta * 7.9 + 1.2), 1);\n      const val = (0.075 + brush * (0.30 + gain * 0.40)) * (1 - iso * 0.82);\n      r = RR * val + 0.035; gg = GG * val + 0.04; b = BB * val + 0.055;\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + gtooth) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + gtooth) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + gtooth) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

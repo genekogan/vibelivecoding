@@ -1,0 +1,141 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.portico",
+  "kind": "set",
+  "name": "Portico",
+  "desc": "A see-through arcade of stone arches marching off to a vanishing point \u2014 ashlar piers, moulded archivolts and the barrel soffit running back through every opening, with the sun crawling along the run so the lit bay travels; the openings are simply not painted, so whatever is behind reads clean through.",
+  "tags": [
+    "portico",
+    "arcade",
+    "arches",
+    "arch",
+    "archway",
+    "colonnade",
+    "loggia",
+    "cloister",
+    "piers",
+    "pier",
+    "ashlar",
+    "archivolt",
+    "soffit",
+    "vault",
+    "cornice",
+    "stone",
+    "limestone",
+    "terracotta",
+    "bologna",
+    "roman",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "depth",
+    "recession",
+    "receding",
+    "architecture",
+    "architectural",
+    "framing",
+    "foreground",
+    "scenery",
+    "structure",
+    "built",
+    "raking-light",
+    "blueprint",
+    "engraving",
+    "chiaroscuro",
+    "sacred",
+    "austere",
+    "metaphysical",
+    "liminal",
+    "de-chirico"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "raking-light amplitude, spill through the openings and camera breath"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "pier height, arcade depth and arch girth (2.2 = colossal; the bay pitch stays fixed so this is never a no-op)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many bays march into depth (3 to 7)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "rate the sun crawls along the run; the camera keeps breathing regardless so it never goes static"
+    },
+    "hue": {
+      "default": 36,
+      "min": 0,
+      "max": 360,
+      "doc": "stone hue"
+    },
+    "x": {
+      "default": 0.34,
+      "min": 0.08,
+      "max": 0.92,
+      "doc": "vanishing point across frame \u2014 the arcade runs away from here, so this is how you keep the rest of the frame open"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0.3,
+      "max": 0.85,
+      "doc": "eye line height"
+    },
+    "side": {
+      "default": "right",
+      "options": [
+        "right",
+        "left",
+        "both"
+      ],
+      "doc": "which way the arcade runs off: to frame right, to frame left, or 'both' to stand inside a double portico"
+    },
+    "style": {
+      "default": "limestone",
+      "options": [
+        "limestone",
+        "terracotta",
+        "chiaroscuro",
+        "blueprint",
+        "engraving"
+      ],
+      "doc": "aesthetic: warm weathered limestone / Bolognese red terracotta / form from light alone / cyan schematic linework / hatched paper plate"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "ashlar coursing and per-bay weathering"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark, so it dissolves into the background instead of veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:47+00:00",
+    "fps": 60.2,
+    "motion": 0.0196,
+    "lum": 0.166
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:36, x:.34, y:.62, side:'right', style:'limestone', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, HU = ((P.hue%360)+360)%360;\nconst wire = (sty === 'blueprint'), paper = (sty === 'engraving'), dk = (sty === 'chiaroscuro');\n// a SET composites OVER a bg: alpha scales every mark. Never paint a black veil.\nconst AL = cl(P.alpha, 0, 100);\nif (AL > 0.5) {\n\nconst bsm = (S.bm = (S.bm||0)*.84 + (A.bass||0)*.16);\nconst gl = (.44 + .56*P.energy) * (.55 + .5*K.intensity) + bsm*.24;\n\nconst dA = .55*Math.sin(K.t*.41) + .30*Math.sin(K.t*.97+1.7) + .17*Math.sin(K.t*1.63+.4);\nconst dB = .50*Math.sin(K.t*.53+2.1) + .32*Math.sin(K.t*1.19+.9) + .20*Math.sin(K.t*2.29+2.6);\nconst dC = .60*Math.sin(K.t*.089) + .40*Math.sin(K.t*.211+1.1);\n\nconst BS = u*.60;                                     // bay pitch along the run, FIXED\nconst PW = BS*.30, PD = u*.34*P.scale;                // pier width along Z / arcade depth\nconst PH = u*.92*P.scale, SH = u*.50*P.scale;         // pier height / arch springing\nconst AT = u*.045*P.scale, CT = u*.055*P.scale, PL = u*.045*P.scale;\nconst NB = 3 + Math.round(cl(P.density,0,1)*4);\nconst DOFF = u*(.44 + .10*P.scale);\n\n// the arcade holds still; the CAMERA breathes \u2014 a real parallax push, no beat flash\nconst camZ = -u*.30 + u*.095*dC*P.energy;\nconst camY = -(u*.34 + u*.030*dB*P.energy);\nconst yaw = .022*dA*P.energy;\nconst ca = Math.cos(yaw), sa = Math.sin(yaw);\nconst f = u*1.05, NEAR = u*.05;\nconst vcx = cl(P.x,.08,.92)*width, vcy = cl(P.y,.3,.85)*height;\n\nconst side = P.side;\nconst camX = (side === 'both') ? u*.070*dA*P.energy : (side === 'left' ? DOFF : -DOFF) + u*.070*dA*P.energy;\nconst AXES = (side === 'both') ? [-DOFF, DOFF] : [0];\n\n// the sun crawls: which pier faces catch it changes over minutes\nconst sunA = .85*Math.sin(K.t*.043*P.speed) + .34*Math.sin(K.t*.107*P.speed+2.0);\nconst sunZ = camZ + BS*(2.4 + 2.6*Math.sin(K.t*.061*P.speed) + 1.2*Math.sin(K.t*.139*P.speed+1.1));\n\nconst AXa = new Float64Array(40), AYa = new Float64Array(40), AZa = new Float64Array(40);\nconst BXa = new Float64Array(52), BYa = new Float64Array(52);\nfunction poly(v){\n  const n = v.length/3;\n  for (let i=0;i<n;i++){\n    const X = v[i*3]-camX, Y = v[i*3+1]-camY, Z = v[i*3+2]-camZ;\n    AXa[i] = X*ca - Z*sa; AYa[i] = Y; AZa[i] = X*sa + Z*ca;\n  }\n  let m = 0;\n  for (let i=0;i<n;i++){\n    const j = (i+1)%n, az = AZa[i], bz = AZa[j], ai = az>NEAR, bi2 = bz>NEAR;\n    if (ai){ BXa[m] = vcx + f*AXa[i]/az; BYa[m] = vcy + f*AYa[i]/az; m++; }\n    if (ai !== bi2){\n      const tt = (NEAR-az)/(bz-az);\n      BXa[m] = vcx + f*(AXa[i]+(AXa[j]-AXa[i])*tt)/NEAR;\n      BYa[m] = vcy + f*(AYa[i]+(AYa[j]-AYa[i])*tt)/NEAR; m++;\n    }\n  }\n  if (m < 3) return false;\n  beginShape(); for (let i=0;i<m;i++) vertex(BXa[i], BYa[i]); endShape(CLOSE);\n  return true;\n}\n\nfunction mixc(c,d,t){ const dh = ((d[0]-c[0])%360+540)%360-180;\n  return [c[0]+dh*t, c[1]+(d[1]-c[1])*t, c[2]+(d[2]-c[2])*t]; }\nconst HAZE = paper ? [40, 6, 90] : wire ? [212, 58, 22] : dk ? [HU, 14, 8]\n           : sty === 'terracotta' ? [16, 44, 32] : [(HU+2)%360, 20, 40];\nconst fogA = (paper||wire) ? .26 : .58;\nfunction tone(v, tv){\n  if (paper) return [40, 5 + 4*tv, cl(96 - 54*(1-v), 36, 96)];\n  if (wire)  return [212, 60, cl(12 + 12*v, 8, 34)];\n  if (dk)    return [HU, cl(24 - 13*v, 0, 28), cl(2 + 90*Math.pow(v,1.9), 1, 96)];\n  if (sty === 'terracotta') return [cl(14 + 12*tv - 3*v, 2, 32), cl(52 - 18*v + 8*tv, 10, 66), cl(9 + 74*v, 5, 92)];\n  return [cl(HU + 4 - 6*v + 6*tv, 0, 359), cl(24 - 12*v + 7*tv, 3, 34), cl(10 + 74*v, 5, 94)];\n}\nfunction ink(a){\n  if (wire) stroke(190, 30, 100, a*AL/100);\n  else if (paper) stroke(30, 20, 14, a*AL/100);\n  else stroke((HU+2)%360, 12, 80, a*.28*AL/100);\n}\nfunction fl2(c, a){ fill(c[0], c[1], c[2], (a===undefined?100:a)*AL/100); }\n\nconst NA = 7;\nstrokeWeight(Math.max(1, u*.0015));\n\nfor (let ai2=0; ai2<AXES.length; ai2++){\n  const ax = AXES[ai2];\n  const dir = (ax - camX) >= 0 ? 1 : -1;          // the body extends AWAY from the camera\n  const xF = ax, xB = ax + dir*PD;\n\n  for (let k = NB-1; k >= 0; k--){                // far -> near\n    const zP = k*BS, zN = (k+1)*BS;\n    const hz = cl(k/NB, 0, 1);\n    const tv = fr(k*31.7 + ai2*13.3);\n    // raking light: the front face lights when the sun swings round to it\n    const lamF = cl(.20 + .80*(dir > 0 ? -sunA : sunA) * .5 + .40, 0, 1);\n    const lamZ = cl(.16 + .74*Math.exp(-Math.pow((zP - sunZ)/BS, 2)*.30), 0, 1);\n\n    // ---- the spandrel: a wall with a semicircular hole punched from below\n    const zL = zP + PW*.5, zR = zN - PW*.5, Zc = (zL+zR)*.5, R = (zR-zL)*.5;\n    const wallV = (.24 + .40*lamF*(.5+.5*lamZ) + .08*tv) * (.5+.55*gl);\n    let c = mixc(tone(cl(wallV,0,1), tv), HAZE, hz*fogA);\n    const face = [];\n    face.push(zL, -PH, 0); face.push(zR, -PH, 0);\n    face.push(zR, -SH, 0);\n    for (let i=0;i<=NA;i++){ const th = Math.PI*i/NA;\n      face.push(Zc + R*Math.cos(th), -SH - R*Math.sin(th), 0); }\n    face.push(zL, -SH, 0);\n    const fv = [];\n    for (let i=0;i<face.length;i+=3) fv.push(xF, face[i+1], face[i]);\n    if (wire){ noFill(); ink(56); } else { noStroke(); fl2(c); }\n    poly(fv);\n\n    // ---- archivolt ring: a moulded band following the intrados\n    for (let i=0;i<NA;i++){\n      const t0 = Math.PI*i/NA, t1 = Math.PI*(i+1)/NA;\n      const av = cl(wallV*(1.22 - .30*Math.abs(Math.cos((t0+t1)*.5))) + .06, 0, 1);\n      const c2 = mixc(tone(av, tv), HAZE, hz*fogA);\n      if (wire){ noFill(); ink(40); } else { noStroke(); fl2(c2); }\n      poly([xF, -SH - R*Math.sin(t0), Zc + R*Math.cos(t0),\n            xF, -SH - (R+AT)*Math.sin(t0), Zc + (R+AT)*Math.cos(t0),\n            xF, -SH - (R+AT)*Math.sin(t1), Zc + (R+AT)*Math.cos(t1),\n            xF, -SH - R*Math.sin(t1), Zc + R*Math.cos(t1)]);\n    }\n    // ---- the soffit: the barrel running back through the arch. This is the depth.\n    for (let i=0;i<NA;i++){\n      const t0 = Math.PI*i/NA, t1 = Math.PI*(i+1)/NA, tm = (t0+t1)*.5;\n      const sv = cl((.07 + .30*Math.pow(Math.sin(tm), .8)*lamZ) * (.5+.55*gl), 0, 1);\n      const c2 = mixc(tone(sv, tv), HAZE, hz*fogA*1.2);\n      if (wire){ noFill(); ink(30); } else { noStroke(); fl2(c2); }\n      poly([xF, -SH - R*Math.sin(t0), Zc + R*Math.cos(t0),\n            xB, -SH - R*Math.sin(t0), Zc + R*Math.cos(t0),\n            xB, -SH - R*Math.sin(t1), Zc + R*Math.cos(t1),\n            xF, -SH - R*Math.sin(t1), Zc + R*Math.cos(t1)]);\n    }\n\n    // ---- pier: front face (ashlar-coursed, never a flat fill) + the return face\n    const pv = (.22 + .44*lamF*(.5+.5*lamZ) + .08*tv) * (.5+.55*gl);\n    for (let r=0; r<5; r++){\n      const y0 = -PH + PH*(r/5), y1 = -PH + PH*((r+1)/5);\n      const cv = cl(pv*(.88 + .22*fr(k*7.1 + r*3.3 + ai2*5.9)), 0, 1);\n      const c2 = mixc(tone(cv, tv), HAZE, hz*fogA);\n      if (wire){ noFill(); ink(52); } else { noStroke(); fl2(c2); }\n      poly([xF, y0, zP - PW*.5, xF, y1, zP - PW*.5, xF, y1, zP + PW*.5, xF, y0, zP + PW*.5]);\n    }\n    const rv2 = cl((.09 + .16*lamZ) * (.5+.55*gl), 0, 1);\n    const c3 = mixc(tone(rv2, tv), HAZE, hz*fogA);\n    if (wire){ noFill(); ink(36); } else { noStroke(); fl2(c3); }\n    poly([xF, -PH, zP - PW*.5, xB, -PH, zP - PW*.5, xB, 0, zP - PW*.5, xF, 0, zP - PW*.5]);\n    ink(paper ? 34 : 26); noFill();\n    poly([xF, -PH, zP - PW*.5, xF, 0, zP - PW*.5]);\n  }\n\n  // ---- cornice + plinth running the whole arcade\n  const zA = -PW*.5, zB = NB*BS + PW*.5;\n  for (let e=0;e<2;e++){\n    const y0 = e ? -PL : -PH - CT, y1 = e ? 0 : -PH;\n    const ev = cl(((e ? .13 : .40) + .26*(dir>0?-sunA:sunA)*.5) * (.5+.55*gl), 0, 1);\n    const c = mixc(tone(ev, .5), HAZE, .3*fogA);\n    if (wire){ noFill(); ink(58); } else { noStroke(); fl2(c); }\n    poly([xF, y0, zA, xF, y1, zA, xF, y1, zB, xF, y0, zB]);\n    const c2 = mixc(tone(cl(ev*1.5+.10,0,1), .5), HAZE, .3*fogA);   // the projecting drip\n    if (!wire){ noStroke(); fl2(c2); }\n    poly([xF, y0, zA, xF - dir*AT*.8, y0, zA, xF - dir*AT*.8, y0, zB, xF, y0, zB]);\n  }\n\n  // ---- light spilling through the openings (partial, ADD, low alpha)\n  if (!paper && !wire && AL > 8){\n    push(); blendMode(ADD); noStroke();\n    for (let k=0;k<NB;k++){\n      const zL = k*BS + PW*.5, zR = (k+1)*BS - PW*.5;\n      const lz = cl(.20 + .80*Math.exp(-Math.pow((k*BS - sunZ)/BS, 2)*.34), 0, 1);\n      fill(dk?HU:(HU+8)%360, dk?12:26, 100, cl((2.0 + 4.4*gl*lz)*AL/100, 0, 14));\n      poly([xF, -SH*1.25, zL, xF, 0, zL, xF, 0, zR, xF, -SH*1.25, zR]);\n    }\n    pop(); blendMode(BLEND);\n  }\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n}\n"
+}

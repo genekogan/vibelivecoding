@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.fish",
+  "kind": "subject",
+  "name": "Fish",
+  "desc": "A fish swimming in place \u2014 tail and fins rippling, gills working, an eye that catches the light, blowing bubbles. Tropical stripes, koi, glowing neon-tetra, see-through x-ray or a banded angelfish.",
+  "tags": [
+    "fish",
+    "tropical",
+    "koi",
+    "aquarium",
+    "sea",
+    "ocean",
+    "swim",
+    "fins",
+    "tail",
+    "bubbles",
+    "animal",
+    "character",
+    "figurative",
+    "aquatic",
+    "reef",
+    "neon-tetra",
+    "angelfish",
+    "cute",
+    "underwater"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "swim liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "size"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "body hue"
+    },
+    "fins": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fin size/wave"
+    },
+    "stripes": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "stripe count"
+    },
+    "eye": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "bubbles": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "tropical",
+      "options": [
+        "tropical",
+        "koi",
+        "neon",
+        "xray",
+        "angel"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:30:47+00:00",
+    "fps": 56.8,
+    "motion": 0.0354,
+    "lum": 0.108
+  },
+  "code": "const D = { energy:.55, scale:1, hue:30, fins:.6, stripes:.5, eye:.5, bubbles:.5, x:.5, y:.5, speed:1, density:.5, style:'tropical', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style, en=P.energy, t=K.t, dc=drawingContext, TAU=Math.PI*2;\nconst u=Math.min(width,height), sc=u*0.0042*P.scale, cx=P.x*width, cy=P.y*height;\nconst swimX=(0.9*Math.sin(t*0.43)+0.5*Math.sin(t*0.9+1.5))*22*sc*(0.4+en);\nconst swimY=(0.6*Math.sin(t*0.61+2))*12*sc*(0.4+en);\nconst tailW=Math.sin(t*(4+en*3)*P.speed);\nconst dir=Math.cos(t*0.43)>=0?1:1; // face right\n\nlet bodyc=[P.hue,80,95], bel=[P.hue+10,50,100], finc=[(P.hue+30)%360,85,100], stripec=[(P.hue+200)%360,60,40], eyeR=[0,0,100], glow=false;\nif(sty==='koi'){ bodyc=[0,0,100]; bel=[0,0,100]; finc=[15,70,100]; stripec=[15,85,90]; eyeR=[0,0,10]; }\nelse if(sty==='neon'){ bodyc=[P.hue,30,25]; bel=[P.hue,30,25]; finc=[(P.hue+160)%360,90,100]; stripec=[(P.hue+160)%360,90,100]; eyeR=[(P.hue+160)%360,90,100]; glow=true; }\nelse if(sty==='xray'){ bodyc=[P.hue,20,30]; bel=[P.hue,20,30]; finc=[P.hue,15,45]; stripec=[P.hue,10,70]; eyeR=[0,0,100]; }\nelse if(sty==='angel'){ bodyc=[50,20,100]; bel=[50,10,100]; finc=[45,70,100]; stripec=[210,30,20]; eyeR=[0,0,10]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// bubbles behind\nif(P.bubbles>0.05){ noStroke(); for(let i=0;i<P.bubbles*16;i++){ const life=(t*0.3+fr(i))%1; const bx=cx-40*sc-fr(i+3)*40*sc; const by=cy - life*180*sc + Math.sin(t+i)*6; fill(Cc([P.hue,20,100], (1-life)*35)); circle(bx,by,(2+fr(i+7)*4)*sc*(0.5+life*0.5)); } }\n\npush();\ntranslate(cx+swimX, cy+swimY);\nscale(dir*sc, sc);\nrotate(Math.sin(t*0.5)*0.06);\nif(glow){ dc.shadowBlur=18; dc.shadowColor=Cc(finc,80).toString(); }\n\n// tail\nfill(Cc(finc,100));\npush(); translate(-46,0); rotate(tailW*0.3);\nbeginShape(); vertex(0,0); vertex(-30,-24-P.fins*10); vertex(-22,0); vertex(-30,24+P.fins*10); endShape(CLOSE); pop();\n// dorsal + belly fins (wave)\nconst fw=Math.sin(t*(3+en*2)+1)*P.fins;\nfill(Cc(finc,90));\nbeginShape(); vertex(-6,-24); bezierVertex(4,-44-fw*8, 24,-30, 20,-18); endShape(CLOSE);\nbeginShape(); vertex(-6,24); bezierVertex(2,40+fw*8, 20,30, 18,18); endShape(CLOSE);\n// body\nfill(Cc(bodyc,100));\nbeginShape(); vertex(-44,0); bezierVertex(-30,-30,20,-32,44,-6); bezierVertex(50,-2,50,2,44,6); bezierVertex(20,32,-30,30,-44,0); endShape(CLOSE);\n// belly\nfill(Cc(bel,80)); ellipse(6,10,54,26);\n// stripes\nif(P.stripes>0.05 && sty!=='xray'){ dc.save(); dc.beginPath(); dc.ellipse(0,0,46,30,0,0,TAU); dc.clip();\n  const ns=Math.floor(2+P.stripes*6); stroke(Cc(stripec,80)); strokeWeight(4+P.stripes*4); noFill();\n  for(let i=0;i<ns;i++){ const x=-30+i*(64/ns) + Math.sin(t+i)*2; line(x,-30,x-8,30); } dc.restore(); noStroke(); }\n// xray ribs\nif(sty==='xray'){ stroke(Cc([P.hue,20,80],70)); strokeWeight(1.4); noFill(); for(let i=0;i<7;i++){ const x=-24+i*8; arc(x,4,10,34,Math.PI*0.5,Math.PI*1.5);} noStroke(); }\n// pectoral fin\nfill(Cc(finc,80)); push(); translate(6,6); rotate(0.4+fw*0.3); ellipse(0,0,26,14); pop();\n// eye\ndc.shadowBlur=0;\nfill(Cc(eyeR,100)); circle(30,-6,12); fill(0,0,10); circle(31,-6,6); fill(0,0,100,90); circle(29,-8,2.4);\n// mouth\nstroke(Cc([P.hue,60,50],90)); strokeWeight(2); noFill(); const gape=Math.sin(t*2)*0.5+0.5; arc(46,4,10,6+gape*4, Math.PI*1.7, Math.PI*2.3); noStroke();\nblendMode(BLEND); dc.shadowBlur=0;\npop();\n"
+}

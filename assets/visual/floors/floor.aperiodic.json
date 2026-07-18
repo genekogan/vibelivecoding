@@ -1,0 +1,164 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.aperiodic",
+  "kind": "floor",
+  "name": "Aperiodic Pavement",
+  "desc": "A quasicrystal pavement running away to a hazed horizon \u2014 rhombs of cut stone that never once repeat, every joint inlaid with a brass strip that flares as a low raking light travels up the hall.",
+  "tags": [
+    "aperiodic",
+    "quasicrystal",
+    "quasilattice",
+    "quasiperiodic",
+    "penrose",
+    "rhombus",
+    "rhombi",
+    "de-bruijn",
+    "multigrid",
+    "dual",
+    "10-fold",
+    "tenfold",
+    "14-fold",
+    "dodecagonal",
+    "phason",
+    "tiling",
+    "tessellation",
+    "plane-division",
+    "pavement",
+    "paving",
+    "floor",
+    "ground",
+    "hall",
+    "atrium",
+    "lobby",
+    "perspective",
+    "recession",
+    "vanishing-point",
+    "depth",
+    "horizon",
+    "receding",
+    "inlay",
+    "brass",
+    "marquetry",
+    "stone",
+    "cut-stone",
+    "terrazzo",
+    "aggregate",
+    "polished",
+    "lapis",
+    "jewel",
+    "concrete",
+    "brutalist",
+    "xray",
+    "luminous",
+    "raking-light",
+    "haze",
+    "crystallography",
+    "geometry",
+    "geometric",
+    "mathematical",
+    "austere",
+    "clinical",
+    "sacred",
+    "architecture",
+    "architectural",
+    "texture"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "heavy",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "light contrast + joint weight + walk rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "rhomb size vs frame (2.2 = a few colossal slabs underfoot)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how far the pavement recedes before the haze takes it, and the stone tooth in each face"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "walk rate up the hall"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "primary stone + haze hue"
+    },
+    "fold": {
+      "default": 5,
+      "min": 4,
+      "max": 7,
+      "doc": "grid families -> symmetry: 5 = 10-fold Penrose rhombs, 6 = 12-fold dodecagonal, 7 = 14-fold, 4 = 8-fold octagonal"
+    },
+    "inlay": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "brass inlay strip laid into every joint"
+    },
+    "phason": {
+      "default": 0.25,
+      "min": 0,
+      "max": 1,
+      "doc": "slow perpendicular-space drift \u2014 distant rhombs quietly re-cut themselves"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.24,
+      "max": 0.7,
+      "doc": "horizon height as canvas fraction"
+    },
+    "style": {
+      "default": "brass",
+      "options": [
+        "brass",
+        "terrazzo",
+        "lapis",
+        "concrete",
+        "xray"
+      ],
+      "doc": "aesthetic: brass-inlaid dark cut stone / pale polished terrazzo with aggregate / jewel-toned lapis / raw brutalist concrete / luminous additive rhombs on black (non-representational)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "perpendicular-space phases \u2014 re-cuts the entire pavement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:03:15+00:00",
+    "fps": 59.9,
+    "motion": 0.022,
+    "lum": 0.227
+  },
+  "code": "const D = { energy:.55, scale:1, density:.5, speed:1, hue:34, fold:5, inlay:.7, phason:.25, x:.5, y:.46, style:'brass', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, H = ((P.hue%360)+360)%360, en = cl(P.energy,0,1);\nconst sp = .25 + .75*P.speed;\nconst lift = .55 + .45*K.intensity;\nconst bass = (S.b = (S.b||0)*.84 + (A.bass||0)*.16);\nconst trb  = (S.tb = (S.tb||0)*.87 + (A.treble||0)*.13);\n\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\n\n// ---- camera ---------------------------------------------------------------\nconst hz = cl(P.y,.24,.70)*height, cxp = cl(P.x,.15,.85)*width;\nconst gh = Math.max(24, height-hz);\nconst f = u*1.0, camH = 2.6;\nS.cz = (S.cz||0) + dt*sp*(.55 + .6*lift + .5*en)*.75;\nS.cx = (S.cx||0) + dt*sp*(.07*Math.sin(K.t*.037) + .045*Math.sin(K.t*.089+1.3));\nS.pz = (S.pz||0) + dt*sp*(.006 + .05*cl(P.phason,0,1));\nconst camZg = S.cz, camXg = S.cx;\nconst znear = f*camH/gh;\nconst NR = cl(6 + cl(P.density,0,1)*8, 4, 15);\nconst zfar = znear + NR;\n\n// ---- the pavement: a de Bruijn multigrid laid on the GROUND plane ---------\n// N line families pi/N apart -> the dual is an aperiodic rhombic quasilattice:\n// N=5 gives 10-fold (Penrose rhombs), 7 gives 14-fold, 6 gives 12-fold. The\n// tiling is generated in absolute tile coordinates and the camera simply walks\n// through it, so the pavement never repeats and never seams -- there is no tile\n// atlas to wrap.\nconst N = cl(Math.round(P.fold), 4, 7)|0;\nconst tw = 1.3*cl(P.scale,.5,2.2);                        // tile edge in ground units\nconst EX=[], EY=[], G=[];\nlet vox=0, voy=0;\nfor (let j=0;j<N;j++){\n  const a = Math.PI*j/N;\n  EX[j] = Math.cos(a); EY[j] = Math.sin(a);\n  G[j] = fr(j*7.13+1.9)*3.1 + S.pz*(1 + .37*fr(j*11.7+.3));\n  vox += (G[j]+.5)*EX[j]; voy += (G[j]+.5)*EY[j];\n}\n// the visible ground box, in tile coords (x = lateral, y = depth)\nconst xNear = -cxp*zfar/f, xFar = (width-cxp)*zfar/f;\nconst bx = (camXg + (xNear+xFar)*.5)/tw, bz = (camZg + (znear+zfar)*.5)/tw;\nconst hxT = ((xFar-xNear)*.5)/tw + 1.2, hzT = ((zfar-znear)*.5)/tw + 1.2;\nconst Rv = Math.hypot(hxT, hzT);\nconst pcx = 2*(bx + vox)/N, pcy = 2*(bz + voy)/N;\nconst Rp = 2*(Rv + 3.2)/N;\n\nconst TL = [], TLMAX = 5400;\nfor (let j=0;j<N && TL.length<TLMAX;j++){\n  for (let jp=j+1;jp<N && TL.length<TLMAX;jp++){\n    const cx=EX[j], cy=EY[j], dx=EX[jp], dy=EY[jp];\n    const det = cx*dy - cy*dx;\n    if (Math.abs(det) < 1e-6) continue;\n    const bj = pcx*cx + pcy*cy - G[j], bp = pcx*dx + pcy*dy - G[jp];\n    const k0 = Math.ceil(bj-Rp), k1 = Math.floor(bj+Rp);\n    const q0 = Math.ceil(bp-Rp), q1 = Math.floor(bp+Rp);\n    for (let k=k0;k<=k1 && TL.length<TLMAX;k++){\n      const a = k + G[j];\n      for (let q=q0;q<=q1 && TL.length<TLMAX;q++){\n        const b = q + G[jp];\n        const px = (a*dy - b*cy)/det, py = (cx*b - dx*a)/det;\n        const rx = px-pcx, ry = py-pcy;\n        if (rx*rx + ry*ry > Rp*Rp) continue;\n        let ox=0, oy=0;\n        for (let m=0;m<N;m++){\n          const Km = (m===j) ? k-1 : (m===jp) ? q-1 : Math.floor(px*EX[m] + py*EY[m] - G[m]);\n          ox += Km*EX[m]; oy += Km*EY[m];\n        }\n        const mx = ox + (cx+dx)*.5, my = oy + (cy+dy)*.5;\n        if (Math.abs(mx-bx) > hxT+1 || Math.abs(my-bz) > hzT+1) continue;\n        let kind = jp-j; if (kind > N-kind) kind = N-kind;\n        TL.push(ox, oy, j, jp, kind, 0);\n      }\n    }\n  }\n}\n\n// ---- styles ---------------------------------------------------------------\nconst glow = (sty==='xray');\nfunction haze(){\n  if (sty==='terrazzo') return [40, 10, 72];\n  if (sty==='lapis')    return [232, 52, 26];\n  if (glow)             return [(H+190)%360, 56, 6];\n  if (sty==='concrete') return [(H+180)%360, 4, 52];\n  return [(H+6)%360, 24, 26];                              // brass: dark stone room\n}\nfunction tileCol(kind, lam, jit){\n  const q = (kind-1)/Math.max(1, Math.floor(N/2)-1);\n  const v = (.30 + .66*lam)*(.6+.5*en);\n  if (sty==='terrazzo') return [ (38 + q*14 + jit*10)%360, cl(8 + 8*q,2,22), cl(56 + 42*v + jit*6, 10, 100) ];\n  if (sty==='lapis')    return [ (232 + q*18)%360, cl(56 - 18*q,10,80), cl(16 + 62*v, 4, 92) ];\n  if (glow)             return [ (H + 130 + q*90)%360, 44, cl(14 + 86*v, 2, 100) ];\n  if (sty==='concrete') return [ (H+180)%360, cl(3 + q*2,0,10), cl(28 + 54*v, 4, 92) ];\n  return [ (H + 4 + q*12)%360, cl(30 - 10*q + 8*jit, 6, 52), cl(18 + 54*v + jit*5, 3, 88) ];  // brass\n}\nconst hc = haze();\nconst inl = glow ? [(H+150)%360, 30, 98] : (sty==='terrazzo' ? [36,14,30] : sty==='concrete' ? [(H+180)%360,5,26] : [44, 58, 82]);\n\nconst lightZ = znear + 3.2 + 2.8*Math.sin(K.t*.079*sp) + 1.4*Math.sin(K.t*.187*sp+2.2);\nconst iw = cl(P.inlay,0,1);\n\npush();\nnoStroke(); fill(hc[0], hc[1], hc[2], 100); rect(0, hz, width, gh);\nstrokeJoin(ROUND);\nlet drawn = 0;\n\nfor (let i=0;i<TL.length && drawn<420;i+=6){\n  const ox=TL[i], oy=TL[i+1], j=TL[i+2], jp=TL[i+3], kind=TL[i+4];\n  const e0x=EX[j], e0y=EY[j], e1x=EX[jp], e1y=EY[jp];\n  const vx=[ox, ox+e0x, ox+e0x+e1x, ox+e1x], vy=[oy, oy+e0y, oy+e0y+e1y, oy+e1y];\n  // project the four ground corners through the pinhole\n  let okT = true, sx=[0,0,0,0], sy=[0,0,0,0], zm=0;\n  for (let c=0;c<4;c++){\n    const Zr = vy[c]*tw - camZg, Xr = vx[c]*tw - camXg;\n    if (Zr < znear*.92) { okT = false; break; }\n    sy[c] = hz + f*camH/Zr; sx[c] = cxp + f*Xr/Zr; zm += Zr*.25;\n  }\n  if (!okT) continue;\n  if (Math.min(sx[0],sx[1],sx[2],sx[3]) > width+30 || Math.max(sx[0],sx[1],sx[2],sx[3]) < -30) continue;\n  const spanX = Math.max(sx[0],sx[1],sx[2],sx[3]) - Math.min(sx[0],sx[1],sx[2],sx[3]);\n  const spanY = Math.max(sy[0],sy[1],sy[2],sy[3]) - Math.min(sy[0],sy[1],sy[2],sy[3]);\n  if (spanX < 2 || spanY < 1.2) continue;                  // sub-pixel near the horizon: let the haze have it\n  const fog = cl((zfar - zm)/(zfar - znear), 0, 1);\n  const fogq = fog*fog*(3-2*fog);\n  const jit = fr(Math.round(ox*7.3)*13.1 + Math.round(oy*5.9)*29.3);\n  const lam = cl(1 - Math.abs(zm - lightZ)/4.6, 0, 1)*(.6+.5*lift) + .12*jit;\n  const c = tileCol(kind, lam, jit);\n  if (glow) {\n    blendMode(ADD);\n    noStroke(); fill(c[0], c[1], c[2], cl((7 + 20*lam)*fogq, 1, 42));\n    quad(sx[0],sy[0],sx[1],sy[1],sx[2],sy[2],sx[3],sy[3]);\n    blendMode(BLEND);\n    noFill(); stroke(c[0], c[1], cl(c[2]*(.55+.5*trb),0,100), cl((28+52*lam)*fogq, 2, 92));\n    strokeWeight((u/900)*(.6+1.1*en)*(.35+.9*fogq));\n    quad(sx[0],sy[0],sx[1],sy[1],sx[2],sy[2],sx[3],sy[3]);\n  } else {\n    noStroke(); fill(c[0], c[1], c[2], 100*fogq);\n    quad(sx[0],sy[0],sx[1],sy[1],sx[2],sy[2],sx[3],sy[3]);\n    // aggregate / stone tooth so the faces are never a flat slab\n    if (spanY > 10 && cl(P.density,0,1) > .05) {\n      stroke(c[0], cl(c[1]+12,0,100), cl(c[2]*(.66 + .5*jit),0,100), (14 + 30*cl(P.density,0,1))*fogq);\n      strokeWeight((u/1100)*(.4+.5*en));\n      for (let g2=1;g2<=2;g2++){\n        const t2 = g2/3;\n        line(sx[0]+(sx[3]-sx[0])*t2, sy[0]+(sy[3]-sy[0])*t2, sx[1]+(sx[2]-sx[1])*t2, sy[1]+(sy[2]-sy[1])*t2);\n      }\n    }\n    // brass inlay strip along every joint -- catches the raking light\n    if (iw > .04) {\n      noFill();\n      stroke(inl[0], inl[1], cl(inl[2]*(.42 + .75*lam),0,100), (36 + 54*iw)*fogq);\n      strokeWeight((u/900)*(.5 + 2.0*iw)*(.3 + .95*fogq));\n      quad(sx[0],sy[0],sx[1],sy[1],sx[2],sy[2],sx[3],sy[3]);\n    }\n  }\n  drawn++;\n}\n\n// haze veil into the horizon\nblendMode(BLEND); noStroke();\nfor (let i=0;i<10;i++){\n  const q=i/9;\n  fill(hc[0], hc[1], hc[2], (glow?4:9)*(1-q)*(1-q)*(.6+.7*(1-en)));\n  rect(0, hz, width, gh*(.06 + q*.5));\n}\npop();\n\nif (P.alpha < 100) { noStroke(); fill(0,0,0, 100 - cl(P.alpha,0,100)); rect(0, hz, width, gh); }\nblendMode(BLEND); drawingContext.shadowBlur = 0;\n"
+}

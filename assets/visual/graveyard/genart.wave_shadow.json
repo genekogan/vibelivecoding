@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.wave_shadow",
+  "kind": "genart",
+  "name": "Wave Shadow",
+  "desc": "A wave field solved cell by cell as a plane wavefront marches into an obstacle \u2014 it piles into standing ridges on the lit side, throws a geometric shadow behind, and then refuses to leave that shadow alone: the edges act as fresh sources and the wave curls in around them, filling the dark with diffraction fringes and lighting a bright Poisson spot dead centre in the shadow of a disc, where naive geometry insists nothing should be.",
+  "tags": [
+    "diffraction",
+    "wave-shadow",
+    "shadow",
+    "acoustic-shadow",
+    "scattering",
+    "obstacle",
+    "barrier",
+    "edge-diffraction",
+    "sommerfeld",
+    "huygens",
+    "poisson-spot",
+    "arago-spot",
+    "fresnel",
+    "aperture",
+    "slit",
+    "double-slit",
+    "wave-equation",
+    "fdtd",
+    "simulation",
+    "field",
+    "pressure",
+    "acoustics",
+    "acoustic",
+    "sound",
+    "wave",
+    "waves",
+    "propagation",
+    "interference",
+    "fringes",
+    "standing-wave",
+    "physics",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "austere",
+    "eerie",
+    "ink",
+    "sumi",
+    "ironbow",
+    "thermal",
+    "blueprint",
+    "silver",
+    "bg",
+    "genart",
+    "abstract"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "field gain \u2014 how far into the faint diffracted shadow the picture is pushed (master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "obstacle size against the wavelength \u2014 big obstacles throw hard shadows, small ones barely cast at all"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "source frequency and obstacle drift rate (frequency stays around 1Hz \u2014 far below anything that could read as flicker)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "wave speed (so wavelength) and aperture width \u2014 sets how many fringes fit"
+    },
+    "ripple": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "how much live signed pressure shows over the time-averaged energy map; 0 is a pure shadow/intensity map"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "field hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "obstacle / screen position x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "obstacle position y"
+    },
+    "scene": {
+      "default": "disc",
+      "options": [
+        "disc",
+        "slit",
+        "double",
+        "wedge",
+        "array",
+        "point"
+      ],
+      "doc": "what the wave runs into: a disc (grows the Poisson-Arago spot in its own shadow), a single aperture (Huygens), two apertures (Young in the near field), a half-plane (Sommerfeld's canonical edge), a scatterer field, or a point source with no obstacle at all"
+    },
+    "style": {
+      "default": "acoustic",
+      "options": [
+        "acoustic",
+        "ironbow",
+        "ink",
+        "blueprint",
+        "silver"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seed \u2014 scatterer layout, drift phases, sensor grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, ripple: .3, hue: 200, x: .5, y: .5, scene: 'disc', style: 'acoustic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 200, BH = Math.max(60, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.u = new Float32Array(N); S.up = new Float32Array(N); S.un = new Float32Array(N);\n  S.e = new Float32Array(N); S.mask = new Float32Array(N); S.damp = new Float32Array(N);\n  // sponge layer: without it every edge is a mirror and the box rings forever\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const d = Math.min(i, j, BW - 1 - i, BH - 1 - j), w = 14;\n    S.damp[j * BW + i] = d >= w ? 1 : 1 - 0.055 * Math.pow((w - d) / w, 2);\n  }\n}\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.p1 = fr(1) * 6.283; S.p2 = fr(2) * 6.283; S.p3 = fr(3) * 6.283; S.gof = fr(4) * 967;\n  S.ob = []; for (let i = 0; i < 7; i++) S.ob.push([fr(i * 5 + 51), fr(i * 5 + 52), fr(i * 5 + 53), fr(i * 5 + 54) * 6.283]);\n}\n\nconst sp = P.speed, style = P.style, scene = P.scene;\nif (S.lastT == null) S.lastT = K.t;\nlet dt = K.t - S.lastT; if (!(dt > 0) || dt > 0.4) dt = 1 / 60; S.lastT = K.t;\n\n// ---- obstacle mask, rebuilt each frame so the scatterers can drift\nconst cxo = P.x * BW, cyo = P.y * BH, R = Math.min(BW, BH) * 0.24 * (0.45 + P.scale * 0.62);\nconst dxo = Math.min(BW, BH) * (0.045 * Math.sin(K.t * 0.037 * sp + S.p1) + 0.022 * Math.sin(K.t * 0.089 * sp));\nconst dyo = Math.min(BW, BH) * (0.052 * Math.sin(K.t * 0.053 * sp + S.p2) + 0.026 * Math.sin(K.t * 0.121 * sp + 1.4));\nconst gap = Math.min(BW, BH) * (0.045 + P.density * 0.16) * (1 + 0.16 * Math.sin(K.t * 0.061 * sp + S.p3));\nconst rot = K.t * 0.031 * sp + 0.4 * Math.sin(K.t * 0.017 * sp);\nconst mask = S.mask;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const X = i - cxo - dxo, Y = j - cyo - dyo;\n    let solid = 0;\n    if (scene === 'slit') { const wallx = cxo + dxo;\n      if (Math.abs(i - wallx) < 3 && Math.abs(Y) > gap) solid = 1; }\n    else if (scene === 'double') { const wallx = cxo + dxo;\n      if (Math.abs(i - wallx) < 3 && !(Math.abs(Math.abs(Y) - gap * 1.5) < gap * 0.5)) solid = 1; }\n    else if (scene === 'wedge') { const wallx = cxo + dxo;\n      if (Math.abs(i - wallx) < 3 && Y > 0) solid = 1; }\n    else if (scene === 'array') {\n      for (let k = 0; k < 7; k++) { const o = S.ob[k];\n        const ox = cxo + dxo + (o[0] - 0.5) * BW * 0.5, oy = (o[1]) * BH;\n        const orr = R * (0.16 + o[2] * 0.20);\n        const wob = Math.min(BW, BH) * 0.03 * Math.sin(K.t * 0.07 * sp + o[3]);\n        if ((i - ox) * (i - ox) + (j - oy - wob) * (j - oy - wob) < orr * orr) { solid = 1; break; } }\n    } else { // disc \u2014 the canonical obstacle; its shadow grows the Poisson-Arago spot\n      const ca = Math.cos(rot), sa = Math.sin(rot);\n      const rx = X * ca - Y * sa, ry = X * sa + Y * ca;\n      const ecc = 1 + 0.28 * Math.sin(K.t * 0.043 * sp + S.p1);\n      if (rx * rx / (ecc * ecc) + ry * ry < R * R * 0.36) solid = 1;\n    }\n    mask[j * BW + i] = solid ? 0 : 1;\n  }\n}\n\n// ---- FDTD. c is in CELLS PER SECOND and the Courant number is rebuilt from the\n// real dt each frame, so wavelength is frame-rate independent and the scheme stays\n// stable if fps sags (substep rather than exceed the CFL limit).\nconst cph = 26 + P.density * 22;                     // cells/sec\nconst freq = 1.35 * (0.5 + P.speed * 0.5);           // Hz \u2014 deliberately ~1Hz, far under the flicker band\nlet nsub = Math.ceil(cph * dt / 0.45); if (nsub < 1) nsub = 1; if (nsub > 3) nsub = 3;\nconst C = Math.min(0.6, cph * dt / nsub), C2 = C * C;\nconst u = S.u, up = S.up, un = S.un, damp = S.damp;\nconst amp = 1.0;\nfor (let s = 0; s < nsub; s++) {\n  S.ph = (S.ph || 0) + 6.283185 * freq * (dt / nsub);\n  const drive = amp * Math.sin(S.ph) * Math.min(1, K.t * 0.5);\n  for (let j = 1; j < BH - 1; j++) {\n    const row = j * BW;\n    for (let i = 1; i < BW - 1; i++) {\n      const o = row + i;\n      if (mask[o] === 0) { un[o] = 0; continue; }\n      const lap = u[o - 1] + u[o + 1] + u[o - BW] + u[o + BW] - 4 * u[o];\n      un[o] = (2 * u[o] - up[o] + C2 * lap) * damp[o];\n    }\n  }\n  // source: a plane wavefront marching in from the left, or a single point\n  if (scene === 'point') { const si = 8, sj = (BH * 0.5) | 0; un[sj * BW + si] = drive; }\n  else for (let j = 1; j < BH - 1; j++) un[j * BW + 6] = drive;\n  up.set(u); u.set(un);\n}\n// running energy: the time-average is what makes a SHADOW visible. Instantaneous\n// pressure alone just shows ripples.\nconst ea = Math.min(0.5, 2.2 * dt);\nconst e = S.e;\nfor (let o = 0; o < N; o++) { const v = u[o]; e[o] += (v * v - e[o]) * ea; }\n\nconst ex = (0.55 + P.energy * 1.35) * (0.85 + K.intensity * 0.2 + A.rms * 0.3);\n// the live pressure ripple is kept to a fraction of the picture: it is the one\n// thing here that oscillates, and it must never read as flicker\nconst rip = P.ripple * 0.55;\nconst lp = P.hue / 360;\nconst mc = [0.5 + 0.5 * Math.cos(6.283 * lp), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.66)), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.33))];\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const o = j * BW + i;\n    let hg = Math.sin((i * 12.9898 + j * 78.233 + S.gof) * 43758.5453); hg -= Math.floor(hg);\n    const gn = 0.94 + 0.12 * hg;\n    let R2, G2, B2;\n    if (mask[o] === 0) {                             // the scatterer itself: solid, textured mass\n      const sm = 0.055 + hg * 0.05;\n      R2 = sm * 1.0; G2 = sm * 1.05; B2 = sm * 1.25;\n    } else {\n      const en = Math.sqrt(Math.max(0, e[o])) * 2.0;\n      const pr = u[o];\n      const v = 1 - Math.exp(-en * ex);\n      if (style === 'ironbow') { const w = (0.13 + v * 0.72 + pr * rip * 0.35) * gn;\n        R2 = Math.min(1, w * 1.5 + 0.04); G2 = Math.max(0, Math.min(1, w * 1.22 - 0.3)); B2 = Math.max(0, Math.min(1, w * 1.55 + 0.02 - Math.max(0, w - 0.5) * 1.95));\n      } else if (style === 'blueprint') { const bd = Math.abs((v * 5) % 1 - 0.5), line = bd > 0.42 ? 1 : 0;\n        R2 = 0.05 + v * 0.06 + line * 0.32 + pr * rip * 0.10; G2 = 0.11 + v * 0.12 + line * 0.62 + pr * rip * 0.18; B2 = 0.24 + v * 0.16 + line * 0.78 + pr * rip * 0.22;\n      } else if (style === 'ink') { const w = (v * 0.72 + pr * rip * 0.3) * gn;\n        R2 = 0.10 + w * 0.5; G2 = 0.10 + w * 0.49; B2 = 0.115 + w * 0.47;\n      } else if (style === 'silver') { const w = (0.10 + v * 0.68 + pr * rip * 0.32) * gn;\n        R2 = w * 1.0; G2 = w * 0.99; B2 = w * 0.97;\n      } else {                                       // acoustic \u2014 signed pressure over the energy map\n        const pos = Math.max(0, pr) * rip, neg = Math.max(0, -pr) * rip;\n        R2 = (0.05 + v * mc[0] * 0.9 + pos * 0.95 + neg * 0.1) * gn;\n        G2 = (0.075 + v * mc[1] * 0.9 + pos * 0.35 + neg * 0.35) * gn;\n        B2 = (0.115 + v * mc[2] * 0.9 + pos * 0.1 + neg * 0.95) * gn;\n      }\n    }\n    const q = 4 * o;\n    px[q] = Math.min(255, Math.max(0, R2 * 255)); px[q + 1] = Math.min(255, Math.max(0, G2 * 255)); px[q + 2] = Math.min(255, Math.max(0, B2 * 255)); px[q + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n",
+  "last_fail": {
+    "at": "2026-07-17T12:07:36+00:00",
+    "gate": "motion",
+    "detail": "strobing: diff 0.4247 >= 0.35"
+  }
+}

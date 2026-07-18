@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.bobbin_lace",
+  "kind": "genart",
+  "name": "Bobbin Lace",
+  "desc": "Handmade bobbin lace laid on dark velvet \u2014 a twisted point-ground net threaded with cloth-stitch flower medallions, gimp-outlined petals and edging picots in pale ecru, gold, or black Chantilly silk, drifting slowly as candlelight glints travel across the threads.",
+  "tags": [
+    "lace",
+    "bobbin-lace",
+    "needle-lace",
+    "chantilly",
+    "point-ground",
+    "net",
+    "mesh",
+    "tulle",
+    "picot",
+    "gimp",
+    "cordonnet",
+    "cloth-stitch",
+    "medallion",
+    "doily",
+    "antique",
+    "delicate",
+    "filigree",
+    "ecru",
+    "velvet",
+    "thread",
+    "fabric",
+    "textile",
+    "cloth",
+    "heirloom",
+    "goldwork",
+    "frost",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glint amplitude & drift punch"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "lace repeat / motif size"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "net fineness & motif count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3,
+      "doc": "drift & glint rate"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "thread / ground hue"
+    },
+    "netfine": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "net thread fineness"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glint origin"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glint origin"
+    },
+    "style": {
+      "default": "ecru_velvet",
+      "options": [
+        "ecru_velvet",
+        "chantilly_black",
+        "gold_metallic",
+        "blueprint_net",
+        "frost_web"
+      ],
+      "doc": "ecru lace on wine velvet / black Chantilly on pale grey / metallic gold / cyan net schematic / icy frost-web"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "net & nap seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:54+00:00",
+    "fps": 63.7,
+    "motion": 0.1349,
+    "lum": 0.193
+  },
+  "code": "const D = { energy: .5, scale: 1, density: .5, speed: 1, hue: 40, netfine: .5, x: .5, y: .5, style: 'ecru_velvet', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst uMin=Math.min(width,height), t=K.t||0;\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst fr=i=>{ const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s); };\nfunction look(style,hue){\n  if(style==='chantilly_black') return {grd:[hue,.10,.56], thread:[0,0,.10], glint:[0,0,.30], reverse:true};\n  if(style==='gold_metallic')   return {grd:[28,.55,.12], thread:[44,.55,.86], glint:[48,.30,1.0], reverse:false};\n  if(style==='blueprint_net')   return {grd:[214,.62,.16], thread:[190,.55,.82], glint:[186,.40,1.0], reverse:false};\n  if(style==='frost_web')       return {grd:[220,.55,.10], thread:[205,.14,.94], glint:[200,.20,1.0], reverse:false};\n  return {grd:[348,.50,.13], thread:[40,.18,.88], glint:[44,.16,1.0], reverse:false}; // ecru_velvet\n}\nconst L=look(P.style,P.hue);\n\nconst key=[P.style,P.seed,Math.round(P.density*20),Math.round(P.hue),Math.round(P.netfine*20),Math.round(P.scale*20)].join('_');\nif(S.key!==key || !S.g){\n  S.key=key;\n  const dim=Math.round(Math.max(420,Math.min(680,uMin*0.7*P.scale)));\n  const g=createGraphics(dim,dim); g.pixelDensity(1); g.colorMode(HSB,360,100,100,100);\n  g.noStroke(); g.fill(L.grd[0],L.grd[1]*100,L.grd[2]*100); g.rect(0,0,dim,dim);\n  // subtle velvet nap\n  g.noStroke(); for(let k=0;k<1400;k++){ const x=fr(k*2)*dim,y=fr(k*2+1)*dim; g.fill(L.grd[0],L.grd[1]*100,Math.min(100,L.grd[2]*100+ (fr(k)>0.5?5:-4)), 20); g.ellipse(x,y,2,2); }\n  const th=L.thread; const tA=L.reverse?90:78;\n  // point-ground net: two diagonal thread families with twist nubs\n  const cells=Math.round(9+P.density*13); const step=dim/cells; const nf=P.netfine;\n  g.stroke(th[0],th[1]*100,th[2]*100,tA); g.strokeWeight(Math.max(0.8,dim*0.0016*(1.3-0.5*nf))); g.noFill();\n  for(let d=-cells;d<=cells*2;d++){\n    g.beginShape(); for(let k=0;k<=cells;k++){ const x=k*step, y=(d+k)*step*0.5 + Math.sin(k*1.7)*step*0.12; g.vertex(x,y);} g.endShape();\n    g.beginShape(); for(let k=0;k<=cells;k++){ const x=k*step, y=(d-k)*step*0.5 + Math.sin(k*1.3)*step*0.12; g.vertex(x,y);} g.endShape();\n  }\n  // twist nubs at net crossings\n  g.noStroke(); g.fill(th[0],th[1]*100,th[2]*100,tA*0.8);\n  for(let a=0;a<=cells;a++)for(let b=0;b<=cells;b++){ g.ellipse(a*step, b*step, step*0.12,step*0.12); }\n  // motif medallions (tileable: center + corners) with cloth-stitch fill + gimp outline\n  function medallion(cx,cy,R){\n    // petals\n    for(let p=0;p<8;p++){ const ang=p*Math.PI/4; g.push(); g.translate(cx,cy); g.rotate(ang);\n      g.fill(th[0],th[1]*100,th[2]*100, tA*0.55); g.noStroke(); g.ellipse(R*0.62,0,R*0.5,R*0.24);\n      // cloth-stitch hatch\n      g.stroke(L.grd[0],L.grd[1]*100,L.grd[2]*100,40); g.strokeWeight(1);\n      for(let h=-2;h<=2;h++) g.line(R*0.4,h*R*0.05,R*0.86,h*R*0.05); g.noStroke();\n      g.pop(); }\n    // inner disc (dense)\n    g.fill(th[0],th[1]*100,th[2]*100,tA*0.7); g.ellipse(cx,cy,R*0.7,R*0.7);\n    g.fill(L.grd[0],L.grd[1]*100,L.grd[2]*100,55); g.ellipse(cx,cy,R*0.4,R*0.4);\n    g.fill(th[0],th[1]*100,th[2]*100,tA*0.6); g.ellipse(cx,cy,R*0.16,R*0.16);\n    // gimp cordonnet outline\n    g.noFill(); g.stroke(th[0],Math.max(0,th[1]*100-6),Math.min(100,th[2]*100+6),tA); g.strokeWeight(Math.max(1.6,dim*0.004));\n    g.ellipse(cx,cy,R*1.5,R*1.5);\n    // picots around edge\n    g.strokeWeight(Math.max(1,dim*0.0016));\n    for(let p=0;p<16;p++){ const ang=p*Math.PI/8; g.ellipse(cx+Math.cos(ang)*R*0.75, cy+Math.sin(ang)*R*0.75, dim*0.007,dim*0.007); }\n    g.noStroke();\n  }\n  const R=dim*(0.14+0.05*P.density);\n  medallion(dim/2,dim/2,R*1.2);\n  medallion(0,0,R); medallion(dim,0,R); medallion(0,dim,R); medallion(dim,dim,R);\n  medallion(dim/2,0,R*0.8); medallion(dim/2,dim,R*0.8); medallion(0,dim/2,R*0.8); medallion(dim,dim/2,R*0.8);\n  S.g=g; S.dim=dim;\n  if(!S.glint){ const gl=createGraphics(200,200); gl.pixelDensity(1); gl.noStroke();\n    for(let r=100;r>0;r--){ const a=Math.pow(1-r/100,2.0)*80; gl.fill(L.glint[0],L.glint[1]*100,L.glint[2]*100,a); gl.ellipse(100,100,r*2,r*2);} S.glint=gl; }\n}\n\nconst tsz=S.dim;\nS.scroll=(S.scroll||0)+(0.2+0.5*P.speed)*(1+0.4*A.bass*P.energy);\nconst ph=((S.scroll%tsz)+tsz)%tsz;\nconst xdr=((S.scroll*0.31)%tsz);\npush();\nimageMode(CORNER); noStroke();\nconst nx=Math.ceil(width/tsz)+2, ny=Math.ceil(height/tsz)+2;\nfor(let j=-1;j<ny;j++) for(let i=-1;i<nx;i++) image(S.g, i*tsz+ (0.01*uMin*drift + xdr)%tsz, j*tsz-ph, tsz, tsz);\n// candlelight glint sweeping over the lace (broad, carries motion)\nblendMode(ADD); imageMode(CENTER);\nconst cx=width*(0.5+0.44*Math.sin(t*0.16*P.speed+P.x*3)), cy=height*(0.5+0.42*Math.sin(t*0.22*P.speed+0.5));\ntint(255,255*Math.min(1,(0.30+0.5*P.energy)*(0.6+0.6*K.swell))); image(S.glint,cx,cy,uMin*1.4,uMin*1.0);\nconst cx2=width*(0.5-0.4*Math.sin(t*0.11*P.speed+1.7)), cy2=height*(0.5-0.38*Math.sin(t*0.13*P.speed+2.2));\ntint(255,255*Math.min(1,(0.16+0.3*P.energy))); image(S.glint,cx2,cy2,uMin*1.0,uMin*0.8);\nnoTint(); blendMode(BLEND);\nif(P.alpha<100){ noStroke(); fill(L.grd[0],L.grd[1]*100,L.grd[2]*100,100-P.alpha); rect(0,0,width,height); }\npop();\n"
+}

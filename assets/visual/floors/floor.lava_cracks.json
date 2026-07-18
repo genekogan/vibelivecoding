@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.lava_cracks",
+  "kind": "floor",
+  "name": "Cracked Lava Crust",
+  "desc": "A dark volcanic crust receding to the horizon, its crack network glowing from beneath with pulses of molten light traveling the seams and embers drifting up. Inferno orange, toxic green, electric blue, amethyst or molten gold.",
+  "tags": [
+    "lava",
+    "cracks",
+    "molten",
+    "crust",
+    "volcanic",
+    "glow",
+    "embers",
+    "floor",
+    "hell",
+    "inferno",
+    "fissures",
+    "heat",
+    "magma",
+    "dark",
+    "pulsing"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "cracks": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "crack rows"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "lava hue"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "crack glow width"
+    },
+    "plates": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "plate highlights"
+    },
+    "emberR": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rising embers"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.4,
+      "min": 0.25,
+      "max": 0.6,
+      "doc": "horizon height"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "inferno",
+      "options": [
+        "inferno",
+        "toxic",
+        "electric",
+        "amethyst",
+        "gold"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:54:42+00:00",
+    "fps": 59.9,
+    "motion": 0.016,
+    "lum": 0.159
+  },
+  "code": "const D = { energy:.5, cracks:.6, hue:20, glow:.7, plates:.5, emberR:.5, x:.5, y:.4, scale:1, speed:1, density:.5, style:'inferno', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.3+(P.y-0.5)*0.3);\nlet crust=[15,30,14],crust2=[20,25,20],lavaH=P.hue, lavaS=95;\nif(sty==='toxic'){ crust=[130,20,12]; crust2=[140,18,18]; lavaH=110; }\nelse if(sty==='electric'){ crust=[230,25,12]; crust2=[235,20,18]; lavaH=195; }\nelse if(sty==='amethyst'){ crust=[275,25,13]; crust2=[280,20,19]; lavaH=290; }\nelse if(sty==='gold'){ crust=[35,30,14]; crust2=[38,25,20]; lavaH=45; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nfunction proj(fx,fz){ const zz=0.15+fz*3.0; const sy=hor+(H-hor)*(1/(1+zz*0.9)); const sx=W*0.5+fx*W*0.7*(1/(1+zz*0.5)); return [sx,sy]; }\n// crust ground base (below horizon only)\nlet g=dc.createLinearGradient(0,hor,0,H); g.addColorStop(0,Cc(crust2,100).toString()); g.addColorStop(1,Cc(crust,100).toString());\ndc.fillStyle=g; dc.fillRect(0,hor,W,H-hor+1);\n// glowing crack network in perspective rows; brightness pulses travel along cracks\nconst pulse=(off)=>0.45+0.55*(0.5+0.5*Math.sin(t*(0.7+en*0.6)*P.speed - off*2.2)+0.3*Math.sin(t*0.37+off*3));\nconst NZ=Math.floor(6+P.cracks*8);\ndc.save(); blendMode(ADD);\nfor(let zi=0; zi<NZ; zi++){ const fz=(zi+0.3)/NZ;\n  // jagged horizontal crack line\n  const pts=[]; const nseg=14;\n  for(let k=0;k<=nseg;k++){ const fx=(k/nseg-0.5)*2; const jig=(fr(zi*31+k)-0.5)*0.16 + Math.sin(t*0.2+zi+k)*0.008; pts.push(proj(fx, fz + jig*0.4)); }\n  const br=pulse(fz);\n  const wgt=(1.2+ (1-fz)*4*P.glow);\n  stroke(color(lavaH, lavaS, 100, (30+br*55)*P.alpha/100)); strokeWeight(wgt*(0.7+br*0.5)); noFill();\n  beginShape(); for(const p2 of pts) vertex(p2[0],p2[1]); endShape();\n  stroke(color(lavaH, lavaS*0.5, 100, (12+br*22)*P.alpha/100)); strokeWeight(wgt*2.4);\n  beginShape(); for(const p2 of pts) vertex(p2[0],p2[1]); endShape();\n  // vertical connector cracks\n  if(zi<NZ-1 && P.cracks>0.2){ for(let k=0;k<3;k++){ const fx=(fr(zi*7+k)-0.5)*1.8; const [x1,y1]=proj(fx,fz); const [x2,y2]=proj(fx+(fr(zi+k)-0.5)*0.2, fz+1/NZ);\n    const b2=pulse(fz+0.05); stroke(color(lavaH,lavaS,100,(22+b2*40)*P.alpha/100)); strokeWeight(wgt*0.7); line(x1,y1,x2,y2); } }\n}\ndc.restore(); blendMode(BLEND); noStroke();\n// dark plate highlights (subtle top light)\nif(P.plates>0.05){ fill(Cc([crust2[0],crust2[1],crust2[2]+8],40)); for(let i=0;i<Math.floor(6+P.plates*10);i++){ const fz=fr(i); const [px,py]=proj((fr(i+3)-0.5)*1.6, fz); ellipse(px,py,(60*(1-fz)+10),(12*(1-fz)+3)); } }\n// embers rising from cracks\nif(P.emberR>0.05){ dc.save(); blendMode(ADD); for(let i=0;i<P.emberR*30;i++){ const life=(t*(0.25+en*0.25)+fr(i))%1; const fz=fr(i+3); const [ex,ey]=proj((fr(i)-0.5)*1.8, fz); fill(color(lavaH,lavaS,100,(1-life)*60*P.alpha/100)); circle(ex+Math.sin(t*2+i)*10, ey-life*120*(1-fz*0.5), (2.2)*(1-fz*0.5)); } dc.restore(); blendMode(BLEND); }\nblendMode(BLEND);\n"
+}

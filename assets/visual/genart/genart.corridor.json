@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.corridor",
+  "kind": "genart",
+  "name": "Corridor",
+  "desc": "An endless one-point-perspective corridor dollying forward forever \u2014 ribbed concrete bays sweep past, doorways open and close on the walls, and a raking light wanders down the shaft toward the lit portal at the vanishing point.",
+  "tags": [
+    "corridor",
+    "hallway",
+    "passage",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "depth",
+    "architecture",
+    "architectural",
+    "interior",
+    "brutalist",
+    "concrete",
+    "bunker",
+    "tunnel",
+    "dolly",
+    "camera",
+    "receding",
+    "bays",
+    "doors",
+    "doorway",
+    "blueprint",
+    "engraving",
+    "sodium",
+    "clinical",
+    "institutional",
+    "liminal",
+    "austere",
+    "eerie",
+    "kubrick",
+    "structure",
+    "built",
+    "geometry",
+    "raking-light"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light amplitude + camera drift + fixture glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "corridor width/height vs frame (2.2 = cavernous, fills the frame)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of bays receding into depth"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "dolly rate down the corridor"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "primary light/material hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "vanishing point x as canvas fraction"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.2,
+      "max": 0.8,
+      "doc": "eye-level / vanishing point y as canvas fraction"
+    },
+    "doors": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how often a bay carries a recessed doorway"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity (fades toward black)"
+    },
+    "style": {
+      "default": "concrete",
+      "options": [
+        "concrete",
+        "blueprint",
+        "engraving",
+        "sodium",
+        "clinical"
+      ],
+      "doc": "aesthetic: mass-and-raking-light concrete / cyan schematic line drawing / hatched engraved plate / sodium-vapour night (form from light only) / flat institutional daylight"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for bay tones, doorways and dead fixtures"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:13:37+00:00",
+    "fps": 59.9,
+    "motion": 0.0583,
+    "lum": 0.367
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:34, x:.5, y:.5, doors:.55, style:'concrete', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\n// ---- real-time dolly. bay content is keyed on ABSOLUTE index -> never re-phases\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z = (S.z||0) + dt * P.speed * (.30 + .34*K.intensity + .30*P.energy) * .62;\nconst trav = S.z - Math.floor(S.z), base = Math.floor(S.z);\n\n// ---- incommensurate camera drift (motion floor, no audio required)\nconst dx = .55*Math.sin(K.t*.41) + .30*Math.sin(K.t*.97+1.7) + .17*Math.sin(K.t*1.63+.4);\nconst dy = .50*Math.sin(K.t*.53+2.1) + .32*Math.sin(K.t*1.19+.9);\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst glow = (.42 + .58*P.energy) * (.55 + .5*K.intensity) + bass*.35;\n\nconst vx = cl(P.x,.1,.9)*width  + u*.030*P.energy*dx;\nconst vy = cl(P.y,.2,.8)*height + u*.020*P.energy*dy;\nconst f = u*1.0;\nconst RW = u*.50*P.scale, CH = u*.50*P.scale, FH = u*.42*P.scale;\nconst NB = Math.round(7 + P.density*8);\nconst SP = u*.66, ZMIN = SP*.20;\nconst sty = P.style, H = ((P.hue%360)+360)%360;\n\n// raking light wanders down the corridor on incommensurate rates\nconst lz = S.z + 3.2 + 2.4*Math.sin(K.t*.113) + 1.2*Math.sin(K.t*.271+1.3) + .7*Math.sin(K.t*.617+2.2);\n\nconst PX = (X,Z) => vx + f*X/Z;\nconst PY = (Y,Z) => vy + f*Y/Z;\n\n// ---- style tone tables ------------------------------------------------------\nconst paper = (sty==='engraving');\nconst line  = (sty==='blueprint');\nfunction ground(){\n  if (line)     return [212, 62, 20];\n  if (paper)    return [40, 10, 86];\n  if (sty==='sodium')   return [26, 40, 7];\n  if (sty==='clinical') return [162, 8, 78];\n  return [H, 7, 10];\n}\n// surface: face 0=leftwall 1=rightwall 2=ceiling 3=floor\nfunction surf(face, bi, near, lit){\n  const tv = fr(bi*3.7 + face*0.31);\n  const rake = (face===0 ? .78 : face===1 ? .42 : face===2 ? .30 : .62);\n  let v = (.20 + .62*lit*rake + .10*tv) * (.55 + .45*near);\n  if (sty==='sodium')   return [26 + tv*8, cl(58 - 26*lit,10,80), cl(4 + 62*v*1.35, 3, 78)];\n  if (sty==='clinical') return [162, cl(5 + 7*tv,0,16), cl(56 + 34*v + 8*tv, 30, 93)];\n  if (paper)            return [40, 8, cl(93 - 34*(1-v)*1.1, 44, 96)];\n  if (line)             return [212, 60, cl(10 + 18*v, 8, 34)];\n  return [H, cl(6 + 10*tv,2,20), cl(6 + 74*v, 4, 84)];  // concrete\n}\nfunction ink(a){\n  if (line)  { stroke(190, 30, 100, a); }\n  else if (paper) { stroke(30, 22, 16, a); }\n  else if (sty==='sodium') { stroke(30, 55, 40, a*.7); }\n  else if (sty==='clinical') { stroke(168, 14, 40, a*.55); }\n  else { stroke(H, 8, 88, a*.35); }\n}\n\n// ---- ground -----------------------------------------------------------------\nconst G = ground(); noStroke(); fill(G[0], G[1], G[2], 100); rect(0,0,width,height);\n\n// ---- quad helper in world space --------------------------------------------\nfunction wq(x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3){\n  quad(PX(x0,z0),PY(y0,z0), PX(x1,z1),PY(y1,z1), PX(x2,z2),PY(y2,z2), PX(x3,z3),PY(y3,z3));\n}\n// hatch a projected quad (engraving): n lines from edge a->b to edge d->c\nfunction hatch(ax,ay,bx,by,cx2,cy2,dx2,dy2, n, a){\n  ink(a);\n  for (let i=1;i<=n;i++){ const s=i/(n+1);\n    line(ax+(bx-ax)*s, ay+(by-ay)*s, dx2+(cx2-dx2)*s, dy2+(cy2-dy2)*s);\n  }\n}\n\n// ---- far end wall + its light -----------------------------------------------\nconst ZF = (NB - trav)*SP;\nnoStroke();\nconst endLit = .55 + .45*Math.sin(K.t*.19 + 1.1)*.5 + .2*K.swell;\nif (paper)      fill(40, 6, 97, 100);\nelse if (line)  fill(212, 50, 26, 100);\nelse            fill(H, sty==='clinical'?6:18, cl(34 + 46*endLit*glow, 12, 92), 100);\nwq(-RW,-CH,ZF,  RW,-CH,ZF,  RW,FH,ZF,  -RW,FH,ZF);\nif (!paper && !line){\n  push(); blendMode(ADD); noStroke();\n  for (let i=5;i>=1;i--){ const rr = f*RW/ZF * (i*.42);\n    fill(sty==='sodium'?30:H, sty==='clinical'?10:30, 100, 3 + 5*endLit*glow);\n    ellipse(vx, vy + f*(FH-CH)*.5/ZF, rr*2.0, rr*1.5);\n  }\n  pop(); blendMode(BLEND);\n}\nink(60); noFill(); strokeWeight(Math.max(1, u*.0016));\nif (line||paper) { const w2=f*RW/ZF, h1=f*CH/ZF, h2=f*FH/ZF; rect(vx-w2, vy-h1, w2*2, h1+h2); }\n\n// ---- bays, far -> near ------------------------------------------------------\nstrokeWeight(Math.max(1, u*.0018));\nfor (let k = NB-1; k >= 0; k--){\n  const zfr = (k+1 - trav)*SP, znr = (k - trav)*SP;\n  if (zfr <= ZMIN) continue;\n  const zf = Math.max(zfr, ZMIN), zn = Math.max(znr, ZMIN);\n  if (zf - zn < 1e-3) continue;\n  const bi = base + k;\n  const near = cl(1 - k/NB, 0, 1);\n  const ph = bi - lz;\n  const lit = cl(.16 + .84*Math.exp(-ph*ph*.30), 0, 1) * (.5 + .5*glow);\n  const vis = k < 9;\n\n  // four surfaces of the bay\n  const faces = [\n    [-RW,-CH,zf, -RW,FH,zf, -RW,FH,zn, -RW,-CH,zn, 0],\n    [ RW,-CH,zf,  RW,FH,zf,  RW,FH,zn,  RW,-CH,zn, 1],\n    [-RW,-CH,zf,  RW,-CH,zf,  RW,-CH,zn, -RW,-CH,zn, 2],\n    [-RW, FH,zf,  RW, FH,zf,  RW, FH,zn, -RW, FH,zn, 3]\n  ];\n  for (let q=0;q<4;q++){\n    const F2 = faces[q], face = F2[12];\n    const c = surf(face, bi, near, lit);\n    if (line){ noFill(); } else { noStroke(); fill(c[0],c[1],c[2],100); }\n    if (!line) wq(F2[0],F2[1],F2[2], F2[3],F2[4],F2[5], F2[6],F2[7],F2[8], F2[9],F2[10],F2[11]);\n    if (paper && vis && face!==3){\n      const dark = cl(1 - (c[2]-44)/52, 0, 1);\n      const n = Math.round(1 + 5*dark);\n      hatch(PX(F2[0],F2[2]),PY(F2[1],F2[2]), PX(F2[3],F2[5]),PY(F2[4],F2[5]),\n            PX(F2[6],F2[8]),PY(F2[7],F2[8]), PX(F2[9],F2[11]),PY(F2[10],F2[11]), n, 34);\n    }\n  }\n\n  // rib / pilaster frame standing on the near plane of the bay\n  const ir = .90, iw = RW*ir, ic = CH*ir, ifl = FH*ir;\n  if (!line && !paper){\n    const rc = surf(2, bi, near, cl(lit*1.25,0,1));\n    noStroke(); fill(rc[0], rc[1], cl(rc[2]*1.28 + 6, 4, 96), 100);\n    wq(-RW,-CH,zn,  RW,-CH,zn,  iw,-ic,zn,  -iw,-ic,zn);\n    wq(-RW, FH,zn,  RW, FH,zn,  iw,ifl,zn,  -iw,ifl,zn);\n    wq(-RW,-CH,zn, -RW, FH,zn, -iw,ifl,zn,  -iw,-ic,zn);\n    wq( RW,-CH,zn,  RW, FH,zn,  iw,ifl,zn,   iw,-ic,zn);\n  } else {\n    ink(line?78:52); noFill();\n    const w1=f*RW/zn, h1=f*CH/zn, h2=f*FH/zn;\n    rect(vx-w1, vy-h1, w1*2, h1+h2);\n    const w2=f*iw/zn, h3=f*ic/zn, h4=f*ifl/zn;\n    rect(vx-w2, vy-h3, w2*2, h3+h4);\n  }\n\n  // ceiling fixture \u2014 a lit panel in this bay\n  const alive = fr(bi*5.1+3) > .18;\n  if (alive && !paper){\n    const zc = (zn+zf)*.5, hw2 = RW*.16, hd = SP*.16;\n    const fl = .55 + .45*Math.sin(K.t*.9 + bi*2.1);\n    const b2 = cl((sty==='sodium'?52:66) + 34*glow*fl, 10, 96);\n    if (line){ ink(90); noFill(); }\n    else { noStroke(); fill(sty==='sodium'?32:(sty==='clinical'?58:H), sty==='clinical'?12:26, b2, 100); }\n    wq(-hw2,-CH,zc-hd,  hw2,-CH,zc-hd,  hw2,-CH,zc+hd,  -hw2,-CH,zc+hd);\n    if (!line && vis){\n      push(); blendMode(ADD); noStroke();\n      fill(sty==='sodium'?30:H, 34, 100, cl(4 + 9*glow*fl, 0, 22));\n      const cy2 = PY(-CH,zc), sw = f*RW*1.4/zc;\n      ellipse(vx, cy2, sw, sw*.36);\n      pop(); blendMode(BLEND);\n    }\n  }\n\n  // recessed doorway on one wall (seeded by absolute bay index)\n  const dh = fr(bi*7.3+11);\n  if (dh < P.doors*.8 && zn > SP*.5){\n    const sgn = (fr(bi*2.9+5) < .5) ? -1 : 1;\n    const z0 = zn + SP*.22, z1 = zf - SP*.22;\n    const dy0 = FH - CH*.02, dy1 = FH - (CH+FH)*.52;\n    const openv = fr(bi*11.7) < .40;\n    if (line || paper){ ink(line?85:64); noFill();\n      beginShape();\n      vertex(PX(sgn*RW,z0),PY(dy0,z0)); vertex(PX(sgn*RW,z0),PY(dy1,z0));\n      vertex(PX(sgn*RW,z1),PY(dy1,z1)); vertex(PX(sgn*RW,z1),PY(dy0,z1));\n      endShape(CLOSE);\n    } else {\n      noStroke();\n      const dcv = openv ? cl(24 + 60*glow*(.4+.6*lit), 6, 92) : 8 + 12*near;\n      fill(openv ? (sty==='sodium'?34:H) : H, openv?30:10, dcv, 100);\n      wq(sgn*RW,dy0,z0, sgn*RW,dy1,z0, sgn*RW,dy1,z1, sgn*RW,dy0,z1);\n      if (openv && vis){\n        push(); blendMode(ADD); noStroke();\n        fill(sty==='sodium'?30:H, 32, 100, cl(5 + 10*glow, 0, 20));\n        wq(sgn*RW,FH,z0, sgn*RW,FH,z1, sgn*RW*.05,FH,z1, sgn*RW*.05,FH,z0);\n        pop(); blendMode(BLEND);\n      }\n    }\n  }\n}\n\n// ---- floor sheen travelling with the dolly (partial, never a full flash) ----\nif (!paper && !line){\n  push(); blendMode(ADD); noStroke();\n  for (let i=0;i<3;i++){\n    const zz = ((S.z*.5 + i*.37) % 1) * SP*5 + SP*.6;\n    fill(sty==='sodium'?32:H, 26, 100, 4 + 7*glow);\n    wq(-RW,FH,zz, RW,FH,zz, RW,FH,zz+SP*.30, -RW,FH,zz+SP*.30);\n  }\n  pop(); blendMode(BLEND);\n}\n\n// ---- vignette (cached) ------------------------------------------------------\nif (!S.vig || S.vk !== width+'x'+height){\n  const g = createGraphics(width, height); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  for (let i=0;i<24;i++){ const s=i/24, bw = (1-s)*.075;\n    g.fill(0,0,0, 1.1 + 3.4*s*s);\n    g.rect(0,0,width, height*bw); g.rect(0,height*(1-bw), width, height*bw);\n    g.rect(0,0, width*bw, height); g.rect(width*(1-bw),0, width*bw, height);\n  }\n  S.vig = g; S.vk = width+'x'+height;\n}\nimage(S.vig,0,0);\nif (P.alpha < 100){ noStroke(); fill(0,0,0, cl(100-P.alpha,0,100)); rect(0,0,width,height); }\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

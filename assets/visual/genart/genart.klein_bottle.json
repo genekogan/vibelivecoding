@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.klein_bottle",
+  "kind": "genart",
+  "name": "Klein Bottle",
+  "desc": "A glassy figure-8 immersion of the Klein bottle \u2014 a non-orientable surface rendered as a glowing u/v wire-mesh with a translucent additive skin, tumbling on two incommensurate axes so its self-intersection twists through itself endlessly.",
+  "tags": [
+    "klein",
+    "bottle",
+    "klein-bottle",
+    "non-orientable",
+    "surface",
+    "immersion",
+    "figure-eight",
+    "topology",
+    "manifold",
+    "self-intersection",
+    "glass",
+    "glassy",
+    "chrome",
+    "wireframe",
+    "mesh",
+    "isolines",
+    "mathart",
+    "geometry",
+    "blueprint",
+    "neon",
+    "xray",
+    "tumbling",
+    "luminous",
+    "3d",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "bottle size"
+    },
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "glow & line weight"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "mesh resolution"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "surface hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "glass",
+      "options": [
+        "glass",
+        "blueprint",
+        "chrome",
+        "neon",
+        "xray"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:17+00:00",
+    "fps": 62.9,
+    "motion": 0.0362,
+    "lum": 0.072
+  },
+  "code": "const D = { scale:1, energy:.62, density:.55, speed:1, hue:190, x:.5, y:.5, style:'glass', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width,height), cx=width*P.x, cy=height*P.y, t=K.t, sty=P.style;\nconst en=P.energy;\nconst Rk = 2.4;\nconst sf = 0.108*u*P.scale;\nconst bass = Math.min(0.5, A.bass*0.6);\n// two incommensurate tumble rates\nconst aX = t*(0.12+P.speed*0.10) + 0.30*Math.sin(t*0.051);\nconst aY = t*(0.088+P.speed*0.075) + 0.40*Math.sin(t*0.037+1.2);\nconst cX=Math.cos(aX), sX=Math.sin(aX), cY=Math.cos(aY), sY=Math.sin(aY);\nconst flow = t*(0.5+P.speed*0.7);\n\nif (sty==='blueprint') background(215,60,15); else background(228,45,7);\n\nfunction pt(uu,vv){\n  const r = Rk + Math.cos(uu/2)*Math.sin(vv) - Math.sin(uu/2)*Math.sin(2*vv);\n  let x = r*Math.cos(uu), y = r*Math.sin(uu), z = Math.sin(uu/2)*Math.sin(vv) + Math.cos(uu/2)*Math.sin(2*vv);\n  // rot X\n  let y1=y*cX - z*sX, z1=y*sX + z*cX;\n  // rot Y\n  let x2=x*cY + z1*sY, z2=-x*sY + z1*cY;\n  return { x:cx+x2*sf, y:cy+y1*sf, z:z2 };\n}\nconst TAU=Math.PI*2;\nconst Uf = Math.max(20, Math.min(40, Math.round(24 + P.density*18)));\nconst Vf = Uf;\n\n// glass skin: additive translucent quads, brightness by depth (no sort needed w/ ADD)\nif (sty!=='xray' && sty!=='blueprint'){\n  blendMode(ADD); noStroke();\n  const step=2;\n  for (let i=0;i<Uf;i+=step){\n    for (let j=0;j<Vf;j+=step){\n      const a=pt(i/Uf*TAU, j/Vf*TAU), b=pt((i+step)/Uf*TAU, j/Vf*TAU), c=pt((i+step)/Uf*TAU,(j+step)/Vf*TAU), d=pt(i/Uf*TAU,(j+step)/Vf*TAU);\n      const zz=(a.z+b.z+c.z+d.z)*0.25, lit=Math.max(0,Math.min(1,0.5+zz/5));\n      const h = sty==='chrome' ? (P.hue+18*lit)%360 : (P.hue + 60*lit)%360;\n      fill(h, sty==='chrome'?18:60, 22+50*lit + 10*bass, (7+8*en)*(P.alpha/100));\n      beginShape(); vertex(a.x,a.y); vertex(b.x,b.y); vertex(c.x,c.y); vertex(d.x,d.y); endShape(CLOSE);\n    }\n  }\n  blendMode(BLEND);\n}\n\n// wireframe u/v isolines, depth-cued, with a travelling bright band along u\nconst UL = Math.max(12, Math.min(22, Math.round(14 + P.density*8)));\nconst VL = UL;\nnoFill(); strokeCap(ROUND);\nfunction polyU(uu){\n  const band = 0.5+0.5*Math.sin(uu*2 - flow);\n  let prev=null;\n  for (let j=0;j<=Vf;j++){ const p=pt(uu, j/Vf*TAU); if(prev){ const lit=Math.max(0,Math.min(1,0.5+(p.z+prev.z)*0.5/5));\n    if (sty==='blueprint'){ stroke(198,64,30+45*lit, (55+30*band)*(P.alpha/100)); strokeWeight(0.9+1.0*lit); }\n    else { blendMode(ADD); stroke((P.hue+40*lit)%360, sty==='chrome'?20:55, 34+50*lit+18*band, (45+35*band+30*bass)*(P.alpha/100)); strokeWeight((0.8+1.6*lit)*(0.7+0.6*en)); }\n    line(prev.x,prev.y,p.x,p.y); if(sty!=='blueprint') blendMode(BLEND);\n  } prev=p; }\n}\nfunction polyV(vv){\n  let prev=null;\n  for (let i=0;i<=Uf;i++){ const p=pt(i/Uf*TAU, vv); if(prev){ const lit=Math.max(0,Math.min(1,0.5+(p.z+prev.z)*0.5/5));\n    if (sty==='blueprint'){ stroke(206,50,26+40*lit, 40*(P.alpha/100)); strokeWeight(0.8+0.8*lit); }\n    else { blendMode(ADD); stroke((P.hue+20+30*lit)%360, sty==='chrome'?14:45, 28+44*lit, (32+26*bass)*(P.alpha/100)); strokeWeight((0.7+1.2*lit)*(0.7+0.5*en)); }\n    line(prev.x,prev.y,p.x,p.y); if(sty!=='blueprint') blendMode(BLEND);\n  } prev=p; }\n}\nfor (let a=0;a<UL;a++) polyU(a/UL*TAU);\nfor (let b=0;b<VL;b++) polyV(b/VL*TAU);\n\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

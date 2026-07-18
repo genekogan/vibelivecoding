@@ -1,0 +1,118 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.gw_chirp",
+  "kind": "genart",
+  "name": "Gravitational-Wave Chirp",
+  "desc": "Two compact masses spiralling toward merger, wringing spacetime into a slow two-arm gravitational-wave spiral that winds tighter and brighter as the orbit chirps up, warping an embedding-sheet grid while a rising strain waveform traces the inspiral along the bottom.",
+  "tags": [
+    "gravitational waves",
+    "gravitational wave",
+    "chirp",
+    "inspiral",
+    "merger",
+    "binary black hole",
+    "neutron star merger",
+    "ligo",
+    "spacetime",
+    "curvature",
+    "ripple",
+    "quadrupole",
+    "embedding diagram",
+    "rubber sheet",
+    "strain",
+    "waveform",
+    "general relativity",
+    "numerical relativity",
+    "cosmology",
+    "astrophysics",
+    "spiral",
+    "false-color",
+    "deep-space",
+    "sublime",
+    "scientific",
+    "simulation",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "wave amplitude / brightness / exposure"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "field size / propagation extent"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "chirp cycle rate (faster inspiral)"
+    },
+    "grid": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "warped spacetime grid mesh visibility"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "grid + mass + waveform accent hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "binary center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "binary center y"
+    },
+    "style": {
+      "default": "strain",
+      "options": [
+        "strain",
+        "thermal",
+        "sheet",
+        "blueprint"
+      ],
+      "doc": "cyan strain vs red/blue curvature vs graphite embedding-sheet vs cyan schematic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reserved deterministic seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:46:00+00:00",
+    "fps": 59.2,
+    "motion": 0.2776,
+    "lum": 0.426
+  },
+  "code": "const D = { energy:.6, scale:1, speed:1, grid:.5, hue:205, x:.5, y:.5, style:'strain', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst md = Math.max(width, height);\nconst style = P.style, sd = (P.seed | 0);\nconst TAU = Math.PI * 2;\nconst hw = h => ((h % 360) + 360) % 360;\n\n// chirp cycle shape (normalized p in [0,1))\nconst cycleT = 22 / (0.5 + P.speed);\nconst phaseF = p => 9.5 * (1 - Math.pow(1 - p, 0.42));    // accelerating GW phase (windings)\nconst envF = p => { const fin = Math.min(1, p / 0.05); const grow = 0.18 + p * 0.95; const ring = p > 0.85 ? Math.exp(-(p - 0.85) * 26) : 1; return fin * grow * ring; };\nconst sepF = p => Math.pow(Math.max(0, 1 - p), 0.35);\n\n// ---- LUTs over p (build once): cos(2phase), sin(2phase), env ----\nconst NL = 1024;\nif (!S.cosP) {\n  S.cosP = new Float32Array(NL); S.sinP = new Float32Array(NL); S.env = new Float32Array(NL);\n  for (let k = 0; k < NL; k++) { const p = k / NL; const ph = phaseF(p); S.cosP[k] = Math.cos(2 * ph); S.sinP[k] = Math.sin(2 * ph); S.env[k] = envF(p); }\n}\nconst LcosP = S.cosP, LsinP = S.sinP, Lenv = S.env;\n\n// ---- adaptive field buffer ----\nconst BW = Math.max(340, Math.min(500, Math.round(width / 3.4)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.gfx || S.bw !== BW || S.bh !== BH) { S.gfx = createGraphics(BW, BH); S.gfx.pixelDensity(1); S.bw = BW; S.bh = BH; S.geoKey = null; }\nconst g = S.gfx;\n\n// ---- cached geometry (r fall-off, cos2\u03b8, sin2\u03b8, propagation delay) ----\nconst cwave = 0.11 * md;                                   // wave speed (px/s in canvas terms)\nconst geoKey = BW + 'x' + BH + '|' + P.x.toFixed(3) + '|' + P.y.toFixed(3) + '|' + P.scale.toFixed(3);\nif (S.geoKey !== geoKey) {\n  S.geoKey = geoKey;\n  const cxB = P.x * BW, cyB = P.y * BH;\n  const Rref = Math.min(BW, BH) * 0.5 * (0.7 + P.scale * 0.6);\n  const n = BW * BH;\n  S.cos2 = new Float32Array(n); S.sin2 = new Float32Array(n); S.fall = new Float32Array(n); S.delay = new Float32Array(n);\n  const pxPerBuf = width / BW;                              // buffer px -> canvas px\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const o = j * BW + i; const dx = i - cxB, dy = j - cyB; const r = Math.sqrt(dx * dx + dy * dy) + 1e-3;\n    const th = Math.atan2(dy, dx); S.cos2[o] = Math.cos(2 * th); S.sin2[o] = Math.sin(2 * th);\n    const rN = r / Rref; S.fall[o] = 1 / (rN * 2.2 + 0.5);\n    S.delay[o] = (r * pxPerBuf) / cwave;                    // seconds for wavefront to reach here\n  }\n}\nconst cos2 = S.cos2, sin2 = S.sin2, fall = S.fall, delay = S.delay;\n\nconst T = K.t;\nconst gain = (1.4 + P.energy * 3.2) * (1 + K.swell * 0.12 + A.rms * 0.2);\n\ng.loadPixels(); const pix = g.pixels;\nconst gr = style === 'blueprint' ? 6 : style === 'sheet' ? 12 : 6;\nconst gg0 = style === 'blueprint' ? 14 : style === 'sheet' ? 13 : 8;\nconst gb0 = style === 'blueprint' ? 26 : style === 'sheet' ? 16 : 16;\nfor (let o = 0, po = 0; o < cos2.length; o++, po += 4) {\n  let tr = T - delay[o];\n  let p = tr / cycleT; p = p - Math.floor(p);            // wrapped normalized cycle time\n  const idx = (p * NL) | 0;\n  const en = Lenv[idx];\n  // h = env * (1/r) * cos(2phase + 2theta)\n  const h = en * fall[o] * (LcosP[idx] * cos2[o] - LsinP[idx] * sin2[o]);\n  let v = h * gain; if (v > 1.4) v = 1.4; else if (v < -1.4) v = -1.4;\n  const mag = Math.abs(v);\n  let r, gg, b;\n  if (style === 'thermal') {\n    if (v >= 0) { r = gr + mag * 230; gg = gg0 + mag * 90; b = gb0 + mag * 30; }\n    else { r = gr + mag * 30; gg = gg0 + mag * 110; b = gb0 + mag * 235; }\n  } else if (style === 'sheet') {\n    const m = mag; r = gr + m * 150; gg = gg0 + m * 158; b = gb0 + m * 170;\n  } else if (style === 'blueprint') {\n    const m = mag; r = gr + m * 40; gg = gg0 + m * 150; b = gb0 + m * 255;\n  } else { // strain: crest cyan-white, trough deep blue\n    if (v >= 0) { r = gr + mag * 130; gg = gg0 + mag * 205; b = gb0 + mag * 255; }\n    else { r = gr + mag * 24; gg = gg0 + mag * 110; b = gb0 + mag * 240; }\n  }\n  pix[po] = r > 255 ? 255 : r; pix[po + 1] = gg > 255 ? 255 : gg; pix[po + 2] = b > 255 ? 255 : b; pix[po + 3] = 255;\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\nnoTint();\npop();\n\n// ---- current inspiral state ----\nlet pc = (T / cycleT); pc = pc - Math.floor(pc);\nconst sep = sepF(pc);\nconst orbAng = phaseF(pc) * 0.5 + T * 0.05;               // orbital angle (GW phase /2) + slow drift\nconst cx = P.x * width, cy = P.y * height;\nconst Rref2 = u * 0.5 * (0.7 + P.scale * 0.6);\nconst aq = P.alpha / 100;\n\n// ---- warped spacetime grid (embedding-sheet look) ----\nif (P.grid > 0.02) {\n  push();\n  const GN = 15;\n  const step = (md * 1.05) / GN;\n  const gAmp = P.grid * u * 0.05;\n  const wellR = sep * Rref2 * 0.5;\n  const dispAt = (x, y) => {\n    const dx = x - cx, dy = y - cy, r = Math.sqrt(dx * dx + dy * dy) + 1e-3, th = Math.atan2(dy, dx);\n    let tr = T - r / cwave; let p = tr / cycleT; p = p - Math.floor(p); const idx = (p * NL) | 0;\n    const h = Lenv[idx] * (1 / (r / Rref2 * 2.2 + 0.5)) * (LcosP[idx] * Math.cos(2 * th) - LsinP[idx] * Math.sin(2 * th));\n    const well = -0.9 * (wellR * wellR) / (r + wellR * 0.6);  // central potential dip pulls grid inward\n    const drr = gAmp * h + well * P.grid * 0.6;\n    return [x + Math.cos(th) * drr, y + Math.sin(th) * drr];\n  };\n  stroke(hw(P.hue), style === 'sheet' ? 6 : 34, style === 'blueprint' ? 92 : 80, (style === 'sheet' ? 20 : 14) * aq);\n  strokeWeight(Math.max(1, u * 0.0012));\n  noFill();\n  for (let gy = 0; gy <= GN; gy++) {                       // horizontal grid lines\n    beginShape();\n    for (let gx = 0; gx <= GN; gx++) { const P2 = dispAt(gx * step - md * 0.025, gy * step - md * 0.025); curveVertex(P2[0], P2[1]); }\n    endShape();\n  }\n  for (let gx = 0; gx <= GN; gx++) {                       // vertical grid lines\n    beginShape();\n    for (let gy = 0; gy <= GN; gy++) { const P2 = dispAt(gx * step - md * 0.025, gy * step - md * 0.025); curveVertex(P2[0], P2[1]); }\n    endShape();\n  }\n  pop();\n}\n\n// ---- two inspiraling masses ----\npush();\nblendMode(ADD); noStroke();\nconst showMass = pc < 0.93;\nconst massA = 0.6 + 0.4 * Math.sin(T * 0.7) + K.pulse * 0.2;\nfor (let m = 0; m < 2 && showMass; m++) {\n  const a = orbAng + m * Math.PI;\n  const rr = sep * Rref2 * 0.5;\n  const mx = cx + Math.cos(a) * rr, my = cy + Math.sin(a) * rr;\n  const sz = u * (0.02 + (1 - sep) * 0.012) * (0.8 + P.energy * 0.5);\n  fill(hw(P.hue + 20), 20, 100, (12 + P.energy * 12) * massA * aq); circle(mx, my, sz * 2.6);\n  fill(hw(P.hue + 30), 8, 100, (30 + P.energy * 16) * aq); circle(mx, my, sz);\n}\n// merger flash is kept SOFT (partial, no full-frame inversion) \u2014 ringdown glow\nif (pc >= 0.90) {\n  const mg = Math.exp(-(pc - 0.90) * 20) * (0.5 + P.energy * 0.5);\n  fill(hw(P.hue + 15), 10, 100, 22 * mg * aq); circle(cx, cy, u * 0.10 * (1 + (pc - 0.9) * 6));\n}\nblendMode(BLEND);\npop();\n\n// ---- strain waveform strip (h(t) chirp) along the bottom ----\npush();\nconst stripH = u * 0.13, stripY = height * 0.9;\nnoStroke(); fill(0, 0, 0, 30 * aq); rect(0, stripY - stripH * 0.5, width, stripH);\nstroke(hw(P.hue), 30, 100, 40 * aq); strokeWeight(1); line(0, stripY, width, stripY);\nnoFill(); stroke(style === 'blueprint' ? hw(P.hue) : 48, style === 'blueprint' ? 80 : 30, 100, 78 * aq); strokeWeight(Math.max(1.2, u * 0.0018));\nconst NW = 220, win = cycleT * 0.85;\nbeginShape();\nfor (let k = 0; k <= NW; k++) {\n  const tt = T - win + (k / NW) * win;                    // time from (now-win) to now\n  let p = tt / cycleT; p = p - Math.floor(p); const idx = (p * NL) | 0;\n  const hh = Lenv[idx] * Math.cos(phaseF(p) * 2) ;         // strain amplitude\n  const x = (k / NW) * width;\n  const y = stripY - hh * stripH * 0.46;\n  vertex(x, y);\n}\nendShape();\npop();\n"
+}

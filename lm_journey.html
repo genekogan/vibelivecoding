@@ -1,0 +1,203 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#120c08;}canvas{display:block;}</style>
+<script type="importmap">
+{ "imports": { "three": "/lm/lib/three.module.js", "three/addons/": "/lm/lib/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1109);
+scene.fog = new THREE.FogExp2(0x1a1109, 0.03);
+const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 2.4, 9);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.02).texture;
+
+// lights (warm library + a cold space fill that comes up later)
+const amb = new THREE.AmbientLight(0xffe6c0, 0.5); scene.add(amb);
+const lamp = new THREE.PointLight(0xffb060, 40, 30, 2); lamp.position.set(0,4,3); scene.add(lamp);
+const spaceKey = new THREE.DirectionalLight(0xffffff, 0); spaceKey.position.set(5,8,10); scene.add(spaceKey);
+const spaceRim = new THREE.PointLight(0x88ccff, 0, 200); spaceRim.position.set(0,0,40); scene.add(spaceRim);
+
+const wood = new THREE.MeshStandardMaterial({ color:0x4a2f1a, roughness:0.7 });
+const woodDark = new THREE.MeshStandardMaterial({ color:0x33200f, roughness:0.8 });
+const bookHues = [0x8b3a2f,0x2f5b8b,0x3a7d4a,0x8b6f2f,0x6b2f6b,0x2f7d7d,0x9c4a2a,0x3a3a6b];
+
+// ---- library group (so it can drop away on launch) ----
+const lib = new THREE.Group(); scene.add(lib);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshStandardMaterial({color:0x2a1a10,roughness:0.85}));
+floor.rotation.x=-Math.PI/2; lib.add(floor);
+const rug = new THREE.Mesh(new THREE.CircleGeometry(4.2,48), new THREE.MeshStandardMaterial({color:0x5a2530,roughness:0.9}));
+rug.rotation.x=-Math.PI/2; rug.position.y=0.02; lib.add(rug);
+function bookshelf(){
+  const g=new THREE.Group(); const W=5,H=6,D=0.9,T=0.14;
+  for(const x of [-W/2,W/2]){ const m=new THREE.Mesh(new THREE.BoxGeometry(T,H,D),woodDark); m.position.set(x,H/2,0); g.add(m); }
+  for(const y of [0,H]){ const m=new THREE.Mesh(new THREE.BoxGeometry(W,T,D),woodDark); m.position.set(0,y,0); g.add(m); }
+  const back=new THREE.Mesh(new THREE.BoxGeometry(W,H,0.05),wood); back.position.set(0,H/2,-D/2); g.add(back);
+  const rows=6;
+  for(let r=0;r<rows;r++){ const y=(r+0.5)*(H/rows);
+    const shelf=new THREE.Mesh(new THREE.BoxGeometry(W-T,T*0.8,D),woodDark); shelf.position.set(0,r*(H/rows),0); g.add(shelf);
+    let x=-W/2+T;
+    while(x<W/2-T){ const bw=0.14+Math.random()*0.16, bh=(H/rows)*(0.62+Math.random()*0.28);
+      const mat=new THREE.MeshStandardMaterial({color:bookHues[(Math.random()*bookHues.length)|0],roughness:0.6});
+      const b=new THREE.Mesh(new THREE.BoxGeometry(bw,bh,D*0.72),mat);
+      b.position.set(x+bw/2,y-(H/rows)/2+bh/2+T*0.4,0.02); g.add(b); x+=bw+0.015; } }
+  return g;
+}
+[[0,-6,0],[-5.2,-6,0],[5.2,-6,0]].forEach(p=>{const s=bookshelf();s.position.set(...p);lib.add(s);});
+const bl=bookshelf(); bl.rotation.y=Math.PI/2; bl.position.set(-8,0,-2); lib.add(bl);
+const br=bookshelf(); br.rotation.y=-Math.PI/2; br.position.set(8,0,-2); lib.add(br);
+const table=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.6,0.25,32),wood); table.position.set(0,1.0,0); lib.add(table);
+const column=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.5,1.0,24),woodDark); column.position.set(0,0.5,0); lib.add(column);
+
+// ---- starfield + space creatures (dormant until launch) ----
+const STAR_N=2200, sf=new Float32Array(STAR_N*3);
+for(let i=0;i<STAR_N;i++){ sf[i*3]=(Math.random()-0.5)*180; sf[i*3+1]=(Math.random()-0.5)*180; sf[i*3+2]=-Math.random()*300; }
+const starGeo=new THREE.BufferGeometry(); starGeo.setAttribute('position',new THREE.BufferAttribute(sf,3));
+const starMat=new THREE.PointsMaterial({color:0xbfd8ff,size:0.5,transparent:true,opacity:0});
+const stars=new THREE.Points(starGeo,starMat); scene.add(stars);
+
+const draco=new DRACOLoader(); draco.setDecoderPath('/lm/lib/jsm/libs/draco/gltf/'); draco.preload();
+const loader=new GLTFLoader(); loader.setDRACOLoader(draco);
+function loadGLB(path){ return new Promise((res,rej)=>loader.load(path,g=>res(g),undefined,rej)); }
+
+function fit(model, target){
+  const box=new THREE.Box3().setFromObject(model); const size=box.getSize(new THREE.Vector3());
+  const s=target/(Math.max(size.x,size.y,size.z)||1); model.scale.setScalar(s);
+  box.setFromObject(model); const c=box.getCenter(new THREE.Vector3());
+  model.position.sub(c); return model;
+}
+
+// hero: mycos
+let mycos=null;
+loader.load('/lm/web/mycos--characters.glb', g=>{
+  const piv=new THREE.Group(); const m=g.scene;
+  const box=new THREE.Box3().setFromObject(m); const size=box.getSize(new THREE.Vector3());
+  const s=2.6/(Math.max(size.x,size.y,size.z)||1); m.scale.setScalar(s);
+  box.setFromObject(m); const c=box.getCenter(new THREE.Vector3());
+  m.position.sub(c); m.position.y += c.y-box.min.y;
+  piv.add(m); piv.position.set(0,1.15,0); mycos=piv; scene.add(piv);
+});
+
+// other creatures encountered in space
+const CREATURES=['kweku','ada','kalama','nyx','verdelis'];
+const CERAMICS=['crystal-white','blue-cobalt','red-crawl','copper-red-2','green-brains-out'];
+const others=[];
+function placeOther(sceneObj){
+  fit(sceneObj, 2.4+Math.random()*1.6);
+  const piv=new THREE.Group(); piv.add(sceneObj);
+  piv.position.set((Math.random()-0.5)*36, (Math.random()-0.5)*22, -80 - Math.random()*260);
+  piv.userData={ spin:new THREE.Vector3((Math.random()-0.5)*0.8,(Math.random()-0.5)*0.8,(Math.random()-0.5)*0.8),
+    vz: 8+Math.random()*10, drift:new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0) };
+    piv.visible=false; others.push(piv); scene.add(piv);
+}
+// sequential load — DRACO decodes flake out when many fire at once
+(async ()=>{
+  const paths = [ ...CREATURES.map(n=>`/lm/web/${n}--characters.glb`),
+                  ...CERAMICS.map(n=>`/lm/web/${n}--ceramic-heads.glb`) ];
+  for(const p of paths){ try{ const g=await loadGLB(p); placeOther(g.scene); }catch(e){ console.warn('skip',p); } }
+})();
+
+// ---- audio bridge ----
+let AUD={bass:0,mid:0,treble:0,rms:0};
+setInterval(()=>{ try{ const a=window.parent&&window.parent.state&&window.parent.state.audio; if(a)AUD=a; }catch(e){} }, 80);
+
+// ---- timeline state machine ----
+// sit(4s) -> crouch(0.6s) -> launch(2.2s) -> space(loops) -> return(3s) -> sit ...
+let phase='sit', pt=0, phaseStart=0, launchY=1.15, launchV=0;
+const DUR={sit:4.5, crouch:0.7, launch:2.4, space:26, return:3.2};
+const clock=new THREE.Clock();
+function setPhase(p){ phase=p; phaseStart=clock.getElapsedTime(); }
+
+const lerp=(a,b,t)=>a+(b-a)*t, clamp=(x)=>Math.max(0,Math.min(1,x));
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05), t=clock.elapsedTime;
+  pt=clock.getElapsedTime()-phaseStart;   // real-time phase clock, frame-rate independent
+  const spaceMix = (phase==='launch'? clamp(pt/DUR.launch) : (phase==='space'?1:(phase==='return'?1-clamp(pt/DUR.return):0)));
+  // blend environment library<->space
+  scene.background.setRGB(lerp(0.10,0.02,spaceMix), lerp(0.066,0.012,spaceMix), lerp(0.035,0.06,spaceMix));
+  scene.fog.density = lerp(0.03, 0.006, spaceMix);
+  amb.intensity = lerp(0.5,0.9,spaceMix);
+  lamp.intensity = (1-spaceMix)*(40+AUD.rms*30);
+  spaceKey.intensity = spaceMix*3.2;
+  spaceRim.intensity = spaceMix*(2.5+AUD.bass*5);
+  spaceRim.color.setHSL((t*0.05)%1,0.6,0.6);
+  starMat.opacity = spaceMix;
+  // library drops away as we ascend
+  lib.position.y = lerp(0,-40,spaceMix*spaceMix);
+
+  // hero motion per phase
+  if(mycos){
+    if(phase==='sit'){ mycos.position.y=1.15+Math.sin(t*1.5)*0.03; mycos.rotation.y+=dt*0.4;
+      if(pt>DUR.sit) setPhase('crouch'); }
+    else if(phase==='crouch'){ mycos.position.y=1.15 - clamp(pt/DUR.crouch)*0.35; // anticipation dip
+      if(pt>DUR.crouch){ launchV=26; setPhase('launch'); } }
+    else if(phase==='launch'){ launchV-=18*dt; launchY+=launchV*dt; mycos.position.y=Math.max(1.15,launchY);
+      mycos.rotation.x+=dt*3; mycos.rotation.y+=dt*2;
+      if(pt>DUR.launch){ setPhase('space'); } }
+    else if(phase==='space'){ mycos.position.y=lerp(mycos.position.y, 0.6+Math.sin(t*1.2)*0.4, 0.05);
+      mycos.rotation.x+=dt*0.6; mycos.rotation.y+=dt*0.8; mycos.rotation.z+=dt*0.3;
+      if(pt>DUR.space) setPhase('return'); }
+    else if(phase==='return'){ mycos.position.y=lerp(mycos.position.y,1.15,clamp(pt/DUR.return));
+      mycos.rotation.set(lerp(mycos.rotation.x,0,0.05),mycos.rotation.y,lerp(mycos.rotation.z,0,0.05));
+      if(pt>DUR.return){ launchY=1.15; launchV=0; setPhase('sit'); } }
+  }
+
+  // stars stream while in space
+  if(spaceMix>0.01){ const p=starGeo.attributes.position.array;
+    for(let i=0;i<STAR_N;i++){ p[i*3+2]+=(30+AUD.bass*50)*dt; if(p[i*3+2]>20){p[i*3+2]=-300;p[i*3]=(Math.random()-0.5)*180;p[i*3+1]=(Math.random()-0.5)*180;} }
+    starGeo.attributes.position.needsUpdate=true; }
+
+  // creatures approach only during space/launch (the encounters)
+  const encounter = (phase==='space'||phase==='launch');
+  for(const o of others){
+    o.visible = spaceMix>0.05;
+    if(!encounter) continue;
+    const u=o.userData;
+    o.rotation.x+=u.spin.x*dt; o.rotation.y+=u.spin.y*dt; o.rotation.z+=u.spin.z*dt;
+    o.position.z += u.vz*(1+AUD.rms*3)*dt;
+    o.position.x += u.drift.x*dt; o.position.y += u.drift.y*dt;
+    if(o.position.z>28){ o.position.set((Math.random()-0.5)*36,(Math.random()-0.5)*22,-120-Math.random()*220); }
+    // mycos glances toward a nearby creature
+    if(mycos && phase==='space'){ const d=o.position.distanceTo(mycos.position); if(d<10){ mycos.rotation.y+=dt*0.4; } }
+  }
+
+  // camera: framing library, then tilts up to follow the launch, then chases in space
+  if(phase==='sit'||phase==='crouch'){ camera.position.set(Math.sin(t*0.15)*1.6,2.4,9); camera.lookAt(0,1.6,0); }
+  else if(phase==='launch'){ const k=clamp(pt/DUR.launch);
+    camera.position.set(lerp(0,0,k), lerp(2.4, Math.max(2.4,mycos.position.y-3), k*0.7), lerp(9,10,k));
+    camera.lookAt(0, mycos? mycos.position.y : 4, 0); }
+  else { // space / return — gentle chase behind mycos
+    const my = mycos? mycos.position.y : 1;
+    camera.position.set(Math.sin(t*0.2)*3, my+2.5, 11);
+    camera.lookAt(0, my, -6); }
+
+  renderer.render(scene,camera);
+}
+document.documentElement.dataset.appReady='true';
+animate();
+
+// let the parent (or a keypress) restart the journey
+addEventListener('keydown', e=>{ if(e.key===' '){ launchY=1.15; launchV=0; setPhase('sit'); } });
+window.__journeyRestart = ()=>{ launchY=1.15; launchV=0; setPhase('sit'); };
+</script>
+</body>
+</html>

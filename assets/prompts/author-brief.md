@@ -42,7 +42,7 @@ Palette assets: `{"format","id" (palette.<slug>),"kind":"palette","name","desc",
 const D = { hue: 205, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .8, style: 'flat', seed: 0 /*, extras…*/ };
 const P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});
 const S = window.state.__SLOT__ || (window.state.__SLOT__ = {});
-const K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };
+const K = window.state.clk || { t:0, cps:.5, bpm:120, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, barPulse:0, section:0, intensity:.6, key:null, keyHue:null, keyMinor:false, sectionName:null, sectionBars:null, fps:60 };
 const A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };
 ```
 
@@ -76,6 +76,19 @@ count), `scale` (vs design size), `x`/`y` (anchor as canvas fraction).
    ```js
    const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };
    ```
+   ⚠️ **If you write an INTEGER hash, finalize with `>>>` (logical), never `>>`
+   (arithmetic).** `>>` sign-extends, so the top bit always XORs to zero and the
+   hash is **capped at 0.5 — mean 0.25 instead of 0.5**. Every noise field built
+   on it is half-amplitude and biased dark. This bug shipped in
+   `scratchpad/gf/ref/plasma.js` and was copied into 21 catalog assets before it
+   was caught on 2026-07-17; several of those were then hand-"brightened" in an
+   earlier session, treating the symptom while the cause sat in the kernel. It is
+   a prime suspect behind the recurring too-dark/low-contrast failures.
+   ```js
+   // WRONG — caps at 0.5:  ((h ^ (h >> 16)) >>> 0) / 4294967295
+   // RIGHT — spans [0,1):  ((h ^ (h >>> 16)) >>> 0) / 4294967295
+   ```
+   Verify any hash you write: sample it 100k times and assert mean ≈ 0.5, max ≈ 1.0.
    Rebuild seed-dependent cached structures when the seed changes:
    `if (S.seedUsed !== P.seed) { S.seedUsed = P.seed; ...rebuild...; }`
 3. **Stretched safe ranges** — give every numeric generous min/max that stays
@@ -102,6 +115,14 @@ dance/action, beat-synced motion per pose); crowds need `n` (int, honest max)
   sway on lowmid, size on rms. **During validation audio may be all zeros —
   the baseline alone must carry the motion gate.** Never multiply core motion
   by `A.*`.
+- **Conductor awareness (SHOULD, where it reads as musical):** when a live set
+  declares its key/section, `K.keyHue` (circle-of-fifths hue), `K.keyMinor`,
+  `K.sectionName`/`K.sectionBars`, and `K.barPulse` are non-null — tint toward
+  `keyHue`, accent bar lines softly, let `sectionBars` drive slow ramps. ALL of
+  these are null during validation and in conductor-less sets, so they must be
+  pure bonuses on top of the baseline: `const hue = (K.keyHue ?? P.hue);` style
+  fallbacks, never a dependency. No-strobe applies: pulse/key changes drive
+  soft depths, never hard flips.
 
 ## Validation gates — exact numbers (fail any → you get ONE requeue)
 
@@ -119,6 +140,14 @@ dance/action, beat-synced motion per pose); crowds need `n` (int, honest max)
 
 - Pre-render static content into cached `createGraphics` buffers keyed on size.
   Never per-scanline gradients or thousand-shape loops directly in draw.
+- **BUFFER RESOLUTION — do not hardcode a small buffer.** A field/PDE buffer that
+  is only ~200px wide and `image()`-upscaled to the canvas reads as blocky,
+  pixelated garbage on a 1920/projector screen (this shipped in ~173 assets before
+  being caught). Perf is not the reason to go small — expensive per-cell PDEs hold
+  60fps at 640–720px. Size adaptively: `BW = Math.max(360, Math.min(720,
+  Math.round(width/2.4)))`, derive `BH`, rebuild on the `BW+'x'+BH` key. **Point
+  clouds/accumulation:** cap the buffer ~520 and scale the per-frame iterate count
+  by buffer area, or the same points spread thin and go dim.
 - ≤ ~150 heavy shapes (alpha/blended), ≤ ~500 points. Respect `density`.
 - **NO full-canvas `filter(...)` — measured ~12ms/frame.** Fake blur/glow with
   layered translucent shapes, pre-blurred sprite stamps (blur a small buffer

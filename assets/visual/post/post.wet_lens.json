@@ -1,0 +1,172 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.wet_lens",
+  "kind": "post",
+  "name": "Wet Lens",
+  "desc": "Water on the front element \u2014 every bead is a little lens holding the scene behind it upside down and magnified, rimmed dark where it bends light away and struck with a specular hit where the key catches it, the fat ones tearing loose and sliding down over a breath of fog, leaving a track behind them.",
+  "tags": [
+    "wet lens",
+    "wet",
+    "water",
+    "rain",
+    "raindrop",
+    "droplet",
+    "drop",
+    "drops",
+    "bead",
+    "beads",
+    "dew",
+    "condensation",
+    "mist",
+    "fog",
+    "fogged",
+    "breath",
+    "misted",
+    "windshield",
+    "windscreen",
+    "window",
+    "glass",
+    "pane",
+    "porthole",
+    "front element",
+    "lens",
+    "optics",
+    "refraction",
+    "refract",
+    "refracted",
+    "inverted",
+    "magnify",
+    "magnified",
+    "meniscus",
+    "surface tension",
+    "runnel",
+    "rivulet",
+    "trail",
+    "streak",
+    "slide",
+    "specular",
+    "glint",
+    "rim",
+    "caustic",
+    "storm",
+    "squall",
+    "downpour",
+    "weather",
+    "melancholy",
+    "noir",
+    "cold",
+    "macro",
+    "raytrace",
+    "schematic",
+    "blueprint",
+    "overlay",
+    "post",
+    "surface",
+    "material",
+    "texture"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "rim contrast, specular strength and how hard the beads run"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many beads are on the glass"
+    },
+    "alpha": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1,
+      "doc": "overall opacity of the pass"
+    },
+    "refract": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how strongly each bead magnifies the inverted scene inside it (0 leaves them as empty glass marks)"
+    },
+    "fog": {
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "doc": "breath-fog veil over the glass"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "run + wander rate multiplier"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "bead size"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "water / fog hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bead field bias x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bead field bias y"
+    },
+    "style": {
+      "default": "rain",
+      "options": [
+        "rain",
+        "condensation",
+        "macro",
+        "schematic"
+      ],
+      "doc": "aesthetic: scattered storm beads running with tracks / dense fine dew under a heavy warm breath-fog / a few huge beads working as real lenses, big inverted views / abstract optical-bench raytrace, beads as ring-and-chord diagrams in blueprint line, no water at all"
+    },
+    "act": {
+      "default": "bead",
+      "options": [
+        "bead",
+        "squall",
+        "clearing"
+      ],
+      "doc": "multi-minute program: bead holds a steady field / squall drives the runs in gusts and answers the bass / clearing lets the fog and the field build and burn off over minutes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "bead layout"
+    }
+  },
+  "acts": [
+    "bead",
+    "squall",
+    "clearing"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:34:47+00:00",
+    "fps": 67.1,
+    "motion": 0.0145,
+    "lum": 0.127
+  },
+  "code": "const D = { energy:.62, density:.5, alpha:.9, refract:.55, fog:.28, speed:1, scale:1, hue:205, x:.5, y:.5, style:'rain', act:'bead', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,v)=>{h=((h%360)+360)%360;s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let r,g,b;const sg=Math.floor(h/60)%6;if(sg===0){r=c;g=x;b=0;}else if(sg===1){r=x;g=c;b=0;}else if(sg===2){r=0;g=c;b=x;}else if(sg===3){r=0;g=x;b=c;}else if(sg===4){r=x;g=0;b=c;}else{r=c;g=0;b=x;}return [((r+m)*255)|0,((g+m)*255)|0,((b+m)*255)|0];};\nconst rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${clp(a,0,1).toFixed(4)})`;\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width,H=height,u=Math.min(W,H),t=K.t,key=W+'x'+H,dc=drawingContext;\n\n// ---- a coarse copy of the scene to refract through each bead\nif(!S.cap||S.key!==key){\n  let cw,ch;\n  if(W>=H){ cw=340; ch=Math.max(24,Math.round(340*H/W)); } else { ch=340; cw=Math.max(24,Math.round(340*W/H)); }\n  if(S.cap&&S.cap.remove)S.cap.remove();\n  S.cap=createGraphics(cw,ch); S.cap.pixelDensity(1); S.capEl=S.cap.elt||S.cap.canvas;\n  S.key=key;\n}\nconst cap=S.cap, cw=cap.width, ch=cap.height, kx=cw/W, ky=ch/H;\ncap.clear(); cap.drawingContext.drawImage(dc.canvas,0,0,cw,ch);\n\nconst en=clp(P.energy,0,1);\nconst sp=0.45+clp(P.speed,.15,4)*0.55;\nconst style=P.style, hue=((P.hue%360)+360)%360, alpha=clp(P.alpha,0,1);\nconst isSchem=style==='schematic', isCond=style==='condensation', isMacro=style==='macro';\n\n// ---- act: multi-minute programs\nlet runMul=1, fogMul=1, nMul=1;\nif(P.act==='squall'){ runMul=1+1.6*Math.pow(0.5+0.5*Math.sin(t*0.038*sp),3)+0.6*A.bass; fogMul=0.8; }\nelse if(P.act==='clearing'){ const c=0.5+0.5*Math.sin(t*0.021*sp); fogMul=0.25+1.5*c; nMul=0.45+0.75*c; }\n\nconst n=Math.max(3,Math.round((isMacro?4:16)+clp(P.density,0,1)*(isMacro?9:56)*nMul));\nconst refr=clp(P.refract,0,1);\nconst mag=1.4+refr*2.6;\nconst litA=(Math.PI*1.15)+0.30*Math.sin(t*0.047*sp);   // key direction, slowly turning\n\n// ---- 1. breath fog: a veil with the beads' own clear haloes punched out later\nconst fogA=clp(clp(P.fog,0,1)*fogMul*(0.5+0.6*en),0,0.85);\nif(fogA>0.01 && !isSchem){\n  const fc=isCond?hsb2rgb(hue-20,12,92):hsb2rgb(hue,16,80);\n  dc.fillStyle=rgba(fc,fogA*0.30*alpha); dc.fillRect(0,0,W,H);\n}\n\n// ---- 2. runnels: the trail a sliding bead leaves behind it\n// (drawn before the beads so each bead sits on the head of its own track)\nif(!isSchem){\n  for(let i=0;i<n;i++){\n    const big=fr(i*13+2);\n    const rate=(0.002+0.105*big*big*big)*sp*(0.45+0.55*fr(i*17+6))*runMul;\n    if(rate<0.02) continue;\n    const r=u*(0.010+0.055*big*big)*Math.max(0.3,P.scale)*(isMacro?2.1:1);\n    const yy=(md(fr(i*7+1)+t*rate,1.24)-0.12)*H;\n    const xx=(fr(i*5+3)+Math.sin(t*(0.09+0.13*fr(i*19+7))*sp+i)*0.012*(0.3+big))*W;\n    const len=clp(rate*H*3.4,0,H*0.42);\n    const g=dc.createLinearGradient(xx,yy-len,xx,yy);\n    const rc=hsb2rgb(hue,22,72);\n    g.addColorStop(0,rgba(rc,0)); g.addColorStop(1,rgba(rc,0.16*en*alpha));\n    dc.fillStyle=g; dc.fillRect(xx-r*0.42,yy-len,r*0.84,len);\n  }\n}\n\n// ---- 3. the beads. Each is a lens: it shows the scene behind it inverted and magnified.\nfor(let i=0;i<n;i++){\n  const big=fr(i*13+2);\n  const r=Math.max(1.2,u*(0.010+0.055*big*big)*Math.max(0.3,P.scale)*(isMacro?2.1:1)*(isCond?0.62:1));\n  const rate=(0.002+0.105*big*big*big)*sp*(0.45+0.55*fr(i*17+6))*runMul;\n  const yy=(md(fr(i*7+1)+t*rate,1.24)-0.12)*H+(P.y-0.5)*H*0.05;\n  const xx=(fr(i*5+3)+Math.sin(t*(0.09+0.13*fr(i*19+7))*sp+i)*0.012*(0.3+big))*W+(P.x-0.5)*W*0.05;\n  if(yy<-r||yy>H+r) continue;\n  const sq=1+0.16*Math.min(1,rate*7);      // faster beads elongate\n  if(isSchem){\n    dc.strokeStyle=rgba(hsb2rgb(196,58,88),(0.30+0.45*big)*alpha);\n    dc.lineWidth=Math.max(0.8,u*0.0012);\n    dc.beginPath(); dc.ellipse(xx,yy,r,r*sq,0,0,TAU); dc.stroke();\n    dc.beginPath(); dc.moveTo(xx-r,yy-r*0.35); dc.lineTo(xx+r,yy+r*0.35); dc.stroke();\n    dc.beginPath(); dc.moveTo(xx,yy-r*sq); dc.lineTo(xx,yy+r*sq); dc.stroke();\n    continue;\n  }\n  // refracted interior\n  if(refr>0.02){\n    const sHalf=r/mag;\n    let sx=(xx-sHalf)*kx, sy=(yy-sHalf)*ky, sw=Math.max(1,2*sHalf*kx), sh=Math.max(1,2*sHalf*ky);\n    sx=clp(sx,0,Math.max(0,cw-sw)); sy=clp(sy,0,Math.max(0,ch-sh));\n    dc.save();\n    dc.beginPath(); dc.ellipse(xx,yy,r,r*sq,0,0,TAU); dc.clip();\n    dc.translate(xx,yy); dc.scale(-1,-1); dc.translate(-xx,-yy);   // a lens inverts\n    dc.drawImage(S.capEl,sx,sy,sw,sh,xx-r,yy-r*sq,r*2,r*sq*2);\n    dc.restore();\n  }\n  // the read on ANY scene, however dark: a refracting edge, a specular hit, a lit lower rim\n  const gx=Math.cos(litA), gy=Math.sin(litA);\n  dc.strokeStyle=rgba(hsb2rgb(hue,52,6),(0.30+0.28*en)*alpha);\n  dc.lineWidth=Math.max(0.7,r*0.16);\n  dc.beginPath(); dc.ellipse(xx,yy,r*0.94,r*sq*0.94,0,0,TAU); dc.stroke();\n  dc.strokeStyle=rgba(hsb2rgb(hue,10,100),(0.36+0.44*en)*alpha);\n  dc.lineWidth=Math.max(0.6,r*0.13);\n  dc.beginPath(); dc.ellipse(xx,yy,r*0.86,r*sq*0.86,0,0.7,2.55); dc.stroke();\n  dc.fillStyle=rgba(hsb2rgb(hue,6,100),(0.55+0.4*en)*alpha);\n  dc.beginPath(); dc.ellipse(xx-gx*r*0.42,yy-gy*r*0.42,r*0.20,r*0.14,litA,0,TAU); dc.fill();\n  if(big>0.5){\n    dc.fillStyle=rgba(hsb2rgb(hue,14,100),(0.20+0.24*en)*alpha);\n    dc.beginPath(); dc.ellipse(xx+gx*r*0.40,yy+gy*r*0.46,r*0.30,r*0.13,litA,0,TAU); dc.fill();\n  }\n}\n\n// ---- 4. condensation: a dense micro-dew that shimmers on its own slow clock\nif(isCond&&!isSchem){\n  const nd=Math.round(60+clp(P.density,0,1)*140);\n  dc.globalCompositeOperation='lighter';\n  const dcol=hsb2rgb(hue,10,100);\n  for(let i=0;i<nd;i++){\n    const dx=(fr(i*31+11)+Math.sin(t*0.031*sp+i*0.7)*0.004)*W;\n    const dy=md(fr(i*37+12)+t*0.0035*sp*(0.4+fr(i*41)),1.1)*H-H*0.05;\n    const dr=Math.max(0.6,u*0.0022*(0.4+fr(i*43+13))*Math.max(0.3,P.scale));\n    dc.fillStyle=rgba(dcol,(0.10+0.30*fr(i*47+14))*en*alpha);\n    dc.beginPath(); dc.arc(dx,dy,dr,0,TAU); dc.fill();\n  }\n  dc.globalCompositeOperation='source-over';\n}\n\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\nblendMode(BLEND); dc.shadowBlur=0; noStroke();\n"
+}

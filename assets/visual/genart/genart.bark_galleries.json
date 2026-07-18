@@ -1,0 +1,136 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.bark_galleries",
+  "kind": "genart",
+  "name": "Bark Galleries",
+  "desc": "Engraved under the bark \u2014 a mother gallery runs the grain laying egg niches while larval tunnels fan off perpendicular, widening as the larvae grow and never once crossing each other's path, ending in pupal chambers; then the brood emerges, the galleries weather away and a new colony attacks.",
+  "tags": [
+    "bark",
+    "beetle",
+    "gallery",
+    "galleries",
+    "tunnel",
+    "engraving",
+    "wood",
+    "timber",
+    "grain",
+    "larva",
+    "larvae",
+    "brood",
+    "insect",
+    "entomology",
+    "specimen",
+    "natural history",
+    "plate",
+    "xray",
+    "cyanotype",
+    "avoidance",
+    "fan",
+    "dendritic",
+    "umber",
+    "organic",
+    "eerie",
+    "decay",
+    "growth",
+    "process",
+    "emergence"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "tunnelling rate and raking-light contrast"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of colonies, brood spacing and surface grime"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "wood hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on growth and process time"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.2,
+      "doc": "gallery calibre"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "attack focus x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "attack focus y"
+    },
+    "axis": {
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "doc": "mother-gallery orientation: 0 runs with the grain, 1 across it"
+    },
+    "act": {
+      "default": "cycle",
+      "options": [
+        "cycle",
+        "outbreak",
+        "endemic"
+      ],
+      "doc": "multi-minute program"
+    },
+    "style": {
+      "default": "bark",
+      "options": [
+        "bark",
+        "plate",
+        "xray",
+        "cyanotype"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "cycle",
+    "outbreak",
+    "endemic"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:15:49+00:00",
+    "fps": 60.6,
+    "motion": 0.0277,
+    "lum": 0.317
+  },
+  "code": "const D = { energy: .6, density: .5, hue: 30, speed: 1, scale: 1, x: .5, y: .5, axis: .15, act: 'cycle', style: 'bark', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = Math.max(360, Math.min(1180, Math.round(width * .68)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst GW = 176, GH = Math.max(64, Math.round(GW * height / width));\nconst LW = 112, LH = Math.max(44, Math.round(LW * height / width));\nconst MAXT = 340, MAXCOL = 9;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst hsh2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7 + P.seed * 74.7) * 43758.5453; return s - Math.floor(s); };\nconst vn = (x, y) => {\n  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;\n  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);\n  const a = hsh2(xi, yi), b = hsh2(xi + 1, yi), c = hsh2(xi, yi + 1), d = hsh2(xi + 1, yi + 1);\n  return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + d * u) * v;\n};\n\nconst st = P.style;\nconst gndV = st === 'plate' ? 85 : st === 'xray' ? 13 : st === 'cyanotype' ? 28 : 46;\nconst galV = st === 'plate' ? 17 : st === 'xray' ? 95 : st === 'cyanotype' ? 96 : 14;\nconst rimV = st === 'plate' ? 94 : st === 'xray' ? 32 : st === 'cyanotype' ? 42 : 76;\nconst hOff = st === 'plate' ? 4 : st === 'xray' ? 168 : st === 'cyanotype' ? 186 : 0;\nconst tSat = st === 'plate' ? 13 : st === 'xray' ? 18 : st === 'cyanotype' ? 74 : 42;\n\nif (!S.gal || S.bw !== BW || S.bh !== BH || S.styleUsed !== st || S.seedUsed !== P.seed) {\n  if (S.gal && S.gal.remove) S.gal.remove();\n  if (S.gnd && S.gnd.remove) S.gnd.remove();\n  if (S.lg && S.lg.remove) S.lg.remove();\n  S.gnd = createGraphics(BW, BH); S.gnd.pixelDensity(1);\n  S.gal = createGraphics(BW, BH); S.gal.pixelDensity(1);\n  S.lg = createGraphics(LW, LH); S.lg.pixelDensity(1);\n  S.bw = BW; S.bh = BH; S.styleUsed = st; S.seedUsed = P.seed; S.tick = 0; S.cur = 0;\n  // ---- sapwood surface: vertical fibre grain ------------------------------\n  const g = S.gnd, U0 = BW / 900; g.colorMode(HSB, 360, 100, 100, 100); g.noStroke(); g.background(0, 0, gndV);\n  for (let i = 0; i < 300; i++) {\n    const dv = (fr(i * 4 + 1) - .5) * (st === 'plate' ? 6 : 15);\n    g.fill(0, 0, Math.max(2, Math.min(97, gndV + dv)), 24);\n    g.ellipse(fr(i * 4 + 2) * BW, fr(i * 4 + 3) * BH, (10 + fr(i * 4 + 4) * 40) * U0 * 2, (90 + fr(i * 6 + 1) * 460) * U0 * 2);\n  }\n  g.strokeCap(ROUND);\n  for (let i = 0; i < 210; i++) {                 // fibre lines, gently wavering\n    const x0 = fr(i * 3 + 1) * BW * 1.05 - BW * .02;\n    g.strokeWeight((.5 + fr(i * 3 + 2) * 1.4) * U0);\n    g.stroke(0, 0, Math.max(2, Math.min(97, gndV + (fr(i * 3 + 3) - .5) * (st === 'plate' ? 9 : 24))), 32);\n    let x = x0, y = -6;\n    while (y < BH + 6) { const ny2 = y + BH * .05; const nx2 = x + Math.sin(y * .009 + i) * BW * .006 + (fr(i * 90 + y) - .5) * 2; g.line(x, y, nx2, ny2); x = nx2; y = ny2; }\n  }\n  g.noStroke();\n  S.gal.colorMode(HSB, 360, 100, 100, 100); S.gal.image(S.gnd, 0, 0);\n  S.og = new Float32Array(GW * GH);\n  S.grime = new Float32Array(LW * LH);\n  for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) S.grime[y * LW + x] = Math.max(0, Math.min(1, vn(x * .08, y * .05) * .9 + vn(x * .22, y * .22) * .4 - .32));\n  S.tx = new Float32Array(MAXT); S.ty = new Float32Array(MAXT); S.px = new Float32Array(MAXT); S.py = new Float32Array(MAXT);\n  S.td = new Float32Array(MAXT); S.ta = new Float32Array(MAXT); S.ty2 = new Uint8Array(MAXT); S.tc = new Uint8Array(MAXT); S.al = new Uint8Array(MAXT); S.teg = new Float32Array(MAXT);\n  S.colAl = new Uint8Array(MAXCOL); S.colA = new Float32Array(MAXCOL); S.colL = new Float32Array(MAXCOL);\n}\n\nconst gnd = S.gnd, gal = S.gal, lg = S.lg, og = S.og, grime = S.grime;\nconst tx = S.tx, ty = S.ty, ppx = S.px, ppy = S.py, td = S.td, ta = S.ta, tty = S.ty2, tc = S.tc, al = S.al, teg = S.teg;\nconst colAl = S.colAl, colA = S.colA, colL = S.colL;\nS.tick = (S.tick || 0) + 1;\nconst rnd = k => { const s = Math.sin(k * 12.9898 + S.tick * .6180339 + P.seed * 7.13) * 43758.5453; return s - Math.floor(s); };\nconst U = BW / 900, TAU = Math.PI * 2;\nconst GA = Math.PI / 2 - P.axis * Math.PI / 2;         // mother-gallery axis vs the grain\n\n// ---- act -------------------------------------------------------------------\nlet press;\nif (P.act === 'outbreak') press = 1.9;\nelse if (P.act === 'endemic') press = .35;\nelse press = .45 + 1.35 * (.5 + .5 * Math.sin(K.t * .0103 + .8 * Math.sin(K.t * .0037 + 1.9)));\n\n// ---- weathering: old galleries fade back into the wood ---------------------\nif (S.tick % 30 === 0) { gal.push(); gal.tint(0, 0, 100, .5 + P.speed * .34); gal.image(gnd, 0, 0); gal.pop(); }\n\nconst ogAt = (gx, gy) => {\n  let ix = Math.floor(gx), iy = Math.floor(gy);\n  if (ix < 0) ix = 0; if (iy < 0) iy = 0; if (ix >= GW) ix = GW - 1; if (iy >= GH) iy = GH - 1;\n  return og[iy * GW + ix];\n};\nconst spawn = (x, y, d, typ, col) => {\n  for (let n = 0; n < MAXT; n++) {\n    S.cur = (S.cur + 1) % MAXT;\n    if (!al[S.cur]) { const k = S.cur; al[k] = 1; tx[k] = x; ty[k] = y; ppx[k] = x; ppy[k] = y; td[k] = d; ta[k] = 0; tty[k] = typ; tc[k] = col; teg[k] = 0; return true; }\n  }\n  return false;\n};\n\n// ---- colonies: attack, brood, emerge --------------------------------------\nconst aging = .4 + P.speed * .9;\nconst wantCol = 1 + Math.round(P.density * 5.6 * press);\nlet nCol = 0;\nfor (let c = 0; c < MAXCOL; c++) {\n  if (!colAl[c]) continue;\n  nCol++; colA[c] += aging;\n  if (colA[c] > colL[c]) { colAl[c] = 0; for (let k = 0; k < MAXT; k++) if (al[k] && tc[k] === c) al[k] = 0; }\n}\nif (nCol < wantCol) {\n  for (let c = 0; c < MAXCOL; c++) if (!colAl[c]) {\n    let bx = BW * .5, by = BH * .5, best = 1e9;\n    for (let q = 0; q < 8; q++) {\n      const px2 = BW * .1 + rnd(c * 19 + q * 3 + 1) * BW * .8, py2 = BH * .12 + rnd(c * 19 + q * 3 + 2) * BH * .76;\n      const v = ogAt(px2 / BW * GW, py2 / BH * GH)\n        + Math.hypot(px2 / BW - P.x, py2 / BH - P.y) * 2.4;   // attack concentrated near the anchor\n      if (v < best) { best = v; bx = px2; by = py2; }\n    }\n    colAl[c] = 1; colA[c] = 0; colL[c] = 2200 + rnd(c * 23 + 5) * 2600;\n    gal.noStroke(); gal.fill(0, 0, galV, 88);                       // entrance hole\n    gal.ellipse(bx, by, 5.4 * U * (.6 + P.scale * .6), 5.4 * U * (.6 + P.scale * .6));\n    spawn(bx, by, GA + (rnd(c * 29 + 3) - .5) * .2, 0, c);\n    spawn(bx, by, GA + Math.PI + (rnd(c * 31 + 3) - .5) * .2, 0, c);\n    break;\n  }\n}\n\n// ---- tunnelling ------------------------------------------------------------\nconst SPm = (.5 + P.energy * 1.15) * (.45 + P.speed * .8) * U;\nconst eggEvery = 26 - P.density * 9;\ngal.strokeCap(ROUND);\nlet alive = 0;\nfor (let k = 0; k < MAXT; k++) {\n  if (!al[k]) continue;\n  alive++;\n  const isM = tty[k] === 0;\n  let d = td[k];\n  if (isM) {\n    let tgt = td[k] > Math.PI * .5 - 1.6 && td[k] < Math.PI * .5 + 1.6 ? GA : GA + Math.PI;\n    let da = tgt - d; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;\n    d += da * .06 + (rnd(k * 3 + 1) - .5) * .09;\n  } else {\n    // larvae will not cross a neighbour's tunnel \u2014 that is why the fan reads\n    const gx = tx[k] / BW * GW, gy = ty[k] / BH * GH, sd = 2.4;\n    const l = ogAt(gx + Math.cos(d - .55) * sd, gy + Math.sin(d - .55) * sd);\n    const r = ogAt(gx + Math.cos(d + .55) * sd, gy + Math.sin(d + .55) * sd);\n    const c = ogAt(gx + Math.cos(d) * sd, gy + Math.sin(d) * sd);\n    d += (l - r) * .16;\n    d += (rnd(k * 3 + 2) - .5) * (.1 + (1 - P.energy) * .12);\n    if (c > 2.6 && l > 2.2 && r > 2.2 && ta[k] > 10) {           // blocked: pupate here\n      gal.noStroke(); gal.fill(0, 0, galV, 92);\n      const pw = (2.2 + ta[k] * .012) * (.6 + P.scale * .7) * U;\n      gal.ellipse(tx[k], ty[k], pw * 2.6, pw * 1.7);\n      al[k] = 0; continue;\n    }\n  }\n  td[k] = d;\n  const sp2 = isM ? SPm : SPm * .62;\n  const nx = tx[k] + Math.cos(d) * sp2, ny = ty[k] + Math.sin(d) * sp2;\n  if (nx < 3 || nx > BW - 3 || ny < 3 || ny > BH - 3) { al[k] = 0; continue; }\n  const gi = Math.min(GH - 1, Math.max(0, Math.floor(ny / BH * GH))) * GW + Math.min(GW - 1, Math.max(0, Math.floor(nx / BW * GW)));\n  og[gi] += .55;\n  // mother gallery is even; larval gallery widens as the larva grows\n  const ww = (isM ? 2.5 : .8 + ta[k] * .0085) * (.6 + P.scale * .7) * U;\n  if (st !== 'xray' && st !== 'cyanotype') {                      // engraved rim\n    gal.strokeWeight(ww * 1.75); gal.stroke(0, 0, rimV, 26);\n    gal.line(ppx[k], ppy[k], nx, ny);\n  }\n  gal.strokeWeight(Math.max(.7, ww)); gal.stroke(0, 0, galV, isM ? 92 : 84);\n  gal.line(ppx[k], ppy[k], nx, ny);\n  if (!isM && st === 'bark' && Math.floor(ta[k]) % 9 === 0) {     // frass packing\n    gal.noStroke(); gal.fill(0, 0, galV + 26, 34);\n    gal.ellipse(nx, ny, ww * .8, ww * .8);\n  }\n  ppx[k] = nx; ppy[k] = ny; tx[k] = nx; ty[k] = ny; ta[k]++;\n  if (isM) {\n    teg[k] += 1;\n    if (teg[k] > eggEvery && alive < MAXT - 4) {                  // lay an egg niche\n      teg[k] = 0;\n      const side = rnd(k * 11 + 5) > .5 ? 1 : -1;\n      gal.noStroke(); gal.fill(0, 0, galV, 70); gal.ellipse(nx, ny, ww * 1.5, ww * 1.5);\n      spawn(nx + Math.cos(d + side * 1.5708) * ww, ny + Math.sin(d + side * 1.5708) * ww, d + side * (1.35 + rnd(k * 13) * .45), 1, tc[k]);\n    }\n    if (ta[k] > 1400) al[k] = 0;\n  } else if (ta[k] > 300 + rnd(k * 17) * 220) {                   // pupal chamber\n    gal.noStroke(); gal.fill(0, 0, galV, 92);\n    gal.ellipse(nx, ny, ww * 2.6, ww * 1.7);\n    if (st === 'bark') { gal.fill(0, 0, rimV, 30); gal.ellipse(nx, ny, ww * 3.4, ww * 2.3); }\n    al[k] = 0;\n  }\n}\nfor (let i = 0; i < GW * GH; i++) og[i] *= .99985;\n\n// ---- raking light across the bark ------------------------------------------\nlg.loadPixels(); const lp = lg.pixels;\nconst ph = K.t * .078 + .45 * Math.sin(K.t * .041 + .8);\nconst az2 = .9 * Math.sin(K.t * .033 + .3) + .3 * Math.sin(K.t * .087);\nconst ldx = Math.cos(az2), ldy = Math.sin(az2);\nconst lc = .16 + P.energy * .28, gm = .1 + P.density * .46;\nfor (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) {\n  const i = y * LW + x;\n  const uu = (x / LW - .5) * ldx + (y / LH - .5) * ldy;\n  let v = 1 + Math.cos(uu * 1.5 - ph) * lc - grime[i] * gm;   // ONE broad sweep\n  v = v < .14 ? .14 : v > 1.3 ? 1.3 : v;\n  const o = 4 * i, q = v * 194;\n  lp[o] = Math.min(255, q * 1.03); lp[o + 1] = Math.min(255, q); lp[o + 2] = Math.min(255, q * .94); lp[o + 3] = 255;\n}\nlg.updatePixels();\n\nconst expo = 70 + P.energy * 22 + K.intensity * 6 + A.rms * 14;\npush();\ntint(P.hue + hOff, tSat, Math.min(100, expo + 26), P.alpha);\nimage(gal, 0, 0, width, height);\nblendMode(MULTIPLY);\ntint(0, 0, 100, P.alpha);\nimage(lg, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

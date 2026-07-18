@@ -1,0 +1,174 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.gravel",
+  "kind": "floor",
+  "name": "Gravel",
+  "desc": "A crushed-stone gravel plane running away to the vanishing point \u2014 loose angular pebbles packed at random, each a little mound whose crown flares as a raking light pool drifts over it while its neighbour drops into grit-shadow, dust blowing low across the bed; dry granite chippings, rain-wet, a sepia plate, black volcanic ash, or a cyan survey plan.",
+  "tags": [
+    "gravel",
+    "pebble",
+    "pebbles",
+    "shingle",
+    "chippings",
+    "chip",
+    "aggregate",
+    "ballast",
+    "crushed-stone",
+    "crushed",
+    "grit",
+    "gritstone",
+    "scree",
+    "rubble",
+    "hardcore",
+    "macadam",
+    "driveway",
+    "path",
+    "track",
+    "railbed",
+    "railway-ballast",
+    "yard",
+    "quarry",
+    "riverbed",
+    "stone",
+    "stones",
+    "rock",
+    "granite",
+    "basalt",
+    "flint",
+    "worley",
+    "cellular",
+    "voronoi",
+    "loose",
+    "packed",
+    "angular",
+    "faceted",
+    "worn",
+    "weathered",
+    "sand",
+    "grout",
+    "joint",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "recession",
+    "receding",
+    "depth",
+    "scroll",
+    "streaming",
+    "plane",
+    "ground",
+    "floor",
+    "raking-light",
+    "light-pool",
+    "specular",
+    "sheen",
+    "wet",
+    "rain",
+    "sepia",
+    "ash",
+    "volcanic",
+    "cinder",
+    "blueprint",
+    "schematic",
+    "survey",
+    "texture",
+    "grain",
+    "granular",
+    "stipple",
+    "austere",
+    "melancholy",
+    "noir",
+    "material",
+    "surface",
+    "outdoor",
+    "geology",
+    "grey",
+    "earthy"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.58,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the light pools rake the stone \u2014 crown flare, grit contrast, scroll rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "stone size in world units \u2014 min a fine grit of tiny chippings, max coarse cobbly rubble"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much dust drifts low across the bed"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "how fast the gravel bed streams toward the viewer"
+    },
+    "wear": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how loose and open the pack is \u2014 grit-gap width and shadow between stones"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "stone hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x as a canvas fraction"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.18,
+      "max": 0.78,
+      "doc": "horizon y as a canvas fraction \u2014 everything above stays fully transparent so the bg shows through"
+    },
+    "style": {
+      "default": "granite",
+      "options": [
+        "granite",
+        "wet",
+        "sepia",
+        "ash",
+        "blueprint"
+      ],
+      "doc": "aesthetic: dry grey granite chippings under a raking light / rain-wet with sheen standing in the hollows / a warm sepia plate / black volcanic ash and cinder / a cyan survey plan, the stone cells as pure line"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "stone lottery \u2014 per-pebble tone, grain and the scatter of the pack"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:14+00:00",
+    "fps": 59.2,
+    "motion": 0.0361,
+    "lum": 0.233
+  },
+  "code": "const D = { energy: .58, scale: 1, density: .5, speed: 1, wear: .5, hue: 28, x: .5, y: .46, style: 'granite', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A crushed-stone / pea-gravel ground plane running away to the vanishing point.\n// Not domed cobbles in fan courses (floor.cobblestone) and not a poured slab\n// (floor.concrete): loose angular stones packed at random, each a little Worley cell\n// that catches a raking light on its crown and drops its neighbour into grit-shadow.\n// Only painted BELOW the horizon so the bg slot reads clean through above. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nfunction hsh(ix,iy){ let h=(Math.imul(ix,374761393)+Math.imul(iy,668265263)+Math.imul(sd,1442695041))|0;\n  h=Math.imul(h^(h>>>13),1274126177)|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1);\n  return a+(b-a)*wx+(c-a)*wy+(a-b-c+d)*wx*wy; }\nfunction fbm(x,y){ return .55*vn(x,y)+.28*vn(x*2.03+5.1,y*2.03-3.3)+.17*vn(x*4.07-2.7,y*4.07+7.9); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c;\n  let r,g2,b2;\n  if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}\n  else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx}\n  return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\n\nconst sty = P.style, en = cl(P.energy,0,1), wr = cl(P.wear,0,1);\nconst Hh = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', wet = sty==='wet', sep = sty==='sepia', ash = sty==='ash';\n\n// ---- camera ----\nconst vy = cl(P.y,.18,.78)*height, vx = cl(P.x,.05,.95)*width;\nconst f = u*.92, H0 = 1;\nconst CS = .052*cl(P.scale,.35,2.6);        // stone cell size in world units\n\n// ---- perpetual scroll toward the viewer (never re-phases; guarded on t0 reset) ----\nif (S.z == null) S.z = 0;\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z += dt * P.speed * (.11 + .17*K.intensity) * (.55 + .6*en);\nconst zoff = S.z;\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\n// two broad light pools drifting on incommensurate rates \u2014 rake the stone crowns\nconst l1x = 1.5*Math.sin(tt*.083) + .7*Math.sin(tt*.197+1.3);\nconst l1z = 3.0 + 1.8*Math.sin(tt*.059+.7) + .9*Math.sin(tt*.151+2.1);\nconst l2x = -1.7*Math.sin(tt*.109+2.2) - .6*Math.sin(tt*.269);\nconst l2z = 5.2 + 2.4*Math.sin(tt*.047+1.9) + 1.1*Math.sin(tt*.179+.4);\nconst glow = (.40+.60*en)*(.55+.5*K.intensity) + bass*.26;\n\n// ---- palette ----\nlet stoneD, stoneL, gritC, litC;\nif (bp)        { stoneD=[212,74,13]; stoneL=[190,44,78]; gritC=[214,80,7];  litC=[186,52,92]; }\nelse if (wet)  { stoneD=[Hh+8,30,9];  stoneL=[Hh+4,16,52]; gritC=[Hh+10,36,6]; litC=[Hh-4,10,80]; }\nelse if (sep)  { stoneD=[32,30,20];  stoneL=[38,20,72];  gritC=[28,36,12];  litC=[40,15,84]; }\nelse if (ash)  { stoneD=[Hh,4,12];   stoneL=[Hh,3,50];   gritC=[Hh,6,7];    litC=[26,32,74]; }\nelse           { stoneD=[Hh,16,19];  stoneL=[Hh-6,10,74]; gritC=[Hh+4,22,10]; litC=[Hh-8,7,84]; }\nconst cSd = hsv(stoneD[0], stoneD[1]/100, stoneD[2]/100);\nconst cSl = hsv(stoneL[0], stoneL[1]/100, stoneL[2]/100);\nconst cGt = hsv(gritC[0], gritC[1]/100, gritC[2]/100);\nconst cLt = hsv(litC[0], litC[1]/100, litC[2]/100);\n\nconst BW = Math.max(360,Math.min(720,Math.round(width/2.4))), BH = Math.max(44, Math.round(BW*height/width));\nif (!S.g || S.bk !== BW+'x'+BH){ if(S.g){ try{S.g.remove();}catch(e){} }\n  S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bk = BW+'x'+BH; }\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nconst AL = P.alpha/100;\nconst j0 = Math.max(0, Math.floor((vy/height)*BH));\nfor (let j=0;j<j0;j++) for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0;\n\n// Worley feature-point lookup in one cell (with strong jitter \u2192 irregular stone sizes)\nfunction feat(cx,cz){ return [ (cx + .18 + .64*hsh(cx,cz)), (cz + .18 + .64*hsh(cx*3+7,cz*3+11)) ]; }\n\nfor (let j=j0;j<BH;j++){\n  const sy = (j+.5)/BH*height, dy = sy - vy;\n  if (dy < .35){ for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0; continue; }\n  const Z = f*H0/dy, wz = Z + zoff;\n  const far = cl((Z-1.1)/9, 0, 1);\n  const det = cl(1 - far*1.05, .04, 1);\n  const gcz = wz/CS;\n  for (let i=0;i<BW;i++){\n    const sx = (i+.5)/BW*width, X = (sx-vx)*Z/f;\n    const o = 4*(j*BW+i);\n    const gcx = X/CS;\n    const bx = Math.floor(gcx), bz = Math.floor(gcz);\n    // Worley F1/F2 over the 3x3 neighbourhood\n    let f1=9, f2=9, bestX=0, bestZ=0, bestId=0;\n    for (let oz=-1;oz<=1;oz++) for (let ox=-1;ox<=1;ox++){\n      const cx=bx+ox, cz=bz+oz, ft=feat(cx,cz);\n      const ddx=gcx-ft[0], ddz=gcz-ft[1], d=ddx*ddx+ddz*ddz;\n      if (d<f1){ f2=f1; f1=d; bestX=ddx; bestZ=ddz; bestId=cx*92821+cz*53987; }\n      else if (d<f2){ f2=d; }\n    }\n    const r1=Math.sqrt(f1), r2=Math.sqrt(f2);\n    const q = hsh((bestId^0x9e37)&0xffff, (bestId>>>7)&0xffff);   // per-stone tone lottery\n    // ---- mound: crown high at cell centre, shoulders fall to the grit ----\n    const mound = cl(1 - r1/0.62, 0, 1);\n    const nx = bestX/(r1+1e-3), nz = bestZ/(r1+1e-3);           // horizontal normal (outward)\n    // ---- grit / sand shadow along the cell borders (F2-F1 small) ----\n    const border = r2 - r1;\n    const jw = .12 + wr*.10;\n    const jt = cl(1 - border/jw, 0, 1);\n    // ---- raking light from the two drifting pools ----\n    const d1x=X-l1x, d1z=wz-zoff-l1z, d1=Math.sqrt(d1x*d1x+d1z*d1z);\n    const d2x=X-l2x, d2z=wz-zoff-l2z, d2=Math.sqrt(d2x*d2x+d2z*d2z);\n    const pool = Math.exp(-d1*d1*.11)*1.0 + Math.exp(-d2*d2*.075)*.72;\n    const toLx=(l1x-X), toLz=(l1z-(wz-zoff)); const nl=Math.sqrt(toLx*toLx+toLz*toLz)+1e-3;\n    const lamb = cl(.44 + (nx*(toLx/nl)+nz*(toLz/nl))*-.5 + mound*.5, 0, 1);\n    let lum = (.30 + q*.40) * (.52 + lamb*.72) * (1 + pool*glow*.55);\n    lum *= 1 - jt*.66;                                          // grit eats the light\n    // stone grain + per-stone speckle so no facet is a flat fill\n    const grain = fbm(X*70+bestId*.11, wz*70)*det + (1-det)*.5;\n    lum *= .78 + grain*.42;\n    lum += mound*pool*glow*.14;                                 // crown specular\n    lum = cl(lum, 0, 1.5);\n    let r = cSd[0]+(cSl[0]-cSd[0])*lum, g2 = cSd[1]+(cSl[1]-cSd[1])*lum, b2 = cSd[2]+(cSl[2]-cSd[2])*lum;\n    r += (cGt[0]-r)*jt*.72; g2 += (cGt[1]-g2)*jt*.72; b2 += (cGt[2]-b2)*jt*.72;\n    // warm specular tint on the brightest crowns\n    const hot = cl((lum-1.02)*2.2,0,1)*(1-jt);\n    r += (cLt[0]-r)*hot*.5; g2 += (cLt[1]-g2)*hot*.5; b2 += (cLt[2]-b2)*hot*.5;\n    if (wet){\n      const hollow = cl((jt*.7 + (1-mound)*.5 - .28)*1.7, 0, 1);\n      const rip = .5+.5*Math.sin(wz*20 - tt*1.9 + X*6 + fbm(X*3, wz*3-tt*.4)*4.0);\n      const spec = hollow*(.26+pool*glow*1.4)*(.55+rip*.7);\n      r += (cLt[0]-r)*spec*.6; g2 += (cLt[1]-g2)*spec*.6; b2 += (cLt[2]-b2)*spec*.6;\n    }\n    if (bp){\n      const on = jt > .40 ? 1 : 0;\n      const v2 = .12+.10*(1-far);\n      r = on? 74 : v2*40; g2 = on? 196*det+34 : v2*100; b2 = on? 244 : v2*172;\n    }\n    const hazeK = far*far*.85;\n    const hc = bp? [40,120,190] : [cSl[0]*.70, cSl[1]*.70, cSl[2]*.76];\n    r += (hc[0]-r)*hazeK; g2 += (hc[1]-g2)*hazeK; b2 += (hc[2]-b2)*hazeK;\n    px[o]=cl(r,0,255); px[o+1]=cl(g2,0,255); px[o+2]=cl(b2,0,255);\n    px[o+3] = 255*AL*cl(1-far*far*.72, 0, 1)*cl(dy/2.2, 0, 1);\n  }\n}\ng.updatePixels();\npush(); image(g,0,0,width,height); pop();\n\n// ---- low dust drifting across the plane, crisp (buffer would alias it) ----\npush();\nblendMode(ADD);\nnoStroke();\nconst dens = cl(P.density,0,1);\nconst NM = Math.round(5 + dens*38);\nfor (let i=0;i<NM;i++){\n  const f1 = hsh(i*13+7, 3), f2b = hsh(i*13+8, 5), f3 = hsh(i*13+9, 11);\n  const mz = ((f2b + tt*(.018+f3*.06)*P.speed) % 1.05);\n  const my = vy + Math.pow(mz,2.0)*(height-vy)*1.02;\n  const mx = (f1 + Math.sin(tt*(.16+f3*.4)+f1*6.28)*.05)*width;\n  const sz = u*(.0013+f3*.0045)*(.4+mz*1.7);\n  fill(wet?Hh-4:Hh+18, bp?40:14, 100, (6+f3*11)*(.3+en)*(P.alpha/100)*(1-mz*.4));\n  ellipse(mx, my, sz, sz*.7);\n}\nblendMode(BLEND);\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\ndrawingContext.globalAlpha = 1;\n"
+}

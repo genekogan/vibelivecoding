@@ -1,0 +1,162 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.delamination",
+  "kind": "fx",
+  "name": "Delamination",
+  "desc": "The scene turns out to be a coated surface, and the coating is letting go \u2014 adhesion fails at the edges first, so a chip cracks a hairline outline around itself, lifts and curls up off its own spot throwing a soft shadow beneath it, then releases and drifts a short way before it is gone, leaving what is behind it clean; aged paint, gold leaf over red bole, lifting photographic emulsion, char with an ember edge, or a conservator's loss map in pure contour.",
+  "tags": [
+    "delamination",
+    "delaminate",
+    "flaking",
+    "flake",
+    "flakes",
+    "chip",
+    "chips",
+    "chipping",
+    "peeling",
+    "peel",
+    "lifting",
+    "spall",
+    "spalling",
+    "adhesion",
+    "adhesion-failure",
+    "coating",
+    "coating-failure",
+    "paint",
+    "paint-loss",
+    "varnish",
+    "lacquer",
+    "primer",
+    "substrate",
+    "gilding",
+    "gold-leaf",
+    "bole",
+    "emulsion",
+    "photographic",
+    "decay",
+    "decaying",
+    "deteriorate",
+    "ageing",
+    "aging",
+    "weathering",
+    "erosion",
+    "loss",
+    "conservation",
+    "conservator",
+    "restoration",
+    "condition-report",
+    "loss-map",
+    "craquelure",
+    "crack",
+    "curl",
+    "raking-light",
+    "shadow",
+    "char",
+    "ash",
+    "ember",
+    "overlay",
+    "veil",
+    "screen-effect",
+    "sparse",
+    "subtle",
+    "melancholy",
+    "decayed",
+    "austere",
+    "eerie",
+    "quiet",
+    "clinical",
+    "fx",
+    "effect",
+    "atmosphere",
+    "transparent",
+    "composite",
+    "texture"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "raking-lamp gain \u2014 how hard the lifted chips are lit, how bright their curled edges fire and how deep their shadows sit"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "chip size \u2014 max lifts big slabs of coating instead of fine flakes"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the coating fails \u2014 a chip's whole life from hairline crack to gone (0.2 still visibly lifts)"
+    },
+    "density": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "how much of the surface is failing at once \u2014 keep low to stay polite over a scene"
+    },
+    "veil": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "how visible the still-adhered coating is \u2014 its faint tint and the hairline cracks that predict where the next chip will lift; 0 shows only chips already in flight"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the coating (gilt, emulsion and ash keep their own material colour)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal drift of the failing region"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical drift of the failing region"
+    },
+    "style": {
+      "default": "paint",
+      "options": [
+        "paint",
+        "gilt",
+        "emulsion",
+        "ash",
+        "outline"
+      ],
+      "doc": "aesthetic: matte aged paint under a raking lamp / gold leaf flaking off dark red bole / photographic emulsion lifting away milky and silver / charred film with a faint ember edge / a conservator's loss map in pure contour, no fill, no light"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for chip shape, placement, phase offset and drift direction"
+    },
+    "alpha": {
+      "default": 65,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 defaults low so the scene behind stays legible"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:03:32+00:00",
+    "fps": 60.2,
+    "motion": 0.0106,
+    "lum": 0.09
+  },
+  "code": "const D = { energy: .55, scale: 1, speed: 1, density: .45, veil: .3, hue: 44, x: .5, y: .5, style: 'paint', seed: 0, alpha: 65 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- The scene is a coated surface, and the coating is failing.\n// Adhesion goes first at the edges, so a chip lifts IN PLACE from its own spot \u2014 it does not\n// rain in from the top of frame. Each chip: hairline crack -> lifts and curls, throwing a soft\n// shadow that is what sells it as coming off a surface -> lets go and drifts a short way ->\n// gone, leaving the scene behind it clean. Chips run staggered lives, so the surface is always\n// mid-failure and never resolves.\n// Polite by construction: nothing is drawn where the coating is still stuck down, so at rest\n// this layer is nearly invisible and the scene reads through it.\nconst u = Math.min(width, height);\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix | 0, 374761393) + Math.imul(iy | 0, 668265263) + Math.imul(iz | 0, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nconst tt = K.t, style = P.style;\nconst dr1 = Math.sin(tt * 0.061), dr2 = Math.sin(tt * 0.143 + 1.7), dr3 = Math.sin(tt * 0.229 + 0.4);\nconst ctx = drawingContext;\nconst aa = Math.max(0, Math.min(100, P.alpha)) / 100;\nconst hb = ((P.hue % 360) + 360) % 360, hh = hb / 360;\n\n// raking light: azimuth on two incommensurate rates, so every lit edge and every shadow in the\n// frame swings continuously \u2014 the motion floor, and the thing that makes chips read as 3D\nconst az = tt * 0.047 + Math.sin(tt * 0.019) * 0.95 + 1.2;\nconst lxa = Math.cos(az), lya = Math.sin(az);\n\n// ---- palettes: coating, its lit edge, and what is under it ----\nlet COAT, LIT, UNDER;\nif (style === 'gilt') { COAT = [206, 168, 70]; LIT = [255, 240, 186]; UNDER = [92, 34, 28]; }\nelse if (style === 'emulsion') { COAT = [206, 208, 204]; LIT = [252, 253, 255]; UNDER = [128, 132, 140]; }\nelse if (style === 'ash') { COAT = [124, 112, 106]; LIT = [236, 122, 48]; UNDER = [26, 22, 22]; }\nelse if (style === 'outline') { COAT = [120, 190, 210]; LIT = [190, 235, 245]; UNDER = [60, 110, 130]; }\nelse {\n  const cr = 0.55 + 0.42 * Math.cos(6.2831 * hh), cg = 0.54 + 0.34 * Math.cos(6.2831 * (hh + 0.06)), cb = 0.50 + 0.26 * Math.cos(6.2831 * (hh + 0.14));\n  COAT = [cr * 255, cg * 255, cb * 255]; LIT = [Math.min(255, cr * 320 + 40), Math.min(255, cg * 320 + 40), Math.min(255, cb * 300 + 40)]; UNDER = [70, 62, 54];\n}\n\n// ---- the chip lattice ----\nconst nx = Math.max(3, Math.round((4 + P.density * 11) / Math.max(0.5, P.scale * 0.7 + 0.3)));\nconst ny = Math.max(2, Math.round(nx * height / width));\nconst cwid = width / nx, chgt = height / ny;\nconst PER = (17 + (1 - P.density) * 14) / Math.max(0.2, P.speed);   // a chip's whole life, seconds\n\nconst shadows = [];\nconst buckets = []; for (let b = 0; b < 6; b++) buckets.push([]);\nconst edges = [];\nconst hairs = [];\n\nfor (let j = 0; j < ny; j++) {\n  for (let i = 0; i < nx; i++) {\n    const n = j * nx + i;\n    const ph0 = hsh(i, j, 3);\n    const ptot = tt / PER + ph0;\n    const cyc = Math.floor(ptot);                  // each life gets a fresh shape and spot\n    const ph = ptot - cyc;\n    const gx = (i + 0.5) * cwid + (hsh(n, cyc, 5) - 0.5) * cwid * 0.7 + (P.x - 0.5) * width * 0.12;\n    const gy = (j + 0.5) * chgt + (hsh(n, cyc, 7) - 0.5) * chgt * 0.7 + (P.y - 0.5) * height * 0.12;\n    const r = u * (0.028 + 0.040 * hsh(n, cyc, 9)) * Math.max(0.3, P.scale);\n    const spin = hsh(n, cyc, 11) * 6.2831;\n\n    // ---- lifecycle ----\n    let curl = 0, lift = 0, dx = 0, dy = 0, rot = spin, op = 1;\n    if (ph < 0.38) {\n      // still stuck down: nothing but a hairline crack round its edge, fading up\n      const g = ph / 0.38;\n      hairs.push([gx, gy, r, n, cyc, spin, Math.min(1, g * 1.6)]);\n      continue;\n    } else if (ph < 0.66) {\n      // lifting and curling \u2014 the shadow underneath is what says \"this is coming off\"\n      const g = (ph - 0.38) / 0.28;\n      curl = g * 0.62; lift = g;\n      dx = lxa * -r * 0.10 * g; dy = lya * -r * 0.10 * g;\n      op = Math.min(1, g * 2.2);\n    } else if (ph < 0.94) {\n      // let go: drifts a SHORT way from its own spot and fades. It is shed, not rained down.\n      const g = (ph - 0.66) / 0.28;\n      curl = 0.62 + g * 0.24;\n      lift = 1;\n      const dr = hsh(n, cyc, 13) * 6.2831;\n      dx = Math.cos(dr) * u * 0.10 * g + Math.sin(tt * 0.7 + spin) * u * 0.012 * g;\n      dy = Math.sin(dr) * u * 0.055 * g + u * 0.13 * g * g;      // it does fall, but only a little\n      rot = spin + g * (hsh(n, cyc, 15) - 0.5) * 3.4;\n      op = 1 - g * g;\n    } else { continue; }\n    if (op < 0.02) continue;\n\n    // chip polygon: irregular, foreshortened as it rolls up, then rotated\n    const NV = 6;\n    const pts = [];\n    const cs = Math.cos(rot), sn = Math.sin(rot);\n    const fore = 1 - curl * 0.72;\n    for (let k = 0; k < NV; k++) {\n      const a = (k / NV) * 6.2831 + (hsh(n, cyc * 7 + k, 17) - 0.5) * 0.55;\n      const rr = r * (0.58 + 0.52 * hsh(n, cyc * 7 + k, 19));\n      const px = Math.cos(a) * rr, py = Math.sin(a) * rr * fore;\n      pts.push(gx + dx + px * cs - py * sn, gy + dy + px * sn + py * cs);\n    }\n    // how the raking light strikes this chip's face once it has tipped up\n    const face = Math.max(0, Math.cos(rot - az)) * curl;\n    const shade = 0.42 + 0.58 * face * (0.4 + P.energy);\n    const b = Math.min(5, Math.floor(shade * 6));\n    buckets[b].push([pts, op]);\n    // the cast shadow, offset away from the lamp and growing as the chip rises\n    if (style !== 'outline') {\n      const so = r * 0.30 * lift;\n      shadows.push([pts, -lxa * so, -lya * so, op * lift]);\n    }\n    // the curled leading edge catches the lamp hard \u2014 the brightest line in the frame\n    edges.push([pts, op * (0.35 + curl * 0.9)]);\n  }\n}\n\n// ---- draw: batched, so a whole failing surface costs about nine draw calls ----\nctx.save();\nctx.lineJoin = 'round'; ctx.lineCap = 'round';\n\n// hairline cracks in the still-adhered coating (+ the faint tint of the coating itself)\nif (P.veil > 0.01) {\n  ctx.beginPath();\n  for (const h of hairs) {\n    const [gx, gy, r, n, cyc, spin, g] = h;\n    const cs = Math.cos(spin), sn = Math.sin(spin);\n    for (let k = 0; k <= 6; k++) {\n      const a = ((k % 6) / 6) * 6.2831 + (hsh(n, cyc * 7 + (k % 6), 17) - 0.5) * 0.55;\n      const rr = r * (0.58 + 0.52 * hsh(n, cyc * 7 + (k % 6), 19));\n      const px = Math.cos(a) * rr, py = Math.sin(a) * rr;\n      const X = gx + px * cs - py * sn, Y = gy + px * sn + py * cs;\n      if (k === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y);\n    }\n  }\n  ctx.fillStyle = 'rgba(' + (COAT[0] | 0) + ',' + (COAT[1] | 0) + ',' + (COAT[2] | 0) + ',' + (aa * P.veil * 0.14).toFixed(3) + ')';\n  ctx.fill();\n  ctx.strokeStyle = 'rgba(' + (UNDER[0] | 0) + ',' + (UNDER[1] | 0) + ',' + (UNDER[2] | 0) + ',' + (aa * P.veil * 0.5).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.5, u * 0.0010); ctx.stroke();\n}\n\n// shadows first\nif (shadows.length) {\n  for (let pass = 0; pass < 3; pass++) {            // 3 offset passes = a cheap soft shadow\n    ctx.beginPath();\n    const k = 1 + pass * 0.5;\n    for (const s of shadows) {\n      const [pts, ox, oy, o] = s;\n      ctx.moveTo(pts[0] + ox * k, pts[1] + oy * k);\n      for (let q = 2; q < pts.length; q += 2) ctx.lineTo(pts[q] + ox * k, pts[q + 1] + oy * k);\n    }\n    ctx.fillStyle = 'rgba(6,5,8,' + (aa * 0.14 * (0.5 + P.energy * 0.5)).toFixed(3) + ')';\n    ctx.fill();\n  }\n}\n\n// chip faces, one fill per light bucket\nfor (let b = 0; b < 6; b++) {\n  if (!buckets[b].length) continue;\n  ctx.beginPath();\n  let mo = 0;\n  for (const c of buckets[b]) {\n    const [pts, o] = c;\n    ctx.moveTo(pts[0], pts[1]);\n    for (let q = 2; q < pts.length; q += 2) ctx.lineTo(pts[q], pts[q + 1]);\n    if (o > mo) mo = o;\n  }\n  const sh = (b + 0.5) / 6;\n  if (style === 'outline') {\n    ctx.strokeStyle = 'rgba(' + (COAT[0] | 0) + ',' + (COAT[1] | 0) + ',' + (COAT[2] | 0) + ',' + (aa * mo * 0.8).toFixed(3) + ')';\n    ctx.lineWidth = Math.max(0.6, u * 0.0016); ctx.stroke();\n  } else {\n    const r = COAT[0] * sh, g2 = COAT[1] * sh, b2 = COAT[2] * sh;\n    ctx.fillStyle = 'rgba(' + (r | 0) + ',' + (g2 | 0) + ',' + (b2 | 0) + ',' + (aa * mo * 0.92).toFixed(3) + ')';\n    ctx.fill();\n  }\n}\n\n// the lit curled edge\nif (style !== 'outline' && edges.length) {\n  ctx.beginPath();\n  let mo = 0;\n  for (const e of edges) {\n    const [pts, o] = e;\n    ctx.moveTo(pts[0], pts[1]);\n    for (let q = 2; q < pts.length; q += 2) ctx.lineTo(pts[q], pts[q + 1]);\n    ctx.closePath();\n    if (o > mo) mo = o;\n  }\n  ctx.strokeStyle = 'rgba(' + (LIT[0] | 0) + ',' + (LIT[1] | 0) + ',' + (LIT[2] | 0) + ',' + (aa * mo * 0.5 * (0.4 + P.energy * 0.9)).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.5, u * 0.0016 * (0.5 + P.energy));\n  ctx.stroke();\n}\nctx.restore();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

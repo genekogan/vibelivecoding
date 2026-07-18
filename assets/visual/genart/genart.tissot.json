@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.tissot",
+  "kind": "genart",
+  "name": "Tissot Indicatrix",
+  "desc": "A field of Tissot's indicatrices spread across a flexing map graticule \u2014 small circles that swell, shear and elongate into ellipses to reveal exactly how each map projection distorts area and angle, false-coloured by their distortion so the poles bloom huge in Mercator and pinch to slivers in the sinusoidal as the projection endlessly morphs beneath them.",
+  "tags": [
+    "tissot",
+    "indicatrix",
+    "distortion",
+    "map-projection",
+    "projection",
+    "cartography",
+    "graticule",
+    "ellipse",
+    "strain",
+    "scale-factor",
+    "grid-distortion",
+    "mercator",
+    "mollweide",
+    "hammer",
+    "sinusoidal",
+    "orthographic",
+    "geodesy",
+    "survey",
+    "map",
+    "atlas",
+    "scientific",
+    "clinical",
+    "thermal",
+    "wireframe",
+    "blueprint",
+    "austere",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 1.8,
+      "doc": "map size vs frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "outline brightness + weight"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "low-distortion hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "projection morph rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "indicatrix grid resolution"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "exagg": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ellipse-size exaggeration"
+    },
+    "grat": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "graticule line brightness"
+    },
+    "style": {
+      "default": "indicatrix",
+      "options": [
+        "indicatrix",
+        "thermal",
+        "wireframe",
+        "engraving",
+        "mono"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reserved variation"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:51:00+00:00",
+    "fps": 57.8,
+    "motion": 0.0232,
+    "lum": 0.247
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 200, speed: 1, density: .5, x: .5, y: .5, style: 'indicatrix', seed: 0, exagg: .5, grat: .6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2, PI = Math.PI;\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst R = width * 0.46 * P.scale;\nconst tilt = 0.22;\n\nfunction proj(kind, lat, lon, lam0) {\n  let nx = 0, ny = 0, vis = 1;\n  if (kind === 0) { nx = lon / PI; ny = lat / PI; }\n  else if (kind === 1) { nx = lon / PI; const cl = Math.max(-1.34, Math.min(1.34, lat)); ny = Math.log(Math.tan(PI / 4 + cl / 2)) / PI; vis = Math.abs(lat) > 1.35 ? 0 : 1; }\n  else if (kind === 2) { let th = lat; for (let k = 0; k < 5; k++) { const dn = 2 + 2 * Math.cos(2 * th) || 1e-3; th -= (2 * th + Math.sin(2 * th) - PI * Math.sin(lat)) / dn; } nx = lon * Math.cos(th) / PI; ny = Math.sin(th) / 2; }\n  else if (kind === 3) { const z = Math.sqrt(1 + Math.cos(lat) * Math.cos(lon / 2)) || 1e-3; nx = Math.cos(lat) * Math.sin(lon / 2) / z; ny = Math.sin(lat) / z / 2; }\n  else if (kind === 4) { nx = lon * Math.cos(lat) / PI; ny = lat / PI; }\n  else { const dl = lon - lam0, sp = Math.sin(tilt), cp = Math.cos(tilt); const cc = sp * Math.sin(lat) + cp * Math.cos(lat) * Math.cos(dl); nx = 0.9 * Math.cos(lat) * Math.sin(dl); ny = 0.9 * (cp * Math.sin(lat) - sp * Math.cos(lat) * Math.cos(dl)); vis = cc > 0.03 ? Math.min(1, cc * 6) : 0; }\n  return [nx, ny, vis];\n}\nconst drift = 0.9 * Math.sin(K.t * 0.058) + 0.4 * Math.sin(K.t * 0.131 + 1.4);\nconst kinds = [0, 1, 2, 3, 5, 4], nK = kinds.length;\nconst phase = K.t * (0.045 * P.speed) + drift * 0.05 + A.lowmid * 0.1;\nlet seg = Math.floor(phase) % nK; if (seg < 0) seg += nK;\nlet mf = phase - Math.floor(phase); const m = mf * mf * (3 - 2 * mf);\nconst kA = kinds[seg], kB = kinds[(seg + 1) % nK];\nconst lam0 = K.t * 0.13 + 0.5 * Math.sin(K.t * 0.04);\nfunction pp(lat, lon) { const a = proj(kA, lat, lon, lam0), b = proj(kB, lat, lon, lam0); return [cx + (a[0] * (1 - m) + b[0] * m) * R, cy - (a[1] * (1 - m) + b[1] * m) * R, a[2] * (1 - m) + b[2] * m]; }\n\nconst st = P.style;\nfunction pal() {\n  if (st === 'thermal') return { bg: [235, 45, 8], lo: [230, 70, 40], mid: [130, 55, 60], hi: [30, 85, 95], grat: [230, 15, 50], fillA: 70, outline: 0 };\n  if (st === 'wireframe') return { bg: [210, 45, 9], lo: [190, 45, 92], mid: [190, 45, 92], hi: [190, 45, 92], grat: [200, 40, 42], fillA: 0, outline: 1 };\n  if (st === 'engraving') return { bg: [38, 20, 48], lo: [28, 45, 26], mid: [28, 45, 26], hi: [8, 60, 44], grat: [30, 30, 34], fillA: 24, outline: 1 };\n  if (st === 'mono') return { bg: [P.hue, 50, 12], lo: [P.hue, 55, 44], mid: [P.hue - 10, 55, 66], hi: [P.hue - 25, 60, 92], grat: [P.hue, 25, 40], fillA: 62, outline: 0 };\n  // indicatrix (anchor)\n  return { bg: [220, 40, 10], lo: [P.hue, 60, 46], mid: [155, 55, 62], hi: [42, 85, 94], grat: [P.hue, 22, 44], fillA: 66, outline: 1 };\n}\nconst C = pal();\nbackground(C.bg[0], C.bg[1], C.bg[2]);\nnoStroke();\nfor (let r = 0; r < 4; r++) { fill(C.bg[0], C.bg[1], C.bg[2] * (1 + r * 0.05), 26); rect(0, height * r / 4, width, height / 4); }\n\nconst NLON = 16 + Math.round(P.density * 16), NLAT = Math.round(NLON * 0.6);\n\n// graticule behind\nnoFill(); stroke(C.grat[0], C.grat[1], C.grat[2], 30 + P.grat * 45); strokeWeight(0.7);\nfor (let i = 0; i <= 12; i++) { const lon = (i / 12 - 0.5) * TAU; beginShape(); for (let s = 0; s <= 60; s++) { const p = pp((s / 60 - 0.5) * PI * 0.99, lon); if (p[2] < 0.12) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); } endShape(); }\nfor (let j = 1; j < 8; j++) { const lat = (j / 8 - 0.5) * PI * 0.99; beginShape(); for (let s = 0; s <= 80; s++) { const p = pp(lat, (s / 80 - 0.5) * TAU); if (p[2] < 0.12) { endShape(); beginShape(); continue; } vertex(p[0], p[1]); } endShape(); }\n\n// ---- Tissot indicatrices ----\nconst dl = 0.018;\nconst radP = (PI / NLON) * 0.82;\nconst refLen = (R / PI) * radP;\nconst exag = 0.6 + P.exagg * 1.2;\nfor (let j = 1; j < NLAT; j++) {\n  const lat = (j / NLAT - 0.5) * PI * 0.94;\n  const coslat = Math.max(0.16, Math.cos(lat));\n  for (let i = 0; i < NLON; i++) {\n    const lon = (i / NLON - 0.5) * TAU + PI / NLON;\n    const p0 = pp(lat, lon); if (p0[2] < 0.18) continue;\n    const pl = pp(lat, lon + dl), pf = pp(lat + dl, lon);\n    let ex0 = (pl[0] - p0[0]) / dl / coslat, ex1 = (pl[1] - p0[1]) / dl / coslat;\n    let ey0 = (pf[0] - p0[0]) / dl, ey1 = (pf[1] - p0[1]) / dl;\n    const area = Math.abs(ex0 * ey1 - ex1 * ey0) * radP * radP;\n    let mag = Math.sqrt(area) / refLen; if (!isFinite(mag)) continue;\n    const mm = Math.max(0, Math.min(1, (Math.log(Math.max(0.25, mag)) + 1.1) / 2.6));\n    let col; if (mm < 0.5) { const t = mm / 0.5; col = [C.lo[0] + (C.mid[0] - C.lo[0]) * t, C.lo[1] + (C.mid[1] - C.lo[1]) * t, C.lo[2] + (C.mid[2] - C.lo[2]) * t]; }\n    else { const t = (mm - 0.5) / 0.5; col = [C.mid[0] + (C.hi[0] - C.mid[0]) * t, C.mid[1] + (C.hi[1] - C.mid[1]) * t, C.mid[2] + (C.hi[2] - C.mid[2]) * t]; }\n    const va = p0[2];\n    if (C.fillA > 0) { fill(col[0], col[1], col[2], C.fillA * va); } else noFill();\n    if (C.outline) { stroke(col[0], col[1] * 0.85, Math.min(100, col[2] * 1.15), (55 + P.energy * 30) * va); strokeWeight(0.7 + P.energy * 0.5); } else noStroke();\n    const cap = radP * 2.4;\n    beginShape();\n    for (let a = 0; a < 22; a++) {\n      const th = a / 22 * TAU;\n      let ox = (ex0 * Math.cos(th) + ey0 * Math.sin(th)) * radP * exag;\n      let oy = (ex1 * Math.cos(th) + ey1 * Math.sin(th)) * radP * exag;\n      const oL = Math.hypot(ox, oy); const capS = cap * R;\n      if (oL > capS) { ox *= capS / oL; oy *= capS / oL; }\n      vertex(p0[0] + ox, p0[1] + oy);\n    }\n    endShape(CLOSE);\n  }\n}\n// axes tick marks at high-distortion (bright accent dots via ADD on a few)\nblendMode(BLEND); drawingContext.shadowBlur = 0;\nnoFill(); stroke(C.grat[0], C.grat[1], C.grat[2], 45); strokeWeight(1.4);\nrect(width * 0.02, height * 0.02, width * 0.96, height * 0.96);\n"
+}

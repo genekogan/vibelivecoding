@@ -497,6 +497,77 @@ check("autoplay advanced steps", "step" in output and "Loading" in output,
 status = get("/status")
 check("autoplay advanced server", status["step"] > -1, f"step={status['step']}")
 
+# ── Phase 15: Conductor score + binder ───────────────────────
+print("\n=== Phase 15: Conductor score + binder ===")
+
+# Declare key/energy/section; verify parse + stamp + push
+r = post("/conductor", {"key": "f# minor", "energy": 0.55,
+                        "section": "drop", "tags": "dnb,dark"})
+check("conductor declare ok", r.get("ok") and r.get("pushed"), str(r)[:160])
+check("key parsed to pitch class", r["score"]["key"] == {"root": "f#", "mode": "minor", "pc": 6},
+      str(r["score"]["key"]))
+check("tags split", r["score"]["tags"] == ["dnb", "dark"], str(r["score"]["tags"]))
+
+time.sleep(0.5)  # let a frame derive K
+clk = get("/p5/read?key=clk")["value"]
+check("K.keyHue circle-of-fifths", clk.get("keyHue") == 180, f"keyHue={clk.get('keyHue')}")
+check("K.keyMinor", clk.get("keyMinor") is True)
+check("K.intensity = declared energy", clk.get("intensity") == 0.55,
+      f"intensity={clk.get('intensity')}")
+check("K.sectionName declared", clk.get("sectionName") == "drop")
+check("K.bpm derived", isinstance(clk.get("bpm"), (int, float)) and clk["bpm"] > 0,
+      f"bpm={clk.get('bpm')}")
+
+# energy=null hands intensity back to the arc
+post("/conductor", {"energy": None})
+time.sleep(0.5)
+clk = get("/p5/read?key=clk")["value"]
+check("energy null restores arc intensity", clk.get("intensity") != 0.55,
+      f"intensity={clk.get('intensity')}")
+
+# /status carries the compact summary
+status = get("/status")
+con = status.get("conductor") or {}
+check("status conductor summary", con.get("key") == "f# minor" and con.get("section") == "drop",
+      str(con))
+
+# Binder: bind fxA.hue to keyHue, verify snap + re-snap on key change
+post("/p5/state", {"key": "binds.fxA", "value": {"hue": "keyHue"}})
+post("/p5/layer", {"name": "fxA", "code":
+     "const P=(window.state.P&&window.state.P.fxA)||{}; noStroke(); "
+     "fill(P.hue||0,80,80); circle(width/2,height/2,80);"})
+time.sleep(0.5)
+pfx = get("/p5/read?key=P.fxA")["value"] or {}
+check("binder snapped hue to keyHue", pfx.get("hue") == 180, f"P.fxA={pfx}")
+post("/conductor", {"key": "a"})  # A major → fifths index 3 → 90°
+time.sleep(0.5)
+pfx = get("/p5/read?key=P.fxA")["value"] or {}
+check("binder re-snapped on key change", pfx.get("hue") == 90, f"P.fxA={pfx}")
+
+# Queued conductor declaration fires through the conductor thread
+post("/q", {"route": "/conductor", "payload": {"section": "verse"}, "at": 0})
+time.sleep(1.5)
+view = get("/conductor")
+check("queued conductor fired", (view["score"]["section"] or {}).get("name") == "verse",
+      str(view["score"]["section"]))
+check("conductor view shape", view.get("ok") and "transport" in view and "score" in view)
+
+# Reconnect: score + binds + layers replay; binder re-derives P from the score
+page.reload()
+page.wait_for_load_state("networkidle")
+page.click("#start-btn")
+deadline = time.time() + 15
+while time.time() < deadline:
+    if get("/status")["ready"]:
+        break
+    time.sleep(0.5)
+check("browser reconnected", get("/status")["ready"])
+time.sleep(1.0)
+cond = get("/p5/read?key=conductor")["value"] or {}
+check("score replayed on reconnect", (cond.get("key") or {}).get("pc") == 9, str(cond)[:160])
+pfx = get("/p5/read?key=P.fxA")["value"] or {}
+check("binder re-derived P after reconnect", pfx.get("hue") == 90, f"P.fxA={pfx}")
+
 # ── Cleanup ──────────────────────────────────────────────────
 print("\n=== Cleanup ===")
 # Remove test files

@@ -1,0 +1,163 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.hex_tile",
+  "kind": "floor",
+  "name": "Hex Tile",
+  "desc": "A glazed hexagonal tile floor running away to the vanishing point \u2014 a true honeycomb of flat glossy tops set in recessed grout, with a broad specular reflection band sliding across the glaze as an overhead light drifts; ceramic gloss, speckled terrazzo, dark edge-lit neon, matte slate, or a cyan setting-out plan.",
+  "tags": [
+    "hex",
+    "hexagon",
+    "hexagonal",
+    "honeycomb",
+    "hex-tile",
+    "hextile",
+    "tile",
+    "tiles",
+    "tiled",
+    "tiling",
+    "tessellation",
+    "tessellated",
+    "lattice",
+    "voronoi",
+    "grout",
+    "joint",
+    "ceramic",
+    "porcelain",
+    "glaze",
+    "glazed",
+    "glossy",
+    "gloss",
+    "enamel",
+    "vitreous",
+    "terrazzo",
+    "aggregate",
+    "speckle",
+    "slate",
+    "stone",
+    "bathhouse",
+    "lobby",
+    "kitchen",
+    "hexagon-floor",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "recession",
+    "receding",
+    "depth",
+    "scroll",
+    "streaming",
+    "plane",
+    "ground",
+    "floor",
+    "raking-light",
+    "reflection",
+    "specular",
+    "sheen",
+    "sweep",
+    "highlight",
+    "neon",
+    "edge-lit",
+    "blueprint",
+    "schematic",
+    "setting-out",
+    "geometric",
+    "geometry",
+    "pattern",
+    "texture",
+    "grain",
+    "clean",
+    "clinical",
+    "austere",
+    "sophisticated",
+    "material",
+    "surface",
+    "teal",
+    "cyan"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "master amplitude \u2014 reflection-sweep brightness and the rate the floor streams toward you"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.35,
+      "max": 2.6,
+      "doc": "hex size in world units \u2014 min a fine honeycomb of small tiles, max huge slabs"
+    },
+    "gloss": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "glaze specularity \u2014 how mirror-bright the reflection band reads on the tile tops"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "how fast the floor streams toward the viewer"
+    },
+    "grout": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grout channel width \u2014 thin hairline joints at min, fat recessed gaps at max"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "tile glaze hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x as a canvas fraction"
+    },
+    "y": {
+      "default": 0.45,
+      "min": 0.18,
+      "max": 0.78,
+      "doc": "horizon y as a canvas fraction \u2014 everything above stays fully transparent so the bg shows through"
+    },
+    "style": {
+      "default": "ceramic",
+      "options": [
+        "ceramic",
+        "terrazzo",
+        "neon",
+        "slate",
+        "blueprint"
+      ],
+      "doc": "aesthetic: glossy glazed ceramic with a mirror sweep / matte speckled terrazzo aggregate / dark tiles with glowing edge-lit grout channels / dark matte riven slate / a cyan setting-out plan, hexes as pure line"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "tile lottery \u2014 per-hex tone and shimmer phase"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:31+00:00",
+    "fps": 58.8,
+    "motion": 0.0265,
+    "lum": 0.189
+  },
+  "code": "const D = { energy: .6, scale: 1, gloss: .6, speed: 1, grout: .5, hue: 196, x: .5, y: .45, style: 'ceramic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A glazed hexagonal tile floor running away to the vanishing point. A true\n// honeycomb (regular hex Voronoi), not chipped voronoi tesserae (floor.mosaic) or a\n// quasicrystal (floor.aperiodic): flat glossy tile tops with recessed grout, and a broad\n// specular reflection band sliding across the glaze as an overhead light drifts.\n// Painted BELOW the horizon only so the bg reads through above. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nfunction hsh(ix,iy){ let h=(Math.imul(ix,374761393)+Math.imul(iy,668265263)+Math.imul(sd,1442695041))|0;\n  h=Math.imul(h^(h>>>13),1274126177)|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1);\n  return a+(b-a)*wx+(c-a)*wy+(a-b-c+d)*wx*wy; }\nfunction fbm(x,y){ return .55*vn(x,y)+.28*vn(x*2.03+5.1,y*2.03-3.3)+.17*vn(x*4.07-2.7,y*4.07+7.9); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c;\n  let r,g2,b2;\n  if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}\n  else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx}\n  return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\n\nconst sty = P.style, en = cl(P.energy,0,1), gl0 = cl(P.gloss,0,1), gr = cl(P.grout,0,1);\nconst Hh = ((P.hue%360)+360)%360, tt = K.t;\nconst bp = sty==='blueprint', terr = sty==='terrazzo', neon = sty==='neon', slate = sty==='slate';\n\nconst vy = cl(P.y,.18,.78)*height, vx = cl(P.x,.05,.95)*width;\nconst f = u*.92, H0 = 1;\nconst HS = .050*cl(P.scale,.35,2.6);        // hex circumradius in world units\nconst sxW = 1.5*HS, szW = 1.7320508*HS;     // flat-top lattice spacing\n\nif (S.z == null) S.z = 0;\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z += dt * P.speed * (.10 + .15*K.intensity) * (.55 + .7*en);\nconst zoff = S.z;\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\n// the reflection band: a broad bright stripe of overhead light sliding across the glaze\nconst swA = 0.85;                                     // sweep direction angle (fixed)\nconst ca = Math.cos(swA), sa = Math.sin(swA);\nconst swPh = 2.4*Math.sin(tt*.071) + 1.3*Math.sin(tt*.167+1.1) + 0.7*Math.sin(tt*.31+2.3);\nconst swPh2 = -1.9*Math.sin(tt*.053+2.0) - 1.0*Math.sin(tt*.127+.6);\nconst gloss = (.35+.65*gl0)*(.55+.5*K.intensity)*(.5+.7*en) + bass*.22;\n\nlet tileD, tileL, groutC, hotC;\nif (bp)         { tileD=[212,74,12]; tileL=[192,44,74]; groutC=[214,80,7];  hotC=[186,52,92]; }\nelse if (terr)  { tileD=[Hh+6,10,26]; tileL=[Hh,6,72];  groutC=[Hh,8,14];   hotC=[42,20,90]; }\nelse if (neon)  { tileD=[Hh,60,7];   tileL=[Hh,72,40];  groutC=[Hh,90,4];   hotC=[Hh,80,100]; }\nelse if (slate) { tileD=[Hh,10,12];  tileL=[Hh,6,44];   groutC=[Hh,14,6];   hotC=[Hh-10,6,72]; }\nelse            { tileD=[Hh,46,20];  tileL=[Hh-8,30,66]; groutC=[Hh+6,30,9]; hotC=[Hh-14,10,96]; }\nconst cTd = hsv(tileD[0], tileD[1]/100, tileD[2]/100);\nconst cTl = hsv(tileL[0], tileL[1]/100, tileL[2]/100);\nconst cGr = hsv(groutC[0], groutC[1]/100, groutC[2]/100);\nconst cHt = hsv(hotC[0], hotC[1]/100, hotC[2]/100);\n\nconst BW = Math.max(360,Math.min(720,Math.round(width/2.4))), BH = Math.max(44, Math.round(BW*height/width));\nif (!S.g || S.bk !== BW+'x'+BH){ if(S.g){ try{S.g.remove();}catch(e){} }\n  S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bk = BW+'x'+BH; }\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nconst AL = P.alpha/100;\nconst jw = HS*(.10 + gr*.16);                        // grout half-width in world units\nconst j0 = Math.max(0, Math.floor((vy/height)*BH));\nfor (let j=0;j<j0;j++) for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0;\n\nfor (let j=j0;j<BH;j++){\n  const sy = (j+.5)/BH*height, dy = sy - vy;\n  if (dy < .35){ for (let i=0;i<BW;i++) px[4*(j*BW+i)+3] = 0; continue; }\n  const Z = f*H0/dy, wz = Z + zoff;\n  const far = cl((Z-1.1)/9, 0, 1);\n  const det = cl(1 - far*1.05, .04, 1);\n  for (let i=0;i<BW;i++){\n    const sx = (i+.5)/BW*width, X = (sx-vx)*Z/f;\n    const o = 4*(j*BW+i);\n    // ---- nearest hex centre on the flat-top lattice (F1/F2 \u2192 regular hex Voronoi) ----\n    const i0 = Math.round(X/sxW);\n    let f1=1e9, f2=1e9, bId=0, cX=0, cZ=0;\n    for (let ii=i0-1; ii<=i0+1; ii++){\n      const zb = (ii&1) ? szW*.5 : 0;\n      const j0h = Math.round((wz - zb)/szW);\n      for (let jj=j0h-1; jj<=j0h+1; jj++){\n        const ccx = ii*sxW, ccz = jj*szW + zb;\n        const ddx = X-ccx, ddz = wz-ccz, d = ddx*ddx+ddz*ddz;\n        if (d<f1){ f2=f1; f1=d; bId=ii*92821+jj*53987; cX=ccx; cZ=ccz; }\n        else if (d<f2){ f2=d; }\n      }\n    }\n    const r1=Math.sqrt(f1), r2=Math.sqrt(f2);\n    const border = (r2 - r1)*.5;                       // distance to the tile edge\n    const q = hsh((bId^0x9e37)&0xffff, (bId>>>7)&0xffff);\n    // ---- grout (recessed, dark) vs flat tile top with a lit bevel lip ----\n    const jt = cl(1 - border/jw, 0, 1);                // 1 in the grout, 0 on the top\n    const bevel = cl(1 - Math.abs(border - jw*1.5)/(jw*1.1), 0, 1)*(1-jt);\n    // ---- specular reflection band sliding across the glaze ----\n    const proj = X*ca + wz*sa;\n    const b1 = Math.exp(-Math.pow((proj - swPh)/(HS*3.2), 2));\n    const b2 = Math.exp(-Math.pow((proj - swPh2)/(HS*4.4), 2))*.7;\n    const sweep = (b1 + b2);\n    // subtle per-tile shimmer so no top is dead flat\n    const shim = .5+.5*Math.sin(bId*1.7 + tt*(.4+q*.5));\n    let base = (.35 + q*.32) * (.72 + .28*shim);\n    let lum = base + bevel*(.28+gloss*.3);\n    lum += (1-jt)*sweep*gloss*(neon?.35:.85);          // gloss reflection only on tile tops\n    lum *= 1 - jt*.72;                                 // grout is recessed/dark\n    // aggregate speckle for terrazzo; fine grain otherwise\n    const grain = terr ? fbm(X*160+bId*.3, wz*160) : fbm(X*60+bId*.2, wz*60);\n    lum *= (terr? .72+grain*.5 : .84+grain*.30)*det + (1-det)*.9;\n    lum = cl(lum, 0, 1.6);\n    let r = cTd[0]+(cTl[0]-cTd[0])*lum, g2 = cTd[1]+(cTl[1]-cTd[1])*lum, b2c = cTd[2]+(cTl[2]-cTd[2])*lum;\n    r += (cGr[0]-r)*jt*.78; g2 += (cGr[1]-g2)*jt*.78; b2c += (cGr[2]-b2c)*jt*.78;\n    // hot specular tint at the top of the reflection band\n    const hot = cl((((1-jt)*sweep*gloss) - .55)*1.6, 0, 1);\n    r += (cHt[0]-r)*hot*.6; g2 += (cHt[1]-g2)*hot*.6; b2c += (cHt[2]-b2c)*hot*.6;\n    if (neon){\n      // edge-lit: a steady glow line in the grout channel (slow, never strobing)\n      const edgeglow = cl(1 - Math.abs(border - jw*1.1)/(jw*1.3), 0, 1)*(.5+.5*sweep);\n      r += cHt[0]*edgeglow*(.35+gloss*.5); g2 += cHt[1]*edgeglow*(.35+gloss*.5); b2c += cHt[2]*edgeglow*(.35+gloss*.5);\n    }\n    if (bp){\n      const on = jt > .40 ? 1 : 0;\n      const v2 = .12+.10*(1-far);\n      r = on? 74 : v2*40; g2 = on? 196*det+34 : v2*100; b2c = on? 244 : v2*172;\n    }\n    const hazeK = far*far*.85;\n    const hc = bp? [40,120,190] : neon? [cTd[0], cTd[1], cTd[2]] : [cTl[0]*.66, cTl[1]*.66, cTl[2]*.72];\n    r += (hc[0]-r)*hazeK; g2 += (hc[1]-g2)*hazeK; b2c += (hc[2]-b2c)*hazeK;\n    px[o]=cl(r,0,255); px[o+1]=cl(g2,0,255); px[o+2]=cl(b2c,0,255);\n    px[o+3] = 255*AL*cl(1-far*far*.72, 0, 1)*cl(dy/2.2, 0, 1);\n  }\n}\ng.updatePixels();\npush(); image(g,0,0,width,height); pop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\ndrawingContext.globalAlpha = 1;\n"
+}

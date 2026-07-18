@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.escapement",
+  "kind": "genart",
+  "name": "Escapement",
+  "desc": "A clock movement plate where a Graham deadbeat escapement actually works \u2014 the escape wheel sits dead still under the pallets, then runs exactly half a tooth as the pendulum sweeps through centre, the going train grinds round behind at its real reductions, the mainspring uncoils in the barrel, and a live oscillogram traces the arc along the bottom of the sheet.",
+  "tags": [
+    "escapement",
+    "deadbeat",
+    "graham",
+    "anchor",
+    "pallet",
+    "escape-wheel",
+    "clock",
+    "clockwork",
+    "horology",
+    "horological",
+    "movement",
+    "pendulum",
+    "bob",
+    "crutch",
+    "suspension",
+    "mainspring",
+    "barrel",
+    "going-train",
+    "gear",
+    "wheel",
+    "arbor",
+    "jewel",
+    "tick",
+    "beat",
+    "oscillator",
+    "timekeeping",
+    "mechanism",
+    "mechanical",
+    "machine",
+    "engineering",
+    "technical",
+    "drawing",
+    "draughting",
+    "plate",
+    "schematic",
+    "diagram",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "ghost",
+    "annotation",
+    "title-block",
+    "oscillogram",
+    "trace",
+    "victorian",
+    "antique",
+    "precision",
+    "austere",
+    "clinical",
+    "rigorous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "line weight + pendulum arc + inspection-wash glow + plate drift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 1.9,
+      "doc": "movement size \u2014 1.9 zooms into the escaping teeth"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much of the going train is drawn behind (3..5 wheels: fourth, third, centre, motion, barrel)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "beat rate \u2014 how fast the clock is being driven"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint (film/ghost styles); other styles are fixed inks"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.15,
+      "max": 0.85,
+      "doc": "suspension point, canvas fraction"
+    },
+    "y": {
+      "default": 0.3,
+      "min": 0.05,
+      "max": 0.5,
+      "doc": "suspension point \u2014 the movement hangs below it"
+    },
+    "swing": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "pendulum amplitude"
+    },
+    "anno": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: centrelines, swing envelope, dial, oscillogram, title block"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "schematic"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / additive x-ray ghost / schematic (wheels reduce to pitch circles and the beat trace becomes the subject)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "escape-wheel tooth count (30/32/36/40) and plate grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the plate ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:46+00:00",
+    "fps": 57.5,
+    "motion": 0.0157,
+    "lum": 0.243
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:34, x:.5, y:.30, swing:.55, anno:.7, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst T2 = Math.PI*2;\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { g:[213,73,18], body:[210,58,30], line:[200,6,99], deep:[212,64,22], ctr:[196,36,80], anno:[200,10,92], hatch:[205,46,60], jewel:[352,70,86], hand:[46,66,98], grain:34, add:false, wash:[196,22,80] };\n  if (sty==='engraving') return { g:[38,17,72],  body:[36,12,60], line:[28,36,12], deep:[34,20,44], ctr:[8,62,42],  anno:[28,40,15], hatch:[30,28,26], jewel:[6,64,44], hand:[28,44,12], grain:32, add:false, wash:[44,26,96] };\n  if (sty==='ghost')     return { g:[232,60,8],  body:[H,60,22], line:[H,26,97], deep:[H,64,14], ctr:[12,72,60], anno:[H,14,86], hatch:[H,42,50], jewel:[350,76,100], hand:[46,72,100], grain:16, add:true,  wash:[H,44,62] };\n  if (sty==='schematic') return { g:[198,38,8],  body:[198,44,14], line:[178,64,92], deep:[198,46,10], ctr:[10,72,70], anno:[52,56,88], hatch:[186,42,42], jewel:[340,74,94], hand:[52,66,94], grain:14, add:false, wash:[184,40,58] };\n  return { g:[H,16,19], body:[H,12,32], line:[H,4,94], deep:[H,18,24], ctr:[10,66,62], anno:[H,6,88], hatch:[H,9,54], jewel:[352,68,84], hand:[H,10,96], grain:28, add:false, wash:[H,12,80] };\n}\nconst C = pal();\nconst hw = q => ((q%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst schem = (sty==='schematic');\n\n// ---- pendulum: monotonic phase with incommensurate wander -> never re-phases -\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nconst rateWob = 1 + .085*Math.sin(K.t*.113) + .052*Math.sin(K.t*.271+1.3) + .031*Math.sin(K.t*.617+2.4);\nconst om = Math.PI * (.72 + 1.05*P.speed*(.45+.55*K.intensity)) * rateWob;   // rad/s of the swing phase\nS.ph = (S.ph||0) + dt*om;\nconst AMP = (.10 + .20*cl(P.swing,0,1)) * (.7+.5*NRG);\nconst th = AMP*Math.sin(S.ph);\nconst thd = AMP*om*Math.cos(S.ph);\n\nconst Ze = [30,32,36,40][Math.floor(fr(3.7)*4)%4];\nconst swings = S.ph/Math.PI;\nconst sIdx = Math.floor(swings), sFrac = swings - sIdx;\n// deadbeat: the wheel is LOCKED, then runs a half tooth-pitch as the pendulum crosses centre\nconst im = cl((sFrac - .40)/.17, 0, 1);\nconst ease = im*im*(3-2*im);\nconst wAng = (sIdx + ease) * (Math.PI/Ze);\nconst locked = (ease < .02 || ease > .98);\n\n// going train, driven backwards off the escape wheel through real reductions\nconst t4 = -wAng*(8/60), t3 = -t4*(8/60), tc = -t3*(10/64), tb = -tc*(12/96);\nconst secA = swings/60*T2, minA = swings/3600*T2, hrA = swings/43200*T2;\n\nconst drx = .9*Math.sin(K.t*.137) + .5*Math.sin(K.t*.293+1.7) + .32*Math.sin(K.t*.451);\nconst dry = .8*Math.sin(K.t*.109+2.1) + .45*Math.sin(K.t*.257+.6) + .28*Math.sin(K.t*.611+1.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- geometry ---------------------------------------------------------------\nconst SCA = cl(P.scale,.4,1.9);\nconst rE = u*.135*SCA;\nconst ARB = 1.35*rE;\nconst ex = cl(P.x,.15,.85)*width  + u*.016*NRG*drx;\nconst ay2 = cl(P.y,.05,.50)*height + u*.013*NRG*dry;   // the suspension point is the anchor\nconst ax2 = ex;\nconst ey = ay2 + ARB;\nconst pLx = ex - rE*.7071, pLy = ey - rE*.7071;    // pallet seats on the wheel rim\nconst pRx = ex + rE*.7071, pRy = ey - rE*.7071;\nconst rp = Math.hypot(pLx-ax2, pLy-ay2);\nconst aL = Math.atan2(pLy-ay2, pLx-ax2), aR = Math.atan2(pRy-ay2, pRx-ax2);\nconst rodL = u*.40*SCA, bobR = u*.045*SCA;\n\n// ---- cached plate texture ---------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.44 + .32*fr(Math.floor(x/8)*13.71+Math.floor(y/8)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\nnoStroke(); fill(C.g[0],C.g[1],C.g[2],100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\nconst wx = width*(.5+.26*Math.sin(K.t*.071)), wy = height*(.42+.22*Math.sin(K.t*.097+1.2));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ fill(C.wash[0],C.wash[1],C.wash[2],(2.2+2.0*glow)*AL); const rw=u*(.30+i*.20); ellipse(wx,wy,rw*2,rw*1.7); }\npop(); blendMode(BLEND);\n\nfunction ddot(x0,y0,x1,y1,per,a){\n  const L=Math.hypot(x1-x0,y1-y0); if(L<.5) return;\n  const ux=(x1-x0)/L, uy=(y1-y0)/L;\n  sc(C.ctr, a); strokeWeight(Math.max(.4,u*.0008));\n  for (let s=0;s<L;s+=per){\n    line(x0+ux*s,y0+uy*s,x0+ux*Math.min(L,s+per*.58),y0+uy*Math.min(L,s+per*.58));\n    const c=Math.min(L,s+per*.74); line(x0+ux*c,y0+uy*c,x0+ux*Math.min(L,c+per*.09),y0+uy*Math.min(L,c+per*.09));\n  }\n}\nfunction wheelSpokes(cx,cy,r,ang,n,a){\n  sc(C.line, a); strokeWeight(Math.max(.5,u*.0012));\n  for (let i=0;i<n;i++){ const b=ang+i*T2/n;\n    line(cx+Math.cos(b)*r*.20, cy+Math.sin(b)*r*.20, cx+Math.cos(b)*r*.86, cy+Math.sin(b)*r*.86); }\n  noFill(); ellipse(cx,cy,r*.40,r*.40); ellipse(cx,cy,r*1.72,r*1.72);\n}\n// a plain toothed wheel for the going train\nfunction trainWheel(cx,cy,r,ang,Z,dim){\n  if (schem){ sc(C.line, 30*dim); strokeWeight(Math.max(.4,u*.0008)); noFill(); ellipse(cx,cy,r*2,r*2);\n    sc(C.ctr, 40*dim); line(cx-r*.2,cy,cx+r*.2,cy); line(cx,cy-r*.2,cx,cy+r*.2); return; }\n  noStroke(); fc(C.body, (C.add?16:74)*dim);\n  beginShape();\n  for (let k=0;k<Z;k++){ const a0=k*T2/Z+ang, ht=Math.PI/(2*Z);\n    const put=(rr,aa)=>vertex(cx+Math.cos(aa)*rr*r, cy+Math.sin(aa)*rr*r);\n    put(1-2.4/Z,a0-ht*1.3); put(1+1.9/Z,a0-ht*.5); put(1+1.9/Z,a0+ht*.5); put(1-2.4/Z,a0+ht*1.3);\n  }\n  endShape(CLOSE);\n  noFill(); sc(C.line, (C.add?40:66)*dim); strokeWeight(Math.max(.4,u*.0010));\n  beginShape();\n  for (let k=0;k<Z;k++){ const a0=k*T2/Z+ang, ht=Math.PI/(2*Z);\n    const put=(rr,aa)=>vertex(cx+Math.cos(aa)*rr*r, cy+Math.sin(aa)*rr*r);\n    put(1-2.4/Z,a0-ht*1.3); put(1+1.9/Z,a0-ht*.5); put(1+1.9/Z,a0+ht*.5); put(1-2.4/Z,a0+ht*1.3);\n  }\n  endShape(CLOSE);\n  const ns = r > u*.05 ? 5 : 4;\n  sc(C.line, 52*dim); strokeWeight(Math.max(.4,u*.0009));\n  for (let i=0;i<ns;i++){ const b=ang*1.0+i*T2/ns;\n    line(cx+Math.cos(b)*r*.18, cy+Math.sin(b)*r*.18, cx+Math.cos(b)*r*.80, cy+Math.sin(b)*r*.80); }\n  noFill(); ellipse(cx,cy,r*.36,r*.36);\n  noStroke(); fc(C.jewel, 84*dim); ellipse(cx,cy,r*.13,r*.13);\n}\n\nif (C.add) blendMode(ADD);\n\n// ---- LAYER 1 (back): the going train, dimmer -------------------------------\nconst nTrain = Math.round(3 + cl(P.density,0,1)*2);\nconst TR = [\n  { x: ex - rE*1.95, y: ey + rE*.55, r: rE*.62, a: t4, Z: 60, n:'FOURTH' },\n  { x: ex + rE*1.85, y: ey + rE*1.05, r: rE*.74, a: t3, Z: 64, n:'THIRD' },\n  { x: ex - rE*.35,  y: ey + rE*1.95, r: rE*.86, a: tc, Z: 72, n:'CENTRE' },\n  { x: ex + rE*2.30, y: ey - rE*.95, r: rE*.52, a: -t3*.6, Z: 48, n:'MOTION' },\n  { x: ex - rE*2.35, y: ey + rE*2.05, r: rE*1.00, a: tb, Z: 84, n:'BARREL' }\n];\nfor (let i=0;i<nTrain && i<TR.length;i++){\n  const w = TR[i];\n  ddot(w.x - w.r*1.5, w.y, w.x + w.r*1.5, w.y, u*.016, 26+20*anno);\n  ddot(w.x, w.y - w.r*1.5, w.x, w.y + w.r*1.5, u*.016, 26+20*anno);\n  trainWheel(w.x, w.y, w.r, w.a, w.Z, .58);\n  if (w.n==='BARREL' && !schem){\n    // mainspring: an archimedean spiral inside the barrel, slowly unwinding\n    noFill(); sc(C.line, 44); strokeWeight(Math.max(.4,u*.0008));\n    beginShape();\n    for (let s=0;s<220;s++){ const a3=s*.14 + tb*3, rr=w.r*(.10 + .0031*s);\n      if (rr > w.r*.80) break; vertex(w.x+Math.cos(a3)*rr, w.y+Math.sin(a3)*rr); }\n    endShape();\n  }\n  if (anno > .35 && !schem){\n    noStroke(); textFont('monospace'); textAlign(CENTER,TOP); textSize(Math.max(5,u*.0105));\n    fc(C.anno, 40+26*anno); text(w.n+' Z'+w.Z, w.x, w.y + w.r*1.28);\n  }\n}\n\n// ---- LAYER 2 (mid): pendulum rod + bob, hanging BEHIND the escape wheel -----\n{\n  const rx = ax2 + Math.sin(th)*rodL, ry = ay2 + Math.cos(th)*rodL;\n  sc(C.line, C.add?52:78); strokeWeight(Math.max(1.1, u*.0032*(.6+.7*NRG)));\n  line(ax2, ay2, rx, ry);\n  // suspension spring at the top\n  sc(C.line, 70); strokeWeight(Math.max(.5,u*.0010));\n  for (let i=0;i<5;i++){ const f0=i/5, f1=(i+1)/5;\n    line(ax2 + (i%2?1:-1)*u*.004, ay2 + f0*u*.026, ax2 + (i%2?-1:1)*u*.004, ay2 + f1*u*.026); }\n  // rating nut + bob (modelled by light, not outlined flat)\n  const bx = ax2 + Math.sin(th)*(rodL+bobR*.2), by = ay2 + Math.cos(th)*(rodL+bobR*.2);\n  if (!schem){\n    noStroke();\n    for (let i=6;i>=1;i--){ const f0=i/6;\n      fc([C.body[0], C.body[1]*(.6+.4*f0), cl(C.body[2]*(.55 + 1.5*(1-f0)),4,96)], (C.add?18:96));\n      ellipse(bx - bobR*.22*(1-f0), by - bobR*.26*(1-f0), bobR*2*f0, bobR*2*f0); }\n    noFill(); sc(C.line, 88); strokeWeight(Math.max(.7,u*.0016)); ellipse(bx,by,bobR*2,bobR*2);\n    sc(C.hatch, 40); strokeWeight(Math.max(.4,u*.0007));\n    for (let i=-4;i<=4;i++){ const yy=by+i*bobR*.22, hx=Math.sqrt(Math.max(0,bobR*bobR-(yy-by)*(yy-by)));\n      line(bx-hx, yy, bx+hx, yy); }\n    sc(C.line, 76); strokeWeight(Math.max(.6,u*.0013));\n    line(bx-bobR*.3, by+bobR*1.02, bx+bobR*.3, by+bobR*1.02);\n    line(bx-bobR*.3, by+bobR*1.20, bx+bobR*.3, by+bobR*1.20);\n  } else {\n    noFill(); sc(C.line, 80); strokeWeight(Math.max(.7,u*.0016)); ellipse(bx,by,bobR*2,bobR*2);\n    sc(C.ctr, 60); line(bx-bobR,by,bx+bobR,by);\n  }\n  // swing envelope: the arc the bob sweeps (dash-dot, an authentic setting-out line)\n  if (anno > .3){\n    sc(C.ctr, 34+22*anno); strokeWeight(Math.max(.4,u*.0008)); noFill();\n    const R2 = rodL+bobR*.2;\n    for (let i=0;i<26;i++){ if (i%3===2) continue;\n      const t0 = -AMP + (i/26)*2*AMP, t1 = -AMP + ((i+.74)/26)*2*AMP;\n      line(ax2+Math.sin(t0)*R2, ay2+Math.cos(t0)*R2, ax2+Math.sin(t1)*R2, ay2+Math.cos(t1)*R2); }\n  }\n}\n\n// ---- LAYER 3: the escape wheel ---------------------------------------------\nddot(ex-rE*1.9, ey, ex+rE*1.9, ey, u*.019, 40+24*anno);\nddot(ex, ey-rE*1.9, ex, ey+rE*1.9, u*.019, 40+24*anno);\nif (schem){\n  noFill(); sc(C.line, 74); strokeWeight(Math.max(.7,u*.0016)); ellipse(ex,ey,rE*2,rE*2);\n  sc(C.line, 52); strokeWeight(Math.max(.5,u*.0010));\n  for (let k=0;k<Ze;k++){ const a0=k*T2/Ze+wAng;\n    line(ex+Math.cos(a0)*rE*.86, ey+Math.sin(a0)*rE*.86, ex+Math.cos(a0)*rE, ey+Math.sin(a0)*rE); }\n} else {\n  // club/ratchet teeth: swept-back back edge, slanted impulse face, pointed tip\n  noStroke(); fc(C.body, C.add?26:92);\n  beginShape();\n  for (let k=0;k<Ze;k++){\n    const a0 = k*T2/Ze + wAng, pit = T2/Ze;\n    const put=(rr,aa)=>vertex(ex+Math.cos(aa)*rr*rE, ey+Math.sin(aa)*rr*rE);\n    put(.80, a0 - pit*.46); put(.80, a0 - pit*.10); put(1.0, a0 + pit*.02); put(.90, a0 + pit*.10);\n  }\n  endShape(CLOSE);\n  noFill(); sc(C.line, C.add?60+28*glow:90); strokeWeight(Math.max(.6, u*.0016*(.7+.6*NRG)));\n  beginShape();\n  for (let k=0;k<Ze;k++){\n    const a0 = k*T2/Ze + wAng, pit = T2/Ze;\n    const put=(rr,aa)=>vertex(ex+Math.cos(aa)*rr*rE, ey+Math.sin(aa)*rr*rE);\n    put(.80, a0 - pit*.46); put(.80, a0 - pit*.10); put(1.0, a0 + pit*.02); put(.90, a0 + pit*.10);\n  }\n  endShape(CLOSE);\n  wheelSpokes(ex,ey,rE,wAng,5, 62);\n  noStroke(); fc(C.jewel, 86); ellipse(ex,ey,rE*.11,rE*.11);\n}\n\n// ---- LAYER 4: the anchor \u2014 deadbeat pallets with concentric locking faces ---\n{\n  const pt = rp*.085;\n  push(); translate(ax2, ay2); rotate(th);\n  if (!schem){\n    noStroke(); fc(C.body, C.add?30:95);\n    beginShape();\n    for (let i=0;i<=18;i++){ const a3 = aL + (aR-aL)*(i/18); vertex(Math.cos(a3)*(rp+pt), Math.sin(a3)*(rp+pt)); }\n    for (let i=18;i>=0;i--){ const a3 = aL + (aR-aL)*(i/18); vertex(Math.cos(a3)*(rp-pt), Math.sin(a3)*(rp-pt)); }\n    endShape(CLOSE);\n    noFill(); sc(C.line, 94); strokeWeight(Math.max(.8, u*.0022*(.6+.7*NRG)));\n    beginShape();\n    for (let i=0;i<=18;i++){ const a3 = aL + (aR-aL)*(i/18); vertex(Math.cos(a3)*(rp+pt), Math.sin(a3)*(rp+pt)); }\n    for (let i=18;i>=0;i--){ const a3 = aL + (aR-aL)*(i/18); vertex(Math.cos(a3)*(rp-pt), Math.sin(a3)*(rp-pt)); }\n    endShape(CLOSE);\n    // section hatching across the anchor body\n    sc(C.hatch, 44); strokeWeight(Math.max(.4,u*.0007));\n    for (let i=0;i<=18;i+=2){ const a3 = aL + (aR-aL)*(i/18);\n      line(Math.cos(a3)*(rp-pt), Math.sin(a3)*(rp-pt), Math.cos(a3+.16)*(rp+pt), Math.sin(a3+.16)*(rp+pt)); }\n  } else {\n    noFill(); sc(C.line, 84); strokeWeight(Math.max(.7,u*.0016));\n    beginShape(); for (let i=0;i<=18;i++){ const a3=aL+(aR-aL)*(i/18); vertex(Math.cos(a3)*rp, Math.sin(a3)*rp); } endShape();\n  }\n  // the two pallets. The LOCKING face is an arc concentric with this arbor -> deadbeat.\n  for (const sgn of [0,1]){\n    const a3 = sgn ? aR : aL;\n    const px2 = Math.cos(a3)*rp, py2 = Math.sin(a3)*rp;\n    const lock = locked && ((sgn===0) === (sIdx%2===0));\n    if (!schem){\n      push(); translate(px2,py2); rotate(a3 + (sgn?  .62 : -.62));\n      noStroke(); fc(C.body, C.add?34:99); rect(-pt*1.5, -pt*1.15, pt*3.0, pt*2.3);\n      noFill(); sc(C.line, 96); strokeWeight(Math.max(.6,u*.0014)); rect(-pt*1.5, -pt*1.15, pt*3.0, pt*2.3);\n      sc(lock ? C.jewel : C.line, lock ? 96 : 66); strokeWeight(Math.max(.8,u*.0019));\n      line(-pt*1.5, -pt*1.15, -pt*1.5, pt*1.15);\n      pop();\n    }\n    noStroke(); fc(C.jewel, lock ? 96 : 52); ellipse(px2,py2, pt*(lock?1.5:.9), pt*(lock?1.5:.9));\n  }\n  // crutch fork embracing the pendulum rod\n  sc(C.line, 72); strokeWeight(Math.max(.6,u*.0013)); noFill();\n  line(0,0, 0, rp*.62);\n  line(-pt*.7, rp*.62, -pt*.7, rp*.86); line(pt*.7, rp*.62, pt*.7, rp*.86);\n  line(-pt*.7, rp*.62, pt*.7, rp*.62);\n  noStroke(); fc(C.jewel, 88); ellipse(0,0, pt*1.5, pt*1.5);\n  pop();\n}\nblendMode(BLEND);\n\n// ---- chapter ring + hands (real clock rates off the pendulum count) ---------\nif (anno > .15){\n  const cw2 = { x: ex + rE*2.15, y: ey - rE*1.00 };   // clear of the pendulum envelope\n  const cr = rE*1.05;\n  noFill(); sc(C.line, 46+22*anno); strokeWeight(Math.max(.5,u*.0011));\n  ellipse(cw2.x, cw2.y, cr*2, cr*2); ellipse(cw2.x, cw2.y, cr*1.84, cr*1.84);\n  sc(C.line, 70);\n  for (let i=0;i<60;i++){ const a3=i/60*T2-Math.PI/2, ln=(i%5===0)?cr*.11:cr*.05;\n    strokeWeight((i%5===0)?Math.max(.7,u*.0016):Math.max(.4,u*.0008));\n    line(cw2.x+Math.cos(a3)*(cr*.92-ln), cw2.y+Math.sin(a3)*(cr*.92-ln), cw2.x+Math.cos(a3)*cr*.92, cw2.y+Math.sin(a3)*cr*.92); }\n  const hand = (a3,len,wid,col) => { push(); translate(cw2.x,cw2.y); rotate(a3-Math.PI/2);\n    noStroke(); fc(col, 94); beginShape(); vertex(-len*.14,0); vertex(0,-wid); vertex(len,-wid*.28); vertex(len,wid*.28); vertex(0,wid); endShape(CLOSE); pop(); };\n  hand(hrA, cr*.52, u*.0075*SCA, C.hand); hand(minA, cr*.80, u*.0050*SCA, C.hand);\n  sc(C.jewel, 96); strokeWeight(Math.max(.9,u*.0020));\n  const sa = secA-Math.PI/2;\n  line(cw2.x, cw2.y, cw2.x+Math.cos(sa)*cr*.68, cw2.y+Math.sin(sa)*cr*.68);\n  noStroke(); fc(C.jewel, 96); ellipse(cw2.x,cw2.y, u*.010*SCA, u*.010*SCA);\n}\n\n// ---- beat oscillogram: a live trace of the pendulum angle -------------------\nif (anno > .12){\n  S.tr = S.tr || [];\n  S.tr.push(th/Math.max(1e-4,AMP));\n  const TRN = 240; if (S.tr.length > TRN) S.tr.splice(0, S.tr.length-TRN);\n  const ox2 = u*.055, oy2 = height - u*.085, ow = Math.min(width-u*.11, u*1.05), oh = u*.052;\n  noStroke(); fc(C.deep, C.add?22:62); rect(ox2, oy2-oh/2, ow, oh);\n  noFill(); sc(C.anno, 40+22*anno); strokeWeight(Math.max(.4,u*.0008)); rect(ox2, oy2-oh/2, ow, oh);\n  sc(C.ctr, 44); ddot(ox2, oy2, ox2+ow, oy2, u*.014, 44);\n  noFill(); sc(schem?C.line:C.hand, 88); strokeWeight(Math.max(.8,u*.0018*(.6+.7*NRG)));\n  beginShape();\n  for (let i=0;i<S.tr.length;i++) vertex(ox2 + i/(TRN-1)*ow, oy2 - S.tr[i]*oh*.42);\n  endShape();\n  if (S.tr.length){\n    noStroke(); fc(C.jewel, 92);\n    const lastX = ox2 + (S.tr.length-1)/(TRN-1)*ow;\n    ellipse(lastX, oy2 - S.tr[S.tr.length-1]*oh*.42, u*.006, u*.006);\n  }\n  noStroke(); textFont('monospace'); textAlign(LEFT,BOTTOM); textSize(Math.max(5,u*.0105));\n  fc(C.anno, 72); text('PENDULUM ARC  +/-'+(AMP*57.2958).toFixed(2)+' deg', ox2, oy2-oh/2-u*.005);\n}\n\n// ---- plate furniture --------------------------------------------------------\nconst mgn = u*.028;\nnoFill(); sc(C.anno, 46+24*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.anno, 22+16*anno); strokeWeight(Math.max(.5,u*.0009));\nrect(mgn*1.7, mgn*1.7, width-mgn*3.4, height-mgn*3.4);\nif (anno > .08){\n  textFont('monospace'); noStroke(); textSize(Math.max(7,u*.0135));\n  textAlign(RIGHT,CENTER);\n  const bx = width-mgn*2.0, by = height-mgn*2.0;\n  fc(C.body, C.add?28:76); rect(bx-u*.33, by-u*.052, u*.33, u*.052);\n  noFill(); sc(C.anno, 62); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.33, by-u*.052, u*.33, u*.052);\n  line(bx-u*.33, by-u*.026, bx, by-u*.026);\n  noStroke(); fc(C.anno, 90);\n  text('GRAHAM DEADBEAT ESCAPEMENT  Z'+Ze, bx-u*.012, by-u*.039);\n  text((Math.round(3600/(Math.PI/om)/2)*2)+' BEATS/HR   TRAIN '+nTrain+'   SEED '+sd, bx-u*.012, by-u*.013);\n  textAlign(LEFT,CENTER); fc(C.anno, 70);\n  const ts = Math.max(7,u*.0135);\n  text(locked ? 'STATE  LOCKED' : 'STATE  IMPULSE', mgn*2.2, mgn*2.3);\n  text('ESCAPED '+sIdx, mgn*2.2, mgn*2.3+ts*1.5);\n  text('T '+(Math.PI/om).toFixed(3)+' s', mgn*2.2, mgn*2.3+ts*3.0);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

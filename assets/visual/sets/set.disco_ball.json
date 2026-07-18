@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.disco_ball",
+  "kind": "set",
+  "name": "Disco Ball",
+  "desc": "A mirror ball turning on its cord, faceted tiles shimmering with a moving specular hotspot, throwing a sweep of coloured light specks across the whole room \u2014 silver, gold, colourful, chrome or holographic.",
+  "tags": [
+    "disco",
+    "ball",
+    "mirror",
+    "glitter",
+    "party",
+    "club",
+    "dance",
+    "nightlife",
+    "70s",
+    "light",
+    "facets",
+    "sparkle",
+    "rave",
+    "festive",
+    "reflection",
+    "set",
+    "prop",
+    "spinning"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "spin speed + light"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "ball size"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "tint hue"
+    },
+    "dots": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light-speck count across room"
+    },
+    "facets": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mirror-tile density"
+    },
+    "sparkle": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "shimmer amount"
+    },
+    "cord": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "hanging cord on/off"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ball x"
+    },
+    "y": {
+      "default": 0.28,
+      "min": 0,
+      "max": 1,
+      "doc": "ball y (hangs from top)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "silver",
+      "options": [
+        "silver",
+        "gold",
+        "colorful",
+        "chrome",
+        "holo"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:18:04+00:00",
+    "fps": 57.8,
+    "motion": 0.006,
+    "lum": 0.098
+  },
+  "code": "const D = { energy:.55, scale:1, hue:200, dots:.6, facets:.5, sparkle:.6, cord:.5, x:.5, y:.28, speed:1, density:.5, style:'silver', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst u=Math.min(W,H), R=u*0.10*P.scale, cx=P.x*W, cy=P.y*H;\nconst spin=t*(0.4+en*0.9)*P.speed;\nconst kick=K.pulse*0.4+A.bass*0.5;\nfunction dotHue(i){ if(sty==='colorful') return (i*53+t*20)%360; if(sty==='gold') return 45; if(sty==='holo') return (i*37+t*40)%360; if(sty==='chrome') return 200; return P.hue; }\nconst dsat = sty==='silver'?15 : sty==='chrome'?18 : 80;\n\n// ---- light dots sweeping the room (additive, large area \u2014 the motion driver)\ndc.save(); blendMode(ADD);\nconst nd=Math.floor(12+P.dots*60);\nfor(let i=0;i<nd;i++){ const a=fr(i)*TAU + spin*(fr(i+5)>0.5?1:-1)*1.2; const rad=(0.15+fr(i+3)*0.9);\n  const px=cx + Math.cos(a)*W*0.55*rad; const py=cy + R*1.4 + Math.sin(a*1.3+i)*H*0.35*rad + rad*H*0.2;\n  const tw=0.4+0.6*Math.sin(t*(2+fr(i)*4)+i*3);\n  const sz=(3+fr(i+9)*9)*(0.6+P.sparkle)*(0.8+kick*0.6);\n  fill(color(dotHue(i), dsat, 100, (18+tw*45)*P.alpha/100));\n  rect(px-sz/2,py-sz/2,sz,sz);   // square light specks\n}\nblendMode(BLEND); dc.restore();\n\n// ---- cord\nif(P.cord>0.05){ stroke(color(0,0,60,60*P.alpha/100)); strokeWeight(2); line(cx,0,cx,cy-R); noStroke(); }\n\n// ---- the ball (grid of mirror facets)\npush(); translate(cx,cy);\nnoStroke(); fill(color(P.hue,dsat,22,90*P.alpha/100)); circle(0,0,R*2+4); // dark base sphere\nconst rows=Math.floor(7+P.facets*9);\nfor(let r=0;r<rows;r++){ const lat=(r/(rows-1)-0.5)*Math.PI; const y=Math.sin(lat)*R; const rr=Math.cos(lat)*R; const cols=Math.max(4,Math.floor(rows*Math.cos(lat)*1.6));\n  for(let cI=0;cI<cols;cI++){ const lon=cI/cols*TAU + spin; const x=Math.cos(lon)*rr; const z=Math.sin(lon)*rr;\n    if(z<-2) continue;  // back faces hidden\n    const facelight = Math.max(0, Math.cos(lon-0.6)) ; // lit toward upper-left\n    const shimmer=0.5+0.5*Math.sin(t*3+r*1.3+cI*0.7);\n    const br = 30 + facelight*55 + shimmer*20*(0.5+P.sparkle);\n    const fh = sty==='colorful'||sty==='holo' ? (lon*57+t*20)%360 : P.hue;\n    const fs = sty==='silver'?10 : sty==='gold'?45 : sty==='chrome'?12 : 55;\n    fill(color(fh,fs,Math.min(100,br), P.alpha));\n    const fw=rr*TAU/cols*0.92, fhh=R*Math.PI/rows*0.92;\n    rect(x-fw/2, y-fhh/2, fw*(0.5+z/R*0.5+0.5), fhh); // perspective-ish squash\n  }\n}\n// specular hotspot\nfill(color(0,0,100, 60*P.alpha/100)); dc.save(); dc.shadowBlur=18; dc.shadowColor=color(P.hue,20,100).toString(); circle(-R*0.35,-R*0.35, R*0.5); dc.restore();\nnoStroke();\npop();\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}

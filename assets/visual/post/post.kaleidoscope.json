@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.kaleidoscope",
+  "kind": "post",
+  "name": "Kaleidoscope",
+  "desc": "Folds the live scene into a slowly turning kaleidoscope \u2014 3 to 12 mirrored wedges with drifting translucent prisms and faint fold seams over the top.",
+  "tags": [
+    "kaleidoscope",
+    "mirror",
+    "fold",
+    "symmetry",
+    "psychedelic",
+    "mandala",
+    "wedges",
+    "rotate",
+    "pass",
+    "trippy",
+    "fractal",
+    "prism",
+    "vj"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rotation speed"
+    },
+    "segments": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "spin": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "spin rate"
+    },
+    "prisms": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drifting prisms"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "prism/seam hue"
+    },
+    "mixin": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fold opacity"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "six",
+      "options": [
+        "six",
+        "three",
+        "four",
+        "eight",
+        "twelve"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 80,
+      "min": 0,
+      "max": 100,
+      "doc": "pass strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:43:27+00:00",
+    "fps": 66.2,
+    "motion": 0.0047,
+    "lum": 0.086
+  },
+  "code": "const D = { energy:.4, segments:.5, spin:.4, prisms:.5, hue:200, mixin:.5, x:.5, y:.5, scale:1, speed:1, density:.5, style:'six', seed:0, alpha:80 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst cx=P.x*W, cy=P.y*H;\nconst nSeg = sty==='four'?4 : sty==='eight'?8 : sty==='twelve'?12 : sty==='three'?3 : 6;\nconst rot = t*(0.10+en*0.22)*P.speed*(0.5+P.spin);\n// snapshot current frame into cached buffer (cheap drawImage), then fold it\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\nconst R=Math.hypot(W,H)*0.6;\ndc.save();\ndc.globalAlpha=(P.alpha/100)*(0.55+P.mixin*0.45);\nfor(let i=0;i<nSeg;i++){\n  dc.save();\n  dc.translate(cx,cy);\n  dc.rotate(rot + i*TAU/nSeg);\n  if(i%2) dc.scale(-1,1);\n  dc.beginPath(); dc.moveTo(0,0); dc.arc(0,0,R, -TAU/nSeg/2, TAU/nSeg/2); dc.closePath(); dc.clip();\n  dc.rotate(-rot*0.7);\n  dc.drawImage(S.buf.drawingContext.canvas, -cx,-cy, W,H);\n  dc.restore();\n}\ndc.globalAlpha=1;\ndc.restore();\n// intrinsic drifting translucent prisms (carry motion over any content incl. flat bed)\nif(P.prisms>0.02){ dc.save(); blendMode(ADD);\n for(let i=0;i<Math.floor(2+P.prisms*5);i++){ const a=rot*1.7+i*TAU/5 + Math.sin(t*0.31+i)*0.4; const r=R*0.24*(0.5+fr(i));\n  const px=cx+Math.cos(a)*r*1.6, py=cy+Math.sin(a)*r;\n  fill(color((P.hue+i*47)%360,55,90,(8+6*Math.sin(t*0.7+i))*P.alpha/100)); noStroke();\n  push(); translate(px,py); rotate(a); triangle(-r*0.4,r*0.3, r*0.4,r*0.3, 0,-r*0.5); pop(); }\n dc.restore(); blendMode(BLEND); }\n// fold seams\nstroke(color(P.hue,20,100,10*P.alpha/100)); strokeWeight(1);\nfor(let i=0;i<nSeg;i++){ const a=rot+i*TAU/nSeg; line(cx,cy, cx+Math.cos(a)*R, cy+Math.sin(a)*R); }\nnoStroke(); blendMode(BLEND);\n"
+}

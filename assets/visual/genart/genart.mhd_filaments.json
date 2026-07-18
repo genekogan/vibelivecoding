@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.mhd_filaments",
+  "kind": "genart",
+  "name": "MHD Filaments",
+  "desc": "Magnetic field lines frozen into a moving plasma, dragged and stretched wherever the fluid goes until anti-parallel bundles are crushed together into blade-thin current sheets that finally cut and re-splice \u2014 reconnection \u2014 flinging the ropes apart to be stirred and crushed again; as luminous filaments threading a dim plasma, a signed current-sheet map, a solar EUV coronal plate, brushed ink contours, or spectral false-color.",
+  "tags": [
+    "mhd",
+    "magnetohydrodynamics",
+    "plasma",
+    "magnetic",
+    "magnetic-field",
+    "field-lines",
+    "flux-rope",
+    "flux-tube",
+    "filament",
+    "filaments",
+    "current-sheet",
+    "current",
+    "reconnection",
+    "x-point",
+    "frozen-in",
+    "induction",
+    "resistivity",
+    "lorentz",
+    "corona",
+    "solar",
+    "coronal",
+    "euv",
+    "prominence",
+    "tokamak",
+    "fusion",
+    "astrophysics",
+    "space-weather",
+    "turbulence",
+    "fluid",
+    "fluid-dynamics",
+    "flow",
+    "advection",
+    "incompressible",
+    "continuum",
+    "pde",
+    "simulation",
+    "physics",
+    "laboratory",
+    "scientific",
+    "clinical",
+    "false-color",
+    "spectral",
+    "sumi",
+    "ink",
+    "contour",
+    "gold",
+    "amber",
+    "violet",
+    "eerie",
+    "austere",
+    "sublime",
+    "menacing",
+    "field",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.58,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "field strength \u2014 how hard the Lorentz force fights back, plus field-line count and glow (the master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "flux-rope size \u2014 from a fine tangle of small ropes to a few vast lobes"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "time rate (0.2 still creeps and reconnects)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "COUNT of flux ropes \u2014 how often fresh rope is injected into the tangle"
+    },
+    "eta": {
+      "default": 0.35,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "resistivity \u2014 how readily the plasma lets field lines cut and re-splice: low keeps the field frozen in and sheets thin and violent, high reconnects lazily and smooths everything"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the field lines (the plasma takes the complement)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center of the flux-injection zone across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "center of the flux-injection zone down the frame"
+    },
+    "style": {
+      "default": "filaments",
+      "options": [
+        "filaments",
+        "current_sheet",
+        "corona",
+        "ink_lines",
+        "spectral"
+      ],
+      "doc": "aesthetic: luminous field lines through a dim plasma / abstracted signed current map where only the reconnecting sheets exist / solar EUV coronal plate with detector grain / brushed sumi contours on paper / spectral false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the background field shear and rope placement/timing"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:09+00:00",
+    "fps": 59.9,
+    "motion": 0.068,
+    "lum": 0.341
+  },
+  "code": "const D = { energy: .58, scale: 1, speed: 1, density: .5, eta: .35, hue: 34, x: .5, y: .5, style: 'filaments', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- MHD flux ropes, current sheets and reconnection ------------------------------------\n// A magnetic field threaded through a conducting fluid is FROZEN into it: the plasma cannot\n// slip across the field lines, so wherever the fluid goes it drags the field with it.\n//\n// In 2D that whole statement collapses into something beautifully cheap. Write the field as\n// B = curl(A*zhat); then the induction equation becomes just\n//        dA/dt + u.grad A = eta * lap A\n// \u2014 the flux function A is ADVECTED LIKE A DYE, and the field lines are simply its contours.\n// The current is J = -lap A, and the Lorentz force works out to exactly J * grad A, so the\n// field pushes back on the flow with two derivatives and no vector algebra at all.\n//\n// That gives real reconnection for free: where the flow crams anti-parallel field lines\n// together, A's contours pile into a thin CURRENT SHEET, lap A blows up, and the eta term \u2014\n// negligible everywhere else \u2014 finally bites and cuts and re-splices the lines. The ropes\n// then relax, fling plasma out of the X-point, and the flow rearranges. Resistivity only\n// matters where the geometry makes it matter, which is the whole story of reconnection.\n//\n// vs iron_filings: that is a static dipole field with no dynamics at all. vs lichtenberg /\n// plasma_globe: those are branching dielectric BREAKDOWN. Here the field is a fluid.\n// -----------------------------------------------------------------------------------------\nconst TAU = 6.283185307;\nconst BW = 132, BH = Math.max(60, Math.round(BW * height / width));\nconst NC = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.U = new Float32Array(NC); S.V = new Float32Array(NC); S.AA = new Float32Array(NC);\n  S.U2 = new Float32Array(NC); S.V2 = new Float32Array(NC); S.A2 = new Float32Array(NC);\n  S.PR = new Float32Array(NC); S.DV = new Float32Array(NC); S.JJ = new Float32Array(NC);\n  S.init = false;\n}\nconst U = S.U, V = S.V, AA = S.AA, U2 = S.U2, V2 = S.V2, A2 = S.A2, PR = S.PR, DV = S.DV, JJ = S.JJ;\n\nconst sd = P.seed | 0;\nfunction fr(i) { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); }\n\nconst L = BW / BH, h = 1 / BH, sc = BH;\nconst tt = K.t;\nconst en = P.energy;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed; S.T = 0; S.nextR = 0.1; S.rn = 0;\n  U.fill(0); V.fill(0); PR.fill(0); AA.fill(0);\n  // start with a sheared background field so there is always something to stretch\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    const x = (i + 0.5) / BH, y = (j + 0.5) / BH;\n    AA[j * BW + i] = 0.16 * Math.sin(TAU * x / L * 2 + fr(3) * TAU) * Math.sin(TAU * y + fr(5) * TAU);\n  }\n}\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dtr = K.t - S.lastT; S.lastT = K.t;\ndtr = dtr < 0 ? 0 : (dtr > 0.05 ? 0.05 : dtr);\nconst dt = dtr * (0.25 + P.speed * 0.75);\nS.T += dt;\nconst ts = S.T;\n\nconst etaR = 0.00004 + P.eta * 0.00060;\nconst nuv = 0.00004 + 0.00016;\n\n// ---- inject flux ropes: alternating sign, so neighbours meet anti-parallel and must reconnect\nconst Tr = 3.4 / (0.35 + P.density * 1.6);\nif (ts > S.nextR) {\n  S.nextR = ts + Tr * (0.7 + fr(S.rn * 5 + 1) * 0.6);\n  const n = S.rn | 0; S.rn = n + 1;\n  const cx = Math.min(0.9, Math.max(0.1, P.x)) * L + (fr(n * 7 + 2) - 0.5) * L * 0.7;\n  const cy = Math.min(0.9, Math.max(0.1, P.y)) + (fr(n * 7 + 3) - 0.5) * 0.7;\n  const rr = (0.09 + fr(n * 7 + 4) * 0.07) * Math.max(0.4, P.scale);\n  const sg = (n & 1) ? 1 : -1;\n  const amp = sg * (0.10 + en * 0.22) * (0.8 + A.bass * 0.4);\n  const r2 = rr * rr;\n  const i0 = ((cx - rr) * sc) | 0, i1 = ((cx + rr) * sc) | 0;\n  const j0 = Math.max(0, ((cy - rr) * sc) | 0), j1 = Math.min(BH - 1, ((cy + rr) * sc) | 0);\n  for (let j = j0; j <= j1; j++) for (let ii = i0; ii <= i1; ii++) {\n    const i = ((ii % BW) + BW) % BW;\n    const dx = (ii + 0.5) / sc - cx, dy = (j + 0.5) / sc - cy, d2 = dx * dx + dy * dy;\n    if (d2 > r2) continue;\n    const w = 1 - d2 / r2;\n    AA[j * BW + i] += amp * w * w;\n  }\n}\n\nfunction samp(F, bx, by) {\n  let X = bx - Math.floor(bx / BW) * BW;\n  let Y = by < 0 ? 0 : (by > BH - 1.001 ? BH - 1.001 : by);\n  const x0 = X | 0, y0i = Y | 0, fx = X - x0, fy = Y - y0i;\n  const x1 = x0 + 1 >= BW ? 0 : x0 + 1, y1 = y0i + 1 < BH ? y0i + 1 : y0i;\n  const a = F[y0i * BW + x0], b = F[y0i * BW + x1], c = F[y1 * BW + x0], d = F[y1 * BW + x1];\n  const t0 = a + (b - a) * fx, t1 = c + (d - c) * fx;\n  return t0 + (t1 - t0) * fy;\n}\n\n// ---- 1. advect u, v and the flux function ----\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    const bx = i - U[p] * dt * sc, by = j - V[p] * dt * sc;\n    U2[p] = samp(U, bx, by); V2[p] = samp(V, bx, by); A2[p] = samp(AA, bx, by);\n  }\n}\nU.set(U2); V.set(V2); AA.set(A2);\n\n// ---- 2. Lorentz force J*grad(A), plus a large-scale drifting stir on incommensurate rates\nconst lor = (0.7 + en * 2.4) * 0.9;\nconst f1 = 0.30 * Math.sin(tt * 0.067) + 0.18 * Math.sin(tt * 0.151 + 1.3);\nconst f2 = 0.26 * Math.cos(tt * 0.089 + 0.7) + 0.15 * Math.sin(tt * 0.197 + 2.4);\nconst stir = (0.10 + en * 0.14);\nfor (let j = 1; j < BH - 1; j++) {\n  const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n  const y = (j + 0.5) / BH;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1, p = jc + i;\n    const x = (i + 0.5) / BH;\n    const lap = AA[jc + im] + AA[jc + ip] + AA[jm + i] + AA[jp + i] - 4 * AA[p];\n    const jz = -lap;                                   // current density (grid units)\n    JJ[p] = jz;\n    const ax = (AA[jc + ip] - AA[jc + im]) * 0.5, ay = (AA[jp + i] - AA[jm + i]) * 0.5;\n    U[p] += lor * jz * ax * dt * sc;                   // J x B == J * grad A in 2D\n    V[p] += lor * jz * ay * dt * sc;\n    U[p] += stir * f1 * Math.sin(TAU * y) * dt;\n    V[p] += stir * f2 * Math.sin(TAU * x / L * 2) * dt;\n  }\n}\n\n// ---- 3. projection ----\nfor (let j = 1; j < BH - 1; j++) {\n  const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n    DV[jc + i] = -0.5 * h * (U[jc + ip] - U[jc + im] + V[jp + i] - V[jm + i]);\n  }\n}\nfor (let it = 0; it < 16; it++) {\n  for (let j = 1; j < BH - 1; j++) {\n    const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n      const t = (DV[jc + i] + PR[jc + im] + PR[jc + ip] + PR[jm + i] + PR[jp + i]) * 0.25;\n      PR[jc + i] += (t - PR[jc + i]) * 1.7;\n    }\n  }\n  for (let i = 0; i < BW; i++) { PR[i] = PR[BW + i]; PR[(BH - 1) * BW + i] = PR[(BH - 2) * BW + i]; }\n}\nfor (let j = 1; j < BH - 1; j++) {\n  const jm = (j - 1) * BW, jp = (j + 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1;\n    U[jc + i] -= 0.5 * (PR[jc + ip] - PR[jc + im]) / h;\n    V[jc + i] -= 0.5 * (PR[jp + i] - PR[jm + i]) / h;\n  }\n}\nfor (let i = 0; i < BW; i++) { V[i] = 0; V[(BH - 1) * BW + i] = 0; }\n\n// ---- 4. viscosity + RESISTIVITY (this is the term that actually reconnects) ----\n{\n  const kv = Math.min(0.24, nuv * sc * sc * dt);\n  const ke = Math.min(0.24, etaR * sc * sc * dt);\n  const dec = 1 - Math.min(0.02, dt * 0.010);      // slow flux decay: ropes are injected forever\n  U2.set(U); V2.set(V); A2.set(AA);\n  for (let j = 0; j < BH; j++) {\n    const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1, p = jc + i;\n      U[p] = U2[p] + (U2[jc + im] + U2[jc + ip] + U2[jm + i] + U2[jp + i] - 4 * U2[p]) * kv;\n      V[p] = V2[p] + (V2[jc + im] + V2[jc + ip] + V2[jm + i] + V2[jp + i] - 4 * V2[p]) * kv;\n      AA[p] = (A2[p] + (A2[jc + im] + A2[jc + ip] + A2[jm + i] + A2[jp + i] - 4 * A2[p]) * ke) * dec;\n    }\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + Math.sin(tt * 0.021) * 10 + sec * 5) % 360 + 360) % 360;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(TAU * (m + hr)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2)), 0.5 + 0.5 * Math.cos(TAU * (m + hr + sp2 * 2))];\n}\nconst cF = pal(0.02, 0.14, 0.0), cP = pal(0.52, 0.14, 0.0);\n// Field lines ARE the contours of A: banding cos(A*n) draws them directly, no tracing needed.\n// The spacing has to track A's own live amplitude, though \u2014 reconnection and resistive decay\n// swing the flux range by 4x over a minute, so a FIXED n shows a dozen filaments one moment\n// and a single smooth gradient the next.\nlet arms = 0;\nfor (let p = 0; p < NC; p++) arms += AA[p] * AA[p];\narms = Math.sqrt(arms / NC);\nconst nb = TAU * (3.5 + en * 9) / Math.max(0.015, arms * 2.5);\nconst jsc = 2.6 + en * 5.0;\nconst gl = 0.86 + A.treble * 0.35 + K.swell * 0.1;\n\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i === 0 ? BW - 1 : i - 1, ip = i === BW - 1 ? 0 : i + 1, p = jc + i;\n    const a = AA[p];\n    const bx = (AA[jp + i] - AA[jm + i]) * 0.5, by = -(AA[jc + ip] - AA[jc + im]) * 0.5;\n    const bmag = Math.sqrt(bx * bx + by * by) * sc;\n    const jz = JJ[p] * jsc * sc * 0.02;\n    const aj = jz < 0 ? -jz : jz;\n    const line = 0.5 + 0.5 * Math.cos(a * nb);        // one band per field line\n    let r, gg, b;\n    if (style === 'current_sheet') {\n      // abstracted: no field lines at all \u2014 only the signed current, so the thin sheets where\n      // reconnection is actually happening are the entire image\n      const s2 = jz < -1 ? -1 : (jz > 1 ? 1 : jz);\n      const v = 0.33;\n      const pos = s2 > 0 ? s2 : 0, neg = s2 < 0 ? -s2 : 0;\n      r = v + pos * 0.60 - neg * 0.19; gg = v - pos * 0.15 - neg * 0.14; b = v - pos * 0.21 + neg * 0.58;\n    } else if (style === 'corona') {\n      // solar EUV: hot loops on a dim disc, detector grain, no colour but temperature\n      const gr = (fr(i * 5.1 + j * 7.3) - 0.5) * 0.05;\n      const m = Math.min(1, (line * 0.34 + aj * 0.62 + Math.min(1, bmag * 0.5) * 0.30) * (0.6 + en * 0.9));\n      r = Math.min(1, 0.13 + m * 1.35 + gr);\n      gg = Math.min(1, 0.09 + m * 0.92 + gr);\n      b = Math.min(1, 0.10 + m * 0.42 + gr);\n    } else if (style === 'ink_lines') {\n      const gr = (fr(i * 3.3 + j * 9.7) - 0.5) * 0.05;\n      const v = 0.84 - line * 0.52 - Math.min(1, aj) * 0.22 + gr;\n      r = v * 0.99; gg = v * 0.972; b = v * 0.93;\n    } else if (style === 'spectral') {\n      const u = 0.06 + Math.min(1, bmag * 0.7) * 0.58;\n      const cc = pal(u, 0.32, 0.0);\n      const v = 0.20 + line * 0.22 + Math.min(1, aj) * 0.28;\n      r = v * (0.30 + cc[0] * 1.24); gg = v * (0.30 + cc[1] * 1.24); b = v * (0.32 + cc[2] * 1.24);\n    } else {                                   // filaments (default)\n      // luminous field lines threading a dim plasma; the current sheets flare where the\n      // geometry has forced the lines together. Kept soft \u2014 a hard flash here would strobe.\n      const base = 0.27 + Math.min(1, bmag * 0.55) * 0.11;\n      r = base * (0.40 + cP[0] * 0.85); gg = base * (0.42 + cP[1] * 0.85); b = base * (0.50 + cP[2] * 0.90);\n      const lw = line * line * (0.40 + en * 0.60) * gl;\n      r += lw * cF[0] * 0.78; gg += lw * cF[1] * 0.74; b += lw * cF[2] * 0.62;\n      const fl = Math.min(0.85, aj) * 0.34 * gl;\n      r += fl * 1.0; gg += fl * 0.90; b += fl * 0.70;\n    }\n    const o = 4 * p;\n    px[o] = r < 0 ? 0 : (r > 1 ? 255 : r * 255);\n    px[o + 1] = gg < 0 ? 0 : (gg > 1 ? 255 : gg * 255);\n    px[o + 2] = b < 0 ? 0 : (b > 1 ? 255 : b * 255);\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

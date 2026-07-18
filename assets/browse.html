@@ -106,7 +106,7 @@
   <div id="p-status"></div>
   <div id="p-watch"></div>
   <div id="p-error"></div>
-  <div id="p-foot">&larr;&rarr; asset &middot; &#8679;&larr;&rarr; kind &middot; &uarr;&darr;/wheel variant &middot; 1-9 jump &middot; r reroll &middot; 0 reset &middot; a audio &middot; [ ] cps &middot; h panel &middot; ? keys</div>
+  <div id="p-foot">&larr;&rarr; asset &middot; &#8679;&larr;&rarr; kind &middot; &uarr;&darr;/wheel variant &middot; 1-9 jump &middot; r reroll &middot; 0 reset &middot; a audio &middot; b bed &middot; [ ] cps &middot; h panel &middot; ? keys</div>
 </div>
 
 <div id="toasts"></div>
@@ -124,6 +124,7 @@
     <div class="krow"><span class="k"><kbd>0</kbd></span><span>reset params to defaults</span></div>
     <h3>global</h3>
     <div class="krow"><span class="k"><kbd>a</kbd></span><span>audio mode: off &rarr; fake &rarr; live</span></div>
+    <div class="krow"><span class="k"><kbd>b</kbd></span><span>bed behind overlays: scene &rarr; navy &rarr; grey</span></div>
     <div class="krow"><span class="k"><kbd>[</kbd> <kbd>]</kbd></span><span>cps &minus;0.05 / +0.05</span></div>
     <div class="krow"><span class="k"><kbd>h</kbd></span><span>hide / show panel</span></div>
     <div class="krow"><span class="k"><kbd>?</kbd></span><span>toggle this overlay</span></div>
@@ -141,6 +142,12 @@ var KIND_COLORS = {
 };
 var DIRS = ['subjects','worlds','floors','sets','crowds','fx','post','genart','palettes','inbox'];
 var NO_BED = { world: 1, genart: 1, palette: 1 };
+// Bed behind OVERLAY assets (fx/post/set/subject/crowd/floor) so an accent can be
+// judged over real content instead of flat navy — the #1 reason accents "look
+// blank" in a browser. Cycle with 'b'. The last two entries are the gate-accurate
+// flat beds. The bed runs in an isolated '__bed' slot so it never collides with a
+// genart's own 'bg' state.
+var BED_MODES = ['world.cloud_sea', 'genart.plasma_warp', 'genart.godrays', 'navy', 'grey'];
 var AUDIO_MODES = ['off','fake','live'];
 
 // -------------------------------------------- engine-mirroring global state
@@ -156,6 +163,7 @@ var app = {
   variantIndex: 0,
   currentSeed: 0,
   audioMode: 'fake',
+  bed: 0,                        // index into BED_MODES (bed behind overlay assets)
   widgets: {},
   lastErr: { msg: '', count: 0, shownAt: 0 },
   wheelAt: 0,
@@ -728,6 +736,7 @@ window.addEventListener('keydown', function (e) {
     case 'r': reroll(); break;
     case '0': resetParams(); break;
     case 'a': cycleAudio(); break;
+    case 'b': cycleBed(); break;
     case '[': setCps(-0.05); break;
     case ']': setCps(0.05); break;
     case 'h': togglePanel(); break;
@@ -806,13 +815,36 @@ function drawPalette(a) {
   pop();
 }
 
+// Render the bed behind an overlay asset. Scene modes run a full-screen genart in
+// an isolated '__bed' slot; the last two modes are the gate-accurate flat beds.
+function drawBed() {
+  var mode = BED_MODES[app.bed] || 'navy';
+  if (mode === 'navy') { background(240, 30, 12); return; }
+  if (mode === 'grey') { background(210, 6, 46); return; }
+  var bed = app.byId[mode];
+  if (!bed || typeof bed.code !== 'string') { background(240, 30, 12); return; }
+  if (!bed._bedFn) {
+    try { bed._bedFn = new Function(bed.code.replace(/__SLOT__/g, '__bed')); }
+    catch (e) { bed._bedFn = null; background(240, 30, 12); return; }
+  }
+  background(0);
+  push();
+  try { bed._bedFn(); } catch (e) { background(240, 30, 12); }
+  pop();
+}
+
+function cycleBed() {
+  app.bed = (app.bed + 1) % BED_MODES.length;
+  renderPanelStatic();
+}
+
 function draw() {
   updateClock();
   updateAudio();
   var a = app.current;
   if (!a) { background(0, 0, 5); drawWaiting(); return; }
   if (a.kind === 'palette') { drawPalette(a); return; }
-  if (!NO_BED[a.kind]) background(240, 30, 12);   // validator's bed behind non-fullscreen assets
+  if (!NO_BED[a.kind]) drawBed();                 // scene / navy / grey behind overlay assets
   if (a.compileError || !a.fn) return;
   push();
   try { a.fn(); } catch (err) { recordError(err); }

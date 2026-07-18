@@ -1,0 +1,167 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.side_scan_sonar",
+  "kind": "genart",
+  "name": "Side-Scan Sonar",
+  "desc": "A towed side-scan sonar record unrolling forever: two acoustic swaths either side of the black water-column gap, sand-ripple fields shading bright on the slopes that face the fish, and boulders and wrecks throwing long black acoustic shadows away from nadir while range scales and fix marks scroll down the paper.",
+  "tags": [
+    "sonar",
+    "side-scan",
+    "sidescan",
+    "swath",
+    "acoustic",
+    "echo",
+    "ping",
+    "nadir",
+    "water-column",
+    "seabed",
+    "seafloor",
+    "bathymetry",
+    "survey",
+    "hydrographic",
+    "towfish",
+    "shadow",
+    "acoustic-shadow",
+    "wreck",
+    "shipwreck",
+    "boulder",
+    "pipeline",
+    "sand-ripples",
+    "sediment",
+    "speckle",
+    "waterfall",
+    "scrolling",
+    "record",
+    "chart",
+    "marine",
+    "ocean",
+    "deep-sea",
+    "underwater",
+    "salvage",
+    "archaeology",
+    "instrument",
+    "signal",
+    "data",
+    "telemetry",
+    "copper",
+    "sepia",
+    "ironbow",
+    "thermal",
+    "grayscale",
+    "clinical",
+    "austere",
+    "eerie",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "receiver gain / record contrast"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many boulders and wrecks litter the bottom"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.25,
+      "max": 2.6,
+      "doc": "feature size on the seabed (zoom)"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "tow speed \u2014 how fast the record scrolls"
+    },
+    "nadir": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "width of the water-column gap down the middle"
+    },
+    "grain": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Rayleigh speckle \u2014 the characteristic sonar grain"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "record hue (rotates the colour map; 28 = copper anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "swath pan across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "record pan along the frame"
+    },
+    "style": {
+      "default": "copper",
+      "options": [
+        "copper",
+        "survey",
+        "ice",
+        "ironbow",
+        "plate"
+      ],
+      "doc": "aesthetic: classic copper paper record / grayscale hydrographic survey / cold blue-white / ironbow thermal / high-contrast printed duotone plate"
+    },
+    "act": {
+      "default": "survey",
+      "options": [
+        "survey",
+        "wreck_field",
+        "pipeline"
+      ],
+      "doc": "multi-minute programme: open bottom / a debris field of wrecks and boulders / a pipeline running along-track with free spans"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seabed, target and ripple seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "survey",
+    "wreck_field",
+    "pipeline"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:58+00:00",
+    "fps": 60.6,
+    "motion": 0.3008,
+    "lum": 0.453
+  },
+  "code": "const D = { energy: .6, density: .5, scale: 1, speed: 1, nadir: .5, grain: .55, hue: 28, x: .5, y: .5, style: 'copper', act: 'survey', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction h1(i) { return h2(i | 0, 0x5bd1); }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy); const a = h2(ix,iy), b = h2(ix+1,iy), c = h2(ix,iy+1), d = h2(ix+1,iy+1); return a + (b-a)*ux + (c-a)*uy + (a-b-c+d)*ux*uy; }\nfunction fbm(x, y, oc) { let s = 0, am = .5, f = 1, nm = 0; for (let i = 0; i < oc; i++) { s += am * vn(x*f, y*f); nm += am; f *= 2.03; am *= .5; } return s / nm; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), grain = clp(P.grain, 0, 1);\nconst W = width, H = height;\nconst BW = 256, BH = 200, rowB = BW * 4;\n\n// ---- act dramaturgy ----\nlet objRate = .55 + dens * 1.5, pipe = 0, rippleAmt = 1;\nif (P.act === 'wreck_field') { objRate = 1.6 + dens * 3.2; }\nelse if (P.act === 'pipeline') { pipe = 1; objRate = .3 + dens * .8; rippleAmt = 1.5; }\n\n// ---- colour LUT (256 entries, rgb 0..255), cached on style+hue+seed ----\nconst lkey = P.style + '|' + Math.round(P.hue) + '|' + (P.seed | 0);\nif (!S.lut || S.lkey !== lkey) {\n  const MAPS = {\n    copper:  [[.05,.03,.02],[.24,.11,.05],[.55,.28,.10],[.85,.57,.26],[.99,.90,.72]],\n    survey:  [[.04,.04,.05],[.24,.24,.25],[.50,.50,.50],[.76,.76,.75],[.99,.99,.98]],\n    ice:     [[.02,.04,.09],[.06,.17,.33],[.16,.42,.62],[.50,.74,.88],[.93,.98,1.0]],\n    ironbow: [[.02,.01,.09],[.30,.05,.42],[.74,.20,.30],[.98,.60,.07],[1.0,.97,.72]],\n    plate:   [[.09,.08,.07],[.20,.18,.16],[.42,.39,.35],[.72,.68,.61],[.94,.91,.85]]\n  };\n  const st = MAPS[P.style] || MAPS.copper;\n  const rot = (md(P.hue - 28, 360)) * Math.PI / 180, cr = Math.cos(rot), sr = Math.sin(rot);\n  const m = [ .213+cr*.787-sr*.213, .715-cr*.715-sr*.715, .072-cr*.072+sr*.928,\n              .213-cr*.213+sr*.143, .715+cr*.285+sr*.140, .072-cr*.072-sr*.283,\n              .213-cr*.213-sr*.787, .715-cr*.715+sr*.715, .072+cr*.928+sr*.072 ];\n  const lut = new Uint8ClampedArray(256 * 3);\n  for (let i = 0; i < 256; i++) {\n    const f = i / 255 * 4, k = clp(Math.floor(f), 0, 3), fr2 = f - k;\n    let r = st[k][0] + (st[k+1][0] - st[k][0]) * fr2;\n    let g = st[k][1] + (st[k+1][1] - st[k][1]) * fr2;\n    let b = st[k][2] + (st[k+1][2] - st[k][2]) * fr2;\n    if (rot !== 0) { const nr = r*m[0]+g*m[1]+b*m[2], ng = r*m[3]+g*m[4]+b*m[5], nb = r*m[6]+g*m[7]+b*m[8]; r = nr; g = ng; b = nb; }\n    lut[i*3] = clp(r, 0, 1) * 255; lut[i*3+1] = clp(g, 0, 1) * 255; lut[i*3+2] = clp(b, 0, 1) * 255;\n  }\n  S.lut = lut; S.lkey = lkey;\n}\nconst lut = S.lut;\n\nif (!S.g || S.gk !== BW) { if (S.g && S.g.remove) S.g.remove(); S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.gk = BW; S.fill = true; S.ping = 0; }\nconst g = S.g;\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed; S.fill = true; }\n\n// ---- seabed height field + backscatter ----\nconst NG = 0.05 + clp(P.nadir, 0, 1) * 0.17;   // nadir (water-column) gap as a fraction of half-swath\nconst ALT = 0.16;                              // towfish altitude above the bottom (sets shadow length)\nconst sc = 1 / clp(P.scale, .25, 2.6);\nconst dy = 0.011;\n\n// objects live on an infinite procedural along-track stream: no bookkeeping, never converges\nfunction objH(ax, ay) {\n  let h = 0;\n  const spacing = 0.42 / Math.max(objRate, .05);\n  const i0 = Math.floor((ay - .55) / spacing), i1 = Math.floor((ay + .55) / spacing);\n  for (let i = i0; i <= i1; i++) {\n    const oy = i * spacing + (h1(i * 3 + 1) - .5) * spacing * .8;\n    const ox = (h1(i * 3 + 2) - .5) * 1.75;\n    const kind = h1(i * 3 + 3);\n    const rad = (.02 + h1(i * 3 + 4) * .075) * (kind > .82 ? 2.4 : 1);\n    const hh = (.02 + h1(i * 3 + 5) * .085) * (kind > .82 ? 1.7 : 1);\n    const dx = ax - ox, dv = ay - oy;\n    const d = Math.sqrt(dx * dx + dv * dv);\n    if (d < rad) {\n      if (kind > .82) {            // wreck: an angular hull with a spine\n        const t = clp(1 - d / rad, 0, 1);\n        h += hh * (t * t) * (1 + .5 * Math.sin(dv / rad * 7 + ox * 3)) * (Math.abs(dx) < rad * .45 ? 1.35 : .7);\n      } else if (kind > .3) {      // boulder\n        h += hh * Math.sqrt(clp(1 - (d / rad) * (d / rad), 0, 1));\n      } else {                     // soft mound / sand wave crest\n        const t = clp(1 - d / rad, 0, 1); h += hh * .45 * t * t * (3 - 2 * t);\n      }\n    }\n  }\n  if (pipe) {                       // a pipeline running along-track with free spans\n    const px = .55 + .10 * Math.sin(ay * .35);\n    const dxp = Math.abs(ax - px);\n    if (dxp < .022) { const span = .5 + .5 * Math.sin(ay * 1.7); h += .05 * span * Math.sqrt(clp(1 - (dxp / .022) ** 2, 0, 1)); }\n  }\n  return h;\n}\nfunction bedH(ax, ay) {\n  let h = 0.055 * (fbm(ax * 1.4 * sc + 11.3, ay * 1.4 * sc - 4.1, 3) - .5);          // sediment relief\n  const rm = clp((fbm(ax * .8 * sc - 21.7, ay * .8 * sc + 9.4, 2) - .42) * 4.5, 0, 1); // ripple-field mask\n  if (rm > 0.01) {                                                                     // sand ripples\n    const ang = 1.05 + 1.5 * fbm(ax * .35 + 3.1, ay * .35 - 7.7, 2);\n    const kx = Math.cos(ang), ky = Math.sin(ang);\n    const wl = 26 * sc;\n    h += rm * rippleAmt * .0125 * Math.sin((ax * kx + ay * ky) * wl);\n  }\n  return h + objH(ax, ay);\n}\n\n// ---- emit new pings (rows) ----\nlet want = Math.floor(K.t * (7.5 + clp(P.speed, 0, 3) * 5.5));\nif (S.ping == null || want < S.ping) S.ping = want;      // tolerate t0 reset\nlet nRow = clp(want - S.ping, 0, 6);\nif (S.fill) { nRow = BH; S.ping = want; }\n\nif (nRow > 0) {\n  g.loadPixels();\n  const px = g.pixels;\n  if (!S.fill) { px.copyWithin(nRow * rowB, 0, (BH - nRow) * rowB); }\n  const half = BW / 2;\n  const rowVals = new Float32Array(BW);\n  for (let n = 0; n < nRow; n++) {\n    const pingIdx = S.fill ? (want - (BH - 1 - n)) : (S.ping + (nRow - n));\n    const ay = pingIdx * dy;\n    // ---- one across-track ping: horizon march outward from nadir on each side ----\n    for (let side = -1; side <= 1; side += 2) {\n      let minTheta = 1e9, prevH = 0, prevR = NG;\n      for (let s = 0; s < half; s++) {\n        const r = NG + (1 - NG) * (s / (half - 1));\n        const i = side < 0 ? Math.floor(half - 1 - s) : Math.floor(half + s);\n        if (i < 0 || i >= BW) continue;\n        if (s === 0 || r < NG + 1e-6) { rowVals[i] = -1; }\n        const ax = side * r * 1.75;\n        const hh = bedH(ax, ay);\n        const theta = (ALT - hh) / Math.max(r, 1e-3);\n        let v;\n        if (theta >= minTheta - 1e-6) { v = 0.06 + 0.05 * h2(i * 7, pingIdx); }   // acoustic shadow\n        else {\n          minTheta = theta;\n          const slope = (hh - prevH) / Math.max(r - prevR, 1e-4);                 // facing the fish = bright\n          const graz = clp(1.15 - r * .55, .25, 1);\n          let bs = 0.30 + 0.62 * clp(0.5 + slope * 2.6, 0, 1) * graz;\n          bs *= (0.72 + 0.55 * fbm(ax * 6 * sc + 31, ay * 6 * sc + 17, 2));       // sediment hardness patches\n          bs *= (1 - grain * 0.5) + grain * 1.0 * h2(i * 13 + 5, pingIdx * 3);    // Rayleigh speckle\n          bs *= 0.55 + 0.9 * clp(r / 0.55, 0, 1);                                 // TVG\n          v = bs;\n        }\n        prevH = hh; prevR = r;\n        rowVals[i] = v;\n      }\n    }\n    // water column: the nadir gap + the surface-return multipath line\n    for (let i = 0; i < BW; i++) {\n      const r = Math.abs(i - half + .5) / half;\n      if (r < NG) {\n        let v = 0.03 + 0.045 * h2(i * 3 + 1, pingIdx * 7);\n        const sr = Math.abs(r - NG * 0.62);\n        if (sr < 0.012) v += 0.5 * (1 - sr / 0.012);\n        rowVals[i] = v;\n      }\n    }\n    const rb = n * rowB;\n    const gainv = 0.55 + en * 1.25;\n    for (let i = 0; i < BW; i++) {\n      let v = rowVals[i] * gainv;\n      if (P.style === 'plate') v = clp((v - .42) * 2.6 + .42, 0, 1);\n      const ci = clp(Math.round(clp(v, 0, 1) * 255), 0, 255) * 3;\n      const o = rb + i * 4;\n      px[o] = lut[ci]; px[o+1] = lut[ci+1]; px[o+2] = lut[ci+2]; px[o+3] = 255;\n    }\n  }\n  g.updatePixels();\n  S.ping = want; S.fill = false;\n}\n\n// =================== composite ===================\nconst u = Math.min(W, H);\nnoStroke();\npush();\ntranslate((P.x - .5) * W * .35, (P.y - .5) * H * .35);\nimage(g, -W * .01, -H * .01, W * 1.02, H * 1.02);\npop();\n\nconst ink = P.style === 'plate' || P.style === 'survey' ? [30, 12, 12] : [40, 20, 96];\nconst IH = md(ink[0] + (P.hue - 28), 360);\ntextFont('Courier New');\ntextSize(clp(u * .0105, 6, 20));\n\n// nadir centreline + across-track range scale\nconst cxs = W * .5 + (P.x - .5) * W * .35;\nstroke(IH, 10, ink[2], 28); strokeWeight(1);\nline(cxs, 0, cxs, H);\nfor (let k = 1; k <= 4; k++) {\n  for (let sgn = -1; sgn <= 1; sgn += 2) {\n    const xx = cxs + sgn * (NG + (1 - NG) * k / 4) * W * .51;\n    stroke(IH, 10, ink[2], 22); line(xx, 0, xx, H);\n    noStroke(); fill(IH, 12, ink[2], 62);\n    textAlign(CENTER, TOP); text((k * 25) + 'm', xx, u * .012);\n  }\n}\n// fix marks: a tick + timestamp every 50 pings, scrolling with the record\nconst rowPx = H / BH;\nfor (let k = 0; k < 6; k++) {\n  const fixPing = Math.floor(S.ping / 50) * 50 - k * 50;\n  const yy = (S.ping - fixPing) * rowPx * 1.02;\n  if (yy < 0 || yy > H) continue;\n  stroke(IH, 12, ink[2], 50); strokeWeight(1); line(0, yy, u * .022, yy); line(W - u * .022, yy, W, yy);\n  noStroke(); fill(IH, 12, ink[2], 58); textAlign(LEFT, CENTER);\n  const sec = fixPing * 0.4;\n  text('F' + String(Math.abs(fixPing / 50) % 1000).padStart(3, '0') + '  ' + String(Math.floor(md(sec / 60, 60))).padStart(2, '0') + ':' + String(Math.floor(md(sec, 60))).padStart(2, '0'), u * .028, yy);\n}\n// header readouts \u2014 the instrument's voice\nnoStroke(); fill(IH, 12, ink[2], 86); textAlign(LEFT, TOP);\ntext('SIDE SCAN  \u00b7  100 kHz  \u00b7  RANGE 100 m', u * .028, H - u * .048);\nfill(IH, 12, ink[2], 66);\ntext('ALT ' + (ALT * 100).toFixed(1) + ' m   SOG ' + (2.4 + .6 * Math.sin(K.t * .11)).toFixed(1) + ' kn   HDG ' + String(Math.round(md(47 + 9 * Math.sin(K.t * .043), 360))).padStart(3, '0'), u * .028, H - u * .030);\ntextAlign(RIGHT, TOP);\nfill(IH, 12, ink[2], 76);\ntext('PING ' + String(S.ping % 100000).padStart(5, '0'), W - u * .028, H - u * .048);\nfill(IH, 12, ink[2], 56);\ntext(P.act.toUpperCase().replace('_', ' '), W - u * .028, H - u * .030);\n\n// paper/record vignette (broad, soft \u2014 no flicker)\nblendMode(MULTIPLY);\nnoFill(); stroke(0, 0, 40, 34); strokeWeight(u * .10);\nrect(-u * .05, -u * .05, W + u * .1, H + u * .1);\nblendMode(BLEND);\nif (P.alpha < 100) { noStroke(); fill(0, 0, 6, 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.glory",
+  "kind": "fx",
+  "name": "Glory",
+  "desc": "The half of the sky nobody looks at \u2014 everything here is built around the antisolar point, where your own shadow falls: a tight nest of glory rings backscattered out of the fog, a broad ghostly fogbow with supernumerary arcs ringing inside its edge, a reversed secondary with Alexander's dark band held between them, and a retroreflected heiligenschein burning at the centre. One knob does it all: shrink the droplets and the colours smear into a white fogbow with a wide glory, grow them and it sharpens into a true rainbow. Purely additive, so it lies over a scene as light.",
+  "tags": [
+    "glory",
+    "fogbow",
+    "rainbow",
+    "moonbow",
+    "supernumerary",
+    "brocken",
+    "brocken-spectre",
+    "heiligenschein",
+    "antisolar",
+    "backscatter",
+    "mie",
+    "droplet",
+    "fog",
+    "mist",
+    "cloud",
+    "atmospheric-optics",
+    "diffraction",
+    "interference",
+    "airy",
+    "dispersion",
+    "spectral",
+    "bow",
+    "arc",
+    "rings",
+    "concentric",
+    "alexanders-band",
+    "sky",
+    "aviation",
+    "mountain",
+    "eerie",
+    "ghostly",
+    "sublime",
+    "melancholy",
+    "spectral-figure",
+    "silver",
+    "moon",
+    "night",
+    "physics",
+    "scientific",
+    "fx",
+    "effect",
+    "overlay",
+    "atmosphere",
+    "light",
+    "additive"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness of the whole display (master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "angular scale of the sky \u2014 sets how big the 41-degree bow is on the frame"
+    },
+    "drop": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "droplet radius, the one physical knob: small drops smear the bow into a white fogbow and blow the glory rings wide (~9 deg), large drops sharpen it into a true rainbow with tight supernumeraries and pull the glory in (~3 deg)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fog thickness \u2014 the luminous mist, the heiligenschein and the strength of the secondary bow"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "fog drift and antisolar-point wander rate"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "colour cast over the true dispersion (205 = neutral; the spectral order red-outside on the primary is preserved)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "antisolar point x \u2014 where the observer's shadow falls"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "antisolar point y (opposite the sun, so low sun = high antisolar point)"
+    },
+    "bows": {
+      "default": "full",
+      "options": [
+        "full",
+        "glory",
+        "bow",
+        "double"
+      ],
+      "doc": "which of the display is showing: everything, the glory rings alone, the primary bow alone, or primary plus secondary with Alexander's dark band between"
+    },
+    "style": {
+      "default": "fog",
+      "options": [
+        "fog",
+        "vivid",
+        "spectre",
+        "silver",
+        "moon"
+      ],
+      "doc": "aesthetic: cool mist, saturated colour, a desaturated Brocken haunting, a dispersion-free silver display, or a dim blue moonbow"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seed \u2014 fog patch layout, drift phases"
+    },
+    "alpha": {
+      "default": 76,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 defaults below full so it sits politely over a live scene"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:06+00:00",
+    "fps": 59.9,
+    "motion": 0.0224,
+    "lum": 0.157
+  },
+  "code": "const D = { energy: .6, scale: 1, drop: .35, density: .5, speed: 1, hue: 205, x: .5, y: .62, bows: 'full', style: 'fog', seed: 0, alpha: 76 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(60, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.p1 = fr(1) * 6.283; S.p2 = fr(2) * 6.283; S.p3 = fr(3) * 6.283; S.p4 = fr(4) * 6.283;\n}\nconst sd = P.seed | 0;\nconst hsh = (ix, iy) => { let h = (ix * 374761393 + iy * 668265263 + sd * 2147483647) | 0; h = (h ^ (h >> 13)) * 1274126177 | 0; return ((h ^ (h >> 16)) >>> 0) / 4294967295; };\nconst vn = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const uu = fx * fx * (3 - 2 * fx), vv = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d = hsh(ix + 1, iy + 1);\n  return a + (b - a) * uu + (c - a) * vv + (a - b - c + d) * uu * vv; };\n\n// ---- J1 (glory rings) and Ai (rainbow supernumeraries), both built once\nif (!S.j1) {\n  const J1 = x => { const ax = Math.abs(x);\n    if (ax < 3) { const t = x / 3, t2 = t * t; return x * (0.5 + t2 * (-0.56249985 + t2 * (0.21093573 + t2 * (-0.03954289 + t2 * (0.00443319 + t2 * (-0.00031761 + t2 * 0.00001109)))))); }\n    const t = 3 / ax;\n    const f = 0.79788456 + t * (0.00000156 + t * (0.01659667 + t * (0.00017105 + t * (-0.00249511 + t * (0.00113653 - t * 0.00020033)))));\n    const th = ax - 2.35619449 + t * (0.12499612 + t * (0.00005650 + t * (-0.00637879 + t * (0.00074348 + t * (0.00079824 - t * 0.00029166)))));\n    const v = f * Math.cos(th) / Math.sqrt(ax); return x < 0 ? -v : v; };\n  const Ai = x => {\n    if (x > 4) { const z = (2 / 3) * Math.pow(x, 1.5); return Math.exp(-z) / (2 * Math.sqrt(Math.PI) * Math.pow(x, 0.25)); }\n    if (x < -4) { const y = -x, z = (2 / 3) * Math.pow(y, 1.5); return Math.sin(z + Math.PI / 4) / (Math.sqrt(Math.PI) * Math.pow(y, 0.25)); }\n    const x3 = x * x * x; let p0 = 0.355028053887817, p1 = -0.258819403792807 * x, s = p0 + p1;\n    for (let n = 0; n < 26; n++) { const q0 = p0 * x3 / ((3 * n + 3) * (3 * n + 2)), q1 = p1 * x3 / ((3 * n + 4) * (3 * n + 3));\n      s += q0 + q1; p0 = q0; p1 = q1; if (Math.abs(q0) + Math.abs(q1) < 1e-14) break; }\n    return s; };\n  S.j1 = new Float32Array(1024); S.jq = 40;\n  for (let i = 0; i < 1024; i++) { const q = i / 1023 * S.jq; const b = q < 1e-4 ? 1 : 2 * J1(q) / q; S.j1[i] = b * b; }\n  S.ai = new Float32Array(1024); S.ax0 = -16; S.ax1 = 4;\n  for (let i = 0; i < 1024; i++) S.ai[i] = Ai(S.ax0 + i / 1023 * (S.ax1 - S.ax0));\n}\nconst j1L = q => { let ix = q / S.jq * 1023; if (ix < 0) ix = 0; if (ix > 1022.001) return 0; const i0 = ix | 0, f = ix - i0; return S.j1[i0] + (S.j1[i0 + 1] - S.j1[i0]) * f; };\nconst aiL = x => { let ix = (x - S.ax0) / (S.ax1 - S.ax0) * 1023; if (ix < 0) ix = 0; if (ix > 1022.001) ix = 1022.001; const i0 = ix | 0, f = ix - i0; return S.ai[i0] + (S.ai[i0 + 1] - S.ai[i0]) * f; };\n\nconst sp = P.speed, style = P.style, bows = P.bows;\nconst u = Math.min(BW, BH);\n// the antisolar point \u2014 the observer's own shadow \u2014 drifts as the fog rolls\nconst ax = (P.x + 0.040 * Math.sin(K.t * 0.047 * sp + S.p1) + 0.020 * Math.sin(K.t * 0.113 * sp)) * BW;\nconst ay = (P.y + 0.032 * Math.sin(K.t * 0.071 * sp + S.p2) + 0.018 * Math.sin(K.t * 0.167 * sp + 1.2)) * BH;\nconst Rbow = u * 0.52 * (0.45 + P.scale * 0.62);\nconst ppd = Rbow / 41.0;                                  // buffer px per degree from the antisolar point\n\n// ---- droplet radius is the ONE physical knob: small drops smear the bow white\n// (a fogbow) and blow the glory rings wide; large drops sharpen it into a true\n// rainbow with tight supernumeraries and pull the glory in.\nconst dsz = (0.12 + P.drop * 1.05) * (1 + 0.14 * Math.sin(K.t * 0.037 * sp + S.p3));\nconst gk = 0.30 + dsz * 0.95;                             // glory ring scale\nconst sAi = 0.55 + Math.pow(dsz, 0.667) * 5.4;            // Airy supernumerary scale\nconst LM = [430, 470, 510, 550, 590, 640];\nconst WC = [[0.29, 0.00, 1.00], [0.00, 0.35, 1.00], [0.00, 0.95, 0.45], [0.42, 1.00, 0.00], [1.00, 0.72, 0.00], [1.00, 0.10, 0.00]];\nconst TH1 = [40.3, 40.7, 41.0, 41.3, 41.6, 41.9];         // primary bow: red outside\nconst TH2 = [53.5, 52.8, 52.2, 51.6, 51.0, 50.4];         // secondary: colours reversed\nconst NL = 512, AMAX = 62, dA = AMAX / (NL - 1);\nif (!S.gr) { S.gr = new Float32Array(NL); S.gg = new Float32Array(NL); S.gb = new Float32Array(NL);\n  S.pre = new Float64Array(NL + 1); S.tmp = new Float32Array(NL); }\nconst mono = style === 'silver';\nconst fG = (bows === 'bow' || bows === 'double') ? 0 : 1;\nconst fB = bows === 'glory' ? 0 : 1;\nconst fS = (bows === 'double' || bows === 'full') ? (0.16 + P.density * 0.24) : 0;\nS.gr.fill(0); S.gg.fill(0); S.gb.fill(0);\nfor (let k = 0; k < 6; k++) {\n  const c = mono ? [0.88, 0.90, 0.96] : WC[k], lr = 550 / LM[k];\n  for (let i = 0; i < NL; i++) {\n    const a = i * dA;\n    let v = 0;\n    if (fG) v += j1L(a * gk * lr) * 1.45 * fG;             // glory: backscatter rings, red outermost\n    if (fB) { const z = (a - TH1[k]) * sAi; const av = aiL(z); v += av * av * 2.9 * fB; }\n    if (fS) { const z2 = (TH2[k] - a) * sAi * 0.8; const av2 = aiL(z2); v += av2 * av2 * 2.6 * fS; }\n    S.gr[i] += v * c[0]; S.gg[i] += v * c[1]; S.gb[i] += v * c[2];\n  }\n}\nconst rad = Math.round(1 / ppd / dA * 0.5);\nconst boxF = (arr) => { if (rad < 1) return; const pre = S.pre, out = S.tmp; pre[0] = 0;\n  for (let i = 0; i < NL; i++) pre[i + 1] = pre[i] + arr[i];\n  for (let i = 0; i < NL; i++) { const a2 = i - rad < 0 ? 0 : i - rad, b = i + rad > NL - 1 ? NL - 1 : i + rad;\n    out[i] = (pre[b + 1] - pre[a2]) / (b - a2 + 1); } arr.set(out); };\nboxF(S.gr); boxF(S.gg); boxF(S.gb);\n\nconst q = (ph, base) => base * (0.6 + 0.4 * Math.sin(K.t * 0.053 * sp + ph)) * (0.7 + K.intensity * 0.4 + A.rms * 0.35);\nconst fAll = q(S.p1, 1);\nconst fHeil = q(S.p4, 0.34 + P.density * 0.3);            // heiligenschein: retroreflected glow at the antisolar point\nconst ex = (0.30 + P.energy * 0.62);\nconst TN = style === 'moon' ? [0.55, 0.72, 1.2] : style === 'spectre' ? [0.78, 0.82, 0.9]\n  : style === 'vivid' ? [1.2, 1.12, 1.2] : style === 'silver' ? [0.95, 0.98, 1.04] : [1.0, 1.02, 1.06];\nconst hshift = (P.hue - 205) / 360;\nconst fogA = (0.16 + P.density * 0.30);                   // the mist the whole thing lives in\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const dx = i + 0.5 - ax, dy = j + 0.5 - ay;\n    const r = Math.sqrt(dx * dx + dy * dy), a = r / ppd;\n    let R = 0, G = 0, B = 0;\n    if (a < AMAX) {\n      let ix = a / dA; if (ix > NL - 1.001) ix = NL - 1.001;\n      const i0 = ix | 0, f = ix - i0;\n      // the bow only exists where there is fog to make it \u2014 patchy, and drifting\n      const pat = 0.55 + 0.45 * vn(i * 0.035 + K.t * 0.09 * sp, j * 0.035 - K.t * 0.05 * sp);\n      const w = fAll * pat;\n      R += (S.gr[i0] + (S.gr[i0 + 1] - S.gr[i0]) * f) * w;\n      G += (S.gg[i0] + (S.gg[i0 + 1] - S.gg[i0]) * f) * w;\n      B += (S.gb[i0] + (S.gb[i0 + 1] - S.gb[i0]) * f) * w;\n    }\n    const hl = Math.exp(-Math.pow(a / 2.6, 2)) * fHeil;\n    R += hl; G += hl * 0.99; B += hl * 0.96;\n    // drifting luminous mist: the medium itself, and it keeps the frame breathing\n    const fg = (vn(i * 0.022 + K.t * 0.055 * sp, j * 0.022 + K.t * 0.031 * sp) * 0.7\n      + vn(i * 0.06 - K.t * 0.10 * sp, j * 0.06 + K.t * 0.07 * sp) * 0.3) * fogA;\n    R += fg * 0.82; G += fg * 0.88; B += fg * 1.0;\n    let rr = R * TN[0] * ex, gg2 = G * TN[1] * ex, bb = B * TN[2] * ex;\n    if (hshift !== 0) { const m = (rr + gg2 + bb) / 3; rr += (m - rr) * hshift * 0.9; bb += (m - bb) * -hshift * 0.9; }\n    const o = 4 * (j * BW + i);\n    px[o] = Math.min(255, Math.max(0, rr * 255)); px[o + 1] = Math.min(255, Math.max(0, gg2 * 255)); px[o + 2] = Math.min(255, Math.max(0, bb * 255)); px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n// additive only \u2014 an overlay is light added to a scene, never paint over it\npush();\nblendMode(ADD);\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

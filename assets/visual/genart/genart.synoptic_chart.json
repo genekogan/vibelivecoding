@@ -1,0 +1,169 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.synoptic_chart",
+  "kind": "genart",
+  "name": "Synoptic Chart",
+  "desc": "A surface weather analysis redrawing itself forever: depressions are born in the west, deepen, throw cold and warm fronts that occlude as they age, and fill as they run off the east margin, while the isobars knot around them, rain shading sweeps the warm sector and every station plots its own wind barb across the pressure gradient.",
+  "tags": [
+    "weather",
+    "weather-map",
+    "synoptic",
+    "synoptic-chart",
+    "surface-analysis",
+    "meteorology",
+    "meteorological",
+    "forecast",
+    "met-office",
+    "isobar",
+    "isobars",
+    "isopleth",
+    "contour",
+    "pressure",
+    "mslp",
+    "millibar",
+    "hpa",
+    "depression",
+    "cyclone",
+    "anticyclone",
+    "low",
+    "high",
+    "front",
+    "cold-front",
+    "warm-front",
+    "occluded-front",
+    "occlusion",
+    "cyclogenesis",
+    "wind-barb",
+    "station-model",
+    "station-plot",
+    "precipitation",
+    "rain",
+    "coastline",
+    "cartography",
+    "chart",
+    "map",
+    "atlas",
+    "shipping-forecast",
+    "atlantic",
+    "instrument",
+    "data",
+    "measurement",
+    "scientific",
+    "clinical",
+    "austere",
+    "analog",
+    "paper",
+    "buff",
+    "blueprint",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "heavy",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "rain-shading weight and system contrast"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many pressure systems share the chart at once"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.35,
+      "max": 2.0,
+      "doc": "reserved chart zoom"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "rate multiplier for advection and the analysis clock"
+    },
+    "fronts": {
+      "default": 0.7,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "frontal linework and pip weight (0 = isobars only)"
+    },
+    "stations": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how many station models are plotted"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "paper + map hue (offset from the style anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "chart pan x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "chart pan y"
+    },
+    "style": {
+      "default": "analysis",
+      "options": [
+        "analysis",
+        "ops",
+        "blueprint",
+        "isotherm"
+      ],
+      "doc": "aesthetic: hand-inked buff analysis chart / dark backlit plotting-table glass with luminous isobars / white-on-cyanotype drafting print / false-colour isotherm plate"
+    },
+    "act": {
+      "default": "westerlies",
+      "options": [
+        "westerlies",
+        "blocking",
+        "cyclogenesis"
+      ],
+      "doc": "multi-minute programme: a steady procession of Atlantic lows / a stalled blocking high with everything crawling / explosive cyclogenesis, deep systems racing through"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "coastline, system and station seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "westerlies",
+    "blocking",
+    "cyclogenesis"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:46:55+00:00",
+    "fps": 62.5,
+    "motion": 0.0152,
+    "lum": 0.395
+  },
+  "code": "const D = { energy: .6, density: .55, scale: 1, speed: 1, fronts: .7, stations: .55, hue: 40, x: .5, y: .5, style: 'analysis', act: 'westerlies', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction h1(i) { return h2(i | 0, 0x77a3); }\nfunction vn(x, y) { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy; const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy); const a = h2(ix,iy), b = h2(ix+1,iy), c = h2(ix,iy+1), d = h2(ix+1,iy+1); return a + (b-a)*ux + (c-a)*uy + (a-b-c+d)*ux*uy; }\nfunction fbm(x, y, oc) { let s = 0, am = .5, f = 1, nm = 0; for (let i = 0; i < oc; i++) { s += am * vn(x*f, y*f); nm += am; f *= 2.03; am *= .5; } return s / nm; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 40;\n\nconst ST = {\n  // paper is TONED buff, not white \u2014 a near-white chart lands the frame ~0.6 and reads blank\n  analysis: { pap:[41,26,52], sea:[204,20,42], land:[68,22,46], iso:[35,32,14], lbl:[32,34,12], cold:[214,74,52], warm:[6,74,54], occ:[288,58,50], pcp:[150,44,44], glow:0 },\n  ops:      { pap:[220,52,10], sea:[214,58,13], land:[190,36,19], iso:[186,58,86], lbl:[186,26,80], cold:[210,72,88], warm:[8,78,88], occ:[292,62,86], pcp:[150,64,60], glow:1 },\n  blueprint:{ pap:[213,62,26], sea:[213,62,22], land:[208,44,33], iso:[200,6,96], lbl:[200,14,86], cold:[200,10,92], warm:[200,10,92], occ:[200,10,92], pcp:[200,26,62], glow:0 },\n  isotherm: { pap:[250,40,10], sea:[250,40,12], land:[250,30,17], iso:[40,10,92], lbl:[40,12,84], cold:[210,80,92], warm:[14,86,92], occ:[300,60,88], pcp:[170,50,58], glow:1 }\n};\nconst st = ST[P.style] || ST.analysis;\nconst PAH = md(st.pap[0] + hs, 360), SEH = md(st.sea[0] + hs, 360), LAH = md(st.land[0] + hs, 360), ISH = md(st.iso[0] + hs, 360), LBH = md(st.lbl[0] + hs, 360);\n\n// ---- act dramaturgy ----\nlet adv = 1, deep = 1, nSys = 4 + Math.round(dens * 5);\nif (P.act === 'blocking') { adv = .22; deep = .5; nSys = 3 + Math.round(dens * 3); }\nelse if (P.act === 'cyclogenesis') { adv = 1.4; deep = 2.1; nSys = 5 + Math.round(dens * 6); }\nnSys = clp(nSys, 2, 11);\n\n// ---- the pressure field: systems born in the west, advecting east, deepening then filling ----\n// Perpetual by construction \u2014 nothing ever converges, nothing ever re-phases.\nconst LIFE = 46, SPACING = LIFE / Math.max(nSys, 1);\nfunction sysAt(i) {\n  const born = i * SPACING;\n  const age = (K.t * adv - born) / LIFE;                 // 0..1 across its life\n  if (age < 0 || age > 1) return null;\n  const low = h1(i * 7 + 1) > 0.42;\n  const y0 = 0.18 + h1(i * 7 + 2) * 0.64 + 0.10 * Math.sin(K.t * 0.043 + i);\n  const x0 = -0.35 + age * 1.7 + 0.05 * Math.sin(K.t * 0.061 + i * 2.1);\n  const env = Math.sin(Math.PI * clp(age, 0, 1));        // deepen then fill\n  const amp = (low ? -1 : 0.72) * (7 + h1(i * 7 + 3) * 17) * env * deep;\n  const rad = (0.16 + h1(i * 7 + 4) * 0.22);\n  return { x: x0, y: y0, amp, rad, low, age, i, env };\n}\nconst sys = [];\n{\n  const i0 = Math.floor((K.t * adv - LIFE) / SPACING), i1 = Math.floor((K.t * adv) / SPACING) + 1;\n  for (let i = i0; i <= i1; i++) { const s0 = sysAt(i); if (s0) sys.push(s0); }\n}\nconst AR = W / H;\nfunction pres(x, y) {                                    // x,y in 0..1 chart space\n  let p = 1013 + 5 * (fbm(x * 1.7 + 9.1, y * 1.7 - 3.3, 2) - .5);\n  for (let k = 0; k < sys.length; k++) {\n    const s0 = sys[k], dx = (x - s0.x) * AR, dy = y - s0.y;\n    const d2 = (dx * dx + dy * dy) / (s0.rad * s0.rad);\n    p += s0.amp / (1 + d2 * 2.2);                        // cheap bell, no exp()\n  }\n  return p;\n}\n\n// ---- coastline: cached (it is the only genuinely static thing here) ----\nconst bkey = W + 'x' + H + '|' + P.style + '|' + Math.round(P.hue) + '|' + (P.seed | 0);\nif (!S.map || S.bkey !== bkey) {\n  if (S.map && S.map.remove) S.map.remove();\n  const MW = 200, MH = Math.max(40, Math.round(200 * H / W));\n  const g = createGraphics(MW, MH); g.pixelDensity(1); g.colorMode(g.HSB, 360, 100, 100, 100);\n  g.noStroke(); g.background(SEH, st.sea[1], st.sea[2]);\n  g.loadPixels();\n  const px = g.pixels;\n  for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) {\n    const x = i / MW, y = j / MH;\n    const n = fbm(x * 2.4 + 31.7, y * 2.4 * (MH / MW) * 2 - 12.3, 4);\n    const o = (j * MW + i) * 4;\n    const isLand = n > 0.515;\n    const shelf = clp((n - 0.44) * 9, 0, 1);\n    let hh, ss, bb;\n    if (isLand) { hh = LAH; ss = st.land[1] * (0.8 + 0.5 * (n - .515) * 6); bb = st.land[2] * (0.85 + 0.55 * clp((n - .515) * 5, 0, 1)); }\n    else { hh = SEH; ss = st.sea[1]; bb = st.sea[2] * (0.82 + 0.30 * shelf); }\n    // HSB -> RGB by hand (buffer pixels are raw RGBA)\n    const c = (bb / 100) * (ss / 100), hp = md(hh, 360) / 60, xx = c * (1 - Math.abs(hp % 2 - 1)), m = bb / 100 - c;\n    let r, gg, b;\n    if (hp < 1) { r = c; gg = xx; b = 0; } else if (hp < 2) { r = xx; gg = c; b = 0; }\n    else if (hp < 3) { r = 0; gg = c; b = xx; } else if (hp < 4) { r = 0; gg = xx; b = c; }\n    else if (hp < 5) { r = xx; gg = 0; b = c; } else { r = c; gg = 0; b = xx; }\n    px[o] = (r + m) * 255; px[o+1] = (gg + m) * 255; px[o+2] = (b + m) * 255; px[o+3] = 255;\n  }\n  g.updatePixels();\n  S.map = g; S.bkey = bkey;\n}\n\n// =================== chart ground ===================\nnoStroke();\nbackground(PAH, st.pap[1], st.pap[2]);\npush();\ntranslate((P.x - .5) * W * .2, (P.y - .5) * H * .2);\nimage(S.map, 0, 0, W, H);\npop();\n\nconst dc = drawingContext;\nconst SX = v => v * W + (P.x - .5) * W * .2, SY = v => v * H + (P.y - .5) * H * .2;\n\n// ---- precipitation shading: the broad, low-alpha area element that carries the motion floor ----\n// (a fronts-only chart is thin linework \u2014 W3_ADDENDUM #3 kills those)\nblendMode(BLEND);\nnoStroke();\nconst PCH = md(st.pcp[0] + hs, 360);\nfor (let k = 0; k < sys.length; k++) {\n  const s0 = sys[k];\n  if (!s0.low) continue;\n  const nb = 15;   // few + large: these are big alpha-blended shapes (budget is ~150 heavy)\n  for (let b = 0; b < nb; b++) {\n    const a0 = h1(s0.i * 31 + b) * TAU, rr = (0.25 + h1(s0.i * 31 + b + 7) * 0.85) * s0.rad;\n    const wob = 0.35 * Math.sin(K.t * 0.23 + b);\n    const bx = s0.x + Math.cos(a0 + K.t * 0.05) * rr / AR * 1.3, by = s0.y + Math.sin(a0 + K.t * 0.05) * rr * .8 + wob * .04;\n    const sz = (0.085 + h1(s0.i * 31 + b + 13) * 0.13) * s0.env;\n    fill(PCH, st.pcp[1], st.pcp[2], 13 * s0.env * (0.5 + en));\n    ellipse(SX(bx), SY(by), sz * W, sz * W * .8);\n  }\n}\n\n// ---- isobars: marching squares with edge interpolation over the live field ----\nconst GX = 76, GY = Math.max(24, Math.round(76 * H / W));\nif (!S.f || S.f.length !== (GX + 1) * (GY + 1)) S.f = new Float32Array((GX + 1) * (GY + 1));\nconst F = S.f;\nlet fmin = 1e9, fmax = -1e9;\nfor (let j = 0; j <= GY; j++) for (let i = 0; i <= GX; i++) {\n  const v = pres(i / GX, j / GY);\n  F[j * (GX + 1) + i] = v;\n  if (v < fmin) fmin = v; if (v > fmax) fmax = v;\n}\nconst STEP = 4;\nconst l0 = Math.ceil(fmin / STEP) * STEP, l1 = Math.floor(fmax / STEP) * STEP;\nconst cw = W / GX, chh = H / GY;\nconst ox = (P.x - .5) * W * .2, oy = (P.y - .5) * H * .2;\nconst ip = (a, b, lv) => (lv - a) / (b - a || 1e-6);\ndc.lineJoin = 'round';\nfor (let lv = l0; lv <= l1; lv += STEP) {\n  const bold = md(lv, 20) === 0;\n  dc.beginPath();\n  for (let j = 0; j < GY; j++) for (let i = 0; i < GX; i++) {\n    const a = F[j * (GX + 1) + i], b = F[j * (GX + 1) + i + 1], c = F[(j + 1) * (GX + 1) + i + 1], d = F[(j + 1) * (GX + 1) + i];\n    let idx = 0;\n    if (a > lv) idx |= 8; if (b > lv) idx |= 4; if (c > lv) idx |= 2; if (d > lv) idx |= 1;\n    if (idx === 0 || idx === 15) continue;\n    const x0 = i * cw + ox, y0 = j * chh + oy;\n    const T = [x0 + ip(a, b, lv) * cw, y0], R = [x0 + cw, y0 + ip(b, c, lv) * chh];\n    const B = [x0 + ip(d, c, lv) * cw, y0 + chh], L = [x0, y0 + ip(a, d, lv) * chh];\n    const seg = ([p, q]) => { dc.moveTo(p[0], p[1]); dc.lineTo(q[0], q[1]); };\n    switch (idx) {\n      case 1: case 14: seg([L, B]); break;\n      case 2: case 13: seg([B, R]); break;\n      case 3: case 12: seg([L, R]); break;\n      case 4: case 11: seg([T, R]); break;\n      case 6: case 9:  seg([T, B]); break;\n      case 7: case 8:  seg([L, T]); break;\n      case 5: seg([L, T]); seg([B, R]); break;\n      case 10: seg([T, R]); seg([L, B]); break;\n    }\n  }\n  dc.lineWidth = bold ? Math.max(1.7, u * .0022) : Math.max(0.9, u * .0012);\n  const ic = color(ISH, st.iso[1], st.iso[2], bold ? 92 : 62);\n  dc.strokeStyle = ic.toString();\n  dc.stroke();\n}\n\n// ---- fronts: trailing arms on every low, occluding as the system ages ----\nfunction pip(x, y, ang, kind, sz) {\n  push(); translate(x, y); rotate(ang);\n  noStroke();\n  if (kind === 0) { fill(md(st.cold[0] + hs, 360), st.cold[1], st.cold[2]); triangle(-sz * .5, 0, sz * .5, 0, 0, -sz * 1.15); }\n  else { fill(md(st.warm[0] + hs, 360), st.warm[1], st.warm[2]); arc(0, 0, sz * 1.25, sz * 1.9, Math.PI, TAU); }\n  pop();\n}\nconst fA = clp(P.fronts, 0, 1);\nif (fA > 0.02) for (let k = 0; k < sys.length; k++) {\n  const s0 = sys[k];\n  if (!s0.low) continue;\n  const occl = clp((s0.age - .35) / .5, 0, 1);           // the warm sector closes as it occludes\n  const arms = [\n    { kind: 0, a0: 2.55, len: 1.75, bend: 0.42 },        // cold front: long, sweeping back\n    { kind: 1, a0: 0.62 + occl * 1.5, len: 1.05 * (1 - occl * .55), bend: -0.30 }\n  ];\n  for (const arm of arms) {\n    const pts = [];\n    const N = 22;\n    for (let n = 0; n <= N; n++) {\n      const tt = n / N;\n      const ang = arm.a0 + arm.bend * tt + 0.16 * Math.sin(K.t * 0.11 + k);\n      const rr = tt * arm.len * s0.rad * 2.3;\n      pts.push([SX(s0.x + Math.cos(ang) * rr / AR), SY(s0.y + Math.sin(ang) * rr)]);\n    }\n    const isOcc = occl > .55 && arm.kind === 1;\n    const cc = isOcc ? st.occ : (arm.kind === 0 ? st.cold : st.warm);\n    noFill(); stroke(md(cc[0] + hs, 360), cc[1], cc[2], 88 * fA); strokeWeight(Math.max(2, u * .0032));\n    beginShape(); for (const p of pts) vertex(p[0], p[1]); endShape();\n    const sz = Math.max(4, u * .011);\n    for (let n = 2; n < N; n += 4) {\n      const p = pts[n], q = pts[n + 1] || pts[n];\n      const ang = Math.atan2(q[1] - p[1], q[0] - p[0]);\n      const side = (n % 8 === 2 || !isOcc) ? 1 : -1;\n      pip(p[0], p[1], ang + (side > 0 ? 0 : Math.PI), isOcc ? (n % 8 === 2 ? 0 : 1) : arm.kind, sz * fA);\n    }\n  }\n}\n\n// ---- H / L centres with pressure labels ----\ntextFont('Georgia');\nfor (let k = 0; k < sys.length; k++) {\n  const s0 = sys[k];\n  if (s0.env < 0.12) continue;\n  const x = SX(s0.x), y = SY(s0.y);\n  if (x < -u * .1 || x > W + u * .1) continue;\n  noStroke();\n  fill(s0.low ? md(st.cold[0] + hs, 360) : md(st.warm[0] + hs, 360), s0.low ? st.cold[1] : st.warm[1], s0.low ? st.cold[2] : st.warm[2], 94);\n  textAlign(CENTER, CENTER); textSize(clp(u * .052 * (0.6 + s0.env * .6), 12, 90));\n  text(s0.low ? 'L' : 'H', x, y);\n  textFont('Courier New'); textSize(clp(u * .0125, 6, 22));\n  fill(LBH, st.lbl[1], st.lbl[2], 84);\n  text(Math.round(pres(s0.x, s0.y)), x, y + u * .036 * (0.6 + s0.env * .6));\n  textFont('Georgia');\n}\n\n// ---- station models: circle + sky cover + wind barb from the geostrophic gradient ----\nconst nSt = Math.round(clp(P.stations, 0, 1) * 46);\ntextFont('Courier New'); textSize(clp(u * .0092, 5, 16));\nfor (let n = 0; n < nSt; n++) {\n  const sx = 0.05 + h1(n * 3 + 101) * 0.90, sy = 0.07 + h1(n * 3 + 102) * 0.86;\n  const x = SX(sx), y = SY(sy);\n  const e = 0.008;\n  const gxp = (pres(sx + e, sy) - pres(sx - e, sy)) / (2 * e), gyp = (pres(sx, sy + e) - pres(sx, sy - e)) / (2 * e);\n  const spd = clp(Math.hypot(gxp, gyp) * 0.30, 0, 60);\n  const dir = Math.atan2(-gxp, gyp);                     // geostrophic: along the isobars\n  const r = Math.max(2.2, u * .0068);\n  const cov = clp(h1(n * 3 + 103) * 0.4 + clp(spd / 34, 0, 1) * 0.75, 0, 1);\n  noStroke(); fill(LBH, st.lbl[1], st.lbl[2] * .35, 60); ellipse(x, y, r * 2);\n  fill(LBH, st.lbl[1], st.lbl[2], 92);\n  if (cov > .85) ellipse(x, y, r * 2);\n  else if (cov > .45) arc(x, y, r * 2, r * 2, -Math.PI / 2, Math.PI / 2);\n  noFill(); stroke(LBH, st.lbl[1], st.lbl[2], 88); strokeWeight(Math.max(1, u * .0011));\n  ellipse(x, y, r * 2);\n  const bl = r * 5.2;\n  const ex = x + Math.cos(dir) * bl, ey = y + Math.sin(dir) * bl;\n  line(x + Math.cos(dir) * r, y + Math.sin(dir) * r, ex, ey);\n  let rem = Math.round(spd / 5) * 5, bpos = 0;\n  while (rem >= 10 && bpos < 5) {                        // full barbs = 10 kt each\n    const px2 = ex - Math.cos(dir) * bpos * r * .85, py2 = ey - Math.sin(dir) * bpos * r * .85;\n    line(px2, py2, px2 + Math.cos(dir + 2.0) * r * 2.1, py2 + Math.sin(dir + 2.0) * r * 2.1);\n    rem -= 10; bpos++;\n  }\n  if (rem >= 5 && bpos < 5) {\n    const px2 = ex - Math.cos(dir) * bpos * r * .85, py2 = ey - Math.sin(dir) * bpos * r * .85;\n    line(px2, py2, px2 + Math.cos(dir + 2.0) * r * 1.05, py2 + Math.sin(dir + 2.0) * r * 1.05);\n  }\n  noStroke(); fill(md(st.warm[0] + hs, 360), st.warm[1] * .8, st.warm[2], 84);\n  textAlign(RIGHT, BOTTOM); text(Math.round(4 + 18 * vn(sx * 3 + K.t * .02, sy * 3)), x - r * 1.5, y - r * .6);\n  fill(md(st.cold[0] + hs, 360), st.cold[1] * .8, st.cold[2], 78);\n  textAlign(RIGHT, TOP); text(Math.round(1 + 12 * vn(sx * 3 + 9, sy * 3 + K.t * .02)), x - r * 1.5, y + r * .6);\n}\n\n// ---- margin: title block + neat line + the analysis clock ----\nnoStroke(); textFont('Courier New');\nfill(LBH, st.lbl[1], st.lbl[2], 90); textAlign(LEFT, TOP); textSize(clp(u * .017, 8, 30));\ntext('SURFACE ANALYSIS', u * .030, u * .026);\ntextSize(clp(u * .0105, 6, 19)); fill(LBH, st.lbl[1], st.lbl[2] * .82, 70);\ntext('MSLP  \u00b7  ISOBARS ' + STEP + ' hPa  \u00b7  STATION PLOT  \u00b7  ' + P.act.toUpperCase(), u * .030, u * .050);\ntextAlign(RIGHT, TOP); fill(LBH, st.lbl[1], st.lbl[2] * .82, 70);\nconst zt = md(K.t * 0.9, 24);\ntext('VALID ' + String(Math.floor(zt)).padStart(2, '0') + String(Math.floor(md(zt * 60, 60))).padStart(2, '0') + 'Z', W - u * .030, u * .026);\ntext(sys.length + ' SYSTEMS  \u00b7  ' + Math.round(fmin) + '\u2013' + Math.round(fmax) + ' hPa', W - u * .030, u * .046);\nnoFill(); stroke(LBH, st.lbl[1], st.lbl[2], 52); strokeWeight(Math.max(1, u * .0016));\nrect(u * .018, u * .018, W - u * .036, H - u * .036);\n\nblendMode(BLEND);\ndc.shadowBlur = 0;\nif (P.alpha < 100) { noStroke(); fill(PAH, st.pap[1], st.pap[2], 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

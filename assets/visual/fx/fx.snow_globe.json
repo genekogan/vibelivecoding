@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.snow_globe",
+  "kind": "fx",
+  "name": "Snow Globe",
+  "desc": "A just-shaken snow globe \u2014 flakes swirl in a slow vortex inside a round glass vignette, settling and being re-lofted, over a soft luminous water-fill with a glass highlight; a self-contained circular flurry to sit over any centred scene.",
+  "tags": [
+    "snow-globe",
+    "snowglobe",
+    "snow",
+    "globe",
+    "flurry",
+    "swirl",
+    "vortex",
+    "glitter",
+    "flakes",
+    "shaken",
+    "dome",
+    "glass",
+    "vignette",
+    "winter",
+    "christmas",
+    "holiday",
+    "kitsch",
+    "suspended",
+    "settling",
+    "bokeh",
+    "serene",
+    "whimsical",
+    "cosy",
+    "white",
+    "gold",
+    "confetti",
+    "overlay",
+    "atmosphere",
+    "particles",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "flake count (70..250)"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "swirl speed + flake glow"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "water tint / flake hue base"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "overall motion rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "globe radius"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "globe centre y"
+    },
+    "settle": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "downward settling rate"
+    },
+    "blur": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "depth-of-field bokeh on near flakes"
+    },
+    "style": {
+      "default": "snow",
+      "options": [
+        "snow",
+        "glitter_gold",
+        "confetti",
+        "ink"
+      ],
+      "doc": "snow=white flakes in blue water / glitter_gold=warm gold flecks / confetti=multicolour / ink=monochrome sumi flecks"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:21+00:00",
+    "fps": 62.9,
+    "motion": 0.0288,
+    "lum": 0.117
+  },
+  "code": "const D = { density:.55, energy:.55, hue:210, speed:1, scale:1, x:.5, y:.5, settle:.5, blur:.5, style:'snow', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\nif(!S.spr){ const R=48; const s=createGraphics(R*2,R*2); s.pixelDensity(1); s.noStroke();\n  for(let r=R;r>0;r--){ const a=Math.pow(1-r/R,1.8)*255; s.fill(255,255,255,a); s.ellipse(R,R,r*2,r*2); }\n  S.spr=s; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1);\n  S.fl=[]; for(let k=0;k<260;k++) S.fl.push([fr(k*4+2),fr(k*4+3),fr(k*4+4),fr(k*4+5)]);\n}\nconst cx=P.x*width, cy=P.y*height, R=u*0.46*P.scale;\n\n// perpetual re-agitation: swirl strength never fully decays (long incommensurate re-shake)\nconst shake=0.55+0.45*Math.sin(K.t*0.13)+0.25*Math.sin(K.t*0.31+1.1)+A.bass*0.6;\nconst swirl=(0.5+P.energy*1.1)*Math.max(0.2,shake);\nconst t=K.t;\nconst style=P.style;\n// water fill tint\nconst water = style==='glitter_gold'?[40,55]: style==='confetti'?[280,30]: style==='ink'?[0,0]:[205,45];\n\n// --- globe water fill (broad area element) ---\npush(); blendMode(ADD); noStroke();\nconst wf=0.10+0.09*(0.5+0.5*Math.sin(t*0.4))+K.intensity*0.05;\nfor(let ring=0;ring<5;ring++){ const rr=R*(1-ring*0.16);\n  fill(water[0], water[1]*0.6, 100, (style==='ink'?4:9)*wf*(1+ring*0.3));\n  ellipse(cx+ R*0.05*Math.sin(t*0.5), cy - R*0.06*Math.cos(t*0.37), rr*2, rr*2);\n}\n// central highlight (light through the glass)\nfill(0,0,100, 10*wf); ellipse(cx-R*0.28, cy-R*0.3, R*0.7, R*0.7);\nblendMode(BLEND); pop();\n\n// --- swirling flakes, clipped to the globe ---\nconst nf=Math.round(70+P.density*180);\npush();\ndrawingContext.save();\ndrawingContext.beginPath(); drawingContext.arc(cx,cy,R,0,Math.PI*2); drawingContext.clip();\nblendMode(ADD); imageMode(CENTER); noStroke();\nfor(let k=0;k<nf;k++){ const f=S.fl[k];\n  const depth=f[3];                             // 0 far .. 1 near\n  const baseR=(0.15+f[0]*0.85)*R;\n  // vortex: angular speed higher near center, settling sink adds downward drift\n  const ang=f[1]*6.28 + swirl*t*(0.5+ (1-baseR/R)*0.9)*(0.6+depth*0.8) + f[2]*2;\n  const sink=(0.2+P.settle*0.8);\n  const rr=baseR*(0.7+0.3*Math.sin(t*0.6*swirl+f[1]*6.28));\n  let X=cx + Math.cos(ang)*rr;\n  let Y0=Math.sin(ang)*rr + Math.sin(t*0.3+f[1]*6.28)*R*0.05 + (t*sink*20*(0.3+depth));\n  let dy=(((Y0+R)%(2*R))+2*R)%(2*R);            // wrap within globe vertically\n  let Y=cy + dy - R;\n  const sz=u*(0.006+depth*0.016)*P.scale*(1+P.blur*depth*1.4);\n  const br=0.45+depth*0.55;\n  let hh=P.hue, ss=0;\n  if(style==='glitter_gold'){ hh=(42+f[2]*20)%360; ss=45+depth*20; }\n  else if(style==='confetti'){ hh=(f[2]*360); ss=70; }\n  else if(style==='ink'){ hh=0; ss=0; }\n  const a=(0.5+0.5*Math.sin(t*3+f[2]*20))*br*(0.6+P.energy*0.6);\n  if(style==='ink'){ tint(0,0,100, Math.min(100,70*a)); }\n  else { tint(0,0,100, Math.min(100,26*a)); image(S.spr,X,Y,sz*2.6,sz*2.6); tint(hh,ss,100, Math.min(100,80*a)); }\n  image(S.spr,X,Y,sz,sz);\n}\nimageMode(CORNER); blendMode(BLEND);\ndrawingContext.restore();\n// glass vignette rim\nnoFill(); strokeWeight(u*0.012);\nfor(let s=0;s<4;s++){ stroke(water[0], 20, 100, 8-s*1.5); ellipse(cx,cy,(R+ s*u*0.01)*2,(R+ s*u*0.01)*2); }\npop();\n"
+}

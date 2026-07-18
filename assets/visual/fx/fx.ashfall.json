@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.ashfall",
+  "kind": "fx",
+  "name": "Ashfall",
+  "desc": "Ash falling after a fire \u2014 dark tumbling flakes drift down with rare glowing cinders cooling orange-to-red, over a broad ember-lit smoke pall glowing from below; drops any scene into the aftermath of a burn or a volcanic dusk.",
+  "tags": [
+    "ashfall",
+    "ash",
+    "ashes",
+    "soot",
+    "cinder",
+    "cinders",
+    "ember",
+    "embers",
+    "falling-ash",
+    "fallout",
+    "fall",
+    "fire",
+    "aftermath",
+    "burn",
+    "burnt",
+    "scorched",
+    "volcanic",
+    "volcano",
+    "eruption",
+    "tephra",
+    "apocalyptic",
+    "smoke",
+    "pall",
+    "haze",
+    "grey",
+    "warm",
+    "orange",
+    "menacing",
+    "desolate",
+    "emissive",
+    "overlay",
+    "atmosphere",
+    "particles",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "falling-flake count (60..220)"
+    },
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "pall brightness + cinder rate/glow"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "cinder/pall warm hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "fall + tumble rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "flake size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "wind": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "lateral drift of falling ash"
+    },
+    "pall": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ember-lit smoke haze strength"
+    },
+    "style": {
+      "default": "ashfall",
+      "options": [
+        "ashfall",
+        "volcanic",
+        "incinerator",
+        "monochrome"
+      ],
+      "doc": "ashfall=cold grey ash + warm pall / volcanic=ember-heavy red pall / incinerator=dense hot / monochrome=austere grey print, no cinders"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:31+00:00",
+    "fps": 57.1,
+    "motion": 0.0142,
+    "lum": 0.182
+  },
+  "code": "const D = { density:.55, energy:.55, hue:28, speed:1, scale:1, x:.5, y:.5, wind:.4, pall:.6, style:'ashfall', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\n// emissive smoke-pall buffer (broad area element: distant fire-lit smoke haze)\nconst BW=Math.max(400,Math.min(680,Math.round(width/2.7))), BH=Math.max(140,Math.round(BW*height/width));\nif(!S.g||S.bw!==BW||S.bh!==BH){ S.g=createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1);\n  S.f=[]; for(let k=0;k<220;k++) S.f.push([fr(k*3+2),fr(k*3+3),fr(k*3+4)]);\n}\nconst sd=P.seed|0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; }\nfunction fbm(x,y){ return 0.6*vn(x,y)+0.3*vn(x*2.03+5.1,y*2.03-3.2)+0.15*vn(x*4.1-2.3,y*4.1+7.7); }\n\nconst t=K.t*(0.5+P.speed*0.7);\nconst drift=0.9*Math.sin(K.t*0.061)+0.5*Math.sin(K.t*0.143+1.7);\nconst style=P.style;\n// pall color: warm ember-lit for ashfall/volcanic, cool grey for monochrome\nconst pallCol = style==='volcanic'?[1.0,0.35,0.12] : style==='incinerator'?[1.0,0.5,0.2] : style==='monochrome'?[0.7,0.72,0.78] : [0.9,0.55,0.35];\nconst pstr=(0.10+P.pall*0.5)*(0.7+K.intensity*0.5+A.bass*0.5);\nconst gg=S.g; gg.loadPixels(); const px=gg.pixels;\nfor(let j=0;j<BH;j++){ const yy=j/BH;\n  for(let i=0;i<BW;i++){ const xx=i/BW;\n    const f=fbm(xx*2.6 + K.t*0.02 + drift*0.1, yy*2.2 + K.t*0.05 + S.hoff*7);\n    // heavier glow toward the bottom (fire below the frame) modulated by noise\n    let L=(0.25+0.9*f)*(0.4+0.7*yy)*pstr;\n    const o=4*(j*BW+i); px[o]=Math.min(255,pallCol[0]*L*255); px[o+1]=Math.min(255,pallCol[1]*L*255); px[o+2]=Math.min(255,pallCol[2]*L*255); px[o+3]=255;\n  }}\ngg.updatePixels();\npush(); blendMode(ADD); if(P.alpha<100) tint(0,0,100,P.alpha); image(gg,0,0,width,height); blendMode(BLEND); pop();\n\n// --- falling ash flakes + rare glowing cinders ---\nconst nf=Math.round((60+P.density*160));\nconst wind=(P.wind-0.2)*0.9;\nconst fall=(0.05+P.speed*0.06);\nconst cinderChance = style==='volcanic'?0.16 : style==='incinerator'?0.22 : style==='monochrome'?0.0 : 0.06;\npush(); noStroke();\nfor(let k=0;k<nf;k++){ const fdat=S.f[k]; if(k>=nf) break;\n  const spd=0.4+fdat[2]*0.9;\n  let fy=(fdat[1] + t*fall*spd)%1;\n  let fx=(fdat[0] + wind*fy*0.5 + 0.02*Math.sin(t*1.3+k*0.7) + drift*0.03)%1; if(fx<0) fx+=1;\n  const X=fx*width, Y=fy*height;\n  // tumble: brightness flickers as flake turns edge-on (smooth, not strobe)\n  const turn=0.4+0.6*Math.abs(Math.sin(t*2.0*spd + fdat[0]*6.28 + k));\n  const sz=(0.8+fdat[2]*2.4)*P.scale*(u/700+0.6);\n  const isCinder = (fdat[2] < cinderChance*(0.6+P.energy));\n  if(isCinder){\n    blendMode(ADD);\n    const cool=fy;              // cools as it falls: orange -> deep red\n    const hcin=20 - cool*14;\n    const b=(0.7+0.3*Math.sin(t*3+k))*(0.6+P.energy*0.7);\n    fill((hcin+360)%360, 90, 100, 55*b); ellipse(X,Y,sz*3.2,sz*3.2);\n    fill((hcin+360)%360, 70, 100, 95*b); ellipse(X,Y,sz*1.3,sz*1.3);\n    blendMode(BLEND);\n  } else {\n    const g8=(style==='monochrome')?62:52;\n    fill(30, 8, g8, 55*turn); ellipse(X,Y,sz*turn,sz*(0.5+turn*0.5));\n  }\n}\npop();\n"
+}

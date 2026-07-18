@@ -1,0 +1,157 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.shear_bands",
+  "kind": "genart",
+  "name": "Shear Bands",
+  "desc": "A packing of grains under compression, where the load refuses to spread out evenly \u2014 it finds a few paths and rides them, so a sparse blazing network of force chains carries almost everything while its neighbours idle, and strain refuses to stay uniform too, localising into inclined seams where grains climb over each other and the packing loosens until it can no longer hold anything, so the chains route around the band and it goes dark: force network, sand under a lamp, false-colour DEM, contact-graph schematic or a CT slice.",
+  "tags": [
+    "shear-band",
+    "shear-bands",
+    "strain-localization",
+    "localisation",
+    "granular",
+    "granular-media",
+    "grains",
+    "sand",
+    "gravel",
+    "packing",
+    "force-chain",
+    "force-chains",
+    "force-network",
+    "contact-network",
+    "q-model",
+    "load-path",
+    "stress",
+    "compression",
+    "biaxial",
+    "triaxial",
+    "dilatancy",
+    "dilation",
+    "coulomb",
+    "conjugate",
+    "failure",
+    "yield",
+    "shear",
+    "friction",
+    "jamming",
+    "soil",
+    "soil-mechanics",
+    "geotechnical",
+    "landslide",
+    "silo",
+    "discrete-element",
+    "dem",
+    "simulation",
+    "emergent",
+    "self-organizing",
+    "heterogeneous",
+    "network",
+    "physics",
+    "experiment",
+    "laboratory",
+    "ct-scan",
+    "tomography",
+    "xray",
+    "false-colour",
+    "schematic",
+    "diagram",
+    "austere",
+    "clinical",
+    "scientific",
+    "menacing",
+    "dark",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "texture",
+    "particles"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "applied load and how fiercely the force chains glow \u2014 max drives the network white-hot and thick"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grain count \u2014 0 is a coarse gravel of big discs, 1 a fine sand of hundreds"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "grain size relative to the frame \u2014 max packs in far more, finer grains"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "loading rate: how fast the sample is squeezed and how quickly bands nucleate and hand over"
+    },
+    "dilate": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "dilatancy \u2014 how much the shear band loosens as grains climb over each other, and so how hard it unloads and goes dark"
+    },
+    "hue": {
+      "default": 36,
+      "min": 0,
+      "max": 360,
+      "doc": "mineral hue of the grains (the force network keeps its own hot palette)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal framing of the sample"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical framing of the sample"
+    },
+    "style": {
+      "default": "chains",
+      "options": [
+        "chains",
+        "grains",
+        "dem",
+        "plate",
+        "xray"
+      ],
+      "doc": "aesthetic: the classic dark-field force network, grains dim and chains incandescent / real sand under a warm lamp / false-colour discrete-element figure, every grain painted by its load / contact-graph schematic in pure line on paper, no grains at all / X-ray CT slice where the dilated band reads as a low-density seam"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the packing disorder, the load-splitting fractions and the band geometry"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:06:59+00:00",
+    "fps": 54.6,
+    "motion": 0.117,
+    "lum": 0.206
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, dilate: .5, hue: 36, x: .5, y: .5, style: 'chains', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Granular media failing under biaxial compression. Two real pieces of physics:\n//  1. FORCE CHAINS via the q-model (Liu et al.): each grain hands its load down to the two\n//     grains beneath it in random fractions. A handful of chains end up carrying almost all\n//     of the load \u2014 the famous heterogeneous force network, emergent, not painted on.\n//  2. SHEAR BANDS: strain refuses to stay uniform and localizes into narrow inclined seams\n//     where grains ride over each other and the packing DILATES. Loose grains cannot carry\n//     load, so the chains route AROUND the band and it unloads \u2014 which is exactly what the\n//     band looks like in the lab: a dark seam cutting a bright network.\n// Perpetual: bands nucleate, take over, and fade on staggered lives while the load axis turns.\nconst u = Math.min(width, height);\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix | 0, 374761393) + Math.imul(iy | 0, 668265263) + Math.imul(iz | 0, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst tt = K.t, style = P.style;\nconst dr1 = Math.sin(tt * 0.061), dr2 = Math.sin(tt * 0.143 + 1.7), dr3 = Math.sin(tt * 0.229 + 0.4);\nconst zoom = Math.max(1, P.scale);\n\n// ---- the assembly ----\nconst nx = Math.max(10, Math.round((16 + P.density * 26) * zoom * 0.5 + (16 + P.density * 26) * 0.5));\nconst cw = width / nx;\nconst rowH = cw * 0.866;\nconst ny = Math.max(6, Math.ceil(height / rowH) + 2);\nconst NG = nx * ny;\nif (!S.W || S.ng !== NG) { S.W = new Float32Array(NG); S.QX = new Float32Array(NG); S.QY = new Float32Array(NG); S.DL = new Float32Array(NG); S.ng = NG; }\nconst W = S.W, QX = S.QX, QY = S.QY, DL = S.DL;\n\n// ---- shear bands on staggered lives: one is always taking over as another dies ----\nif (!S.bands || S.seedUsed !== P.seed || S.lastT == null || tt < S.lastT - 0.5) {\n  S.seedUsed = P.seed; S.bands = []; S.next = tt; S.ctr = 0;\n}\nS.lastT = tt;\nconst BLIFE = 34 / Math.max(0.2, P.speed);\nwhile (S.next <= tt && S.bands.length < 5) {\n  const c = S.ctr++;\n  // conjugate Coulomb geometry: bands come in at roughly +/-(45 + phi/2) to the major stress\n  const conj = (c % 2 ? 1 : -1);\n  S.bands.push({\n    t0: S.next, c: c,\n    ang: conj * (0.95 + 0.30 * fr(c * 13 + 1)) + (fr(c * 13 + 2) - 0.5) * 0.25,\n    off: (fr(c * 13 + 3) - 0.5) * u * 0.75,\n    w: u * (0.030 + 0.030 * fr(c * 13 + 4)),\n    slip: u * (0.020 + 0.030 * fr(c * 13 + 5))\n  });\n  S.next += (BLIFE * 0.42) * (0.7 + 0.6 * fr(c * 13 + 6));\n}\nS.bands = S.bands.filter(b => tt - b.t0 < BLIFE);\nif (S.next > tt + BLIFE) S.next = tt;\n\n// The load: compression accumulates and relaxes on three incommensurate rates, so the sample\n// is always visibly working. Peak strain lands near 10%, which is where a real granular test\n// fails \u2014 and it is also what keeps this off the STATIC gate.\nconst eps = (0.030 + 0.055 * (0.5 + 0.5 * Math.sin(tt * 0.037 * P.speed))\n          + 0.028 * Math.sin(tt * 0.083 * P.speed + 1.3)\n          + 0.014 * Math.sin(tt * 0.151 * P.speed + 0.4)) * (0.4 + P.energy);\nconst axis = tt * 0.009 * P.speed + Math.sin(tt * 0.015) * 0.35;   // the major stress axis turns\n// Cyclic simple shear \u2014 the classic way a granular sample is actually worked. Rows slide over\n// one another on three incommensurate rates, so every grain in the frame is always moving.\n// Kept under ~0.35 cell of relative offset per row so vertical adjacency (and therefore the\n// q-model's contact topology) still holds.\nconst shr = cw * 0.55 * (Math.sin(tt * 0.043 * P.speed) + 0.5 * Math.sin(tt * 0.091 * P.speed + 1.1)\n          + 0.3 * Math.sin(tt * 0.017 * P.speed + 2.3)) * (0.35 + P.energy * 0.65);\n\n// ---- deform the reference lattice: uniform compression + each band's slip and dilation ----\nconst cx0 = width * 0.5, cy0 = height * 0.5;\nfor (let j = 0; j < ny; j++) {\n  for (let i = 0; i < nx; i++) {\n    const p = j * nx + i;\n    let rx = (i + (j & 1 ? 0.5 : 0)) * cw + (hsh(i, j, 3) - 0.5) * cw * 0.30;\n    let ry = j * rowH - rowH + (hsh(i, j, 5) - 0.5) * cw * 0.30;\n    // biaxial: squeezed vertically, spreading horizontally (Poisson + dilatancy)\n    let dx = (rx - cx0) * eps * 0.55, dy = -(ry - cy0) * eps;\n    dx += (j - ny * 0.5) * shr * 0.35;                     // + the cyclic simple shear\n    let dil = 0;\n    for (const b of S.bands) {\n      const age = tt - b.t0;\n      if (age < 0) continue;\n      // the band fades in and out \u2014 a band never appears or vanishes in a single frame\n      const fin = Math.min(1, age / 5.0);\n      const fout = Math.min(1, Math.max(0, (BLIFE - age) / (BLIFE * 0.45)));\n      const amp = fin * fout;\n      if (amp < 0.01) continue;\n      const sa = Math.sin(b.ang + axis), ca = Math.cos(b.ang + axis);\n      const d = (rx - cx0) * sa - (ry - cy0) * ca - b.off;    // signed distance to the band\n      const th = Math.tanh(d / b.w);\n      const sech2 = 1 - th * th;\n      // slip: material either side of the band slides in opposite directions\n      const sl = b.slip * th * amp * (0.4 + eps * 22);\n      dx += ca * sl; dy += sa * sl;\n      // dilation: the band swells normal to itself as grains climb over each other\n      const dd = b.w * 0.55 * sech2 * amp * P.dilate * (0.4 + eps * 22);\n      dx += sa * dd * Math.sign(d || 1); dy += -ca * dd * Math.sign(d || 1);\n      dil += sech2 * amp;\n    }\n    QX[p] = rx + dx; QY[p] = ry + dy;\n    DL[p] = Math.min(1, dil * P.dilate * 1.15);\n    W[p] = 0;\n  }\n}\n\n// ---- q-model sweep: hand the platen load down the packing, grain to grain ----\nfor (let i = 0; i < nx; i++) W[i] = 1;\nfor (let j = 0; j < ny - 1; j++) {\n  for (let i = 0; i < nx; i++) {\n    const p = j * nx + i;\n    const w = W[p] + 0.06;                     // + self weight\n    // the two grains it rests on in a hex packing\n    let iL = (j & 1) ? i : i - 1, iR = (j & 1) ? i + 1 : i;\n    iL = ((iL % nx) + nx) % nx; iR = ((iR % nx) + nx) % nx;\n    const pL = (j + 1) * nx + iL, pR = (j + 1) * nx + iR;\n    // the split is disordered (this is what makes chains) and drifts slowly so the network\n    // reorganises smoothly instead of flickering\n    let q = 0.5 + (hsh(i, j, 7) - 0.5) * 1.5\n          + 0.38 * Math.sin(tt * (0.055 + hsh(i, j, 9) * 0.085) * P.speed + hsh(i, j, 11) * 6.28);\n    // geometry: load leans toward whichever support actually sits under it\n    q += (QX[p] - QX[pL]) < (QX[pR] - QX[p]) ? 0.16 : -0.16;\n    // loose grains cannot carry load, so the chains route AROUND a dilated band. Emergent.\n    const aL = 1 - DL[pL] * 0.92, aR = 1 - DL[pR] * 0.92;\n    q = Math.max(0.02, Math.min(0.98, q));\n    const wl = q * aL, wr = (1 - q) * aR;\n    const s = wl + wr;\n    const fL = s > 1e-6 ? wl / s : 0.5, fR = s > 1e-6 ? wr / s : 0.5;\n    // the band sheds load overall \u2014 that is why it reads dark\n    const pass = 1 - DL[p] * 0.55;\n    W[pL] += w * fL * pass; W[pR] += w * fR * pass;\n  }\n}\n// normalise so the palette is stable however tall the pile is\nlet wmax = 1e-6;\nfor (let p = 0; p < NG; p++) if (W[p] > wmax) wmax = W[p];\nconst inv = 1 / wmax;\n\n// ---- render ----\nconst ctx = drawingContext;\nconst aa = Math.max(0, Math.min(100, P.alpha)) / 100;\nconst hb = ((P.hue % 360) + 360) % 360, hh = hb / 360;\nconst gr = cw * 0.47;\nconst gain = 0.45 + P.energy * 0.9;\npush();\n// the void the assembly sits in \u2014 never pure black\nif (style === 'plate') { ctx.fillStyle = 'rgba(170,165,154,' + aa.toFixed(3) + ')'; }   // toned drafting card, not white paper\nelse if (style === 'xray') { ctx.fillStyle = 'rgba(16,18,22,' + aa.toFixed(3) + ')'; }\nelse { ctx.fillStyle = 'rgba(14,13,16,' + aa.toFixed(3) + ')'; }\nctx.fillRect(0, 0, width, height);\n\n// --- grains, batched into force buckets: one fill per bucket, not one per grain ---\nconst NB = 7;\nif (style !== 'plate') {\n  for (let b = 0; b < NB; b++) {\n    ctx.beginPath();\n    let any = false;\n    for (let p = 0; p < NG; p++) {\n      const f = Math.min(1, Math.pow(W[p] * inv, 0.42));\n      if (Math.min(NB - 1, Math.floor(f * NB)) !== b) continue;\n      const x = QX[p], y = QY[p];\n      if (x < -gr || x > width + gr || y < -gr || y > height + gr) continue;\n      const rr = gr * (0.72 + 0.28 * hsh(p, 1, 13)) * (1 + DL[p] * 0.10);\n      ctx.moveTo(x + rr, y); ctx.arc(x, y, rr, 0, 6.2831); any = true;\n    }\n    if (!any) continue;\n    const f = (b + 0.5) / NB;\n    let r, g2, b2;\n    if (style === 'dem') {                       // false-colour by load: the DEM figure\n      r = Math.min(1, Math.max(0, f * 3.0 - 0.9));\n      g2 = Math.min(1, Math.max(0, f < 0.5 ? f * 2.0 : 2.0 - f * 2.0) + Math.max(0, f * 1.5 - 1.0));\n      b2 = Math.min(1, Math.max(0, 1.0 - f * 2.6));\n      r = r * 0.92 + 0.06; g2 = g2 * 0.92 + 0.07; b2 = b2 * 0.92 + 0.10;\n    } else if (style === 'xray') {               // CT slice: dense packing bright, the dilated band dark\n      const v = 0.30 + 0.42 * (1 - f * 0.25);\n      r = v * 0.95; g2 = v * 0.97; b2 = v;\n    } else if (style === 'grains') {             // actual sand: warm mineral colour, lit by load\n      const tone = 0.34 + f * 0.38;\n      r = tone * (0.98 + 0.16 * Math.cos(6.2831 * hh));\n      g2 = tone * (0.84 + 0.12 * Math.cos(6.2831 * (hh + 0.05)));\n      b2 = tone * (0.66 + 0.08 * Math.cos(6.2831 * (hh + 0.12)));\n    } else {                                     // chains (default): grains dim, network bright\n      const v = 0.15 + f * 0.30;\n      r = v * 0.9; g2 = v * 0.92; b2 = v * 1.0;\n    }\n    ctx.fillStyle = 'rgba(' + Math.round(Math.min(255, r * 255)) + ',' + Math.round(Math.min(255, g2 * 255)) + ',' + Math.round(Math.min(255, b2 * 255)) + ',' + aa.toFixed(3) + ')';\n    ctx.fill();\n  }\n} else {\n  // plate: every grain is an outline, so the diagram is a real contact graph \u2014 nodes and\n  // edges \u2014 rather than a few lines floating on empty paper\n  ctx.beginPath();\n  for (let p = 0; p < NG; p++) {\n    const x = QX[p], y = QY[p];\n    if (x < -gr || x > width + gr || y < -gr || y > height + gr) continue;\n    const rr = gr * (0.72 + 0.28 * hsh(p, 1, 13)) * (1 + DL[p] * 0.10);\n    ctx.moveTo(x + rr, y); ctx.arc(x, y, rr, 0, 6.2831);\n  }\n  ctx.strokeStyle = 'rgba(46,44,40,' + (aa * 0.55).toFixed(3) + ')';\n  ctx.lineWidth = Math.max(0.5, gr * 0.055); ctx.stroke();\n}\n\n// --- the force network: one stroke per width bucket ---\nconst CB = 6;\nfor (let b = 0; b < CB; b++) {\n  ctx.beginPath();\n  let any = false;\n  for (let j = 0; j < ny - 1; j++) {\n    for (let i = 0; i < nx; i++) {\n      const p = j * nx + i;\n      const f = Math.min(1, Math.pow(W[p] * inv, 0.42));\n      if (Math.min(CB - 1, Math.floor(f * CB)) !== b) continue;\n      if (f < 0.16) continue;                        // only chains that actually carry load\n      let iL = (j & 1) ? i : i - 1, iR = (j & 1) ? i + 1 : i;\n      iL = ((iL % nx) + nx) % nx; iR = ((iR % nx) + nx) % nx;\n      const pL = (j + 1) * nx + iL, pR = (j + 1) * nx + iR;\n      for (const q of [pL, pR]) {\n        if (Math.abs(QX[q] - QX[p]) > cw * 2.2) continue;   // do not draw across the wrap seam\n        ctx.moveTo(QX[p], QY[p]); ctx.lineTo(QX[q], QY[q]); any = true;\n      }\n    }\n  }\n  if (!any) continue;\n  const f = (b + 0.5) / CB;\n  let col, lw = Math.max(0.5, gr * 0.30 * f * (0.5 + P.energy * 1.1));\n  if (style === 'plate') { col = 'rgba(28,30,38,' + (aa * (0.15 + f * 0.7)).toFixed(3) + ')'; lw = Math.max(0.4, gr * 0.16 * f); }\n  else if (style === 'xray') col = 'rgba(250,250,255,' + (aa * f * 0.28).toFixed(3) + ')';\n  else if (style === 'dem') col = 'rgba(255,250,240,' + (aa * f * 0.42).toFixed(3) + ')';\n  else if (style === 'grains') col = 'rgba(255,238,206,' + (aa * f * 0.40).toFixed(3) + ')';\n  else {\n    // chains: hot where the load concentrates \u2014 this is the image everyone knows\n    const r = Math.min(255, 90 + 165 * f), g2 = Math.min(255, 60 + 170 * f * f), b2 = Math.min(255, 110 + 90 * (1 - f));\n    col = 'rgba(' + (r | 0) + ',' + (g2 | 0) + ',' + (b2 | 0) + ',' + (aa * (0.20 + f * 0.72) * gain).toFixed(3) + ')';\n  }\n  ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke();\n}\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

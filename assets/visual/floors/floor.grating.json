@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.grating",
+  "kind": "floor",
+  "name": "Steel Grating",
+  "desc": "A steel bar-grating deck streaming toward you over a lit void \u2014 blade tops converge on the vanishing point while their shadowed sides close the mesh at a distance and open it underfoot, so you see clean through the floor to a lower deck and pipes falling away below, with an open hatch every so often.",
+  "tags": [
+    "grating",
+    "grate",
+    "mesh",
+    "bar-grating",
+    "deck",
+    "walkway",
+    "catwalk",
+    "gantry",
+    "steel",
+    "galvanised",
+    "industrial",
+    "plant",
+    "refinery",
+    "factory",
+    "rig",
+    "floor",
+    "ground",
+    "see-through",
+    "transparent",
+    "void",
+    "hatch",
+    "perspective",
+    "one-point",
+    "vanishing-point",
+    "depth",
+    "recession",
+    "scrolling",
+    "streaming",
+    "rust",
+    "thermal",
+    "blueprint",
+    "chiaroscuro",
+    "austere",
+    "liminal",
+    "menacing",
+    "decayed",
+    "structure",
+    "built",
+    "geometry"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp output, specular catch on the bar tops, scroll rate and camera drift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "mesh gauge \u2014 blade girth, blade depth and rod pitch (2.2 = heavy industrial grating; the eye height stays fixed so this is never a no-op)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "mesh fineness \u2014 how many load bars pack across (0 = coarse open bars you can drop a boot through, 1 = a fine tight mesh)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "rate the deck streams toward the camera"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "steel hue; the lamp takes its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.12,
+      "max": 0.88,
+      "doc": "vanishing point across frame"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.18,
+      "max": 0.72,
+      "doc": "horizon line height \u2014 where the deck runs out"
+    },
+    "hatch": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how often a hatch stands open with its lid folded back on the hinge (0 = an unbroken deck)"
+    },
+    "style": {
+      "default": "galvanised",
+      "options": [
+        "galvanised",
+        "rust",
+        "chiaroscuro",
+        "blueprint",
+        "thermal"
+      ],
+      "doc": "aesthetic: cold galvanised steel / oxidised decay / form from light alone / cyan schematic linework / false-colour thermal"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "panel joints, bar weathering, hatch placement and the structure below (absolute-rod keyed, which is what stops a regular mesh from repeating as it scrolls)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity \u2014 scales every mark, so it dissolves into the background instead of veiling it"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:03:15+00:00",
+    "fps": 59.9,
+    "motion": 0.0651,
+    "lum": 0.191
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:196, x:.5, y:.46, hatch:.5, style:'galvanised', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst sty = P.style, HU = ((P.hue%360)+360)%360;\nconst wire = (sty === 'blueprint'), rust = (sty === 'rust'), therm = (sty === 'thermal'), dk = (sty === 'chiaroscuro');\nconst AL = cl(P.alpha, 0, 100);\nif (AL > 0.5) {\n\n// ---- the deck streams toward the camera; rods keyed on ABSOLUTE index\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.z = (S.z||0) + dt * P.speed * (.20 + .22*K.intensity + .20*P.energy);\nconst bsm = (S.bm = (S.bm||0)*.84 + (A.bass||0)*.16);\nconst gl = (.44 + .56*P.energy) * (.55 + .5*K.intensity) + bsm*.26;\n\nconst dA = .55*Math.sin(K.t*.41) + .30*Math.sin(K.t*.97+1.7) + .17*Math.sin(K.t*1.63+.4);\nconst dB = .50*Math.sin(K.t*.53+2.1) + .32*Math.sin(K.t*1.19+.9) + .20*Math.sin(K.t*2.29+2.6);\nconst dC = .60*Math.sin(K.t*.089) + .40*Math.sin(K.t*.211+1.1);\n\nconst RP = u*.30*P.scale;                                  // cross-rod pitch\nconst BP = u*.075*P.scale/(.6 + .8*cl(P.density,0,1));     // load-bar pitch (density = mesh fineness)\nconst BW = BP*.10, BD = u*.034*P.scale;                    // blade half-thickness / blade depth\nconst eh = u*.30;                                          // eye height, FIXED\nconst camZ = S.z*RP;\nconst camX = u*.10*dB*P.energy;\nconst camY = -(eh + u*.020*dC*P.energy);\nconst yaw = .020*dA*P.energy + .013*Math.sin(K.t*.147+1.9);\nconst ca = Math.cos(yaw), sa = Math.sin(yaw);\nconst f = u*1.05, NEAR = u*.055;\nconst vcx = cl(P.x,.12,.88)*width, vcy = cl(P.y,.18,.72)*height;\nconst Z0 = camZ - RP*.6, Z1 = camZ + RP*13;\nconst rc = Math.floor(S.z);\n\n// a lamp somewhere overhead slides across the deck on incommensurate rates\nconst lgx = u*.9*Math.sin(K.t*.047) + u*.35*Math.sin(K.t*.113+1.3);\nconst lgz = camZ + RP*(1.8 + 1.9*Math.sin(K.t*.061) + .9*Math.sin(K.t*.139+2.2));\n\nconst AXa = new Float64Array(10), AYa = new Float64Array(10), AZa = new Float64Array(10);\nconst BXa = new Float64Array(14), BYa = new Float64Array(14);\nfunction poly(v){\n  const n = v.length/3;\n  for (let i=0;i<n;i++){\n    const X = v[i*3]-camX, Y = v[i*3+1]-camY, Z = v[i*3+2]-camZ;\n    AXa[i] = X*ca - Z*sa; AYa[i] = Y; AZa[i] = X*sa + Z*ca;\n  }\n  let m = 0;\n  for (let i=0;i<n;i++){\n    const j = (i+1)%n, az = AZa[i], bz = AZa[j], ai = az>NEAR, bi2 = bz>NEAR;\n    if (ai){ BXa[m] = vcx + f*AXa[i]/az; BYa[m] = vcy + f*AYa[i]/az; m++; }\n    if (ai !== bi2){\n      const tt = (NEAR-az)/(bz-az);\n      BXa[m] = vcx + f*(AXa[i]+(AXa[j]-AXa[i])*tt)/NEAR;\n      BYa[m] = vcy + f*(AYa[i]+(AYa[j]-AYa[i])*tt)/NEAR; m++;\n    }\n  }\n  if (m < 3) return false;\n  beginShape(); for (let i=0;i<m;i++) vertex(BXa[i], BYa[i]); endShape(CLOSE);\n  return true;\n}\nfunction pt2(X,Y,Z){\n  const dx = X-camX, dy = Y-camY, dz = Z-camZ;\n  const rz = dx*sa + dz*ca;\n  if (rz <= NEAR) return null;\n  return [vcx + f*(dx*ca - dz*sa)/rz, vcy + f*dy/rz, rz];\n}\nfunction mixc(c,d,t){ const dh = ((d[0]-c[0])%360+540)%360-180;\n  return [c[0]+dh*t, c[1]+(d[1]-c[1])*t, c[2]+(d[2]-c[2])*t]; }\nconst HAZE = wire ? [212, 58, 22] : rust ? [18, 40, 24] : therm ? [252, 58, 12]\n           : dk ? [HU, 12, 8] : [(HU+2)%360, 14, 30];\nconst fogA = wire ? .26 : .66;\nfunction tone(v, tv){\n  if (wire)  return [212, 60, cl(12 + 12*v, 8, 34)];\n  if (therm) return [cl(256 - 238*v, 10, 260), cl(64 - 14*v, 20, 80), cl(8 + 82*v, 4, 96)];\n  if (rust)  return [cl(15 + 18*tv - 4*v, 2, 40), cl(32 + 32*tv - 12*v, 5, 66), cl(6 + 76*v, 4, 92)];\n  if (dk)    return [HU, cl(22 - 12*v, 0, 26), cl(2 + 90*Math.pow(v,1.9), 1, 96)];\n  return [(HU - 6 + 9*tv + 360)%360, cl(11 - 6*v + 6*tv, 0, 18), cl(9 + 78*v, 4, 95)];\n}\nfunction ink(a){\n  if (wire) stroke(190, 30, 100, a*AL/100);\n  else stroke((HU+2)%360, 10, 80, a*.28*AL/100);\n}\nfunction fl2(c, a){ fill(c[0], c[1], c[2], (a===undefined?100:a)*AL/100); }\nconst LTH = rust ? 34 : therm ? 24 : dk ? HU : (HU-166+360)%360;\n\n// ---- the void UNDER the deck: this is the depth cue no other floor has ------------\n{\n  const NBD = 22;\n  noStroke();\n  for (let i=0;i<NBD;i++){\n    const s = i/(NBD-1);\n    const c = tone(cl(.13*Math.pow(s, 1.5) + .02, 0, 1), fr(i*3.1));\n    fl2([c[0], c[1], cl(c[2] + (fr(i*5.7)-.5)*1.4, 0, 100)], 88);\n    rect(0, vcy + s*(height-vcy) - 1.5, width, (height-vcy)/NBD + 3);\n  }\n}\n// a lower deck + pipes falling away below, on their own parallax rate\nif (!wire){\n  const DY = u*.95*P.scale;\n  for (let k = rc-1; k < rc+7; k++){\n    const z0 = k*RP*1.6 + RP*.4, z1 = z0 + RP*.5;\n    if (z1 < camZ + NEAR) continue;\n    const hz = cl((z0-camZ)/(RP*11), 0, 1);\n    const c = mixc(tone(cl((.13 + .10*fr(k*5.1))*(.4+.5*gl), 0, 1), fr(k*2.3)), HAZE, hz*fogA);\n    noStroke(); fl2(c, 80);\n    poly([-u*2.4, DY, z0, u*2.4, DY, z0, u*2.4, DY, z1, -u*2.4, DY, z1]);\n  }\n  for (let i=0;i<3;i++){\n    const px2 = -u*1.5 + fr(i*7.7+3)*u*3.0, py2 = u*(.42 + .30*fr(i*11.3));\n    const c = mixc(tone(cl(.17*(.4+.5*gl), 0, 1), fr(i*3.7)), HAZE, .5*fogA);\n    noStroke(); fl2(c, 82);\n    poly([px2 - u*.035, py2, camZ, px2 + u*.035, py2, camZ, px2 + u*.035, py2, camZ + RP*12, px2 - u*.035, py2, camZ + RP*12]);\n  }\n}\n\n// ---- the grating: blades on edge. Grazing => the sides close up and it reads solid;\n//      underfoot => it opens and you see straight through into the void.\nconst i0 = Math.floor((camX - u*2.6)/BP), i1 = Math.ceil((camX + u*2.6)/BP);\nconst bars = [];\nfor (let i=i0; i<=i1; i++){\n  const X = i*BP;\n  const p = pt2(X, 0, camZ + RP*1.2);\n  if (!p) continue;\n  if (p[0] < -u*.06 || p[0] > width + u*.06) continue;\n  bars.push([Math.abs(X - camX), i, X]);\n}\nbars.sort((a,b) => b[0]-a[0]);                        // outermost first, so near bars win\nconst NBmax = Math.min(bars.length, 62);\nstrokeWeight(Math.max(1, u*.0011));\nfor (let q = bars.length-NBmax; q < bars.length; q++){\n  const bd = bars[q], i = bd[1], X = bd[2];\n  const tv = fr(i*31.7);\n  const sgn = (X >= camX) ? -1 : 1;                   // the blade side that turns toward us\n  // blade side (in shadow) \u2014 this is what closes the mesh at a distance\n  const sv = cl((.09 + .12*tv) * (.4+.5*gl), 0, 1);\n  const c2 = mixc(tone(sv, tv), HAZE, .5*fogA);\n  if (wire){ noFill(); ink(30); } else { noStroke(); fl2(c2); }\n  poly([X + sgn*BW, 0, Z0, X + sgn*BW, BD, Z0, X + sgn*BW, BD, Z1, X + sgn*BW, 0, Z1]);\n  // blade top \u2014 the bright line that converges on the vanishing point\n  const lam = cl(1 - Math.abs(X - lgx)/(u*1.15), 0, 1);\n  const tvv = cl((.30 + .52*lam + .10*tv) * (.45+.55*gl), 0, 1);\n  const c = mixc(tone(tvv, tv), HAZE, .42*fogA);\n  if (wire){ noFill(); ink(52); } else { noStroke(); fl2(c); }\n  poly([X - BW, 0, Z0, X + BW, 0, Z0, X + BW, 0, Z1, X - BW, 0, Z1]);\n}\n\n// ---- cross rods, twisted, every RP \u2014 the second axis of the mesh -------------------\nfor (let k = rc; k < rc+9; k++){\n  const z0 = k*RP, z1 = z0 + BP*.22;\n  if (z1 < camZ + NEAR) continue;\n  const pk = pt2(camX, 0, z0);\n  if (!pk) continue;\n  if (Math.abs(f*(BP*.22)/pk[2]) < .7) break;          // sub-pixel: stop, the mesh has merged\n  const hz = cl((z0-camZ)/(RP*11), 0, 1);\n  const tvr = fr(k*17.3);\n  const lam = cl(1 - Math.abs(z0 - lgz)/(RP*3.2), 0, 1);\n  const c = mixc(tone(cl((.26 + .46*lam + .08*tvr) * (.45+.55*gl), 0, 1), tvr), HAZE, hz*fogA);\n  if (wire){ noFill(); ink(44); } else { noStroke(); fl2(c); }\n  poly([-u*2.6, -BD*.16, z0, u*2.6, -BD*.16, z0, u*2.6, -BD*.16, z1, -u*2.6, -BD*.16, z1]);\n  // panel joint: a heavier bearing bar every few rods, seeded so it is NOT periodic\n  if (fr(k*7.9) < .34){\n    const c3 = mixc(tone(cl((.34 + .34*lam) * (.45+.55*gl), 0, 1), tvr), HAZE, hz*fogA);\n    if (!wire){ noStroke(); fl2(c3); }\n    poly([-u*2.6, -BD*.22, z0 - BP*.16, u*2.6, -BD*.22, z0 - BP*.16,\n          u*2.6, -BD*.22, z0 + BP*.34, -u*2.6, -BD*.22, z0 + BP*.34]);\n  }\n}\n\n// ---- an open hatch: a hole straight through the deck, seeded per panel -------------\nif (P.hatch > .02 && !wire){\n  for (let k = rc; k < rc+6; k++){\n    if (fr(k*23.1+5) > cl(P.hatch,0,1)*.34) continue;\n    const hx = -u*1.2 + fr(k*13.7)*u*2.4, hw = u*.30*P.scale, hd = RP*.52;\n    const z0 = k*RP + RP*.2;\n    if (z0 + hd < camZ + NEAR) continue;\n    noStroke(); fl2(therm ? [252,60,6] : dk ? [HU,10,2] : [(HU+2)%360, 16, 3], 92);\n    poly([hx-hw, -BD*.30, z0, hx+hw, -BD*.30, z0, hx+hw, -BD*.30, z0+hd, hx-hw, -BD*.30, z0+hd]);\n    const c = mixc(tone(cl(.42*(.45+.55*gl), 0, 1), .5), HAZE, .2*fogA);\n    ink(58); noFill(); strokeWeight(Math.max(1.2, u*.0022));\n    poly([hx-hw, -BD*.30, z0, hx+hw, -BD*.30, z0, hx+hw, -BD*.30, z0+hd, hx-hw, -BD*.30, z0+hd]);\n    noStroke(); fl2(c);                                       // the lid, folded back on its hinge\n    poly([hx-hw, -BD*.30, z0, hx+hw, -BD*.30, z0, hx+hw, -u*.26*P.scale, z0 - hd*.30, hx-hw, -u*.26*P.scale, z0 - hd*.30]);\n    strokeWeight(Math.max(1, u*.0011));\n  }\n}\n\n// ---- light pooling on the bar tops (partial frame, ADD, low alpha) -----------------\nif (!wire && AL > 8){\n  push(); blendMode(ADD); noStroke();\n  for (let i=3;i>=1;i--){\n    fill(LTH, therm?60:22, 100, cl((1.8 + 3.6*gl)*AL/100, 0, 12));\n    poly([lgx - u*.55*i*.5, -BD*.05, lgz - RP*.9*i*.5, lgx + u*.55*i*.5, -BD*.05, lgz - RP*.9*i*.5,\n          lgx + u*.55*i*.5, -BD*.05, lgz + RP*.9*i*.5, lgx - u*.55*i*.5, -BD*.05, lgz + RP*.9*i*.5]);\n  }\n  pop(); blendMode(BLEND);\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n}\n"
+}

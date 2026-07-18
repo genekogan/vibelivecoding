@@ -1,0 +1,166 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.gold_leaf",
+  "kind": "fx",
+  "name": "Gold Leaf",
+  "desc": "Gilding laid over the scene in overlapping courses \u2014 beaten leaf with torn deckle edges, the lap lines showing where each sheet crosses the last, holidays left open so the picture underneath still reads, loose skewings tumbling through the air, and an agate burnisher travelling past that lights each course as it goes.",
+  "tags": [
+    "gold",
+    "gold-leaf",
+    "gilding",
+    "gilt",
+    "gilder",
+    "leaf",
+    "foil",
+    "metal-leaf",
+    "schlagmetal",
+    "moon-gold",
+    "white-gold",
+    "copper",
+    "graphite",
+    "lead",
+    "bole",
+    "clay",
+    "size",
+    "water-gilding",
+    "oil-gilding",
+    "burnish",
+    "burnisher",
+    "agate",
+    "lap",
+    "course",
+    "holiday",
+    "skewings",
+    "fragment",
+    "fleck",
+    "flake",
+    "torn",
+    "deckle",
+    "beaten",
+    "overlap",
+    "icon",
+    "byzantine",
+    "baroque",
+    "reliquary",
+    "altarpiece",
+    "conservation",
+    "restoration",
+    "sacred",
+    "opulent",
+    "austere",
+    "overlay",
+    "veil",
+    "atmosphere",
+    "composite",
+    "subtle",
+    "material",
+    "surface",
+    "texture",
+    "warm",
+    "tarnish",
+    "setting-out",
+    "schematic",
+    "plan",
+    "abstract"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "coverage": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many courses actually took \u2014 the misses are holidays that let the scene through"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of each beaten leaf against the frame"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the burnished leaf ignites as the agate passes"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "skewings in the air, and the reach of the burnisher"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "the metal (45 = true 23k gold; ~30 reads copper)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "rate of the burnisher pass and the drift of the skewings"
+    },
+    "x": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "where the burnisher is working, across the frame"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "where the burnisher is working, up the frame"
+    },
+    "alpha": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "overlay opacity \u2014 kept off full by default so the scene reads through the gilding"
+    },
+    "style": {
+      "default": "gold",
+      "options": [
+        "gold",
+        "moon_gold",
+        "copper",
+        "graphite",
+        "setout"
+      ],
+      "doc": "gold: 23k water gilding, warm and opulent over red bole \u00b7 moon_gold: pale cool white gold \u00b7 copper: schlagmetal, warmer and already going over \u00b7 graphite: lead and graphite foil, sombre and near-monochrome \u00b7 setout: non-representational \u2014 the gilder's setting-out, flat tinted planes and hard linework, no metal or sheen at all"
+    },
+    "act": {
+      "default": "lay",
+      "options": [
+        "lay",
+        "burnish",
+        "shed"
+      ],
+      "doc": "lay: courses go down and the skewings drift \u00b7 burnish: the agate works hard across the gilding, igniting it in sequence \u00b7 shed: the gilding is failing \u2014 leaves lift, blow away and leave holidays"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "re-gilds \u2014 new courses, torn edges, holidays and skewings"
+    }
+  },
+  "acts": [
+    "lay",
+    "burnish",
+    "shed"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:22+00:00",
+    "fps": 60.2,
+    "motion": 0.0187,
+    "lum": 0.215
+  },
+  "code": "const D = { coverage: .5, scale: 1, energy: .6, density: .5, hue: 45, speed: 1, x: .3, y: .42, alpha: .62, style: 'gold', act: 'lay', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255,(g+m)*255,(l+m)*255]; };\nconst rgba=(c,a)=>'rgba('+(c[0]|0)+','+(c[1]|0)+','+(c[2]|0)+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst cov=cl(P.coverage,0,1), sc=cl(P.scale,.5,2.2), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4), en=cl(P.energy,0,1);\nconst H=md(P.hue,360), T=K.t*spd;\nconst TD=K.t*(.45+.55*Math.min(spd,3));\nif(al<=0.002) { blendMode(BLEND); }\nelse {\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\n\n// ---- dramaturgy ----\nconst sec=((K.section|0)%8+8)%8;\nlet burnK, shed, layRate;\nif(act==='burnish'){ burnK=2.1; shed=0; layRate=.45; }\nelse if(act==='shed'){ burnK=.7; shed=.35+.45*(.5+.5*Math.sin(sec*.85+T*.019)); layRate=1.5; }\nelse { burnK=1; shed=.06; layRate=1; }\n\n// ---- the agate burnisher travels across the gilding on a monotonic orbit: leaves ignite\n// in sequence as it passes. This is the motion floor and it cannot re-phase away.\nconst bAng=.089*TD*burnK, bAng2=.211*TD*burnK+1.9;\nconst bx=W*(cl(P.x,0,1)+.30*Math.cos(bAng)+.11*Math.cos(bAng2));\nconst by=Hh*(cl(P.y,0,1)+.26*Math.sin(bAng)+.10*Math.sin(bAng2));\nconst bR=u*(.30+.22*dens);\nconst lAz=bAng*.7+.9;\nconst lxd=Math.cos(lAz), lyd=Math.sin(lAz);\n\n// ---- style ----\nlet GOLD, HIGH, BOLE, setout=0, matte=1;\nif(sty==='moon_gold'){ GOLD=hsb2rgb(H+12,17,84); HIGH=hsb2rgb(H+14,7,99); BOLE=hsb2rgb(H+186,30,30); }\nelse if(sty==='copper'){ GOLD=hsb2rgb(H-24,62,63); HIGH=hsb2rgb(H-12,40,93); BOLE=hsb2rgb(H+150,34,26); }\nelse if(sty==='graphite'){ GOLD=hsb2rgb(H+180,7,42); HIGH=hsb2rgb(H+180,4,74); BOLE=hsb2rgb(H+178,10,16); matte=.45; }\nelse if(sty==='setout'){ GOLD=hsb2rgb(H,34,72); HIGH=hsb2rgb(H+6,16,97); BOLE=hsb2rgb(H+170,30,30); setout=1; }\nelse { GOLD=hsb2rgb(H,54,74); HIGH=hsb2rgb(H+8,26,99); BOLE=hsb2rgb(H-32,58,34); }\n\n// ---- the leaf lattice: gilders lay overlapping squares in courses. `coverage` decides\n// which cells actually took \u2014 the misses are the holidays that let the scene through.\nconst leafR=cl(.155*sc,.055,.42)*u;\nconst step=leafR*1.34;\nconst cols=Math.ceil(W/step)+2, rows=Math.ceil(Hh/step)+2;\nconst NV=13;\nconst lkey=P.seed+'|'+Math.round(leafR)+'|'+cols+'x'+rows;\nif(S.lk!==lkey){ S.lk=lkey; const n=Math.min(cols*rows,130);\n  const LF=new Float32Array(n*(5+NV)); let m=0;\n  for(let r=0;r<rows&&m<n;r++) for(let c=0;c<cols&&m<n;c++){\n    const b=m*(5+NV);\n    LF[b]=(c-.5)*step+(fr(m*3.1+10)-.5)*step*.34;\n    LF[b+1]=(r-.5)*step+(fr(m*3.1+11)-.5)*step*.34;\n    LF[b+2]=(fr(m*3.1+12)-.5)*.42;                  // each leaf lands a little off-square\n    LF[b+3]=fr(m*3.1+13);                           // did this cell take? (vs coverage)\n    LF[b+4]=fr(m*3.1+14);                           // per-leaf tone\n    for(let v=0;v<NV;v++) LF[b+5+v]=.80+.30*fr(m*31.7+v*2.3+15);  // torn edge radii\n    m++;\n  }\n  S.lf=LF; S.nl=m; }\nconst LF=S.lf, NLF=S.nl;\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nnoStroke();\nconst glow=(.35+.9*en)*(.6+.6*K.intensity)+S.tre*.3*en;\n\nfor(let m=0;m<NLF;m++){\n  const b=m*(5+NV);\n  const took=LF[b+3];\n  if(took>cov) continue;                             // a holiday \u2014 the bole shows through\n  // shed: the gilding is failing, leaves lift and go\n  const lift=shed>0?cl((fr(m*5.3+40)-(1-shed))*3.2,0,1):0;\n  if(lift>=1) continue;\n  const cx=LF[b], cy=LF[b+1], ang=LF[b+2];\n  // how hard is the burnisher on this leaf right now?\n  const dbx=cx-bx, dby=cy-by;\n  const burn=Math.exp(-(dbx*dbx+dby*dby)/(bR*bR));\n  const tone=(.72+.28*LF[b+4])*(1+.55*Math.exp(-((cx-bx)*(cx-bx)+(cy-by)*(cy-by))/(bR*bR))*burnK*glow);\n  const aBase=(setout?.0:(.62+.24*LF[b+4]))*al*(1-lift);\n  push();\n  translate(cx,cy); rotate(ang+lift*.5);\n  // the torn deckle edge of a beaten leaf\n  const path=[];\n  for(let v=0;v<NV;v++){ const a2=v/NV*TAU, rr=leafR*LF[b+5+v]*(1+lift*.12);\n    path.push([Math.cos(a2)*rr*1.02, Math.sin(a2)*rr*.98]); }\n  if(setout){\n    // non-representational: the gilder's setting-out. Flat tinted planes and hard linework\n    // \u2014 no modelling, no material, no sheen. The burnisher passing is what lights a course.\n    // each course carries its own slow phase, so the plan never sits perfectly still\n    const li=cl(.26+.68*burn*burnK*glow+.13*Math.sin(TD*.13+m*1.7)+.07*Math.sin(TD*.31+m*.7),0,1);\n    fill(md(H+6,360),26,42+40*li,Math.min(64,(16+30*li)*al*(1-lift)));\n    stroke(md(H+6,360),18,97,Math.min(96,(30+60*li)*al*(1-lift)));\n    strokeWeight(Math.max(1,u*.0040*(.6+.8*li)));\n    beginShape(); for(const p2 of path) vertex(p2[0],p2[1]); endShape(CLOSE);\n    // the square the leaf was cut from, drawn under its torn edge\n    noFill();\n    stroke(md(H+6,360),12,99,Math.min(72,(14+44*li)*al*(1-lift)));\n    strokeWeight(Math.max(.8,u*.0022));\n    const q=leafR*.62;\n    beginShape(); vertex(-q,-q); vertex(q,-q); vertex(q,q); vertex(-q,q); endShape(CLOSE);\n    pop(); continue;\n  }\n  // each leaf carries its own sheen: a gradient running with the light\n  const g1=dc.createLinearGradient(-leafR*lxd,-leafR*lyd,leafR*lxd,leafR*lyd);\n  const lo=[GOLD[0]*tone*.52,GOLD[1]*tone*.52,GOLD[2]*tone*.55];\n  const mid=[GOLD[0]*tone,GOLD[1]*tone,GOLD[2]*tone];\n  const hiC=[HIGH[0],HIGH[1],HIGH[2]];\n  const hot=cl(burn*burnK*glow*matte,0,1);\n  g1.addColorStop(0, rgba(lo, aBase*.94));\n  g1.addColorStop(.42, rgba(mid, aBase));\n  g1.addColorStop(cl(.60+.22*Math.sin(TD*.09+m),.5,.9), rgba([mid[0]+(hiC[0]-mid[0])*hot, mid[1]+(hiC[1]-mid[1])*hot, mid[2]+(hiC[2]-mid[2])*hot], aBase));\n  g1.addColorStop(1, rgba(lo, aBase*.9));\n  dc.fillStyle=g1;\n  dc.beginPath(); dc.moveTo(path[0][0],path[0][1]);\n  for(let v=1;v<NV;v++) dc.lineTo(path[v][0],path[v][1]);\n  dc.closePath(); dc.fill();\n  // the lap line where this leaf overlaps its neighbour\n  dc.strokeStyle=rgba(lo, aBase*.5); dc.lineWidth=Math.max(.5,u*.0011); dc.stroke();\n  pop();\n}\n\n// ---- skewings: the loose fragments that never stuck, still drifting and tumbling ----\nconst NSK=Math.round((10+dens*46)*(1+shed*1.6));\ndc.globalCompositeOperation='lighter';\nfor(let k=0;k<NSK;k++){\n  const ph=fr(k*2.7+200);\n  const fall=md(ph+TD*(.011+.020*fr(k*2.7+201))*(1+shed),1);\n  const sx2=md(fr(k*2.7+202)+.06*Math.sin(TD*.21+k*1.7)+TD*.0018*(fr(k*2.7+206)-.5),1)*W;\n  const sy2=fall*Hh*1.06-Hh*.03;\n  const tum=TD*(.5+1.1*fr(k*2.7+203))+k;\n  const sz=u*(.0035+.0075*fr(k*2.7+204))*sc;\n  const fo=Math.abs(Math.cos(tum));                  // edge-on flip: a fleck of foil is 2D\n  const dsk=Math.exp(-((sx2-bx)*(sx2-bx)+(sy2-by)*(sy2-by))/(bR*bR*2.2));\n  const aa=(.18+.55*fo)*(.35+.9*dsk)*al*glow*(setout?.5:1);\n  fill(md(H+8*fr(k*2.7+205),360), setout?18:38, 96, Math.min(72,aa*74));\n  push(); translate(sx2,sy2); rotate(tum*.6);\n  ellipse(0,0,sz*fo*1.9+sz*.18,sz*1.5);\n  pop();\n}\ndc.globalCompositeOperation=oldOp;\n\nblendMode(BLEND); dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n}\n"
+}

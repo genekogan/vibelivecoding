@@ -1,0 +1,135 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.kelp_forest",
+  "kind": "genart",
+  "name": "Kelp Forest",
+  "desc": "A giant-kelp forest running its conveyor \u2014 the meristem at each blade's base extrudes tissue continuously while the distal tip erodes away, so corrugations stream forever up the blades and vanish at their ends; gas bladders float the stipes into a flattened surface canopy, wave surge rolls the whole forest with an orbital motion that dies away with depth, and new sporophytes recruit on the rock as old ones let go and wash out of frame.",
+  "tags": [
+    "kelp",
+    "seaweed",
+    "macroalgae",
+    "algae",
+    "forest",
+    "stipe",
+    "blade",
+    "frond",
+    "holdfast",
+    "pneumatocyst",
+    "bladder",
+    "canopy",
+    "meristem",
+    "conveyor",
+    "growth",
+    "erosion",
+    "surge",
+    "swell",
+    "waves",
+    "orbital",
+    "ocean",
+    "sea",
+    "underwater",
+    "submarine",
+    "depth",
+    "layers",
+    "light-shafts",
+    "marine-snow",
+    "cyanotype",
+    "atkins",
+    "photogram",
+    "plate",
+    "haeckel",
+    "xray",
+    "sonar",
+    "botanical",
+    "organic",
+    "process",
+    "sublime",
+    "eerie",
+    "nature"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "surge amplitude + blade flap + how fast the conveyor extrudes and the forest turns over"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many stipes make up the forest (3 at 0 -> 16 at 1) and how thick the marine snow is"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "stipe and blade size vs frame (2.2 = swimming inside one plant)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.05,
+      "max": 4,
+      "doc": "surge + growth + conveyor rate multiplier"
+    },
+    "hue": {
+      "default": 64,
+      "min": 0,
+      "max": 360,
+      "doc": "blade hue in the plate/xray/sonar looks (cyanotype is monochrome by construction)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "which part of the forest the frame is looking at"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical placement of the surface and the rocky bottom"
+    },
+    "surge": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wave energy \u2014 a glassy calm at 0, a rolling groundswell at 1"
+    },
+    "style": {
+      "default": "cyanotype",
+      "options": [
+        "cyanotype",
+        "plate",
+        "xray",
+        "sonar"
+      ],
+      "doc": "aesthetic \u2014 Atkins' British Algae photogram (pale mass on Prussian blue); chromolithograph plate w/ ink line and modelled blades; additive translucent radiograph; false-colour acoustic echogram"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seeds recruitment sites, depth planes, blade counts and life spans"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity of the forest over the water column"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:05:28+00:00",
+    "fps": 58.5,
+    "motion": 0.0479,
+    "lum": 0.264
+  },
+  "code": "const D = { energy:.6, density:.5, scale:1, speed:1, hue:64, x:.5, y:.5, surge:.6, style:'cyanotype', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7) * 43758.5453; return s - Math.floor(s); };\nconst sty = P.style;\nconst EN = cl(P.energy,0,1), DN = cl(P.density,0,1), SC = cl(P.scale,.4,2.2);\nconst SG = cl(P.surge,0,1), AL = cl(P.alpha,0,100)/100;\n\nif (S.lastT == null || K.t < S.lastT) S.lastT = K.t;\nlet dt = K.t - S.lastT; S.lastT = K.t;\nif (!(dt >= 0) || dt > .25) dt = 1/60;\nconst SP = cl(P.speed,.05,4);\nS.tt = (S.tt || 0) + dt*SP;\nconst T = S.tt;\n// swell: a real wave train, incommensurate periods, so the surge never repeats\nconst swell = .85*Math.sin(T*.47) + .45*Math.sin(T*.79 + 1.3) + .28*Math.sin(T*1.21 + .4)\n            + .3*Math.sin(T*.173);\nconst surge = (.3 + .95*EN)*SG*swell + A.lowmid*.7 + K.pulse*.18*K.intensity;\n// THE CONVEYOR: the intercalary meristem extrudes tissue at the blade base while the\n// distal tip erodes away. This phase only ever increases -> the piece cannot converge.\nS.conv = (S.conv || 0) + dt*SP*(.055 + .075*EN);\n\nconst surf = cl(P.y - .42, -.2, .5);                        // sea surface, as a frame fraction\nconst floor2 = cl(P.y + .46, .55, 1.15);                    // rocky bottom\n\n// ---- style ---------------------------------------------------------------\nconst H = P.hue;\nlet mode;\nif (sty === 'plate') mode = 1; else if (sty === 'xray') mode = 2;\nelse if (sty === 'sonar') mode = 3; else mode = 0;          // 0 = cyanotype (Atkins' algae)\n\n// ---- water column + light shafts ----------------------------------------\nconst bgKey = [width,height,sd,sty,H,surf,floor2].join('|');\nif (!S.g || S.bgKey !== bgKey) {\n  S.bgKey = bgKey;\n  const bw = Math.min(560, Math.max(220, width|0));\n  const bh = Math.max(1, Math.round(bw*height/Math.max(1,width)));\n  const g = (S.g && S.g.width === bw && S.g.height === bh) ? S.g : createGraphics(bw, bh);\n  S.g = g; g.colorMode(HSB, 360, 100, 100, 100);\n  g.push(); g.noStroke();\n  const sfy = bh*surf, fly = bh*floor2;\n  for (let y=0;y<bh;y++){                                    // Beer's law: light dies with depth\n    const v = cl((y - sfy)/Math.max(1, fly - sfy), 0, 1);\n    const at = Math.exp(-v*1.9);\n    if (mode === 1) g.fill(196 - v*8, 40 + v*18, 74*at + 9);\n    else if (mode === 2) g.fill(194, 40, 10 + 9*at);\n    else if (mode === 3) g.fill(250 - v*30, 62, 8 + 8*at);\n    else g.fill(212 + v*4, 80 - v*6, 40*at + 8);\n    g.rect(0, y, bw, 1.2); }\n  for (let i=0;i<2400;i++){ g.fill(0, 0, mode===1 ? 40 : 92, 4 + fr(i*3.9)*7);\n    g.rect(fr(i*2.7)*bw, fr(i*6.3+2)*bh, 1.5, 1.5); }\n  g.noStroke();                                              // rocky bottom\n  if (fly < bh) {\n    g.fill(mode===1?28:(mode===3?258:214), mode===1?26:60, mode===2?14:12);\n    g.rect(0, fly, bw, bh - fly + 2);\n    for (let i=0;i<40;i++){ const rx = fr(i*5.1)*bw, rw = bw*(.03 + fr(i*2.3)*.11);\n      g.fill(mode===1?26:(mode===3?254:216), mode===1?24:54, (mode===2?18:16) + fr(i*7.7)*10);\n      g.ellipse(rx, fly + fr(i*3.3)*bh*.02, rw, rw*.42); }\n  }\n  const dc = g.drawingContext;\n  const vg = dc.createRadialGradient(bw*.5, sfy, bw*.05, bw*.5, bh*.7, bw*.95);\n  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.4)');\n  dc.fillStyle = vg; dc.fillRect(0, 0, bw, bh);\n  g.pop();\n  // light shafts stabbing through the canopy \u2014 drifts on its own rates\n  const dw = 300, dh = Math.max(1, Math.round(dw*height/Math.max(1,width)));\n  if (S.sh && S.sh.remove) S.sh.remove();\n  const s2 = createGraphics(dw, dh);\n  S.sh = s2; s2.colorMode(HSB, 360, 100, 100, 100);\n  s2.push(); s2.clear(); s2.noStroke();\n  for (let i=0;i<26;i++){\n    const bx = fr(i*4.3)*dw, w2 = dw*(.006 + fr(i*2.7)*.03), sk = (fr(i*5.9)-.5)*.5;\n    for (let k=0;k<4;k++){\n      s2.fill(mode===3 ? 300 : (mode===1 ? 52 : 192), mode===1?22:16, 100, 2.6);\n      s2.beginShape();\n      s2.vertex(bx - w2*(1+k*.5), dh*surf); s2.vertex(bx + w2*(1+k*.5), dh*surf);\n      s2.vertex(bx + w2*(3+k*1.4) + sk*dh, dh*1.02); s2.vertex(bx - w2*(3+k*1.4) + sk*dh, dh*1.02);\n      s2.endShape(CLOSE);\n    }\n  }\n  s2.pop();\n}\nimage(S.g, 0, 0, width, height);\nblendMode(mode === 1 ? SCREEN : ADD);\nconst shx = (Math.sin(T*.041) + .35*Math.sin(T*.0973 + 1.7))*width*.05;\ntint(0, 0, 100, mode === 2 ? 26 : 44);\nimage(S.sh, -width*.06 + shx, 0, width*1.12, height);\nnoTint(); blendMode(BLEND);\n\n// ---- sporophyte pool: recruit at the bottom, grow up, shed, drift out ----\nconst NMAX = 16;\nconst reseed = (k) => {\n  const j = k.id*29.1 + (k.gen = (k.gen||0)+1)*17.3;\n  k.xn = .04 + ((k.id*.6180339887) % 1)*.92 + (fr(j*1.3)-.5)*.05;   // golden-ratio spread\n  k.z = .28 + fr(j*2.1)*.72;\n  k.ph = fr(j*3.7)*6.28;\n  k.vig = .74 + fr(j*4.3)*.55;\n  k.nb = 6 + ((fr(j*5.9)*5)|0);                             // blades on this stipe\n  k.hj = (fr(j*6.1)-.5)*26;\n  k.life = 60 + fr(j*7.7)*50;\n  k.sen = 16 + fr(j*8.3)*14;\n  k.lean = (fr(j*9.1)-.5)*.5;\n  k.age = 0;\n};\nif (!S.kp || S.kp.length !== NMAX || S.seedUsed !== sd) {\n  S.seedUsed = sd; S.kp = [];\n  for (let i=0;i<NMAX;i++){ const k = { id:i }; reseed(k); k.age = fr(i*13.1)*(k.life + k.sen); S.kp.push(k); }\n}\nfor (let i=0;i<NMAX;i++){ const k = S.kp[i];\n  k.age += dt*SP*(.6 + .7*EN)*(.7 + .5*K.intensity);\n  if (k.age > k.life + k.sen) reseed(k); }\n\n// ---- draw ----------------------------------------------------------------\nconst nDraw = Math.max(2, Math.round(3 + DN*13));\nconst order = [];\nfor (let i=0;i<nDraw;i++) order.push(i);\norder.sort((a, b) => S.kp[a].z - S.kp[b].z);                // far planes first\nif (mode === 2) blendMode(ADD);\nstrokeCap(ROUND); strokeJoin(ROUND);\nconst fy = floor2*height, sfy = surf*height;\nconst NV = 14;\nconst nC = nDraw <= 8 ? 7 : (nDraw <= 12 ? 5 : 3);          // conveyor detail, budgeted\nconst zCut = nDraw <= 10 ? .45 : .62;                       // far planes drop their corrugation\n\nfor (let oi=0; oi<nDraw; oi++) {\n  const k = S.kp[order[oi]];\n  const haze = .3 + .7*k.z;\n  const grow = cl(k.age/26, 0, 1);\n  const gr = grow*grow*(3 - 2*grow);\n  const dead = k.age > k.life ? cl((k.age - k.life)/k.sen, 0, 1) : 0;\n  const bx = (k.xn + (P.x - .5)*.5)*width;\n  const topY = sfy + u*.03 + (1 - gr)*(fy - sfy)*.9;        // the canopy the stipe is reaching for\n  const drift = dead*dead*width*.4*(k.id % 2 ? 1 : -1);     // shed stipes wash out of frame\n  const alp = AL*(1 - dead*.8)*(.4 + .6*haze);\n  if (alp < .02) continue;\n  const hh = ((P.hue + k.hj + dead*40) % 360 + 360) % 360;\n  const stW = u*.006*SC*k.vig*haze;\n\n  // --- stipe: buoyant, taut, surge decaying exponentially with depth\n  const SX = [], SY = [];\n  for (let q=0;q<=NV;q++) {\n    const v = q/NV;                                          // 0 holdfast .. 1 canopy\n    const y = fy - (fy - topY)*v;\n    const dep = cl((y - sfy)/Math.max(1, fy - sfy), 0, 1);   // 0 surface .. 1 bottom\n    const orb = Math.exp(-dep*2.3);                          // orbital velocity dies with depth\n    const sx = bx + drift\n      + surge*u*.10*orb*k.vig*(.6 + .5*Math.sin(k.ph + T*.31))\n      + Math.sin(T*(.83 + k.vig*.3) + k.ph + v*1.7)*u*.012*orb*(.3 + EN)\n      + k.lean*u*.10*v*v + dead*u*.06*Math.sin(T*.7 + k.ph)*v;\n    SX.push(sx); SY.push(y);\n  }\n  noFill();\n  if (mode === 0) stroke(212, 20 - k.z*12, 88 + k.z*8, 88*alp);\n  else if (mode === 1) stroke(30, 44, 24 + 14*k.z, 90*alp);\n  else if (mode === 2) stroke(hh, 40, 66, 26*alp);\n  else stroke(300 - k.z*60, 76, 60 + 30*k.z, 60*alp);\n  strokeWeight(stW);\n  beginShape(); for (let q=0;q<=NV;q++) vertex(SX[q], SY[q]); endShape();\n  // --- holdfast gripping the rock\n  if (gr > .05 && dead < .5) {\n    strokeWeight(stW*.6);\n    for (let q=0;q<5;q++){ const a2 = Math.PI*.5 + (q/4 - .5)*2.2;\n      line(SX[0], SY[0], SX[0] + Math.cos(a2)*u*.022*SC*haze, SY[0] + Math.abs(Math.sin(a2))*u*.012*SC*haze); }\n  }\n  // --- blades + pneumatocysts along the stipe\n  const nb = Math.round(k.nb*(.4 + .6*gr));\n  for (let b=0;b<nb;b++) {\n    const v = .16 + (b + .5)/Math.max(1,k.nb)*.82;\n    const i2 = Math.min(NV, Math.round(v*NV));\n    const px2 = SX[i2], py2 = SY[i2];\n    const dep = cl((py2 - sfy)/Math.max(1, fy - sfy), 0, 1);\n    const canopy = cl(1 - dep*4.2, 0, 1);                    // near the surface the blade lies flat\n    const side = (b % 2) ? 1 : -1;\n    const bl = u*.16*SC*k.vig*haze*(.55 + .45*gr)*(1 - dead*.3);\n    const bw2 = bl*.17;\n    const flap = Math.sin(T*(1.09 + (b%3)*.23) + k.ph + b*1.1)*(.1 + .3*EN);\n    const ang = -Math.PI*.5*(1 - canopy*.86) + side*(.5 + .35*canopy) + surge*.30 + flap;\n    push(); translate(px2, py2); rotate(ang);\n    if (mode === 0) { noStroke(); fill(212, 6 + b*.5, 96 - b*.8, 80*alp); }\n    else if (mode === 1) { stroke(28, 46, 16, 40*alp); strokeWeight(Math.max(.4, bl*.012));\n      fill(hh, 52 - dead*26, (26 + 24*k.z)*(1 - dead*.2) + dead*20, 88*alp); }\n    else if (mode === 2) { noStroke(); fill(hh, 44, 40, 15*alp); }\n    else { noStroke(); fill(300 - k.z*60 - b*4, 80, 44 + 34*k.z, 42*alp); }\n    beginShape(); vertex(0, 0);\n    bezierVertex(bw2*1.5, bl*.16, bw2*1.15, bl*.72, 0, bl);\n    bezierVertex(-bw2*1.15, bl*.72, -bw2*1.5, bl*.16, 0, 0);\n    endShape(CLOSE);\n    // THE CONVEYOR made visible: corrugations extrude at the base and vanish at the tip\n    if (k.z > zCut && mode !== 2) {\n      if (mode === 0) stroke(212, 34, 64, 52*alp);\n      else if (mode === 1) stroke(hh, 40, 14 + 12*k.z, 46*alp);\n      else stroke(304, 60, 96, 34*alp);\n      strokeWeight(Math.max(.4, bl*.011)); noFill();\n      for (let c=0;c<nC;c++) {\n        let cv = ((c/nC) + S.conv*(.7 + .5*k.vig) + k.ph*.1) % 1;\n        if (cv < 0) cv += 1;\n        const fade2 = Math.min(1, cv*7) * Math.min(1, (1 - cv)*4.5);   // born at base, eroded at tip\n        if (fade2 < .04) continue;\n        const w3 = bw2*1.28*Math.sin(Math.PI*Math.pow(cv, .8))*.92;\n        const yy = bl*cv;\n        beginShape();\n        vertex(-w3, yy - bl*.012); vertex(0, yy + bl*.016); vertex(w3, yy - bl*.012);\n        endShape();\n      }\n      if (mode === 0) stroke(212, 30, 70, 40*alp); else if (mode === 1) stroke(hh, 44, 18, 40*alp);\n      strokeWeight(Math.max(.4, bl*.014));\n      line(0, 0, 0, bl*.96);                                  // midrib\n    }\n    pop();\n    if (canopy < .55 && b % 2 === 0 && k.z > (nDraw <= 10 ? .3 : .55)) {   // gas bladder\n      noStroke();\n      if (mode === 0) fill(212, 10, 94, 76*alp); else if (mode === 1) fill(hh - 10, 40, 40 + 16*k.z, 90*alp);\n      else if (mode === 2) fill(hh, 30, 60, 18*alp); else fill(310, 70, 80, 50*alp);\n      push(); translate(px2, py2); rotate(ang*.5);\n      ellipse(side*bl*.055, bl*.05, bl*.10, bl*.16); pop();\n    }\n  }\n}\n// ---- the surface itself: a bright rippling ceiling ------------------------\nif (sfy > -height*.05) {\n  blendMode(mode === 2 ? ADD : BLEND); noStroke();\n  for (let q=0;q<3;q++){\n    if (mode === 0) fill(206, 26, 96, 12*AL); else if (mode === 1) fill(196, 20, 96, 12*AL);\n    else if (mode === 2) fill(190, 20, 80, 7*AL); else fill(292, 50, 90, 9*AL);\n    rect(0, sfy - u*(.03 + q*.024) + Math.sin(T*.9 + q)*u*.004, width, u*(.03 + q*.024));\n  }\n  noFill(); strokeWeight(Math.max(1, u*.003));\n  if (mode === 0) stroke(206, 14, 100, 44*AL); else if (mode === 3) stroke(292, 40, 100, 34*AL);\n  else stroke(196, 12, 100, 44*AL);\n  beginShape();\n  for (let q=0;q<=26;q++){ const v = q/26;\n    vertex(v*width, sfy + Math.sin(v*11 + T*1.7)*u*.008 + Math.sin(v*23 - T*2.3)*u*.004\n           + surge*u*.008); }\n  endShape();\n}\n// ---- marine snow: the forest is always shedding ---------------------------\nnoStroke();\nconst nSn = Math.round(14 + DN*30);\nfor (let q=0;q<nSn;q++) {\n  const ph = fr(q*3.3)*6.28;\n  const fv = ((T*(.014 + fr(q*5.7)*.022) + fr(q*7.1)) % 1);\n  const sxx = (fr(q*2.3)*1.04 - .02)*width + Math.sin(T*.5 + ph)*u*.02 + surge*u*.03;\n  const syy = sfy + fv*(fy - sfy);\n  if (mode === 0) fill(212, 6, 96, 24*AL); else if (mode === 1) fill(44, 12, 88, 22*AL);\n  else if (mode === 2) fill(190, 20, 70, 10*AL); else fill(296, 40, 92, 20*AL);\n  ellipse(sxx, syy, u*.0028*SC, u*.0042*SC);\n}\nblendMode(BLEND);"
+}

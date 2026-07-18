@@ -1,0 +1,118 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.supernova_remnant",
+  "kind": "genart",
+  "name": "Supernova Remnant",
+  "desc": "The delicate expanding wreck of an exploded star \u2014 nested shock shells of gas ballooning outward as filaments of red hydrogen and cyan oxygen wisp and braid along the blast front, forever re-igniting new shells at the core so the remnant never stops growing.",
+  "tags": [
+    "supernova remnant",
+    "supernova",
+    "snr",
+    "veil nebula",
+    "cygnus loop",
+    "cassiopeia a",
+    "shock front",
+    "blast wave",
+    "shell",
+    "filaments",
+    "wisps",
+    "interstellar",
+    "shocked gas",
+    "h-alpha",
+    "oxygen",
+    "emission",
+    "expanding",
+    "cosmology",
+    "astrophysics",
+    "nebula",
+    "false-color",
+    "red",
+    "cyan",
+    "deep-space",
+    "sublime",
+    "scientific",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "filament + glow brightness / exposure"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.15,
+      "max": 1.0,
+      "doc": "shell count + filament strands"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "shell expansion rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "maximum shell radius"
+    },
+    "hue": {
+      "default": 350,
+      "min": 0,
+      "max": 360,
+      "doc": "base H-alpha emission hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "explosion center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "explosion center y"
+    },
+    "style": {
+      "default": "veil",
+      "options": [
+        "veil",
+        "oxygen",
+        "xray",
+        "ink"
+      ],
+      "doc": "red+cyan Veil vs teal OIII vs hot Chandra vs monochrome etched"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic filament turbulence"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:42:52+00:00",
+    "fps": 63.7,
+    "motion": 0.0196,
+    "lum": 0.055
+  },
+  "code": "const D = { energy:.6, density:.55, speed:1, scale:1, hue:350, x:.5, y:.5, style:'veil', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst md = Math.max(width, height);\nconst style = P.style, sd = (P.seed | 0);\nconst TAU = Math.PI * 2;\nconst smooth = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);\nconst hw = h => ((h % 360) + 360) % 360;\n\nconst T = K.t * (0.4 + P.speed * 0.6);\nconst cx = P.x * width, cy = P.y * height;\nconst Rmax = 1.35 * md * (0.7 + P.scale * 0.5);\nconst NS = Math.round(3 + P.density * 3);\n\n// ---- shell registry (reset-safe, seed-rebuild) ----\nif (!S.sh || S.shSeed !== sd || S.shN !== NS || S.lastT == null || T < S.lastT) {\n  S.shSeed = sd; S.shN = NS; S.sh = [];\n  const fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n  for (let k = 0; k < NS; k++) {\n    S.sh.push({ speed: (0.045 + fr(k*5+1) * 0.03) * md, birth: T - fr(k*5+2) * (Rmax / ((0.045 + fr(k*5+1)*0.03) * md)), sseed: (sd * 7 + k * 131) >>> 0, ell: 0.82 + fr(k*5+3) * 0.3 });\n  }\n}\nS.lastT = T;\nconst frs = (a, so) => { const s = Math.sin(a * 12.9898 + so * 0.017) * 43758.5453; return s - Math.floor(s); };\n\n// deep-space toned ground (never dead black) + faint remnant haze\npush();\nnoStroke();\nconst gg = drawingContext.createRadialGradient(cx, cy, 1, cx, cy, md * 0.8);\nif (style === 'ink') { gg.addColorStop(0, 'rgba(26,24,30,1)'); gg.addColorStop(1, 'rgba(10,10,14,1)'); }\nelse { gg.addColorStop(0, 'rgba(14,10,22,1)'); gg.addColorStop(0.5, 'rgba(9,8,18,1)'); gg.addColorStop(1, 'rgba(5,6,12,1)'); }\ndrawingContext.fillStyle = gg; drawingContext.fillRect(0, 0, width, height);\npop();\n\nconst filStrands = Math.round(20 + P.density * 46);\nconst expo = 0.5 + P.energy * 1.1;\nconst hb = P.hue;\n\npush();\nblendMode(ADD);\nfor (let s = 0; s < S.sh.length; s++) {\n  const sh = S.sh[s];\n  let R = sh.speed * (T - sh.birth);\n  if (R > Rmax) { sh.birth = T; sh.sseed = (sh.sseed * 1664525 + 1013904223) >>> 0; R = 0.001; }\n  const so = sh.sseed;\n  const fadeIn = smooth(R / (0.16 * md));\n  const fadeOut = smooth((Rmax - R) / (0.45 * Rmax));\n  const amp = fadeIn * fadeOut;\n  if (amp <= 0.001) continue;\n  const ell = sh.ell;\n\n  // 1) broad diffuse shock glow (carries luminance + motion as it expands)\n  const inR = Math.max(1, R * 0.55), outR = R * 1.12;\n  const glow = drawingContext.createRadialGradient(cx, cy, inR, cx, cy, outR);\n  let gc;\n  if (style === 'oxygen') gc = [90, 200, 180];\n  else if (style === 'xray') gc = [140, 190, 255];\n  else if (style === 'ink') gc = [150, 150, 165];\n  else gc = [180, 90, 130];\n  const ga = (0.05 + P.energy * 0.09) * amp * (P.alpha / 100);\n  const grd = drawingContext.createRadialGradient(cx, cy, inR * 0.4, cx, cy, outR);\n  grd.addColorStop(0, `rgba(${gc[0]},${gc[1]},${gc[2]},0)`);\n  grd.addColorStop(0.72, `rgba(${gc[0]},${gc[1]},${gc[2]},${ga * 0.5})`);\n  grd.addColorStop(0.9, `rgba(${gc[0]},${gc[1]},${gc[2]},${ga})`);\n  grd.addColorStop(1, `rgba(${gc[0]},${gc[1]},${gc[2]},0)`);\n  drawingContext.fillStyle = grd; drawingContext.fillRect(0, 0, width, height);\n\n  // 2) delicate expanding filaments (Veil-like wisps)\n  const drift = T * 0.02 + s * 1.7;\n  noFill();\n  for (let k = 0; k < filStrands; k++) {\n    const base = frs(k + 1, so) * TAU + drift;\n    const arc = 0.10 + frs(k + 30, so) * 0.22;\n    const rjit = 0.02 + frs(k + 60, so) * 0.06;\n    // choose emission line: red H-alpha, cyan/green OIII, or violet\n    const lc = frs(k + 90, so);\n    let h, sat;\n    if (style === 'oxygen') { h = hw(hb + 190 + lc * 40); sat = 70; }\n    else if (style === 'xray') { h = hw(200 + lc * 40); sat = 30 + lc * 30; }\n    else if (style === 'ink') { h = 0; sat = 0; }\n    else { if (lc < 0.5) { h = hw(hb + lc * 20); sat = 82; } else if (lc < 0.82) { h = hw(185 + lc * 30); sat = 68; } else { h = hw(275 + lc * 20); sat = 60; } }\n    const bright = (46 + frs(k + 120, so) * 44) * expo * amp;\n    const sw = (0.5 + frs(k + 150, so) * 1.3) * (u / 700);\n    strokeWeight(sw);\n    const NP = 11;\n    beginShape();\n    for (let p = 0; p <= NP; p++) {\n      const tt = p / NP;\n      const a = base + (tt - 0.5) * arc;\n      // wispy turbulent radial displacement (Rayleigh-Taylor fingers)\n      const turb = Math.sin(a * 7 + so * 0.01) * 0.5 + Math.sin(a * 13 + k) * 0.3 + Math.sin(a * 23 + so) * 0.2;\n      const rr = R * (1 + turb * rjit + Math.sin(tt * 6.28 + k) * 0.01);\n      const px = cx + Math.cos(a) * rr;\n      const py = cy + Math.sin(a) * rr * ell;\n      // per-point brightness (brightest at shock front midpoint)\n      const b = bright * (0.4 + 0.6 * Math.sin(tt * Math.PI));\n      stroke(style === 'ink' ? 0 : h, sat, style === 'ink' ? (30 + b) : Math.min(100, 55 + b * 0.4), Math.min(80, b) * (P.alpha / 100));\n      curveVertex(px, py);\n    }\n    endShape();\n  }\n}\n// faint central compact remnant (neutron star) \u2014 subtle, non-strobe\nnoStroke();\nconst tw = 0.7 + 0.3 * Math.sin(T * 0.8) + K.pulse * 0.2 + A.bass * 0.25;\nif (style !== 'ink') {\n  fill(200, 20, 100, (8 + P.energy * 8) * tw * (P.alpha / 100));\n  circle(cx, cy, u * 0.02 * tw);\n}\nblendMode(BLEND);\npop();\n"
+}

@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.rocaille",
+  "kind": "genart",
+  "name": "Rocaille Cartouche",
+  "desc": "An asymmetric rococo cartouche -- a tinted panel framed by an off-balance encrustation of C-scrolls, S-scrolls, a scallop shell and foliate sprigs, weighted heavier at the top-left and bottom-right as the style demands; everything is modelled gilt, and a broad band of gilding shimmer sweeps diagonally across the whole piece so the frozen frame breathes with reflected light, rendered as Sevres-blue gilt, white bisque porcelain, painted boiserie, or an ornament-print engraving.",
+  "tags": [
+    "rocaille",
+    "rococo",
+    "cartouche",
+    "shell",
+    "scallop",
+    "coquille",
+    "c-scroll",
+    "s-scroll",
+    "scroll",
+    "scrollwork",
+    "asymmetric",
+    "frame",
+    "ornament",
+    "ornamental",
+    "decorative",
+    "gilt",
+    "gilded",
+    "gold",
+    "gilding",
+    "sevres",
+    "porcelain",
+    "bisque",
+    "boiserie",
+    "louis-xv",
+    "eighteenth-century",
+    "baroque",
+    "flourish",
+    "foliate",
+    "encrustation",
+    "chinoiserie",
+    "panel",
+    "engraving",
+    "ornament-print",
+    "meissen",
+    "ornate",
+    "lavish",
+    "sumptuous",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "backdrop",
+    "sublime",
+    "rich"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "gilding glow and shimmer-band brightness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2.1,
+      "doc": "size of the panel and its scroll frame -- fills more of the screen"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the shimmer band sweeps and the scrolls breathe"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "number of scroll and sprig elements around the frame"
+    },
+    "sway": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how much the ornament breathes / uncurls"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "gilt metal hue (44 = gold)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cartouche centre, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cartouche centre, vertical"
+    },
+    "style": {
+      "default": "gilt",
+      "options": [
+        "gilt",
+        "porcelain",
+        "boiserie",
+        "engraving"
+      ],
+      "doc": "aesthetic: Sevres-blue panel with gold / white bisque porcelain relief / painted-and-gilt boiserie / monochrome ornament-print engraving"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic -- re-throws scroll placement, shell and asymmetry"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:41:46+00:00",
+    "fps": 59.9,
+    "motion": 0.0114,
+    "lum": 0.204
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .55, sway: .5, hue: 44, x: .5, y: .5, style: 'gilt', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// ROCAILLE -- an asymmetric rococo cartouche. A tinted panel is framed by an\n// off-balance encrustation of C-scrolls, S-scrolls, a scallop shell and foliate\n// sprigs (heavier top-left / bottom-right, as the style demands). Everything is\n// modelled gilt, and a broad band of gilding shimmer sweeps diagonally across the\n// whole piece so the frozen frame breathes with reflected light. Sevres-blue\n// gilt, white bisque porcelain, painted boiserie, or an ornament-print engraving.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst cx = P.x * width, cy = P.y * height;\nconst sd = (P.seed | 0);\nconst fr = i => { let h = (Math.imul((i ^ sd) | 0, 374761393) + 0x9e3779b9) | 0; h = Math.imul(h ^ (h >>> 15), 668265263); h ^= h >>> 13; return ((h >>> 0) % 100000) / 100000; };\n\nconst st = P.style;\nlet bg, panel, gLo, gHi, rim, engrave = false, pcl = false;\nif (st === 'porcelain') { bg = [210, 22, 44]; panel = [210, 14, 60]; gLo = [212, 16, 40]; gHi = [210, 6, 96]; rim = [210, 3, 100]; pcl = true; }\nelse if (st === 'boiserie') { bg = [90, 14, 30]; panel = [70, 16, 46]; gLo = [(P.hue - 6 + 360) % 360, 60, 30]; gHi = [P.hue, 46, 92]; rim = [(P.hue + 10) % 360, 26, 100]; }\nelse if (st === 'engraving') { bg = [36, 12, 62]; panel = [34, 10, 70]; gLo = [33, 20, 26]; gHi = [33, 12, 46]; rim = [33, 8, 72]; engrave = true; }\nelse { bg = [(P.hue + 170) % 360, 55, 16]; panel = [210, 52, 34]; gLo = [(P.hue - 8 + 360) % 360, 72, 28]; gHi = [(P.hue + 6) % 360, 52, 94]; rim = [(P.hue + 14) % 360, 30, 100]; } // gilt / Sevres\n\n// ---- animation --------------------------------------------------------------\nconst sp = 0.3 + P.speed * 0.9;\nconst eGlow = 0.55 + P.energy * 1.1 + A.rms * 0.25;\n// diagonal gilding shimmer band sweeps across, plus a wheeling secondary rate\nconst sweepAng = 0.7 + 0.5 * Math.sin(K.t * 0.09 * sp);\nconst ca = Math.cos(sweepAng), sa = Math.sin(sweepAng);\nconst diag = Math.hypot(width, height);\nconst sweep = ((K.t * 0.12 * sp) % 2 + 2) % 2;             // 0..2 travels\nconst bandW = diag * 0.34;\nfunction shim(x, y) {\n  const proj = ((x - cx) * ca + (y - cy) * sa) / diag + 0.5;  // 0..1\n  let d = proj - (sweep % 1);\n  d = Math.min(Math.abs(d), Math.abs(d - 1), Math.abs(d + 1));\n  return Math.exp(-(d * d) * (diag * diag) / (bandW * bandW));\n}\nconst breathe = P.sway * (0.14 + 0.1 * Math.sin(K.t * 0.6 * sp));\n\n// ---- background -------------------------------------------------------------\npush(); noStroke(); rectMode(CORNER);\nfill(bg[0], bg[1], bg[2]); rect(0, 0, width, height);\nfor (let g = 8; g >= 0; g--) { fill(bg[0], Math.max(0, bg[1] - 6), bg[2] + (8 - g) * 2.6, 9); ellipse(cx, cy, u * (0.5 + g * 0.2), u * (0.5 + g * 0.2)); }\npop();\n\n// ---- gilt molding stroke with relief + travelling shimmer -------------------\nfunction giltStroke(pts, baseW, closed) {\n  for (let i = 1; i < pts.length; i++) {\n    const a = pts[i - 1], b = pts[i];\n    const mx = (a.x + b.x) * 0.5, my = (a.y + b.y) * 0.5;\n    const sh = shim(mx, my);\n    const w = baseW * (a.w != null ? (a.w + b.w) * 0.5 : 1);\n    const bright = Math.min(100, (gHi[2] * (0.5 + 0.5 * (0.3 + sh * 1.4)) + eGlow * 6));\n    if (engrave) {\n      stroke(gLo[0], gLo[1], 24, 70); strokeWeight(w * 0.9); line(a.x, a.y, b.x, b.y);\n      stroke(gHi[0], gHi[1], 48, 40); strokeWeight(w * 0.3); line(a.x, a.y, b.x, b.y);\n      continue;\n    }\n    // shadow underlay\n    stroke(gLo[0], gLo[1], gLo[2], 90); strokeWeight(w * 1.25);\n    line(a.x + 1.2, a.y + 1.6, b.x + 1.2, b.y + 1.6);\n    // gold body\n    stroke(gHi[0], Math.max(0, gHi[1] - 6), bright, 100); strokeWeight(w);\n    line(a.x, a.y, b.x, b.y);\n    // rim highlight\n    stroke(rim[0], rim[1] * (pcl ? 1 : 0.7), Math.min(100, bright + 20), 55 + 40 * sh); strokeWeight(w * 0.34);\n    line(a.x - 0.8, a.y - 1.0, b.x - 0.8, b.y - 1.0);\n  }\n}\n\n// ---- scroll element builders (normalized, then placed) ----------------------\nfunction cScroll(x, y, r, a0, turns, dir, tap) {\n  const pts = []; const NS = 26;\n  for (let i = 0; i <= NS; i++) { const s = i / NS; const ang = a0 + s * turns * 6.283 * dir; const rr = r * (0.16 + s * 0.9); pts.push({ x: x + Math.cos(ang) * rr, y: y + Math.sin(ang) * rr, w: tap ? (1.15 - s * 0.8) : 1 }); }\n  return pts;\n}\n\n// ---- interior panel (asymmetric cartouche blob) -----------------------------\nconst PR = u * 0.34 * P.scale;\npush(); translate(cx, cy);\nnoStroke();\n// panel fill with soft modelling\nfor (let g = 5; g >= 0; g--) {\n  const b = panel[2] + (5 - g) * (pcl ? 2 : 3) + shim(cx, cy) * 6;\n  fill(panel[0], panel[1], Math.min(100, b * (pcl ? 1 : 0.9 + 0.2 * eGlow) - g * 1.5), 100);\n  beginShape();\n  const lobes = 7;\n  for (let a = 0; a <= 40; a++) {\n    const ang = (a / 40) * Math.PI * 2;\n    const wob = 1 + 0.16 * Math.sin(ang * lobes + 0.6) + 0.09 * Math.sin(ang * 3 - 1.1) + 0.06 * Math.sin(ang * 2 + sweep);\n    const rr = PR * (1 - g * 0.04) * wob;\n    curveVertex(Math.cos(ang) * rr * 1.06, Math.sin(ang) * rr * 0.92);\n  }\n  endShape(CLOSE);\n}\n// faint interior wash texture (hatched arcs) so the panel isn't flat\nstroke(panel[0], panel[1] + 8, panel[2] * 0.7, 12); strokeWeight(1); noFill();\nfor (let h = 0; h < 10; h++) { const rr = PR * (0.2 + h * 0.09); ellipse(PR * 0.1, -PR * 0.1, rr * 1.9, rr * 1.5); }\npop();\n\n// ---- frame ornament: placed around panel edge, asymmetric weighting ---------\npush(); translate(cx, cy);\nconst baseW = Math.max(1.4, u * 0.012 * P.scale);\nconst nEl = 9 + Math.round(P.density * 8);\nfor (let e = 0; e < nEl; e++) {\n  // asymmetric angular density: cluster near NW (2.3rad) and SE (-0.9rad)\n  let ang = fr(e * 7 + 1) * 6.283;\n  const bias = 0.5 + 0.5 * Math.cos(ang - 2.3) * 0.6 + 0.4 * Math.cos(ang + 0.9) * 0.6;\n  if (fr(e * 3 + 2) > bias + 0.15) ang = 2.3 + (fr(e * 5) - 0.5) * 2.2;      // pull extras toward NW cluster\n  const rr = PR * (1.02 + fr(e * 11 + 3) * 0.32);\n  const ex = Math.cos(ang) * rr * 1.06, ey = Math.sin(ang) * rr * 0.92;\n  const sz = u * (0.06 + fr(e * 13 + 4) * 0.09) * P.scale * (0.9 + breathe);\n  const dir = fr(e * 5 + 6) > 0.5 ? 1 : -1;\n  const a0 = ang + Math.PI + (fr(e) - 0.5);\n  const turns = 0.75 + fr(e * 9 + 7) * 0.8;\n  giltStroke(cScroll(ex, ey, sz, a0, turns, dir, true), baseW);\n  if (fr(e * 17 + 8) > 0.55) giltStroke(cScroll(ex - Math.cos(ang) * sz * 0.4, ey - Math.sin(ang) * sz * 0.4, sz * 0.7, a0 + 3.1, turns * 0.8, -dir, true), baseW * 0.8);  // paired S-scroll\n}\n\n// ---- scallop shell at the dominant corner (top-left) ------------------------\n(function shell() {\n  const ang = 2.35, rr = PR * 1.05;\n  const shx = Math.cos(ang) * rr * 1.06, shy = Math.sin(ang) * rr * 0.92;\n  const sr = u * 0.14 * P.scale * (0.95 + breathe);\n  push(); translate(shx, shy); rotate(ang + Math.PI * 0.5);\n  const ribs = 13;\n  for (let r = 0; r <= ribs; r++) {\n    const a = (r / ribs - 0.5) * 2.2;\n    const scal = 1 + 0.06 * Math.sin(r * 3.14);\n    const pts = [{ x: 0, y: 0, w: 1.2 }, { x: Math.cos(a - 1.57) * sr * 0.5, y: Math.sin(a - 1.57) * sr * 0.5, w: 1 }, { x: Math.cos(a - 1.57) * sr * scal, y: Math.sin(a - 1.57) * sr * scal, w: 0.5 }];\n    giltStroke(pts, baseW * 0.9);\n  }\n  // scalloped outer edge\n  const edge = [];\n  for (let r = 0; r <= ribs; r++) { const a = (r / ribs - 0.5) * 2.2; const scal = 1 + 0.06 * Math.sin(r * 3.14); edge.push({ x: Math.cos(a - 1.57) * sr * scal, y: Math.sin(a - 1.57) * sr * scal, w: 0.8 }); }\n  giltStroke(edge, baseW);\n  pop();\n})();\npop();\n\nblendMode(BLEND);\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bg[0], bg[1], bg[2], 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\ndrawingContext.shadowBlur = 0;\n"
+}

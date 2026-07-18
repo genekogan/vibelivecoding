@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.accretion_disk",
+  "kind": "genart",
+  "name": "Accretion Disk",
+  "desc": "A bare differentially-rotating accretion disk seen at a steep inclination \u2014 hot inner gas shearing around a bright central compact object, one limb Doppler-beamed brilliant and blue as it sweeps toward you while the receding limb dims and reddens, spiral density waves and orbiting hotspots winding through the plasma.",
+  "tags": [
+    "accretion disk",
+    "accretion",
+    "relativistic",
+    "doppler beaming",
+    "differential rotation",
+    "keplerian",
+    "compact object",
+    "neutron star",
+    "white dwarf",
+    "protostar",
+    "plasma",
+    "hot gas",
+    "disk",
+    "astrophysics",
+    "relativity",
+    "beaming",
+    "spiral density wave",
+    "hotspot",
+    "thermal",
+    "black-body",
+    "false-color",
+    "deep-space",
+    "orange",
+    "blue",
+    "sublime",
+    "scientific",
+    "simulation",
+    "generative",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "brightness / exposure + beaming strength"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "disk outer radius"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "orbital / turbulence advection rate"
+    },
+    "tilt": {
+      "default": 0.72,
+      "min": 0.1,
+      "max": 1.0,
+      "doc": "inclination (higher = more edge-on, stronger beaming)"
+    },
+    "beam": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "relativistic beaming velocity (approaching-side asymmetry)"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "warm/cool temperature bias of the disk (cool hue = hotter/bluer)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "disk center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "disk center y"
+    },
+    "style": {
+      "default": "thermal",
+      "options": [
+        "thermal",
+        "doppler",
+        "iron",
+        "contour"
+      ],
+      "doc": "black-body vs exaggerated-doppler vs hot-magnetized vs schematic streamlines"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic hotspot layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing (100=opaque bg)"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:37+00:00",
+    "fps": 62.1,
+    "motion": 0.0079,
+    "lum": 0.053
+  },
+  "code": "const D = { energy:.62, scale:1, speed:1, tilt:.72, beam:.55, hue:30, x:.5, y:.5, style:'thermal', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst style = P.style, sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\n// ---- adaptive field buffer ----\nconst BW = Math.max(360, Math.min(560, Math.round(width / 3.0)));\nconst BH = Math.max(120, Math.round(BW * height / width));\nif (!S.gfx || S.bw !== BW || S.bh !== BH) { S.gfx = createGraphics(BW, BH); S.gfx.pixelDensity(1); S.bw = BW; S.bh = BH; }\nconst g = S.gfx;\n\n// seeded hotspot azimuths/radii/strengths\nconst NHS = 5;\nif (S.hsSeed !== sd) { S.hsSeed = sd; S.hp = []; S.hr = []; S.hs = []; S.hm = [];\n  for (let k = 0; k < NHS; k++) { S.hp.push(fr(k*4+1)*6.2831); S.hr.push(0.35+fr(k*4+2)*0.55); S.hs.push(0.5+fr(k*4+3)*0.5); S.hm.push(1+Math.floor(fr(k*4+4)*3)); } }\n\nconst T = K.t * (0.5 + P.speed * 0.85);\nconst incl = 0.35 + P.tilt * 1.05;                        // inclination (rad); higher = more edge-on\nconst ci = Math.cos(incl), si = Math.sin(incl);\nconst pa = 0.2 * Math.sin(T * 0.03) + T * 0.008;          // slow position-angle precession\nconst cpa = Math.cos(pa), spa = Math.sin(pa);\nconst Rout = 0.44 * u * (0.7 + P.scale * 0.55);           // outer radius in canvas px\nconst RoutB = Rout * BW / width;                          // in buffer px\nconst rin = 0.16;                                          // inner truncation (small \u2014 bare disk, not a shadow)\nconst cxB = (0.5 + (P.x - 0.5) * 0.5) * BW, cyB = (0.5 + (P.y - 0.5) * 0.5) * BH;\nconst beta = 0.25 + P.beam * 0.6;                          // beaming velocity fraction\nconst expo = 0.6 + P.energy * 1.5;\nconst gain = 1 + K.swell * 0.12 + A.rms * 0.25 + K.pulse * 0.1;\nconst hueBias = 0.12 * Math.cos((P.hue - 210) * Math.PI / 180);  // cool hue -> hotter/bluer disk\n\n// blackbody-ish ramp: ct 0(cool red)->1(hot blue), returns [r,g,b] 0..255 * intensity done by caller\nfunction ramp(ct, out) {\n  let r, gg, b;\n  if (ct < 0.28) { const s = ct / 0.28; r = 90 + s * 150; gg = 20 + s * 90; b = 8 + s * 20; }\n  else if (ct < 0.52) { const s = (ct - 0.28) / 0.24; r = 240 + s * 15; gg = 110 + s * 120; b = 28 + s * 90; }\n  else if (ct < 0.74) { const s = (ct - 0.52) / 0.22; r = 255 - s * 20; gg = 230 + s * 20; b = 118 + s * 120; }\n  else { const s = (ct - 0.74) / 0.26; r = 235 - s * 90; gg = 250 - s * 40; b = 238 + s * 17; }\n  out[0] = r; out[1] = gg; out[2] = b;\n}\nconst col = [0, 0, 0];\n\ng.loadPixels(); const pix = g.pixels;\nconst dopW = style === 'doppler' ? 0.5 : (style === 'iron' ? 0.34 : 0.2);\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const o = 4 * (j * BW + i);\n    // screen coords rel center, undo position angle\n    let sx = (i - cxB) / RoutB, sy = (j - cyB) / RoutB;\n    let rx = sx * cpa + sy * spa, ry = -sx * spa + sy * cpa;\n    // de-project inclination (screen y compressed by cos incl)\n    const py = ry / (ci + 1e-3);\n    const r = Math.sqrt(rx * rx + py * py);\n    if (r < rin * 0.6 || r > 1.06) {\n      // deep-space ground w/ faint outer disk haze\n      const haze = Math.max(0, 1.06 - r) * (r > 1 ? 0.5 : 0);\n      pix[o] = 6 + haze * 30; pix[o + 1] = 7 + haze * 16; pix[o + 2] = 12 + haze * 8; pix[o + 3] = 255; continue;\n    }\n    const phi = Math.atan2(py, rx);\n    // Keplerian differential rotation\n    const vr = 1 / Math.sqrt(Math.max(rin, r));\n    const vnorm = vr / (1 / Math.sqrt(rin));               // 0..1\n    // line-of-sight velocity for beaming (approaching side brighter/bluer)\n    const los = Math.cos(phi) * si * vnorm;\n    // turbulence: spiral density waves + orbiting hotspots advecting with omega(r)\n    const omega = 2.4 * Math.pow(r, -1.5);\n    let turb = 0.55 + 0.25 * Math.sin(2 * phi - omega * T * 0.6 + r * 6)\n                    + 0.18 * Math.sin(3 * phi + omega * T * 0.4);\n    for (let k = 0; k < NHS; k++) {\n      const hp = S.hp[k] - S.hs[k] * Math.pow(S.hr[k], -1.5) * T * 0.5;\n      const dphi = Math.atan2(Math.sin(phi - hp), Math.cos(phi - hp));\n      const dr = r - S.hr[k];\n      turb += S.hs[k] * 0.5 * Math.exp(-(dphi * dphi) * 6 - (dr * dr) * 22);\n    }\n    // radial emission profile (bright inner, fade out) + inner-edge rim\n    let emit = Math.pow(rin / r, 1.7) * 0.9 + Math.exp(-(r - rin) * (r - rin) * 40) * 0.6;\n    emit *= (r < 1 ? 1 : Math.max(0, 1.06 - r) * 3);       // soft outer edge\n    // relativistic beaming\n    const beamF = Math.pow(Math.max(0.08, 1 + beta * los), 3);\n    let I = emit * Math.max(0, turb) * beamF * expo * gain;\n    // color temperature: hotter inner + doppler shift\n    let ct = 0.30 + (1 - r) * 0.42 + los * dopW + hueBias;\n    if (ct < 0) ct = 0; else if (ct > 1) ct = 1;\n    ramp(ct, col);\n    if (style === 'contour') {                             // schematic iso-emission streamlines\n      const band = Math.pow(0.5 + 0.5 * Math.cos(Math.log(1 + I) * 9.0 + phi * 0), 6);\n      I = (0.12 + band * 0.9) * Math.min(1.4, I);\n      col[0] = 120; col[1] = 200 + los * 40; col[2] = 255;\n    }\n    let R = col[0] * I, G = col[1] * I, B = col[2] * I;\n    pix[o] = R > 255 ? 255 : R; pix[o + 1] = G > 255 ? 255 : G; pix[o + 2] = B > 255 ? 255 : B; pix[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\nnoTint();\n// bright central compact object (boundary layer) \u2014 NOT a black-hole shadow\nblendMode(ADD); noStroke();\nconst ccx = (0.5 + (P.x - 0.5) * 0.5) * width, ccy = (0.5 + (P.y - 0.5) * 0.5) * height;\nconst tw = 0.8 + 0.2 * Math.sin(T * 0.9) + K.pulse * 0.2 + A.bass * 0.3;\nif (style !== 'contour') {\n  fill(48, 12, 100, (14 + P.energy * 16) * (P.alpha / 100));\n  circle(ccx, ccy, Rout * rin * 1.6 * tw);\n  fill(50, 4, 100, (26 + P.energy * 18) * (P.alpha / 100));\n  circle(ccx, ccy, Rout * rin * 0.7);\n}\nblendMode(BLEND);\npop();\n"
+}

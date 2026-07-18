@@ -1,0 +1,122 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.fireworks",
+  "kind": "fx",
+  "name": "Fireworks",
+  "desc": "Rockets climb on the beat and burst into gravity-fed sparks over a constant rain of drifting embers, rendered as glowing phosphor trails, sumi ink splatter, a schematic blueprint of arcs, thermal false-color, or chunky pixel sparks.",
+  "tags": [
+    "fireworks",
+    "firework",
+    "rockets",
+    "sparks",
+    "burst",
+    "explosion",
+    "pyrotechnics",
+    "celebration",
+    "festival",
+    "new-year",
+    "fourth-of-july",
+    "embers",
+    "phosphor",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "pixel",
+    "ink",
+    "overlay",
+    "particles",
+    "fx",
+    "night",
+    "sky",
+    "finale",
+    "spectacle"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "launch rate + ember count"
+    },
+    "energy": {
+      "default": 0.65,
+      "min": 0,
+      "max": 1,
+      "doc": "burst size + spark velocity"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "spark size vs design"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall motion rate"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "base firework hue"
+    },
+    "gravity": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spark fall acceleration"
+    },
+    "decay": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "spark fade rate"
+    },
+    "style": {
+      "default": "phosphor",
+      "options": [
+        "phosphor",
+        "ink",
+        "blueprint",
+        "thermal",
+        "pixel"
+      ],
+      "doc": "render look"
+    },
+    "act": {
+      "default": "finale",
+      "options": [
+        "finale",
+        "volley",
+        "ember"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic random seed"
+    }
+  },
+  "acts": [
+    "finale",
+    "volley",
+    "ember"
+  ],
+  "deps": [],
+  "verified": null,
+  "code": "const D = { density: .5, energy: .65, scale: 1, speed: 1, hue: 30, gravity: .5, decay: .5, style: 'phosphor', act: 'finale', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst fr = i => { const q = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return q - Math.floor(q); };\nconst hw = h => ((h % 360) + 360) % 360;\nconst u = Math.min(width, height);\nconst sty = P.style;\nconst t = K.t;\n\nif (!S.fw) S.fw = { rockets: [], sparks: [], smoke: [], last: -999 };\nconst F = S.fw;\n\n// ---- beat-launched rockets (guard t0 reset) ----\nconst bi = Math.floor(K.beat);\nif (S.lastBi == null || bi < S.lastBi) S.lastBi = bi - 1;\nconst every = P.density > 0.66 ? 1 : (P.density > 0.33 ? 2 : 4);\nconst sec = ((Math.floor(K.section) % 8) + 8) % 8;\nconst ACT = {\n  finale: { rate: 1, size: 1 + 0.5 * (sec >= 6 ? 1 : 0), spread: 1 },\n  volley: { rate: 1, size: 1, spread: 1.5 },\n  ember:  { rate: 0.5, size: 0.7, spread: 0.7 } };\nconst ac = ACT[P.act] || ACT.finale;\n\nif (bi > S.lastBi) {\n  const launches = (bi % every === 0) ? 1 : 0;\n  const extra = (ac.rate > 0.9 && K.intensity > 0.6 && bi % 2 === 0) ? 1 : 0;\n  for (let L = 0; L < launches + extra; L++) {\n    if (F.rockets.length < 8) {\n      const rr = fr(bi * 7 + L * 13);\n      F.rockets.push({\n        x: width * (0.15 + rr * 0.7),\n        y: height * 1.02,\n        ty: height * (0.12 + fr(bi * 5 + L * 3) * 0.36),\n        vx: (fr(bi * 3 + L) - 0.5) * u * 0.004,\n        hue: hw(P.hue + (fr(bi + L * 9) - 0.5) * 120),\n        big: 0.7 + fr(bi * 2 + L) * 0.7 });\n    }\n  }\n  S.lastBi = bi;\n}\n\nconst add = (sty === 'phosphor' || sty === 'thermal' || sty === 'pixel');\nconst grav = (0.03 + P.gravity * 0.12) * u * 0.006;\nconst fade = 0.006 + P.decay * 0.03;\nconst inten = 0.5 + 0.5 * K.intensity;\n\npush();\nnoStroke();\nif (add) blendMode(ADD);\n\n// ---- continuous drifting ember-rain floor (real-time, never re-phases) ----\nconst nem = Math.floor(50 + P.density * 130);\nif (sty !== 'blueprint') {\n  for (let i = 0; i < nem; i++) {\n    const life = (fr(i * 2 + 200) + t * (0.05 + 0.09 * fr(i + 201))) % 1;\n    const ex = ((fr(i * 3 + 202) + Math.sin(t * 0.2 + i) * 0.02) % 1) * width;\n    const ey = life * height;\n    const flick = 0.5 + 0.5 * Math.sin(t * 6 + i * 1.7);\n    const eh = hw(P.hue + (fr(i + 203) - 0.5) * 60);\n    const ea = (1 - life) * (10 + 14 * flick) * (0.4 + 0.6 * P.energy);\n    if (sty === 'ink') fill(hw(P.hue), 10, 22, ea * 0.8);\n    else if (sty === 'thermal') fill(hw(20 + life * 40), 90, 100, ea);\n    else fill(eh, 60, 100, ea);\n    ellipse(ex, ey, u * 0.004 * (0.6 + flick), u * 0.004 * (0.6 + flick));\n  }\n}\n\n// ---- rockets ----\nfor (let i = F.rockets.length - 1; i >= 0; i--) {\n  const r = F.rockets[i];\n  const rise = u * (0.012 + 0.01 * P.energy) * P.speed * (1.2 - 0.4 * K.phase);\n  r.y -= rise; r.x += r.vx;\n  if (sty === 'blueprint') {\n    stroke(hw(P.hue + 180), 20, 100, 55); strokeWeight(1); noFill();\n    line(r.x, r.y, r.x, Math.min(height * 1.02, r.y + rise * 4)); noStroke();\n  } else if (sty === 'ink') {\n    fill(hw(P.hue), 12, 18, 70); ellipse(r.x, r.y, u * 0.008, u * 0.016);\n  } else {\n    fill(r.hue, 55, 100, 55); ellipse(r.x, r.y, u * 0.006, u * 0.014);\n  }\n  if (r.y <= r.ty) {\n    const cnt = Math.floor((22 + 34 * P.energy) * ac.size);\n    const burstV = u * (0.004 + 0.007 * P.energy) * ac.size;\n    for (let k = 0; k < cnt; k++) {\n      if (F.sparks.length > 340) break;\n      const an = (k / cnt) * TAU + fr(k + r.x) * 0.4;\n      const sp = burstV * (0.5 + fr(k * 2 + 7) * 0.7) * ac.spread;\n      F.sparks.push({ x: r.x, y: r.y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp,\n        hue: r.hue, life: 1, r0: r.ty });\n    }\n    F.smoke.push({ x: r.x, y: r.y, r: u * 0.02, life: 1, hue: r.hue });\n    F.rockets.splice(i, 1);\n  }\n}\n\n// ---- smoke puffs (drift up + fade) ----\nfor (let i = F.smoke.length - 1; i >= 0; i--) {\n  const m = F.smoke[i];\n  m.y -= u * 0.0012; m.r += u * 0.0016; m.life -= 0.012;\n  if (m.life <= 0) { F.smoke.splice(i, 1); continue; }\n  if (sty === 'blueprint' || sty === 'phosphor') continue;\n  fill(sty === 'ink' ? hw(P.hue) : hw(m.hue + 20), sty === 'ink' ? 8 : 18, sty === 'ink' ? 26 : 40, m.life * 10);\n  ellipse(m.x, m.y, m.r, m.r);\n}\n\n// ---- sparks ----\nfor (let i = F.sparks.length - 1; i >= 0; i--) {\n  const p = F.sparks[i];\n  p.x += p.vx * P.speed; p.y += p.vy * P.speed; p.vy += grav; p.vx *= 0.992;\n  p.life -= fade;\n  if (p.life <= 0 || p.y > height * 1.1) { F.sparks.splice(i, 1); continue; }\n  const tw = 0.6 + 0.4 * Math.sin(t * 9 + p.x);\n  const al = p.life * (26 + A.treble * 20) * tw;\n  const sz = u * 0.006 * P.scale * (0.5 + p.life * 0.9);\n  if (sty === 'blueprint') {\n    stroke(hw(P.hue + 180 + (1 - p.life) * 40), 24, 100, al * 1.4); strokeWeight(1); noFill();\n    ellipse(p.x, p.y, sz * 2, sz * 2); noStroke();\n  } else if (sty === 'ink') {\n    fill(hw(P.hue), 14, 16, al * 1.2); ellipse(p.x, p.y, sz, sz);\n  } else if (sty === 'thermal') {\n    const heat = p.life;\n    fill(hw(60 - heat * 60), 90, 100, al); ellipse(p.x, p.y, sz, sz);\n  } else if (sty === 'pixel') {\n    const g = u * 0.014 * P.scale;\n    const gx = Math.round(p.x / g) * g, gy = Math.round(p.y / g) * g;\n    fill(p.hue, 70, 100, al); rect(gx, gy, g * 0.8, g * 0.8);\n  } else {\n    // phosphor \u2014 glowing trail head\n    fill(p.hue, 45, 100, al * 0.7); ellipse(p.x, p.y, sz * 2.2, sz * 2.2);\n    fill(hw(p.hue + 15), 20, 100, al); ellipse(p.x, p.y, sz, sz);\n  }\n}\n\nif (add) blendMode(BLEND);\npop();\ndrawingContext.shadowBlur = 0;\n",
+  "last_fail": {
+    "at": "2026-07-11T18:44:12+00:00",
+    "gate": "motion",
+    "detail": "static: diff 0.0002 <= 0.004"
+  }
+}

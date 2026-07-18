@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spaceframe",
+  "kind": "genart",
+  "name": "Space Frame",
+  "desc": "A structural plate of a two-plane space frame carrying rolling loads \u2014 every member is solved by relaxation and lit by its own axial force, blue in compression and red in tension, the whole span visibly sagging and shivering under the wheels while a deflection diagram traces the bottom chord below and callouts count the kilonewtons.",
+  "tags": [
+    "truss",
+    "spaceframe",
+    "space-frame",
+    "bridge",
+    "girder",
+    "warren",
+    "pratt",
+    "howe",
+    "lattice",
+    "frame",
+    "structure",
+    "structural",
+    "engineering",
+    "statics",
+    "stress",
+    "strain",
+    "axial",
+    "tension",
+    "compression",
+    "load",
+    "deflection",
+    "sag",
+    "analysis",
+    "fea",
+    "finite-element",
+    "diagram",
+    "chart",
+    "plot",
+    "technical",
+    "drawing",
+    "draughting",
+    "drafting",
+    "plate",
+    "schematic",
+    "blueprint",
+    "cyanotype",
+    "engraving",
+    "xray",
+    "ghost",
+    "annotation",
+    "dimension",
+    "title-block",
+    "steel",
+    "industrial",
+    "civil",
+    "clinical",
+    "austere",
+    "rigorous",
+    "physics",
+    "simulation"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "load magnitude + deflection exaggeration + member weight + shiver"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.45,
+      "max": 2.0,
+      "doc": "span vs frame \u2014 2.0 runs the truss off both edges"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of bays (4..12) and how many loads roll at once (2..4)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3.5,
+      "doc": "how fast the loads traverse the span"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "plate tint (film/ghost); force colours stay blue/red by convention"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "mid-span anchor, canvas fraction"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0.1,
+      "max": 0.9,
+      "doc": "bottom-chord line, canvas fraction"
+    },
+    "depth": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "axonometric separation of the two truss planes + their lacing"
+    },
+    "anno": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "annotation density: deflection diagram, dimension line, force callouts, legend, title block"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "cyanotype",
+        "engraving",
+        "ghost",
+        "fea"
+      ],
+      "doc": "aesthetic: toned drafting film / prussian cyanotype / aged engraved plate / additive x-ray ghost / fea (members dissolve into pure force-coloured bars on clinical black)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "truss type (Warren/Warren+verticals/Pratt/Howe), depth ratio, load phasing"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 20,
+      "max": 100,
+      "doc": "ink opacity over the plate ground"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:27+00:00",
+    "fps": 59.2,
+    "motion": 0.0307,
+    "lum": 0.249
+  },
+  "code": "const D = { energy:.6, scale:1, density:.5, speed:1, hue:200, x:.5, y:.44, depth:.55, anno:.7, style:'film', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\nconst AL = cl(P.alpha,20,100)/100;\nconst H = ((P.hue%360)+360)%360;\nconst sty = P.style;\nconst anno = cl(P.anno,0,1);\nconst NRG = cl(P.energy,0,1);\nconst DEP = cl(P.depth,0,1);\n\nfunction pal(){\n  if (sty==='cyanotype') return { g:[214,74,17], mem:[200,6,99], back:[206,44,52], node:[196,16,94], anno:[200,10,90], ctr:[196,36,78], grain:34, add:false, wash:[196,22,80], ten:[8,72,96], com:[196,72,96], plot:[46,64,94] };\n  if (sty==='engraving') return { g:[38,18,71],  mem:[28,40,11], back:[32,22,42], node:[28,32,18], anno:[28,42,13], ctr:[8,62,40], grain:32, add:false, wash:[44,26,96], ten:[6,80,52], com:[214,72,42], plot:[28,44,22] };\n  if (sty==='ghost')     return { g:[234,62,8],  mem:[H,24,96], back:[H,50,40], node:[H,10,100], anno:[H,16,84], ctr:[12,70,58], grain:16, add:true,  wash:[H,44,58], ten:[14,80,100], com:[196,74,100], plot:[H,50,90] };\n  if (sty==='fea')       return { g:[228,44,7],  mem:[210,20,72], back:[214,40,30], node:[0,0,96], anno:[52,54,88], ctr:[10,66,64], grain:12, add:false, wash:[210,40,54], ten:[10,86,100], com:[220,82,100], plot:[52,66,92] };\n  return { g:[H,17,20], mem:[H,4,94], back:[H,16,44], node:[H,6,88], anno:[H,6,88], ctr:[10,66,62], grain:28, add:false, wash:[H,12,80], ten:[10,74,94], com:[206,68,92], plot:[H+28,58,90] };\n}\nconst C = pal();\nconst hw = h => ((h%360)+360)%360;\nconst sc = (c,a) => { stroke(hw(c[0]), c[1], c[2], a*AL); };\nconst fc = (c,a) => { fill(hw(c[0]), c[1], c[2], a*AL); };\nconst fea = (sty==='fea');\n\n// ---- clock ------------------------------------------------------------------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .08); S.pt = K.t;\nconst drx = .9*Math.sin(K.t*.137) + .5*Math.sin(K.t*.293+1.7) + .32*Math.sin(K.t*.451);\nconst dry = .8*Math.sin(K.t*.109+2.1) + .45*Math.sin(K.t*.257+.6) + .28*Math.sin(K.t*.617+1.9);\nS.bs = (S.bs||0)*.84 + (A.bass||0)*.16;\nconst glow = (.42+.58*NRG)*(.55+.5*K.intensity) + S.bs*.3;\n\n// ---- truss build ------------------------------------------------------------\nconst nb = Math.round(4 + cl(P.density,0,1)*8);            // bays\nconst SPAN = u*.74*cl(P.scale,.45,2.0);\nconst HGT  = SPAN*(.13 + .09*fr(5.1));\nconst cxs = cl(P.x,.15,.85)*width  + u*.012*NRG*drx;\nconst cys = cl(P.y,.18,.7)*height + u*.010*NRG*dry;\nconst typ = Math.floor(fr(2.7)*4) % 4;                      // 0 warren 1 warren+v 2 pratt 3 howe\nconst TYPN = ['WARREN','WARREN + VERTICALS','PRATT','HOWE'][typ];\nconst bkey = sd+'|'+nb+'|'+Math.round(SPAN)+'|'+Math.round(cxs)+'|'+Math.round(cys)+'|'+typ;\n\nfunction mk(px,py,pin){ return { x:px, y:py, rx:px, ry:py, vx:0, vy:0, pin:!!pin, top:false }; }\nif (S.bk !== bkey){\n  S.bk = bkey;\n  S.pl = [];\n  for (let pl=0; pl<2; pl++){\n    const N = [], M = [];\n    const bay = SPAN/nb, x0 = cxs - SPAN/2;\n    const bot = [], top = [];\n    for (let i=0;i<=nb;i++){ const n = mk(x0+i*bay, cys, i===0 || i===nb); N.push(n); bot.push(N.length-1); }\n    if (typ===0){\n      for (let i=0;i<nb;i++){ const n = mk(x0+(i+.5)*bay, cys-HGT); n.top=true; N.push(n); top.push(N.length-1); }\n      for (let i=0;i<nb;i++){ M.push({a:bot[i],b:top[i],k:2}); M.push({a:top[i],b:bot[i+1],k:2}); }\n      for (let i=0;i<top.length-1;i++) M.push({a:top[i],b:top[i+1],k:1});\n    } else if (typ===1){\n      for (let i=0;i<=nb;i++){ const n = mk(x0+i*bay, cys-HGT); n.top=true; N.push(n); top.push(N.length-1); }\n      for (let i=0;i<=nb;i++) M.push({a:bot[i],b:top[i],k:3});\n      for (let i=0;i<nb;i++){ M.push({a:bot[i],b:top[i+1],k:2}); M.push({a:top[i],b:bot[i+1],k:2}); }\n      for (let i=0;i<nb;i++) M.push({a:top[i],b:top[i+1],k:1});\n    } else {\n      for (let i=1;i<nb;i++){ const n = mk(x0+i*bay, cys-HGT); n.top=true; N.push(n); top.push(N.length-1); }\n      M.push({a:bot[0],b:top[0],k:1}); M.push({a:top[top.length-1],b:bot[nb],k:1});\n      for (let i=0;i<top.length-1;i++) M.push({a:top[i],b:top[i+1],k:1});\n      for (let i=0;i<top.length;i++) M.push({a:top[i],b:bot[i+1],k:3});\n      const mid = nb/2;\n      for (let i=0;i<top.length;i++){\n        const bi = i+1;\n        const toward = (bi < mid) ? (typ===2 ? bi+1 : bi-1) : (typ===2 ? bi-1 : bi+1);\n        if (toward>=0 && toward<=nb && toward!==bi) M.push({a:top[i],b:bot[toward],k:2});\n      }\n    }\n    for (let i=0;i<nb;i++) M.push({a:bot[i],b:bot[i+1],k:0});\n    for (const m of M){ m.rest = Math.hypot(N[m.b].x-N[m.a].x, N[m.b].y-N[m.a].y); m.f = 0; }\n    S.pl.push({ N, M, bot, top });\n  }\n  S.fmax = 1e-4;\n  S.lp = [];\n  for (let i=0;i<4;i++) S.lp.push({ p: fr(i*3.3+7)*1.3 - .15, r: .045 + fr(i*5.9+2)*.055 });\n}\nconst planes = S.pl || [];\nconst nLoad = 2 + Math.round(cl(P.density,0,1)*2);\n\n// ---- rolling loads (real time, incommensurate rates -> never re-phases) ------\nfor (let i=0;i<S.lp.length;i++){\n  const L = S.lp[i];\n  L.p += dt * L.r * P.speed * (.6+.8*K.intensity) * (1 + .18*Math.sin(K.t*(.11+i*.037)+i));\n  if (L.p > 1.18) L.p -= 1.36;\n}\n\n// ---- PBD solve: stable, small strain; the DRAWING exaggerates it -------------\nconst GR = u*2.6;\nconst LOADF = u*(9 + 26*NRG);\nconst hstep = 1/120;\nconst steps = cl(Math.round(dt/hstep), 1, 3);\nconst vib = .55*Math.sin(K.t*3.11) + .3*Math.sin(K.t*5.29+1.3) + .18*Math.sin(K.t*8.13+2.6);\nfor (let pl=0; pl<planes.length; pl++){\n  const T = planes[pl], N = T.N, M = T.M;\n  const lat = pl===0 ? .62 : .38;\n  for (let s=0;s<steps;s++){\n    for (let i=0;i<N.length;i++){\n      const n = N[i]; if (n.pin){ n.x=n.rx; n.y=n.ry; n.vx=0; n.vy=0; continue; }\n      const ox = n.x, oy = n.y;\n      n.vy += GR*hstep;\n      n.vx += (u*.5)*vib*hstep*(n.top?1:.4)*(.3+.7*NRG);\n      if (n.top){\n        for (let li=0; li<nLoad; li++){\n          const L = S.lp[li]; const lx = cxs - SPAN/2 + L.p*SPAN;\n          const w = Math.max(0, 1 - Math.abs(n.rx - lx)/(SPAN/nb));\n          n.vy += LOADF * w * lat * hstep;\n        }\n      }\n      n.x += n.vx*hstep; n.y += n.vy*hstep;\n      n.ox = ox; n.oy = oy;\n    }\n    for (let it=0; it<8; it++){\n      for (let mi=0; mi<M.length; mi++){\n        const m = M[mi], a = N[m.a], b = N[m.b];\n        const dx = b.x-a.x, dy = b.y-a.y;\n        const L = Math.hypot(dx,dy) || 1e-6;\n        const corr = ((L - m.rest)/L) * .5 * .55;\n        const wa = a.pin?0:1, wb = b.pin?0:1, wt = wa+wb;\n        if (!wt) continue;\n        const cx2 = dx*corr*2/wt, cy2 = dy*corr*2/wt;\n        if (wa){ a.x += cx2; a.y += cy2; }\n        if (wb){ b.x -= cx2; b.y -= cy2; }\n      }\n    }\n    for (let i=0;i<N.length;i++){\n      const n = N[i]; if (n.pin) continue;\n      n.vx = (n.x - n.ox)/hstep * .992; n.vy = (n.y - n.oy)/hstep * .992;\n      // safety: never let the frame run away\n      if (Math.abs(n.x-n.rx) > SPAN*.4){ n.x = n.rx + Math.sign(n.x-n.rx)*SPAN*.4; n.vx = 0; }\n      if (Math.abs(n.y-n.ry) > SPAN*.4){ n.y = n.ry + Math.sign(n.y-n.ry)*SPAN*.4; n.vy = 0; }\n    }\n  }\n  for (let mi=0; mi<M.length; mi++){\n    const m = M[mi], a = N[m.a], b = N[m.b];\n    const L = Math.hypot(b.x-a.x, b.y-a.y);\n    const st = (L - m.rest)/Math.max(1e-6, m.rest);\n    m.f = m.f*.72 + st*.28;\n    const af = Math.abs(m.f); if (af > S.fmax) S.fmax = af;\n  }\n}\nS.fmax = Math.max(1e-4, (S.fmax||1e-4)*.994);\n\n// ---- cached plate texture ---------------------------------------------------\nconst gkey = sd+'|'+sty+'|'+width+'x'+height;\nif (!S.gr || S.gkey !== gkey){\n  if (S.gr && S.gr.remove) S.gr.remove();\n  const gw=170, gh=Math.max(60, Math.round(170*height/Math.max(1,width)));\n  const g = createGraphics(gw,gh); g.loadPixels();\n  for (let y=0;y<gh;y++) for (let x=0;x<gw;x++){\n    const v = cl(255*(.44 + .32*fr(Math.floor(x/8)*13.71+Math.floor(y/8)*7.33+3.1) + .16*fr(Math.floor(x/3)*3.17+Math.floor(y/3)*11.9+8.7) + .08*fr(x*1.13+y*3.31+1.7)),0,255);\n    const j=(y*gw+x)*4; g.pixels[j]=v; g.pixels[j+1]=v; g.pixels[j+2]=v; g.pixels[j+3]=255;\n  }\n  g.updatePixels(); S.gr = g; S.gkey = gkey;\n}\n\n// ---- ground -----------------------------------------------------------------\nnoStroke(); fill(C.g[0],C.g[1],C.g[2],100); rect(0,0,width,height);\npush(); blendMode(MULTIPLY); tint(0,0,100,C.grain); image(S.gr,0,0,width,height); pop();\nblendMode(BLEND); noTint();\nconst wx = width*(.5+.28*Math.sin(K.t*.071)), wy = height*(.42+.22*Math.sin(K.t*.097+1.2));\npush(); blendMode(SCREEN); noStroke();\nfor (let i=5;i>=1;i--){ fill(C.wash[0],C.wash[1],C.wash[2],(2.0+1.8*glow)*AL); const rw=u*(.30+i*.20); ellipse(wx,wy,rw*2,rw*1.6); }\npop(); blendMode(BLEND);\n// drafting grid\nconst gs2 = u*.05;\nsc(C.anno, 7 + 6*anno); strokeWeight(Math.max(.5,u*.0008));\nfor (let x=(-drx*u*.008)%gs2; x<width; x+=gs2) line(x,0,x,height);\nfor (let y=(-dry*u*.008)%gs2; y<height; y+=gs2) line(0,y,width,y);\n\n// ---- exaggerated deflection mapping (exactly what a real diagram does) -------\nconst EX = 1.6 + 5.4*NRG;\nconst DXO = u*.075*DEP, DYO = -u*.052*DEP;\nconst nx = (n,pl) => n.rx + (n.x-n.rx)*EX + (pl?DXO:0);\nconst ny = (n,pl) => n.ry + (n.y-n.ry)*EX + (pl?DYO:0);\n\nfunction forceCol(f){\n  const t = cl(f/(S.fmax*1.05), -1, 1);\n  const mag = Math.abs(t);\n  const c2 = t > 0 ? C.ten : C.com;\n  return [c2[0], c2[1]*Math.pow(mag,.62), C.mem[2]*(1-mag*.35) + c2[2]*mag*.35];\n}\nif (C.add) blendMode(ADD);\n\n// ---- back plane -------------------------------------------------------------\nfor (let pl=1; pl>=0; pl--){\n  const T = planes[pl]; if (!T) continue;\n  const N = T.N, M = T.M;\n  const dim = pl ? .46 : 1;\n  if (pl===1){\n    // lacing between the two planes: the space-frame bracing\n    const T0 = planes[0];\n    sc(C.back, 40*dim + 26*anno); strokeWeight(Math.max(.5,u*.0009));\n    for (let i=0;i<T.N.length;i++){\n      const nA = T0.N[i], nB = T.N[i]; if (!nA || !nB) continue;\n      line(nx(nA,0), ny(nA,0), nx(nB,1), ny(nB,1));\n      const nC = T0.N[i+1];\n      if (nC && nC.top === nB.top) line(nx(nC,0), ny(nC,0), nx(nB,1), ny(nB,1));\n    }\n  }\n  for (let mi=0; mi<M.length; mi++){\n    const m = M[mi], a = N[m.a], b = N[m.b];\n    const ax = nx(a,pl), ay = ny(a,pl), bx = nx(b,pl), by = ny(b,pl);\n    const fcol = forceCol(m.f);\n    const heavy = (m.k===0 || m.k===1);\n    const lw = Math.max(.8, u*(heavy? .0042 : .0026) * (.55+.75*NRG)) * dim;\n    if (fea){\n      sc(fcol, (72+24*glow)*dim); strokeWeight(lw*2.1); line(ax,ay,bx,by);\n    } else {\n      sc(C.mem, (C.add? 34:70)*dim); strokeWeight(lw*1.9); line(ax,ay,bx,by);\n      sc(fcol, (78+20*glow)*dim); strokeWeight(lw*.85); line(ax,ay,bx,by);\n    }\n  }\n  // nodes / gusset plates\n  for (let i=0;i<N.length;i++){\n    const n = N[i]; const px2 = nx(n,pl), py2 = ny(n,pl);\n    const r = Math.max(1.5, u*.0058*cl(P.scale,.5,2)) * dim;\n    if (fea){ noStroke(); fc(C.node, 88*dim); ellipse(px2,py2,r*1.3,r*1.3); }\n    else {\n      noStroke(); fc(C.g, (C.add?24:88)*dim); ellipse(px2,py2,r*2,r*2);\n      noFill(); sc(C.node, 90*dim); strokeWeight(Math.max(.5,u*.0012)); ellipse(px2,py2,r*2,r*2);\n      if (!pl && r > u*.006){ sc(C.node, 60); strokeWeight(Math.max(.4,u*.0007)); ellipse(px2,py2,r*.8,r*.8); }\n    }\n  }\n  if (pl===0){\n    // supports: pin (left) + roller (right)\n    const L0 = N[T.bot[0]], R0 = N[T.bot[T.bot.length-1]];\n    const r = u*.016*cl(P.scale,.5,1.6);\n    noFill(); sc(C.anno, 86); strokeWeight(Math.max(.7,u*.0016));\n    triangle(L0.rx, L0.ry, L0.rx-r*.85, L0.ry+r*1.5, L0.rx+r*.85, L0.ry+r*1.5);\n    line(L0.rx-r*1.2, L0.ry+r*1.5, L0.rx+r*1.2, L0.ry+r*1.5);\n    triangle(R0.rx, R0.ry, R0.rx-r*.85, R0.ry+r*1.15, R0.rx+r*.85, R0.ry+r*1.15);\n    ellipse(R0.rx-r*.42, R0.ry+r*1.5, r*.7, r*.7); ellipse(R0.rx+r*.42, R0.ry+r*1.5, r*.7, r*.7);\n    line(R0.rx-r*1.2, R0.ry+r*1.85, R0.rx+r*1.2, R0.ry+r*1.85);\n    sc(C.ctr, 62); strokeWeight(Math.max(.4,u*.0008));\n    for (let i=-3;i<=3;i++){ line(L0.rx+i*r*.4, L0.ry+r*1.5, L0.rx+i*r*.4-r*.34, L0.ry+r*1.95);\n      line(R0.rx+i*r*.4, R0.ry+r*1.85, R0.rx+i*r*.4-r*.34, R0.ry+r*2.3); }\n  }\n}\n\n// ---- rolling loads ----------------------------------------------------------\nfor (let li=0; li<nLoad; li++){\n  const L = S.lp[li]; if (L.p < -.06 || L.p > 1.06) continue;\n  const lx = cxs - SPAN/2 + L.p*SPAN;\n  const T = planes[0]; let ly = cys - HGT;\n  if (T){ let best=1e9; for (const ti of T.top){ const n=T.N[ti]; const d2=Math.abs(n.rx-lx); if (d2<best){ best=d2; ly=ny(n,0); } } }\n  const ah = u*.055*cl(P.scale,.5,1.5);\n  sc(C.plot, 92); strokeWeight(Math.max(1,u*.0028*(.6+.7*NRG)));\n  line(lx, ly-ah, lx, ly-ah*.16);\n  line(lx, ly-ah*.16, lx-ah*.10, ly-ah*.32); line(lx, ly-ah*.16, lx+ah*.10, ly-ah*.32);\n  if (anno>.3){ noStroke(); textFont('monospace'); textAlign(CENTER,BOTTOM); textSize(Math.max(6,u*.0115));\n    fc(C.plot, 88); text('P'+(li+1)+' '+(24+li*17+Math.round(NRG*40))+'kN', lx, ly-ah*1.06); }\n}\nblendMode(BLEND);\n\n// ---- deflection diagram -----------------------------------------------------\nconst T0 = planes[0];\nif (T0 && anno > .1){\n  const py0 = Math.min(height - u*.10, cys + HGT*.6 + u*.16);\n  const amp = u*.055*(.5+.9*NRG);\n  let mx2 = 1e-5;\n  for (const bi of T0.bot){ const n = T0.N[bi]; const d2 = Math.abs(n.y-n.ry); if (d2>mx2) mx2 = d2; }\n  S.dmax = Math.max(1e-5, Math.max((S.dmax||1e-5)*.995, mx2));\n  sc(C.ctr, 54); strokeWeight(Math.max(.5,u*.0010));\n  line(cxs-SPAN/2, py0, cxs+SPAN/2, py0);\n  noFill(); sc(C.plot, 84); strokeWeight(Math.max(.9,u*.0022*(.6+.7*NRG)));\n  beginShape();\n  for (const bi of T0.bot){ const n = T0.N[bi]; vertex(n.rx, py0 + (n.y-n.ry)/S.dmax*amp); }\n  endShape();\n  noStroke(); fc(C.plot, 16);\n  beginShape(); vertex(cxs-SPAN/2, py0);\n  for (const bi of T0.bot){ const n = T0.N[bi]; vertex(n.rx, py0 + (n.y-n.ry)/S.dmax*amp); }\n  vertex(cxs+SPAN/2, py0); endShape(CLOSE);\n  sc(C.plot, 46); strokeWeight(Math.max(.4,u*.0007));\n  for (const bi of T0.bot){ const n = T0.N[bi]; line(n.rx, py0, n.rx, py0 + (n.y-n.ry)/S.dmax*amp); }\n  noStroke(); textFont('monospace'); textAlign(LEFT,CENTER); textSize(Math.max(6,u*.0125));\n  fc(C.anno, 76); text('DEFLECTION x'+EX.toFixed(0)+'   dmax '+(S.dmax*1e3/u*24).toFixed(1)+' mm', cxs-SPAN/2, py0+amp*1.5+u*.022);\n}\n\n// ---- span dimension line ----------------------------------------------------\nif (T0 && anno > .25){\n  const dy2 = cys + u*.075*cl(P.scale,.5,1.6);\n  sc(C.ctr, 70); strokeWeight(Math.max(.5,u*.0010));\n  line(cxs-SPAN/2, cys+u*.03, cxs-SPAN/2, dy2+u*.012);\n  line(cxs+SPAN/2, cys+u*.03, cxs+SPAN/2, dy2+u*.012);\n  line(cxs-SPAN/2, dy2, cxs+SPAN/2, dy2);\n  const ar = u*.012;\n  line(cxs-SPAN/2, dy2, cxs-SPAN/2+ar, dy2-ar*.4); line(cxs-SPAN/2, dy2, cxs-SPAN/2+ar, dy2+ar*.4);\n  line(cxs+SPAN/2, dy2, cxs+SPAN/2-ar, dy2-ar*.4); line(cxs+SPAN/2, dy2, cxs+SPAN/2-ar, dy2+ar*.4);\n  noStroke(); textFont('monospace'); textAlign(CENTER,BOTTOM); textSize(Math.max(6,u*.0125));\n  fc(C.anno, 88); text((nb*4).toFixed(2)+' m  ('+nb+' BAYS)', cxs, dy2-u*.006);\n  // a few live member-force callouts\n  textAlign(LEFT,CENTER); textSize(Math.max(5,u*.0105));\n  const M0 = T0.M; const stepM = Math.max(1, Math.floor(M0.length/6));\n  for (let mi=0; mi<M0.length; mi+=stepM){\n    const m = M0[mi], a=T0.N[m.a], b=T0.N[m.b];\n    const kN = m.f/(S.fmax+1e-9)*180;\n    fc(m.f>0?C.ten:C.com, 60+30*anno);\n    text((kN>0?'+':'')+kN.toFixed(0), (nx(a,0)+nx(b,0))/2 + u*.008, (ny(a,0)+ny(b,0))/2 - u*.010);\n  }\n}\n\n// ---- sheet border + title block + force legend ------------------------------\nconst mgn = u*.028;\nnoFill(); sc(C.anno, 46+24*anno); strokeWeight(Math.max(.8,u*.0022));\nrect(mgn, mgn, width-mgn*2, height-mgn*2);\nsc(C.anno, 22+16*anno); strokeWeight(Math.max(.5,u*.0009));\nrect(mgn*1.7, mgn*1.7, width-mgn*3.4, height-mgn*3.4);\nif (anno > .08){\n  textFont('monospace'); noStroke();\n  const ts = Math.max(7,u*.0135); textSize(ts);\n  textAlign(RIGHT,CENTER);\n  const bx = width-mgn*2.0, by = height-mgn*2.0;\n  fc(C.back, C.add?26:60); rect(bx-u*.32, by-u*.052, u*.32, u*.052);\n  noFill(); sc(C.anno, 62); strokeWeight(Math.max(.5,u*.0012)); rect(bx-u*.32, by-u*.052, u*.32, u*.052);\n  line(bx-u*.32, by-u*.026, bx, by-u*.026);\n  noStroke(); fc(C.anno, 90);\n  text(TYPN+' SPACE FRAME - AXIAL FORCE', bx-u*.012, by-u*.039);\n  text('PBD RELAXATION   LC'+((K.section|0)+1)+'   SEED '+sd, bx-u*.012, by-u*.013);\n  // force legend\n  const lx0 = mgn*2.2, ly0 = mgn*2.2, lw2 = u*.16, lh = u*.014;\n  for (let i=0;i<32;i++){\n    const t = i/31*2-1; const c2 = forceCol(t*S.fmax);\n    noStroke(); fc(c2, 90); rect(lx0 + i*lw2/32, ly0, lw2/32+1, lh);\n  }\n  noFill(); sc(C.anno, 66); strokeWeight(Math.max(.4,u*.0008)); rect(lx0, ly0, lw2, lh);\n  noStroke(); fc(C.anno, 78); textAlign(LEFT,TOP); textSize(Math.max(5,u*.0105));\n  text('COMPRESSION', lx0, ly0+lh+u*.004);\n  textAlign(RIGHT,TOP); text('TENSION', lx0+lw2, ly0+lh+u*.004);\n}\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.braid_group",
+  "kind": "genart",
+  "name": "Braid Group",
+  "desc": "A braid-group diagram \u2014 N coloured strands running down the page, adjacent pairs crossing over and under per a scrolling braid word, permutation tracked so each ribbon keeps its colour through every \u03c3-generator as the whole braid flows downward forever.",
+  "tags": [
+    "braid",
+    "braid-group",
+    "braid-word",
+    "plait",
+    "strands",
+    "crossing",
+    "over-under",
+    "sigma",
+    "generator",
+    "permutation",
+    "artin",
+    "knot-theory",
+    "topology",
+    "weave",
+    "interlace",
+    "ribbon",
+    "rope",
+    "chromatic",
+    "blueprint",
+    "plate",
+    "engraving",
+    "neon",
+    "flowing",
+    "scrolling",
+    "mathematical",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "diagram"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "ribbon width"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ribbon weight & glow"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "crossing levels"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.1,
+      "max": 3,
+      "doc": "rate multiplier"
+    },
+    "strands": {
+      "default": 5,
+      "min": 3,
+      "max": 8,
+      "doc": "number of strands"
+    },
+    "twist": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "crossing bias"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "style": {
+      "default": "chromatic",
+      "options": [
+        "chromatic",
+        "rope",
+        "blueprint",
+        "plate",
+        "neon"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "rng seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:45:10+00:00",
+    "fps": 60.2,
+    "motion": 0.1134,
+    "lum": 0.212
+  },
+  "code": "const D = { scale:1, energy:.6, density:.55, speed:1, strands:5, twist:.5, hue:210, x:.5, y:.5, style:'chromatic', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst t = K.t, sty = P.style, en = P.energy;\nconst hsh = i => { const s = Math.sin(i*127.1 + P.seed*311.7)*43758.5453; return s - Math.floor(s); };\nconst n = Math.max(3, Math.min(8, Math.round(P.strands)));\nconst L = Math.max(6, Math.min(16, Math.round(6 + P.density*9)));\nconst R = L + 3;\nconst phase = t*(0.22 + P.speed*0.5);\nconst base = Math.floor(phase), frac = phase - base;\nconst laneW = width/n, step = height/(R-3);\nconst xCol = c => laneW*(c+0.5);\nconst yRow = r => (r - 1 + frac)*step;\nconst drift = 0.6*Math.sin(t*0.29) + 0.4*Math.sin(t*0.53+1.1);\n\nif (sty==='blueprint') background(214, 58, 18);\nelse if (sty==='plate') background(36, 11, 57);\nelse background(226, 34, 9);\n\n// simulate permutation from top down; colour by entry-lane identity\nlet col = []; for (let e=0;e<n;e++) col[e]=e;\nconst rowCols = [col.slice()], crosses = [];\nfor (let r=0;r<R-1;r++){\n  const Gg = base - r;\n  const c = Math.floor(hsh(Gg*1.73+0.31)*(n-1));\n  let e1=-1,e2=-1;\n  for (let e=0;e<n;e++){ if(col[e]===c)e1=e; else if(col[e]===c+1)e2=e; }\n  const overFirst = hsh(Gg*2.9+4.2) < 0.5;\n  col[e1]=c+1; col[e2]=c;\n  crosses.push({e1,e2, over: overFirst? e1 : e2});\n  rowCols.push(col.slice());\n}\nconst hueOf = e => (P.hue + e*Math.round(320/n) + K.section*8 + drift*6) % 360;\nconst w = Math.max(2, Math.min(laneW*0.46, laneW*(0.20 + 0.24*en) * (0.55+0.55*P.scale)));\nconst bass = Math.min(0.5, A.bass*0.6);\nstrokeCap(ROUND); noFill();\n\nfunction seg(c0,c1,y0,y1,e,mode){\n  const x0=xCol(c0), x1=xCol(c1), my=(y0+y1)/2, hu=hueOf(e);\n  if (sty==='blueprint'){\n    stroke(200, 65, 30, P.alpha); strokeWeight(w*1.0);\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    stroke(190, 20, 92, P.alpha*0.9); strokeWeight(w*0.30);\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    return;\n  }\n  if (sty==='plate'){\n    stroke(34, 22, 20, P.alpha); strokeWeight(w*(mode==='over'?1.05:0.95));\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    stroke(34, 10, 80, P.alpha*0.4); strokeWeight(w*0.16);\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    return;\n  }\n  if (sty==='neon'){\n    blendMode(ADD);\n    stroke(hu,85,32, 30*(P.alpha/100)); strokeWeight(w*1.5);\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    stroke(hu,40,92, 80*(P.alpha/100)); strokeWeight(w*0.42);\n    bezier(x0,y0,x0,my,x1,my,x1,y1);\n    blendMode(BLEND);\n    return;\n  }\n  // chromatic / rope\n  if (mode==='over'){ drawingContext.shadowBlur=w*0.85; drawingContext.shadowColor='rgba(0,0,0,0.5)'; }\n  stroke((hu+4)%360, 70, 22+18*(mode==='over'?1:0.6)+10*bass, P.alpha); strokeWeight(w*1.02);\n  bezier(x0,y0,x0,my,x1,my,x1,y1);\n  drawingContext.shadowBlur=0;\n  stroke(hu, 46, 78+12*bass, P.alpha); strokeWeight(w*(sty==='rope'?0.34:0.46));\n  bezier(x0,y0,x0,my,x1,my,x1,y1);\n  if (sty==='rope'){\n    stroke(hu, 20, 96, P.alpha*0.7); strokeWeight(w*0.12);\n    bezier(x0+w*0.18,y0,x0+w*0.18,my,x1+w*0.18,my,x1+w*0.18,y1);\n  }\n}\n\nfor (let g=0; g<crosses.length; g++){\n  const cr = crosses[g], y0=yRow(g), y1=yRow(g+1);\n  for (let e=0;e<n;e++){ if(e!==cr.e1 && e!==cr.e2) seg(rowCols[g][e], rowCols[g+1][e], y0,y1, e, 'straight'); }\n  const under = cr.over===cr.e1 ? cr.e2 : cr.e1;\n  seg(rowCols[g][under], rowCols[g+1][under], y0,y1, under, 'under');\n  seg(rowCols[g][cr.over], rowCols[g+1][cr.over], y0,y1, cr.over, 'over');\n}\ndrawingContext.shadowBlur=0;\nblendMode(BLEND);\n"
+}

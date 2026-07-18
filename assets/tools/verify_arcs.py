@@ -39,7 +39,9 @@ def req(method, path, retries=4, **kw):
     kw.setdefault("timeout", 20)
     for i in range(retries):
         try:
-            return requests.request(method, BASE + path, **kw)
+            response = requests.request(method, BASE + path, **kw)
+            response.raise_for_status()
+            return response
         except Exception:
             if i == retries - 1:
                 raise

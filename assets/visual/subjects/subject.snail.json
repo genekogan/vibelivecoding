@@ -1,0 +1,129 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.snail",
+  "kind": "subject",
+  "name": "Snail",
+  "desc": "A cheerful snail inching along leaving a shimmering slime trail \u2014 logarithmic-spiral shell slowly turning, eye stalks wobbling, body stretching with each push. Garden brown, neon, candy, rock-grey or gold.",
+  "tags": [
+    "snail",
+    "shell",
+    "spiral",
+    "slow",
+    "slime",
+    "trail",
+    "garden",
+    "cute",
+    "mollusc",
+    "inching",
+    "character",
+    "figurative",
+    "whimsical",
+    "kawaii"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "size"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "shellH": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "shell size"
+    },
+    "spiralN": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "spiral turns"
+    },
+    "trail": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "slime trail"
+    },
+    "eyesN": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "eye stalk length"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "garden",
+      "options": [
+        "garden",
+        "neon",
+        "candy",
+        "rock",
+        "gold"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:10:07+00:00",
+    "fps": 59.9,
+    "motion": 0.0668,
+    "lum": 0.117
+  },
+  "code": "const D = { energy:.45, scale:1, hue:35, shellH:.6, spiralN:.6, trail:.6, eyesN:.6, x:.5, y:.62, speed:1, density:.5, style:'garden', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst u=Math.min(width,height),sc=u*0.0042*P.scale,cx=P.x*width,cy=P.y*height;\n// inching: slow horizontal creep + body stretch cycle\nconst creep=((t*(6+en*10)*P.speed)%200)-100;   // wraps across \u00b1100 world units\nconst stretch=0.5+0.5*Math.sin(t*(1.2+en)*P.speed);\nlet shellA=[P.hue,60,70],shellB=[(P.hue+25)%360,65,50],bodyC=[65,30,80],glow=false;\nif(sty==='neon'){ shellA=[(P.hue+140)%360,85,90]; shellB=[P.hue,85,65]; bodyC=[(P.hue+140)%360,40,60]; glow=true; }\nelse if(sty==='candy'){ shellA=[330,55,95]; shellB=[190,50,85]; bodyC=[45,25,95]; }\nelse if(sty==='rock'){ shellA=[210,15,55]; shellB=[210,20,38]; bodyC=[100,20,60]; }\nelse if(sty==='gold'){ shellA=[45,75,90]; shellB=[38,80,65]; bodyC=[50,25,88]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\npush(); translate(cx+creep*sc, cy); scale(sc);\n// slime trail (fading behind)\nif(P.trail>0.05){ dc.save(); blendMode(SCREEN); noStroke();\n for(let i=0;i<16;i++){ const tx=-i*14-10; fill(Cc([190,15,90],(16-(i))*P.trail)); ellipse(tx,34,16,4);} dc.restore(); blendMode(BLEND); }\nnoStroke(); fill(0,0,0,14); ellipse(4,40,120,14);\n// body (stretches as it inches)\nconst bl=70+stretch*22;\nfill(Cc(bodyC,100));\nbeginShape(); vertex(-40,34); bezierVertex(-40,18,-20,10,0,12); bezierVertex(bl*0.45,14,bl*0.62,20,bl*0.62,28); bezierVertex(bl*0.62,34,-20,38,-40,34); endShape(CLOSE);\n// head + neck rise\npush(); translate(bl*0.58, 16); rotate(-0.2-stretch*0.1);\nfill(Cc(bodyC,100)); ellipse(0,0,26,20);\n// eye stalks\nif(P.eyesN>0.05){ const wob=Math.sin(t*1.3)*0.12;\n for(const s2 of[-1,1]){ push(); rotate(-0.5+s2*0.28+wob*s2);\n  stroke(Cc(bodyC,100)); strokeWeight(4); line(0,0,0,-20-P.eyesN*10); noStroke();\n  fill(Cc(bodyC,100)); circle(0,-22-P.eyesN*10,9);\n  fill(0,0,10); circle(1.4,-23-P.eyesN*10,3.6); fill(0,0,100,90); circle(0.4,-24-P.eyesN*10,1.4); pop(); } }\n// smile\nnoFill(); stroke(Cc([bodyC[0],bodyC[1]+15,bodyC[2]-25],90)); strokeWeight(1.6); arc(2,6,10,7,0.2,Math.PI-0.4); noStroke();\npop();\n// shell: logarithmic spiral, slow majestic rotation\npush(); translate(-6,-2); rotate(t*(0.15+en*0.15)*P.speed);\nif(glow){ dc.shadowBlur=18; dc.shadowColor=Cc(shellA,80).toString(); }\nconst shR=34+P.shellH*16;\nfill(Cc(shellB,100)); circle(0,0,shR*2+6);\nconst turns=2+P.spiralN*2;\nnoFill();\nfor(let pass=0;pass<2;pass++){\n stroke(pass? Cc(shellA,100):Cc([shellB[0],shellB[1],shellB[2]-14],100)); strokeWeight(pass? shR*0.26 : shR*0.34);\n beginShape(); for(let k=0;k<=turns*40;k++){ const a=k/40*TAU/1; const r=shR*Math.pow(0.82,(turns*40-k)/40)*(k/(turns*40)); vertex(Math.cos(a)*r*1.0, Math.sin(a)*r); } endShape(); }\nnoStroke();\n// shell shine\nfill(Cc([shellA[0],shellA[1]*0.3,100],45)); ellipse(-shR*0.3,-shR*0.4, shR*0.7, shR*0.4);\ndc.shadowBlur=0; pop();\nblendMode(BLEND); pop();\n"
+}

@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.soliton",
+  "kind": "genart",
+  "name": "Soliton Web",
+  "desc": "The KP-II soliton web computed from its exact tau function \u2014 solitary shallow-water waves that ride as straight luminous crests, meet at resonant Y- and X-junctions, cross straight through one another and emerge intact with nothing but a phase shift, the whole web of ridges and tinted plane-wave cells continuously rearranging as the phases drift; a sunlit lagoon with foam crests, a flat-celled tropical curve, tau-potential interference fringes, ironbow thermal, or sumi brush on paper.",
+  "tags": [
+    "soliton",
+    "kdv",
+    "korteweg-de-vries",
+    "kp",
+    "kadomtsev-petviashvili",
+    "line-soliton",
+    "soliton-web",
+    "solitary-wave",
+    "nonlinear-wave",
+    "integrable",
+    "tau-function",
+    "hirota",
+    "grassmannian",
+    "tropical-curve",
+    "resonance",
+    "y-junction",
+    "x-junction",
+    "phase-shift",
+    "shallow-water",
+    "wave",
+    "crest",
+    "foam",
+    "lagoon",
+    "beach",
+    "surf",
+    "mathematics",
+    "scientific",
+    "exact-solution",
+    "field",
+    "continuum",
+    "abstract",
+    "geometric",
+    "constructivist",
+    "faceted",
+    "tropical",
+    "interferogram",
+    "fringe",
+    "thermal",
+    "ironbow",
+    "ink",
+    "sumi",
+    "brush",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "sophisticated",
+    "austere",
+    "serene",
+    "luminous"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "brightness + gain of the soliton crests and the cell tints"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "zoom of the world window \u2014 magnifies the web toward a few colossal crests"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate the phases drift and the junctions migrate (0.2 still moves)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of phases, 4 to 8 \u2014 sets how many line solitons and junctions weave the web"
+    },
+    "spread": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "spread of the k-ladder: sets soliton amplitude ((ki-kj)^2/2) and how steeply the crests lean"
+    },
+    "cells": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how strongly the asymptotic plane-wave cells between the crests are tinted and shaded"
+    },
+    "hue": {
+      "default": 196,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue anchoring the water/cell ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the world window"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan of the world window"
+    },
+    "style": {
+      "default": "shallow_water",
+      "options": [
+        "shallow_water",
+        "tropical",
+        "interferogram",
+        "thermal",
+        "ink"
+      ],
+      "doc": "aesthetic: sunlit lagoon with foam crests / flat-celled tropical curve with hard black lines / tau-potential fringes / ironbow thermal / sumi brush on paper"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the k-ladder and the Vandermonde row"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:45:58+00:00",
+    "fps": 59.9,
+    "motion": 0.0562,
+    "lum": 0.305
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .5, spread: .55, cells: .6, hue: 196, x: .5, y: .5, style: 'shallow_water', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- KP-II line-soliton web, the EXACT (2,N-2)-soliton solution (Kodama / Grassmannian):\n//        tau = sum over i<j of  (t_j - t_i)(k_j - k_i) * exp(theta_i + theta_j)\n//        theta_i = k_i x + k_i^2 y + k_i^3 t\n//        u = 2 * d2/dx2 log(tau)\n// A totally-positive 2xN Vandermonde matrix guarantees tau > 0, so the solution is regular\n// everywhere. Solitary waves ride the seams where two exponentials balance; they meet at\n// resonant Y- and X-junctions, cross, and emerge intact with only a phase shift. ----\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(64, Math.round(BW * height / width));\nconst N = BW * BH;\nconst BWX = BW + 2;                             // 1-cell apron each side for the x second difference\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.L = new Float64Array(BWX * BH); S.DOM = new Int16Array(BWX * BH); S.MRG = new Float32Array(BWX * BH);\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\n\nconst tt = K.t;\nconst nP = Math.max(4, Math.min(8, 4 + Math.round(P.density * 4)));   // phases -> up to nP-1 solitons\n\n// ---- the k_i must stay strictly increasing (that is what keeps tau positive). Build them as\n// a sorted ladder of seeded gaps, each gap breathing on its own incommensurate rate: the\n// soliton amplitudes ((k_j-k_i)^2/2) and directions therefore never repeat. ----\nconst spr = 0.45 + P.spread * 1.5;\nconst ks = new Float64Array(nP), ts = new Float64Array(nP);\n{\n  let acc = 0;\n  for (let i = 0; i < nP; i++) {\n    const g0 = 0.45 + hsh(i * 3 + 1, 7) * 0.9;\n    const wob = 0.34 * Math.sin(tt * (0.031 + hsh(i * 3 + 2, 9) * 0.05) + hsh(i * 3 + 3, 11) * 6.28)\n              + 0.16 * Math.sin(tt * (0.071 + hsh(i, 13) * 0.04) + i * 1.7);\n    const gap = Math.max(0.14, g0 * (1 + wob));\n    ks[i] = acc; acc += gap;\n  }\n  const mid = ks[nP - 1] * 0.5;\n  for (let i = 0; i < nP; i++) ks[i] = (ks[i] - mid) * (spr / Math.max(0.4, ks[nP - 1] * 0.5)) * 0.9;\n  // t_i: the second Vandermonde row, also strictly increasing -> Plucker coords all positive\n  let a2 = 0;\n  for (let i = 0; i < nP; i++) {\n    ts[i] = a2;\n    a2 += 0.3 + hsh(i * 5 + 2, 17) * 1.2 * (1 + 0.4 * Math.sin(tt * (0.043 + i * 0.011) + i * 2.3));\n  }\n}\n\n// evolution time: bounded (a linear t would sail the web off-frame), built from\n// incommensurate sines so the junctions migrate forever without ever repeating\nconst sp = 0.3 + P.speed * 0.9;\nconst ev = 1.15 * Math.sin(tt * 0.067 * sp) + 0.62 * Math.sin(tt * 0.149 * sp + 1.9) + 0.31 * Math.sin(tt * 0.0311 * sp + 0.4);\n\n// world window: x across, y down\nconst XS = 15.5 / Math.max(0.35, P.scale * 0.85);\nconst YS = XS * BH / BW;\nconst x0w = -XS + (P.x - 0.5) * XS * 1.4, y0w = -YS + (P.y - 0.5) * YS * 1.4;\nconst dxw = (2 * XS) / BW, dyw = (2 * YS) / BH;\n\n// precompute pair coefficients log(c_ij) = log((t_j-t_i)(k_j-k_i))\nconst nPair = (nP * (nP - 1)) >> 1;\nif (!S.qi || S.qi.length !== nPair) { S.qi = new Int16Array(nPair); S.qj = new Int16Array(nPair); S.lc = new Float64Array(nPair); }\nconst QI = S.qi, QJ = S.qj, LC = S.lc;\n{\n  let n = 0;\n  for (let i = 0; i < nP; i++) for (let j = i + 1; j < nP; j++) {\n    QI[n] = i; QJ[n] = j;\n    LC[n] = Math.log(Math.max(1e-9, (ts[j] - ts[i]) * (ks[j] - ks[i])));\n    n++;\n  }\n}\n// theta_i = k x + k^2 y + k^3 t  -> per-pair: a*x + b*y + c\nconst PA = new Float64Array(nPair), PB = new Float64Array(nPair), PC = new Float64Array(nPair);\nfor (let n = 0; n < nPair; n++) {\n  const i = QI[n], j = QJ[n];\n  PA[n] = ks[i] + ks[j];\n  PB[n] = ks[i] * ks[i] + ks[j] * ks[j];\n  PC[n] = (ks[i] * ks[i] * ks[i] + ks[j] * ks[j] * ks[j]) * ev + LC[n];\n}\n\n// ---- L = log tau on a (BW+2) x BH grid, via a stable log-sum-exp; DOM = the dominant pair\n// (the asymptotic plane-wave region this pixel sits in), MRG = how far it dominates by. ----\nconst L = S.L, DOM = S.DOM, MRG = S.MRG;\nfor (let j = 0; j < BH; j++) {\n  const yw = y0w + j * dyw;\n  const row = j * BWX;\n  for (let ii = 0; ii < BWX; ii++) {\n    const xw = x0w + (ii - 1) * dxw;\n    let m = -1e300, best = 0, second = -1e300;\n    for (let n = 0; n < nPair; n++) {\n      const e = PA[n] * xw + PB[n] * yw + PC[n];\n      if (e > m) { second = m; m = e; best = n; } else if (e > second) second = e;\n    }\n    let s = 0;\n    for (let n = 0; n < nPair; n++) {\n      const d = PA[n] * xw + PB[n] * yw + PC[n] - m;\n      if (d > -34) s += Math.exp(d);            // terms below this contribute < 1e-14\n    }\n    L[row + ii] = m + Math.log(s);\n    DOM[row + ii] = best;\n    MRG[row + ii] = m - second;\n  }\n}\n\n// ---- render ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 16 + Math.sin(tt * 0.0177) * 18) % 360 + 360) % 360;\nconst gain = 0.5 + P.energy * 1.35 + A.rms * 0.4;\nconst cellAmt = P.cells;\nconst ih2 = 1 / (dxw * dxw);\nfunction pal(m, spx, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + spx * 2))];\n}\nconst inp = 1 / Math.max(1, nPair - 1);\nfor (let j = 0; j < BH; j++) {\n  const row = j * BWX;\n  for (let i = 0; i < BW; i++) {\n    const ii = i + 1;\n    // u = 2 * d2/dx2 log tau  -> the soliton ridges\n    const u = 2 * (L[row + ii + 1] - 2 * L[row + ii] + L[row + ii - 1]) * ih2;\n    const ridge = Math.max(0, Math.min(1, u * 0.85 * gain));\n    const dm = DOM[row + ii];\n    // the cells between ridges are the asymptotic plane-wave regions \u2014 tinting them is what\n    // keeps the frame from being \"a few bright lines on black\" (the classic luminance fail)\n    const cellHue = ((dm * 0.163 + hsh(dm + 3, 23) * 0.28) % 1 + 1) % 1;\n    const soft = Math.exp(-MRG[row + ii] * 0.22);   // smooth falloff away from every seam\n    let r, gg, b;\n    if (style === 'tropical') {          // the mathematician's read: flat cells, hard black curves\n      const c = pal(cellHue, 0.33, 0.0);\n      const fl = 0.42 + 0.5 * cellAmt;\n      const ln = Math.min(1, Math.pow(ridge, 0.55) * 1.6);\n      r = Math.min(1, c[0] * fl * (1 - ln * 0.95)); gg = Math.min(1, c[1] * fl * (1 - ln * 0.95)); b = Math.min(1, c[2] * fl * (1 - ln * 0.95));\n    } else if (style === 'interferogram') {  // fringes keyed to the tau potential \u2014 abstracted\n      const fr = 0.5 + 0.5 * Math.cos(L[row + ii] * (0.9 + P.energy * 3.4));\n      const v = 0.14 + fr * 0.62 + ridge * 0.4;\n      r = Math.min(1, v * 0.9); gg = Math.min(1, v * 0.99); b = Math.min(1, v * 0.84);\n    } else if (style === 'thermal') {\n      const m = Math.min(1, (ridge * 0.72 + soft * 0.22 * cellAmt + 0.06) * (0.55 + P.energy * 0.8));\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55)); b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.4 - m * 1.5));\n    } else if (style === 'ink') {        // sumi: pale paper, ridges as dark brush with bleed\n      const bleed = soft * 0.30 * cellAmt;\n      const ink = Math.min(1, Math.pow(ridge, 0.8) * (0.6 + gain * 0.5) + bleed * 0.55);\n      const paper = 0.95 - ink * 0.87;\n      r = paper * 0.99; gg = paper * 0.96; b = paper * 0.89;\n    } else {                             // shallow_water (default) \u2014 sunlit lagoon, foam crests\n      const c = pal(0.5 + cellHue * 0.16, 0.15, 0.0);\n      const base = (0.15 + soft * 0.30 * cellAmt) * (0.7 + gain * 0.4);\n      const foam = Math.pow(ridge, 0.9) * gain * 0.85;\n      r = Math.min(1, c[0] * base + foam * 0.95 + foam * foam * 0.25);\n      gg = Math.min(1, c[1] * base + foam * 0.97 + foam * foam * 0.22);\n      b = Math.min(1, c[2] * base * 1.15 + foam * 1.0 + foam * foam * 0.2);\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

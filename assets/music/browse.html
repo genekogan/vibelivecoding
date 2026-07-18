@@ -18,6 +18,7 @@
   header .meter .bar { width:9px; background:var(--acc); opacity:.85; border-radius:1px 1px 0 0; transition:height .08s linear; height:1px; }
   header .meter .bar.rms { background:var(--acc2); }
   #playing { color:var(--acc2); font-size:12px; max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #play-error { color:var(--hot); font-size:11.5px; max-width:42vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   main { flex:1; display:flex; min-height:0; }
   #side { width:300px; min-width:300px; border-right:1px solid var(--line); overflow-y:auto; background:var(--panel); padding-bottom:40px; }
   .ghead { position:sticky; top:0; background:var(--panel2); color:var(--acc2); padding:5px 12px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; border-bottom:1px solid var(--line); cursor:pointer; }
@@ -26,6 +27,7 @@
   .item.sel { color:var(--ink); background:var(--panel2); border-left:3px solid var(--acc); padding-left:15px; }
   .item .slotchip { color:var(--acc); opacity:.75; margin-right:6px; font-size:10.5px; }
   .item.kit .slotchip { color:var(--hot); }
+  .item.arc .slotchip { color:#b4a5ff; }
   .item .new { color:var(--hot); font-size:10px; margin-left:6px; }
   .item.unv { opacity:.55; font-style:italic; }
   .item .gr { margin-left:6px; font-size:11px; }
@@ -63,6 +65,10 @@
   pre#code { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px; font-size:12px; color:#b9c4d8; overflow-x:auto; white-space:pre-wrap; word-break:break-all; max-width:900px; }
   #kitlist { margin-bottom:14px; font-size:13px; color:var(--dim); }
   #kitlist b { color:var(--ink); }
+  .arc-sections { display:grid; gap:7px; max-width:760px; margin:12px 0 18px; }
+  .arc-section { display:grid; grid-template-columns:90px 74px 1fr; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--panel); color:var(--dim); font-size:11px; }
+  .arc-section b { color:var(--ink); }
+  .arc-note { max-width:760px; margin:10px 0 16px; padding:10px 12px; border-left:3px solid #b4a5ff; background:var(--panel); color:var(--dim); }
   footer { border-top:1px solid var(--line); background:var(--panel); padding:6px 16px; font-size:11.5px; color:var(--dim); display:flex; gap:18px; align-items:center; }
   footer kbd, #help kbd { background:var(--panel2); border:1px solid var(--line); border-radius:4px; padding:0 6px; margin-right:6px; color:var(--acc); }
   #help { position:fixed; inset:0; background:rgba(10,11,14,.93); display:none; align-items:center; justify-content:center; z-index:50; }
@@ -76,6 +82,7 @@
   <h1>SOUND SPACE</h1>
   <span class="counts" id="counts">loading…</span>
   <span id="playing"></span>
+  <span id="play-error" role="status" aria-live="polite"></span>
   <div class="meter" id="meter">
     <div class="bar" data-b="bass"></div><div class="bar" data-b="lowmid"></div>
     <div class="bar" data-b="mid"></div><div class="bar" data-b="treble"></div>
@@ -85,7 +92,7 @@
 <main>
   <nav id="side"></nav>
   <section id="detail"><h2 style="color:var(--dim)">waiting for catalog…</h2>
-    <p style="color:var(--dim);margin-top:10px">Assets appear as the factory validates them (auto-refreshes every 4s). Press <b>?</b> for keys. Audio plays in the factory's browser window (the one connected to :9766).</p>
+    <p style="color:var(--dim);margin-top:10px">Assets appear as the factory validates them (auto-refreshes every 4s). Press <b>?</b> for keys. In the unified catalog, click <b>Enable audio</b> once in the top bar; playback then stays on this page's current server.</p>
   </section>
 </main>
 <footer>
@@ -140,8 +147,46 @@ async function refreshArcs() {
   } catch(e){}
 }
 
-const post = (p, b) => fetch(API+p, {method:'POST', body: JSON.stringify(b||{})}).then(r=>r.json()).catch(()=>null);
 const toast = m => { const t=$('#toast'); t.textContent=m; t.style.opacity=1; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity=0, 2200); };
+
+async function requestJson(path, options={}) {
+  const response = await fetch(API+path, options);
+  const text = await response.text();
+  let body = {};
+  try { body = text ? JSON.parse(text) : {}; }
+  catch (_) { throw new Error(`${path}: invalid server response`); }
+  if (!response.ok || body?.ok === false || body?.response?.type === 'error') {
+    const message = body?.error || body?.message || body?.response?.message || `HTTP ${response.status}`;
+    throw new Error(`${path}: ${message}`);
+  }
+  return body;
+}
+const post = (path, body) => requestJson(path, {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(body||{})
+});
+function clearPlayError(){ $('#play-error').textContent=''; }
+function showPlayError(error){
+  const message = error?.message || String(error);
+  $('#playing').textContent='';
+  $('#play-error').textContent='⚠ '+message;
+  toast('playback failed — '+message);
+}
+async function runPlayback(operation){
+  clearPlayError();
+  try { return await operation(); }
+  catch(error){ showPlayError(error); return null; }
+}
+async function requireAudioEngine(){
+  const body = await requestJson('/transport', {cache:'no-store'});
+  const transport = body.transport;
+  if (!transport?.initialized) throw new Error('audio engine is not initialized — click Enable audio');
+  if (transport.audio?.state !== 'running') {
+    throw new Error(`audio engine is ${transport.audio?.state || 'unavailable'} — click Enable audio`);
+  }
+  return transport;
+}
 
 // ── grading (bad / ok / good) ───────────────────────────────
 const GLABEL = { bad:'✗ bad', ok:'○ ok', good:'★ good' };
@@ -155,8 +200,9 @@ async function refreshGrades() {
 }
 async function gradeAsset(id, grade) {
   if (!id) return;
+  try { await post('/music/grade', {id, grade}); }
+  catch(error) { showPlayError(error); return; }
   GRADES.set(id, grade);
-  post('/music/grade', {id, grade});               // persist to grades.jsonl
   toast(GLABEL[grade] + ' · ' + id.replace(/^[a-z]+\./,''));
   // pick the next ungraded asset so triage keeps flowing
   const i = ORDER.indexOf(id);
@@ -190,6 +236,7 @@ async function refreshIndex() {
 }
 function genreOf(a) {
   if (a.kind === 'kit') return '★ kits';
+  if (a.kind === 'arc') return '↝ arcs';
   const g = (a.genre && a.genre[0]) || (a.tags||'').split(' ')[0] || 'misc';
   return String(g);
 }
@@ -213,14 +260,14 @@ function renderSide() {
       const gr = GRADES.get(a.id);
       const badge = gr ? `<span class="gr ${gr}">${gr==='good'?'★':gr==='ok'?'○':'✗'}</span>` : '';
       const d = document.createElement('div');
-      d.className = 'item' + (a.id===SEL?' sel':'') + (a.kind==='kit'?' kit':'') + (a.unverified?' unv':'') + (gr==='bad'?' graded-bad':'');
-      d.innerHTML = `<span class="slotchip">${a.kind==='kit'?'KIT':(a.slot||'')}</span>${a.id.replace(/^[a-z]+\./,'')}${badge}` + (NEWIDS.has(a.id)?'<span class="new">● NEW</span>':'');
+      d.className = 'item' + (a.id===SEL?' sel':'') + (a.kind==='kit'?' kit':a.kind==='arc'?' arc':'') + (a.unverified?' unv':'') + (gr==='bad'?' graded-bad':'');
+      d.innerHTML = `<span class="slotchip">${a.kind==='kit'?'KIT':a.kind==='arc'?'ARC':(a.slot||'')}</span>${a.id.replace(/^[a-z]+\./,'')}${badge}` + (NEWIDS.has(a.id)?'<span class="new">● NEW</span>':'');
       d.onclick = () => select(a.id);
       side.appendChild(d);
     }
   }
   const gc = {bad:0,ok:0,good:0}; for (const a of ASSETS){ const x=GRADES.get(a.id); if(gc[x]!==undefined) gc[x]++; }
-  $('#counts').textContent = `${ASSETS.filter(a=>a.kind==='stem').length} stems · ${ASSETS.filter(a=>a.kind==='kit').length} kits`
+  $('#counts').textContent = `${ASSETS.filter(a=>a.kind==='stem').length} stems · ${ASSETS.filter(a=>a.kind==='kit').length} kits · ${ASSETS.filter(a=>a.kind==='arc').length} arcs`
     + (SHOWUNV?' · +inbox':'') + ` · graded ${gc.bad+gc.ok+gc.good}/${ASSETS.length} (★${gc.good} ○${gc.ok} ✗${gc.bad})` + (SHOWBAD?' · showing ✗':'');
 }
 async function fullAsset(id) {
@@ -249,7 +296,37 @@ function compile(a, variant) {
   const code = a.kind==='kit' ? '' : ((a.code||{})[variant]||(a.code||{}).full||'');
   return code.replace(/\$\{(\w+)\}/g, (m,k)=> (k in vals) ? vals[k] : m);
 }
+async function renderArcDetail(a) {
+  const kitAssets = (await Promise.all(ASSETS.filter(x=>x.kind==='kit').map(x=>fullAsset(x.id)))).filter(Boolean);
+  if (SEL !== a.id) return;
+  const compatible = kitAssets.filter(kit => new Set([kit.arc, ...(kit.arcs||[])]).has(a.id));
+  const cycles = (a.sections||[]).reduce((sum, section)=>sum + (Number(section.cycles)||0), 0);
+  let h = `<h2>${a.name||a.id}</h2><div class="id">${a.id} · ARRANGEMENT</div>`;
+  h += `<div class="desc">${a.desc||''}</div>`;
+  h += `<div class="chips">${(a.tags||[]).map(t=>`<span class="chip">${t}</span>`).join('')}</div>`;
+  h += `<div class="meta"><span>kind <b>arc</b></span><span>length <b>${cycles} cycles</b></span><span>sections <b>${(a.sections||[]).length}</b></span></div>`;
+  const gr = GRADES.get(a.id);
+  h += `<div class="gradebar"><span class="glabel">grade:</span>`
+     + `<button class="gbtn bad ${gr==='bad'?'on':''}" data-grade="bad">✗ bad <span style="opacity:.55">1</span></button>`
+     + `<button class="gbtn ok ${gr==='ok'?'on':''}" data-grade="ok">○ ok <span style="opacity:.55">2</span></button>`
+     + `<button class="gbtn good ${gr==='good'?'on':''}" data-grade="good">★ good <span style="opacity:.55">3</span></button></div>`;
+  h += `<div class="arc-note">An arc is an arrangement, not a standalone sound. It can only play through a verified kit that explicitly recommends it.</div>`;
+  h += `<div class="arc-sections">${(a.sections||[]).map((section,index)=>{
+    const slots = Object.entries(section.slots||{}).map(([slot,variant])=>`${slot}:${variant}`).join(' · ');
+    return `<div class="arc-section"><b>${index+1}. ${section.label||'section'}</b><span>${section.cycles||0} cycles</span><span>${slots}</span></div>`;
+  }).join('')}</div>`;
+  if (compatible.length) {
+    h += `<div class="arc-note">Verified kit assignments: ${compatible.map(kit=>`<button class="gbtn" data-open-kit="${kit.id}">${kit.name||kit.id}</button>`).join(' ')}</div>`;
+  } else {
+    h += `<div class="arc-note" style="border-left-color:var(--hot);color:var(--hot)">Not assigned to any verified kit. This arc is intentionally non-playable until it is assigned and passes the kit×arc audibility gate.</div>`;
+  }
+  h += `<pre id="code">${escapeHtml(JSON.stringify(a.sections||[], null, 2))}</pre>`;
+  $('#detail').innerHTML = h;
+  document.querySelectorAll('.gbtn[data-grade]').forEach(b=>b.onclick=()=>gradeAsset(a.id,b.dataset.grade));
+  document.querySelectorAll('[data-open-kit]').forEach(b=>b.onclick=()=>{ ARCPICK.set(b.dataset.openKit,a.id); select(b.dataset.openKit); });
+}
 function renderDetail(a) {
+  if (a.kind === 'arc') { void renderArcDetail(a); return; }
   const isKit = a.kind==='kit';
   const vals = PVALS.get(a.id)||{};
   let h = `<h2>${a.name||a.id}</h2><div class="id">${a.id}${a.unverified?' · <span style="color:var(--hot)">UNVERIFIED</span>':''}</div>`;
@@ -268,7 +345,10 @@ function renderDetail(a) {
     const pick = ARCPICK.get(a.id) || null;
     h += `<div style="margin-bottom:12px"><div style="color:var(--dim);font-size:11px;letter-spacing:.1em;margin-bottom:5px">ARC — long-form section script (form repeats endlessly)</div><div class="variants" id="arcrow">`;
     h += `<button class="vbtn ${!pick?'sel':''}" data-arc="">loop ${VARIANT}</button>`;
-    for (const [aid, arc] of ARCS) {
+    const recommendedIds = [...new Set([a.arc, ...(a.arcs||[])].filter(Boolean))];
+    for (const aid of recommendedIds) {
+      const arc = ARCS.get(aid);
+      if (!arc) continue;
       const cyc = arc.sections.reduce((s,x)=>s+x.cycles,0);
       const dur = Math.round(cyc / (a.cps||0.5));
       h += `<button class="vbtn ${pick===aid?'sel':''}" data-arc="${aid}" title="${arc.desc||''}">${aid.replace(/^arc\./,'')} · ${dur}s</button>`;
@@ -295,7 +375,7 @@ function renderDetail(a) {
   h += `<pre id="code">${isKit?'(kit — fires the stems listed above)':escapeHtml(compile(a, VARIANT))}</pre>`;
   $('#detail').innerHTML = h;
   document.querySelectorAll('.vbtn').forEach(b=> {
-    if (b.dataset.arc !== undefined) b.onclick = async ()=> { ARCPICK.set(a.id, b.dataset.arc||null); renderDetail(a); if (PLAYINGSOLO===a.id) fireKit(a); };
+    if (b.dataset.arc !== undefined) b.onclick = async ()=> { ARCPICK.set(a.id, b.dataset.arc||null); renderDetail(a); if (PLAYINGSOLO===a.id) runPlayback(()=>fireKit(a)); };
     else b.onclick = ()=> setVariant(b.dataset.v);
   });
   document.querySelectorAll('#params [data-p]').forEach(inp => {
@@ -309,15 +389,15 @@ function renderDetail(a) {
     };
   });
   const cs = $('#cpsslide');
-  if (cs) cs.oninput = () => { $('#cpsval').textContent = cs.value; debounce(()=>{SERVERCPS=parseFloat(cs.value); post('/strudel/cps',{cps:SERVERCPS});}, 200); };
+  if (cs) cs.oninput = () => { $('#cpsval').textContent = cs.value; debounce(()=>runPlayback(async()=>{SERVERCPS=parseFloat(cs.value); await post('/strudel/cps',{cps:SERVERCPS});}), 200); };
   $('#bplay').onclick = solo; $('#blayer').onclick = layer; $('#bhush').onclick = hush;
   document.querySelectorAll('.gbtn').forEach(b=> b.onclick = ()=> gradeAsset(a.id, b.dataset.grade));
 }
 function clampCps(a){ const v = SERVERCPS ?? a.cps.written; return Math.max(a.cps.min, Math.min(a.cps.max, v)); }
 function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 let _deb; function debounce(f, ms){ clearTimeout(_deb); _deb = setTimeout(f, ms); }
-function debounceRefire(){ debounce(()=>{ if (PLAYINGSOLO===SEL || LAYERED.size) fireCurrent(false); }, 280); }
-async function setVariant(v){ VARIANT=v; const a=await fullAsset(SEL); renderDetail(a); if (PLAYINGSOLO===SEL) fireCurrent(false); }
+function debounceRefire(){ debounce(()=>{ if (PLAYINGSOLO===SEL || LAYERED.size) runPlayback(()=>fireCurrent(false)); }, 280); }
+async function setVariant(v){ VARIANT=v; const a=await fullAsset(SEL); renderDetail(a); if (PLAYINGSOLO===SEL) runPlayback(()=>fireCurrent(false)); }
 
 // ── firing ──────────────────────────────────────────────────
 async function ensureDeps(a) {
@@ -333,28 +413,38 @@ async function ensureDeps(a) {
 }
 async function fireCurrent(setTempo) {
   const a = await fullAsset(SEL); if (!a) return;
+  if (a.kind === 'arc') throw new Error('an arc is an arrangement — open one of its assigned kits');
   if (a.kind === 'kit') return fireKit(a, setTempo);
+  await requireAudioEngine();
   await ensureDeps(a);
   if (setTempo && a.cps) { const c = parseFloat($('#cpsslide')?.value || a.cps.written); await post('/strudel/cps',{cps:c}); SERVERCPS=c; }
   await post('/strudel/track', {name: a.slot, code: compile(a, VARIANT)});
   $('#playing').textContent = '▶ ' + a.id + ' · ' + VARIANT;
 }
 async function solo() {
-  await post('/strudel/hush'); LAYERED.clear();
-  await fireCurrent(true);
-  PLAYINGSOLO = SEL; const a=await fullAsset(SEL); renderDetail(a);
+  return runPlayback(async()=>{
+    const selected = await fullAsset(SEL);
+    if (selected?.kind === 'arc') throw new Error('an arc is an arrangement — open one of its assigned kits');
+    await requireAudioEngine();
+    await post('/strudel/hush'); LAYERED.clear();
+    await fireCurrent(true);
+    PLAYINGSOLO = SEL; const a=await fullAsset(SEL); renderDetail(a);
+  });
 }
 async function layer() {
-  const a = await fullAsset(SEL); if (!a || a.kind==='kit') return solo();
-  await fireCurrent(false); LAYERED.add(a.slot);
-  toast('layered on '+a.slot);
+  return runPlayback(async()=>{
+    const a = await fullAsset(SEL); if (!a || a.kind==='kit') return solo();
+    await fireCurrent(false); LAYERED.add(a.slot);
+    toast('layered on '+a.slot);
+  });
 }
-async function hush() { await post('/strudel/hush'); PLAYINGSOLO=null; LAYERED.clear(); $('#playing').textContent=''; }
+async function hush() { return runPlayback(async()=>{ await post('/strudel/hush'); PLAYINGSOLO=null; LAYERED.clear(); $('#playing').textContent=''; }); }
 function subst(s, sid, variant) {
   const vals = PVALS.get(sid)||{};
   return ((s.code||{})[variant]||s.code.full).replace(/\$\{(\w+)\}/g,(m,k)=> (vals[k]!==undefined)?vals[k]:m);
 }
 async function fireKit(kit, setTempo) {
+  await requireAudioEngine();
   await post('/strudel/hush'); LAYERED.clear();
   if (setTempo !== false && kit.cps) { await post('/strudel/cps',{cps:kit.cps}); SERVERCPS=kit.cps; }
   const arcId = ARCPICK.get(kit.id);
@@ -404,14 +494,14 @@ async function nudgeRoot(dir) {
     toast('root '+vals.root);
   }
   renderDetail(a);
-  if (PLAYINGSOLO===SEL) fireCurrent(false);
+  if (PLAYINGSOLO===SEL) runPlayback(()=>fireCurrent(false));
 }
 async function nudgeCps(d) {
   const a = await fullAsset(SEL); if (!a || !a.cps) return;
   const cur = parseFloat($('#cpsslide')?.value || a.cps.written);
   const nxt = Math.max(a.cps.min, Math.min(a.cps.max, +(cur + d).toFixed(3)));
   if ($('#cpsslide')) { $('#cpsslide').value = nxt; $('#cpsval').textContent = nxt; }
-  SERVERCPS = nxt; post('/strudel/cps',{cps:nxt});
+  SERVERCPS = nxt; runPlayback(()=>post('/strudel/cps',{cps:nxt}));
 }
 
 // ── keyboard ────────────────────────────────────────────────

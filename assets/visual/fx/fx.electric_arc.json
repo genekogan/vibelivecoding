@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.electric_arc",
+  "kind": "fx",
+  "name": "Electric Arc",
+  "desc": "Slow plasma filaments crawl and re-route from a glowing core \u2014 a plasma-globe or Tesla arc that writhes and branches continuously (never a strike, never a strobe), over a soft violet halo and faint ionized haze; charged light over any dark scene.",
+  "tags": [
+    "electric-arc",
+    "arc",
+    "arcs",
+    "plasma",
+    "plasma-globe",
+    "plasma-ball",
+    "tesla",
+    "tesla-coil",
+    "filament",
+    "filaments",
+    "discharge",
+    "ionized",
+    "corona",
+    "electricity",
+    "electric",
+    "spark",
+    "voltage",
+    "high-voltage",
+    "jacobs-ladder",
+    "faraday",
+    "glow",
+    "crawling",
+    "writhing",
+    "violet",
+    "purple",
+    "cyan",
+    "blue",
+    "sci-fi",
+    "laboratory",
+    "eerie",
+    "menacing",
+    "emissive",
+    "additive",
+    "overlay",
+    "atmosphere",
+    "fx",
+    "effect",
+    "no-strobe",
+    "slow"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "arc glow + brightness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "filament + branch count (2..9)"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "halo / ionization hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "crawl / re-route rate (kept slow)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "filament reach"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "electrode / core x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "electrode / core y"
+    },
+    "jag": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "path jaggedness"
+    },
+    "halo": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "central plasma-glow strength"
+    },
+    "style": {
+      "default": "plasma_globe",
+      "options": [
+        "plasma_globe",
+        "tesla",
+        "arc_weld",
+        "faraday"
+      ],
+      "doc": "plasma_globe=violet-magenta core, cyan tips / tesla=electric blue-white / arc_weld=hot white-blue / faraday=green-cyan, eerie"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:47+00:00",
+    "fps": 60.2,
+    "motion": 0.0181,
+    "lum": 0.133
+  },
+  "code": "const D = { energy:.55, density:.5, hue:280, speed:1, scale:1, x:.5, y:.5, jag:.5, halo:.6, style:'plasma_globe', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\nif(!S.spr){ const R=72; const s=createGraphics(R*2,R*2); s.pixelDensity(1); s.noStroke();\n  for(let r=R;r>0;r--){ const a=Math.pow(1-r/R,2.0)*255; s.fill(255,255,255,a*0.85); s.ellipse(R,R,r*2,r*2); }\n  S.spr=s; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1);\n  // each filament: target angle, target radius, phase offsets, branch flag\n  S.fil=[]; for(let k=0;k<10;k++) S.fil.push([fr(k*5+2)*6.28, 0.5+fr(k*5+3)*0.5, fr(k*5+4)*6.28, fr(k*5+5), fr(k*5+6)]);\n}\nconst sd=P.seed|0;\nfunction nz(x){ return Math.sin(x*1.7)+0.5*Math.sin(x*3.9+1.2)+0.25*Math.sin(x*7.1+2.3); }\n\nconst t=K.t*(0.4+P.speed*0.6);\nconst style=P.style;\nconst cx=P.x*width, cy=P.y*height;\n// core + tip color by style\nconst core = style==='tesla'?[205,60]:style==='arc_weld'?[210,20]:style==='faraday'?[150,70]:[290,70];\nconst tip  = style==='tesla'?[195,40]:style==='arc_weld'?[35,80]:style==='faraday'?[170,60]:[315,65];\n\n// --- central plasma halo + faint ionized haze (broad area element) ---\npush(); blendMode(ADD); imageMode(CENTER); noStroke();\nconst breath=0.6+0.4*Math.sin(t*0.7)+0.2*Math.sin(t*1.9+1.0)+A.mid*0.4;   // gentle, non-strobe\nconst hstr=(0.3+P.halo*0.9)*(0.5+P.energy*0.8)*breath;\ntint((P.hue)%360, core[1]*0.6, 100, Math.min(100, 12*hstr)); image(S.spr, cx, cy, u*1.5*P.scale, u*1.5*P.scale);\ntint((P.hue)%360, core[1], 100, Math.min(100, 30*hstr)); image(S.spr, cx, cy, u*0.5*P.scale, u*0.5*P.scale);\n// faint full-field ionization so the whole frame reads charged\nblendMode(ADD); noStroke(); fill((P.hue)%360, core[1]*0.4, 100, 2.5+2.0*hstr*0.4); rect(0,0,width,height);\nimageMode(CORNER); blendMode(BLEND); pop();\n\n// --- crawling filaments (slow re-route, never a strike) ---\nconst nf=2+Math.round(P.density*7);\nconst reach=u*(0.28+P.scale*0.22);\nconst jag=(0.4+P.jag*1.2);\npush(); blendMode(ADD);\nfor(let k=0;k<nf;k++){ const fl=S.fil[k];\n  // endpoint slowly wanders (crawl) on incommensurate rates\n  const ang=fl[0] + 0.5*Math.sin(t*0.23*(0.6+fl[3]) + fl[2]) + 0.3*Math.sin(t*0.41 + k);\n  const rad=reach*fl[1]*(0.8+0.2*Math.sin(t*0.3+fl[4]*6.28));\n  const ex=cx+Math.cos(ang)*rad, ey=cy+Math.sin(ang)*rad;\n  const seg=14;\n  const bri=(0.5+0.5*Math.sin(t*0.9+fl[3]*6.28))*(0.5+P.energy*0.9);\n  // build path: interpolate center->endpoint with slowly-evolving perpendicular jitter\n  const pts=[];\n  for(let s2=0;s2<=seg;s2++){ const f2=s2/seg;\n    const bx=cx+(ex-cx)*f2, by=cy+(ey-cy)*f2;\n    const perp=(-(ey-cy)*(1/(rad+1)))*1, ppx=-(ey-cy)/(rad+0.001), ppy=(ex-cx)/(rad+0.001);\n    const wig=jag*u*0.06*Math.sin(f2*9 + t*1.1 + fl[2]*3)*(f2*(1-f2)*4) + jag*u*0.03*nz(f2*6 + t*0.7 + k);\n    pts.push([bx+ppx*wig, by+ppy*wig]);\n  }\n  // glow layers: wide soft -> thin bright core\n  for(let pass=0;pass<3;pass++){\n    const w=[u*0.02, u*0.008, u*0.0025][pass];\n    const hue=pass<1?tip[0]:core[0], sat=pass<1?tip[1]:core[1];\n    const a=[10,26,70][pass]*bri;\n    stroke(hue, sat, 100, Math.min(95,a)); strokeWeight(w); noFill();\n    beginShape();\n    for(let s2=0;s2<pts.length;s2++) vertex(pts[s2][0], pts[s2][1]);\n    endShape();\n  }\n  // occasional branch (also slow)\n  if(fl[4]<(0.2+P.density*0.35)){\n    const bi=Math.floor(seg*(0.4+0.4*fl[3]));\n    const bp=pts[bi]; const bang=Math.atan2(bp[1]-cy,bp[0]-cx)+ (fl[3]-0.5)*1.4;\n    const blen=rad*0.4*(0.5+P.jag);\n    const ex2=bp[0]+Math.cos(bang)*blen, ey2=bp[1]+Math.sin(bang)*blen;\n    stroke(core[0],core[1],100, Math.min(90,40*bri)); strokeWeight(u*0.004);\n    line(bp[0],bp[1],ex2 + jag*u*0.03*nz(t*0.9+k), ey2 + jag*u*0.03*nz(t*0.7+k*2));\n  }\n}\nblendMode(BLEND); pop();\n"
+}

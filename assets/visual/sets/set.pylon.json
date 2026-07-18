@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.pylon",
+  "kind": "set",
+  "name": "Transmission Line",
+  "desc": "A line of high-tension lattice pylons marching away to a vanishing point, catenary conductors sagging and travelling on the wind between them, insulator strings swinging and a slow aviation lamp breathing at each peak.",
+  "tags": [
+    "pylon",
+    "pylons",
+    "transmission",
+    "tower",
+    "towers",
+    "electricity",
+    "power-line",
+    "powerline",
+    "high-tension",
+    "grid",
+    "lattice",
+    "steel",
+    "truss",
+    "cables",
+    "conductors",
+    "catenary",
+    "wires",
+    "insulator",
+    "infrastructure",
+    "industrial",
+    "silhouette",
+    "perspective",
+    "depth",
+    "receding",
+    "vanishing-point",
+    "parallax",
+    "wind",
+    "sway",
+    "dusk",
+    "blueprint",
+    "engraving",
+    "thermal",
+    "austere",
+    "sublime",
+    "structure",
+    "built",
+    "scenery",
+    "midground"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "wind amplitude on the spans + lamp glow + approach rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2,
+      "doc": "tower height vs frame"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how many braced bays are worked into each tower"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "how fast the line trucks past"
+    },
+    "n": {
+      "default": 3,
+      "min": 1,
+      "max": 5,
+      "doc": "how many towers recede into the distance"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "steel / rim-light hue"
+    },
+    "x": {
+      "default": 0.62,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "near tower base x as canvas fraction (the line recedes up-left from here)"
+    },
+    "y": {
+      "default": 0.86,
+      "min": 0.4,
+      "max": 1.05,
+      "doc": "near tower base y as canvas fraction (ground line)"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity \u2014 drop it to sit the line further back in the haze"
+    },
+    "style": {
+      "default": "steel",
+      "options": [
+        "steel",
+        "silhouette",
+        "blueprint",
+        "engraving",
+        "thermal"
+      ],
+      "doc": "aesthetic: galvanised lattice with rim light / pure dusk silhouette, no interior at all / cyan setting-out drawing / hatched engraved plate / infrared false-colour \u2014 the steel reads cool and the near conductors burn warm"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for per-tower arm reach and dead lamps"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:34:44+00:00",
+    "fps": 59.9,
+    "motion": 0.0232,
+    "lum": 0.097
+  },
+  "code": "const D = { energy:.55, scale:1, density:.55, speed:1, n:3, hue:32, x:.62, y:.86, style:'steel', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height);\nconst sd = P.seed|0;\nconst fr = i => { const s = Math.sin(i*127.1 + sd*311.7)*43758.5453; return s - Math.floor(s); };\n\nconst sty = P.style;\nconst bp = (sty==='blueprint'), paper = (sty==='engraving'), sil = (sty==='silhouette'), th = (sty==='thermal');\nconst H = ((P.hue%360)+360)%360;\nconst AL = cl(P.alpha,0,100)/100;\nconst NP = Math.max(1, Math.round(cl(P.n,1,5)));\nconst HT = u*.48*cl(P.scale,.3,2.0);          // near pylon height\nconst GG = .55;                                // perspective spacing constant\n\n// ---- slow truck down the line; pylon identity keyed on ABSOLUTE index ------\nif (S.pt == null || K.t < S.pt) S.pt = K.t;\nconst dt = cl(K.t - S.pt, 0, .1); S.pt = K.t;\nS.d = (S.d||0) + dt * P.speed * (.045 + .05*K.intensity) * (.6 + .5*P.energy);\nconst pbase = Math.floor(S.d);\n\nconst bass = (S.b = (S.b||0)*.82 + (A.bass||0)*.18);\nconst lowm = (S.l = (S.l||0)*.85 + (A.lowmid||0)*.15);\nconst glow = (.40 + .60*P.energy)*(.55 + .5*K.intensity) + bass*.3;\n// wind: three incommensurate rates -> the span never returns to the same shape\nconst WA = HT*.022*(.35 + .95*P.energy) * (1 + lowm*.9);\nconst wind = (ph) => WA*(.60*Math.sin(K.t*.63 + ph) + .28*Math.sin(K.t*1.37 + ph*1.7 + 1.1) + .16*Math.sin(K.t*2.11 + ph*.6));\n\nconst BX = cl(P.x,.05,.95)*width, BY = cl(P.y,.4,1.05)*height;\nconst vx = BX - u*.55, vy = BY - u*.42;      // vanishing point of the line\n\nfunction ink(a, w, near){\n  const al = cl(a*AL, 0, 100);\n  if (bp)       stroke(196, 26, 100, al);\n  else if (paper) stroke(28, 26, 14, al);\n  else if (sil) stroke(H, 24, 5 + 8*(1-near), al);\n  else if (th)  stroke(cl(H + 200*(1-near), 0, 360), 70, cl(28 + 54*near, 8, 96), al);\n  else          stroke(H, cl(8 + 6*(1-near), 0, 30), cl(24 + 52*near*(.5+.6*glow), 6, 92), al);\n  strokeWeight(Math.max(.7, w));\n}\n\n// ---- one pylon -------------------------------------------------------------\n// arm tips are returned so the conductors can be strung between towers\nfunction pylon(ai, dj){\n  const k = 1 + dj*GG;\n  if (k < .30) return null;\n  const t = 1/k;                                   // perspective scale\n  const cx = vx + (BX - vx)*t, by = vy + (BY - vy)*t;\n  const ht = HT*t;\n  if (ht < u*.012) return null;\n  const near = cl((t - .18)/.92, 0, 1);\n  const fade = cl(.20 + .95*near, 0, 1);\n  const lw = Math.max(.7, ht*.0075);\n  const jit = .86 + fr(ai*3.3 + 1.1)*.28;          // seeded per-tower variation\n  const wOf = q => ht*(q < .55 ? (.185 - (.185-.072)*(q/.55)) : (.072 - (.072-.042)*((q-.55)/.45)));\n  const yOf = q => by - ht*q;\n  const tips = [];\n\n  // legs + X bracing\n  const nb = Math.max(3, Math.round((3 + cl(P.density,0,1)*5) * (.4 + .7*near)));\n  ink(84*fade, lw*1.25, near);\n  noFill();\n  line(cx - wOf(0), yOf(0), cx - wOf(.55), yOf(.55)); line(cx - wOf(.55), yOf(.55), cx - wOf(1), yOf(1));\n  line(cx + wOf(0), yOf(0), cx + wOf(.55), yOf(.55)); line(cx + wOf(.55), yOf(.55), cx + wOf(1), yOf(1));\n  if (sil){   // silhouette: fill the body as one mass, no interior\n    noStroke(); fill(H, 24, 5, cl(88*AL,0,100));\n    beginShape();\n    vertex(cx-wOf(0), yOf(0)); vertex(cx-wOf(.55), yOf(.55)); vertex(cx-wOf(1), yOf(1));\n    vertex(cx+wOf(1), yOf(1)); vertex(cx+wOf(.55), yOf(.55)); vertex(cx+wOf(0), yOf(0));\n    endShape(CLOSE); noFill();\n  } else {\n    ink(58*fade, lw, near);\n    for (let i=0;i<nb;i++){\n      const q0 = i/nb, q1 = (i+1)/nb;\n      const w0 = wOf(q0), w1 = wOf(q1), y0 = yOf(q0), y1 = yOf(q1);\n      line(cx-w0, y0, cx+w1, y1); line(cx+w0, y0, cx-w1, y1);\n      if (i>0) line(cx-w0, y0, cx+w0, y0);\n    }\n  }\n\n  // two crossarms + the peak mast\n  const arms = [[.66, .30], [.86, .215]];\n  for (let a=0; a<arms.length; a++){\n    const q = arms[a][0], reach = ht*arms[a][1]*jit*(.8 + .35*cl(P.scale,.3,2.0)/1.4);\n    const ay = yOf(q), w0 = wOf(q);\n    for (let s2=-1; s2<=1; s2+=2){\n      const tx = cx + s2*(w0 + reach), ty = ay;\n      ink(84*fade, lw*1.1, near); noFill();\n      line(cx + s2*w0, ay, tx, ty);\n      line(cx + s2*w0*.7, ay - ht*.055, tx, ty);\n      line(cx + s2*w0, ay + ht*.012, tx, ty);\n      if (!sil && near > .5){\n        ink(52*fade, lw*.8, near);\n        for (let i=1;i<3;i++){ const q2=i/3;\n          line(cx + s2*(w0 + reach*q2), ay, cx + s2*(w0*.7 + reach*q2*1.02), ay - ht*.055*(1-q2)); }\n      }\n      // insulator string, swinging on the wind\n      const sw2 = wind(ai*1.7 + a*2.3 + s2)*0.55;\n      const il = ht*.075, nd = near > .55 ? 3 : 1;\n      ink(76*fade, lw*.9, near); noFill();\n      line(tx, ty, tx + sw2, ty + il);\n      if (!sil && near > .4){ noStroke();\n        for (let i=0;i<nd;i++){ const q2=(i+.6)/nd;\n          if (th) fill(cl(H+40,0,360), 60, cl(60 + 30*near,8,96), cl(74*fade*AL,0,100));\n          else fill(bp?196:(paper?28:H), bp?24:(paper?18:10), bp?100:(paper?60:cl(40 + 34*near,6,92)), cl(78*fade*AL,0,100));\n          ellipse(tx + sw2*q2, ty + il*q2, ht*.020, ht*.010); }\n        noFill();\n      }\n      tips.push([tx + sw2, ty + il, ai*3.1 + a*1.9 + s2*.7]);\n    }\n  }\n  // peak mast + earth wire attachment + slow aviation lamp\n  ink(84*fade, lw*1.1, near); noFill();\n  line(cx, yOf(1), cx, yOf(1.06));\n  line(cx - wOf(1), yOf(1), cx, yOf(1.06)); line(cx + wOf(1), yOf(1), cx, yOf(1.06));\n  tips.push([cx, yOf(1.06), ai*3.1 + 9.4]);\n  if (!bp && !paper && near > .35 && fr(ai*5.1 + 4.7) > .16){\n    const lamp = .18 + .82*Math.pow(.5 + .5*Math.sin(K.t*.55 + ai*2.1), 3);   // slow, never a strobe\n    push(); blendMode(ADD); noStroke();\n    for (let i=3;i>=1;i--){ fill(th?20:8, 70, 100, cl((1.6 + 3.6*glow*lamp)*AL, 0, 16));\n      ellipse(cx, yOf(1.07), ht*.035*i, ht*.035*i); }\n    pop(); blendMode(BLEND);\n  }\n  return { tips: tips, near: near, fade: fade, lw: lw };\n}\n\n// ---- towers, far -> near, stringing the conductors back up the line --------\nlet prev = null;\nfor (let j = NP; j >= -2; j--){\n  const ai = pbase + j, dj = ai - S.d + 1;\n  const py = pylon(ai, dj);\n  if (py && prev){\n    const nn = Math.min(py.near, prev.near), fd = cl(.18 + .95*nn, 0, 1);\n    const m = Math.min(py.tips.length, prev.tips.length);\n    for (let c=0; c<m; c++){\n      const a2 = prev.tips[c], b2 = py.tips[c];\n      const span = Math.hypot(b2[0]-a2[0], b2[1]-a2[1]);\n      const sag = span*(.085 + .05*(1-nn));\n      ink(cl((sil?86:70)*fd, 0, 100), Math.max(.7, py.lw*(th?1.2:.75)), nn);\n      noFill(); beginShape();\n      for (let i=0;i<=14;i++){ const s2=i/14, bell = Math.sin(s2*Math.PI);\n        const wx = wind(a2[2] + s2*2.4)*bell*(.35 + .8*nn);\n        vertex(a2[0] + (b2[0]-a2[0])*s2 + wx*.35,\n               a2[1] + (b2[1]-a2[1])*s2 + sag*4*s2*(1-s2) + wx);\n      }\n      endShape();\n    }\n  }\n  if (py) prev = py;\n}\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeWeight(1);\n"
+}

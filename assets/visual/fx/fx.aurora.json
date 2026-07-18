@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.aurora",
+  "kind": "fx",
+  "name": "Aurora",
+  "desc": "Aurora borealis curtains hang and ripple over the upper frame \u2014 vertical light rays folding across a magenta-topped green sheet with a broad glowing wash beneath, sitting over any night scene as pure emitted light.",
+  "tags": [
+    "aurora",
+    "borealis",
+    "northern-lights",
+    "aurora-borealis",
+    "polar",
+    "arctic",
+    "curtains",
+    "curtain",
+    "ribbons",
+    "sky",
+    "night",
+    "celestial",
+    "atmospheric-optics",
+    "solar-wind",
+    "ionosphere",
+    "green",
+    "magenta",
+    "teal",
+    "emissive",
+    "additive",
+    "overlay",
+    "atmosphere",
+    "fx",
+    "effect",
+    "sublime",
+    "serene",
+    "eerie",
+    "cold",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "curtain glow amplitude + ray brightness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.1,
+      "max": 1,
+      "doc": "number of overlapping curtains (1..4)"
+    },
+    "hue": {
+      "default": 135,
+      "min": 0,
+      "max": 360,
+      "doc": "base curtain hue (default green; tips shift +70)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "fold + ray drift rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "vertical falloff / band reach"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved horizontal anchor"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "hemline height of the curtains"
+    },
+    "fold": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "waviness / pleating of the curtain hemline"
+    },
+    "band": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical extent of the lit band"
+    },
+    "style": {
+      "default": "borealis",
+      "options": [
+        "borealis",
+        "ion",
+        "blood",
+        "mono"
+      ],
+      "doc": "borealis=green with magenta tops (hue-tinted) / ion=cyan-violet / blood=rare red aurora / mono=austere silver-green"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:43:47+00:00",
+    "fps": 57.8,
+    "motion": 0.1305,
+    "lum": 0.509
+  },
+  "code": "const D = { energy:.62, density:.5, hue:135, speed:1, scale:1, x:.5, y:.42, fold:.5, band:.6, style:'borealis', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = Math.max(400, Math.min(640, Math.round(width/2.9)));\nconst BH = Math.max(120, Math.round(BW*height/width));\nif (!S.g || S.bw!==BW || S.bh!==BH){ S.g=createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; }\nif (S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1); S.cur=[]; for(let k=0;k<4;k++) S.cur.push([fr(k*4+2), 0.10+fr(k*4+3)*0.30, fr(k*4+4)*6.28, 0.6+fr(k*4+5)*0.9]);\n}\nconst sd=P.seed|0;\nfunction hsh(ix){ let h=(ix*374761393+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn1(x){ const ix=Math.floor(x), fx=x-ix, u=fx*fx*(3-2*fx); const a=hsh(ix), b=hsh(ix+1); return a+(b-a)*u; }\nfunction fbm1(x){ return 0.6*vn1(x)+0.3*vn1(x*2.03+11.1)+0.15*vn1(x*4.1-7.7); }\nfunction h2(h,s,v){ h=((h%360)+360)%360; const c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c; let r,g,b; if(h<60){r=c;g=x;b=0;}else if(h<120){r=x;g=c;b=0;}else if(h<180){r=0;g=c;b=x;}else if(h<240){r=0;g=x;b=c;}else if(h<300){r=x;g=0;b=c;}else{r=c;g=0;b=x;} return [r+m,g+m,b+m]; }\n\nconst t=K.t*(0.05+P.speed*0.10);\nconst drift=0.9*Math.sin(t*0.61)+0.5*Math.sin(t*1.43+1.7)+0.32*Math.sin(t*2.29);\nconst nc=1+Math.round(P.density*3);\nconst expo=0.5+P.energy*1.1+K.intensity*0.35+A.rms*0.6;\nconst bandH=(0.25+P.band*0.6);\nconst hb=(P.hue+S.hoff*30+K.section*3)%360;\nconst style=P.style;\nconst baseC=h2(hb,0.85,1), tipC=h2(hb+70,0.7,1);\n\nconst g=S.g, ray=new Float32Array(BW), hem=[];\nfor(let c=0;c<nc;c++) hem.push(new Float32Array(BW));\nfor(let i=0;i<BW;i++){\n  ray[i]=Math.pow(Math.max(0, fbm1(i*0.06 + t*0.7 + S.hoff*10)*1.5-0.25), 1.3);\n  for(let c=0;c<nc;c++){ const cd=S.cur[c]; const xx=i/BW;\n    const h=(P.y) + cd[1]*Math.sin(xx*6.28*cd[3]+cd[2]+drift*0.4*(0.5+P.fold))*0.5\n                 + 0.09*P.fold*Math.sin(xx*18.8 + t*0.9 + c);\n    hem[c][i]=h*BH;\n  }\n}\ng.loadPixels(); const px=g.pixels;\nfor(let j=0;j<BH;j++){ for(let i=0;i<BW;i++){\n  let L=0, topfrac=0;\n  for(let c=0;c<nc;c++){\n    const hm=hem[c][i]; const below=j-hm;\n    if(below>-2){\n      const fall=Math.exp(-below/(BH*bandH*(0.4+0.5*(c+1)/nc)));\n      const capg=Math.exp(-Math.abs(below)/(BH*0.03));\n      const v=ray[i]*(0.35+0.9*fall)+capg*0.7;\n      L+=v; if(capg>topfrac) topfrac=capg;\n    }\n  }\n  L=L*expo;\n  const amb=0.055+0.05*fbm1(i*0.02 - t*0.3);\n  L+=amb*(j<BH*0.72?1:0.3);\n  L=Math.min(1.7,L);\n  const alt=Math.min(1, topfrac*1.2+0.12);\n  let r,gg,b;\n  if(style==='ion'){ r=L*(0.2+alt*0.7); gg=L*0.95; b=L*(0.85+alt*0.2); }\n  else if(style==='blood'){ r=L*1.0; gg=L*(0.22+alt*0.2); b=L*(0.18+alt*0.35); }\n  else if(style==='mono'){ const m=L*0.92; r=m*0.82; gg=m*0.95; b=m*0.9; }\n  else { r=L*(baseC[0]*(1-alt)+tipC[0]*alt); gg=L*(baseC[1]*(1-alt)+tipC[1]*alt); b=L*(baseC[2]*(1-alt)+tipC[2]*alt); }\n  const o=4*(j*BW+i); px[o]=Math.min(255,r*255); px[o+1]=Math.min(255,gg*255); px[o+2]=Math.min(255,b*255); px[o+3]=255;\n}}\ng.updatePixels();\npush(); blendMode(ADD);\nif(P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\nblendMode(BLEND); pop();\n"
+}

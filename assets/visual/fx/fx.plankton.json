@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.plankton",
+  "kind": "fx",
+  "name": "Plankton",
+  "desc": "Bioluminescent sea-sparkle igniting in dark water \u2014 dinoflagellate points flash cyan-green as an unseen wake sweeps through them, over a dim shearing current wash; drops any scene into a glowing night sea or bioluminescent bay.",
+  "tags": [
+    "plankton",
+    "bioluminescence",
+    "bioluminescent",
+    "biolum",
+    "dinoflagellate",
+    "noctiluca",
+    "sea-sparkle",
+    "sea-fire",
+    "phosphorescence",
+    "phosphorescent",
+    "glow",
+    "sparkle",
+    "spark",
+    "ocean",
+    "sea",
+    "water",
+    "underwater",
+    "bay",
+    "wake",
+    "current",
+    "abyss",
+    "night-sea",
+    "teal",
+    "cyan",
+    "green",
+    "blue",
+    "eerie",
+    "serene",
+    "sublime",
+    "emissive",
+    "additive",
+    "overlay",
+    "atmosphere",
+    "particles",
+    "fx",
+    "effect",
+    "no-strobe"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "density": {
+      "default": 0.55,
+      "min": 0.1,
+      "max": 1,
+      "doc": "plankton count (120..400)"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flash brightness + wake ignition"
+    },
+    "hue": {
+      "default": 175,
+      "min": 0,
+      "max": 360,
+      "doc": "biolum glow hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.25,
+      "max": 3,
+      "doc": "flash + advection rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.4,
+      "doc": "spark size"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved anchor"
+    },
+    "wake": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "strength/size of the sweeping disturbance"
+    },
+    "current": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dim background current-wash brightness"
+    },
+    "style": {
+      "default": "sea_sparkle",
+      "options": [
+        "sea_sparkle",
+        "noctiluca",
+        "firefly_squid",
+        "ghost"
+      ],
+      "doc": "sea_sparkle=cyan-green / noctiluca=deep blue / firefly_squid=electric blue, dense / ghost=pale white-green, eerie"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "reproducible RNG seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity of the overlay"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:44:04+00:00",
+    "fps": 62.1,
+    "motion": 0.0645,
+    "lum": 0.141
+  },
+  "code": "const D = { density:.55, energy:.6, hue:175, speed:1, scale:1, x:.5, y:.5, wake:.6, current:.6, style:'sea_sparkle', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u=Math.min(width,height);\nif(!S.spr){ const R=40; const s=createGraphics(R*2,R*2); s.pixelDensity(1); s.noStroke();\n  for(let r=R;r>0;r--){ const a=Math.pow(1-r/R,1.9)*255; s.fill(255,255,255,a); s.ellipse(R,R,r*2,r*2); }\n  S.spr=s; }\n// dim current wash buffer (broad area element)\nconst BW=Math.max(400,Math.min(680,Math.round(width/2.7))), BH=Math.max(140,Math.round(BW*height/width));\nif(!S.g||S.bw!==BW||S.bh!==BH){ S.g=createGraphics(BW,BH); S.g.pixelDensity(1); S.bw=BW; S.bh=BH; }\nif(S.seedUsed!==P.seed){ S.seedUsed=P.seed;\n  const fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453; return s-Math.floor(s);};\n  S.hoff=fr(1); S.pk=[]; for(let k=0;k<420;k++) S.pk.push([fr(k*3+2),fr(k*3+3),fr(k*3+4)]);\n}\nconst sd=P.seed|0;\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,uu=fx*fx*(3-2*fx),vv=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*uu+(c-a)*vv+(a-b-c+d)*uu*vv; }\nfunction fbm(x,y){ return 0.6*vn(x,y)+0.3*vn(x*2.03+5.1,y*2.03-3.2)+0.15*vn(x*4.1-2.3,y*4.1+7.7); }\n\nconst t=K.t;\nconst style=P.style;\nconst col = style==='noctiluca'?[0.2,0.5,1.0] : style==='firefly_squid'?[0.1,0.4,1.0] : style==='ghost'?[0.7,1.0,0.85] : [0.2,1.0,0.7];\n// wake path: a swept disturbance line crossing the frame on incommensurate rates\nconst wx=(0.5+0.42*Math.sin(t*0.37)+0.12*Math.sin(t*0.91+1.1))*width;\nconst wy=(0.5+0.34*Math.sin(t*0.53+2.0)+0.10*Math.sin(t*1.19))*height;\nconst wr=u*(0.16+P.wake*0.24);\n\n// --- current wash ---\nconst cst=(0.06+P.current*0.28);\nconst gg=S.g; gg.loadPixels(); const px=gg.pixels;\nfor(let j=0;j<BH;j++){ const yy=j/BH;\n  for(let i=0;i<BW;i++){ const xx=i/BW;\n    const f=fbm(xx*2.4 + t*0.04, yy*2.0 - t*0.06 + S.hoff*5);\n    const shear=0.5+0.5*Math.sin(yy*7+ t*0.3 + f*3);\n    let L=(0.3+0.8*f)*shear*cst;\n    const o=4*(j*BW+i); px[o]=Math.min(255,col[0]*L*255); px[o+1]=Math.min(255,col[1]*L*255); px[o+2]=Math.min(255,col[2]*L*255); px[o+3]=255;\n  }}\ngg.updatePixels();\npush(); blendMode(ADD); if(P.alpha<100) tint(0,0,100,P.alpha); image(gg,0,0,width,height); blendMode(BLEND); pop();\n\n// --- plankton flashes ---\nconst np=Math.round(120+P.density*280);\nconst hb=(P.hue+K.section*3)%360;\npush(); blendMode(ADD); imageMode(CENTER); noStroke();\nfor(let k=0;k<np;k++){ const pk=S.pk[k];\n  // slow lateral advection by current so the field is never frozen\n  let x=(pk[0] + 0.03*Math.sin(t*0.2+pk[1]*6.28) + t*0.004*(0.4+pk[2]))%1; if(x<0)x+=1;\n  let y=(pk[1] + 0.02*Math.cos(t*0.17+pk[0]*6.28))%1; if(y<0)y+=1;\n  const X=x*width, Y=y*height;\n  const dwx=X-wx, dwy=Y-wy, dw=Math.sqrt(dwx*dwx+dwy*dwy);\n  // ignite strongly near the wake, plus a baseline sparkle on own phase\n  const near=Math.max(0, 1-dw/wr);\n  const ignite=Math.pow(near,1.5)*(0.7+P.wake*0.8);\n  const own=Math.max(0, Math.sin(t*(1.5+pk[2]*3) + pk[0]*30))-0.7;\n  let flash=(ignite*1.2 + own*3.0*(0.3+pk[2]))*(0.5+P.energy*0.9);\n  flash+= A.treble*near*0.8;\n  if(flash>0.03){\n    const sz=u*(0.004+pk[2]*0.012)*P.scale;\n    tint(hb, 55, 100, Math.min(100, 22*flash)); image(S.spr,X,Y,sz*3.0,sz*3.0);\n    tint(hb, 30, 100, Math.min(100, 85*flash)); image(S.spr,X,Y,sz,sz);\n  }\n}\nimageMode(CORNER); blendMode(BLEND); pop();\n"
+}

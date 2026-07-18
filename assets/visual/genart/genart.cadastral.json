@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cadastral",
+  "kind": "genart",
+  "name": "Cadastral Plat",
+  "desc": "A cadastral plat of survey \u2014 a township grid of six-by-six sections recursively subdivided into quarter-sections and irregular metes-and-bounds lots, each parcel numbered and shaded with a slowly flowing ownership tint, a meandering river breaking the rectilinear grid, a surveyor's transit ray sweeping its bearing across the sheet, and a title block in the corner.",
+  "tags": [
+    "cadastral",
+    "cadastre",
+    "plat",
+    "parcel",
+    "survey",
+    "surveying",
+    "land",
+    "plss",
+    "township",
+    "range",
+    "section",
+    "quarter-section",
+    "metes-and-bounds",
+    "lot",
+    "subdivision",
+    "property",
+    "assessor",
+    "deed",
+    "zoning",
+    "choropleth",
+    "map",
+    "cartography",
+    "drafting",
+    "mylar",
+    "blueprint",
+    "clinical",
+    "austere",
+    "full-bleed",
+    "background",
+    "bg",
+    "generative",
+    "genart"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.8,
+      "doc": "plat zoom"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "line brightness + weight"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "plat paper hue"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "tint-flow + transit sweep rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "subdivision depth / parcel count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "unused anchor reserve"
+    },
+    "tint": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ownership tint saturation/flow"
+    },
+    "meander": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "river width + wander"
+    },
+    "style": {
+      "default": "plat",
+      "options": [
+        "plat",
+        "mylar",
+        "blueprint",
+        "assessor",
+        "noir"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "parcel subdivision arrangement"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:45:10+00:00",
+    "fps": 59.9,
+    "motion": 0.0145,
+    "lum": 0.457
+  },
+  "code": "const D = { scale: 1, energy: .6, hue: 40, speed: 1, density: .5, x: .5, y: .5, style: 'plat', seed: 0, tint: .6, meander: .6 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst TAU = Math.PI * 2;\n\nconst st = P.style;\nfunction pal() {\n  if (st === 'mylar') return { bg: [205, 14, 34], ink: [200, 30, 88], line: [200, 25, 70], tints: [[190, 30, 50], [160, 25, 52], [40, 30, 52], [280, 22, 50]], txt: [200, 25, 82], river: [200, 55, 60] };\n  if (st === 'blueprint') return { bg: [214, 66, 15], ink: [190, 35, 96], line: [200, 40, 66], tints: [[200, 40, 34], [180, 35, 36], [220, 35, 34], [160, 35, 34]], txt: [195, 30, 90], river: [190, 55, 62] };\n  if (st === 'noir') return { bg: [215, 30, 10], ink: [200, 18, 74], line: [205, 20, 44], tints: [[210, 22, 26], [190, 20, 28], [30, 20, 28], [280, 18, 26]], txt: [200, 16, 62], river: [205, 40, 44] };\n  if (st === 'assessor') return { bg: [42, 20, 60], ink: [30, 40, 24], line: [30, 30, 40], tints: [[8, 55, 74], [120, 45, 66], [48, 75, 82], [255, 40, 70]], txt: [30, 45, 26], river: [205, 60, 66] };\n  // plat (anchor): buff survey plat, black ink, muted ownership tints\n  return { bg: [P.hue, 24, 54], ink: [30, 45, 20], line: [32, 35, 34], tints: [[40, 26, 62], [110, 22, 58], [8, 30, 60], [220, 20, 56]], txt: [30, 45, 22], river: [205, 55, 58] };\n}\nconst C = pal();\n\n// ---- chart rect (scale zooms the plat) ----\nconst sc = 0.62 + P.scale * 0.38;\nconst WW = width * 0.88 * sc, HH = height * 0.82 * sc;\nconst X0 = (width - WW) / 2, Y0 = height * 0.06;\n\n// ---- build parcels on seed/density change ----\nconst maxD = 2 + Math.round(P.density * 2);\nif (S.seed !== P.seed || S.md !== maxD || S.ar !== Math.round(width / height * 20)) {\n  S.seed = P.seed; S.md = maxD; S.ar = Math.round(width / height * 20);\n  const list = [];\n  function split(x, y, w, h, depth) {\n    const r = fr(x * 133 + y * 71 + depth * 37 + 3);\n    if (depth < maxD && r < (0.78 - depth * 0.16) && w > 0.05 && h > 0.05) {\n      const mode = fr(x * 37 + y * 51 + depth);\n      if (mode > 0.55) { split(x, y, w / 2, h / 2, depth + 1); split(x + w / 2, y, w / 2, h / 2, depth + 1); split(x, y + h / 2, w / 2, h / 2, depth + 1); split(x + w / 2, y + h / 2, w / 2, h / 2, depth + 1); }\n      else if (mode > 0.28) { split(x, y, w / 2, h, depth + 1); split(x + w / 2, y, w / 2, h, depth + 1); }\n      else { split(x, y, w, h / 2, depth + 1); split(x, y + h / 2, w, h / 2, depth + 1); }\n    } else {\n      const p = { x, y, w, h, idx: list.length, tint: Math.floor(fr(x * 9 + y * 13) * 4), ph: fr(x * 3 + y * 5) * TAU };\n      // metes-and-bounds jitter on some mid-size lots\n      if (w > 0.08 && h > 0.08 && fr(x * 17 + y * 19) > 0.62) {\n        const j = 0.22;\n        p.quad = [[x + w * j * (fr(x + 1) - 0.5), y + h * j * (fr(x + 2) - 0.5)], [x + w + w * j * (fr(x + 3) - 0.5), y + h * j * (fr(x + 4) - 0.5)], [x + w + w * j * (fr(x + 5) - 0.5), y + h + h * j * (fr(x + 6) - 0.5)], [x + w * j * (fr(x + 7) - 0.5), y + h + h * j * (fr(x + 8) - 0.5)]];\n      }\n      list.push(p);\n    }\n  }\n  const SEC = 6;\n  for (let a = 0; a < SEC; a++) for (let b = 0; b < SEC; b++) split(a / SEC, b / SEC, 1 / SEC, 1 / SEC, 0);\n  S.parcels = list;\n}\nconst parcels = S.parcels;\n\nbackground(C.bg[0], C.bg[1], C.bg[2]);\n// subtle film speckle band\nnoStroke(); for (let r = 0; r < 3; r++) { fill(C.bg[0], C.bg[1], C.bg[2] * (1 - r * 0.04), 18); rect(0, height * r / 3, width, height / 3); }\n\nconst px = n => X0 + n * WW, py = n => Y0 + n * HH;\n\n// ---- parcels: flowing ownership tint ----\nstrokeJoin(MITER);\nfor (const p of parcels) {\n  const flow = 0.5 + 0.5 * Math.sin(K.t * 0.22 * P.speed + p.ph) * Math.sin(K.t * 0.09 + p.idx * 0.3);\n  const tc = C.tints[p.tint];\n  fill(tc[0], tc[1] * (0.5 + P.tint * 0.6), tc[2] * (0.8 + flow * 0.35 * P.tint), 80);\n  stroke(C.line[0], C.line[1], C.line[2], 55 + P.energy * 30); strokeWeight(p.w > 0.14 ? 1.4 : 0.7);\n  if (p.quad) { beginShape(); for (const q of p.quad) vertex(px(q[0]), py(q[1])); endShape(CLOSE); }\n  else rect(px(p.x), py(p.y), p.w * WW, p.h * HH);\n}\n\n// ---- section grid heavier ----\nnoFill(); stroke(C.ink[0], C.ink[1], C.ink[2], 60); strokeWeight(1.8);\nfor (let a = 0; a <= 6; a++) { line(px(a / 6), py(0), px(a / 6), py(1)); line(px(0), py(a / 6), px(1), py(a / 6)); }\n\n// ---- lot numbers + a few bearings ----\nnoStroke(); fill(C.txt[0], C.txt[1], C.txt[2], 82); textAlign(CENTER, CENTER);\nfor (const p of parcels) {\n  const cxp = px(p.x + p.w / 2), cyp = py(p.y + p.h / 2);\n  if (p.w > 0.075 && p.h > 0.055) { textSize(Math.max(8, Math.min(u * 0.02, p.h * HH * 0.35))); text((p.idx % 60) + 1, cxp, cyp); }\n  if (p.quad && fr(p.idx) > 0.55) { textSize(Math.max(7, u * 0.012)); fill(C.ink[0], C.ink[1], C.ink[2], 60); const brg = ['N', 'S'][p.idx % 2] + Math.floor(10 + fr(p.idx * 3) * 70) + (p.idx % 3 ? 'E' : 'W'); text(brg, cxp, cyp + p.h * HH * 0.28); fill(C.txt[0], C.txt[1], C.txt[2], 82); }\n}\n\n// ---- river/road diagonal (breaks the grid) ----\nnoFill(); stroke(C.river[0], C.river[1], C.river[2], 78); strokeWeight(u * 0.012 * (0.7 + P.meander));\nbeginShape();\nfor (let i = 0; i <= 40; i++) { const t = i / 40; const rx = px(0.05 + t * 0.9); const ry = py(0.15 + t * 0.6 + 0.16 * P.meander * Math.sin(t * 9 + fr(2) * 6 + K.t * 0.05)); curveVertex(rx, ry); }\nendShape();\n\n// ---- surveyor transit ray (sweeping) ----\nconst stx = px(0.5), sty = py(0.5), sweep = K.t * (0.18 + P.speed * 0.1) + 1.4 * Math.sin(K.t * 0.03);\nstroke(C.ink[0], C.ink[1], 30, 55); strokeWeight(1);\nconst rayL = Math.hypot(WW, HH);\nline(stx, sty, stx + Math.cos(sweep) * rayL, sty + Math.sin(sweep) * rayL);\nnoStroke(); fill(C.river[0], 60, 80, 90); ellipse(stx, sty, u * 0.012, u * 0.012);\n// bearing readout\nfill(C.txt[0], C.txt[1], C.txt[2], 80); textAlign(LEFT, CENTER); textSize(Math.max(9, u * 0.015));\nconst deg = ((sweep * 180 / Math.PI) % 360 + 360) % 360;\ntext('BRG ' + deg.toFixed(1) + '\u00b0', stx + u * 0.02, sty - u * 0.03);\n\n// ---- title block ----\nconst tb = width * 0.24, tbh = height * 0.12;\nnoStroke(); fill(C.bg[0], C.bg[1], C.bg[2] * 1.08, 92); rect(width - tb - width * 0.05, height - tbh - height * 0.03, tb, tbh);\nnoFill(); stroke(C.ink[0], C.ink[1], C.ink[2], 70); strokeWeight(1.4); rect(width - tb - width * 0.05, height - tbh - height * 0.03, tb, tbh);\nnoStroke(); fill(C.txt[0], C.txt[1], C.txt[2], 88); textAlign(LEFT, TOP); textSize(Math.max(9, u * 0.015));\nconst bx = width - tb - width * 0.05 + u * 0.012, by = height - tbh - height * 0.03 + u * 0.012;\ntext('PLAT OF SURVEY', bx, by);\ntextSize(Math.max(7, u * 0.012)); fill(C.txt[0], C.txt[1], C.txt[2], 70);\ntext('TWP ' + (7 + (P.seed % 9)) + ' N   RGE ' + (3 + (P.seed % 7)) + ' E', bx, by + u * 0.026);\ntext('SCALE 1:2400   ' + parcels.length + ' PARCELS', bx, by + u * 0.046);\n\n// ---- neat-line ----\nnoFill(); stroke(C.ink[0], C.ink[1], C.ink[2], 70); strokeWeight(2.4); rect(X0 - u * 0.01, Y0 - u * 0.01, WW + u * 0.02, HH + u * 0.02);\nblendMode(BLEND); drawingContext.shadowBlur = 0; strokeJoin(ROUND);\n"
+}

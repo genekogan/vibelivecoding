@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.screw_dislocation",
+  "kind": "genart",
+  "name": "Screw Dislocation",
+  "desc": "A crystal face growing on its screw dislocations: because a screw turns the surface into a helicoid its step can never grow out, so it winds up into a spiral that pumps terraces outward forever, co-rotating cores braiding into double spirals while opposed pairs close into nested loops, and drifting supersaturation makes the terraces meander and bunch into macrosteps; rendered as Nomarski differential-interference relief, climbing interference orders, luminous risers in dark field, or a blueprint of the step contours.",
+  "tags": [
+    "screw-dislocation",
+    "dislocation",
+    "burgers-vector",
+    "spiral",
+    "growth-spiral",
+    "step-flow",
+    "bcf",
+    "burton-cabrera-frank",
+    "terrace",
+    "step",
+    "macrostep",
+    "step-bunching",
+    "crystal",
+    "crystal-growth",
+    "crystallography",
+    "helicoid",
+    "supersaturation",
+    "surface-science",
+    "vicinal",
+    "nomarski",
+    "dic",
+    "differential-interference",
+    "relief",
+    "interferometry",
+    "interference",
+    "micrograph",
+    "microscopy",
+    "materials-science",
+    "mineralogy",
+    "calcite",
+    "topography",
+    "contour",
+    "phase-transition",
+    "pattern-formation",
+    "self-organizing",
+    "emergent",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "scientific",
+    "clinical",
+    "laboratory",
+    "dark-field",
+    "blueprint",
+    "schematic",
+    "texture",
+    "austere",
+    "sublime",
+    "hypnotic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "relief contrast plus how hard the supersaturation bumps meander and bunch the steps"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.8,
+      "doc": "magnification into the crystal face - guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "growth rate - how fast the spirals wind out terraces (0.2 still winds)"
+    },
+    "density": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "number of screw dislocations on the face (1 to 6) - lone spiral vs a braided nest"
+    },
+    "terrace": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "terrace width - a tight dense whorl vs a few broad sweeping steps"
+    },
+    "grain": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "detector noise over the face"
+    },
+    "hue": {
+      "default": 172,
+      "min": 0,
+      "max": 360,
+      "doc": "hue of the face; dislocation cores take its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the face when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan down the face when magnified"
+    },
+    "style": {
+      "default": "dic",
+      "options": [
+        "dic",
+        "interference",
+        "darkfield",
+        "schematic"
+      ],
+      "doc": "aesthetic: Nomarski relief with no outlines at all / climbing two-beam interference orders / luminous step risers on black / blueprint of step contours"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic dislocation placement and Burgers signs"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:33:58+00:00",
+    "fps": 58.8,
+    "motion": 0.0947,
+    "lum": 0.412
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .45, terrace: .5, grain: .4, hue: 172, x: .5, y: .5, style: 'dic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Burton-Cabrera-Frank step-flow growth: a crystal face growing on its screw\n// dislocations. A screw dislocation makes the surface a helicoid, so its step can\n// never grow out -- it winds up into a spiral that pumps out terraces forever.\n// Frank's construction, evaluated analytically per pixel:\n//        h(x,y,t) = SUM_k s_k * theta_k/2pi  -  rho/lambda  +  omega*t\n// theta_k is the angle about dislocation k (its sign s_k is the Burgers vector),\n// rho is a smooth minimum of the distances (a p-norm softmin -- a hard min would\n// crease the image along the seams between dislocations) and lambda is the\n// terrace width. Steps are the integer contours of h, which is why atan2's branch\n// cut is invisible here: it jumps h by exactly 1, and h is only ever read mod 1.\n// Co-rotating pairs make double spirals, opposed pairs close into loops -- both\n// fall out of the sum for free.\n//\n// This is the one system in the set that CANNOT converge: omega*t winds the\n// spiral out at a constant rate for as long as it runs. lambda, omega, the\n// supersaturation bumps and the dislocation positions all drift on incommensurate\n// K.t rates on top, so it never re-phases either.\n// ---------------------------------------------------------------------------\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(84, Math.round(BW * height / width));\nconst N = BW * BH;\nconst MAXK = 6;\nconst RW = 44, RH = Math.max(22, Math.round(RW * BH / BW));   // coarse supersaturation grid\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.tooth = new Float32Array(N);\n  S.kx = new Float32Array(MAXK); S.ky = new Float32Array(MAXK); S.ks = new Float32Array(MAXK);\n  S.kp = new Float32Array(MAXK);\n  S.bc = new Float32Array(RW * RH); S.bcx = new Float32Array(RW * RH); S.bcy = new Float32Array(RW * RH);\n  S.init = false; S.seedUsed = null;\n}\n\nconst sd = P.seed | 0;\nfunction hs3(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hs3(ix, iy, iz), a1 = hs3(ix + 1, iy, iz), a2 = hs3(ix, iy + 1, iz), a3 = hs3(ix + 1, iy + 1, iz);\n  const b0 = hs3(ix, iy, iz + 1), b1 = hs3(ix + 1, iy, iz + 1), b2 = hs3(ix, iy + 1, iz + 1), b3 = hs3(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\n// fast atan2 (~0.005 rad); 6 dislocations x every pixel makes Math.atan2 the bottleneck\nfunction fat2(y, x) {\n  const ax = x < 0 ? -x : x, ay = y < 0 ? -y : y;\n  const mx = ax > ay ? ax : ay, mn = ax > ay ? ay : ax;\n  const a = mn / (mx + 1e-12), s = a * a;\n  let r = ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a;\n  if (ay > ax) r = 1.57079637 - r;\n  if (x < 0) r = 3.14159274 - r;\n  if (y < 0) r = -r;\n  return r;\n}\nlet RR = 0, GG = 0, BB = 0;\nfunction hsv(h, s, v) {\n  h = h - Math.floor(h);\n  const i = Math.floor(h * 6), f = h * 6 - i, p2 = v * (1 - s), q = v * (1 - f * s), w = v * (1 - (1 - f) * s);\n  if (i === 0) { RR = v; GG = w; BB = p2; } else if (i === 1) { RR = q; GG = v; BB = p2; }\n  else if (i === 2) { RR = p2; GG = v; BB = w; } else if (i === 3) { RR = p2; GG = q; BB = v; }\n  else if (i === 4) { RR = w; GG = p2; BB = v; } else { RR = v; GG = p2; BB = q; }\n}\n\nconst kxs = S.kx, kys = S.ky, kss = S.ks, kps = S.kp;\n\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  for (let k = 0; k < MAXK; k++) {\n    kxs[k] = 0.14 + hs3(k, 1, 5) * 0.72;\n    kys[k] = 0.14 + hs3(k, 2, 9) * 0.72;\n    kss[k] = hs3(k, 3, 13) < 0.34 ? -1 : 1;     // Burgers sign: mostly co-rotating\n    kps[k] = hs3(k, 4, 17);\n  }\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) S.tooth[j * BW + i] = hs3(i, j, 91) - 0.5;\n}\nconst tooth = S.tooth;\n\nconst tt = K.t;\nconst u0 = Math.min(BW, BH);\nconst nk = Math.max(1, Math.min(MAXK, Math.round(1 + P.density * 5)));\n\n// terrace width and growth rate both drift -> step bunching, then debunching\nconst lam = (0.030 + P.terrace * 0.085) * u0 * (1 + 0.20 * Math.sin(tt * 0.047) + 0.11 * Math.sin(tt * 0.109 + 1.4));\nconst om = (0.055 + P.speed * 0.095) * (1 + 0.28 * Math.sin(tt * 0.037 + 0.7) + 0.14 * Math.sin(tt * 0.091 + 2.1)) * (0.85 + K.swell * 0.2 + A.lowmid * 0.3);\nS.ph = (S.ph || 0) + om / 60;                  // integrated, so drifting omega never jumps\nconst phase = S.ph;\n\n// dislocation cores wander slowly (climb), on rates incommensurate with everything else\nconst cx = new Float32Array(MAXK), cy = new Float32Array(MAXK);\nfor (let k = 0; k < nk; k++) {\n  const ph = kps[k] * 6.2831853;\n  cx[k] = (kxs[k] + 0.035 * Math.sin(tt * 0.029 + ph) + 0.018 * Math.sin(tt * 0.067 + ph * 2.3)) * BW;\n  cy[k] = (kys[k] + 0.030 * Math.cos(tt * 0.023 + ph * 1.7) + 0.016 * Math.sin(tt * 0.083 + ph)) * BH;\n}\n\n// supersaturation inhomogeneity -> terraces meander and bunch into macrosteps.\n// Built on a coarse grid: it is smooth and long-wavelength, and evaluating the\n// noise plus a 4-tap gradient per fine pixel was ~70k noise calls a frame.\nconst bAmp = 0.35 + P.energy * 0.9;\nconst bx = tt * 0.021 + 1.3 * Math.sin(tt * 0.043);\nconst by = tt * 0.017 + 1.0 * Math.cos(tt * 0.059);\nconst bz = tt * 0.031;\nconst bc = S.bc, bcx = S.bcx, bcy = S.bcy;\n{\n  const kb = 2.4 / RH;\n  for (let j = 0; j < RH; j++) for (let i = 0; i < RW; i++) {\n    bc[j * RW + i] = (vn3(i * kb + bx, j * kb + by, bz) - 0.5) * bAmp;\n  }\n  const fxs = RW / BW, fys = RH / BH;          // coarse cells per fine pixel\n  for (let j = 0; j < RH; j++) for (let i = 0; i < RW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < RW - 1 ? i + 1 : RW - 1;\n    const jm = (j > 0 ? j - 1 : 0) * RW, jp = (j < RH - 1 ? j + 1 : RH - 1) * RW;\n    bcx[j * RW + i] = (bc[j * RW + ip] - bc[j * RW + im]) * 0.5 * fxs;\n    bcy[j * RW + i] = (bc[jp + i] - bc[jm + i]) * 0.5 * fys;\n  }\n}\nconst bsx = (RW - 1) / (BW - 1), bsy = (RH - 1) / (BH - 1);\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst style = P.style;\nconst hb = P.hue / 360 + (K.section | 0) * 0.023 + Math.sin(tt * 0.015) * 0.016;\nconst gain = 0.45 + P.energy * 1.05 + A.rms * 0.3;\nconst gr = P.grain;\nconst INV2PI = 0.15915494;\nconst lx = 0.78, ly = -0.62;                    // Nomarski shear direction\n\nfor (let j = 0; j < BH; j++) {\n  const jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const p = jc + i;\n    let hv = 0, hx = 0, hy = 0, Q = 0, qx = 0, qy = 0, core = 0;\n    for (let k = 0; k < nk; k++) {\n      const dx = i + 0.5 - cx[k], dy = j + 0.5 - cy[k];\n      const r2 = dx * dx + dy * dy + 0.9;\n      const sk = kss[k];\n      hv += sk * fat2(dy, dx) * INV2PI;\n      hx += sk * (-dy / r2) * INV2PI;\n      hy += sk * (dx / r2) * INV2PI;\n      const ir4 = 1 / (r2 * r2), ir6 = ir4 / r2;\n      Q += ir4; qx += dx * ir6; qy += dy * ir6;\n      const c2 = 1 - r2 * 0.055; if (c2 > core) core = c2;\n    }\n    const rho = 1 / Math.sqrt(Math.sqrt(Q));\n    const q54 = rho * rho * rho * rho * rho;    // Q^(-5/4)\n    const ilam = 1 / lam;\n    const gxf = i * bsx, gyf = j * bsy;\n    const bi0 = gxf | 0, bj0 = gyf | 0;\n    const bi1 = bi0 < RW - 1 ? bi0 + 1 : bi0, bj1 = bj0 < RH - 1 ? bj0 + 1 : bj0;\n    const btx = gxf - bi0, bty = gyf - bj0;\n    const w00 = (1 - btx) * (1 - bty), w10 = btx * (1 - bty), w01 = (1 - btx) * bty, w11 = btx * bty;\n    const o00 = bj0 * RW + bi0, o10 = bj0 * RW + bi1, o01 = bj1 * RW + bi0, o11 = bj1 * RW + bi1;\n    const bmp = bc[o00] * w00 + bc[o10] * w10 + bc[o01] * w01 + bc[o11] * w11;\n    const bgx = bcx[o00] * w00 + bcx[o10] * w10 + bcx[o01] * w01 + bcx[o11] * w11;\n    const bgy = bcy[o00] * w00 + bcy[o10] * w10 + bcy[o01] * w01 + bcy[o11] * w11;\n    const h = hv - rho * ilam + phase + bmp;\n    const gx = hx - q54 * qx * ilam + bgx;\n    const gy = hy - q54 * qy * ilam + bgy;\n    const gm = Math.sqrt(gx * gx + gy * gy) + 1e-6;      // step density\n    const frac = h - Math.floor(h);\n    const d0 = frac < 0.5 ? frac : 1 - frac;             // distance to the nearest step, in monolayers\n    const w = Math.min(0.46, Math.max(0.05, gm * 1.35)); // analytic AA: widen as steps bunch\n    const edge = Math.max(0, 1 - d0 / w);\n    const sgn = frac < 0.5 ? 1 : -1;                     // which way the step face looks\n    const rake = (gx / gm * lx + gy / gm * ly) * sgn;    // DIC: relief from the step orientation\n    const cr = Math.min(1, Math.max(0, core));\n    const gt = tooth[p] * 0.085 * gr;\n    let r, gg, b;\n    if (style === 'interference') {\n      // Two-beam interference contrast: terraces climb slowly through the colour\n      // orders. Deliberately gentle -- at one colour order PER terrace, 8s of\n      // winding cycled every pixel through a full hue and the frame measured\n      // 0.35-0.37, straight through the strobe ceiling. One order per ~8 terraces,\n      // shallow brightness swing.\n      const ord = h * 0.12;\n      hsv(hb + (ord - Math.floor(ord)) * 0.62, 0.44, 1);\n      const v = (0.40 + 0.15 * Math.cos(6.2831853 * frac)) * (0.6 + gain * 0.5) + edge * 0.12;\n      r = RR * v + 0.05; gg = GG * v + 0.055; b = BB * v + 0.07;\n    } else if (style === 'darkfield') {\n      // only the risers scatter: luminous step lines on a dark face, with a faint\n      // terrace tone underneath so pixels sweep rather than blink on and off\n      hsv(hb + 0.02, 0.34, 1);\n      const tone = (0.5 + 0.5 * Math.cos(6.2831853 * frac)) * 0.085;\n      const v = edge * (0.42 + gain * 0.58) * (0.5 + 0.5 * Math.abs(rake)) + tone;\n      r = 0.045 + RR * v; gg = 0.055 + GG * v; b = 0.09 + BB * v + cr * 0.10;\n    } else if (style === 'schematic') {\n      // blueprint: bare step contours, dislocation cores ringed\n      const line = Math.max(0, 1 - d0 / Math.min(0.30, Math.max(0.04, gm * 0.9)));\n      r = 0.055 + line * 0.44 * gain + cr * 0.5;\n      gg = 0.085 + line * 0.84 * gain + cr * 0.6;\n      b = 0.16 + line * 1.0 * gain + cr * 0.66;\n    } else {\n      // dic (default): Nomarski differential interference contrast. Form from\n      // light alone -- no outlines, the staircase is legible only as relief.\n      hsv(hb, 0.16, 1);\n      const base = 0.46 + (0.5 - frac) * 0.10;\n      const relief = rake * edge * (0.42 + gain * 0.46);\n      const v = Math.max(0, Math.min(1, base + relief));\n      r = RR * v; gg = GG * v; b = BB * v;\n      hsv(hb + 0.5, 0.5, 1);\n      r += RR * cr * 0.13; gg += GG * cr * 0.13; b += BB * cr * 0.13;\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + gt) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + gt) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + gt) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

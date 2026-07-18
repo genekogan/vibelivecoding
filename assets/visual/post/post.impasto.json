@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.impasto",
+  "kind": "post",
+  "name": "Impasto",
+  "desc": "The frame is re-laid in thick oil paint \u2014 a field of directional palette-knife strokes with dark valleys and bright ridges, and a raking studio light that travels slowly across the canvas igniting the impasto crest by crest.",
+  "tags": [
+    "impasto",
+    "oil",
+    "oil-paint",
+    "oils",
+    "paint",
+    "painterly",
+    "painting",
+    "palette-knife",
+    "knife",
+    "brushwork",
+    "brushstroke",
+    "stroke",
+    "strokes",
+    "alla-prima",
+    "van-gogh",
+    "vangogh",
+    "post-impressionist",
+    "impressionist",
+    "expressionist",
+    "gouache",
+    "grisaille",
+    "monochrome",
+    "tonal",
+    "texture",
+    "textured",
+    "thick",
+    "buttery",
+    "ridge",
+    "relief",
+    "raking-light",
+    "chiaroscuro",
+    "sheen",
+    "canvas",
+    "gallery",
+    "museum",
+    "material",
+    "surface",
+    "tactile",
+    "overlay",
+    "post",
+    "pass",
+    "finish",
+    "re-render",
+    "warm",
+    "sumptuous",
+    "gestural",
+    "abstract",
+    "sublime",
+    "melancholy"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360
+    },
+    "speed": {
+      "default": 1,
+      "min": 0,
+      "max": 3
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1
+    },
+    "alpha": {
+      "default": 0.9,
+      "min": 0,
+      "max": 1
+    },
+    "relief": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1
+    },
+    "style": {
+      "default": "oil",
+      "options": [
+        "oil",
+        "gouache",
+        "vangogh",
+        "monochrome",
+        "knife"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T17:48:34+00:00",
+    "fps": 59.5,
+    "motion": 0.138,
+    "lum": 0.419
+  },
+  "code": "const D = { energy:.6, density:.55, scale:1, hue:28, speed:1, x:.5, y:.5, alpha:.9, relief:.6, style:'oil', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst u = Math.min(width, height);\nconst t = K.t;\nconst drift = 0.9*Math.sin(t*0.61) + 0.5*Math.sin(t*1.43+1.7) + 0.32*Math.sin(t*2.29);\nconst swell = (K.swell!=null ? K.swell : 0.5+0.5*Math.sin(t*0.4));\n\nconst st = P.style;\nconst key = width+'x'+height+'|'+P.seed+'|'+st+'|'+Math.round(P.hue)+'|'+Math.round(P.density*20)+'|'+Math.round(P.scale*10);\nconst BW = Math.max(360, Math.min(680, Math.round(width/2.4)));\nconst BH = Math.max(120, Math.round(BW*height/width));\n\nif (!S.buf || S.key !== key){\n  S.key = key;\n  const g = createGraphics(BW, BH); g.colorMode(HSB,360,100,100,100); g.noStroke();\n  const h = createGraphics(BW, BH); h.colorMode(HSB,360,100,100,100); h.noStroke(); // ridge sheen\n  const fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7 + i*i*0.017)*43758.5453; return s - Math.floor(s); };\n  // tonal ground: soft warm/cool gradient blobs (mid-key)\n  let base, mono=false, hard=false, flow=false;\n  if (st==='gouache'){ base=[P.hue,30,66]; }\n  else if (st==='vangogh'){ base=[(P.hue+18)%360,58,60]; flow=true; }\n  else if (st==='monochrome'){ base=[38,10,58]; mono=true; }\n  else if (st==='knife'){ base=[P.hue,42,60]; hard=true; }\n  else { base=[P.hue,48,58]; } // oil\n  g.background(base[0], base[1]*0.7, base[2]*0.72);\n  g.blendMode(BLEND);\n  for (let i=0;i<26;i++){\n    const bx=fr(i*3+1)*BW, by=fr(i*3+2)*BH, br=(0.14+0.5*fr(i*3+3))*BW;\n    const hh = mono?base[0]:(base[0]+ (fr(i+9)-0.5)*70)%360;\n    const ss = mono? 8+18*fr(i+2) : base[1]*(0.5+0.8*fr(i+4));\n    const bb = base[2]*(0.6+0.7*fr(i+5));\n    g.fill((hh+360)%360, Math.min(90,ss), Math.min(96,bb), 26);\n    g.ellipse(bx,by,br,br);\n  }\n  // impasto strokes over the ground (baked)\n  const N = Math.round((160 + 520*P.density) * (BW*BH)/(520*300));\n  const sl = (0.02+0.05*P.scale)*BW;               // stroke length base\n  for (let i=0;i<N;i++){\n    const sx=fr(i*5+11)*BW, sy=fr(i*5+12)*BH;\n    let ang;\n    if (flow){ ang = Math.sin(sx*0.02)*1.4 + Math.cos(sy*0.017)*1.4; }\n    else ang = fr(i*5+13)*Math.PI*2;\n    const len = sl*(0.5+1.1*fr(i*5+14));\n    const wdt = len*(hard?0.5:0.24)*(0.7+0.6*fr(i*5+15));\n    // sample local ground colour, push it and paint an opaque stroke\n    const hh = mono? base[0] : (base[0] + (fr(i+3)-0.5)*(st==='vangogh'?110:64) + 360)%360;\n    const ss = mono? 6+16*fr(i+7) : Math.min(92, base[1]*(0.55+0.9*fr(i+8)));\n    const bb = Math.min(96, base[2]*(0.5+0.95*fr(i+6)));\n    g.push(); g.translate(sx,sy); g.rotate(ang);\n    // body\n    g.fill((hh+360)%360, ss, bb, 90);\n    if (hard){ g.rectMode(CENTER); g.rect(0,0,len,wdt); }\n    else { g.ellipse(0,0,len,wdt); }\n    // dark valley on one flank\n    g.fill((hh+360)%360, Math.min(95,ss+12), bb*0.5, 55);\n    g.ellipse(0, wdt*0.32, len*0.92, wdt*0.5);\n    g.pop();\n    // ridge sheen line into h (bright center) for raking light\n    h.push(); h.translate(sx,sy); h.rotate(ang);\n    h.fill(0,0,100, 60);\n    h.ellipse(0,-wdt*0.16, len*0.8, Math.max(1.2, wdt*0.22));\n    h.pop();\n  }\n  S.buf = g; S.sheen = h;\n}\n\nconst u2 = P.alpha;\npush();\nimageMode(CORNER);\n// base paint field (opaque -> carries luminance)\nblendMode(BLEND); tint(0,0,100, 100*u2);\nimage(S.buf, 0, 0, width, height);\nnoTint();\n\n// static sheen (texture reads)\nblendMode(ADD); tint(0,0,100, (22+30*P.energy)*u2);\nimage(S.sheen, 0, 0, width, height);\nnoTint();\n\n// MOVING raking light band (the impasto signature + motion carrier)\nconst rlAng = 0.6 + 0.5*Math.sin(t*0.05) + 0.2*drift;   // slow light direction\nconst dx = Math.cos(rlAng), dy = Math.sin(rlAng);\nconst march = (t*0.06*P.speed + 0.15*drift);\nconst phase = (march % 1 + 1) % 1;\nconst bandC = (phase*1.6-0.3);                          // sweep center along -1..1 axis\nnoStroke();\nblendMode(ADD);\nconst lc = st==='monochrome' ? [40,8] : [ (P.hue+40)%360, 26 ];\nfor (let s=0;s<3;s++){\n  const off = bandC + (s-1)*0.16;\n  const bx = width*0.5 + dx*off*width*0.7;\n  const by = height*0.5 + dy*off*height*0.7;\n  fill(lc[0], lc[1], 100, (18+34*P.energy)*(0.7+0.4*swell)*u2*(1-Math.abs(s-1)*0.3));\n  push(); translate(bx,by); rotate(rlAng+Math.PI/2);\n  ellipse(0,0, Math.max(width,height)*1.5, u*(0.16+0.1*P.relief));\n  pop();\n}\n// trailing relief shadow (MULTIPLY) for depth\nblendMode(MULTIPLY);\nconst sbx = width*0.5 - dx*(bandC+0.2)*width*0.7;\nconst sby = height*0.5 - dy*(bandC+0.2)*height*0.7;\nfill(230, 30, 100-58*P.relief, (30+30*P.energy)*u2);\npush(); translate(sbx,sby); rotate(rlAng+Math.PI/2);\nellipse(0,0, Math.max(width,height)*1.5, u*(0.13+0.1*P.relief));\npop();\n\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

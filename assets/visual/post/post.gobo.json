@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.gobo",
+  "kind": "post",
+  "name": "Gobo",
+  "desc": "A cookie in front of the key \u2014 the whole frame is broken into shaped light and shadow by a drifting gobo: dappled leaf breakup shivering in the wind, hard venetian slats, a keystoned window, or a rotating abstract aperture, with warm beam and complementary sky-blue shadow and a focus knob from crisp cut to thrown right out.",
+  "tags": [
+    "gobo",
+    "cookie",
+    "cucoloris",
+    "breakup",
+    "dapple",
+    "dappled",
+    "leaf",
+    "foliage",
+    "shadow",
+    "light",
+    "shaping",
+    "key light",
+    "venetian",
+    "blinds",
+    "slats",
+    "window",
+    "mullion",
+    "aperture",
+    "pattern",
+    "lighting",
+    "cinematography",
+    "cinematic",
+    "stage",
+    "theatrical",
+    "noir",
+    "sunlight",
+    "wind",
+    "shimmer",
+    "soft",
+    "focus",
+    "chiaroscuro",
+    "overlay",
+    "post",
+    "atmosphere",
+    "eerie",
+    "sacred"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the light is shaped \u2014 shadow depth and beam lift"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "gobo size \u2014 how large the pattern is thrown"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pattern frequency: a few broad shapes or fine busy breakup"
+    },
+    "soft": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "focus \u2014 0 is a crisp cut cookie, 1 is thrown right out of focus"
+    },
+    "hue": {
+      "default": 42,
+      "min": 0,
+      "max": 360,
+      "doc": "beam colour temperature (42 = warm sun); shadows take the complement, the way sky fill really works"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "wind / travel rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gobo offset x \u2014 pans the pattern across the frame"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gobo offset y"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "master opacity of the whole pass"
+    },
+    "style": {
+      "default": "leaf",
+      "options": [
+        "leaf",
+        "venetian",
+        "window",
+        "aperture"
+      ],
+      "doc": "which cookie is in the gate"
+    },
+    "act": {
+      "default": "sway",
+      "options": [
+        "sway",
+        "travel",
+        "settle"
+      ],
+      "doc": "multi-minute program"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "pattern phase seeding"
+    }
+  },
+  "acts": [
+    "sway",
+    "travel",
+    "settle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:53+00:00",
+    "fps": 60.2,
+    "motion": 0.0572,
+    "lum": 0.118
+  },
+  "code": "const D = { energy: .5, scale: 1, density: .5, soft: .55, hue: 42, speed: 1, x: .5, y: .5, alpha: .85, style: 'leaf', act: 'sway', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb=(h,s,b)=>{ h=md(h,360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [(r+m)*255|0,(g+m)*255|0,(l+m)*255|0]; };\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh), dc=drawingContext, oldOp=dc.globalCompositeOperation;\nconst sty=P.style, act=P.act;\nconst en=cl(P.energy,0,1), sc=cl(P.scale,.3,2.6), dns=cl(P.density,0,1);\nconst sft=cl(P.soft,0,1), H0=md(P.hue,360), spd=cl(P.speed,.1,4);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1), al=cl(P.alpha,0,1);\nconst T=K.t*spd;\nconst MODE = sty==='venetian'?1 : sty==='window'?2 : sty==='aperture'?3 : 0;\n\nS.rms=(S.rms||0)*.92+(A.rms||0)*.08;\nS.low=(S.low||0)*.92+(A.lowmid||0)*.08;\n\n// ---- dramaturgy: wind, the sun crossing, the wind dying ----\nlet windM=1, slide=0;\nif(act==='travel'){ windM=.55; slide=1; }\nelse if(act==='settle'){ const q=md(T*.011,1); windM=cl(1.15-.95*q,.16,1.2); slide=.12; }\nelse { windM=.85+.35*Math.sin(K.t*.041)+.18*Math.sin(K.t*.097+1.3)+.22*S.low; }\nwindM*=.62+.6*K.intensity;\nconst R=T*windM;\n\nif(!S.sinT){ const L=new Float32Array(1024); for(let i=0;i<1024;i++) L[i]=Math.sin(i/1024*TAU); S.sinT=L; }\nconst ST=S.sinT, SN=a=>ST[(((a*162.9746617)|0)&1023)];\n\n// ---- the gobo field, computed coarse and upscaled: soft edges come free ----\nconst LA=Math.max(360,Math.min(720,Math.round(Math.max(W,Hh)/2.4))); let GW,GH;\nif(W>=Hh){ GW=LA; GH=Math.max(56,Math.round(LA*Hh/Math.max(1,W))); }\nelse { GH=LA; GW=Math.max(56,Math.round(LA*W/Math.max(1,Hh))); }\nconst gk=GW+'x'+GH;\nif(!S.mA||S.gk!==gk){\n  if(S.mA&&S.mA.remove)S.mA.remove(); if(S.mB&&S.mB.remove)S.mB.remove();\n  S.mA=createGraphics(GW,GH); S.mA.pixelDensity(1);\n  S.mB=createGraphics(GW,GH); S.mB.pixelDensity(1);\n  S.gk=gk;\n}\nconst mA=S.mA, mB=S.mB;\nmA.loadPixels(); mB.loadPixels();\nconst pA=mA.pixels, pB=mB.pixels;\n\nconst shC=hsb(md(H0+186,360),46,34);            // shadows take the sky, not black\nconst liC=hsb(md(H0,360),34,100);               // the beam is warm\nconst shA=cl((.28+.42*en)*al,0,.72)*255;\nconst liA=cl((.06+.13*en)*al*(1+.25*S.rms),0,.22)*255;\n\nconst zx=(1/Math.max(.12,sc))*(1.1+2.6*dns);\nconst px0=(ax-.5)*3.1 + slide*(.10*T*.05) + .16*SN(T*.021);\nconst py0=(ay-.5)*3.1 + slide*(.06*T*.05) + .12*SN(T*.017+1.1);\nconst edge=.06+.62*sft;                          // the gobo's focus: crisp -> thrown soft\nconst ph=fr(1)*6.2;\nconst ang=(MODE===1?(.35+.5*SN(T*.009)):(.12*SN(T*.007)))+ph*.1;\nconst ca=Math.cos(ang), sa=Math.sin(ang);\n\nfor(let j=0;j<GH;j++){\n  const yn=(j/GH-.5)*zx+py0;\n  for(let i=0;i<GW;i++){\n    const xn=(i/GW-.5)*zx*(W/Math.max(1,Hh))+px0;\n    let v;\n    if(MODE===1){\n      const s=xn*sa+yn*ca;\n      v=SN(s*3.1+R*.06+ph)*.86+SN(s*6.4-R*.031)*.14;\n    } else if(MODE===2){\n      const ky=1+.42*(yn*.5);\n      const gx=(xn/ky)*1.6+R*.012, gy=yn*1.6+R*.006;\n      const fx2=Math.abs(SN(gx*3.14159*1.0)), fy2=Math.abs(SN(gy*3.14159*1.0));\n      v=Math.min(fx2,fy2)*2.2-.72;\n    } else if(MODE===3){\n      const rr=Math.sqrt(xn*xn+yn*yn), aa=Math.atan2(yn,xn);\n      v=SN(rr*2.6-R*.05+ph)*.55+SN(aa*(3+Math.round(dns*6))/TAU*TAU*.5+R*.028)*.45;\n    } else {\n      const wx=xn*1.9+.62*SN(yn*2.4+R*.13+ph), wy=yn*1.9+.62*SN(xn*2.1-R*.11);\n      v=SN(wx*1.05+R*.19)*SN(wy*1.35-R*.17)\n       +.62*SN(wx*2.35-R*.23+ph)*SN(wy*2.65+R*.29)\n       +.34*SN(wx*4.55+R*.31)*SN(wy*4.15-R*.37);\n      v*=.62;\n    }\n    // transmission 0..1 with a focus-controlled edge\n    let t=(v+edge)/(2*edge); t=t<0?0:t>1?1:t; t=t*t*(3-2*t);\n    const o=(j*GW+i)*4;\n    pA[o]=shC[0]; pA[o+1]=shC[1]; pA[o+2]=shC[2]; pA[o+3]=(1-t)*shA;\n    pB[o]=liC[0]; pB[o+1]=liC[1]; pB[o+2]=liC[2]; pB[o+3]=t*liA;\n  }\n}\nmA.updatePixels(); mB.updatePixels();\ndc.imageSmoothingEnabled=true;\ndc.globalCompositeOperation='multiply'; image(mA,0,0,W,Hh);\ndc.globalCompositeOperation='screen';   image(mB,0,0,W,Hh);\ndc.globalCompositeOperation=oldOp;\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

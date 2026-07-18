@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.halation",
+  "kind": "post",
+  "name": "Halation",
+  "desc": "A photochemical pass that carries its own light: scattered gate flares and a soft light leak wander the frame on incommensurate drifts, light blooms warm back off the film base around every highlight beneath, a warm veil fogs the plate, and silver grain sits in the midtones where the emulsion actually is \u2014 with bleach-bypass, cross-process and infrared stocks in the same magazine.",
+  "tags": [
+    "halation",
+    "bloom",
+    "glow",
+    "light leak",
+    "leak",
+    "film",
+    "stock",
+    "emulsion",
+    "grain",
+    "silver",
+    "halide",
+    "celluloid",
+    "kodak",
+    "vision3",
+    "photochemical",
+    "analogue",
+    "cinematic",
+    "flare",
+    "gate",
+    "veil",
+    "fog",
+    "scatter",
+    "soft",
+    "warm",
+    "bleach-bypass",
+    "cross-process",
+    "xpro",
+    "infrared",
+    "false-colour",
+    "desaturate",
+    "grade",
+    "post",
+    "overlay",
+    "finish",
+    "subtle",
+    "polite",
+    "texture",
+    "material",
+    "organic"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "strength of all the intrinsic light \u2014 flares, leak and veil together"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the flares, the leak bar and the halation radius"
+    },
+    "bloom": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.4,
+      "doc": "how far light scatters back off the film base, and how big the gate flares grow"
+    },
+    "grain": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "silver halide grain \u2014 overlay in the midtones plus a whisper of additive silver so the shadows are not dead flat"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of scattered flare sources (2-4)"
+    },
+    "alpha": {
+      "default": 0.85,
+      "min": 0,
+      "max": 1,
+      "doc": "overall pass opacity"
+    },
+    "hue": {
+      "default": 18,
+      "min": 0,
+      "max": 360,
+      "doc": "halation hue (18 = the warm red-orange of a real film base)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the flares and the leak wander"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre the flares wander about, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "centre the flares wander about, y"
+    },
+    "style": {
+      "default": "halation",
+      "options": [
+        "halation",
+        "bleach",
+        "cross_process",
+        "infrared"
+      ],
+      "doc": "halation: warm bloom off the film base \u00b7 bleach: bleach-bypass, silver retained, desaturated and gritty \u00b7 cross_process: E6 in C41, crushed shifting colour \u00b7 infrared: false-colour IR, foliage goes white-hot"
+    },
+    "act": {
+      "default": "expose",
+      "options": [
+        "expose",
+        "flare",
+        "decay"
+      ],
+      "doc": "expose: steady \u00b7 flare: the gate blooms hard with the section arc \u00b7 decay: the stock ages, grain and fog breathing over minutes"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 flare placement and grain"
+    }
+  },
+  "acts": [
+    "expose",
+    "flare",
+    "decay"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:49+00:00",
+    "fps": 60.2,
+    "motion": 0.005,
+    "lum": 0.104
+  },
+  "code": "const D = { energy: .55, scale: 1, bloom: .5, grain: .35, density: .5, alpha: .85, hue: 18, speed: 1, x: .5, y: .5, style: 'halation', act: 'expose', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// RESCUE NOTE: v1 was STATIC (motion .0034, gate is .004) over the validator's\n// dark navy bed. A bloom pass has nothing to bloom against on a dark frame \u2014\n// the highlight-detect found no pixel over its .34 threshold, so steps 1-2 were\n// no-ops, and the only intrinsic mover (the gate flare) ran at alpha ~.04, which\n// is invisible. A post pass has to CARRY ITS OWN LIGHT: the light-leak, the gate\n// flare and the veil below are all intrinsic, present on any frame, and they\n// wander on incommensurate K.t rates so the pass never re-phases. Amplitude is\n// tuned to sit ~10x over the motion floor and ~10x under the .35 strobe ceiling.\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2rgb=(h,s,b)=>{ h=(((h%360)+360)%360)/60; s=cl(s,0,100)/100; b=cl(b,0,100)/100;\n  const c=b*s, x=c*(1-Math.abs((h%2)-1)), m=b-c; let r,g,l;\n  if(h<1){r=c;g=x;l=0;} else if(h<2){r=x;g=c;l=0;} else if(h<3){r=0;g=c;l=x;}\n  else if(h<4){r=0;g=x;l=c;} else if(h<5){r=x;g=0;l=c;} else {r=c;g=0;l=x;}\n  return [((r+m)*255)|0,((g+m)*255)|0,((l+m)*255)|0]; };\nconst rgba=(c,a)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+a.toFixed(4)+')';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst bl=cl(P.bloom,0,1.4), gr=cl(P.grain,0,1), al=cl(P.alpha,0,1);\nconst sc=cl(P.scale,.5,2.2), dens=cl(P.density,0,1), spd=cl(P.speed,.2,4);\nconst en=cl(P.energy,0,1)*(.55+.55*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst ax=cl(P.x,0,1), ay=cl(P.y,0,1);\n\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\nconst kick=Math.min(1,K.pulse*.4+S.bass*.55);\n\n// ---- film stock: what the emulsion does to the light ----\nconst bleach=(sty==='bleach'), xpro=(sty==='cross_process'), ir=(sty==='infrared');\nlet hH,hS,hB, veilH,veilS, grainMul=1, bloomMul=1;\nif(bleach){ hH=md(H+188,360); hS=10; hB=100; veilH=md(H+196,360); veilS=22; grainMul=1.45; bloomMul=.7; }\nelse if(xpro){ hH=md(H+168,360); hS=52; hB=100; veilH=md(H+176,360); veilS=44; grainMul=1.0; bloomMul=1.1; }\nelse if(ir){ hH=md(H+300,360); hS=34; hB=100; veilH=md(H+308,360); veilS=40; grainMul=.8; bloomMul=1.5; }\nelse { hH=md(H,360); hS=58; hB=100; veilH=md(H+6,360); veilS=48; grainMul=1; bloomMul=1; }\n\nlet bloomE=bl*bloomMul, grainE=gr*grainMul, veilE=1;\nif(act==='flare'){ bloomE*=.8+1.5*K.intensity*(.5+.5*K.swell)+.5*kick*en; }\nelse if(act==='decay'){ const q=.5+.5*Math.sin(T*.021); grainE*=.7+.9*q; veilE=.6+1.5*q; }\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\n\n// ---- the halation sprite: one pre-blurred glow, reused (never tint() in the loop) ----\nconst skey=Math.round(hH)+'|'+Math.round(hS);\nif(!S.spr||S.sk!==skey){\n  const g=(S.spr&&S.spr.width===160)?S.spr:createGraphics(160,160);\n  g.colorMode(HSB,360,100,100,100); g.clear();\n  const gd=g.drawingContext.createRadialGradient(80,80,0,80,80,80);\n  const c0=hsb2rgb(hH,hS*.35,hB), c1=hsb2rgb(hH,hS,hB*.92), c2=hsb2rgb(md(hH-14,360),Math.min(100,hS+24),hB*.7);\n  gd.addColorStop(0,'rgba('+c0[0]+','+c0[1]+','+c0[2]+',1)');\n  gd.addColorStop(.18,'rgba('+c1[0]+','+c1[1]+','+c1[2]+',0.62)');\n  gd.addColorStop(.45,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',0.20)');\n  gd.addColorStop(.75,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',0.05)');\n  gd.addColorStop(1,'rgba('+c2[0]+','+c2[1]+','+c2[2]+',0)');\n  g.drawingContext.fillStyle=gd; g.drawingContext.fillRect(0,0,160,160);\n  S.spr=g; S.sk=skey; }\nconst spr=S.spr;\n\n// ---- 1. stock colour: separable blend ops re-grade the whole frame ----\nif(bleach){\n  dc.globalCompositeOperation='saturation'; dc.globalAlpha=cl(.32+.34*(1-en),0,.85)*al;\n  dc.fillStyle='rgb(128,128,128)'; dc.fillRect(0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n} else if(xpro){\n  const dh=md(H+150+58*Math.sin(T*.037)+22*Math.sin(T*.0913),360), c=hsb2rgb(dh,58,60);\n  dc.globalCompositeOperation='color'; dc.globalAlpha=cl(.16+.20*en,0,.5)*al;\n  dc.fillStyle='rgb('+c[0]+','+c[1]+','+c[2]+')'; dc.fillRect(0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n} else if(ir){\n  const dh=md(H+280+40*Math.sin(T*.029),360), c=hsb2rgb(dh,72,70);\n  dc.globalCompositeOperation='hue'; dc.globalAlpha=cl(.30+.28*en,0,.7)*al;\n  dc.fillStyle='rgb('+c[0]+','+c[1]+','+c[2]+')'; dc.fillRect(0,0,W,Hh);\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n}\n\n// ---- 2. halation: light scattering back off the film base around the highlights ----\n// Still a genuine post pass: when there IS content under us, its highlights bloom.\n// When there is not, steps 3-5 carry the frame on their own.\nconst SW=64, SH=cl(Math.round(64*Hh/Math.max(1,W)),18,64);\nif(!S.samp||S.sw!==SW||S.sh!==SH){ if(S.samp&&S.samp.remove)S.samp.remove(); S.samp=createGraphics(SW,SH); S.sw=SW; S.sh=SH; }\nconst samp=S.samp; samp.clear(); samp.drawingContext.imageSmoothingEnabled=true;\ntry{ samp.drawingContext.drawImage(dc.canvas,0,0,SW,SH); }catch(e){}\nsamp.loadPixels();\nconst sp2=samp.pixels;\ndc.globalCompositeOperation='lighter';\nif(sp2 && sp2.length>=SW*SH*4 && bloomE>0.01){\n  let mx=0;\n  for(let i=0;i<SW*SH;i++){ const o=i*4; const L=(sp2[o]*.30+sp2[o+1]*.59+sp2[o+2]*.11)/255; if(L>mx)mx=L; }\n  const thr=Math.max(.22, mx*.62);\n  let n=0;\n  const cw=W/SW, ch=Hh/SH;\n  for(let j=0;j<SH && n<44;j++) for(let i=0;i<SW && n<44;i++){\n    const o=(j*SW+i)*4, L=(sp2[o]*.30+sp2[o+1]*.59+sp2[o+2]*.11)/255;\n    if(L<thr) continue;\n    n++;\n    const rr=u*(.045+.10*bloomE)*sc*(.55+.9*(L-thr)/Math.max(.05,1-thr));\n    dc.globalAlpha=cl((.055+.14*bloomE)*(.5+.7*en)*al,0,.6);\n    image(spr,(i+.5)*cw-rr,(j+.5)*ch-rr,rr*2,rr*2);\n  }\n  dc.globalAlpha=1;\n}\n\n// ---- 3. gate flare: INTRINSIC scattered light, present on ANY frame ----\n// This is the motion floor. Each source wanders on its own pair of\n// incommensurate rates, so the pass is never the same 8s later.\nconst NFL=2+Math.round(dens*2);\nfor(let i=0;i<NFL;i++){\n  const w1=.031+fr(i*7)*.045, w2=.017+fr(i*7+1)*.033, ph=fr(i*7+2)*TAU;\n  // three independent rates per axis: with only two, all the sources can stall\n  // at their turning points together and the 8s diff collapses into a trough.\n  const fx=(ax-.5)+.44*Math.sin(T*w1*7.3+ph)+.20*Math.sin(T*w2*11.1+ph*1.7)+.13*Math.sin(T*w1*3.7+ph*2.9);\n  const fy=(ay-.5)+.34*Math.cos(T*w1*5.9+ph*.7)+.16*Math.sin(T*w2*9.3+ph)+.11*Math.cos(T*w2*4.3+ph*1.3);\n  const pk=.6+.4*Math.sin(T*.083+i*2.2)+.2*Math.sin(T*.191+i);\n  const rr=u*(.20+.16*fr(i*11))*sc*(.6+.55*bloomE)*(.8+.3*pk);\n  dc.globalAlpha=cl((.14+.19*bloomE)*(.5+.7*en)*(.6+.5*pk)*al,0,.42);\n  image(spr,(fx+.5)*W-rr,(fy+.5)*Hh-rr,rr*2,rr*2);\n}\ndc.globalAlpha=1;\n\n// ---- 4. light leak: a soft bar of scattered light walking the gate ----\n{\n  const la=.5+.22*Math.sin(T*.013), ux=Math.cos(la), uy=Math.sin(la);\n  const L2=Math.abs(W*ux)+Math.abs(Hh*uy)+1;\n  const cpos=(.5+.5*Math.sin(T*.0431+.8*Math.sin(T*.0173)))*L2;\n  const bw=u*(.17+.13*bloomE)*sc;\n  const ox=W/2-(L2/2-cpos)*ux, oy=Hh/2-(L2/2-cpos)*uy;\n  const lc=hsb2rgb(md(hH+8,360),Math.min(100,hS+10),100);\n  const lg=dc.createLinearGradient(ox-bw*ux,oy-bw*uy,ox+bw*ux,oy+bw*uy);\n  const la2=cl((.030+.055*bloomE)*(.45+.75*en)*al,0,.14);\n  lg.addColorStop(0,rgba(lc,0));\n  lg.addColorStop(.5,rgba(lc,la2));\n  lg.addColorStop(1,rgba(lc,0));\n  dc.fillStyle=lg; dc.fillRect(0,0,W,Hh);\n}\n\n// ---- 5. warm veil: soft drifting fog over the whole plate ----\nconst vx=(.5+.30*Math.sin(T*.043)+.12*Math.sin(T*.101))*W, vy=(.5+.24*Math.cos(T*.037)+.10*Math.sin(T*.089))*Hh;\nconst vc=hsb2rgb(veilH,veilS,96);\nconst vg=dc.createRadialGradient(vx,vy,u*.05,vx,vy,u*(.9+.12*Math.sin(T*.027)));\nvg.addColorStop(0,rgba(vc,cl(.085*veilE*(.4+.8*en)*al,0,.18)));\nvg.addColorStop(.55,rgba(vc,cl(.034*veilE*al,0,.09)));\nvg.addColorStop(1,rgba(vc,0));\ndc.fillStyle=vg; dc.fillRect(0,0,W,Hh);\ndc.globalCompositeOperation=oldOp;\n\n// ---- 6. grain: silver halide ----\nconst gw=cl(Math.round(W/2),160,960), gh=cl(Math.round(gw*Hh/Math.max(1,W)),90,620);\nconst gkey=gw+'x'+gh+'|'+P.seed;\nif(!S.gr||S.gk!==gkey){\n  if(S.gr) for(let k=0;k<S.gr.length;k++) if(S.gr[k].remove) S.gr[k].remove();\n  S.gr=[];\n  for(let k=0;k<3;k++){\n    const g=createGraphics(gw,gh); g.loadPixels();\n    const q=g.pixels;\n    for(let i=0;i<gw*gh;i++){\n      const s=Math.sin((i*12.9898+k*78.233+P.seed*3.71))*43758.5453;\n      const r1=s-Math.floor(s);\n      const s2=Math.sin((i*39.3468+k*11.135+P.seed*7.13))*24634.6345;\n      const r2=s2-Math.floor(s2);\n      const v=128+(r1+r2-1)*72, o=i*4;\n      q[o]=v; q[o+1]=v; q[o+2]=v; q[o+3]=255;\n    }\n    g.updatePixels(); S.gr.push(g);\n  }\n  S.gk=gkey; }\nif(grainE>0.005){\n  const idx=Math.abs(Math.floor(K.t*17))%3;\n  const jt=Math.floor(K.t*17);\n  const jx=((Math.sin(jt*45.11)*4371.9)%7+7)%7, jy=((Math.sin(jt*91.7)*7331.3)%7+7)%7;\n  dc.imageSmoothingEnabled=false;\n  // OVERLAY puts grain in the midtones, where the emulsion actually is...\n  dc.globalCompositeOperation='overlay';\n  dc.globalAlpha=cl(grainE*(bleach?.50:.38)*al,0,.58);\n  image(S.gr[idx],-jx,-jy,W+14,Hh+14);\n  // ...but overlay is a no-op on a near-black frame, so a whisper of additive\n  // silver keeps the shadows from being dead flat plastic.\n  dc.globalCompositeOperation='lighter';\n  dc.globalAlpha=cl(grainE*.055*al,0,.09);\n  image(S.gr[(idx+1)%3],-jy,-jx,W+14,Hh+14);\n  dc.imageSmoothingEnabled=true;\n  dc.globalAlpha=1; dc.globalCompositeOperation=oldOp;\n}\n\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

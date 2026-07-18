@@ -1,0 +1,152 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.stratigraphy",
+  "kind": "genart",
+  "name": "Stratigraphy",
+  "desc": "A subsiding basin writes its own record in cross-section \u2014 sea level rises and falls over minutes while sediment supply lags behind, so facies belts interfinger and march sideways across the plate, coal swamps drown into shale and shoal back into barrier sand, and every fall strips the top off in a truncation surface; the column scrolls downward forever, sagging into its syncline as it buries.",
+  "tags": [
+    "stratigraphy",
+    "strata",
+    "sediment",
+    "sedimentary",
+    "deposition",
+    "basin",
+    "subsidence",
+    "sea-level",
+    "eustasy",
+    "cyclothem",
+    "sequence-stratigraphy",
+    "transgression",
+    "regression",
+    "unconformity",
+    "truncation",
+    "facies",
+    "walthers-law",
+    "lithology",
+    "shale",
+    "sandstone",
+    "limestone",
+    "coal",
+    "marl",
+    "outcrop",
+    "cross-section",
+    "core",
+    "drill-core",
+    "borehole",
+    "seismic",
+    "reflection",
+    "geology",
+    "geological-survey",
+    "plate",
+    "geomorphology",
+    "erosion",
+    "burial",
+    "syncline",
+    "deep-time",
+    "xray",
+    "ct",
+    "ochre",
+    "sepia",
+    "banded",
+    "layered",
+    "scrolling",
+    "simulation",
+    "slow",
+    "dramaturgy",
+    "process",
+    "scientific",
+    "clinical",
+    "austere",
+    "abstract",
+    "generative",
+    "genart",
+    "bg",
+    "background",
+    "full-bleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sediment supply rate (how fast the record accumulates) + colour/contrast gain"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into the section around x/y \u2014 1 shows the whole column, 2.6 crops to a few beds"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "rate of geological time \u2014 how fast the column scrolls"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "lithology ornament density: stipple, dashes, brick and coal partings"
+    },
+    "cycles": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sea-level swing: 0 = a quiet aggrading ramp, 1 = violent cyclothems with deep drownings and hard truncation surfaces"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "plate hue anchor; rotates the facies inks with it"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre x (only bites when scale > 1)"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "view centre y (only bites when scale > 1)"
+    },
+    "style": {
+      "default": "survey",
+      "options": [
+        "survey",
+        "core",
+        "seismic",
+        "xray"
+      ],
+      "doc": "aesthetic: survey = geological plate, facies colours + lithology ornament + inked truncation surfaces; core = wet grainy hand-sample, saturated, no ornament; seismic = abstracted red/blue wiggle-trace reflection section built from impedance contrast; xray = CT densitometry"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "depositional rugosity + basin seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:24+00:00",
+    "fps": 61.7,
+    "motion": 0.0668,
+    "lum": 0.469
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, cycles: .6, hue: 40, x: .5, y: .5, style: 'survey', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A subsiding basin writing its own record ------------------------------\n// Relative sea level = steady subsidence (monotonic accommodation) + bounded\n// Milankovitch-ish oscillation on incommensurate periods. Sediment supply is\n// FINITE, so when sea level outruns supply the water deepens and the facies go\n// basinal; when it falls the surface is exposed and the record is TRUNCATED \u2014\n// an unconformity. Facies also shoal to the left (proximal), so the belts\n// interfinger and migrate laterally as sea level moves: Walther's Law, drawn.\n// Anti-convergence: subsidence never stops, so the column scrolls forever and\n// no two cycles stack the same way.\nconst BW = 192, SURF = 30, BHt = 128, SEC = BHt - SURF, RING = 320;\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;\n}\nfunction vn(x, y) {\n  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);\n  const a = hsh(ix, iy), b = hsh(ix + 1, iy), c = hsh(ix, iy + 1), d2 = hsh(ix + 1, iy + 1);\n  return a + (b - a) * u + (c - a) * v + (a - b - c + d2) * u * v;\n}\n\nif (!S.g) {\n  S.g = createGraphics(BW, BHt); S.g.pixelDensity(1);\n  S.fac = new Uint8Array(BW * RING);      // facies id per cell\n  S.unc = new Uint8Array(RING);           // row sits on a truncation surface\n  S.seedUsed = null;\n}\nif (S.seedUsed !== P.seed) {\n  S.seedUsed = P.seed;\n  S.fac.fill(0); S.unc.fill(0);\n  S.wy = 0; S.wyMax = 0; S.sl = 6; S.acc = 0; S.eroded = 0;\n  S.warm = 220;   // in PASSES: enough to deposit ~230 rows so the plate opens FULL,\n                  // not as a flat slab of basement\n}\n\nconst spd = 0.3 + P.speed * 0.95;\nconst dts = Math.min(0.05, (typeof deltaTime === 'number' ? deltaTime : 16.7) / 1000);\n// bounded oscillation \u2014 read from K.t so a t0 reset only jumps the PHASE (a\n// flooding/erosion event), never the monotonic subsidence stored in S.sl\nconst oscAmp = 10 + P.cycles * 30;\nconst osc = oscAmp * (0.55 * Math.sin(K.t * 0.157) + 0.31 * Math.sin(K.t * 0.37 + 2.1) + 0.14 * Math.sin(K.t * 0.68 + 0.9));\nconst carb = 0.5 + 0.5 * Math.sin(K.t * 0.041 + 1.2);    // reciprocal carbonate/siliciclastic epochs\n\nfunction faciesOf(dl, wr) {\n  if (dl <= -1.0) return 1;                                 // coal swamp / paleosol (thin, only where truly emergent)\n  if (dl <= 5) return 2;                                    // beach & barrier sand\n  if (dl <= 13) return carb > 0.62 ? 6 : 3;                 // shoreface sst  /  carbonate ramp\n  if (dl <= 27) return carb > 0.74 ? 6 : 4;                 // offshore marl  /  limestone\n  return 5;                                                 // basinal shale\n}\nfunction depositRow(wr, d) {\n  const base = (((wr % RING) + RING) % RING) * BW;\n  for (let i = 0; i < BW; i++) {\n    // basin geometry: shoals to the left (proximal), plus depositional rugosity\n    const dl = d + (i / BW - 0.5) * 11 + (vn(i * 0.055, wr * 0.05) - 0.5) * 6;\n    S.fac[base + i] = faciesOf(dl, wr);\n  }\n  S.unc[((wr % RING) + RING) % RING] = S.eroded ? 1 : 0;\n  S.eroded = 0;\n}\n\n// ---- advance the record ----------------------------------------------------\nconst supply = 2.7 * (0.4 + P.energy * 1.0);\nconst passes = S.warm > 0 ? 16 : 1;\nfor (let q = 0; q < passes; q++) {\n  const dt2 = S.warm > 0 ? 0.30 : dts;\n  S.sl += 1.6 * spd * dt2;                       // subsidence: accommodation forever.\n  // Kept BELOW the oscillation's rate of fall on purpose \u2014 if it outruns it the\n  // surface never emerges and the record grows without a single unconformity.\n  S.acc += supply * spd * dt2;\n  let guard = 0;\n  while (S.acc >= 1 && guard++ < 20) {\n    S.acc -= 1;\n    const slNow = S.sl + (S.warm > 0 ? oscAmp * (0.55 * Math.sin(S.sl * 0.06) + 0.31 * Math.sin(S.sl * 0.15 + 2.1)) : osc);\n    let d = slNow - S.wy;\n    if (d > 0.5) { S.wy++; depositRow(S.wy, slNow - S.wy); if (S.wy > S.wyMax) S.wyMax = S.wy; }\n    else if (d < -0.5) { S.wy--; S.eroded = 1; }     // subaerial: truncate the record\n    else break;                                       // hiatus\n  }\n  if (S.warm > 0) S.warm--;\n}\n\n// ---- render ----------------------------------------------------------------\nconst st = P.style;\nconst rot = h => (((h + (P.hue - 40)) % 360) + 360) % 360;\nfunction hsv(h, s, v) {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c;\n  let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; }\n  else if (h < 3) { r = 0; g2 = c; b2 = xx; } else if (h < 4) { r = 0; g2 = xx; b2 = c; }\n  else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [(r + m) * 255, (g2 + m) * 255, (b2 + m) * 255];\n}\n// facies plate: [hue, sat, bright] \u2014 committed geological-survey colour\nconst PAL = [\n  [278, 20, 24],   // 0 basement (crystalline)\n  [26, 34, 13],    // 1 coal / paleosol\n  [46, 40, 62],    // 2 beach & barrier sand\n  [38, 50, 60],    // 3 shoreface sandstone\n  [104, 24, 46],   // 4 offshore marl\n  [214, 30, 30],   // 5 basinal shale\n  [188, 18, 60],   // 6 limestone / carbonate ramp\n];\nconst IMP = [0.9, 0.25, 0.62, 0.55, 0.40, 0.30, 0.75];    // acoustic impedance for the seismic style\nconst gain = 0.74 + P.energy * 0.46 + K.intensity * 0.14 + A.rms * 0.28;\nconst orn = 0.25 + P.density * 0.75;\nconst dwell = 0.55 + 0.45 * Math.sin(K.t * 0.021);         // the syncline slowly deepens and relaxes\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst dNow = (S.sl + osc) - S.wy;                          // present water depth, in rows\nconst waterTop = SURF - Math.max(0, dNow);\n\nfor (let j = 0; j < BHt; j++) for (let i = 0; i < BW; i++) {\n  let r, gg, b;\n  if (j < SURF) {\n    // ---- the living depositional environment above the record --------------\n    if (dNow <= 0.2 || j < waterTop) {\n      const sky = j / Math.max(1, waterTop);\n      const c = hsv(rot(34) + sky * 14, 0.20 + sky * 0.12, (0.60 + sky * 0.22) * gain);\n      r = c[0]; gg = c[1]; b = c[2];\n    } else {\n      const wd = (j - waterTop) / Math.max(1, SURF - waterTop);\n      const ripple = 0.04 * Math.sin(i * 0.30 + K.t * 1.7) + 0.03 * Math.sin(i * 0.11 - K.t * 1.1);\n      const c = hsv(rot(196) + wd * 16, 0.42 + wd * 0.22, (0.56 - wd * 0.24 + ripple + (j - waterTop < 1.6 ? 0.16 : 0)) * gain);\n      r = c[0]; gg = c[1]; b = c[2];\n    }\n  } else {\n    // ---- the accumulated section -------------------------------------------\n    const dep = j - SURF;\n    const bs = 1 - 4 * (i / BW - 0.5) * (i / BW - 0.5);      // syncline: sags in the middle\n    const sg = dep * 0.19 * bs * dwell;\n    const wr = Math.round(S.wy - dep - sg);\n    if (wr < 0 || wr <= S.wyMax - RING + 2) {\n      const c = hsv(PAL[0][0], PAL[0][1] / 100, (PAL[0][2] / 100) * (0.8 + hsh(i, wr) * 0.35) * gain);\n      r = c[0]; gg = c[1]; b = c[2];\n    } else {\n      const ri = (((wr % RING) + RING) % RING);\n      const f = S.fac[ri * BW + i];\n      const p = PAL[f];\n      let v = p[2] / 100, s2 = p[1] / 100, h2 = p[0];\n      if (st === 'seismic') {\n        // radically abstracted: a red/blue wiggle-trace reflection section\n        const wr2 = wr - 1;\n        const f2 = wr2 > 0 ? S.fac[((((wr2 % RING) + RING) % RING)) * BW + i] : f;\n        const rc = (IMP[f] - IMP[f2]) * 2.6 + 0.10 * Math.sin(wr * 0.9 + i * 0.05);\n        const amp = Math.max(-1, Math.min(1, rc));\n        const c = hsv(amp > 0 ? 8 : 212, Math.min(0.9, Math.abs(amp) * 1.3), (0.16 + Math.abs(amp) * 0.78) * gain);\n        r = c[0]; gg = c[1]; b = c[2];\n        px[(j * BW + i) * 4] = r; px[(j * BW + i) * 4 + 1] = gg; px[(j * BW + i) * 4 + 2] = b; px[(j * BW + i) * 4 + 3] = 255;\n        continue;\n      }\n      if (st === 'xray') {\n        const dens = IMP[f];\n        const c = hsv(rot(24) + dens * 40, 0.30 + dens * 0.35, (0.14 + dens * 0.76) * gain);\n        r = c[0]; gg = c[1]; b = c[2];\n      } else {\n        // ---- lithology ornament: texture, never flat fill --------------------\n        let o = 0;\n        if (f === 3 || f === 2) { if (hsh(i, wr) > 0.78 - orn * 0.2) o = 0.20; }                       // stipple (sand)\n        else if (f === 5) { if (wr % 3 === 0 && ((i + wr * 7) % 13) < 6 * orn + 2) o = -0.16; }        // dashes (shale)\n        else if (f === 4) { if (wr % 4 === 0 && ((i + wr * 5) % 17) < 4 * orn + 2) o = -0.12; else if (hsh(i, wr) > 0.9) o = 0.10; }\n        else if (f === 6) { if (wr % 6 === 0 || (i + (Math.floor(wr / 6) % 2) * 8) % 16 === 0) o = -0.14; }  // brick (limestone)\n        else if (f === 1) { if (wr % 7 === 0) o = 0.42; }                                              // bright partings in coal\n        v += o * orn;\n        if (st === 'core') { v *= 0.86 + hsh(i * 3, wr * 3) * 0.28; s2 = Math.min(1, s2 * 1.32); }     // wet grainy hand-sample\n        else { if (wr % 1 === 0 && S.unc[ri] && dep > 0) { v *= 0.34; s2 *= 0.5; } }                   // ink the truncation surface\n        if (st === 'core' && S.unc[ri]) v *= 0.5;\n        h2 = rot(h2 - 40 + 40);\n      }\n      const dk = 1 - Math.min(0.30, dep / SEC * 0.30);       // burial darkens with depth\n      const c = hsv(h2, s2, Math.max(0, Math.min(1, v)) * dk * gain);\n      r = c[0]; gg = c[1]; b = c[2];\n    }\n  }\n  const o2 = (j * BW + i) * 4;\n  px[o2] = r; px[o2 + 1] = gg; px[o2 + 2] = b; px[o2 + 3] = 255;\n}\ng.updatePixels();\n\nconst z2 = Math.max(1, P.scale), hw = 0.5 / z2;\nconst cx = Math.min(1 - hw, Math.max(hw, P.x)), cy = Math.min(1 - hw, Math.max(hw, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, (cx - hw) * BW, (cy - hw) * BHt, 2 * hw * BW, 2 * hw * BHt);\npop();\nblendMode(BLEND); drawingContext.shadowBlur = 0; noTint();\n"
+}

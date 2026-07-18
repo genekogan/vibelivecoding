@@ -1,0 +1,149 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.lic_flow",
+  "kind": "genart",
+  "name": "Line Integral Convolution",
+  "desc": "Line integral convolution \u2014 a fixed noise texture smeared along the streamlines of a drifting divergence-free flow so the whole frame becomes one silky combed fabric of visible flow lines, the convolution kernel phasing in real time so the texture streams without a single particle being drawn; false-colour flow-viz keyed to speed, burnished graphite, oil-black iridescence, hard engraved contour bands, or ironbow thermal.",
+  "tags": [
+    "line-integral-convolution",
+    "lic",
+    "flow-visualization",
+    "flowviz",
+    "streamline",
+    "vector-field",
+    "flow-field",
+    "curl-noise",
+    "divergence-free",
+    "incompressible",
+    "advection",
+    "fluid",
+    "turbulence",
+    "vorticity",
+    "combed",
+    "silky",
+    "smear",
+    "convolution",
+    "texture",
+    "field",
+    "continuum",
+    "scientific",
+    "laboratory",
+    "wind-tunnel",
+    "aerodynamic",
+    "false-colour",
+    "graphite",
+    "burnished",
+    "iridescent",
+    "oil-slick",
+    "engraved",
+    "contour",
+    "banded",
+    "thermal",
+    "ironbow",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "sophisticated",
+    "austere",
+    "hypnotic",
+    "meditative",
+    "swirl",
+    "vortex",
+    "marbled",
+    "brushed-metal"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast stretch + colour gain of the convolved texture (the raw smear is low-contrast by nature)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "flow feature size \u2014 zooms the vector field from fine combing to broad sweeping swirls"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "field evolution rate + the kernel phase rate that makes the texture stream along the lines"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "convolution length \u2014 how far the noise is smeared (short = grainy tooth, long = glassy silk)"
+    },
+    "swirl": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "blend from pure curl-noise turbulence toward a coherent global rotation about the anchor"
+    },
+    "grain": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fixed film-grain tooth over the fabric (texture over flat fill)"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue anchoring the palette ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal anchor of the global rotation centre"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical anchor of the global rotation centre"
+    },
+    "style": {
+      "default": "flowviz",
+      "options": [
+        "flowviz",
+        "graphite",
+        "iridescent",
+        "banded",
+        "thermal"
+      ],
+      "doc": "aesthetic: speed-mapped false-colour flow-viz / burnished graphite mono / oil-black iridescence / hard engraved contour bands / ironbow thermal"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the input noise texture and the flow field"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:14:10+00:00",
+    "fps": 61.0,
+    "motion": 0.0928,
+    "lum": 0.29
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, swirl: .6, grain: .5, hue: 34, x: .5, y: .5, style: 'flowviz', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Line Integral Convolution: smear a static noise texture ALONG the streamlines of an\n// evolving vector field. No particles, no strokes \u2014 the flow is a per-pixel texture. ----\nconst BW = 152, BH = Math.max(64, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.VX = new Float32Array(N); S.VY = new Float32Array(N); S.SP = new Float32Array(N);\n  S.PS = new Float32Array(N); S.TX = new Float32Array(N); S.built = -1;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\nfunction vn3(x, y, z) {\n  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);\n  const fx = x - ix, fy = y - iy, fz = z - iz;\n  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);\n  const a0 = hsh(ix, iy, iz), a1 = hsh(ix + 1, iy, iz), a2 = hsh(ix, iy + 1, iz), a3 = hsh(ix + 1, iy + 1, iz);\n  const b0 = hsh(ix, iy, iz + 1), b1 = hsh(ix + 1, iy, iz + 1), b2 = hsh(ix, iy + 1, iz + 1), b3 = hsh(ix + 1, iy + 1, iz + 1);\n  const x00 = a0 + (a1 - a0) * u, x10 = a2 + (a3 - a2) * u, x01 = b0 + (b1 - b0) * u, x11 = b2 + (b3 - b2) * u;\n  const y0 = x00 + (x10 - x00) * v, y1 = x01 + (x11 - x01) * v;\n  return y0 + (y1 - y0) * w;\n}\nfunction fbm3(x, y, z) { return 0.56 * vn3(x, y, z) + 0.27 * vn3(x * 2.07 + 5.1, y * 2.07 - 3.2, z * 1.6 + 1.3) + 0.17 * vn3(x * 4.13 - 2.3, y * 4.13 + 7.7, z * 2.7 - 4.1); }\n\n// ---- the input texture: fixed band-limited noise (rebuilt on seed only) ----\nif (S.built !== sd) {\n  S.built = sd;\n  for (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) {\n    // two-tap value noise ~1.6px -> visible tooth for the convolution to smear\n    S.TX[j * BW + i] = 0.5 * hsh(i, j, 3) + 0.35 * hsh(i * 2 + 1, j * 2 + 1, 5) + 0.15 * vn3(i * 0.42, j * 0.42, 1.5);\n  }\n}\n\n// ---- the vector field: curl of a drifting fBm stream function (divergence-free), blended\n// toward a rotational cell field by `swirl`. Rebuilt every frame; the LIC then reads it. ----\nconst tt = K.t;\nconst zf = tt * 0.055 * (0.3 + P.speed * 0.7) + 3.7;\nconst dx1 = 1.9 * Math.sin(tt * 0.047) + 0.8 * Math.sin(tt * 0.113 + 2.1);\nconst dy1 = 1.5 * Math.cos(tt * 0.067) + 0.6 * Math.sin(tt * 0.151 + 0.7);\nconst fs = (1.9 / (0.35 + P.scale * 0.9)) / BH;   // field feature size: scale zooms the flow\nconst sw = 0.25 + P.swirl * 1.6;\nconst VX = S.VX, VY = S.VY, SP = S.SP, PS = S.PS;\n// stream function ONCE per cell (4 fbm evals/cell for a per-cell finite difference costs 4x\n// more than sampling psi to a grid and differencing the grid)\nfor (let j = 0; j < BH; j++) for (let i = 0; i < BW; i++) PS[j * BW + i] = fbm3(i * fs + dx1, j * fs + dy1, zf);\nlet smax = 1e-6;\nfor (let j = 0; j < BH; j++) {\n  const jm = (j > 0 ? j - 1 : 0) * BW, jp = (j < BH - 1 ? j + 1 : BH - 1) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = i > 0 ? i - 1 : 0, ip = i < BW - 1 ? i + 1 : BW - 1;\n    // v = curl(psi) = (dpsi/dy, -dpsi/dx) -> divergence-free by construction\n    let vx = (PS[jp + i] - PS[jm + i]) * 26;\n    let vy = -(PS[jc + ip] - PS[jc + im]) * 26;\n    // a slow global rotation about the anchor breaks the noise's symmetry and keeps the\n    // field from ever settling into the same configuration\n    const rx = (i / BW - P.x), ry = (j / BH - P.y);\n    vx += -ry * sw * 3.2; vy += rx * sw * 3.2;\n    const m = Math.sqrt(vx * vx + vy * vy) + 1e-6;\n    VX[jc + i] = vx / m; VY[jc + i] = vy / m;\n    SP[jc + i] = m;\n    if (m > smax) smax = m;\n  }\n}\n\n// ---- the convolution: walk L steps up- and down-stream, averaging the texture with a\n// cosine kernel whose phase advances in real time -> the texture visibly STREAMS. ----\nconst L = Math.max(4, Math.min(16, Math.round(5 + P.density * 11)));\nconst stepLen = 0.85;\nconst kph = tt * (0.85 + P.speed * 1.5);          // kernel phase: makes the smear flow\nconst kfr = 1.7;\n// the kernel weight depends only on (k, dir) \u2014 hoist it out of the ~200k-iteration inner\n// walk into a 2L-entry LUT, and precompute its sum (identical for every pixel).\nif (!S.kw || S.kw.length !== 2 * L) S.kw = new Float32Array(2 * L);\nconst KW = S.kw;\nlet kwsum = 0;\nfor (let k = 0; k < L; k++) {\n  KW[k] = 0.5 + 0.5 * Math.cos(6.2831 * ((k / L) * kfr + kph * 0.25));\n  KW[L + k] = 0.5 + 0.5 * Math.cos(6.2831 * ((k / L) * kfr - kph * 0.25));\n  kwsum += KW[k] + KW[L + k];\n}\nconst ikw = kwsum > 1e-6 ? 1 / kwsum : 0;\nconst TX = S.TX;\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 9 + Math.sin(tt * 0.017) * 18) % 360 + 360) % 360;\nconst gain = 0.5 + P.energy * 1.3 + A.rms * 0.4;\nconst gr = P.grain;\nfunction pal(m, sp2, off) {\n  const hr = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp2)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr + sp2 * 2))];\n}\nconst ism = 1 / smax;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    let acc = 0;\n    // forward + backward march along the streamline\n    for (let dir = -1; dir <= 1; dir += 2) {\n      let cx = i + 0.5, cy = j + 0.5;\n      const kb = dir < 0 ? 0 : L;\n      for (let k = 0; k < L; k++) {\n        const gi = cx < 0 ? 0 : (cx >= BW ? BW - 1 : cx | 0);\n        const gj = cy < 0 ? 0 : (cy >= BH ? BH - 1 : cy | 0);\n        const q = gj * BW + gi;\n        cx += VX[q] * stepLen * dir; cy += VY[q] * stepLen * dir;\n        const tix = cx < 0 ? 0 : (cx >= BW ? BW - 1 : cx | 0);\n        const tiy = cy < 0 ? 0 : (cy >= BH ? BH - 1 : cy | 0);\n        acc += TX[tiy * BW + tix] * KW[kb + k];\n      }\n    }\n    let lic = acc * ikw;\n    lic = 0.5 + (lic - 0.5) * (1.5 + gain * 0.9);   // the smear is low-contrast; stretch it\n    lic = lic < 0 ? 0 : (lic > 1 ? 1 : lic);\n    const spd = Math.min(1, SP[p] * ism * 1.35);\n    const stip = (hsh(i, j, 9) - 0.5) * 0.10 * gr;\n    let r, gg, b;\n    if (style === 'graphite') {                 // silky mono: burnished graphite on warm charcoal\n      const v = 0.10 + lic * 0.74 * gain * 0.8;\n      r = v * 1.03 + 0.03; gg = v * 0.99 + 0.025; b = v * 0.94 + 0.035;\n    } else if (style === 'iridescent') {        // oil-black with a cyan/magenta sheen riding the smear\n      const hh = (lic * 0.9 + spd * 0.55 + tt * 0.011) % 1;\n      const c = pal(hh, 0.33, 0.0);\n      const sh = 0.16 + lic * 0.78 * gain * 0.7;\n      r = Math.min(1, c[0] * sh * 1.1 + lic * lic * 0.10); gg = Math.min(1, c[1] * sh * 0.95 + lic * lic * 0.09); b = Math.min(1, c[2] * sh * 1.2 + lic * lic * 0.13);\n    } else if (style === 'banded') {            // engraved: the smear quantised to hard contour bands\n      const q = Math.floor(lic * (3 + Math.round(P.density * 7))) / (3 + Math.round(P.density * 7));\n      const c = pal(q * 0.62 + 0.1, 0.14, 0.0);\n      const edge = Math.abs(lic * (3 + Math.round(P.density * 7)) % 1 - 0.5) > 0.42 ? 1 : 0;\n      const sh = 0.34 + q * 0.72 * gain;\n      r = Math.min(1, c[0] * sh * (1 - edge * 0.55)); gg = Math.min(1, c[1] * sh * (1 - edge * 0.55)); b = Math.min(1, c[2] * sh * (1 - edge * 0.55));\n    } else if (style === 'thermal') {           // ironbow keyed to flow SPEED, smear as texture\n      const m = Math.min(1, (spd * 0.72 + lic * 0.36) * (0.5 + P.energy * 0.8));\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55)); b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.4 - m * 1.5));\n    } else {                                    // flowviz (default) \u2014 speed-mapped false colour, LIC as luminance\n      const c = pal(spd * 0.66 + 0.04, 0.19, 0.0);\n      const sh = 0.22 + lic * 0.95 * gain * 0.72;\n      r = Math.min(1, c[0] * sh + lic * lic * 0.13); gg = Math.min(1, c[1] * sh + lic * lic * 0.12); b = Math.min(1, c[2] * sh + lic * lic * 0.15);\n    }\n    const o = 4 * p;\n    px[o] = Math.max(0, Math.min(255, (r + stip) * 255));\n    px[o + 1] = Math.max(0, Math.min(255, (gg + stip) * 255));\n    px[o + 2] = Math.max(0, Math.min(255, (b + stip) * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

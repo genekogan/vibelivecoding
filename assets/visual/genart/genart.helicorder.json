@@ -1,0 +1,157 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.helicorder",
+  "kind": "genart",
+  "name": "Helicorder Drum",
+  "desc": "A seismograph drum turning under its stylus: twenty hours of trace wrap around a smoked cylinder and scroll away into the limb, the pen scratching live microseism at the front while earthquakes arrive as P-then-S bursts whose codas clip across three lines at once, and the helix steps down forever overwriting the oldest hour.",
+  "tags": [
+    "helicorder",
+    "seismograph",
+    "seismometer",
+    "seismogram",
+    "drum",
+    "drum-recorder",
+    "cylinder",
+    "stylus",
+    "pen",
+    "trace",
+    "chart-recorder",
+    "strip-chart",
+    "earthquake",
+    "quake",
+    "seismic",
+    "tremor",
+    "microseism",
+    "p-wave",
+    "s-wave",
+    "coda",
+    "magnitude",
+    "geology",
+    "geophysics",
+    "usgs",
+    "observatory",
+    "laboratory",
+    "instrument",
+    "measurement",
+    "recording",
+    "smoked-paper",
+    "lampblack",
+    "soot",
+    "paper",
+    "brass",
+    "analog",
+    "victorian",
+    "signal",
+    "data",
+    "telemetry",
+    "blueprint",
+    "clinical",
+    "austere",
+    "eerie",
+    "scientific",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "stylus gain \u2014 trace amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how often earthquakes arrive"
+    },
+    "scale": {
+      "default": 1.0,
+      "min": 0.3,
+      "max": 2.2,
+      "doc": "drum size vs design size"
+    },
+    "speed": {
+      "default": 1.0,
+      "min": 0.0,
+      "max": 3.0,
+      "doc": "drum rotation rate (1 = ~5.7 s per revolution)"
+    },
+    "quake": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "event magnitude \u2014 how far the codas clip across neighbouring lines"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "paper + chassis hue (offset from the style anchor)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "drum centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "drum centre y"
+    },
+    "style": {
+      "default": "smoked",
+      "options": [
+        "smoked",
+        "thermal",
+        "blueprint",
+        "envelope"
+      ],
+      "doc": "aesthetic: white stylus scratched through lampblack on a smoked drum / aged thermal paper with black ink and red hour rules / white trace on cyanotype / radically abstracted \u2014 the wiggle replaced by a filled amplitude-envelope ribbon"
+    },
+    "act": {
+      "default": "watch",
+      "options": [
+        "watch",
+        "swarm",
+        "teleseism"
+      ],
+      "doc": "multi-minute programme: quiet station watch / an earthquake swarm of small close events / rare huge distant teleseisms with long codas"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "noise, event and paper seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": [
+    "watch",
+    "swarm",
+    "teleseism"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:46:22+00:00",
+    "fps": 61.7,
+    "motion": 0.0382,
+    "lum": 0.249
+  },
+  "code": "const D = { energy: .6, density: .5, scale: 1, speed: 1, quake: .5, hue: 32, x: .5, y: .5, style: 'smoked', act: 'watch', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst TAU = Math.PI * 2;\nconst clp = (v, a, b) => Math.max(a, Math.min(b, v));\nconst md = (a, n) => ((a % n) + n) % n;\n// integer hash \u2014 finalize with >>> (>> sign-extends and caps the hash at 0.5)\nfunction h2(ix, iy) { let h = (ix * 374761393 + iy * 668265263 + (P.seed | 0) * 1442695041) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }\nfunction h1(i) { return h2(i | 0, 0x2f1b); }\nfunction vn1(x) { const ix = Math.floor(x), fx = x - ix, ux = fx*fx*(3-2*fx); const a = h2(ix, 77), b = h2(ix+1, 77); return a + (b-a)*ux; }\n\nconst en = clp(P.energy, 0, 1), dens = clp(P.density, 0, 1), qk = clp(P.quake, 0, 1);\nconst W = width, H = height, u = Math.min(W, H);\nconst hs = P.hue - 32;\n\nconst ST = {\n  smoked:   { pap:[26,42,13],  ink:[35,6,99],   rule:[16,60,40], chas:[30,10,31], lbl:[32,16,72], dark:1 },\n  thermal:  { pap:[36,26,56],  ink:[28,30,10],  rule:[6,74,48],  chas:[32,14,36], lbl:[28,30,26], dark:0 },\n  blueprint:{ pap:[212,58,30], ink:[200,6,97],  rule:[200,30,62],chas:[214,40,20],lbl:[200,20,80],dark:1 },\n  envelope: { pap:[220,30,11], ink:[186,72,92], rule:[220,26,34],chas:[220,16,26],lbl:[200,14,70],dark:1 }\n};\nconst st = ST[P.style] || ST.smoked;\nconst PAH = md(st.pap[0] + hs, 360), INH = md(st.ink[0] + hs, 360), RUH = md(st.rule[0] + hs, 360), CHH = md(st.chas[0] + hs, 360), LBH = md(st.lbl[0] + hs, 360);\n\n// ---- act dramaturgy ----\nlet evRate = .35 + dens * .9, ampMul = 1, micro = 1;\nif (P.act === 'swarm') { evRate = 1.6 + dens * 3.4; ampMul = .72; }\nelse if (P.act === 'teleseism') { evRate = .12 + dens * .3; ampMul = 2.6; micro = .55; }\n\nconst NL = 20, PW = 1100, LH = 31, PH = NL * LH;\nconst REV = 5.7 / clp(0.25 + P.speed * .75, .1, 3);   // irrational rev period, never near the 8 s gate window\n\n// ---- the trace: a pure function of pen position p (in revolutions) ----\nfunction sig(p) {\n  const gx = p * PW;\n  let v = micro * (0.52 * (vn1(gx * 0.055 + 3.1) - .5) + 0.30 * (vn1(gx * 0.21 + 41.7) - .5) + 0.17 * (vn1(gx * 0.85 + 77.3) - .5));\n  v *= 0.85 + 0.42 * Math.sin(p * 0.63 + 1.1);                 // diurnal noise breathing\n  const spacing = 1.15 / Math.max(evRate, .04);\n  const i0 = Math.floor((p - spacing * 2.2) / spacing), i1 = Math.floor(p / spacing);\n  for (let i = i0; i <= i1; i++) {\n    const p0 = i * spacing + h1(i * 5 + 1) * spacing * .9;\n    const dp = p - p0;\n    if (dp <= 0) continue;\n    const mag = (0.25 + Math.pow(h1(i * 5 + 2), 3.1) * 5.4) * qk * ampMul;\n    const tauP = 0.055 + h1(i * 5 + 3) * 0.16;\n    if (dp > tauP * 9) continue;\n    const f = 90 + h1(i * 5 + 4) * 260;\n    const pEnv = Math.exp(-dp / (tauP * .5));\n    v += mag * .34 * pEnv * Math.sin(dp * f * 2.3);            // P arrival\n    const ds = dp - tauP * .55;                                 // S arrival, bigger, longer coda\n    if (ds > 0) {\n      const sEnv = Math.exp(-ds / tauP) * (1 - Math.exp(-ds * 60));\n      v += mag * sEnv * (Math.sin(ds * f) * .7 + (vn1(ds * f * 3.3 + i) - .5) * 1.5);\n    }\n  }\n  return v;\n}\n\n// ---- paper buffer (unrolled): x = circumference, y = line index ----\nconst key = P.style + '|' + (P.seed | 0) + '|' + Math.round(P.hue) + '|' + P.act + '|' + qk.toFixed(2) + '|' + dens.toFixed(2);\nconst pNow = K.t / REV;\n\nfunction paperBG(g, x0, w0) {   // repaint clean paper + rules over a band of the drum\n  g.noStroke();\n  g.fill(PAH, st.pap[1], st.pap[2]);\n  g.rect(x0, 0, w0, PH);\n  const nt = clp(Math.round(w0 * PH / 900), 6, 1200);   // tooth count follows the band area, not a constant\n  g.fill(PAH, st.pap[1] * .7, st.pap[2] * (st.dark ? 1.9 : .72), 9);\n  for (let i = 0; i < nt; i++) {   // paper / soot tooth\n    const gx = x0 + h2(i * 3 + (x0 | 0), 5) * w0, gy = h2(i * 3 + 1 + (x0 | 0), 9) * PH;\n    g.rect(gx, gy, 1.6, 1.6);\n  }\n  g.stroke(RUH, st.rule[1], st.rule[2], 46); g.strokeWeight(1);\n  for (let l = 0; l < NL; l++) g.line(x0, l * LH + LH * .5, x0 + w0, l * LH + LH * .5);\n  g.stroke(RUH, st.rule[1], st.rule[2], 26);\n  for (let m = 0; m <= 4; m++) { const mx = Math.round((x0 + w0 * 0 + PW * m / 4)); if (mx >= x0 - 2 && mx <= x0 + w0 + 2) g.line(mx, 0, mx, PH); }\n}\nfunction drawTrace(g, line, u0, u1, pBase) {\n  const yc = line * LH + LH * .5;\n  if (P.style === 'envelope') {\n    g.noStroke(); g.fill(INH, st.ink[1], st.ink[2], 76);\n    for (let x = Math.floor(u0); x <= u1; x++) {\n      const p = pBase + x / PW;\n      let mx = 0;\n      for (let k = 0; k < 3; k++) mx = Math.max(mx, Math.abs(sig(p + k * 0.00022)));\n      const a = clp(mx, 0, 3.2) * LH * .46 * (0.5 + en);\n      g.rect(x, yc - a, 1, a * 2);\n    }\n    return;\n  }\n  g.noFill(); g.stroke(INH, st.ink[1], st.ink[2], 92); g.strokeWeight(st.dark ? 1.05 : 1.15);\n  g.beginShape();\n  for (let x = Math.floor(u0); x <= u1; x++) {\n    const p = pBase + x / PW;\n    const a = sig(p) * LH * .62 * (0.45 + en * 1.1);\n    g.vertex(x, yc + clp(a, -LH * 4.2, LH * 4.2));\n  }\n  g.endShape();\n}\n\nif (!S.paper || S.key !== key) {\n  if (S.paper && S.paper.remove) S.paper.remove();\n  const g = createGraphics(PW, PH); g.pixelDensity(1); g.colorMode(g.HSB, 360, 100, 100, 100);\n  paperBG(g, 0, PW);\n  // prefill the whole drum with the last NL revolutions so it is NEVER blank\n  const rev0 = Math.floor(pNow);\n  for (let j = rev0 - NL + 1; j <= rev0; j++) {\n    const line = md(j, NL);\n    const uEnd = (j === rev0) ? clp((pNow - rev0) * PW, 1, PW) : PW;\n    drawTrace(g, line, 0, uEnd, j);\n  }\n  S.paper = g; S.key = key; S.pPrev = pNow;\n}\nconst paper = S.paper;\n\n// ---- advance the stylus: erase the band ahead, ink the band just passed ----\nif (S.pPrev == null || pNow < S.pPrev || pNow - S.pPrev > 0.4) S.pPrev = pNow - 0.0006;   // tolerate t0 reset\nif (pNow > S.pPrev) {\n  const EW = PW * 0.045;\n  const j0 = Math.floor(S.pPrev), j1 = Math.floor(pNow);\n  if (j1 === j0) {\n    const a = (S.pPrev - j0) * PW, b = (pNow - j0) * PW;\n    paperBG(paper, b, Math.min(EW, PW - b));\n    drawTrace(paper, md(j0, NL), a, b, j0);\n  } else {                       // crossed the seam: finish the old line, start the new one\n    const a = (S.pPrev - j0) * PW;\n    drawTrace(paper, md(j0, NL), a, PW, j0);\n    const b = (pNow - j1) * PW;\n    paperBG(paper, 0, Math.min(EW + b, PW));\n    drawTrace(paper, md(j1, NL), 0, Math.max(b, 1), j1);\n  }\n  S.pPrev = pNow;\n}\n\n// =================== composite: the drum, seen on a vertical axis ===================\nconst cx = P.x * W, cy = P.y * H;\nconst Rc = 0.40 * u * clp(P.scale, .3, 2.2), Hd = 0.74 * H * clp(P.scale, .3, 2.2);\nconst yTop = cy - Hd * .5;\n\n// chassis / backboard \u2014 carries the frame luminance so the drum is never a dark hole.\n// Both are cached: the room at canvas size, the board in local coords so it still\n// follows P.scale / P.x / P.y live.\nconst rkey = W + 'x' + H + '|' + P.style + '|' + Math.round(P.hue) + '|' + (P.seed | 0);\nif (!S.room || S.rkey !== rkey) {\n  if (S.room && S.room.remove) S.room.remove();\n  if (S.board && S.board.remove) S.board.remove();\n  const r = createGraphics(W, H); r.pixelDensity(1); r.colorMode(r.HSB, 360, 100, 100, 100);\n  r.noStroke(); r.background(CHH, st.chas[1], st.chas[2] * .62);\n  for (let i = 0; i < 46; i++) { r.fill(CHH, st.chas[1], st.chas[2] * (.62 + .5 * (i / 46)), 40); r.rect(0, H * i / 46, W, H / 46 + 1); }\n  S.room = r;\n  const BX = 420, BY = 620;\n  const b = createGraphics(BX, BY); b.pixelDensity(1); b.colorMode(b.HSB, 360, 100, 100, 100);\n  b.noStroke(); b.background(CHH, st.chas[1] * .8, st.chas[2] * 1.16);\n  for (let i = 0; i < 900; i++) {   // brushed grain, baked once\n    b.fill(CHH, st.chas[1] * .6, st.chas[2] * (.8 + h2(i * 3 + 9, 5) * .9), 13);\n    b.rect(h2(i * 3 + 8, 4) * BX, h2(i * 3 + 7, 3) * BY, 12 + h2(i * 3 + 10, 6) * 46, 1);\n  }\n  S.board = b; S.rkey = rkey;\n}\nnoStroke();\nimage(S.room, 0, 0, W, H);\nimage(S.board, cx - Rc * 1.34, yTop - u * .05, Rc * 2.68, Hd + u * .10);\n\nconst rot = md(pNow, 1) * TAU;\nconst NS = 64, XN = 0.985;\nconst dc = drawingContext;\ndc.save();\ndc.beginPath(); dc.rect(cx - Rc * XN - 1, yTop - 1, Rc * XN * 2 + 2, Hd + 2); dc.clip();\nfor (let j = 0; j < NS; j++) {\n  const xn0 = -XN + 2 * XN * j / NS, xn1 = -XN + 2 * XN * (j + 1) / NS;\n  const th0 = Math.asin(xn0) + rot, th1 = Math.asin(xn1) + rot;\n  const sx0 = cx + Rc * xn0, sw = Rc * (xn1 - xn0);\n  let u0 = md(th0 / TAU * PW, PW);\n  const du = (th1 - th0) / TAU * PW;\n  if (du <= 0.02) continue;\n  if (u0 + du <= PW) image(paper, u0, 0, du, PH, sx0, yTop, sw, Hd);\n  else {                              // slice straddles the paper seam: draw it in two parts\n    const d1 = PW - u0, f = d1 / du;\n    image(paper, u0, 0, d1, PH, sx0, yTop, sw * f, Hd);\n    image(paper, 0, 0, du - d1, PH, sx0 + sw * f, yTop, sw * (1 - f), Hd);\n  }\n}\n// cylindrical shading: limb darkening + a specular band that drifts on its own slow rate\nconst lit = 0.30 * Math.sin(K.t * 0.071) - 0.18;\nnoStroke();\nfor (let j = 0; j < NS; j++) {\n  const xn = -XN + 2 * XN * (j + .5) / NS, sx0 = cx - Rc * XN + (2 * Rc * XN) * j / NS, sw = 2 * Rc * XN / NS + 1;\n  const nz = Math.sqrt(Math.max(0, 1 - xn * xn));\n  const lam = clp(nz * Math.cos(Math.asin(xn) - lit), 0, 1);\n  fill(0, 0, 0, clp(64 * (1 - Math.pow(lam, .75)), 0, 78));\n  rect(sx0, yTop, sw, Hd);\n}\nblendMode(ADD);\nfor (let j = 0; j < NS; j++) {\n  const xn = -XN + 2 * XN * (j + .5) / NS, sx0 = cx - Rc * XN + (2 * Rc * XN) * j / NS, sw = 2 * Rc * XN / NS + 1;\n  const spec = Math.pow(clp(1 - Math.abs(Math.asin(xn) - lit) / .55, 0, 1), 2.4);\n  if (spec > 0.004) { fill(0, 0, 100, 16 * spec); rect(sx0, yTop, sw, Hd); }\n}\nblendMode(BLEND);\ndc.restore();\n\n// drum ends (the cylinder read) + spindle\nnoStroke();\nfill(CHH, st.chas[1] * .7, st.chas[2] * 1.5); ellipse(cx, yTop, Rc * 2 * XN, Rc * .30);\nfill(CHH, st.chas[1] * .9, st.chas[2] * .58); ellipse(cx, yTop + Hd, Rc * 2 * XN, Rc * .30);\nnoFill(); stroke(0, 0, 0, 46); strokeWeight(2); ellipse(cx, yTop + Hd, Rc * 2 * XN, Rc * .30);\nfill(CHH, st.chas[1] * .5, st.chas[2] * 1.8); noStroke();\nrect(cx - u * .008, yTop - u * .055, u * .016, u * .06);\nrect(cx - u * .008, yTop + Hd - u * .004, u * .016, u * .06);\n\n// hour labels + the time gutter beside the drum\ntextFont('Courier New'); textSize(clp(u * .0105, 6, 19)); textAlign(RIGHT, CENTER);\nconst curLine = md(Math.floor(pNow), NL);\nfor (let l = 0; l < NL; l++) {\n  const yy = yTop + (l + .5) / NL * Hd;\n  const age = md(curLine - l, NL);\n  noStroke(); fill(LBH, st.lbl[1], st.lbl[2], l === curLine ? 96 : 44);\n  const hh = md(Math.floor(pNow) - age, 24);\n  text(String(hh).padStart(2, '0') + ':00', cx - Rc * 1.40, yy);\n  if (l === curLine) { fill(md(st.rule[0] + hs, 360), 80, 90, 90); ellipse(cx - Rc * 1.36, yy, u * .006); }\n}\n\n// the stylus: arm + pen, riding the current line, translating down the drum\nconst penY = yTop + (curLine + .5) / NL * Hd;\nstroke(CHH, st.chas[1] * .4, st.chas[2] * 2.1, 92); strokeWeight(u * .0075);\nline(cx + Rc * 1.30, penY - u * .012, cx + Rc * .10, penY);\nstroke(CHH, st.chas[1] * .5, st.chas[2] * 1.3, 80); strokeWeight(u * .003);\nline(cx + Rc * 1.30, penY - u * .012, cx + Rc * .55, penY - u * .006);\nnoStroke(); fill(md(st.rule[0] + hs, 360), 74, 88, 96);\nellipse(cx + u * .004, penY, u * .010);\nfill(CHH, st.chas[1] * .3, st.chas[2] * 2.3); rect(cx + Rc * 1.28, penY - u * .03, u * .022, u * .048, 2);\n\n// placard\nnoStroke(); fill(LBH, st.lbl[1], st.lbl[2], 88); textAlign(LEFT, TOP); textSize(clp(u * .016, 8, 30));\ntext('HELICORDER  \u00b7  STA GKN  \u00b7  BHZ', u * .034, u * .030);\ntextSize(clp(u * .0105, 6, 19)); fill(LBH, st.lbl[1], st.lbl[2] * .82, 66);\ntext('GAIN ' + (en * 40 + 8).toFixed(0) + ' dB   ' + (REV * 60 / 3600).toFixed(3) + ' h/rev   ' + NL + ' LINES', u * .034, u * .052);\ntextAlign(RIGHT, TOP); fill(LBH, st.lbl[1], st.lbl[2] * .82, 66);\ntext(P.act.toUpperCase() + '   REV ' + String(Math.floor(pNow) % 10000).padStart(4, '0'), W - u * .034, u * .030);\n\nblendMode(BLEND);\ndc.shadowBlur = 0;\nif (P.alpha < 100) { noStroke(); fill(CHH, st.chas[1], st.chas[2] * .62, 100 - clp(P.alpha, 0, 100)); rect(0, 0, W, H); }\n"
+}

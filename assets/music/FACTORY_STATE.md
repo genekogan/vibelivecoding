@@ -1,8 +1,74 @@
-# Music Factory — resumable state (updated 2026-07-13, session-4 arc-audibility fix)
+# Music Factory — resumable state (updated 2026-07-17, session-5 wave-2 expansion)
 
 > This file is the build/session **log + resume state** (newest session first).
 > To learn how to **use / author / verify / grade** the music system, start at
 > **[`README.md`](README.md)** — the onboarding hub. This file is history.
+
+## SESSION 5 (2026-07-17 — WAVE-2: +300 STEMS / +88 KITS)
+
+Gene: expand ~200→500 stems, triple the kits; explore underrepresented genres/
+rhythms/instruments/valence-arousal AND exploit the space between existing
+assets; overindex EDM, disco/soul/groove, techno/house/trance, vibraphone/
+marimba, fusion; a small segment on post-fx/reverb/delay experimentation;
+parallelize to 6 subagents; **every clip must play before handoff**.
+
+**Result: 407 → ~700 stems · 44 → ~131 kits · 41 → 92 genres.** Six author
+agents × (50 stems + ~15 kits), ~25 min each, all six in parallel.
+
+| Agent | Beat | New genre tokens |
+|---|---|---|
+| 1 | EDM | dubstep futurebass synthwave bigroom electrohouse hardstyle midtempo complextro |
+| 2 | disco/soul/groove | soul funk boogie nudisco citypop gospel rnb njs ftouch |
+| 3 | techno/house/trance | deephouse melotech psytrance minimal hardtech proghouse |
+| 4 | mallets/fusion | vibes marimba fusion bossa ljazz kalimba |
+| 5 | exploration | dub dancehall baile jersey grime phonk cumbia raga celtic chip bigbeat boombap blues highlife klezmer kuduro |
+| 6 | fx-lab + hybrids | fxlab gran tape dubfx space + `fuse` (cross-breeds) |
+
+**Process that worked (reuse it):**
+- **Author agents never touch the server.** They write JSON to `inbox/` only;
+  the load-gated valloop validates serially. 6 agents authoring concurrently
+  never collided — 0 duplicate ids, 0 id collisions with the verified catalog,
+  0 JSON parse errors across 300 files.
+- **Kits stage OUTSIDE the inbox** (`scratchpad/wave2/kits_staged/agentN/`).
+  A kit hard-fails `validate_kit` until every member stem is `verified`, so
+  dropping 88 kits into the inbox alongside their stems would have quarantined
+  them all on a race. `scratchpad/wave2/kit_drainer.py` promotes each kit only
+  once all its members verify. **Keep this pattern for future waves.**
+- **Give each agent an explicit dedup step.** Agent 3's beat (techno/house/
+  trance) was the catalog's densest shelf; making it read every existing stem in
+  its genres before planning is why it produced new gestures instead of clones.
+
+**LEARNED (new this session):**
+- **Watch the right signal.** A monitor that only tailed `inbox_failed/` (the
+  *twice*-failed quarantine) reported "zero failures" through 5 real first-pass
+  failures. First-pass fails live in the valloop's `BATCH:`/`FAIL` log lines, not
+  in the quarantine dir. Silence from a narrow filter is not success.
+- **VCSL acoustic samples cluster right ON the 0.01 audibility gate**, so they
+  are the only real failure mode at scale: all 5 fails were vcsl (bodhran,
+  marimba, shaker, brushes, guacharaca) at rms .0056–.0090. Passing mallet
+  siblings clear it by only ~.002 (`lead.marimba.phase_pair` = .0117). 3 of 5
+  passed on automatic retry (load noise); 2 needed real rescues:
+  - **framedrum/bodhran → layer a low-passed `darbuka` body** underneath. This is
+    the documented rescue (`perc.world.framedrum_daf.01` passes at .07 = 7× gate)
+    and it's musically correct: the bodhran's low "dum" IS the boom.
+  - **a lone marimba voice cannot clear the gate** — double the cell an octave
+    down in unison (what `phase_pair` does with two voices).
+  - Watch for variants that **ignore their own `${gain}`** and play literal accent
+    patterns (`gain("[.62 .24 .34]*2")` averaged .40 against a .90 drums ceiling).
+- **Docs rot instantly at this scale.** README/AGENTS advertised "407 stems · 44
+  kits" while the index held 696. Fixed permanently:
+  **`python assets/tools/refresh_counts.py`** rewrites both count lines from
+  `index.jsonl` (`--check` exits 1 if stale). Run it after `build_index.py`.
+- `browse.html` and `INDEX.md` need no edits — both derive from `index.jsonl`.
+
+**Resume/finish:** `scratchpad/wave2/finisher.py` runs unattended — waits for the
+inbox+staged queue to drain, stops the valloop (verify_arcs needs the server
+exclusively), runs `verify_arcs.py --wait-load` over the 88 wave-2 kits
+(`scratchpad/wave2/new_kits.txt`), rebuilds the index, refreshes doc counts,
+commits, and writes `scratchpad/wave2/FINAL_REPORT.md`. It is deadline-bounded
+(6h) so a permanently-stuck stem can't block it forever.
+
+---
 
 ## SESSION 4 (2026-07-13 — KIT×ARC SECTION AUDIBILITY FIX)
 

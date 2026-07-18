@@ -1,0 +1,154 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.concrete",
+  "kind": "floor",
+  "name": "Concrete Slab",
+  "desc": "A worn cast slab running out to the horizon \u2014 sawcut control joints converging on the vanishing point, trowel swirl still in the float finish, a hairline crack net opening under load, oil soaked into the pour, and a hard raking wedge of light sweeping the whole floor.",
+  "tags": [
+    "concrete",
+    "cement",
+    "slab",
+    "pour",
+    "poured",
+    "floor",
+    "ground",
+    "plane",
+    "industrial",
+    "brutalist",
+    "warehouse",
+    "garage",
+    "raking",
+    "light",
+    "joint",
+    "sawcut",
+    "control-joint",
+    "crack",
+    "cracks",
+    "craze",
+    "trowel",
+    "float",
+    "aggregate",
+    "chip",
+    "spall",
+    "pitting",
+    "stain",
+    "oil",
+    "wear",
+    "worn",
+    "weathered",
+    "terrazzo",
+    "polished",
+    "wet",
+    "slick",
+    "puddle",
+    "reflective",
+    "blueprint",
+    "survey",
+    "schematic",
+    "grey",
+    "austere",
+    "clinical",
+    "material",
+    "texture",
+    "surface",
+    "perspective"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "wear": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1.4,
+      "doc": "cracks, stains, spalling and exposed aggregate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "joint spacing + perspective spread of the slab"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "raking-light and sheen amplitude"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "joint count + blowing grit"
+    },
+    "hue": {
+      "default": 214,
+      "min": 0,
+      "max": 360,
+      "doc": "concrete hue (214 = cold grey pour)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "scroll + light sweep rate"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 0.95,
+      "doc": "vanishing point x"
+    },
+    "y": {
+      "default": 0.46,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon line y"
+    },
+    "alpha": {
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "doc": "joint / crack / stain opacity"
+    },
+    "style": {
+      "default": "poured",
+      "options": [
+        "poured",
+        "wet",
+        "terrazzo",
+        "blueprint"
+      ],
+      "doc": "poured: raw cold pour, trowel swirl, oil stains \u00b7 wet: rain-slick \u2014 standing water, mirrored sheen, rings on the bass \u00b7 terrazzo: polished chip matrix with brass divider strips and a gloss pool \u00b7 blueprint: the slab as a construction survey \u2014 cyan sawcut grid and measured crack net on navy"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "haul",
+        "settle"
+      ],
+      "doc": "drift: steady scroll \u00b7 haul: the floor lurches forward on every kick \u00b7 settle: the slab almost stops, breathing very slowly"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed \u2014 same number, same piece"
+    }
+  },
+  "acts": [
+    "drift",
+    "haul",
+    "settle"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:16:06+00:00",
+    "fps": 59.9,
+    "motion": 0.008,
+    "lum": 0.261
+  },
+  "code": "const D = { wear: .55, scale: 1, energy: .6, density: .5, hue: 214, speed: 1, x: .5, y: .46, alpha: 1, style: 'poured', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst wear=cl(P.wear,0,1.4), sc=cl(P.scale,.4,2.4), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4);\nconst en=cl(P.energy,0,1)*(.5+.6*K.intensity);\nconst T=K.t*spd, H=md(P.hue,360);\nconst hz=cl(P.y,.26,.74)*Hh, cx=cl(P.x,.05,.95)*W, gH=Math.max(24,Hh-hz);\n\nS.bass=(S.bass||0)*.84+(A.bass||0)*.16;\nS.tre=(S.tre||0)*.84+(A.treble||0)*.16;\nconst kick=Math.min(1,K.pulse*(.5+.5*K.intensity)+S.bass*.7);\nconst glow=(.4+.6*cl(P.energy,0,1))*(.55+.55*K.intensity);\n\nconst wet=(sty==='wet'), terr=(sty==='terrazzo'), blue=(sty==='blueprint');\nconst yOf=t=>hz+Math.pow(cl(t,0,1),1.7)*gH;\nconst hwOf=t=>W*(.06+cl(t,0,1)*1.5)*.5*sc;\n\n// ---- scroll: integrate real seconds so the slab never re-phases ----\nif(S.pt==null||K.t<S.pt) S.pt=K.t;\nconst dt=cl(K.t-S.pt,0,.1); S.pt=K.t;\nlet sp=spd*(.42+.5*K.intensity);\nif(act==='haul') sp*=1.7+1.1*kick; else if(act==='settle') sp*=.30+.55*(.5+.5*Math.sin(T*.037));\nS.scroll=(S.scroll||0)+dt*sp*.28;\nconst scroll=S.scroll;\n\n// ---- the slab itself: graded pour + trowel swirl + aggregate (cached, below the horizon only)\nconst bkey=W+'x'+Hh+'|'+sty+'|'+P.seed+'|'+Math.round(H)+'|'+Math.round(P.y*24)+'|'+Math.round(sc*8)+'|'+Math.round(wear*5)+'|'+Math.round(dens*5);\nif(!S.base||S.bk!==bkey){\n  const g=(S.base&&S.base.width===W&&S.base.height===Hh)?S.base:createGraphics(W,Hh);\n  g.colorMode(HSB,360,100,100,100); g.clear(); g.noStroke();\n  const STR=54;\n  for(let i=0;i<STR;i++){ const t=i/STR, y=yOf(t), y2=yOf((i+1)/STR); let h,s,b;\n    if(blue){ h=md(H+6,360); s=62; b=9+9*t; }\n    else if(terr){ h=md(H+150,360); s=6; b=44+26*Math.pow(t,1.1); }\n    else if(wet){ h=H; s=14-6*t; b=15+30*Math.pow(t,1.3); }\n    else { h=H; s=9-3*t; b=30+30*Math.pow(t,1.15); }\n    g.fill(h,s,cl(b,3,92),100); g.rect(0,y-1,W,(y2-y)+2); }\n  // trowel swirl: broad arcs the float left in the wet pour\n  if(!blue){ g.noFill();\n    for(let i=0;i<Math.round(22+dens*22);i++){ const t=.06+fr(i*7)*.94, y=yOf(t), hw=hwOf(t);\n      const rr=hw*(.10+fr(i*7+1)*.5), a0=fr(i*7+2)*TAU;\n      g.strokeWeight(Math.max(1,gH*.004*t)); g.stroke(H,terr?4:8,fr(i*7+3)>.5?(terr?92:74):(terr?30:26),terr?9:13);\n      g.arc(cx+(fr(i*7+4)*2-1)*hw, y, rr*2, rr*2*.30, a0, a0+1.4+fr(i*7+5)*2.4); }\n    g.noStroke(); }\n  // aggregate: the stone in the mix, exposed by wear\n  const NA=Math.round((terr?520:260)+wear*340+dens*160);\n  for(let i=0;i<NA;i++){ const t=.06+Math.pow(fr(i*3),.7)*.94, y=yOf(t), hw=hwOf(t);\n    const x=cx+(fr(i*3+1)*2-1)*hw, sz=gH*(terr?.010:.004)*(.3+t*1.5)*(1+fr(i*3+2));\n    if(blue){ g.fill(md(H+4,360),50,60,10); }\n    else if(terr){ const hh=[md(H+150,360),md(H+16,360),md(H+186,360),md(H+66,360)][i&3];\n      g.fill(hh, fr(i*3+3)>.62?46:9, 34+fr(i*3+4)*58, 62); }\n    else { g.fill(H, 7, fr(i*3+3)>.5?(58+fr(i*3+4)*30):(16+fr(i*3+4)*16), 30+fr(i*3+5)*34); }\n    g.push(); g.translate(x,y); g.rotate(fr(i*3+5)*TAU); g.ellipse(0,0,sz*2.1,sz*1.2); g.pop(); }\n  // pitting / spall scars\n  if(!blue){ const NP=Math.round(wear*46);\n    for(let i=0;i<NP;i++){ const t=.14+fr(i*11)*.86, y=yOf(t), hw=hwOf(t);\n      const x=cx+(fr(i*11+1)*2-1)*hw, sz=gH*.008*t*(1+fr(i*11+2)*2.4);\n      g.fill(H,10,14,44); g.ellipse(x,y,sz*2.4,sz*1.2);\n      g.fill(H,5,86,26); g.ellipse(x,y-sz*.42,sz*2.0,sz*.6); } }\n  // horizon haze where the slab runs out of light\n  g.push(); g.blendMode(BLEND);\n  for(let i=0;i<8;i++){ const r=(8-i)*gH*.035;\n    g.fill(blue?md(H+6,360):H, blue?54:12, blue?10:(wet?16:30), 9);\n    g.rect(0,hz-r*.10,W,r); }\n  g.pop();\n  S.base=g; S.bk=bkey; }\nimage(S.base,0,0);\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\ndc.save(); dc.beginPath(); dc.rect(0,hz-1,W,Hh-hz+1); dc.clip();\n\n// ---- longitudinal control joints: sawcuts converging on the vanishing point ----\nconst NJ=Math.round(3+dens*7);\nstrokeCap(SQUARE);\nfor(let k=0;k<=NJ;k++){\n  const s=(k-NJ/2)*(2.1/NJ);\n  const x0=cx+s*hwOf(.02), x1=cx+s*hwOf(1);\n  strokeWeight(Math.max(1,gH*(blue?.004:.006)));\n  stroke(blue?md(H+2,360):H, blue?40:8, blue?70:(terr?96:14), blue?52:(terr?60:60)*al);\n  line(x0,yOf(.02),x1,yOf(1));\n  if(!blue){ strokeWeight(Math.max(1,gH*.0025)); stroke(H,4,terr?40:80,26*al);\n    line(x0+2,yOf(.02),x1+gH*.012,yOf(1)); }\n}\n\n// ---- transverse joints scrolling toward the viewer ----\nconst NR=Math.round(5+dens*9);\nfor(let r=0;r<=NR+1;r++){\n  const t=(r-(scroll%1))/NR; if(t<=.012||t>1) continue;\n  const y=yOf(t), hw=hwOf(t);\n  strokeWeight(Math.max(1,gH*(blue?.0035:.007)*(.2+t)));\n  stroke(blue?md(H+2,360):H, blue?40:8, blue?72:(terr?96:13), (blue?54:64)*al*(.35+.7*t));\n  line(cx-hw,y,cx+hw,y);\n  if(!blue){ strokeWeight(Math.max(1,gH*.003*(.2+t))); stroke(H,4,terr?46:82,(22+16*t)*al);\n    line(cx-hw,y-gH*.004*t,cx+hw,y-gH*.004*t); }\n}\n\n// ---- the crack network: hairlines opened by frost and load ----\nconst NCK=Math.round(4+wear*24);\nnoFill();\nfor(let i=0;i<NCK;i++){\n  let s=(fr(i*13)*2-1)*1.05, t=((fr(i*13+1)-scroll*.62)%1+1)%1;\n  if(t<.05) continue;\n  const dirS=(fr(i*13+2)-.5)*1.5, dirT=(fr(i*13+3)-.5)*.5;\n  strokeWeight(Math.max(.8,gH*.0035*t*(.4+wear)));\n  stroke(blue?md(H+4,360):H, blue?46:6, blue?78:10, (blue?46:70)*al*(.3+.7*t));\n  beginShape();\n  for(let k=0;k<=8;k++){\n    const f=k/8;\n    const ss=s+dirS*f*.5+Math.sin(f*7+i)*.05, tt=cl(t+dirT*f*.28,.02,1);\n    vertex(cx+ss*hwOf(tt), yOf(tt));\n  }\n  endShape();\n  if(fr(i*13+4)>.55){ // a branch splits off it\n    strokeWeight(Math.max(.7,gH*.0022*t)); beginShape();\n    for(let k=0;k<=5;k++){ const f=k/5;\n      const ss=s+dirS*.25+(fr(i*13+5)-.5)*f*.7, tt=cl(t+dirT*.14+f*.10,.02,1);\n      vertex(cx+ss*hwOf(tt), yOf(tt)); }\n    endShape(); }\n}\nnoStroke();\n\n// ---- oil, water and rust staining soaked into the pour ----\nif(!blue){\n  dc.globalCompositeOperation='multiply';\n  const NST=Math.round(2+wear*9);\n  for(let i=0;i<NST;i++){\n    const s=(fr(i*17)*2-1)*.95, t=((fr(i*17+1)-scroll*.62)%1+1)%1; if(t<.06) continue;\n    const y=yOf(t), hw=hwOf(t), x=cx+s*hw;\n    const rr=gH*(.03+fr(i*17+2)*.14)*t*(.5+wear);\n    const hh=[md(H+2,360),md(H+150,360),md(H-190,360)][i%3];\n    const rg=dc.createRadialGradient(x,y,0,x,y,Math.max(2,rr*1.6));\n    rg.addColorStop(0,'rgba(20,22,26,'+(0.42*al).toFixed(3)+')');\n    rg.addColorStop(.6,'rgba(46,44,40,'+(0.16*al).toFixed(3)+')');\n    rg.addColorStop(1,'rgba(255,255,255,0)');\n    dc.fillStyle=rg; dc.beginPath(); dc.ellipse(x,y,rr*1.7,rr*.6,0,0,TAU); dc.fill();\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- wet slab: standing water, mirrored sheen and rings on the bass ----\nif(wet){\n  dc.globalCompositeOperation='lighter';\n  const NPD=Math.round(3+dens*7);\n  for(let i=0;i<NPD;i++){\n    const s=(fr(i*19)*2-1)*.9, t=((fr(i*19+1)-scroll*.62)%1+1)%1; if(t<.08) continue;\n    const y=yOf(t), hw=hwOf(t), x=cx+s*hw, rr=gH*(.04+fr(i*19+2)*.13)*t;\n    const lg=dc.createLinearGradient(x,y-rr*.6,x,y+rr*.6);\n    lg.addColorStop(0,'rgba(255,255,255,0)');\n    lg.addColorStop(.5,'rgba(180,215,255,'+(0.10*glow*al).toFixed(3)+')');\n    lg.addColorStop(1,'rgba(255,255,255,0)');\n    dc.fillStyle=lg; dc.beginPath(); dc.ellipse(x,y,rr*2,rr*.62,0,0,TAU); dc.fill();\n    const ph=((T*.5+fr(i*19+3))%1);\n    dc.strokeStyle='rgba(200,228,255,'+(0.22*(1-ph)*glow*al*(.3+kick)).toFixed(3)+')';\n    dc.lineWidth=Math.max(1,gH*.002);\n    dc.beginPath(); dc.ellipse(x,y,rr*2*ph,rr*.62*ph,0,0,TAU); dc.stroke();\n  }\n  dc.globalCompositeOperation=oldOp;\n}\n\n// ---- the raking light: a hard wedge from the vanishing point sweeping the slab ----\ndc.globalCompositeOperation='lighter';\nconst th=Math.sin(T*.043)*1.12+.34*Math.sin(T*.11)+.18*Math.sin(T*.0233);\nconst LL=(gH*3+W);\nfor(let i=0;i<3;i++){\n  const dw=(.30-i*.085)*(1+.25*Math.sin(T*.067));\n  const a1=th-dw, a2=th+dw;\n  const c=blue?'rgba(120,200,255,':'rgba(255,246,226,';\n  fill(0,0,0,0);\n  dc.fillStyle=c+((0.014+0.026*glow)*al).toFixed(4)+')';\n  dc.beginPath(); dc.moveTo(cx,hz);\n  dc.lineTo(cx+Math.sin(a1)*LL, hz+Math.cos(a1)*LL);\n  dc.lineTo(cx+Math.sin(a2)*LL, hz+Math.cos(a2)*LL);\n  dc.closePath(); dc.fill();\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- grit blowing across the slab ----\ndc.globalCompositeOperation=blue?'source-over':'lighter';\nconst NG=Math.round(24+dens*54);\nnoStroke();\nfor(let i=0;i<NG;i++){\n  const t=.10+fr(i*23)*.90, y=yOf(t), hw=hwOf(t);\n  const lane=fr(i*23+1);\n  const s=((lane+(scroll*.6+T*.05)*(.3+.7*fr(i*23+2)))%1)*2-1;\n  const x=cx+s*hw;\n  fill(blue?md(H+4,360):H, blue?30:6, blue?80:96, Math.min(40,(6+26*t)*(.4+.9*glow)*al));\n  ellipse(x, y+Math.sin(T*1.1+i)*gH*.005*t, gH*.0035*(.4+t*2.4)*(1+.5*S.tre), gH*.0025*(.4+t*1.6));\n}\ndc.globalCompositeOperation=oldOp;\n\n// ---- polish: the slab keeps a low sheen right where the light lands ----\nif(terr||wet){\n  dc.globalCompositeOperation='lighter';\n  const sx=cx+Math.sin(th)*gH*1.1, sy=hz+gH*.72;\n  const rr=gH*(.5+.12*Math.sin(T*.053));\n  const rg=dc.createRadialGradient(sx,sy,0,sx,sy,rr);\n  rg.addColorStop(0,'rgba(255,250,238,'+(0.05*glow*al).toFixed(4)+')');\n  rg.addColorStop(1,'rgba(255,250,238,0)');\n  dc.fillStyle=rg; dc.fillRect(sx-rr,sy-rr,rr*2,rr*2);\n  dc.globalCompositeOperation=oldOp;\n}\n\ndc.restore();\nblendMode(BLEND); dc.globalCompositeOperation=oldOp; dc.globalAlpha=1; dc.shadowBlur=0; noStroke(); noTint();\n"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.sandstorm",
+  "kind": "fx",
+  "name": "Sandstorm",
+  "desc": "Wind-driven grit blowing across the frame \u2014 wind-stretched dust sheets scroll in parallax at three depths while saltating grains hop and streak downwind, and a soft gust front sweeps through every so often and briefly swallows the scene; set wind negative to blow the other way.",
+  "tags": [
+    "sandstorm",
+    "sand",
+    "dust",
+    "grit",
+    "haboob",
+    "duststorm",
+    "wind",
+    "windy",
+    "gust",
+    "blowing",
+    "desert",
+    "arid",
+    "dune",
+    "sahara",
+    "harmattan",
+    "sirocco",
+    "dust bowl",
+    "sepia",
+    "ochre",
+    "grain",
+    "streaks",
+    "parallax",
+    "occlusion",
+    "weather",
+    "harsh",
+    "austere",
+    "desolate",
+    "atmosphere",
+    "overlay"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "storm force \u2014 sheet opacity, streak length, gust punch"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.05,
+      "max": 1,
+      "doc": "grain count + how tightly the storm hugs the core"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 4,
+      "doc": "scroll + gust rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "sheet + grain size vs design size"
+    },
+    "wind": {
+      "default": 0.6,
+      "min": -1,
+      "max": 1,
+      "doc": "wind direction and strength (negative blows left)"
+    },
+    "alpha": {
+      "default": 0.55,
+      "min": 0.05,
+      "max": 1,
+      "doc": "overlay opacity \u2014 drop toward 0.2 to keep the scene readable through it"
+    },
+    "hue": {
+      "default": 34,
+      "min": 0,
+      "max": 360,
+      "doc": "sand hue (34 ochre, 14 rust/mars, 48 pale dune)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "storm core X \u2014 grains thin out away from it"
+    },
+    "y": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "storm core Y \u2014 push to 0.9 for a ground-hugging blow"
+    },
+    "style": {
+      "default": "grit",
+      "options": [
+        "grit",
+        "dust_bowl",
+        "schlieren",
+        "mica"
+      ],
+      "doc": "aesthetic: hard ridged ochre grit in harsh sun / soft near-monochrome sepia mass, heavy occlusion / airflow as a banded schlieren density field, no grains at all / dark quartz grains throwing hard specular glints"
+    },
+    "act": {
+      "default": "blow",
+      "options": [
+        "blow",
+        "gusting",
+        "whiteout"
+      ],
+      "doc": "dramaturgy: steady blow / fronts pulse hard with the musical arc / slowly builds to near-total occlusion and clears again"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "turbulence field + grain layout"
+    }
+  },
+  "acts": [
+    "blow",
+    "gusting",
+    "whiteout"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:04:05+00:00",
+    "fps": 60.2,
+    "motion": 0.1135,
+    "lum": 0.085
+  },
+  "code": "const D = { energy:.55, density:.5, speed:1, scale:1, wind:.6, alpha:.55, hue:34, x:.5, y:.55, style:'grit', act:'blow', seed:0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp=(v,a,b)=>Math.max(a,Math.min(b,v));\nconst lrp=(a,b,t)=>a+(b-a)*t;\nconst md=(a,n)=>((a%n)+n)%n;\nconst frc=v=>v-Math.floor(v);\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nconst hsb2=(h,s,v)=>{h=md(h,360)/60;s=clp(s,0,1);v=clp(v,0,1);const c=v*s,x=c*(1-Math.abs(h%2-1)),m=v-c;let r=0,g2=0,b=0;\n  if(h<1){r=c;g2=x;}else if(h<2){r=x;g2=c;}else if(h<3){g2=c;b=x;}else if(h<4){g2=x;b=c;}else if(h<5){r=x;b=c;}else{r=c;b=x;}\n  return [(r+m)*255,(g2+m)*255,(b+m)*255];};\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst H=md(P.hue,360);\nconst st=P.style, act=P.act||'blow';\nconst isBowl=st==='dust_bowl', isSch=st==='schlieren', isMica=st==='mica';\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\n// ---- cached wind-stretched turbulence sheet (tiles in x) ----\nconst key=W+'x'+Hh+'|'+P.seed+'|'+st;\nif(!S.sh||S.key!==key){\n  const bw=Math.max(360,Math.min(720,Math.round(W/2.4))), bh=Math.max(80,Math.round(bw*Hh/W*1.3));\n  if(!S.sh||S.bw!==bw||S.bh!==bh){ S.sh=createGraphics(bw,bh); S.sh.pixelDensity(1); S.bw=bw; S.bh=bh; }\n  const g=S.sh;\n  const FX=[1,2,3,5,8], FY=[2.3,5.1,9.7,17.3,29.1];\n  const PH=[fr(1)*6.283,fr(2)*6.283,fr(3)*6.283,fr(4)*6.283,fr(5)*6.283];\n  g.loadPixels();\n  for(let yy=0;yy<bh;yy++){\n    for(let xx=0;xx<bw;xx++){\n      const ux=xx/bw, vy=yy/bh;\n      let v=0, amp=1, tot=0;\n      for(let o=0;o<5;o++){\n        const s1=Math.sin(6.283*FX[o]*ux+6.283*FY[o]*vy+PH[o]);\n        v+=amp*(isBowl?s1:Math.abs(s1)*2-1); // ridged = filamentary sand; smooth = soft dust-bowl mass\n        tot+=amp; amp*=0.56;\n      }\n      v=v/tot*0.5+0.5;\n      let a,col;\n      if(isSch){ const bnd=frc(v*7); a=Math.pow(Math.abs(bnd*2-1),2.2)*205; col=hsb2(md(H+180,360),0.10,lrp(0.34,0.96,v)); }\n      else if(isMica){ a=Math.pow(clp(v,0,1),3.2)*160; col=hsb2(md(H+lrp(-8,14,v),360),lrp(0.30,0.06,v),lrp(0.42,1,v)); }\n      else if(isBowl){ a=Math.pow(clp(v,0,1),1.15)*228; col=hsb2(md(H+lrp(-4,8,v),360),lrp(0.26,0.12,v),lrp(0.30,0.86,v)); }\n      else { a=Math.pow(clp(v,0,1),1.7)*212; col=hsb2(md(H+lrp(-10,16,v),360),lrp(0.52,0.20,v),lrp(0.36,1,v)); }\n      const p=4*(yy*bw+xx);\n      g.pixels[p]=col[0]; g.pixels[p+1]=col[1]; g.pixels[p+2]=col[2]; g.pixels[p+3]=a;\n    }\n  }\n  g.updatePixels();\n  S.key=key;\n}\n\n// ---- storm state ----\nlet envA=1, envG=1;\nif(act==='gusting'){ envA=0.68+0.9*K.intensity; envG=1.9; }\nelse if(act==='whiteout'){ envA=0.85+1.0*Math.pow(clp(0.5+0.5*Math.sin(K.t*0.037),0,1),1.5); envG=1.2; }\nconst en=clp(P.energy,0,1), dn=clp(P.density,0,1), al=clp(P.alpha,0,1);\n// incommensurate real-time gust envelope \u2014 never re-phases on the 8s gate\nconst gust=0.54+0.28*Math.sin(K.t*0.157*P.speed)+0.16*Math.sin(K.t*0.383*P.speed+2.1)+0.10*Math.sin(K.t*0.071*P.speed+0.9);\nconst wd=P.wind, ws=(Math.abs(wd)*0.85+0.15)*P.speed;\nconst sgn=wd<0?-1:1;\nconst cx=P.x*W, cy=P.y*Hh;\n\n// ---- parallax dust sheets (each blitted twice to wrap in x) ----\nconst NL=3;\nfor(let l=0;l<NL;l++){\n  const dep=l/(NL-1||1);\n  const sc=(sgn*lrp(0.030,0.115,dep)*ws + (l===1?-0.011:l===2?0.007:0.014)); // layers slide against each other even at wind 0\n  const off=frc(K.t*sc + fr(l*3+40));\n  const dh=Hh*1.3, oy=-Hh*0.15 + Math.sin(K.t*(0.043+l*0.029)+fr(l+9)*6.283)*Hh*0.06;\n  const sw=W*lrp(1.35,0.85,dep)*clp(P.scale,0.3,2.4);\n  const ox=-off*sw;\n  const la=(isSch?0.34:isMica?0.30:0.46)*al*envA*gust*(0.42+0.95*en)*lrp(0.55,1.15,dep)*(1+A.rms*0.5);\n  if(la<0.01) continue;\n  tint(0,0,100,clp(la,0,1)*100);\n  image(S.sh, ox, oy, sw, dh);\n  image(S.sh, ox+sw, oy, sw, dh);\n  if(ox+sw*2 < W) image(S.sh, ox+sw*2, oy, sw, dh);\n  noTint();\n}\n\n// ---- travelling gust front (big soft density wave sweeping through) ----\n{\n  const gp=frc(K.t*0.083*ws*envG+fr(77))*1.5-0.25;\n  const gx=(sgn>0?gp:1-gp)*W, gw=W*lrp(0.16,0.52,gust)*clp(P.scale,0.3,2.4);\n  const gc=hsb2(isSch?md(H+180,360):md(H+6,360), isSch?0.08:isBowl?0.18:0.40, isSch?0.78:0.86);\n  const ga=clp(0.30*al*envA*(0.3+en)*envG*(0.5+0.5*gust),0,0.62);\n  const gr=drawingContext.createLinearGradient(gx-gw,0,gx+gw,0);\n  gr.addColorStop(0,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+',0)');\n  gr.addColorStop(0.5,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+','+ga.toFixed(3)+')');\n  gr.addColorStop(1,'rgba('+(gc[0]|0)+','+(gc[1]|0)+','+(gc[2]|0)+',0)');\n  drawingContext.fillStyle=gr;\n  drawingContext.fillRect(Math.max(0,gx-gw),0,Math.min(W,gw*2),Hh);\n}\n\n// ---- saltating grains streaking downwind ----\nif(!isSch){\n  const ng=Math.round(lrp(40,230,dn));\n  for(let i=0;i<ng;i++){\n    const dep=fr(i*3+2);\n    const spd=lrp(0.10,0.46,dep)*ws*3.2;\n    const lane=fr(i*3+1);\n    let gy=lane*Hh*1.1-Hh*0.05;\n    gy+=Math.sin(K.t*(0.9+dep*2.4)+fr(i*3+5)*6.283)*u*0.012*(0.4+en); // saltation hop\n    const fall=clp(1-Math.abs(gy-cy)/(Hh*lrp(0.95,0.42,dn)),0.08,1);\n    const gx=(frc(fr(i*3+3)+K.t*spd*sgn)*1.2-0.1)*W;\n    const lat=clp(1-Math.abs(gx-cx)/(W*1.1),0.15,1);\n    const ln=u*lrp(0.006,0.055,dep)*(0.35+en*1.5)*clp(P.scale,0.3,2.4)*(0.4+Math.abs(wd));\n    const aa=al*envA*gust*fall*lat*lrp(0.30,0.95,dep)*(isMica?1.15:0.85);\n    if(aa<0.03) continue;\n    if(isMica){\n      const tw=Math.pow(0.5+0.5*Math.sin(K.t*(2.1+dep*4.7)+fr(i*7+3)*6.283),3);\n      noStroke(); fill(md(H+lrp(-6,20,tw),360),lrp(24,4,tw),lrp(58,100,tw),(24+70*tw)*aa);\n      circle(gx,gy,u*0.0035*clp(P.scale,0.3,2.4)*(0.6+dep*1.4)*(1+tw*1.3));\n      stroke(md(H+10,360),8,100,52*tw*aa); strokeWeight(Math.max(0.4,u*0.0009));\n      line(gx-ln*0.4*tw,gy,gx+ln*0.4*tw,gy); noStroke();\n    } else {\n      stroke(md(H+lrp(-8,14,dep),360), isBowl?lrp(22,8,dep):lrp(48,18,dep), lrp(52,100,dep), (26+58*dep)*aa);\n      strokeWeight(Math.max(0.4,lrp(0.5,2.0,dep)*clp(P.scale,0.3,2.4)));\n      line(gx,gy,gx-sgn*ln,gy+ln*0.13);\n    }\n  }\n}\n\nblendMode(BLEND); drawingContext.shadowBlur=0; noTint();\n"
+}

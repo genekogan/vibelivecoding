@@ -1,0 +1,159 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.whispering_gallery",
+  "kind": "genart",
+  "name": "Whispering Gallery",
+  "desc": "A wave caught circling the inside of a resonator, grazing the rim at every bounce and never quite escaping \u2014 the field piles into a necklace of azimuthal lobes hugging the wall, ripples inward through its radial orders and leaks a faint evanescent breath out beyond the edge; the mode beats slowly around as its counter-propagating twin interferes, the rim breathes with thermal expansion, and deforming the cavity into a quadrupole or limacon sends the whole ray dynamics chaotic.",
+  "tags": [
+    "whispering-gallery",
+    "wgm",
+    "resonator",
+    "microresonator",
+    "microcavity",
+    "cavity",
+    "mode",
+    "modes",
+    "eigenmode",
+    "standing-wave",
+    "total-internal-reflection",
+    "caustic",
+    "airy",
+    "bessel",
+    "evanescent",
+    "photonics",
+    "optics",
+    "acoustics",
+    "acoustic",
+    "ring",
+    "annulus",
+    "lobes",
+    "rim",
+    "dome",
+    "gallery",
+    "cathedral",
+    "resonance",
+    "beating",
+    "mode-splitting",
+    "chaos",
+    "quadrupole",
+    "limacon",
+    "stadium",
+    "physics",
+    "scientific",
+    "laboratory",
+    "clinical",
+    "austere",
+    "sacred",
+    "sublime",
+    "ink",
+    "sumi",
+    "ironbow",
+    "thermal",
+    "blueprint",
+    "bg",
+    "genart",
+    "abstract"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pump power \u2014 how hard the mode is driven and how far the faint orders print (master knob)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.6,
+      "doc": "resonator radius against the frame"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "mode beat rate, rim breathing and cavity precession"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "radial order richness \u2014 how many radial fringes ripple inward from the rim \u2014 and their confinement depth"
+    },
+    "order": {
+      "default": 22,
+      "min": 3,
+      "max": 60,
+      "doc": "azimuthal mode number m: the rim carries 2m lobes (auto-capped to what the rim can resolve)"
+    },
+    "deform": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "cavity deformation \u2014 past a circle the ray dynamics go chaotic and the modes scar"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "mode colour (190 = cold photonic; try 40 for a warm stone dome)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cavity centre x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cavity centre y"
+    },
+    "shape": {
+      "default": "circle",
+      "options": [
+        "circle",
+        "quadrupole",
+        "limacon",
+        "stadium"
+      ],
+      "doc": "cavity boundary"
+    },
+    "style": {
+      "default": "resonator",
+      "options": [
+        "resonator",
+        "gallery",
+        "ink",
+        "ironbow",
+        "blueprint"
+      ],
+      "doc": "aesthetic"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "seed \u2014 mount angle, beat phase, substrate grain"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:07:32+00:00",
+    "fps": 60.6,
+    "motion": 0.0459,
+    "lum": 0.249
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, order: 22, deform: .3, hue: 190, x: .5, y: .5, shape: 'circle', style: 'resonator', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst BW = 200, BH = Math.max(60, Math.round(BW * height / width));\nif (!S.g || S.bw !== BW || S.bh !== BH) { S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH; }\nif (S.seedUsed !== P.seed) { S.seedUsed = P.seed;\n  const fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\n  S.p1 = fr(1) * 6.283; S.p2 = fr(2) * 6.283; S.a0 = fr(3) * 6.283; S.gof = fr(4) * 971;\n}\n\n// ---- Airy LUT. A whispering-gallery mode lives at the caustic turning point of\n// J_m(kr), and near a turning point the Bessel function IS an Airy function:\n// oscillatory inside the rim, evanescent outside it. That is the whole picture.\nconst NL = 1024, X0 = -16, X1 = 4, dxL = (X1 - X0) / (NL - 1);\nif (!S.ai) {\n  const Ai = x => {\n    if (x > 4) { const z = (2 / 3) * Math.pow(x, 1.5); return Math.exp(-z) / (2 * Math.sqrt(Math.PI) * Math.pow(x, 0.25)); }\n    if (x < -4) { const y = -x, z = (2 / 3) * Math.pow(y, 1.5); return Math.sin(z + Math.PI / 4) / (Math.sqrt(Math.PI) * Math.pow(y, 0.25)); }\n    // series solution of y'' = x*y from Ai(0), Ai'(0)\n    const x3 = x * x * x;\n    let p0 = 0.355028053887817, p1 = -0.258819403792807 * x, s = p0 + p1;\n    for (let n = 0; n < 26; n++) {\n      const q0 = p0 * x3 / ((3 * n + 3) * (3 * n + 2));\n      const q1 = p1 * x3 / ((3 * n + 4) * (3 * n + 3));\n      s += q0 + q1; p0 = q0; p1 = q1;\n      if (Math.abs(q0) + Math.abs(q1) < 1e-14) break;\n    }\n    return s;\n  };\n  S.ai = new Float32Array(NL);\n  for (let i = 0; i < NL; i++) S.ai[i] = Ai(X0 + i * dxL);\n}\nconst aiL = (x) => { let ix = (x - X0) / dxL; if (ix < 0) ix = 0; if (ix > NL - 1.001) ix = NL - 1.001;\n  const i0 = ix | 0, f = ix - i0; return S.ai[i0] + (S.ai[i0 + 1] - S.ai[i0]) * f; };\n\nconst sp = P.speed, style = P.style, u = Math.min(BW, BH);\nconst cx = P.x * BW, cy = P.y * BH;\nconst a0 = u * (0.30 + P.scale * 0.16) * (1 + 0.055 * Math.sin(K.t * 0.089 * sp + S.p1) + 0.028 * Math.sin(K.t * 0.191 * sp + 1.3));  // rim radius, breathing thermally\n// azimuthal order, band-limited: 2m lobes must not outrun the rim's pixel budget\nconst mReq = Math.max(3, Math.round(P.order));\nconst mMax = Math.max(3, Math.floor(Math.PI * a0 / 2.6));\nconst m = Math.min(mReq, mMax);\nconst ks = (0.15 + P.density * 0.26) * (1.7 / (0.6 + P.scale * 0.75));   // radial fringe scale\nconst eps = P.deform * (0.10 + 0.035 * Math.sin(K.t * 0.047 * sp + S.p1));\n// two incommensurate rotations + the standing pattern beating round from\n// backscatter-induced mode splitting (real in a microresonator)\nconst rot = S.a0 + K.t * 0.029 * sp + 0.30 * Math.sin(K.t * 0.0171 * sp + S.p2);\nconst beat = K.t * 0.52 * sp * (0.4 + P.density * 0.5) + 1.1 * Math.sin(K.t * 0.037 * sp + S.p2);\nconst Ldec = a0 * (0.20 + P.density * 0.5);           // inward confinement depth\nconst expo = (0.5 + P.energy * 1.1) * (0.85 + K.intensity * 0.2 + A.rms * 0.35);\n// partial standing wave: a perfect standing mode rotating is 2m lobes strobing past\n// every pixel. Real cavities only partly couple the counter-propagating mode.\nconst vmod = 0.62;\nconst lp = P.hue / 360;\nconst mc = [0.5 + 0.5 * Math.cos(6.283 * lp), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.66)), 0.5 + 0.5 * Math.cos(6.283 * (lp + 0.33))];\nconst shp = P.shape;\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j = 0; j < BH; j++) {\n  for (let i = 0; i < BW; i++) {\n    const dx = i + 0.5 - cx, dy = j + 0.5 - cy;\n    const r = Math.sqrt(dx * dx + dy * dy), ph = Math.atan2(dy, dx) - rot;\n    // the cavity boundary \u2014 deforming it is what turns the ray dynamics chaotic\n    let rc = a0;\n    if (shp === 'quadrupole') rc = a0 * (1 + eps * Math.cos(2 * ph));\n    else if (shp === 'limacon') rc = a0 * (1 + eps * Math.cos(ph));\n    else if (shp === 'stadium') rc = a0 * (1 + eps * (Math.abs(Math.cos(ph)) - 0.4));\n    const arg = (r - rc) * ks;\n    const av = aiL(arg);\n    // band-limit: Ai(-y) oscillates ever faster inward (phase ~ y^3/2), so the\n    // fringes would alias. This envelope is also the mode's radial confinement.\n    const cpp = Math.sqrt(Math.abs(arg)) * ks / 6.283185;\n    const val = Math.exp(-(cpp / 0.42) * (cpp / 0.42));\n    const conf = r < rc ? Math.exp(-(rc - r) / Ldec) : 1;\n    let ang = 1 - vmod + vmod * Math.pow(Math.cos(m * ph + beat), 2);\n    let I = av * av * val * conf * ang * 5.2;\n    const v = 1 - Math.exp(-Math.max(0, I) * expo);\n    // substrate texture so the frame is never a bright ring on dead black\n    let hg = Math.sin((i * 12.9898 + j * 78.233 + S.gof) * 43758.5453); hg -= Math.floor(hg);\n    let hg2 = Math.sin((i * 39.34 + j * 11.13 + S.gof * 2.1) * 24634.63); hg2 -= Math.floor(hg2);\n    const sub = 0.105 + hg * 0.06 + hg2 * 0.035 + 0.075 * Math.exp(-Math.pow((r - rc) / (a0 * 0.9), 2));\n    let R, G2, B;\n    if (style === 'ironbow') { const w = 0.14 + Math.min(1, v + sub * 0.7) * 0.74;\n      R = Math.min(1, w * 1.5 + 0.04); G2 = Math.max(0, Math.min(1, w * 1.22 - 0.30)); B = Math.max(0, Math.min(1, w * 1.55 + 0.02 - Math.max(0, w - 0.5) * 1.95));\n    } else if (style === 'blueprint') { const bd = Math.abs((v * 4.5) % 1 - 0.5), line = bd > 0.42 ? 1 : 0;\n      R = 0.04 + v * 0.05 + line * 0.30 + sub * 0.16; G2 = 0.09 + v * 0.10 + line * 0.58 + sub * 0.30; B = 0.20 + v * 0.13 + line * 0.72 + sub * 0.42;\n    } else if (style === 'ink') { const w = Math.min(1, v * 0.86 + sub * 0.9);\n      R = 0.10 + w * 0.46; G2 = 0.10 + w * 0.45; B = 0.115 + w * 0.43;\n    } else if (style === 'gallery') {                  // warm stone dome: sound hugging the wall\n      R = sub * 1.9 + v * 0.98; G2 = sub * 1.55 + v * 0.80; B = sub * 1.15 + v * 0.52;\n    } else {                                           // resonator \u2014 a photonic microcavity\n      R = sub * 0.7 + mc[0] * v * 1.15; G2 = sub * 1.05 + mc[1] * v * 1.15; B = sub * 1.7 + mc[2] * v * 1.15;\n    }\n    const o = 4 * (j * BW + i);\n    px[o] = Math.min(255, R * 255); px[o + 1] = Math.min(255, G2 * 255); px[o + 2] = Math.min(255, B * 255); px[o + 3] = 255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\n"
+}

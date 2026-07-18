@@ -1,0 +1,174 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.steppe",
+  "kind": "world",
+  "name": "Steppe",
+  "desc": "A grass sea under a supercell \u2014 the storm base turns overhead on its own slow rotation with a rain curtain trailing out of it, a bright slot of clear sky burns along the horizon underneath, and gust fronts comb the plain in broad pale bands that run away to the haze while the cloud shadow crawls across and drags the light with it; storm green, sumi ink wash, a dust-bowl ochre drought, a cyan met-chart schematic, or thermal false-colour.",
+  "tags": [
+    "steppe",
+    "prairie",
+    "plain",
+    "plains",
+    "grassland",
+    "grass",
+    "veld",
+    "pampas",
+    "puszta",
+    "savanna",
+    "meadow",
+    "field",
+    "wheat",
+    "great-plains",
+    "midwest",
+    "tornado-alley",
+    "supercell",
+    "storm",
+    "thunderstorm",
+    "squall",
+    "mesocyclone",
+    "shelf-cloud",
+    "wall-cloud",
+    "anvil",
+    "rain",
+    "rain-curtain",
+    "virga",
+    "downpour",
+    "weather",
+    "front",
+    "gust",
+    "gust-front",
+    "wind",
+    "windswept",
+    "cloud-shadow",
+    "sky",
+    "horizon",
+    "big-sky",
+    "vast",
+    "vastness",
+    "emptiness",
+    "flat",
+    "open",
+    "aerial-perspective",
+    "haze",
+    "depth",
+    "layers",
+    "parallax",
+    "bands",
+    "segments",
+    "landscape",
+    "wilderness",
+    "nature",
+    "outdoor",
+    "large-format",
+    "photographic",
+    "wyeth",
+    "hopper",
+    "ink",
+    "sumi",
+    "blueprint",
+    "schematic",
+    "thermal",
+    "dustbowl",
+    "drought",
+    "sublime",
+    "austere",
+    "melancholy",
+    "eerie",
+    "ominous",
+    "brooding",
+    "desolate",
+    "green",
+    "ochre",
+    "grey",
+    "world",
+    "background",
+    "backdrop",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard the storm is working \u2014 sunlit cloud flanks, rain-curtain density, depth of the cloud shadow on the plain"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the near grass \u2014 at max, blades stand up the whole frame and you are down in it"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how much foreground grass, rain and distant birds populate the plain"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3.5,
+      "doc": "weather advection rate \u2014 how fast the cell tracks, the gusts run and the rain falls"
+    },
+    "wind": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how hard it is blowing \u2014 gust-front contrast on the plain and how far the near blades lie over"
+    },
+    "hue": {
+      "default": 62,
+      "min": 0,
+      "max": 360,
+      "doc": "grass hue; the storm keys off its complement"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "where the cell sits across the sky"
+    },
+    "y": {
+      "default": 0.44,
+      "min": 0.22,
+      "max": 0.72,
+      "doc": "horizon as a canvas fraction \u2014 low horizon gives the sky to the storm, high gives the frame to the grass"
+    },
+    "style": {
+      "default": "storm",
+      "options": [
+        "storm",
+        "ink",
+        "dustbowl",
+        "blueprint",
+        "thermal"
+      ],
+      "doc": "aesthetic: a green-black supercell over lit grass / sumi ink wash, the storm as tonal washes and the plain as dry-brush / a dust-bowl ochre drought where the rain never lands / a cyan meteorological chart of the cell, schematic and clinical / thermal false-colour, the cold core over a warm plain"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "weather lottery \u2014 cloud structure, gust pattern, grass layout"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "overall opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:36:23+00:00",
+    "fps": 59.5,
+    "motion": 0.0339,
+    "lum": 0.365
+  },
+  "code": "const D = { energy: .6, scale: 1, density: .55, speed: 1, wind: .55, hue: 62, x: .5, y: .44, style: 'storm', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- A grass sea under a supercell. Nothing here is an object: the whole frame is two\n// weathers stacked \u2014 a rotating storm base with a rain curtain trailing under it, and a\n// plain of grass being combed by gusts that run away toward the horizon. The cloud shadow\n// crawls across the plain and drags the light with it. Wind never converges, so the piece\n// can never reach a steady state and go STATIC. ----\n\nconst cl = (v,a,b) => v<a?a:(v>b?b:v);\nconst u = Math.min(width, height), sd = P.seed|0;\nfunction hsh(ix,iy){ let h=(Math.imul(ix,374761393)+Math.imul(iy,668265263)+Math.imul(sd,1442695041))|0;\n  h=Math.imul(h^(h>>>13),1274126177)|0; return ((h^(h>>>16))>>>0)/4294967295; }   // >>> : a >> fold caps the hash at 0.5\nfunction fr(i){ return hsh((i*7+13)|0, (i*31+5)|0); }\nfunction vn(x,y){ const ix=Math.floor(x), iy=Math.floor(y), fx=x-ix, fy=y-iy;\n  const wx=fx*fx*(3-2*fx), wy=fy*fy*(3-2*fy);\n  const a=hsh(ix,iy), b=hsh(ix+1,iy), c=hsh(ix,iy+1), d=hsh(ix+1,iy+1);\n  return a+(b-a)*wx+(c-a)*wy+(a-b-c+d)*wx*wy; }\nfunction fbm(x,y){ return .55*vn(x,y)+.28*vn(x*2.03+5.1,y*2.03-3.3)+.17*vn(x*4.07-2.7,y*4.07+7.9); }\nfunction fbm4(x,y){ return .48*vn(x,y)+.26*vn(x*2.03+5.1,y*2.03-3.3)+.16*vn(x*4.07-2.7,y*4.07+7.9)+.10*vn(x*8.1+1.3,y*8.1-4.7); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s, xx=c*(1-Math.abs(h%2-1)), m=v-c;\n  let r,g2,b2;\n  if(h<1){r=c;g2=xx;b2=0}else if(h<2){r=xx;g2=c;b2=0}else if(h<3){r=0;g2=c;b2=xx}\n  else if(h<4){r=0;g2=xx;b2=c}else if(h<5){r=xx;g2=0;b2=c}else{r=c;g2=0;b2=xx}\n  return [(r+m)*255,(g2+m)*255,(b2+m)*255]; }\n\nconst sty = P.style, en = cl(P.energy,0,1), wnd = cl(P.wind,0,1);\nconst Hh = ((P.hue%360)+360)%360;\nconst tt = K.t;\nconst bp = sty==='blueprint', ink = sty==='ink', dust = sty==='dustbowl', thm = sty==='thermal';\n\n// ---- palette: [h,s,b] HSB. A storm base is DARK and the plain under it is LIT \u2014 that\n// counter-lit band along the horizon is the whole picture, and it keeps lum mid-key. ----\nlet cloudD, cloudL, skyGap, grassD, grassL, rainC, groundHaze;\nif (ink)       { cloudD=[Hh+160,6,26];  cloudL=[Hh+150,5,72]; skyGap=[Hh+140,4,88]; grassD=[Hh+150,7,34]; grassL=[Hh+145,6,74]; rainC=[Hh+150,5,58]; groundHaze=[Hh+150,4,80]; }\nelse if (bp)   { cloudD=[212,76,15];    cloudL=[200,50,40];   skyGap=[196,40,54];   grassD=[206,72,17];   grassL=[188,54,74];   rainC=[196,44,44];   groundHaze=[198,46,44]; }\nelse if (dust) { cloudD=[Hh-24,52,26];  cloudL=[Hh-8,44,66];  skyGap=[Hh-2,36,80];  grassD=[Hh-14,44,30];  grassL=[Hh-4,50,72];  rainC=[Hh-10,38,52];  groundHaze=[Hh-6,34,66]; }\nelse if (thm)  { cloudD=[250,80,12];    cloudL=[306,60,42];   skyGap=[330,52,58];   grassD=[264,64,18];   grassL=[38,86,86];    rainC=[288,54,38];   groundHaze=[320,46,50]; }\nelse           { cloudD=[Hh+168,34,17]; cloudL=[Hh+156,20,58]; skyGap=[Hh+30,22,84]; grassD=[Hh+6,46,26];  grassL=[Hh+2,52,72];  rainC=[Hh+164,18,44]; groundHaze=[Hh+20,20,72]; }\n\nconst hzn = cl(P.y,.22,.72);          // horizon as a canvas fraction\nconst hy = hzn*height;\n\n// ---- perpetual advection: the weather moves across the plain and never returns ----\nif (S.adv == null) S.adv = 0;\nif (S.lt == null || K.t < S.lt) S.lt = K.t;\nconst dt = cl(K.t - S.lt, 0, .1); S.lt = K.t;\nS.adv += dt * P.speed * (.020 + .030*wnd) * (.85 + .15*Math.sin(tt*.037) + K.swell*.10);\nconst adv = S.adv;\n// the storm's own slow translation \u2014 incommensurate with adv, so the shadow and the cell\n// never re-align and the frame can never repeat\nconst cellX = P.x + .16*Math.sin(tt*.0163) + .07*Math.sin(tt*.0411+1.3) - adv*.22;\nconst shadX = cellX + .10 + .09*Math.sin(tt*.0231+.6);\n\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(64, Math.round(BW*height/width));\nif (!S.g || S.bk !== BW+'x'+BH){ if(S.g){ try{S.g.remove();}catch(e){} }\n  S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.bk = BW+'x'+BH; }\nconst g = S.g; g.loadPixels(); const px = g.pixels;\n\nconst cD = hsv(cloudD[0], cloudD[1]/100, cloudD[2]/100);\nconst cL = hsv(cloudL[0], cloudL[1]/100, cloudL[2]/100);\nconst cG = hsv(skyGap[0], skyGap[1]/100, skyGap[2]/100);\nconst gD = hsv(grassD[0], grassD[1]/100, grassD[2]/100);\nconst gL = hsv(grassL[0], grassL[1]/100, grassL[2]/100);\nconst cR = hsv(rainC[0], rainC[1]/100, rainC[2]/100);\nconst cH = hsv(groundHaze[0], groundHaze[1]/100, groundHaze[2]/100);\n\n// storm rotation: two incommensurate rates so the mesocyclone never returns to a pose\nconst rot1 = tt*.038, rot2 = tt*.0917;\nconst gust = tt*(.5 + wnd*1.6);\nconst lightB = .74 + .16*Math.sin(tt*.061) + .10*Math.sin(tt*.149+2.1);\n\nfor (let j=0;j<BH;j++){\n  const ny = (j+.5)/BH;\n  for (let i=0;i<BW;i++){\n    const nx = (i+.5)/BW;\n    let r,g2,b2;\n    if (ny < hzn){\n      // ================= the cell =================\n      const sv = ny/hzn;                                  // 0 top, 1 horizon\n      // base sky brightens toward the horizon: the lit gap under the storm base\n      const gapK = Math.pow(sv, 2.6);\n      r = cD[0]+(cG[0]-cD[0])*gapK*.9; g2 = cD[1]+(cG[1]-cD[1])*gapK*.9; b2 = cD[2]+(cG[2]-cD[2])*gapK*.9;\n      // mesocyclone: the field is sampled in a slowly rotating frame about the cell centre,\n      // so the striations wrap round and never repeat\n      const dx = (nx-cellX)*1.7, dy = (sv-.86)*2.2;\n      const rr = Math.sqrt(dx*dx+dy*dy)+1e-4;\n      const th = Math.atan2(dy,dx) + rot1*1.6/(0.35+rr) + rot2*.30;\n      const wx = Math.cos(th)*rr, wy2 = Math.sin(th)*rr;\n      const cf = fbm4(wx*2.6 + adv*1.2, wy2*3.2 - rot2*.5);\n      // cloud mass only exists ABOVE the base; the base is a hard-ish shelf\n      const shelf = cl((.86 - sv)*3.2 + (cf-.5)*1.1, 0, 1);\n      const mass = cl(shelf*(.35+cf*1.25), 0, 1);\n      // two-sided: mass darkens the sky AND its sunlit flanks catch light\n      r += (cD[0]-r)*mass*.92; g2 += (cD[1]-g2)*mass*.92; b2 += (cD[2]-b2)*mass*.92;\n      const lit = Math.pow(cl(cf-.34,0,1),1.5)*mass*(.45+en*1.05)*lightB;\n      r += (cL[0]-r)*lit*.85; g2 += (cL[1]-g2)*lit*.85; b2 += (cL[2]-b2)*lit*.85;\n      // rain curtain: a translucent veil hanging out of the base, trailing downwind\n      const rcx = cellX + .13 + (1-sv)*.10;\n      const rw = (.10 + .12*fbm(sv*4 + rot2, 3.1))*(0.6+en*.8);\n      const rcurt = cl(1 - Math.abs(nx-rcx)/Math.max(.02,rw), 0, 1)\n                  * cl((sv-.42)*3.4, 0, 1)\n                  * (.55 + .45*fbm(nx*9 + gust*.35, sv*7 - gust*.9));\n      r += (cR[0]-r)*rcurt*.72; g2 += (cR[1]-g2)*rcurt*.72; b2 += (cR[2]-b2)*rcurt*.72;\n      // the lit horizon gap: the bright slot of clear sky under the base\n      const slot = Math.pow(cl((sv-.80)/.20,0,1), 1.4) * cl(1-rcurt*1.3, 0, 1);\n      r += (cG[0]-r)*slot*.80; g2 += (cG[1]-g2)*slot*.80; b2 += (cG[2]-b2)*slot*.80;\n    } else {\n      // ================= the plain =================\n      const dv = (ny-hzn)/Math.max(.04, 1-hzn);           // 0 horizon, 1 underfoot\n      // ground-plane perspective: world Z from screen y\n      const Z = 1/Math.max(.012, dv*dv*1.5 + .012);\n      const X = (nx-.5)*Z*.7;\n      const det = cl(1 - Z*.030, .05, 1);                 // far ground loses detail\n      // gust fronts: broad bands of bent grass sweeping AWAY over the plain. Bent grass shows\n      // its pale underside, so a gust reads as a moving light band \u2014 a big, high-contrast,\n      // perpetually renewing area element. This is the motion floor.\n      const gz = fbm(X*.30 + gust*.10, Z*.22 - gust*.55);\n      const gz2 = fbm(X*.62 - gust*.16, Z*.50 - gust*1.15+9.1);\n      const gustK = cl((gz-.44)*2.6, 0, 1)*.62 + cl((gz2-.48)*2.9, 0, 1)*.38;\n      // grass tufts: high-frequency texture, scale-correct with distance\n      const tuft = fbm4(X*7.5, Z*6.2+adv*.15)*det + (1-det)*.5;\n      let lum = .30 + tuft*.34 + gustK*(.34+wnd*.30);\n      // cloud shadow crawling over the plain, offset from the cell \u2014 drags the light with it\n      const shd = cl((fbm(X*.20 + shadX*2.2, Z*.15 - adv*.30)-.40)*2.4, 0, 1);\n      lum *= 1 - shd*(.42+en*.24);\n      // rain shaft darkens the ground under it\n      const rsx = .5 + (cellX-.5)*1.9 + .16;\n      lum *= 1 - cl(1-Math.abs(nx-rsx)/.16, 0, 1)*.30;\n      lum = cl(lum, 0, 1.25);\n      r = gD[0]+(gL[0]-gD[0])*lum; g2 = gD[1]+(gL[1]-gD[1])*lum; b2 = gD[2]+(gL[2]-gD[2])*lum;\n      // aerial perspective: the plain dissolves into the horizon haze\n      const ha = Math.pow(cl(1-dv*2.6, 0, 1), 1.7)*(.72);\n      r += (cH[0]-r)*ha; g2 += (cH[1]-g2)*ha; b2 += (cH[2]-b2)*ha;\n    }\n    const o = 4*(j*BW+i);\n    px[o]=cl(r,0,255); px[o+1]=cl(g2,0,255); px[o+2]=cl(b2,0,255); px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,P.alpha);\nimage(g,0,0,width,height);\npop();\n\nconst AL = P.alpha/100;\nconst dens = cl(P.density,0,1);\nconst sc = cl(P.scale,.5,2.2);\n\n// ---- near grass: real blades along the bottom edge, bending on the gust. Gives the plain\n// a foreground plane and a scale reference; the bend is driven by the same gust field. ----\npush();\nnoStroke();\nconst NB = Math.round((30 + dens*130));\nfor (let i=0;i<NB;i++){\n  const f1 = fr(i*3+11), f2 = fr(i*3+12), f3 = fr(i*3+13);\n  const bx = ((f1*1.18 - .09) + Math.sin(tt*.013+f2*6.28)*.006)*width;\n  const depth = f2;                                  // 0 = at the horizon-ish, 1 = right at the lens\n  const by = hy + Math.pow(depth,1.6)*(height-hy)*1.06;\n  const bh2 = u*(.02 + Math.pow(depth,1.7)*.30)*sc*(.6+f3*.8);\n  // the local gust: same incommensurate field as the plain, sampled at the blade\n  const lg = fbm(bx/width*2.4 + gust*.10, depth*1.4 - gust*.55);\n  const bend = (lg-.45)*(1.5+wnd*3.4) + .30*Math.sin(tt*(1.1+f3*1.7)+f1*6.28)*(.3+wnd);\n  const lumb = cl(.22 + (lg-.3)*.7 + depth*.20, 0, 1);\n  const cc = [ grassD[0]+(grassL[0]-grassD[0])*lumb,\n               grassD[1]+(grassL[1]-grassD[1])*lumb,\n               grassD[2]+(grassL[2]-grassD[2])*lumb*(1-depth*.42) ];\n  fill(cc[0], cc[1], cc[2], (72+depth*26)*AL);\n  beginShape();\n  vertex(bx - bh2*.030, by);\n  vertex(bx + bh2*.030, by);\n  vertex(bx + bend*bh2*.42 + bh2*.012, by - bh2*.72);\n  vertex(bx + bend*bh2*.72, by - bh2);\n  vertex(bx + bend*bh2*.42 - bh2*.014, by - bh2*.72);\n  endShape(CLOSE);\n}\npop();\n\n// ---- rain shafts under the base: fine, but hung on the broad curtain already in the buffer\npush();\nconst rsxp = (.5 + (cellX-.5)*1.9 + .16)*width;\nstroke(rainC[0], rainC[1], rainC[2], 20*AL);\nstrokeWeight(Math.max(.5, u*.0012));\nconst NR = Math.round(10 + dens*40);\nfor (let i=0;i<NR;i++){\n  const f1 = fr(i*5+301), f2 = fr(i*5+302);\n  const sx = rsxp + (f1-.5)*width*.30;\n  const y0 = hy*(.52+f2*.30);\n  const fall = ((tt*(.5+f2*.9)*P.speed + f1) % 1);\n  const yA = y0 + fall*(hy-y0)*.9, yB = yA + hy*.16;\n  line(sx + (yA-y0)*.10, yA, sx + (yB-y0)*.10, Math.min(hy, yB));\n}\npop();\n\n// ---- horizon haze band + drifting virga veils: broad low-alpha area elements ----\npush();\nnoStroke();\nfor (let i=0;i<6;i++){\n  const f1 = fr(i*5+401), f2 = fr(i*5+402);\n  const vx = ((f1 + tt*(.004+f2*.009)*P.speed) % 1.4 - .2)*width;\n  fill(groundHaze[0], groundHaze[1]*.8, groundHaze[2], (6+en*7)*AL);\n  ellipse(vx, hy - height*(.005+f2*.05) + Math.sin(tt*(.07+f1*.13))*height*.006,\n          width*(.34+f1*.5), height*(.020+f2*.045));\n}\npop();\n\n// ---- a rare, distant bird crossing: the only \"object\", and it takes minutes ----\npush();\nnoStroke();\nconst NBird = Math.round(dens*5);\nfor (let i=0;i<NBird;i++){\n  const f1 = fr(i*7+501), f2 = fr(i*7+502);\n  const bp2 = ((tt*(.0075+f2*.011)*P.speed + f1) % 1.35) - .175;\n  const bxx = bp2*width, byy = hy*(.50+f1*.36) + Math.sin(tt*(.19+f2*.3)+f1*6)*height*.012;\n  const bs = u*.006*(.5+f2)*sc;\n  const flap = Math.sin(tt*(3.1+f1*1.9)+f2*6.28)*.5;\n  fill(cloudD[0], cloudD[1]*.7, cloudD[2]*(.7+f1*.5), 52*AL);\n  beginShape();\n  vertex(bxx-bs, byy - bs*flap*.7); vertex(bxx, byy); vertex(bxx+bs, byy - bs*flap*.7);\n  vertex(bxx, byy + bs*.18);\n  endShape(CLOSE);\n}\npop();\n\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\ndrawingContext.globalAlpha = 1;\n"
+}

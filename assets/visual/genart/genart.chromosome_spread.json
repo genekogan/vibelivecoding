@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.chromosome_spread",
+  "kind": "genart",
+  "name": "Chromosome Spread",
+  "desc": "A metaphase chromosome spread, the classic cytogenetics image: condensed chromosomes scattered across the slide, each a pair of sister chromatids pinched at a centromere into the familiar X and striped along its arms with a G-banding pattern. On the wet slide they never sit still -- each jiggles with Brownian rotation while the whole spread drifts slowly, and every few seconds a fresh metaphase is captured as all the chromosomes ease to a new scatter and settle, a perpetual re-drop that never converges. Offered as spectral karyotyping with every chromosome a vivid colour, bright-field Giemsa banding, DAPI fluorescence, or sorted into a ranked karyotype chart.",
+  "tags": [
+    "chromosome",
+    "chromosomes",
+    "karyotype",
+    "karyogram",
+    "cytogenetics",
+    "metaphase",
+    "spread",
+    "g-banding",
+    "banding",
+    "chromatid",
+    "centromere",
+    "spectral-karyotyping",
+    "sky",
+    "fish",
+    "dapi",
+    "genome",
+    "genetics",
+    "dna",
+    "condensed",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "fluorescence",
+    "giemsa",
+    "histology",
+    "cell",
+    "cells",
+    "microbiology",
+    "medical",
+    "clinical",
+    "laboratory",
+    "scatter",
+    "brownian",
+    "false-colour",
+    "chart",
+    "ideogram",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "clinical",
+    "eerie",
+    "austere"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "chromosome brightness / banding glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification - chromosomes swell, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "jiggle, drift and how often a fresh metaphase re-drops"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "chromosome count on the spread"
+    },
+    "band": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "G-banding contrast and detail"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (mono styles); spectral karyotyping spans the wheel"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the spread, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the spread, vertical"
+    },
+    "style": {
+      "default": "sky",
+      "options": [
+        "sky",
+        "giemsa",
+        "dapi",
+        "karyotype"
+      ],
+      "doc": "aesthetic: spectral karyotyping vivid colour on black / bright-field Giemsa banding / DAPI blue fluorescence / sorted ranked karyotype chart"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-throws chromosome sizes, banding patterns and scatter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:34:47+00:00",
+    "fps": 59.9,
+    "motion": 0.0261,
+    "lum": 0.114
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .55, band: .6, hue: 210, x: .5, y: .5, style: 'sky', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// A metaphase chromosome spread, the classic cytogenetics image. Condensed\n// chromosomes lie scattered across the slide, each a pair of sister chromatids\n// pinched at a centromere into the familiar X, striped along its arms with a\n// G-banding pattern. On the wet slide they never sit still: each jiggles with\n// Brownian rotation and the whole spread drifts slowly, and every few seconds a\n// fresh metaphase is captured -- all the chromosomes ease to a new scatter and\n// settle, a perpetual re-drop that never converges. Offered as spectral\n// karyotyping (every chromosome a vivid colour), bright-field Giemsa banding,\n// DAPI fluorescence, or sorted into a ranked karyotype chart.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 7.7) * 43758.5453; return s - Math.floor(s); };\nconst h2 = (k, n, c) => { const s = Math.sin(k * 12.9898 + n * 78.233 + c * 37.719 + sd * 3.11) * 43758.5453; return s - Math.floor(s); };\n\nconst nChr = Math.round(16 + P.density * 40);\nif (!S.chr || S.seedUsed !== P.seed || S.nU !== nChr) {\n  S.seedUsed = P.seed; S.nU = nChr;\n  S.chr = [];\n  for (let k = 0; k < nChr; k++) {\n    const size = 0.4 + fr(k * 7 + 3) * 0.6;            // relative chromosome length (rank)\n    const nb = 4 + Math.floor(fr(k * 11 + 4) * 7);\n    const bands = [];\n    for (let b = 0; b < nb; b++) bands.push({ p: (b + 0.5) / nb, dark: fr(k * 13 + b * 3 + 20) });\n    S.chr.push({\n      size, cp: 0.32 + fr(k * 17 + 5) * 0.24,           // centromere position\n      nb, bands, hueC: (k / nChr * 300 + fr(k * 19 + 6) * 24) % 360,\n      jr: 0.02 + fr(k * 23 + 7) * 0.04, jph: fr(k * 29 + 8) * 6.283,\n      rrate: 0.05 + fr(k * 31 + 9) * 0.1\n    });\n    S.chr[k].rank = 0;\n  }\n  // rank by size (descending) for karyotype layout\n  const order = S.chr.map((c, i) => i).sort((a, b) => S.chr[b].size - S.chr[a].size);\n  for (let i = 0; i < order.length; i++) S.chr[order[i]].rank = i;\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.3 + A.rms * 0.35;\nconst bandC = 0.3 + P.band * 0.7;\n\n// re-drop cycle: chromosomes ease from scatter(n) to scatter(n+1) then settle\nconst dropPeriod = 7.5 / sp;\nconst dc = t / dropPeriod, dropN = Math.floor(dc), dph = dc - dropN;\nconst ease = (x) => { const e = Math.min(1, x * 1.7); return e * e * e * (e * (e * 6 - 15) + 10); };\nconst eph = ease(dph);\n// slow whole-spread drift + rotation (slide moving under scope)\nconst driftX = Math.sin(t * 0.06 * sp) * u * 0.03 + Math.sin(t * 0.019 * sp + 1.2) * u * 0.02;\nconst driftY = Math.cos(t * 0.05 * sp) * u * 0.03 + Math.sin(t * 0.014 * sp + 0.5) * u * 0.02;\nconst fieldRot = 0.08 * Math.sin(t * 0.03 * sp) + 0.04 * Math.sin(t * 0.011 * sp);\n\nlet bgH, bgS, bgB, mode;\nif (style === 'giemsa') { bgH = 275; bgS = 12; bgB = 74; mode = 'giemsa'; }\nelse if (style === 'dapi') { bgH = 232; bgS = 60; bgB = 8; mode = 'dapi'; }\nelse if (style === 'karyotype') { bgH = 210; bgS = 8; bgB = 82; mode = 'karyotype'; }\nelse { bgH = 240; bgS = 45; bgB = 7; mode = 'sky'; }\nconst pale = (mode === 'giemsa' || mode === 'karyotype');\n\npush();\nnoStroke(); rectMode(CENTER);\nfill(bgH, bgS, bgB); rect(width / 2, height / 2, width * 1.02, height * 1.02);\nif (pale) { // faint slide texture / condenser\n  for (let b = 0; b < 24; b++) { fill(bgH, bgS * 1.4, bgB - 4 - fr(b) * 6, 12); ellipse(fr(b * 3 + 500) * width, fr(b * 5 + 501) * height, u * (0.15 + fr(b * 7) * 0.25), u * (0.15 + fr(b * 6) * 0.25)); }\n} else { // dark modes: condenser pool + diffuse cytoplasm/counterstain wash to seat the spread\n  for (let ri = 5; ri >= 1; ri--) { fill(bgH, bgS * 0.6, Math.min(46, bgB + (6 - ri) * 4), 18); ellipse(width * 0.5, height * 0.5, u * (0.4 + ri * 0.16) * 2, u * (0.4 + ri * 0.16) * 1.9); }\n  for (let b = 0; b < 34; b++) { fill((bgH + 6) % 360, bgS * 0.7, bgB + 5 + fr(b * 2) * 7, 8); ellipse(fr(b * 3 + 600) * width, fr(b * 5 + 601) * height, u * (0.1 + fr(b * 7) * 0.14) * 2, u * (0.1 + fr(b * 6) * 0.14) * 2); }\n}\n\nconst cxc = width * 0.5 + driftX + (P.x - 0.5) * width * 0.2, cyc = height * 0.5 + driftY + (P.y - 0.5) * height * 0.2;\npush(); translate(cxc, cyc); rotate(fieldRot);\n\nif (mode === 'sky' || mode === 'dapi') blendMode(ADD);\n\n// karyotype grid dims\nconst kcols = Math.ceil(Math.sqrt(nChr * width / height));\nconst krows = Math.ceil(nChr / kcols);\n\nfor (let k = 0; k < S.chr.length; k++) {\n  const c = S.chr[k];\n  let nx, ny, rot;\n  if (mode === 'karyotype') {\n    const col = c.rank % kcols, row = (c.rank / kcols | 0);\n    nx = (col + 0.5) / kcols - 0.5; ny = (row + 0.5) / krows - 0.5;\n    nx *= 0.86; ny *= 0.82;\n    rot = Math.sin(t * c.rrate * sp + c.jph) * 0.08;                 // gentle upright jiggle\n  } else {\n    const ax = (h2(k, dropN, 1) - 0.5) * 0.72, ay = (h2(k, dropN, 2) - 0.5) * 0.68;\n    const bx = (h2(k, dropN + 1, 1) - 0.5) * 0.72, by = (h2(k, dropN + 1, 2) - 0.5) * 0.68;\n    nx = ax + (bx - ax) * eph; ny = ay + (by - ay) * eph;\n    const ra = h2(k, dropN, 3) * 6.283, rb = h2(k, dropN + 1, 3) * 6.283;\n    rot = ra + (rb - ra) * eph + Math.sin(t * c.rrate * sp + c.jph) * 0.25;  // + Brownian jiggle\n    nx += Math.sin(t * 0.4 * sp + c.jph) * c.jr * 0.5; ny += Math.cos(t * 0.37 * sp + c.jph) * c.jr * 0.5;\n  }\n  const px = nx * Math.min(width, height * width / height) * 0.9, py = ny * height * 0.9;\n  const Lc = c.size * u * 0.105 * P.scale, Wc = Lc * 0.3;\n  if (Lc < 2) continue;\n\n  push(); translate(px, py); rotate(rot);\n  // colour\n  let hue, satB;\n  if (mode === 'sky') { hue = c.hueC; satB = 70; }\n  else if (mode === 'dapi') { hue = 220; satB = 62; }\n  else if (mode === 'giemsa') { hue = 285; satB = 26; }\n  else { hue = (c.hueC * 0.3 + 210) % 360; satB = 22; }\n\n  // chromosome body: two chromatids as one rounded rod, pinched at centromere\n  const cpY = (c.cp - 0.5) * Lc;\n  // draw arms as banded stack\n  for (let b = 0; b < c.nb; b++) {\n    const bd = c.bands[b];\n    const yy = (bd.p - 0.5) * Lc;\n    const bw = Wc * (Math.abs(yy - cpY) < Lc * 0.05 ? 0.6 : 1);   // constrict at centromere\n    const bh = Lc / c.nb * 1.02;\n    let br;\n    if (pale) br = 30 + (1 - bd.dark) * 40 * bandC + (mode === 'karyotype' ? 8 : 0);   // dark bands on pale\n    else br = Math.min(100, (40 + bd.dark * 55 * bandC) * glow);                        // bright bands on dark\n    fill(hue, satB, br, pale ? 90 : (mode === 'dapi' || mode === 'sky' ? 82 : 88));\n    rect(0, yy, bw, bh, bw * 0.4);\n  }\n  // outline / chromatid groove\n  noFill(); strokeWeight(Math.max(0.4, Wc * 0.09));\n  if (pale) stroke(hue, satB + 20, 22, 55); else stroke(hue, satB, Math.min(100, 80 * glow), 45);\n  line(0, -Lc * 0.5 + Wc * 0.3, 0, Lc * 0.5 - Wc * 0.3);           // longitudinal split (two chromatids)\n  noStroke();\n  pop();\n}\nif (mode === 'sky' || mode === 'dapi') blendMode(BLEND);\npop();\n\npop();\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,157 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.misregister",
+  "kind": "post",
+  "name": "Off Register",
+  "desc": "Pulls true subtractive cyan, magenta and yellow separations out of the live frame and lets the press slip \u2014 every plate wandering on its own orbit and creeping a hair off-size, paper showing in the gaps, the key plate landing late as dot gain, cylinder banding rolling through, hickeys printing rings, and the register targets in the margin visibly refusing to agree.",
+  "tags": [
+    "misregister",
+    "misregistration",
+    "registration",
+    "offset",
+    "litho",
+    "lithography",
+    "press",
+    "print",
+    "cmyk",
+    "separation",
+    "process-colour",
+    "plate",
+    "dot-gain",
+    "trap",
+    "slur",
+    "hickey",
+    "banding",
+    "colour-bar",
+    "register-mark",
+    "crop-marks",
+    "newsprint",
+    "duotone",
+    "progressive-proof",
+    "pressroom",
+    "post",
+    "overlay",
+    "finish",
+    "graphic",
+    "analog",
+    "degraded",
+    "fringe"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "heavy",
+  "params": {
+    "offset": {
+      "default": 0.18,
+      "min": 0,
+      "max": 1,
+      "doc": "how far out of register the plates run \u2014 separation drift and plate creep"
+    },
+    "gain": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "key plate weight and dot gain \u2014 how much the darks fatten and how heavy the black lands"
+    },
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "press vigour \u2014 drift amplitude, cylinder banding depth, how hard the hickeys print"
+    },
+    "density": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "banding frequency around the cylinder and how many hickeys are on the blanket"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.15,
+      "max": 3,
+      "doc": "rate multiplier on the wander, the banding roll and the creep"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "stock hue \u2014 the paper the inks are printing onto"
+    },
+    "marks": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "register targets and the colour control bar in the trim \u2014 0 hides the furniture"
+    },
+    "slur": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "one plate smearing along the cylinder direction"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.4,
+      "doc": "size of the marks, bar, hickeys and band spacing"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "registration pivot \u2014 the point the plates still agree on, x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "registration pivot, y"
+    },
+    "alpha": {
+      "default": 92,
+      "min": 0,
+      "max": 100,
+      "doc": "overall strength of the pass \u2014 under 100 the un-slipped frame ghosts through as doubling"
+    },
+    "act": {
+      "default": "run",
+      "options": [
+        "run",
+        "makeready",
+        "crash"
+      ],
+      "doc": "multi-minute program: a normal run drifting in and out / makeready, nearly on register / the register crashes wide open and slowly comes back"
+    },
+    "style": {
+      "default": "offset",
+      "options": [
+        "offset",
+        "newsprint",
+        "duotone",
+        "wet_trap",
+        "progressive"
+      ],
+      "doc": "aesthetic: four-colour offset on white stock / absorbent yellowed newsprint with heavy dot gain and bleed / two inks only, running wide / the inks trap badly and the overprints go muddy / progressive proof \u2014 the plates pulled apart on the bench as three single-ink panels beside the four-colour"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic press \u2014 which plate slurs, orbit phases, hickey placement"
+    }
+  },
+  "acts": [
+    "run",
+    "makeready",
+    "crash"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:08:13+00:00",
+    "fps": 58.8,
+    "motion": 0.017,
+    "lum": 0.103
+  },
+  "code": "const D = { offset: .18, gain: .35, energy: .5, density: .45, speed: 1, hue: 40, marks: .5, slur: .3, scale: 1, x: .5, y: .5, alpha: 92, act: 'run', style: 'offset', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v, a, b) => v < a ? a : v > b ? b : v;\nconst fr = i => { const s = Math.sin(i * 127.1 + P.seed * 311.7) * 43758.5453; return s - Math.floor(s); };\nconst rgbv = (h, s, v) => {\n  h = ((h % 360) + 360) % 360 / 60; const c = v * s, xx = c * (1 - Math.abs(h % 2 - 1)), m = v - c; let r, g2, b2;\n  if (h < 1) { r = c; g2 = xx; b2 = 0; } else if (h < 2) { r = xx; g2 = c; b2 = 0; } else if (h < 3) { r = 0; g2 = c; b2 = xx; }\n  else if (h < 4) { r = 0; g2 = xx; b2 = c; } else if (h < 5) { r = xx; g2 = 0; b2 = c; } else { r = c; g2 = 0; b2 = xx; }\n  return [Math.round((r + m) * 255), Math.round((g2 + m) * 255), Math.round((b2 + m) * 255)];\n};\nconst css = (h, s, v, a) => { const c = rgbv(h, s, v); return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; };\n\nconst W = width, H = height, u = Math.min(W, H), dc = drawingContext;\nconst of = clp(P.offset, 0, 1), gn = clp(P.gain, 0, 1), en = clp(P.energy, 0, 1);\nconst de = clp(P.density, 0, 1), mk = clp(P.marks, 0, 1), sl = clp(P.slur, 0, 1);\nconst sp = Math.max(.1, P.speed), sc = Math.max(.3, P.scale);\nconst st = P.style, hb = ((P.hue % 360) + 360) % 360, la = clp(P.alpha, 0, 100) / 100;\nconst prog = st === 'progressive', duo = st === 'duotone', news = st === 'newsprint', wet = st === 'wet_trap';\n\nlet stH = hb + 20, stS = .05, stV = .97, offM = 1, gnM = 1;\nif (news) { stH = hb + 6; stS = .16; stV = .84; gnM = 1.7; offM = 1.3; }\nelse if (duo) { stH = hb + 12; stS = .07; stV = .95; offM = 2.1; }\nelse if (wet) { stH = hb + 4; stS = .12; stV = .88; gnM = 2.1; offM = 1.7; }\nelse if (prog) { stH = hb + 22; stS = .04; stV = .98; offM = 1.6; }\nconst stockCss = css(stH, stS, stV, 1);\n\n// ---- buffers -----------------------------------------------------------------\nconst CW = Math.max(240, Math.min(900, Math.round(W * .5))), CH = Math.max(140, Math.round(CW * H / W));\nif (!S.cap || S.cw !== CW || S.ch !== CH) {\n  if (S.cap && S.cap.remove) S.cap.remove();\n  if (S.tmp && S.tmp.remove) S.tmp.remove();\n  if (S.out && S.out.remove) S.out.remove();\n  S.cap = createGraphics(CW, CH); S.cap.pixelDensity(1);\n  S.tmp = createGraphics(CW, CH); S.tmp.pixelDensity(1);\n  S.out = createGraphics(CW, CH); S.out.pixelDensity(1);\n  S.cw = CW; S.ch = CH;\n}\nconst capC = S.cap.drawingContext.canvas, tmpC = S.tmp.drawingContext.canvas;\nconst cc = S.cap.drawingContext, tc = S.tmp.drawingContext, oc = S.out.drawingContext;\n\n// grab the frame the layers below just composed\ncc.globalCompositeOperation = 'copy'; cc.globalAlpha = 1;\ntry { cc.drawImage(dc.canvas, 0, 0, CW, CH); } catch (e) { }\ncc.globalCompositeOperation = 'source-over';\n\n// ---- act ---------------------------------------------------------------------\nlet creep = 1;\nif (P.act === 'makeready') creep = .30 + .55 * (.5 + .5 * Math.sin(K.t * .0131 + 1.6));\nelse if (P.act === 'crash') creep = .7 + 1.9 * Math.pow(.5 + .5 * Math.sin(K.t * .0061 + .8 * Math.sin(K.t * .0023 + 2.1)), 2);\nelse creep = .72 + .62 * (.5 + .5 * Math.sin(K.t * .0089 + .5 * Math.sin(K.t * .0033 + 1.3)));\ncreep *= (.78 + .44 * K.intensity);\n\n// ---- every plate wanders on its own orbit; none of them agree ----------------\nconst off = u * (.002 + of * .05) * offM * creep * (.7 + .6 * en);\nconst dirs = [], strs = [];\nfor (let k = 0; k < 4; k++) {\n  const p0 = k * 1.9 + fr(k * 3 + 1) * 6.283;\n  const ax = off * (.55 + .7 * fr(k * 5 + 2));\n  dirs.push([\n    ax * Math.sin(K.t * (.23 + k * .107) * sp + p0) + .5 * ax * Math.sin(K.t * (.41 + k * .073) * sp + p0 * 1.7),\n    ax * Math.sin(K.t * (.29 + k * .091) * sp + p0 * 1.3) + .5 * ax * Math.sin(K.t * (.53 + k * .131) * sp + p0 * 2.1)\n  ]);\n  // plate stretch: the blanket creeps, so each separation prints a hair off-size\n  strs.push((of * .008 + .0012) * offM * creep * Math.sin(K.t * (.19 + k * .061) * sp + p0 * .7));\n}\nconst BOOST = ['rgb(0,255,255)', 'rgb(255,0,255)', 'rgb(255,255,0)'];\nconst NI = duo ? 2 : 3;\nconst sepx = CW / W, sepy = CH / H;\nconst build = k => {\n  tc.globalCompositeOperation = 'copy'; tc.globalAlpha = 1;\n  tc.drawImage(capC, 0, 0);\n  tc.globalCompositeOperation = 'lighter';\n  tc.fillStyle = BOOST[k]; tc.fillRect(0, 0, CW, CH);\n  tc.globalCompositeOperation = 'source-over';\n};\nconst lay = (k, dx, dy, sf) => {\n  const s2 = 1 + sf;\n  oc.drawImage(tmpC, dx + P.x * CW * (1 - s2), dy + P.y * CH * (1 - s2), CW * s2, CH * s2);\n};\n\noc.globalCompositeOperation = 'source-over'; oc.globalAlpha = 1;\noc.fillStyle = stockCss; oc.fillRect(0, 0, CW, CH);\nif (prog) {\n  // the plates pulled apart on the bench: three progressives and the four-colour\n  const pw = CW * .5, phh = CH * .5, gp = Math.min(pw, phh) * .04;\n  const pos = [[0, 0], [pw, 0], [0, phh], [pw, phh]];\n  for (let k = 0; k < 3; k++) {\n    build(k);\n    oc.globalCompositeOperation = 'multiply'; oc.globalAlpha = 1;\n    oc.drawImage(tmpC, 0, 0, CW, CH, pos[k][0] + gp, pos[k][1] + gp, pw - 2 * gp, phh - 2 * gp);\n  }\n  for (let k = 0; k < 3; k++) {\n    build(k);\n    const d = dirs[k];\n    oc.globalCompositeOperation = 'multiply'; oc.globalAlpha = 1;\n    oc.drawImage(tmpC, 0, 0, CW, CH, pos[3][0] + gp + d[0] * sepx * .5, pos[3][1] + gp + d[1] * sepy * .5, pw - 2 * gp, phh - 2 * gp);\n  }\n  if (gn > .01) {\n    oc.globalAlpha = clp(gn * .8 * gnM, 0, 1);\n    oc.drawImage(capC, 0, 0, CW, CH, pos[3][0] + gp + dirs[3][0] * sepx * .5, pos[3][1] + gp + dirs[3][1] * sepy * .5, pw - 2 * gp, phh - 2 * gp);\n  }\n} else {\n  const slk = Math.floor(fr(7) * NI) % NI;\n  const sla = fr(8) * 6.283, slx = Math.cos(sla) * u * .006 * sl, sly = Math.sin(sla) * u * .006 * sl;\n  for (let k = 0; k < NI; k++) {\n    build(k);\n    const d = dirs[k], dx = d[0] * sepx, dy = d[1] * sepy;\n    oc.globalCompositeOperation = 'multiply'; oc.globalAlpha = 1;\n    lay(k, dx, dy, strs[k]);\n    if (sl > .02 && k === slk) {              // slur: this one smeared along the cylinder\n      oc.globalAlpha = sl * .5;\n      lay(k, dx + slx * sepx, dy + sly * sepy, strs[k]);\n      lay(k, dx + slx * 2 * sepx, dy + sly * 2 * sepy, strs[k]);\n      oc.globalAlpha = 1;\n    }\n    if (news) {                                // absorbent stock: the dot spreads\n      oc.globalAlpha = .45;\n      lay(k, dx + 1, dy + 1, strs[k]); lay(k, dx - 1, dy - 1, strs[k]);\n      oc.globalAlpha = 1;\n    }\n  }\n  if (gn > .01) {                              // the key plate, and with it the dot gain\n    oc.globalCompositeOperation = 'multiply';\n    oc.globalAlpha = clp(gn * .85 * gnM * (.8 + .35 * K.swell), 0, 1);\n    const s2 = 1 + strs[3];\n    oc.drawImage(capC, dirs[3][0] * sepx + P.x * CW * (1 - s2), dirs[3][1] * sepy + P.y * CH * (1 - s2), CW * s2, CH * s2);\n    oc.globalAlpha = 1;\n  }\n}\n// printed black is never a void \u2014 the stock keeps scattering light back through the film\noc.globalCompositeOperation = 'screen';\noc.globalAlpha = clp(.10 + gn * .22 * gnM, 0, 1);\noc.fillStyle = css(stH, stS * .6, stV * .34, 1);\noc.fillRect(0, 0, CW, CH);\noc.globalCompositeOperation = 'source-over';\noc.globalAlpha = 1;\n\n// ---- to the sheet ------------------------------------------------------------\nconst oldA = dc.globalAlpha;\nblendMode(BLEND); noStroke();\ndc.globalAlpha = la;\ndc.drawImage(S.out.drawingContext.canvas, 0, 0, W, H);\n\n// cylinder banding \u2014 the ink film is never even around the roller\nconst nb = 8 + Math.round(de * 20);\nconst bph = K.t * .047 * sp + .4 * Math.sin(K.t * .017 + 1.1) + .15 * Math.sin(K.t * .039);\nblendMode(MULTIPLY);\nconst bh = H / nb;\nfor (let k = 0; k < nb; k++) {\n  const a = Math.pow(.5 + .5 * Math.sin(k * 2.1 / sc + bph * 6.283), 2) * (.05 + .18 * en);\n  if (a < .004) continue;\n  dc.globalAlpha = la * a;\n  dc.fillStyle = css(hb + 200, .3, .18, 1);\n  dc.fillRect(0, k * bh - 1, W, bh + 2);\n}\nblendMode(BLEND);\n\n// hickeys \u2014 a fleck of dried ink on the blanket prints a hole with a ring round it\nconst nh = Math.round(de * 7);\nfor (let k = 0; k < nh; k++) {\n  const q = j => fr(k * 11.3 + j * 2.1 + 13);\n  const hx = (q(1) + .04 * Math.sin(K.t * .011 + k)) * W, hy = (q(2) + .03 * Math.sin(K.t * .013 + k * 2.2)) * H;\n  const hr = u * (.004 + .014 * q(3)) * sc;\n  dc.globalAlpha = la * (.4 + .5 * en);\n  dc.fillStyle = css(stH, stS, stV, 1);\n  dc.beginPath(); dc.arc(hx, hy, hr, 0, 6.2832); dc.fill();\n  dc.globalAlpha = la * (.5 + .4 * en);\n  dc.fillStyle = css(hb + 200, .5, .16, 1);\n  dc.beginPath(); dc.arc(hx, hy, hr * .45, 0, 6.2832); dc.fill();\n}\n\n// ---- register targets and the colour bar, each printed by its own plate -------\nif (mk > .02) {\n  const INK = [[190, 100, .86], [318, 96, .88], [52, 96, .98], [30, 10, .10]];\n  const ms = u * .022 * sc * (.5 + mk);\n  blendMode(MULTIPLY);\n  dc.lineWidth = Math.max(1, u * .0022 * sc);\n  for (let k = 0; k < (duo ? 2 : 4); k++) {\n    const d = dirs[k];\n    dc.strokeStyle = css(INK[k][0], INK[k][1] / 100, INK[k][2], 1);\n    dc.globalAlpha = la * mk * .9;\n    for (let m = 0; m < 4; m++) {\n      const mx = [W * .5, W * .5, ms * 1.5, W - ms * 1.5][m] + d[0];\n      const my = [ms * 1.5, H - ms * 1.5, H * .5, H * .5][m] + d[1];\n      dc.beginPath();\n      dc.moveTo(mx - ms, my); dc.lineTo(mx + ms, my);\n      dc.moveTo(mx, my - ms); dc.lineTo(mx, my + ms);\n      dc.stroke();\n      dc.beginPath(); dc.arc(mx, my, ms * .55, 0, 6.2832); dc.stroke();\n    }\n  }\n  if (mk > .22 && !prog) {\n    const bar = [[190, 100, .86], [318, 96, .88], [52, 96, .98], [30, 10, .10], [190, 55, .93], [318, 52, .94], [52, 50, 1], [30, 8, .5], [244, 78, .5], [352, 92, .74], [150, 92, .6], [30, 12, .3]];\n    const bw = W / bar.length, bhh = u * .018 * sc * (.4 + mk);\n    const d = dirs[3];\n    dc.globalAlpha = la * mk * .92;\n    for (let k = 0; k < bar.length; k++) {\n      dc.fillStyle = css(bar[k][0], bar[k][1] / 100, bar[k][2], 1);\n      dc.fillRect(k * bw + d[0], H - bhh - u * .004 + d[1], bw * .9, bhh);\n    }\n  }\n  blendMode(BLEND);\n}\n\ndc.globalAlpha = oldA;\nblendMode(BLEND);\ndc.shadowBlur = 0;\n"
+}

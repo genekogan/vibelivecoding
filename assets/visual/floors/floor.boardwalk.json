@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.boardwalk",
+  "kind": "floor",
+  "name": "Boardwalk",
+  "desc": "Weathered boardwalk planks scrolling underfoot in perspective \u2014 wood grain, nail heads, gaps flashing sea-glints below and a warm lamp pool wandering across the boards. Pier wood, weathered grey, painted teal, night or sunset.",
+  "tags": [
+    "boardwalk",
+    "pier",
+    "planks",
+    "wood",
+    "seaside",
+    "walk",
+    "perspective",
+    "deck",
+    "promenade",
+    "beach",
+    "grain",
+    "stroll"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "planks": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "plank rows"
+    },
+    "hue": {
+      "default": 28,
+      "min": 0,
+      "max": 360,
+      "doc": "wood hue"
+    },
+    "wear": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grain/nails"
+    },
+    "gaps": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "gap glints"
+    },
+    "lamplight": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp pool"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.25,
+      "max": 0.6,
+      "doc": "horizon"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "pier",
+      "options": [
+        "pier",
+        "weathered",
+        "painted",
+        "night",
+        "sunset"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:40:21+00:00",
+    "fps": 60.2,
+    "motion": 0.0451,
+    "lum": 0.198
+  },
+  "code": "const D = { energy:.4, planks:.6, hue:28, wear:.5, gaps:.5, lamplight:.6, x:.5, y:.42, scale:1, speed:1, density:.5, style:'pier', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.3+(P.y-0.5)*0.3);\nlet woodA=[P.hue,45,52],woodB=[P.hue,50,40],gapC=[P.hue,40,12],seaGlint=[195,30,80];\nif(sty==='weathered'){ woodA=[210,10,55]; woodB=[210,14,42]; gapC=[210,15,14]; }\nelse if(sty==='painted'){ woodA=[185,35,70]; woodB=[190,40,55]; gapC=[195,30,20]; }\nelse if(sty==='night'){ woodA=[240,20,30]; woodB=[245,25,22]; gapC=[240,25,6]; seaGlint=[210,25,60]; }\nelse if(sty==='sunset'){ woodA=[20,55,60]; woodB=[15,60,45]; gapC=[15,50,14]; seaGlint=[30,50,90]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nfunction proj(fx,fz){ const zz=0.12+fz*3.2; const sy=hor+(H-hor)*(1/(1+zz*0.85)); const sx=W*0.5+fx*W*0.8*(1/(1+zz*0.5)); return [sx,sy]; }\n// plank rows scrolling toward viewer (stroll)\nconst NZ=Math.floor(10+P.planks*10);\nconst scroll=(t*(0.06+en*0.14)*P.speed)%(1/NZ);\nfor(let zi=NZ-1; zi>=0; zi--){\n  const fz0=zi/NZ - scroll*NZ/NZ, fz1=(zi+1)/NZ - scroll;\n  if(fz1<0.001) continue;\n  const shade=fr(zi+Math.floor(scroll*0))*0; // per-row shade from noise on world-z\n  const rowSeed=Math.floor((zi/NZ - scroll)*NZ*7);\n  for(let xi=0; xi<4; xi++){\n    const fx0=(xi/4-0.5)*2, fx1=((xi+1)/4-0.5)*2;\n    const [ax,ay]=proj(fx0,Math.max(0.001,fz0)),[bx,by]=proj(fx1,Math.max(0.001,fz0)),[ccx,ccy]=proj(fx1,fz1),[ddx,ddy]=proj(fx0,fz1);\n    const wv=fr(rowSeed*5+xi);\n    noStroke(); fill(Cc(wv>0.5?woodA:woodB,100));\n    quad(ax,ay,bx,by,ccx,ccy,ddx,ddy);\n    // grain streaks + wear\n    if(fz0<0.5){ stroke(Cc([woodB[0],woodB[1]+8,woodB[2]-12], 30+P.wear*30)); strokeWeight(0.8);\n      for(let k2=0;k2<3;k2++){ const s2=(k2+1)/4; line(ax+(bx-ax)*s2, ay+(by-ay)*s2*0.98, ddx+(ccx-ddx)*s2, ddy+(ccy-ddy)*s2*1.02); } noStroke(); }\n    // nail heads\n    if(fz0<0.35 && P.wear>0.2){ fill(Cc([0,0,20],70)); circle(ax+(bx-ax)*0.08,(ay+ddy)/2,2); circle(ax+(bx-ax)*0.92,(ay+ddy)/2,2); }\n  }\n  // gap line between rows (sea glints through occasionally)\n  if(P.gaps>0.05){ const [gx0,gy0]=proj(-1,fz1),[gx1,gy1]=proj(1,fz1);\n   stroke(Cc(gapC,100)); strokeWeight(1+ (1-fz1)*3); line(gx0,gy0,gx1,gy1);\n   if(fr(rowSeed)>0.7){ const gl=0.5+0.5*Math.sin(t*(1.2+fr(rowSeed))*1.4+rowSeed); stroke(Cc(seaGlint,(20+gl*30)*P.gaps)); strokeWeight(1.2); line(gx0+(gx1-gx0)*0.3,gy0,gx0+(gx1-gx0)*0.5,gy0); }\n   noStroke(); }\n}\n// lamp pool wandering (evening stroll light \u2014 motion carrier)\nif(P.lamplight>0.05){ dc.save(); blendMode(SCREEN);\n const gx=W*(0.5+Math.sin(t*0.29)*0.4); const gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.91+1);\n const rg=dc.createRadialGradient(gx,hor+(H-hor)*0.4,10,gx,hor+(H-hor)*0.4,W*0.36);\n rg.addColorStop(0,color(45,25,95,(10+13*gb)*P.lamplight*P.alpha/100).toString());\n rg.addColorStop(1,'rgba(0,0,0,0)');\n dc.fillStyle=rg; dc.fillRect(0,hor,W,H-hor); dc.restore(); blendMode(BLEND); }\nblendMode(BLEND);\n"
+}

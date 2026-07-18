@@ -1,0 +1,173 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.lens_grime",
+  "kind": "fx",
+  "name": "Lens Grime",
+  "desc": "The dirt on the front element, which stays invisible until something bright rakes it \u2014 a glare source wanders the frame and wakes what it passes: sleeve-wipe arcs, a thumbprint whorl, hairline scratches flaring out of nowhere, dust flecks lighting up, and a veiling haze blooming around the source.",
+  "tags": [
+    "lens",
+    "glass",
+    "optic",
+    "optics",
+    "front-element",
+    "grime",
+    "dirt",
+    "dust",
+    "soil",
+    "smear",
+    "smudge",
+    "wipe",
+    "sleeve",
+    "cloth",
+    "fingerprint",
+    "thumbprint",
+    "whorl",
+    "ridge",
+    "print",
+    "scratch",
+    "scratches",
+    "hairline",
+    "sleek",
+    "scuff",
+    "abrasion",
+    "fleck",
+    "flecks",
+    "speck",
+    "lint",
+    "mote",
+    "haze",
+    "veiling-glare",
+    "flare",
+    "bloom",
+    "coating",
+    "uncoated",
+    "dirty",
+    "filthy",
+    "camera",
+    "cinematography",
+    "anamorphic",
+    "vintage",
+    "found-footage",
+    "documentary",
+    "survey",
+    "inspection",
+    "qc",
+    "quality-control",
+    "defect",
+    "plot",
+    "schematic",
+    "abstract",
+    "overlay",
+    "veil",
+    "atmosphere",
+    "composite",
+    "subtle",
+    "material",
+    "surface",
+    "texture",
+    "eerie",
+    "melancholy",
+    "noir",
+    "clinical"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "soil": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1.2,
+      "doc": "how dirty the front element is \u2014 0 = clean glass, 1.2 = never once wiped"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.2,
+      "doc": "size of the marks \u2014 how close the grime sits to the front element"
+    },
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how brightly the glare source wakes the grime it passes"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "how many smears, scratches and flecks there are, and the reach of the glare"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "tint of the coating bloom under the grime"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 4,
+      "doc": "how fast the glare source wanders the frame"
+    },
+    "x": {
+      "default": 0.68,
+      "min": 0,
+      "max": 1,
+      "doc": "where the glare source sits, across the frame"
+    },
+    "y": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "where the glare source sits, up the frame"
+    },
+    "alpha": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "overlay opacity \u2014 kept off full by default so this veils the scene rather than hiding it"
+    },
+    "style": {
+      "default": "grime",
+      "options": [
+        "grime",
+        "fingerprint",
+        "scratched",
+        "bloom",
+        "survey"
+      ],
+      "doc": "grime: general lens crud \u2014 sleeve smears, flecks and a veiling haze \u00b7 fingerprint: someone put a thumb on the front element, whorls and all \u00b7 scratched: cleaned once too often with the wrong cloth, hairlines everywhere \u00b7 bloom: the coating has gone \u2014 a soft flaring haze with almost no marks \u00b7 survey: non-representational \u2014 an optical QC plot, every defect ringed and ticked on a clean field, nothing rendered as material at all"
+    },
+    "act": {
+      "default": "drift",
+      "options": [
+        "drift",
+        "wipe",
+        "fog"
+      ],
+      "doc": "drift: the glare source wanders and wakes what it passes \u00b7 wipe: someone drags a cloth across \u2014 the smears sweep round and thin out \u00b7 fog: the coating blooms, haze swelling and receding across sections"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "a different lens \u2014 new smears, prints, scratches and flecks"
+    }
+  },
+  "acts": [
+    "drift",
+    "wipe",
+    "fog"
+  ],
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T12:32:22+00:00",
+    "fps": 53.8,
+    "motion": 0.0508,
+    "lum": 0.132
+  },
+  "code": "const D = { soil: .5, scale: 1, energy: .6, density: .5, hue: 40, speed: 1, x: .68, y: .3, alpha: .6, style: 'grime', act: 'drift', seed: 0 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst cl=(v,a,b)=>v<a?a:v>b?b:v, md=(a,n)=>((a%n)+n)%n, TAU=Math.PI*2;\nconst fr=i=>{const s=Math.sin(i*127.1+P.seed*311.7)*43758.5453;return s-Math.floor(s);};\nif(S.lastBeat==null||K.beat<S.lastBeat)S.lastBeat=K.beat; S.lastBeat=K.beat;\n\nconst W=width, Hh=height, u=Math.min(W,Hh);\nconst sty=P.style, act=P.act;\nconst soil=cl(P.soil,0,1.2), sc=cl(P.scale,.5,2.2), al=cl(P.alpha,0,1);\nconst dens=cl(P.density,0,1), spd=cl(P.speed,.1,4), en=cl(P.energy,0,1);\nconst H=md(P.hue,360), T=K.t*spd;\nconst TD=K.t*(.45+.55*Math.min(spd,3));\n\nif(al>0.002 && soil>0.002){\nS.bass=(S.bass||0)*.86+(A.bass||0)*.14;\nS.tre=(S.tre||0)*.86+(A.treble||0)*.14;\n\n// ---- dramaturgy ----\nconst sec=((K.section|0)%8+8)%8;\nlet wipe=0, fogK=1, glareRate=1;\nif(act==='wipe'){ wipe=md(sec*.19+T*.010,1); glareRate=.7; }\nelse if(act==='fog'){ fogK=1+1.5*(.5+.5*Math.sin(sec*.8+T*.021)); glareRate=.55; }\n\n// ---- Grime is invisible until something bright rakes it. The glare source wanders on a\n// monotonic orbit, so different marks light up as it passes \u2014 that is both the physics\n// and the motion floor, and it cannot re-phase away.\nconst gAng=.125*TD*glareRate, gAng2=.287*TD*glareRate+2.4;\nconst gx=W*(cl(P.x,0,1)+.30*Math.cos(gAng)+.11*Math.cos(gAng2));\nconst gy=Hh*(cl(P.y,0,1)+.26*Math.sin(gAng)+.10*Math.sin(gAng2));\nconst gR=u*(.30+.20*dens);\nconst glare=((.30+1.05*en)*(.55+.7*K.intensity)+S.tre*.28*en)*5.0;\n\n// ---- style ----\nconst survey=(sty==='survey'), bloomy=(sty==='bloom');\nconst nSm=survey?0:Math.round((2+6*dens)*(sty==='fingerprint'?.4:1)*(sty==='scratched'?.5:1));\nconst nWh=(sty==='fingerprint')?Math.round(1+dens*2):(survey?0:(soil>.6?1:0));\nconst nSc=Math.round((3+18*dens)*(sty==='scratched'?2.2:1)*(bloomy?.25:1)*(survey?2.0:1));\nconst nFl=Math.round((14+50*dens)*(bloomy?.4:1));\nconst tintS=survey?8:(bloomy?26:16);\n\nconst dc=drawingContext, oldOp=dc.globalCompositeOperation;\nnoStroke(); noFill();\n\n// how strongly is the glare hitting a mark at (x,y)?\nconst lit=(x,y,k)=>{ const dx=x-gx, dy=y-gy; return Math.exp(-(dx*dx+dy*dy)/(gR*gR*(k||1))); };\n\ndc.globalCompositeOperation='lighter';\n\n// ---- veiling glare: the whole front element hazes over around the source ----\nif(!survey){\n  const hr=gR*(1.15+.5*fogK*(bloomy?1.5:1));\n  const rg=dc.createRadialGradient(gx,gy,0,gx,gy,hr);\n  const ha=cl(.20*soil*glare*al*fogK*(bloomy?2.0:1),0,.34);\n  rg.addColorStop(0,'rgba(226,232,246,'+ha.toFixed(4)+')');\n  rg.addColorStop(.45,'rgba(214,222,240,'+(ha*.42).toFixed(4)+')');\n  rg.addColorStop(1,'rgba(200,212,236,0)');\n  dc.fillStyle=rg; dc.fillRect(gx-hr,gy-hr,hr*2,hr*2);\n}\n\n// ---- smears: sleeve-wipe arcs across the front element. Soft, so shadowBlur \u2014 on a\n// handful of shapes only, and reset straight after.\nfor(let m=0;m<nSm;m++){\n  const cx=fr(m*4.1+10)*W, cy=fr(m*4.1+11)*Hh;\n  const rad=u*(.16+.34*fr(m*4.1+12))*sc;\n  const a0=fr(m*4.1+13)*TAU, span=(.5+1.5*fr(m*4.1+14));\n  const wdt=u*(.012+.040*fr(m*4.1+15))*sc;\n  // a wipe redistributes the smears: they sweep round and thin out\n  const wOff=wipe>0?(wipe*TAU*1.2):0;\n  const wFade=wipe>0?cl(1-Math.abs(md(fr(m*4.1+16)-wipe,1)-.5)*3.0,.15,1):1;\n  const li=lit(cx+Math.cos(a0+span*.5+wOff)*rad, cy+Math.sin(a0+span*.5+wOff)*rad, 1.6);\n  const aa=cl((.075+.20*fr(m*4.1+17))*soil*glare*al*(.16+1.6*li)*wFade,0,.46);\n  if(aa<.002) continue;\n  const seg=14, pts=[];\n  for(let k=0;k<=seg;k++){ const a2=a0+wOff+span*(k/seg);\n    const wob=1+.12*Math.sin(k*1.7+m*2.3);\n    pts.push([cx+Math.cos(a2)*(rad+wdt*.5)*wob, cy+Math.sin(a2)*(rad+wdt*.5)*wob]); }\n  for(let k=seg;k>=0;k--){ const a2=a0+wOff+span*(k/seg);\n    const wob=1-.10*Math.sin(k*1.3+m*1.1);\n    pts.push([cx+Math.cos(a2)*(rad-wdt*.5)*wob, cy+Math.sin(a2)*(rad-wdt*.5)*wob]); }\n  const cr=224+22*fr(m*4.1+18), cg=228+18*fr(m*4.1+19), cb=238;\n  dc.shadowBlur=wdt*(survey?0:1.4); dc.shadowColor='rgba('+(cr|0)+','+(cg|0)+','+(cb|0)+','+(aa*.9).toFixed(4)+')';\n  dc.fillStyle='rgba('+(cr|0)+','+(cg|0)+','+(cb|0)+','+aa.toFixed(4)+')';\n  dc.beginPath(); dc.moveTo(pts[0][0],pts[0][1]);\n  for(let k=1;k<pts.length;k++) dc.lineTo(pts[k][0],pts[k][1]);\n  dc.closePath(); dc.fill();\n}\ndc.shadowBlur=0;\n\n// ---- fingerprint whorls: someone put a thumb on the front element ----\nfor(let m=0;m<nWh;m++){\n  const cx=fr(m*6.3+40)*W, cy=fr(m*6.3+41)*Hh;\n  const rr=u*(.07+.06*fr(m*6.3+42))*sc;\n  const li=lit(cx,cy,1.3);\n  const aa=cl(.44*soil*glare*al*(.10+1.8*li),0,.56);\n  if(aa<.002) continue;\n  const sq=.62+.5*fr(m*6.3+43), rot=fr(m*6.3+44)*TAU;\n  for(let r2=0;r2<15;r2++){\n    const t2=(r2+1)/15;\n    dc.strokeStyle='rgba(232,236,248,'+(aa*(1-t2*.45)).toFixed(4)+')';\n    dc.lineWidth=Math.max(.7,u*.0016*sc);\n    dc.beginPath();\n    for(let k=0;k<=26;k++){\n      const a2=k/26*TAU;\n      // a whorl: loops that close over on themselves, not clean circles\n      const rd=rr*t2*(1+.22*Math.sin(a2*2+r2*.55+rot)+.10*Math.sin(a2*3-r2*.3));\n      const px2=cx+Math.cos(a2+rot)*rd, py2=cy+Math.sin(a2+rot)*rd*sq;\n      if(k===0) dc.moveTo(px2,py2); else dc.lineTo(px2,py2);\n    }\n    dc.stroke();\n  }\n}\n\n// ---- hairline scratches: the lens has been cleaned with the wrong cloth ----\nfor(let m=0;m<nSc;m++){\n  const x0=fr(m*8.7+70)*W, y0=fr(m*8.7+71)*Hh;\n  const len=u*(.05+.30*fr(m*8.7+72))*sc;\n  const ang=fr(m*8.7+73)*TAU, cur=(fr(m*8.7+74)-.5)*1.6;\n  const li=lit(x0+Math.cos(ang)*len*.5, y0+Math.sin(ang)*len*.5, 1.1);\n  // a scratch is a groove: it is dark until something rakes it, then it flares\n  const aa=cl((.16+.62*fr(m*8.7+75))*soil*glare*al*(.04+2.3*li),0,.66);\n  if(aa<.002) continue;\n  if(survey){\n    // non-representational: an optical QC plot \u2014 every defect ringed, nothing rendered.\n    // Each finding carries its own phase so the plot is never frozen.\n    const ph2=.34+.66*(.5+.5*Math.sin(TD*.19+m*1.9))*(.5+.5*Math.sin(TD*.41+m*.7));\n    dc.strokeStyle='rgba(150,235,255,'+cl((aa*1.1+.10*soil*al)*1.7*ph2,0,.85).toFixed(4)+')';\n    dc.lineWidth=Math.max(1.1,u*.0032*(.7+.6*ph2));\n    const rr=len*.5+u*.012;\n    dc.beginPath(); dc.arc(x0,y0,rr,0,TAU); dc.stroke();\n    dc.beginPath(); dc.moveTo(x0-rr*1.35,y0); dc.lineTo(x0-rr*1.05,y0);\n    dc.moveTo(x0+rr*1.05,y0); dc.lineTo(x0+rr*1.35,y0);\n    dc.moveTo(x0,y0-rr*1.35); dc.lineTo(x0,y0-rr*1.05);\n    dc.moveTo(x0,y0+rr*1.05); dc.lineTo(x0,y0+rr*1.35); dc.stroke();\n    continue;\n  }\n  dc.strokeStyle='rgba(238,242,252,'+aa.toFixed(4)+')';\n  dc.lineWidth=Math.max(.6,u*.0013*sc);\n  dc.beginPath();\n  for(let k=0;k<=7;k++){ const t2=k/7;\n    const a2=ang+cur*t2*t2;\n    const px2=x0+Math.cos(a2)*len*t2, py2=y0+Math.sin(a2)*len*t2;\n    if(k===0) dc.moveTo(px2,py2); else dc.lineTo(px2,py2);\n  }\n  dc.stroke();\n}\n\n// ---- flecks: dust and lint sitting on the glass, each one a tiny out-of-focus blob ----\nfor(let m=0;m<nFl;m++){\n  const fx2=md(fr(m*3.7+100)+.004*Math.sin(TD*.09+m*1.3),1)*W;\n  const fy2=md(fr(m*3.7+101)+.004*Math.cos(TD*.07+m*.9),1)*Hh;\n  const sz=u*(.0018+.0060*fr(m*3.7+102))*sc;\n  const li=lit(fx2,fy2,.85);\n  const aa=cl((.30+.95*fr(m*3.7+103))*soil*glare*al*(.05+2.5*li),0,.78);\n  if(aa<.003) continue;\n  dc.fillStyle=survey?'rgba(150,235,255,'+aa.toFixed(4)+')':'rgba(240,244,252,'+aa.toFixed(4)+')';\n  dc.beginPath(); dc.arc(fx2,fy2,sz*(1+li*.6),0,TAU); dc.fill();\n}\n\n// ---- a faint coating tint, so the grime is not pure white ----\nif(!survey && soil>.25){\n  const hr=gR*.9;\n  const rg2=dc.createRadialGradient(gx,gy,0,gx,gy,hr);\n  const ta=cl(.10*soil*glare*al*fogK,0,.20);\n  const cr=Math.round(120+90*Math.cos(H*Math.PI/180)), cg2=Math.round(150+60*Math.sin(H*Math.PI/180)), cb2=210;\n  rg2.addColorStop(0,'rgba('+cr+','+cg2+','+cb2+','+ta.toFixed(4)+')');\n  rg2.addColorStop(1,'rgba('+cr+','+cg2+','+cb2+',0)');\n  dc.fillStyle=rg2; dc.fillRect(gx-hr,gy-hr,hr*2,hr*2);\n}\n\ndc.globalCompositeOperation=oldOp;\n}\nblendMode(BLEND); drawingContext.globalAlpha=1; drawingContext.shadowBlur=0; noStroke(); noTint();\n"
+}

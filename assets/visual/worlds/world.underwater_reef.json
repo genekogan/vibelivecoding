@@ -1,0 +1,132 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.underwater_reef",
+  "kind": "world",
+  "name": "Coral Reef",
+  "desc": "An underwater reef \u2014 sunlight shafts swaying down through the blue, caustics rippling near the surface, schools of little fish crossing, bubbles rising, and branching corals, brain corals and sea fans on the sandy floor. Tropical, deep, kelp, bioluminescent night or bright lagoon.",
+  "tags": [
+    "reef",
+    "coral",
+    "underwater",
+    "ocean",
+    "sea",
+    "aquarium",
+    "fish",
+    "tropical",
+    "dive",
+    "marine",
+    "kelp",
+    "bioluminescent",
+    "caustics",
+    "light-shafts",
+    "nature",
+    "environment",
+    "aquatic",
+    "seabed",
+    "lagoon"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "current liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 195,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue"
+    },
+    "coral": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "coral count/size"
+    },
+    "fish": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fish count"
+    },
+    "shafts": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "light shaft count"
+    },
+    "caustic": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "surface caustic shimmer"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "seabed height"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "tropical",
+      "options": [
+        "tropical",
+        "deep",
+        "kelp",
+        "biolum",
+        "lagoon"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:32:13+00:00",
+    "fps": 59.9,
+    "motion": 0.0252,
+    "lum": 0.837
+  },
+  "code": "const D = { energy:.5, scale:1, hue:195, coral:.6, fish:.5, shafts:.6, caustic:.5, x:.5, y:.5, speed:1, density:.5, style:'tropical', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst floorY=H*(0.72+(P.y-0.5)*0.2);\n\nlet top=[P.hue,70,55], bot=[P.hue+10,80,18], shaftc=[P.hue-15,40,100], sandc=[40,30,72], coralHs=[[20,80],[330,60],[280,55],[45,80]], biolum=false;\nif(sty==='deep'){ top=[P.hue+15,80,28]; bot=[P.hue+20,85,8]; shaftc=[P.hue,50,80]; sandc=[P.hue,30,20]; coralHs=[[280,60],[210,55],[300,50]]; }\nelse if(sty==='kelp'){ top=[160,60,45]; bot=[150,70,14]; shaftc=[120,40,95]; sandc=[70,30,45]; coralHs=[[100,60],[80,55],[130,50]]; }\nelse if(sty==='biolum'){ top=[220,80,14]; bot=[230,85,6]; shaftc=[190,60,90]; sandc=[220,40,16]; coralHs=[[180,90],[280,80],[150,85]]; biolum=true; }\nelse if(sty==='lagoon'){ top=[180,55,80]; bot=[190,60,40]; shaftc=[180,30,100]; sandc=[45,25,88]; coralHs=[[10,70],[330,55],[40,75]]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// water gradient\nlet g=dc.createLinearGradient(0,0,0,H); g.addColorStop(0,Cc(top,100).toString()); g.addColorStop(1,Cc(bot,100).toString()); dc.fillStyle=g; noStroke(); rect(0,0,W,H);\n// caustic shimmer on water (subtle bands)\nif(P.caustic>0.05){ dc.save(); blendMode(SCREEN); noFill();\n  for(let i=0;i<10;i++){ const y=fr(i)*H*0.5; stroke(Cc(shaftc, 6*P.caustic)); strokeWeight(2+fr(i)*4);\n    beginShape(); for(let x=0;x<=W;x+=W/20){ vertex(x, y+Math.sin(x*0.01+t*0.6+i)*14+Math.sin(x*0.03+t)*6);} endShape(); }\n  dc.restore(); blendMode(BLEND); }\n// light shafts from surface (sway)\nif(P.shafts>0.05){ dc.save(); blendMode(SCREEN);\n  const ns=Math.floor(3+P.shafts*5); for(let i=0;i<ns;i++){ const sx=W*(i+0.5+Math.sin(t*0.2+i)*0.15)/ns; const sw=W*0.06*(0.6+fr(i));\n    fill(Cc(shaftc, 9*P.shafts)); const skew=Math.sin(t*0.3+i)*40;\n    quad(sx-sw, 0, sx+sw, 0, sx+sw*1.6+skew, floorY+40, sx-sw*1.6+skew, floorY+40); }\n  dc.restore(); blendMode(BLEND); }\n// distant fish specks swimming\nif(P.fish>0.05){ noStroke(); const nf=Math.floor(6+P.fish*30); for(let i=0;i<nf;i++){ const spd=(0.03+fr(i)*0.06)*(0.5+en)*P.speed*(fr(i+3)>0.5?1:-1); const fxp=((fr(i)+t*spd)%1)*W; const fyp=fr(i+40)*floorY*0.9; const fsz=(3+fr(i+7)*7); const h=coralHs[i%coralHs.length][0];\n  fill(Cc([h,70,90], 70)); push(); translate(fxp,fyp); scale(spd>0?1:-1,1); ellipse(0,0,fsz*2,fsz); triangle(-fsz,0,-fsz*1.7,-fsz*0.5,-fsz*1.7,fsz*0.5); pop(); } }\n// bubbles\nnoStroke(); for(let i=0;i<20;i++){ const life=(t*0.2+fr(i))%1; const bx=fr(i+9)*W; const by=H-life*H; fill(Cc([P.hue,20,100],(1-life)*22)); circle(bx+Math.sin(t+i)*8, by, 2+fr(i)*4); }\n// sandy floor\nfill(Cc(sandc,100)); beginShape(); vertex(0,H); vertex(0,floorY); for(let x=0;x<=W;x+=W/14){ vertex(x, floorY + Math.sin(x*0.01+2)*10 - fr(x)*6);} vertex(W,floorY); vertex(W,H); endShape(CLOSE);\n// corals (rounded lumps + branches, sway)\nif(P.coral>0.05){ const nc=Math.floor(4+P.coral*10); for(let i=0;i<nc;i++){ const cxp=fr(i*5)*W; const chh=(0.08+fr(i)*0.16)*H*P.coral; const [h,s]=coralHs[i%coralHs.length]; const sway=Math.sin(t*0.6+i)*0.06;\n  if(biolum){ dc.shadowBlur=14; dc.shadowColor=color(h,s,100).toString(); }\n  fill(Cc([h,s,biolum?70:60], biolum?90:100)); push(); translate(cxp,floorY+6); rotate(sway);\n  const type=Math.floor(fr(i+2)*3);\n  if(type===0){ for(let b=0;b<5;b++){ const a=-Math.PI/2+(b-2)*0.4; push(); rotate(a); ellipse(0,-chh*0.5, chh*0.16, chh); pop(); } } // branching\n  else if(type===1){ ellipse(0,-chh*0.4, chh*0.9, chh*0.8); for(let k=0;k<8;k++){ const a=k/8*TAU; fill(Cc([h,s,80],80)); circle(Math.cos(a)*chh*0.35, -chh*0.4+Math.sin(a)*chh*0.3, chh*0.14);} } // brain/lump\n  else { for(let b=0;b<6;b++){ push(); rotate((b-2.5)*0.3); noFill(); stroke(Cc([h,s,70],90)); strokeWeight(chh*0.08); line(0,0,0,-chh*(0.6+fr(b)*0.5)); noStroke(); } } // sea fan\n  dc.shadowBlur=0; pop(); } }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}

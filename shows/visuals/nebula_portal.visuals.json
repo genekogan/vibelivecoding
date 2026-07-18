@@ -1,0 +1,60 @@
+{
+ "format": "livecode-visuals-v1",
+ "name": "nebula_portal",
+ "title": "Deep-space nebula + wormhole",
+ "note": "nebula, boids, ringed giant, jellyfish, alien silhouettes, typewriter poem",
+ "layers": [
+  {
+   "name": "N1_neb",
+   "code": "const s=window.state; if(s.nt===undefined)s.nt=0; s.nt+=0.003; const d=s.nt;\nif(!s.nb){ s.nb=createGraphics(width,height); s.nb.colorMode(HSB,360,100,100,100);\n  const g=s.nb; g.background(250,80,4); g.noStroke();\n  for(let i=0;i<600;i++){ const x=Math.random()*width,y=Math.random()*height;\n    const h=[260,300,190,330][i%4]; g.fill(h,70,50,6); g.ellipse(x,y,60+Math.random()*180); }\n}\nimage(s.nb,0,0);\n// slow drifting hue veil\npush(); blendMode(ADD);\nfor(let i=0;i<3;i++){ const x=width*(0.3+0.2*i)+Math.sin(d+i)*80, y=height*0.4+Math.cos(d*0.7+i)*60;\n  noStroke(); fill([280,190,330][i],80,60,8); ellipse(x,y,300,220); }\npop();\n"
+  },
+  {
+   "name": "N0_cam",
+   "code": "const s=window.state; if(s.ct===undefined)s.ct=0; s.ct+=0.03; const d=s.ct;\n// vignette + slow color breathing over everything (drawn first-ish; keep subtle)\npush(); blendMode(ADD);\nconst pulse=0.5+0.5*Math.sin(d*0.8);\nnoStroke(); fill(280,70,40, 4+pulse*6); rect(0,0,width,height);\npop();\n// dark vignette edges\npush(); noFill();\nfor(let i=0;i<80;i++){ stroke(250,60,3, i*0.6); strokeWeight(2); rect(i,i,width-2*i,height-2*i); }\npop();\n"
+  },
+  {
+   "name": "N2_stars",
+   "code": "const s=window.state; if(s.st2===undefined)s.st2=0; s.st2+=0.01; const d=s.st2;\nif(!s.stars){ s.stars=[]; for(let i=0;i<160;i++)s.stars.push({x:Math.random()*width,y:Math.random()*height,z:Math.random(),ph:Math.random()*6.28}); }\nnoStroke();\nfor(const st of s.stars){ st.ph+=0.03; const tw=0.5+0.5*Math.sin(st.ph);\n  fill(0,0,100,30+tw*60*st.z); const r=1+st.z*2.5; ellipse(st.x,st.y,r,r);\n  st.x-=0.15*st.z; if(st.x<0)st.x=width; }\n// constellation links\nstroke(190,40,100,25); strokeWeight(1);\nfor(let i=0;i<s.stars.length;i+=17){ const a=s.stars[i],b=s.stars[(i+9)%s.stars.length];\n  if(Math.hypot(a.x-b.x,a.y-b.y)<220) line(a.x,a.y,b.x,b.y); }\n"
+  },
+  {
+   "name": "N11_giant",
+   "code": "const s=window.state; if(s.gt3===undefined)s.gt3=0; s.gt3+=0.0015; const d=s.gt3;\nconst hz=height*0.7;\nconst x=width*0.7, y=hz - Math.sin(d)*height*0.3 + height*0.05, r=Math.min(width,height)*0.28;\npush();\ndrawingContext.shadowBlur=60; drawingContext.shadowColor='hsl(30,80%,50%)';\nnoStroke(); fill(28,60,55); ellipse(x,y,r*2,r*2);\ndrawingContext.shadowBlur=0;\n// bands\nfor(let i=-3;i<=3;i++){ fill(28,60,55+i*4,50); ellipse(x,y+i*r*0.22,r*2*Math.cos(i*0.3),r*0.3); }\n// terminator\nfill(28,80,12,45); arc(x,y,r*2,r*2,-0.8,2.34,PIE);\n// rings\npush(); translate(x,y); rotate(-0.4); noFill();\nfor(let k=0;k<3;k++){ stroke(40,40,100,60-k*15); strokeWeight(6-k*1.5); ellipse(0,0,r*3.4+k*14,r*1.1+k*5); }\npop();\npop();\n"
+  },
+  {
+   "name": "N4_comets",
+   "code": "const s=window.state; if(!s.com){ s.com=[]; for(let i=0;i<5;i++)s.com.push({x:Math.random()*width,y:Math.random()*height*0.6,v:3+Math.random()*4,len:60+Math.random()*80,hue:[190,45,300][i%3]}); }\npush(); blendMode(ADD);\nfor(const c of s.com){ c.x+=c.v; c.y+=c.v*0.4;\n  if(c.x>width+100||c.y>height){ c.x=-80; c.y=Math.random()*height*0.5; }\n  for(let t=0;t<c.len;t+=3){ const a=map(t,0,c.len,80,0); stroke(c.hue,70,100,a); strokeWeight(map(t,0,c.len,3,0.3));\n    point(c.x-t, c.y-t*0.4); }\n  noStroke(); fill(0,0,100,90); ellipse(c.x,c.y,5,5);\n}\npop();\n"
+  },
+  {
+   "name": "N3_planets",
+   "code": "const s=window.state; if(s.pt2===undefined)s.pt2=0; s.pt2+=0.005; const d=s.pt2;\nif(!s.plan){ s.plan=[]; for(let i=0;i<4;i++)s.plan.push({cx:width*(0.2+0.22*i),cy:height*(0.2+0.12*(i%2)),r:30+Math.random()*40,hue:[30,200,330,150][i],ph:Math.random()*6.28,ring:Math.random()<.5}); }\nfor(const p of s.plan){ p.ph+=0.008; const x=p.cx+Math.cos(p.ph)*20, y=p.cy+Math.sin(p.ph*1.3)*14;\n  noStroke();\n  drawingContext.shadowBlur=30; drawingContext.shadowColor='hsl('+p.hue+',80%,55%)';\n  fill(p.hue,70,70); ellipse(x,y,p.r*2,p.r*2);\n  drawingContext.shadowBlur=0;\n  // terminator shadow\n  fill(p.hue,80,15,55); arc(x,y,p.r*2,p.r*2,-1.0,2.14,PIE);\n  // bands\n  fill(p.hue,60,90,25); ellipse(x,y-p.r*0.3,p.r*1.8,p.r*0.4);\n  if(p.ring){ push(); translate(x,y); rotate(-0.5); noFill(); stroke(p.hue,50,100,70); strokeWeight(4); ellipse(0,0,p.r*3.2,p.r*1.1); pop(); }\n}\n"
+  },
+  {
+   "name": "N9_portal",
+   "code": "const s=window.state; if(s.wt===undefined)s.wt=0; s.wt+=0.02; const d=s.wt;\nif(!s.portal){ s.portal={x:width*0.5,y:height*0.4,tx:width*0.5,ty:height*0.4,rt:0}; s.emit=[]; }\nconst p=s.portal;\nif(Math.abs(p.x-p.tx)<8&&Math.abs(p.y-p.ty)<8){ p.tx=width*(0.2+0.6*((Math.sin(d*1.7)*0.5+0.5))); p.ty=height*(0.2+0.4*((Math.cos(d*1.1)*0.5+0.5))); }\np.x+=(p.tx-p.x)*0.012; p.y+=(p.ty-p.y)*0.012; p.rt+=0.04;\n// emit\nif(s.emit.length<80){ const a=Math.random()*6.28; s.emit.push({x:p.x,y:p.y,vx:Math.cos(a)*(1+Math.random()*3),vy:Math.sin(a)*(1+Math.random()*3)*0.7,life:1,hue:(d*40)%360}); }\npush(); blendMode(ADD);\n// particles fly out then get sucked back\nfor(const e of s.emit){ e.x+=e.vx; e.y+=e.vy; e.vx*=0.98; e.vy*=0.98; e.life-=0.012;\n  const dx=p.x-e.x,dy=p.y-e.y; if(e.life<0.5){ e.vx+=dx*0.002; e.vy+=dy*0.002; }\n  noStroke(); fill(e.hue,70,100,e.life*80); ellipse(e.x,e.y,3,3); }\ns.emit=s.emit.filter(e=>e.life>0);\n// vortex\ntranslate(p.x,p.y); noFill();\nfor(let i=0;i<44;i++){ const a=i*0.5+p.rt; const r=6+i*3.4;\n  stroke((d*40+i*8)%360,80,100,map(i,0,44,90,0)); strokeWeight(2);\n  const x=Math.cos(a)*r,y=Math.sin(a)*r*0.7;\n  if(i>0){ const a0=(i-1)*0.5+p.rt,r0=6+(i-1)*3.4; line(Math.cos(a0)*r0,Math.sin(a0)*r0*0.7,x,y); } }\nnoStroke(); fill(0,0,100,80); ellipse(0,0,12,10); fill(280,60,100,30); ellipse(0,0,46,34);\npop();\n"
+  },
+  {
+   "name": "N10_flock",
+   "code": "const S=window.state; if(!S.flock){ S.flock=[]; for(let i=0;i<40;i++)S.flock.push({x:Math.random()*width,y:Math.random()*height*0.6,vx:(Math.random()-.5)*2,vy:(Math.random()-.5)*2}); }\nconst f=S.flock; const cx=f.reduce((a,b)=>a+b.x,0)/f.length, cy=f.reduce((a,b)=>a+b.y,0)/f.length;\npush(); blendMode(ADD);\nfor(const b of f){\n  // cohesion + wander\n  b.vx+=(cx-b.x)*0.0006+(Math.random()-.5)*0.3;\n  b.vy+=(cy-b.y)*0.0006+(Math.random()-.5)*0.3;\n  // separation\n  for(const o of f){ if(o===b)continue; const dx=b.x-o.x,dy=b.y-o.y,dd=dx*dx+dy*dy; if(dd<500&&dd>0){ b.vx+=dx/dd*4; b.vy+=dy/dd*4; } }\n  const sp=Math.hypot(b.vx,b.vy); if(sp>3){ b.vx=b.vx/sp*3; b.vy=b.vy/sp*3; }\n  b.x+=b.vx; b.y+=b.vy;\n  if(b.x<0)b.x=width; if(b.x>width)b.x=0; if(b.y<0)b.y=height*0.6; if(b.y>height*0.6)b.y=0;\n  const a=Math.atan2(b.vy,b.vx);\n  stroke(190,60,100,70); strokeWeight(1.5); noFill();\n  push(); translate(b.x,b.y); rotate(a);\n  line(0,0,-6,-3); line(0,0,-6,3); pop();\n}\npop();\n"
+  },
+  {
+   "name": "N5_ridge",
+   "code": "const s=window.state; const hz=height*0.7;\nif(!s.ridge){ s.ridge=[]; let x=-20; while(x<width+40){ const w=30+Math.random()*60; const h=60+Math.random()*180; s.ridge.push({x,w,h,hue:[280,190,320][Math.floor(Math.random()*3)]}); x+=w*0.7; } }\nfor(const b of s.ridge){ noStroke();\n  fill(b.hue,60,10); triangle(b.x,hz,b.x+b.w/2,hz-b.h,b.x+b.w,hz);\n  stroke(b.hue,80,100,70); strokeWeight(1.5); noFill();\n  line(b.x,hz,b.x+b.w/2,hz-b.h); line(b.x+b.w/2,hz-b.h,b.x+b.w,hz);\n}\n// glow floor\nnoStroke(); for(let i=0;i<40;i++){ fill(280,60,100,3); rect(0,hz+i,width,2); }\n"
+  },
+  {
+   "name": "N6_jelly",
+   "code": "const S=window.state; if(!S.jelly){ S.jelly=[]; for(let i=0;i<7;i++)S.jelly.push({x:Math.random()*width,y:height*(0.4+Math.random()*0.4),s:26+Math.random()*24,ph:Math.random()*6.28,vy:-0.2-Math.random()*0.3,hue:[300,190,45,160][i%4]}); }\nfor(const j of S.jelly){ j.ph+=0.05; j.y+=j.vy+Math.sin(j.ph)*0.3; j.x+=Math.sin(j.ph*0.5)*0.4;\n  if(j.y<-40){ j.y=height+40; j.x=Math.random()*width; }\n  const s=j.s; push(); translate(j.x,j.y);\n  drawingContext.shadowBlur=20; drawingContext.shadowColor='hsl('+j.hue+',80%,60%)';\n  noStroke(); fill(j.hue,70,100,50); const pulse=1+0.15*Math.sin(j.ph);\n  arc(0,0,s*2*pulse,s*2*pulse,PI,TWO_PI); rect(-s*pulse,0,s*2*pulse,2);\n  drawingContext.shadowBlur=0;\n  stroke(j.hue,60,100,40); strokeWeight(1.5);\n  for(let t=0;t<6;t++){ const tx=-s*0.7+t*s*0.28; beginShape(); noFill();\n    for(let y=0;y<s*1.6;y+=6) vertex(tx+Math.sin(y*0.1+j.ph+t)*5, y); endShape(); }\n  pop();\n}\n"
+  },
+  {
+   "name": "N7_dust",
+   "code": "const s=window.state; if(!s.dust){ s.dust=[]; for(let i=0;i<90;i++)s.dust.push({x:Math.random()*width,y:Math.random()*height,vx:-0.3-Math.random()*0.5,ph:Math.random()*6.28,hue:[190,300,45][i%3]}); }\nnoStroke();\nfor(const p of s.dust){ p.ph+=0.04; p.x+=p.vx; p.y+=Math.sin(p.ph)*0.3;\n  if(p.x<0){p.x=width;p.y=Math.random()*height;}\n  fill(p.hue,50,100,30+Math.sin(p.ph)*30); ellipse(p.x,p.y,2,2); }\n"
+  },
+  {
+   "name": "N8_fg",
+   "code": "const S=window.state; if(!S.aliens){ S.aliens=[]; for(let i=0;i<3;i++)S.aliens.push({x:Math.random()*width,y:height*0.9,s:120+Math.random()*80,vx:(Math.random()<.5?1:-1)*(0.3+Math.random()*0.4),ph:Math.random()*6.28,hue:[160,300,190][i]}); }\nfor(const c of S.aliens){ c.x+=c.vx; c.ph+=0.04;\n  if(c.x<-250)c.x=width+250; if(c.x>width+250)c.x=-250;\n  const s=c.s,dir=Math.sign(c.vx); push(); translate(c.x,c.y); scale(dir,1);\n  drawingContext.shadowBlur=22; drawingContext.shadowColor='hsl('+c.hue+',90%,60%)';\n  stroke(c.hue,90,100,90); strokeWeight(2.5); fill(c.hue,60,8);\n  // tall stalked head alien body\n  beginShape();\n  vertex(-s*0.25,0); vertex(-s*0.2,-s*0.5); vertex(-s*0.28,-s*0.7);\n  vertex(-s*0.12,-s*0.62); vertex(-s*0.1,-s*0.9); // stalk\n  vertex(0,-s*1.0); vertex(s*0.1,-s*0.9); vertex(s*0.12,-s*0.62);\n  vertex(s*0.28,-s*0.7); vertex(s*0.2,-s*0.5); vertex(s*0.25,0);\n  endShape(CLOSE);\n  // eye pods\n  drawingContext.shadowBlur=0; noStroke(); fill(0,0,100,90);\n  ellipse(-s*0.05,-s*0.92,s*0.06); ellipse(s*0.05,-s*0.92,s*0.06);\n  // legs\n  stroke(c.hue,90,100,80); strokeWeight(3); const st=Math.sin(c.ph)*s*0.08;\n  line(-s*0.1,0,-s*0.1+st,s*0.12); line(s*0.1,0,s*0.1-st,s*0.12);\n  pop();\n}\n"
+  },
+  {
+   "name": "L6_poem",
+   "code": "const s=window.state;\nif(!s.poem2){\n  s.poem2=[\n    [\"I.\",\"In the hour with no name\",\"the machines dream in color.\"],\n    [\"II.\",\"A comet drags its silver hair\",\"across the sleeping boulevards.\"],\n    [\"III.\",\"We are small and lit from within,\",\"filaments in a vast dark bulb.\"],\n    [\"IV.\",\"The rain falls upward tonight,\",\"returning to the wound it fell from.\"],\n    [\"V.\",\"Every window is a tiny sun\",\"somebody forgot to turn off.\"],\n    [\"VI.\",\"Stay. The horizon is only\",\"a door we haven't opened yet.\"],\n    [\"VII.\",\"When the grid dims, remember:\",\"you were the current all along.\"]\n  ];\n  s.pIdx=0; s.pT=0;\n}\ns.pT++;\nconst HOLD=420;\nif(s.pT>HOLD){ s.pT=0; s.pIdx=(s.pIdx+1)%s.poem2.length; }\nconst st=s.poem2[s.pIdx];\nconst fade=Math.min(1, Math.min(s.pT, HOLD-s.pT)/50);\nconst t=s.pT;\npush();\ntextAlign(LEFT,CENTER); textFont('Courier New');\nconst x0=width*0.1, y0=height*0.18;\n// roman numeral \u2014 large, ghosted\ntextSize(Math.min(width*0.09,90)); textStyle(BOLD);\nfill(45,90,100,18*fade); text(st[0], x0-4, y0+height*0.05);\ntextStyle(NORMAL);\n// lines type-on\nfor(let i=1;i<st.length;i++){\n  const sz=Math.min(width*0.03,30); textSize(sz);\n  const line=st[i];\n  const chars=Math.min(line.length, Math.floor((t-i*10)/1.2));\n  const shown=chars>0?line.slice(0,chars):\"\";\n  // glow\n  fill(320,90,100,30*fade); text(shown, x0+2, y0+ (i-1)*sz*1.7+2);\n  fill(50,20,100,95*fade); text(shown, x0, y0+ (i-1)*sz*1.7);\n  // cursor\n  if(chars<line.length && chars>=0 && (Math.floor(t/15)%2===0)){\n    const w=textWidth(shown); fill(190,80,100,90*fade); rect(x0+w+2, y0+(i-1)*sz*1.7-sz*0.4, sz*0.5, sz*0.9);\n  }\n}\n// left margin rule\nstroke(190,70,100,50*fade); strokeWeight(2); line(x0-16,y0-10,x0-16,y0+ (st.length-1)*30*1.7);\npop();\n"
+  }
+ ]
+}

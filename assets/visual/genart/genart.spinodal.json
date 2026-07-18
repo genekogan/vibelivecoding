@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.spinodal",
+  "kind": "genart",
+  "name": "Spinodal Decomposition",
+  "desc": "Cahn-Hilliard spinodal decomposition \u2014 an unstable alloy quenched below its miscibility gap unmixes into two phases that then coarsen for minutes, domains swallowing their neighbours and interfaces straightening, while the conserved mean composition walks the morphology from isolated droplets through a bicontinuous labyrinth to inverted droplets and back; rendered as an etched metallographic section, Nomarski interference relief, two-ink riso, ironbow thermal, or sumi ink.",
+  "tags": [
+    "spinodal-decomposition",
+    "cahn-hilliard",
+    "phase-separation",
+    "phase-field",
+    "unmixing",
+    "demixing",
+    "coarsening",
+    "ostwald-ripening",
+    "miscibility",
+    "quench",
+    "alloy",
+    "metallurgy",
+    "metallography",
+    "micrograph",
+    "microstructure",
+    "grain",
+    "bicontinuous",
+    "labyrinth",
+    "droplet",
+    "emulsion",
+    "materials-science",
+    "pde",
+    "conserved",
+    "simulation",
+    "field",
+    "continuum",
+    "emergent",
+    "self-organizing",
+    "slow",
+    "dramaturgy",
+    "scientific",
+    "clinical",
+    "laboratory",
+    "nomarski",
+    "interference-contrast",
+    "etched",
+    "riso",
+    "duotone",
+    "thermal",
+    "ironbow",
+    "ink",
+    "sumi",
+    "abstract",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "organic",
+    "austere",
+    "sophisticated"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contrast + colour gain across the two phases and the interfacial rim"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.6,
+      "doc": "magnification into a sub-region of the section \u2014 guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "simulation rate \u2014 how fast the melt unmixes and coarsens (0.2 still evolves)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bias of the conserved mean composition: 0 = minority phase A droplets, 0.5 = bicontinuous labyrinth, 1 = inverted"
+    },
+    "temp": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "temperature \u2014 thermal fluctuation amplitude + the size of the wandering re-melt spot that keeps coarsening alive"
+    },
+    "relief": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "interference/etch relief: how hard the interfaces are lit into pseudo-3D"
+    },
+    "hue": {
+      "default": 42,
+      "min": 0,
+      "max": 360,
+      "doc": "primary hue \u2014 anchors the warm phase; the second phase sits across the ramp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal pan of the magnified region"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vertical pan of the magnified region"
+    },
+    "style": {
+      "default": "micrograph",
+      "options": [
+        "micrograph",
+        "nomarski",
+        "duotone",
+        "thermal",
+        "ink"
+      ],
+      "doc": "aesthetic: etched metallographic section / Nomarski DIC relief (light only) / two-ink riso misregistration / ironbow thermal / sumi ink on cream"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic seed for the quench fluctuation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-17T11:14:26+00:00",
+    "fps": 66.2,
+    "motion": 0.1861,
+    "lum": 0.423
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .5, temp: .35, relief: .6, hue: 42, x: .5, y: .5, style: 'micrograph', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---- Cahn-Hilliard spinodal decomposition (CONSERVED order parameter):\n//        mu = c^3 - c - eps2 * lap(c) ;  dc/dt = M * lap(mu)\n// Two phases unmix out of a homogeneous melt and then coarsen: domains merge, boundaries\n// straighten, features grow as ~t^(1/3) over minutes. ----\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4))), BH = Math.max(72, Math.round(BW * height / width));\nconst N = BW * BH;\nif (!S.g || S.bw !== BW || S.bh !== BH) {\n  S.g = createGraphics(BW, BH); S.g.pixelDensity(1); S.bw = BW; S.bh = BH;\n  S.C = new Float32Array(N); S.MU = new Float32Array(N); S.init = false;\n}\n\nconst sd = P.seed | 0;\nfunction hsh(ix, iy, iz) {\n  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(iz, 1274126177) + Math.imul(sd, 1442695041)) | 0;\n  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;\n  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;   // >>> not >> : an arithmetic fold caps the hash at 0.5\n}\n\n// ---- quench: seed the melt with small-amplitude fluctuation about the mean composition ----\nif (!S.init || S.seedUsed !== P.seed) {\n  S.init = true; S.seedUsed = P.seed;\n  for (let i = 0; i < N; i++) S.C[i] = (hsh(i % BW, (i / BW) | 0, 1) - 0.5) * 0.28;\n  S.tsim = 0;\n}\n\nconst tt = K.t;\nconst C = S.C, MU = S.MU;\nconst eps2 = 1.0;\nconst dt = 0.014 * (0.25 + P.speed * 0.75);\nconst steps = 8;\n// mean composition marches on incommensurate slow sines: the morphology walks\n// droplets -> bicontinuous labyrinth -> inverted droplets and back, over minutes.\nconst cbar = 0.42 * (0.55 * Math.sin(tt * 0.0187) + 0.31 * Math.sin(tt * 0.0416 + 2.2) + 0.14 * Math.sin(tt * 0.0733 + 0.9))\n           + (P.density - 0.5) * 0.5;\n// thermal noise: physical, and the reason coarsening never freezes into a static frame\nconst th = (0.0016 + P.temp * 0.011);\n// a wandering \"hot spot\" re-dissolves a moving patch of the specimen -> perpetual local re-quench\nconst hx = (0.5 + 0.34 * Math.sin(tt * 0.043) + 0.12 * Math.sin(tt * 0.117 + 1.3)) * BW;\nconst hy = (0.5 + 0.30 * Math.cos(tt * 0.059) + 0.11 * Math.sin(tt * 0.097 + 0.4)) * BH;\nconst hr = (0.10 + P.temp * 0.16) * BH;\nconst hr2 = hr * hr;\nconst nz = (tt * 601.7) | 0;\n\nfor (let st = 0; st < steps; st++) {\n  // chemical potential mu = c^3 - c - eps2*lap(c)   (periodic wrap)\n  for (let j = 0; j < BH; j++) {\n    const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n      const c = C[jc + i];\n      const lap = C[jc + im] + C[jc + ip] + C[jm + i] + C[jp + i] - 4 * c;\n      MU[jc + i] = c * c * c - c - eps2 * lap;\n    }\n  }\n  // dc/dt = M * lap(mu)  -> conserves total composition exactly (it is a divergence)\n  for (let j = 0; j < BH; j++) {\n    const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n    for (let i = 0; i < BW; i++) {\n      const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n      const lm = MU[jc + im] + MU[jc + ip] + MU[jm + i] + MU[jp + i] - 4 * MU[jc + i];\n      let v = C[jc + i] + dt * lm;\n      C[jc + i] = v < -1.6 ? -1.6 : (v > 1.6 ? 1.6 : v);   // guard the explicit scheme\n    }\n  }\n}\n\n// ---- forcing pass (once per frame): thermal fluctuation + the wandering re-quench spot,\n// then gently pull the conserved mean toward the marching target composition ----\nlet sum = 0;\nfor (let j = 0; j < BH; j++) {\n  const dy = j - hy;\n  for (let i = 0; i < BW; i++) {\n    const p = j * BW + i;\n    let v = C[p] + (hsh(i, j, nz) - 0.5) * th * 2;\n    const dx = i - hx, d2 = dx * dx + dy * dy;\n    if (d2 < hr2) {                              // re-melt: pull this patch back toward the mean\n      const w = (1 - d2 / hr2) * 0.05;\n      v += (cbar - v) * w;\n    }\n    C[p] = v; sum += v;\n  }\n}\n{\n  const corr = (cbar - sum / N) * 0.06;\n  for (let i = 0; i < N; i++) C[i] += corr;\n}\n\n// ---- render: metallographic section ----\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst sec = K.section | 0;\nconst style = P.style;\nconst hb = ((P.hue + sec * 13 + Math.sin(tt * 0.019) * 16) % 360 + 360) % 360;\nconst gain = 0.5 + P.energy * 1.3 + A.rms * 0.4;\nconst rel = P.relief;\nfunction pal(m, sp, off) {\n  const hr2b = hb / 360 + off;\n  return [0.5 + 0.5 * Math.cos(6.2831 * (m + hr2b)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr2b + sp)),\n          0.5 + 0.5 * Math.cos(6.2831 * (m + hr2b + sp * 2))];\n}\nfor (let j = 0; j < BH; j++) {\n  const jm = ((j - 1 + BH) % BH) * BW, jp = ((j + 1) % BH) * BW, jc = j * BW;\n  for (let i = 0; i < BW; i++) {\n    const im = (i - 1 + BW) % BW, ip = (i + 1) % BW;\n    const c = C[jc + i];\n    const gx = C[jc + ip] - C[jc + im], gy = C[jp + i] - C[jm + i];\n    const gm = Math.sqrt(gx * gx + gy * gy);\n    const phase = 0.5 + 0.5 * Math.max(-1, Math.min(1, c * 1.35));   // 0 = phase A, 1 = phase B\n    const rim = Math.min(1, gm * 3.2);                                // interfacial boundary\n    let r, gg, b;\n    if (style === 'nomarski') {          // differential interference contrast: form from light only\n      const sh = 0.40 + (gx * 0.62 - gy * 0.30) * 9.5 * (0.4 + rel);\n      const v = Math.max(0, Math.min(1, sh));\n      r = v * 0.90 + 0.06; gg = v * 0.88 + 0.07; b = v * 0.97 + 0.10;\n    } else if (style === 'duotone') {    // 2-ink riso: hard threshold, plates misregistered\n      const a1 = c > 0.02 ? 1 : 0;\n      const c2 = C[((j + 1) % BH) * BW + ((i + 2) % BW)];\n      const a2 = c2 < -0.02 ? 1 : 0;\n      const paper = 0.93;\n      r = paper - a1 * 0.10 - a2 * 0.72; gg = paper - a1 * 0.62 - a2 * 0.30; b = paper - a1 * 0.30 - a2 * 0.08;\n      r = Math.max(0.03, r); gg = Math.max(0.03, gg); b = Math.max(0.05, b);\n    } else if (style === 'thermal') {\n      const m = Math.min(1, (phase * 0.62 + rim * 0.14) * (0.5 + P.energy * 0.8));\n      r = Math.min(1, m * 2.15); gg = Math.min(1, Math.max(0, m * 2.0 - 0.55)); b = Math.min(1, Math.max(0, m * 3.1 - 2.05) + Math.max(0, 0.4 - m * 1.5));\n    } else if (style === 'ink') {        // sumi: one phase inked on cream, boundaries bled\n      const ink = Math.min(1, phase * 0.86 * (0.55 + gain * 0.45) + rim * 0.5 * rel);\n      const paper = 0.94 - ink * 0.85;\n      r = paper * 0.99; gg = paper * 0.96; b = paper * 0.88;\n    } else {                             // micrograph (default) \u2014 etched section: the attacked phase\n      // sits dark and the resistant phase bright, so the section has real tonal spread\n      const c1 = pal(0.04, 0.16, 0.0), c2b = pal(0.46, 0.16, 0.0);\n      const shade = (0.13 + 0.80 * phase) * (0.55 + gain * 0.45);\n      // relief: light the interface as if the section were etched and lit from upper-left\n      const lit = 1 + (gx * 0.66 - gy * 0.34) * 7.0 * rel;\n      r = Math.min(1, (c1[0] + (c2b[0] - c1[0]) * phase) * shade * lit + rim * 0.26 * gain);\n      gg = Math.min(1, (c1[1] + (c2b[1] - c1[1]) * phase) * shade * lit + rim * 0.28 * gain);\n      b = Math.min(1, (c1[2] + (c2b[2] - c1[2]) * phase) * shade * lit + rim * 0.32 * gain);\n    }\n    const o = 4 * (jc + i);\n    px[o] = Math.max(0, Math.min(255, r * 255));\n    px[o + 1] = Math.max(0, Math.min(255, gg * 255));\n    px[o + 2] = Math.max(0, Math.min(255, b * 255));\n    px[o + 3] = 255;\n  }\n}\ng.updatePixels();\n\nconst z = Math.max(1, P.scale);\nconst sw = BW / z, sh2 = BH / z;\nconst sx = (BW - sw) * Math.min(1, Math.max(0, P.x)), sy = (BH - sh2) * Math.min(1, Math.max(0, P.y));\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height, sx, sy, sw, sh2);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

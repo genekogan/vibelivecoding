@@ -1,0 +1,114 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.fountain_tiers",
+  "kind": "set",
+  "name": "Tiered Fountain",
+  "desc": "Three-tier plaza fountain in full play \u2014 a parabolic droplet jet from the crown, wobbling water curtains sheeting between bowls, expanding surface ripples on every tier, breathing mist glow, coins glinting in the basin, and little birds hopping and splashing at the rim. Styles: weathered stone, white marble, bronze, mossy, and neon-lit water.",
+  "tags": [
+    "fountain",
+    "water",
+    "plaza",
+    "tiers",
+    "spray",
+    "classical",
+    "ripples",
+    "coins",
+    "birds",
+    "park"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "jet + ripple liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "fountain size"
+    },
+    "spray": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "jet/curtain/mist amount"
+    },
+    "coins": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "glinting coins"
+    },
+    "birds": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "bathing birds"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "x position"
+    },
+    "y": {
+      "default": 0.58,
+      "min": 0,
+      "max": 1,
+      "doc": "y position"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "stone",
+      "options": [
+        "stone",
+        "marble",
+        "bronze",
+        "neon",
+        "mossy"
+      ],
+      "doc": "material"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:20:45+00:00",
+    "fps": 58.8,
+    "motion": 0.0273,
+    "lum": 0.176
+  },
+  "code": "const D = { energy:.5, scale:1, hue:200, spray:.6, coins:.3, birds:.3, x:.5, y:.58, speed:1, density:.5, style:'stone', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nconst cx=P.x*W, cy=P.y*Hh, sc=u*0.0040*P.scale;\nlet stone=[45,12,70],stoneD=[42,15,52],waterC=[P.hue,45,80],glowW=false;\nif(sty==='marble'){ stone=[0,0,92]; stoneD=[210,6,72]; }\nelse if(sty==='bronze'){ stone=[35,45,45]; stoneD=[30,50,30]; }\nelse if(sty==='neon'){ stone=[260,25,22]; stoneD=[260,30,14]; waterC=[(P.hue+120)%360,80,95]; glowW=true; }\nelse if(sty==='mossy'){ stone=[80,18,50]; stoneD=[85,25,35]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\npush(); translate(cx,cy); scale(sc);\nnoStroke(); fill(0,0,0,16); ellipse(0,108,340,26);\n// pedestal + three tier bowls\nfunction bowl(y,w2,h2){ fill(Cc(stoneD,100)); ellipse(0,y,w2,h2);\n fill(Cc(stone,100)); ellipse(0,y-3,w2,h2*0.8); }\nfill(Cc(stoneD,100)); rect(-12,-86,24,40,3); rect(-16,-14,32,44,3);\nbowl(-84,120,26); bowl(-10,190,32); bowl(96,300,40);\n// water surfaces with expanding ripples\nfunction waterSurf(y,w2,h2,seedo){ const wl=Math.sin(t*(1.1+en*0.5)+seedo)*1.5;\n fill(color(waterC[0],waterC[1],waterC[2],(glowW?70:55)*P.alpha/100)); ellipse(0,y+wl*0.3,w2,h2);\n dc.save(); blendMode(SCREEN);\n for(let i=0;i<3;i++){ const ph=((t*(0.3+en*0.2)*P.speed+i/3+seedo*0.2)%1); noFill();\n  stroke(color(waterC[0],Math.max(0,waterC[1]-15),95,(1-ph)*(glowW?40:32)*P.alpha/100)); strokeWeight(1.6);\n  ellipse(Math.sin(seedo+i)*w2*0.12,y+wl*0.3,w2*0.2+ph*w2*0.72,h2*0.25+ph*h2*0.65); }\n dc.restore(); blendMode(BLEND); noStroke(); }\nwaterSurf(-88,96,14,0); waterSurf(-14,164,18,2); waterSurf(92,272,24,4);\n// center jet, arcs, curtains and mist\nif(P.spray>0.03){ dc.save(); blendMode(SCREEN);\n const jb=0.7+0.3*Math.sin(t*(0.9+en*0.6))+0.15*Math.sin(t*2.1+1);\n // top jet: parabolic droplet arcs\n for(let i=0;i<Math.floor(6+P.spray*10);i++){ const ph=((t*(0.55+en*0.35)*P.speed+fr(i))%1);\n  const ang=-Math.PI/2+(fr(i+9)-0.5)*0.5;\n  const vx=Math.cos(ang)*30*(0.6+fr(i+3)*0.6), vy0=Math.sin(ang)*66*(0.7+fr(i+5)*0.5)*jb*(0.6+P.spray*0.6);\n  const jx=vx*ph, jy=-110+vy0*ph+80*ph*ph;\n  fill(color(waterC[0],Math.max(0,waterC[1]-20),98,(85*(1-ph*0.4))*P.alpha/100));\n  ellipse(jx,jy,3,6); }\n // curtains falling from bowl lips\n function curtain(yTop,yBot,wid,seedo){ for(let i=0;i<7;i++){ const s2=(i/6-0.5);\n   const px2=s2*wid; const wob=Math.sin(t*(2+en)+i+seedo)*2;\n   stroke(color(waterC[0],waterC[1],96,(24+14*Math.sin(t*1.7+i+seedo))*P.spray*P.alpha/100));\n   strokeWeight(2.2); line(px2,yTop,px2+wob,yBot); } noStroke(); }\n curtain(-78,-22,104,0); curtain(-4,84,170,3);\n // mist glow (breathing motion carrier)\n const mgx=Math.sin(t*0.37)*46; const rg=dc.createRadialGradient(mgx,-30,8,mgx,-30,170);\n rg.addColorStop(0,color(waterC[0],Math.max(0,waterC[1]-25),95,(18+22*jb)*P.spray*P.alpha/100).toString());\n rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(-220,-200,440,340);\n dc.restore(); blendMode(BLEND); }\n// coins glinting in the basin\nif(P.coins>0.03){ for(let i=0;i<Math.floor(P.coins*9);i++){ const a=fr(i)*TAU;\n const gl=Math.max(0,Math.sin(t*(0.7+fr(i+2)*0.8)+i*2.4));\n fill(color(45,55,60+35*gl,(70+30*gl)*P.alpha/100));\n ellipse(Math.cos(a)*fr(i+5)*110,96+Math.sin(a)*fr(i+5)*14,7,3.5); } }\n// perched birds bathing at the mid bowl\nif(P.birds>0.03){ for(const side of [-1,1]){ if(fr(side+10)>P.birds+0.25) continue;\n const hop=Math.max(0,Math.sin(t*(1.4+side*0.2)))*3;\n push(); translate(side*72,-24-hop);\n fill(Cc([220,20,30],95)); ellipse(0,0,15,10); circle(side*7,-5,7);\n fill(Cc([35,70,70],95)); triangle(side*10,-5,side*14,-4,side*10,-3);\n // wing flutter splash\n if(hop>2){ dc.save(); blendMode(SCREEN);\n  fill(color(waterC[0],30,95,30*P.alpha/100));\n  circle(-side*4,4,3); circle(-side*8,2,2.5); dc.restore(); blendMode(BLEND); }\n pop(); } }\nblendMode(BLEND); pop();\n"
+}
