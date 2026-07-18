@@ -1,0 +1,143 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.retrowave",
+  "kind": "world",
+  "name": "Retrowave Sunset",
+  "desc": "A synthwave sunset: a banded scanline sun sinking to a neon perspective grid that scrolls toward you, silhouette mountains or a lit city on the horizon, palms and a field of stars \u2014 Miami-Vice, vaporwave, noir or cosmic on a dial.",
+  "tags": [
+    "retrowave",
+    "synthwave",
+    "vaporwave",
+    "miami",
+    "vice",
+    "80s",
+    "sunset",
+    "neon",
+    "grid",
+    "sun",
+    "outrun",
+    "cyberpunk",
+    "night",
+    "city",
+    "palms",
+    "stars",
+    "horizon",
+    "aesthetic",
+    "retro",
+    "gradient",
+    "scanline",
+    "environment",
+    "backdrop"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grid scroll speed + liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved scale"
+    },
+    "hue": {
+      "default": 300,
+      "min": 0,
+      "max": 360,
+      "doc": "sky/sun base hue"
+    },
+    "sun": {
+      "default": 0.6,
+      "min": 0.1,
+      "max": 1,
+      "doc": "sun size"
+    },
+    "grid": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "grid density + skyline width"
+    },
+    "relief": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "horizon: mountains(<0.5) vs city(>0.5), height"
+    },
+    "palms": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "palm count/size"
+    },
+    "stars": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "star count"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "sun/vanishing-point x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.25,
+      "max": 0.75,
+      "doc": "horizon height"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "synthwave",
+      "options": [
+        "synthwave",
+        "miami",
+        "vapor",
+        "noir",
+        "cosmos",
+        "ember"
+      ],
+      "doc": "palette/mood"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:02:27+00:00",
+    "fps": 60.2,
+    "motion": 0.045,
+    "lum": 0.167
+  },
+  "code": "const D = { energy:.5, scale:1, hue:300, sun:.6, grid:.5, relief:.5, palms:.3, stars:.6, x:.5, y:.5, speed:1, density:.5, style:'synthwave', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,TAU=Math.PI*2;\nconst horizon = H*(0.5 + (P.y-0.5)*0.5);\nconst dc = drawingContext;\n\n// palette\nlet skyTop=[P.hue,80,22], skyBot=[(P.hue+40)%360,85,55], sunA=[(P.hue-40+360)%360,90,100], sunB=[(P.hue+10)%360,95,80], gridc=[(P.hue+140)%360,90,90], hillc=[(P.hue+180)%360,50,18], starc=[0,0,100], glowC=[(P.hue+20)%360,90,70];\nif(sty==='miami'){ skyTop=[250,55,25]; skyBot=[330,70,70]; sunA=[190,80,98]; sunB=[330,80,92]; gridc=[175,80,92]; hillc=[280,50,16]; glowC=[330,70,80]; }\nelse if(sty==='vapor'){ skyTop=[280,35,55]; skyBot=[190,40,88]; sunA=[320,35,100]; sunB=[190,45,95]; gridc=[300,30,95]; hillc=[250,25,55]; glowC=[300,40,90]; }\nelse if(sty==='noir'){ skyTop=[220,50,14]; skyBot=[210,45,40]; sunA=[210,20,92]; sunB=[210,35,60]; gridc=[205,25,80]; hillc=[215,40,10]; starc=[210,15,95]; glowC=[210,30,60]; }\nelse if(sty==='cosmos'){ skyTop=[255,75,10]; skyBot=[275,60,30]; sunA=[315,70,95]; sunB=[265,70,55]; gridc=[190,70,80]; hillc=[260,55,10]; glowC=[300,60,60]; }\nelse if(sty==='ember'){ skyTop=[250,40,14]; skyBot=[20,85,60]; sunA=[45,90,100]; sunB=[15,90,80]; gridc=[30,80,85]; hillc=[15,50,10]; glowC=[25,85,75]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// ---- sky gradient (cheap, canvas2d)\nlet g=dc.createLinearGradient(0,0,0,horizon);\ng.addColorStop(0, Cc(skyTop,100).toString()); g.addColorStop(1, Cc(skyBot,100).toString());\ndc.fillStyle=g; noStroke(); rect(0,0,W,horizon+1);\n// ground gradient (below horizon, dark)\nlet g2=dc.createLinearGradient(0,horizon,0,H);\ng2.addColorStop(0, Cc([skyBot[0],60,22],100).toString()); g2.addColorStop(1, Cc([P.hue,70,7],100).toString());\ndc.fillStyle=g2; rect(0,horizon,W,H-horizon+1);\n\n// ---- stars\nif(P.stars>0.05 && sty!=='vapor'){ noStroke();\n  const ns=Math.floor(P.stars*120);\n  for(let i=0;i<ns;i++){ const sx=fr(i)*W, sy=fr(i+99)*horizon*0.85; const tw=0.5+0.5*Math.sin(t*(1+fr(i)*3)+fr(i)*TAU);\n    fill(Cc(starc, 40+tw*55)); circle(sx,sy, (0.6+fr(i+7)*1.4)); } }\n\n// ---- sun with scanline gaps\nconst sr = (0.10+P.sun*0.22)*Math.min(W,H);\nconst sunx=P.x*W, suny=horizon - sr*0.35;\ndc.save(); dc.shadowBlur=40; dc.shadowColor=Cc(glowC,90).toString();\nlet sg=dc.createLinearGradient(0,suny-sr,0,suny+sr);\nsg.addColorStop(0, Cc(sunA,100).toString()); sg.addColorStop(1, Cc(sunB,100).toString());\ndc.fillStyle=sg;\ndc.beginPath(); dc.arc(sunx,suny,sr,0,TAU); dc.fill();\ndc.restore();\n// scanline gaps on lower half\nnoStroke();\nfor(let i=0;i<8;i++){ const yy=suny + sr*(0.15 + i*0.11); const gh=(i+1)*0.9;\n  fill(Cc(skyBot,100)); rect(sunx-sr, yy, sr*2, gh); }\n// reflection glow on horizon\nfill(Cc(glowC, 30)); ellipse(sunx, horizon, sr*2.4, sr*0.5);\n\n// ---- silhouette relief (mountains / city)\nnoStroke(); fill(Cc(hillc,100));\nif(P.relief>0.5){ // city skyline\n  let xx=0; while(xx<W){ const bw=8+fr(xx*0.3)*38*(0.5+P.grid); const bh=(0.04+fr(xx*0.7)*0.30*P.relief)*H;\n    rect(xx, horizon-bh, bw, bh+2);\n    // a few lit windows\n    fill(Cc(glowC,70)); for(let wy=horizon-bh+4; wy<horizon-4; wy+=7){ if(fr(xx+wy)>0.6) rect(xx+3, wy, bw-6, 2); } fill(Cc(hillc,100));\n    xx+=bw+2; }\n} else { // mountains\n  beginShape(); vertex(0,horizon); let px=0; while(px<=W){ const pk=horizon-(0.02+fr(px*0.5)*0.22*(1-P.relief*0.3)+P.relief*0.08)*H; vertex(px,pk); px+=W/16; } vertex(W,horizon); endShape(CLOSE);\n}\n\n// ---- neon perspective grid floor (scrolls toward viewer)\nconst vpx=sunx, gcol=Cc(gridc,80);\nstroke(gcol); strokeWeight(1.4); noFill();\nconst nv = 8 + Math.floor(P.grid*16);\nfor(let i=-nv;i<=nv;i++){ const fx = vpx + (i/nv)*W*0.9; line(vpx, horizon, fx, H); }\n// horizontal lines with 1/z spacing, scrolling\nconst scroll = (t*(0.15+en*0.5)*P.speed)%1;\nfor(let i=0;i<26;i++){ const z=(i+scroll)/26; const yy=horizon + (H-horizon)*(z*z); if(yy>horizon){ strokeWeight(0.8+z*1.8); stroke(Cc(gridc, 30+z*60)); line(0,yy,W,yy); } }\nstrokeWeight(1);\n\n// ---- palms\nif(P.palms>0.05){ const npm=Math.floor(1+P.palms*4); noStroke();\n  for(let i=0;i<npm;i++){ const px=(0.1+fr(i*3)*0.8)*W; const ph=(0.16+fr(i)*0.14)*H*(0.6+P.palms); const pby=horizon+ (H-horizon)*0.02;\n    const sway2=Math.sin(t*0.7+i)*0.05;\n    stroke(Cc(hillc,100)); strokeWeight(3+ph*0.02); noFill();\n    push(); translate(px,pby); rotate(sway2);\n    line(0,0,0,-ph);\n    // fronds\n    stroke(Cc([hillc[0],40,12],100)); strokeWeight(2);\n    for(let f=0;f<7;f++){ const fa=-Math.PI/2 + (f-3)*0.4; const fl=ph*0.5; push(); translate(0,-ph); rotate(fa+sway2);\n      beginShape(); vertex(0,0); bezierVertex(fl*0.4,-4, fl*0.8,2, fl,6); endShape(); pop(); }\n    pop(); noStroke(); }\n  stroke(1); noStroke();\n}\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
