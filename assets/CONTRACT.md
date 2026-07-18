@@ -25,22 +25,29 @@ stage — the whole point of the catalog is that any assets can be combined blin
 
 ## Runtime facts (engine v2 — patched 2026-07-10)
 
-The browser (`livecode.html`, VERSION 2) provides two global read-only objects,
-updated every frame, that ALL assets sync to:
+The browser (`livecode.html`, VERSION 4) provides three global read-only
+objects, updated every frame, that ALL assets sync to:
 
 ### `window.state.clk` — the clock authority
 
 ```js
 { t,          // seconds since state.t0
   cps,        // current cycles/sec (server pushes on every /strudel/cps)
+  bpm,        // cps * 240 (1 cycle = 1 bar of 4 beats) — derived, display/motion aid
   beat,       // continuous beat counter (4 beats per cycle)
   bar,        // beat/4
   cyc,        // fraction through current cycle 0..1
   phase,      // fraction through current beat 0..1 (0 at each beat onset)
   pulse,      // pow(1-phase, 3) — spikes to 1 on the beat, decays. Use for kicks/flashes.
   swell,      // sin half-wave over the beat — smooth breathe
+  barPulse,   // pow(1-cyc, 3) — spikes on each bar line (downbeat accent)
   section,    // 0..7, advances every state.secBeats beats (default 32 = 8 bars)
-  intensity,  // state.arc[section] — default [.2,.4,.7,.9,.3,.6,1,.4]
+  intensity,  // conductor-declared energy if set, else state.arc[section] — default [.2,.4,.7,.9,.3,.6,1,.4]
+  key,        // conductor-declared key {root, mode, pc 0-11}, or null
+  keyHue,     // circle-of-fifths hue for the declared key (formula below), or null
+  keyMinor,   // true when the declared mode is "minor"
+  sectionName,// conductor-declared section name ("build", "drop"…), or null
+  sectionBars,// bars since that section was declared (≥0, clamped), or null
   fps }       // measured frame rate
 ```
 
@@ -67,6 +74,54 @@ updated every frame, that ALL assets sync to:
   always blend audio on top of a clk-driven baseline, never multiply by it.
 - Music validation uses `rms` as the audibility gate.
 
+### `window.state.conductor` — the conductor score (declared musical intent)
+
+The conductor keeps **time** via the quantized queue (`/q`) and **intent** via
+the score. The music seat declares WHAT the music means — key, energy, named
+section — with `POST /conductor` (`lc con key=am energy=.7 section=drop`); the
+server pushes the asset-relevant subset into the browser:
+
+```js
+window.state.conductor = { key: {root, mode, pc} | null,   // pc = pitch class 0-11
+                           energy: 0..1 | null,             // null = arc-driven
+                           section: {name, startBar} | null,
+                           rev }                             // monotonic, drops stale pushes
+// null until anything is declared — assets read the DERIVED K fields instead.
+```
+
+- **Assets never read `state.conductor` directly and never write it** — the
+  engine derives `K.key / keyHue / keyMinor / sectionName / sectionBars` and
+  the `K.intensity` override every frame; consume those. Degrade gracefully:
+  every derived field is null (and intensity falls back to the arc) until the
+  music seat declares — an asset must look intentional either way.
+- **keyHue formula (pinned — all assets must agree so one key = one color):**
+  `keyHue = ((pc * 7) % 12) * 30` — the circle of fifths as a hue circle:
+  C=0° G=30° D=60° A=90° E=120° B=150° F#=180° Db=210° Ab=240° Eb=270°
+  Bb=300° F=330°. Minor shares its root's hue; use `keyMinor` to darken/desaturate.
+- **Tempo has ONE writer**: `/strudel/cps` (the music seat). `/conductor` never
+  carries bpm; `K.bpm` and GET-side bpm are derived from the transport.
+- **No-strobe (absolute):** `pulse`/`barPulse`/key changes drive SOFT depths
+  (scale, glow, tint) — never full black↔white flips or hard palette flicker.
+
+### `window.state.binds` — conductor→param bindings (engine-applied)
+
+```js
+window.state.binds = { "<slot>": { "<param>": "<feature>" | {feature, offset, scale} } }
+// features v1: keyHue, energy (=K.intensity), intensity (alias), bpm, cps
+```
+
+Each frame, BEFORE layers run, the engine resolves every bound feature and
+writes `state.P.<slot>.<param>` — **snap-on-change only** (a write happens only
+when the resolved value changes; per-frame smoothing is deliberately absent
+because many assets gate cache/buffer rebuilds on P equality). Consequences:
+
+- A manual param poke **wins** until the bound feature next changes.
+- Firing a slot **resets its binds** (`fire_visual.py` pushes `binds.<slot>`
+  on every fire; `--bind hue=keyHue`, `--bind auto`, none = unbound).
+- Never-bind list: `style`, `seed`, `act` (strings / cache keys / regeneration
+  triggers) — the engine skips them even if bound.
+- Assets never write `state.binds` (or `state.P` beyond reading their slot).
+
 ### Other engine facts
 
 - Canvas: p5 1.11.11 global mode, 2D, `pixelDensity(1)`,
@@ -78,6 +133,14 @@ updated every frame, that ALL assets sync to:
   (throttled 1/s) and appear in `GET /errors`.
 - `GET /p5/read?key=<dotted.path>` returns any `window.state` value as JSON
   (used by validation/review tools: `key=clk`, `key=audio`).
+- `POST /conductor` merges a partial score declaration (`key`, `energy`,
+  `section`, `tags`, `note`+`from`, `clear`; explicit `null` clears a field);
+  `GET /conductor` returns score + transport (bar/cps/bpm) + next bar-line
+  ETAs. Queueable (`--at 8`), recorded into the show timeline, and replayed —
+  section bars re-stamp from the live transport on replay.
+- The server replays pushed `/p5/state` keys (last value per key: `P.<slot>`,
+  `secBeats`/`arc`, `binds.*`) and the conductor score to a reconnecting
+  browser — pushed state survives tab reloads.
 - Every accepted `/strudel/*` and `/p5/*` POST auto-records into the show
   timeline. **Factories must POST `/show/recording {"enabled":false}` at
   session start.**
@@ -121,7 +184,7 @@ Every visual asset's `code` starts with:
 const D = { hue: 205, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .8 /*, extras…*/ };
 const P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});
 const S = window.state.__SLOT__ || (window.state.__SLOT__ = {});
-const K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };
+const K = window.state.clk || { t:0, cps:.5, bpm:120, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, barPulse:0, section:0, intensity:.6, key:null, keyHue:null, keyMinor:false, sectionName:null, sectionBars:null, fps:60 };
 const A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };
 ```
 

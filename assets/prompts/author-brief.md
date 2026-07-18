@@ -42,7 +42,7 @@ Palette assets: `{"format","id" (palette.<slug>),"kind":"palette","name","desc",
 const D = { hue: 205, energy: .6, speed: 1, density: .5, scale: 1, x: .5, y: .8, style: 'flat', seed: 0 /*, extras…*/ };
 const P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});
 const S = window.state.__SLOT__ || (window.state.__SLOT__ = {});
-const K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };
+const K = window.state.clk || { t:0, cps:.5, bpm:120, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, barPulse:0, section:0, intensity:.6, key:null, keyHue:null, keyMinor:false, sectionName:null, sectionBars:null, fps:60 };
 const A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };
 ```
 
@@ -115,6 +115,14 @@ dance/action, beat-synced motion per pose); crowds need `n` (int, honest max)
   sway on lowmid, size on rms. **During validation audio may be all zeros —
   the baseline alone must carry the motion gate.** Never multiply core motion
   by `A.*`.
+- **Conductor awareness (SHOULD, where it reads as musical):** when a live set
+  declares its key/section, `K.keyHue` (circle-of-fifths hue), `K.keyMinor`,
+  `K.sectionName`/`K.sectionBars`, and `K.barPulse` are non-null — tint toward
+  `keyHue`, accent bar lines softly, let `sectionBars` drive slow ramps. ALL of
+  these are null during validation and in conductor-less sets, so they must be
+  pure bonuses on top of the baseline: `const hue = (K.keyHue ?? P.hue);` style
+  fallbacks, never a dependency. No-strobe applies: pulse/key changes drive
+  soft depths, never hard flips.
 
 ## Validation gates — exact numbers (fail any → you get ONE requeue)
 

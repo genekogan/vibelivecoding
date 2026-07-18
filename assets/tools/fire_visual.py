@@ -3,9 +3,15 @@
 
   python scratchpad/fire_visual.py <asset_id_or_path> [--slot bg] [--port 9766]
                                    [--set energy=0.8 --set hue=200]
+                                   [--bind hue=keyHue] [--bind auto]
 
 Params default to the asset's declared defaults; --set overrides. Sends params
 BEFORE the layer so the first drawn frame already reads them.
+
+--bind attaches conductor bindings for the slot (features: keyHue, energy,
+bpm, cps — see assets/CONTRACT.md). --bind auto maps hue→keyHue and
+energy→energy for params the asset declares. Every fire RESETS the slot's
+binds: no --bind means the slot is unbound.
 """
 import argparse, glob, json, sys
 import requests
@@ -26,6 +32,8 @@ def main():
     ap.add_argument("--slot")
     ap.add_argument("--port", type=int, default=9766)
     ap.add_argument("--set", action="append", default=[], metavar="K=V")
+    ap.add_argument("--bind", action="append", default=[], metavar="PARAM=FEATURE",
+                    help="conductor binding (repeatable), or 'auto'")
     args = ap.parse_args()
 
     path = find_asset(args.asset)
@@ -40,6 +48,30 @@ def main():
             params[k] = json.loads(v)
         except json.JSONDecodeError:
             params[k] = v
+
+    binds = {}
+    for spec in args.bind:
+        if spec == "auto":
+            if "hue" in params:
+                binds["hue"] = "keyHue"
+            if "energy" in params:
+                binds["energy"] = "energy"
+            continue
+        k, sep, feat = spec.partition("=")
+        if not sep or not feat:
+            sys.exit(f"--bind needs PARAM=FEATURE or 'auto' (got {spec!r})")
+        binds[k] = feat
+    # Seed a bound hue from the current key so the fired params JSON matches
+    # what the binder will hold (the binder itself snaps on its first frame).
+    # Skipped when --set hue was given explicitly — manual wins at fire time.
+    if binds.get("hue") == "keyHue" and not any(kv.startswith("hue=") for kv in args.set):
+        try:
+            score = requests.get(base + "/conductor", timeout=5).json().get("score") or {}
+            key = score.get("key")
+            if key and isinstance(key.get("pc"), int):
+                params["hue"] = ((key["pc"] * 7) % 12) * 30  # CONTRACT.md keyHue formula
+        except Exception:
+            pass
 
     # Dispose the outgoing asset's private state first. Slot state is never cleared
     # on swap, so a new asset inherits the previous one's keys — leaking its
@@ -63,9 +95,12 @@ def main():
             requests.post(base + "/p5/layer", json={
                 "name": "bg", "code": "background(232,25,10);"}, timeout=10)
     requests.post(base + "/p5/state", json={"key": f"P.{slot}", "value": params}, timeout=10)
+    # Binds are per-fire ownership: always push (empty {} un-binds the slot).
+    requests.post(base + "/p5/state", json={"key": f"binds.{slot}", "value": binds}, timeout=10)
     code = d["code"].replace("__SLOT__", slot)
     r = requests.post(base + "/p5/layer", json={"name": slot, "code": code}, timeout=15)
-    print(f"{d['id']} -> slot {slot} [{r.status_code}] params={json.dumps(params)[:160]}")
+    bind_note = f" binds={json.dumps(binds)}" if binds else ""
+    print(f"{d['id']} -> slot {slot} [{r.status_code}] params={json.dumps(params)[:160]}{bind_note}")
 
 
 if __name__ == "__main__":

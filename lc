@@ -9,6 +9,10 @@ Examples:
     echo 'background(0);' | lc layer bg -       # code from stdin
     lc cps 0.55
     lc hush
+    lc con                                      # conductor: score + bar/bpm + boundaries
+    lc con key=am energy=.7 section=drop        # declare musical intent (music seat)
+    lc con note="drop at bar 160" from=music    # bar-stamped blackboard note
+    lc con key=ab --at 8                        # land the declaration ON the 8-bar line
     lc errors -f                                # follow browser errors live
     lc next / lc prev / lc goto 12 / lc mark drop
 """
@@ -66,6 +70,19 @@ def cmd_status(args):
     tracks, layers = s.get("tracks", []), s.get("layers", [])
     print(f"tracks ({len(tracks)}): {' '.join(tracks) or '—'}")
     print(f"layers ({len(layers)}): {' '.join(layers) or '—'}")
+    con = s.get("conductor")
+    if con:
+        bits = []
+        if con.get("key"):
+            bits.append(f"key {con['key']}")
+        if con.get("energy") is not None:
+            bits.append(f"energy {con['energy']:g} (overriding arc)")
+        if con.get("section"):
+            bits.append(f"section {con['section']}")
+        if con.get("tags"):
+            bits.append("tags " + ",".join(con["tags"]))
+        if bits:
+            print("conductor: " + "   ".join(bits))
     le = s.get("lastError")
     if le:
         print(f"last error: [{le.get('system', '?')}] {le.get('message', '')}")
@@ -132,6 +149,68 @@ def cmd_q(args):
             print(f"  {mark} {i['id']}  {i['route']}  {i.get('name') or ''}{fc}{extra}")
 
 
+def cmd_con(args):
+    """Conductor score: no fields = show the complete view; K=V fields declare."""
+    if not args.fields:
+        r = api(args.port, "GET", "/conductor")
+        s = r.get("score") or {}
+        key = s.get("key")
+        key_s = f"{key['root']} {key['mode']}" if key else "—"
+        sec = s.get("section")
+        sec_s = "—"
+        if sec:
+            sec_s = sec["name"]
+            if sec.get("startBar") is not None:
+                sec_s += f" (since bar {sec['startBar']:g})"
+        en = s.get("energy")
+        en_s = "arc-driven" if en is None else f"{en:g} (overriding arc)"
+        tags_s = f"   tags {','.join(s['tags'])}" if s.get("tags") else ""
+        print(f"key {key_s}   energy {en_s}   section {sec_s}{tags_s}")
+        t = r.get("transport")
+        if t:
+            line = (f"bar {t['bar']:.2f}   cps {t['cps']:g}   bpm {t['bpm']:g}   "
+                    f"{'playing' if t['playing'] else 'stopped'}")
+            b = r.get("nextBoundarySeconds") or {}
+            if b:
+                line += "   next: " + "   ".join(f"{k}-bar {v}s" for k, v in b.items())
+            print(line)
+        else:
+            print("transport: no browser connected")
+        if r.get("queued"):
+            print(f"queued commands pending: {r['queued']}  (lc q for detail)")
+        for n in (s.get("notes") or [])[-5:]:
+            bar = f"bar {n['bar']:g}" if n.get("bar") is not None else "—"
+            print(f"  ✎ [{n.get('from', 'anon')} @ {bar}] {n.get('text', '')}")
+        return
+    payload = {}
+    for f in args.fields:
+        if f == "clear":
+            payload["clear"] = True
+            continue
+        k, sep, v = f.partition("=")
+        if not sep:
+            sys.exit(f"lc con: expected K=V or 'clear', got {f!r}")
+        if k == "energy":
+            payload[k] = None if v in ("null", "none", "") else float(v)
+        elif k in ("key", "section", "note", "from", "tags"):
+            payload[k] = None if v in ("null", "none") else v
+        else:
+            sys.exit(f"lc con: unknown field {k!r} (key energy section tags note from | clear)")
+    at = getattr(args, "at", None)
+    if at is not None:
+        fire(args.port, "/conductor", payload, args)
+        return
+    r = post(args.port, "/conductor", payload)
+    s = r.get("score") or {}
+    key = s.get("key")
+    bar = r.get("bar")
+    print(f"ok{f' @bar {bar:g}' if bar is not None else ''}   rev {s.get('rev')}   "
+          f"pushed {'✓' if r.get('pushed') else '✗ (no browser — replays on connect)'}")
+    print(f"key {key['root'] + ' ' + key['mode'] if key else '—'}   "
+          f"energy {s.get('energy') if s.get('energy') is not None else '—'}   "
+          f"section {s['section']['name'] if s.get('section') else '—'}")
+
+
 def cmd_steps(args):
     r = api(args.port, "GET", "/show/steps")
     for s in r.get("steps", []):
@@ -196,6 +275,11 @@ def main():
     sub.add_parser("q", help="conductor queue: pending items + next bar lines")
     p = sub.add_parser("qcancel", help="cancel a queued item (or all)")
     p.add_argument("id", help="queue item id, or 'all'")
+    p = sub.add_parser("con", help="conductor score: show, or declare key/energy/section/tags/note")
+    p.add_argument("fields", nargs="*", metavar="K=V",
+                   help="key=am energy=.7 section=drop tags=dnb,dark note='...' from=music "
+                        "| 'clear' | no fields = show score + transport + boundaries")
+    add_quant(p)
 
     sub.add_parser("steps", help="list the show timeline")
     sub.add_parser("next", help="advance to next section")
@@ -243,6 +327,8 @@ def main():
         fire(port, "/p5/fps", {"fps": args.value}, args)
     elif args.cmd == "q":
         cmd_q(args)
+    elif args.cmd == "con":
+        cmd_con(args)
     elif args.cmd == "qcancel":
         if args.id == "all":
             r = post(port, "/q/cancel", {"all": True})

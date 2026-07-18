@@ -87,6 +87,20 @@ class LivecodeController:
         self._conductor_stop = threading.Event()
         self._conductor_thread: threading.Thread | None = None
 
+        # Conductor score: declared musicological intent (key / energy /
+        # section / tags + a bar-stamped note blackboard), shared between
+        # independent performing sessions (music seat / visual seat). The
+        # queue above is the conductor's firing arm (WHEN commands land);
+        # the score is its intent (WHAT the music means right now). rev is
+        # monotonic for the server's lifetime — never reset — so the browser
+        # can drop out-of-order pushes from concurrent seats.
+        self._score: dict = {"key": None, "energy": None, "section": None,
+                             "tags": [], "rev": 0, "updated": None}
+        self._score_notes: deque = deque(maxlen=16)
+        # Last value per /p5/state key, replayed to a reconnecting browser
+        # (P.<slot> params, secBeats/arc, binds otherwise die with the tab).
+        self._state_keys: OrderedDict = OrderedDict()
+
     # ── Lifecycle ────────────────────────────────────────────────
 
     def start(self):
@@ -134,13 +148,13 @@ class LivecodeController:
             # REST API routes
             API_ROUTES = {
                 "GET": {"/status", "/state", "/errors", "/transport", "/q",
-                        "/show/steps", "/show/save"},
+                        "/conductor", "/show/steps", "/show/save"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
                     "/strudel/cps", "/strudel/reset", "/strudel/send",
                     "/p5/layer", "/p5/remove", "/p5/clear",
                     "/p5/setup", "/p5/send", "/p5/state", "/p5/fps",
-                    "/q", "/q/cancel",
+                    "/q", "/q/cancel", "/conductor",
                     "/show/next", "/show/prev", "/show/goto",
                     "/show/mark", "/show/recording", "/show/load",
                     "/show/load_file", "/show/save_file",
@@ -182,6 +196,7 @@ class LivecodeController:
                         "totalSteps": len(controller._steps),
                         "recording": controller._recording,
                         "queued": len(controller._queue),
+                        "conductor": controller.conductor_summary(),
                         "lastError": controller._errors[-1] if controller._errors else None,
                     })
                 elif self.path == "/state":
@@ -194,6 +209,7 @@ class LivecodeController:
                         "setup": controller._setup_code,
                         "tracks": controller.tracks,
                         "layers": controller.layers,
+                        "conductor": controller.score_snapshot(),
                     })
                 elif self.path == "/errors":
                     # Autopilot: recent browser-side runtime errors
@@ -205,6 +221,8 @@ class LivecodeController:
                         self._reply({"ok": False, "error": str(e)}, 503)
                 elif self.path == "/q":
                     self._reply(controller.queue_status())
+                elif self.path == "/conductor":
+                    self._reply(controller.conductor_view())
                 elif self.path.startswith("/p5/read"):
                     # Read a window.state key from the browser (validation/review tooling)
                     from urllib.parse import urlparse, parse_qs
@@ -295,6 +313,15 @@ class LivecodeController:
                 elif path == "/p5/fps":
                     controller.set_fps(d["fps"])
                     controller._record_step(path, d)
+
+                # Conductor score route (declared musicological intent)
+                elif path == "/conductor":
+                    try:
+                        r = controller.conductor_update(d)
+                    except ValueError as e:
+                        return {"ok": False, "error": str(e)}, 400
+                    controller._record_step(path, d)
+                    return r, 200
 
                 # Conductor queue routes
                 elif path == "/q":
@@ -392,7 +419,7 @@ class LivecodeController:
 
     # ── Console logging ──────────────────────────────────────────
 
-    _GLYPHS = {"strudel": "♪", "p5": "▦", "show": "⏭", "music": "★"}
+    _GLYPHS = {"strudel": "♪", "p5": "▦", "show": "⏭", "music": "★", "conductor": "𝄞"}
 
     @staticmethod
     def _tint(code: str, s: str) -> str:
@@ -411,6 +438,11 @@ class LivecodeController:
             bits.append(f"{len(payload['code'])}ch")
         if head == "show":
             bits.append(f"{self._step_index + 1}/{len(self._steps)}")
+        if head == "conductor":
+            kv = " ".join(f"{k}={v}" for k, v in payload.items()
+                          if k in ("key", "energy", "section", "note", "tags", "clear"))
+            if kv:
+                bits.append(kv[:48])
         detail = "  ".join(bits)
         # flush: under nohup/pipes stdout is block-buffered and lines would
         # otherwise sit invisible for minutes
@@ -423,7 +455,7 @@ class LivecodeController:
 
     # ── WebSocket handler ────────────────────────────────────────
 
-    EXPECTED_VERSION = 3
+    EXPECTED_VERSION = 4
 
     async def _handler(self, ws):
         self._connections.add(ws)
@@ -505,6 +537,23 @@ class LivecodeController:
                 "code": code, "id": mid, "evaluate": True,
             })
             await ws.send(msg)
+
+        # Restore pushed window.state keys (P.<slot> params, secBeats/arc,
+        # binds) BEFORE layers — mirroring fire_visual's params-before-layer
+        # ordering so the first restored frame reads the right values. Then
+        # the conductor score, so K derivations resume immediately.
+        with self._lock:
+            state_items = list(self._state_keys.items())
+        restore_codes = [self._state_assignment(k, v) for k, v in state_items]
+        score_push = self._score_push_payload()
+        if score_push is not None:
+            restore_codes.append(self._score_push_code(score_push))
+        for code in restore_codes:
+            mid = f"msg_{uuid.uuid4().hex[:8]}"
+            await ws.send(json.dumps({
+                "type": "execute", "target": "p5",
+                "code": code, "id": mid, "mode": "eval",
+            }))
 
         # Restore p5 layers
         for name, code in self._layers.items():
@@ -708,11 +757,33 @@ class LivecodeController:
         if not re.fullmatch(r"[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*", key or ""):
             raise ValueError(f"invalid state key: {key!r}")
 
+    @classmethod
+    def _state_assignment(cls, key: str, value) -> str:
+        """JS assignment for a dotted state key, guarding each parent path so a
+        fresh page can't throw (state.P.subA = … with state.P undefined)."""
+        cls._validate_state_key(key)
+        val_json = json.dumps(value)
+        parts = key.split(".")
+        guards = []
+        prefix = ""
+        for part in parts[:-1]:
+            prefix = f"{prefix}.{part}" if prefix else part
+            guards.append(f"window.state.{prefix} = window.state.{prefix} || {{}};")
+        assign = f"window.state.{key} = {val_json};"
+        return (" ".join(guards) + " " + assign) if guards else assign
+
     def set_state(self, key: str, value):
         """Set a key in the persistent window.state object."""
-        self._validate_state_key(key)
-        val_json = json.dumps(value)
-        self.send_p5(f"window.state.{key} = {val_json};", mode="eval")
+        code = self._state_assignment(key, value)
+        # Record intent before sending: a reconnecting browser replays the
+        # last value per key (see _restore_all) — params, arc inputs, and
+        # binds otherwise die with the tab. Bounded, insertion-ordered.
+        with self._lock:
+            self._state_keys[key] = value
+            self._state_keys.move_to_end(key)
+            while len(self._state_keys) > 64:
+                self._state_keys.popitem(last=False)
+        self.send_p5(code, mode="eval")
 
     def read_state(self, key: str):
         """Read a (dotted-path) key from window.state in the browser.
@@ -969,6 +1040,21 @@ class LivecodeController:
             )
             self._layers.clear()
             self.send_p5("", mode="clear")
+            # Conductor score + replayable state die with the show: stale
+            # key/energy from a previous set must not poison the next one.
+            # rev stays monotonic (never reset) so the browser's out-of-order
+            # push guard keeps working across the reset.
+            with self._lock:
+                self._score = {"key": None, "energy": None, "section": None,
+                               "tags": [], "rev": self._score["rev"] + 1,
+                               "updated": None}
+                self._score_notes.clear()
+                self._state_keys.clear()
+            try:
+                self.send_p5("window.state.conductor = null; window.state.binds = {};",
+                             mode="eval")
+            except Exception:
+                pass  # no browser — restore covers it on connect
         finally:
             self._recording = was_recording
 
@@ -1024,6 +1110,10 @@ class LivecodeController:
             self.set_fps(d["fps"])
         elif route == "/p5/send":
             self.send_p5(d["code"], mode="eval")
+        elif route == "/conductor":
+            # Re-stamps section startBar from the live transport — recorded
+            # payloads are the raw request, never the stamped score.
+            self.conductor_update(d)
         elif route == "/show/mark":
             pass  # no-op — marker steps are just for section boundaries
 
@@ -1063,6 +1153,201 @@ class LivecodeController:
         args_str = ", ".join(str(a) for a in args)
         self.set_layer("__bg", f"background({args_str});")
 
+    # ── Conductor: score (declared musicological intent) ─────────
+    #
+    # POST /conductor {key, energy, section, tags, note, from, clear} merges a
+    # partial declaration; GET /conductor returns the conductor's complete
+    # view (score + live transport + bar-line ETAs). The browser receives the
+    # asset-relevant subset as window.state.conductor and derives K fields
+    # (keyHue, intensity override, sectionName/sectionBars) that every asset
+    # already reads. Tempo is NOT a score field — /strudel/cps stays the one
+    # writer; bpm here is derived from the transport for display only.
+
+    _PITCH_CLASS = {"c": 0, "d": 2, "e": 4, "f": 5, "g": 7, "a": 9, "b": 11}
+
+    @classmethod
+    def _parse_key(cls, value):
+        """Normalize a key declaration to {root, mode, pc}.
+
+        Accepts 'f# minor' / 'Ab' / 'am' / 'c dorian' / {'root','mode'} / None
+        (= clear). pc is the pitch class 0-11; only pc drives keyHue, mode is
+        carried for keyMinor and author use."""
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            root = str(value.get("root", "")).strip()
+            mode = str(value.get("mode") or "major").strip() or "major"
+        else:
+            parts = str(value).strip().split(None, 1)
+            if not parts:
+                raise ValueError("empty key declaration")
+            root = parts[0]
+            mode = parts[1].strip() if len(parts) > 1 else "major"
+        root = root.lower().replace("♯", "#").replace("♭", "b")
+        # Compact minor forms: 'am', 'f#m', 'abm'
+        if mode == "major" and len(root) >= 2 and root.endswith("m"):
+            cand = root[:-1]
+            if cand[0] in cls._PITCH_CLASS and all(ch in "#b" for ch in cand[1:]):
+                root, mode = cand, "minor"
+        if not root or root[0] not in cls._PITCH_CLASS \
+                or not all(ch in "#b" for ch in root[1:]):
+            raise ValueError(f"unparseable key: {value!r} (want e.g. 'f# minor', 'Ab', 'am')")
+        pc = cls._PITCH_CLASS[root[0]]
+        for ch in root[1:]:
+            pc += 1 if ch == "#" else -1
+        return {"root": root, "mode": mode.lower(), "pc": pc % 12}
+
+    def score_snapshot(self) -> dict:
+        """Full score incl. notes — for GET /conductor, /state, responses."""
+        with self._lock:
+            score = dict(self._score)
+            score["notes"] = list(self._score_notes)
+        return score
+
+    def conductor_summary(self):
+        """Compact score line for /status: None until something is declared."""
+        with self._lock:
+            s = self._score
+            if not s["rev"]:
+                return None
+            key = s["key"]
+            return {"key": f"{key['root']} {key['mode']}" if key else None,
+                    "energy": s["energy"],
+                    "section": s["section"]["name"] if s["section"] else None,
+                    "tags": s["tags"]}
+
+    def _score_push_payload(self) -> dict | None:
+        """Asset-relevant subset for the browser (notes/tags stay server-side).
+        None while nothing has ever been declared."""
+        with self._lock:
+            if not self._score["rev"]:
+                return None
+            return {"key": self._score["key"], "energy": self._score["energy"],
+                    "section": self._score["section"], "rev": self._score["rev"],
+                    "updated": self._score["updated"]}
+
+    @staticmethod
+    def _score_push_code(payload: dict) -> str:
+        """Guarded assignment: pushes travel outside the lock, so two seats'
+        pushes can cross — the browser keeps the higher rev."""
+        return ("(function(v){var c=window.state.conductor;"
+                "if(!c||!(c.rev>v.rev)){window.state.conductor=v;}})("
+                + json.dumps(payload) + ");")
+
+    def _push_score(self) -> bool:
+        """Best-effort push to the browser. False when none is connected or it
+        errors — declaring key/section before the show starts is the normal
+        pre-show sequence; _restore_all replays the score on connect."""
+        payload = self._score_push_payload()
+        if payload is None:
+            return False
+        try:
+            self.send_p5(self._score_push_code(payload), mode="eval")
+            return True
+        except (ConnectionError, TimeoutError, RuntimeError):
+            return False
+
+    def conductor_update(self, payload: dict) -> dict:
+        """Merge a partial score declaration; push to the browser best-effort.
+
+        Presence-based: {'key': null} clears the key, absent fields are left
+        alone; energy 0 is a legitimate value everywhere (never truthiness).
+        Never mutates `payload` — recorded steps carry the raw request, so
+        show replay re-stamps section bars from the live transport."""
+        if not isinstance(payload, dict):
+            raise ValueError("conductor payload must be an object")
+        unknown = set(payload) - {"key", "energy", "section", "tags", "note", "from", "clear"}
+        if unknown:
+            raise ValueError(f"unknown conductor fields: {sorted(unknown)}")
+
+        # Bar stamp for section declarations + notes. Snapshot OUTSIDE the
+        # lock: a hung-browser WS stall must not serialize locked routes.
+        bar = None
+        if payload.get("section") is not None or payload.get("note"):
+            try:
+                snap = self.transport_snapshot() or {}
+                if snap.get("playing"):
+                    bar = round(float(snap.get("cycle") or 0.0), 3)
+            except Exception:
+                bar = None
+
+        # Validate/parse everything BEFORE merging — a bad field must not
+        # leave a half-applied declaration.
+        updates: dict = {}
+        if "key" in payload:
+            updates["key"] = self._parse_key(payload["key"])
+        if "energy" in payload:
+            e = payload["energy"]
+            if e is not None:
+                try:
+                    e = float(e)
+                except (TypeError, ValueError):
+                    raise ValueError("energy must be a number 0..1 or null")
+                if not math.isfinite(e) or not (0.0 <= e <= 1.0):
+                    raise ValueError("energy must be 0..1 or null")
+            updates["energy"] = e
+        if "section" in payload:
+            s = payload["section"]
+            if s is None:
+                updates["section"] = None
+            else:
+                name = s.get("name") if isinstance(s, dict) else s
+                if not isinstance(name, str) or not name.strip():
+                    raise ValueError("section needs a name string (or null to clear)")
+                updates["section"] = {"name": name.strip(), "startBar": bar}
+        if "tags" in payload:
+            t = payload["tags"]
+            if t is None:
+                t = []
+            if isinstance(t, str):
+                t = [x.strip() for x in t.split(",") if x.strip()]
+            if not isinstance(t, list):
+                raise ValueError("tags must be a list, comma string, or null")
+            updates["tags"] = [str(x) for x in t]
+        note = None
+        if payload.get("note"):
+            note = {"bar": bar, "from": str(payload.get("from") or "anon"),
+                    "text": str(payload["note"]), "ts": time.time()}
+
+        with self._lock:
+            if payload.get("clear"):
+                self._score.update({"key": None, "energy": None,
+                                    "section": None, "tags": []})
+                self._score_notes.clear()
+            self._score.update(updates)
+            if note:
+                self._score_notes.append(note)
+            self._score["rev"] += 1
+            self._score["updated"] = time.time()
+
+        pushed = self._push_score()
+        return {"ok": True, "score": self.score_snapshot(), "bar": bar,
+                "pushed": pushed}
+
+    def conductor_view(self) -> dict:
+        """GET /conductor — the conductor's complete view: score (intent) +
+        transport position + next bar-line ETAs (its firing arm's grid)."""
+        snap = {}
+        try:
+            snap = self.transport_snapshot() or {}
+        except Exception:
+            pass
+        playing = bool(snap.get("playing"))
+        cps = float(snap.get("cps") or self._cps or 0.5)
+        transport = None
+        boundaries = {}
+        if snap:
+            cycle = float(snap.get("cycle") or 0.0)
+            transport = {"playing": playing, "bar": round(cycle, 3),
+                         "cps": cps, "bpm": round(cps * 240, 1)}
+            if playing:
+                boundaries = {
+                    str(n): round(((math.floor(cycle / n) + 1) * n - cycle) / cps, 2)
+                    for n in (1, 2, 4, 8, 16, 32)
+                }
+        return {"ok": True, "score": self.score_snapshot(), "transport": transport,
+                "nextBoundarySeconds": boundaries, "queued": len(self._queue)}
+
     # ── Conductor: quantized command queue ───────────────────────
     #
     # queue_command("/strudel/track", {...}, at=8, offset=2) holds the command
@@ -1072,6 +1357,7 @@ class LivecodeController:
     QUEUEABLE_ROUTES = {
         "/strudel/track", "/strudel/stop", "/strudel/hush", "/strudel/cps",
         "/p5/layer", "/p5/remove", "/p5/fps", "/p5/state",
+        "/conductor",
     }
     _QUEUE_LEAD = 0.08  # fire this many seconds before the downbeat (like boundary.py)
 

@@ -98,6 +98,12 @@ def fire(tracks, meta, deps, port):
     for key, value in (("secBeats", meta["secBeats"]),
                        ("arc", meta["intensities"]), ("t0", None)):
         requests.post(base + "/p5/state", json={"key": key, "value": value}, timeout=10)
+    # The arc now owns intensity: clear any stale declared-energy override on
+    # the conductor score so K.intensity follows the compiled arc again.
+    try:
+        requests.post(base + "/conductor", json={"energy": None}, timeout=10)
+    except Exception:
+        pass  # older server without /conductor — arc still fires
     requests.post(base + "/strudel/cps", json={"cps": meta["cps"]}, timeout=10)
     for slot in sorted(tracks, key=SLOT_ORDER.index):
         requests.post(base + "/strudel/track",

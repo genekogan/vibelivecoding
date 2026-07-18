@@ -51,10 +51,14 @@ Four rules define the mode:
    next one. Do not wait, do not idle, do not ask "want me to continue?" while
    music is playing. Silence and dead air are failures; so is a finished plan
    with nothing queued behind it.
-2. **Think out loud.** Narrate the musical reasoning *before* firing — what the
-   move is, why it follows, what the harmonic/rhythmic relationship is. Gene is
-   watching the reasoning as much as hearing the result. Say the thing you almost
-   did and rejected, and why.
+2. **Terse on stage — code first.** Gene instructs; you translate the
+   instruction to live code and pick up his next one. English is the minimum
+   needed to reason through the musical move and make the code good, *fast* —
+   "relative major, halftime feel, pads enter @8" is a full narration. NO
+   status reports, no recaps of what you just did, no restating his
+   instruction or the state of things; the code and the server log are the
+   narration. (This supersedes the earlier "think out loud" doctrine — Gene's
+   feedback: verbose reasoning wastes stage time.)
 3. **Stay interruptible.** Gene steers mid-flight ("more disco", "too fast",
    "no strobe", "take off the chords"). His message lands between tool calls.
    Honor it on the next action, not the next set. Safety steering (flicker,
@@ -105,20 +109,22 @@ Before the first fire — or while the outgoing set still plays:
    territory, batch-read **8–12 stems into context** (2–3 per slot you'll
    use). All retrieval happens here — a mid-set grep+read cycle is 30–60s of
    dead air. After this, every move is write-only.
-3. **Announce the plan** in a paragraph, then make sound inside the first
-   minute: drums or a drone, direct-fired (`--at 0` / plain `lc track`) to
-   start the grid.
+3. **Announce the plan in ONE terse line** (key journey · tempo · genre pair),
+   then make sound inside the first minute: drums or a drone, direct-fired
+   (`--at 0` / plain `lc track`) to start the grid.
 
 ### 2.3 The loop — granular moves on the conductor's grid
 
 - **One move per 30–60s**, each touching **one slot**, queued to a 4/8-bar
   line. One-in-one-out instrumentation; never rebuild the mix in one commit.
-- **Every pattern carries its own future.** Slow LFOs over 16–32 cycles,
-  nested `<...>` cycles at 8/16/32 bars, verse/chorus via `.mask()`
-  alternation — sized to *at least* the gap before your next move. About to
-  think for three minutes? What's playing must evolve for three minutes.
-- **Narrate 1–2 sentences per move** — the musical reasoning, before the
-  fire. Deep narration only at pivots.
+- **Every pattern carries its own future — compose for dynamics.** Slow LFOs
+  over 16–32 cycles, nested `<...>` cycles at 8/16/32 bars, verse/chorus via
+  `.mask()` alternation, builds and breakdowns — sized to *at least* the gap
+  before your next move. About to think for three minutes? What's playing must
+  evolve for three minutes. Still figuring out the next set? The current one
+  must carry variety for that whole gap.
+- **At most one terse line per move** — the musical reasoning, before the
+  fire. A couple of lines at set pivots only. Never a report of what fired.
 - **Verify after each fire**: `lc status` (carries `lastError`); read
   `state.audio` rms every few moves. Hand-written code owns its own
   audibility (§5).
@@ -154,7 +160,17 @@ each boundary size, pending + recent items. Semantics worth knowing:
 - Queued fires are **recorded into the show timeline** and logged to the
   server console (`⏱ fired track bass @bar 96`), so the flight recorder stays
   complete.
-- Queueable routes: strudel `track/stop/hush/cps` · p5 `layer/remove/fps/state`.
+- Queueable routes: strudel `track/stop/hush/cps` · p5 `layer/remove/fps/state`
+  · `conductor` (score declarations land on bar lines too).
+
+The conductor also keeps **the score** — declared musicological intent (key /
+energy / named section / tags + a bar-stamped note blackboard) shared by every
+session on the server. `./lc con` shows it; `./lc con key=am energy=.7
+section=drop` declares. Declared state reaches every asset through derived
+`K` fields (`keyHue`, `intensity` override, `sectionName`/`sectionBars`) —
+spec in `assets/CONTRACT.md` §Conductor score. **Declare at every change, even
+solo** — it costs one command, colors the whole canvas, and the flight
+recorder replays it.
 
 ### 3.1 Show-start checklist (when Gene says "improvise" / "let's play")
 
@@ -168,6 +184,43 @@ each boundary size, pending + recent items. Semantics worth knowing:
 3. **Set-start ritual** (§2.2): skeleton → palette → announce.
 4. First sound direct; everything after through the conductor.
 5. From here, never idle — plan N+1 while N plays (§1).
+
+### 3.2 Two-seat mode — one session on music, one on visuals
+
+Gene runs **two simultaneous sessions against one server** and prompts both.
+**Both seats start under the performance doctrine at the top of `AGENTS.md`**:
+never silence · compose for dynamics (material must last until the next set is
+figured out) · terse English (translate instruction → code, pick up the next).
+Beat-sync needs no coordination — audio and visuals render in one page from
+one clock (`K.beat/pulse/bar` are the heard transport, latency-compensated).
+The score is how the seats share **intent**. Ownership is per field:
+
+| | audio seat owns | visual seat owns |
+|---|---|---|
+| writes | tempo (`lc cps` — the ONLY tempo writer), `key`, `section`, `energy`, musical `tags` | layers/slots, binds (`fire_visual --bind`), palette choices |
+| reads | `lc con` for visual notes | `GET /conductor` before every scene choice |
+| shared | `note=` blackboard (bar-stamped), both directions | |
+
+The protocol, per seat:
+
+- **Audio seat: declare at every change, in the same breath as the change.**
+  Modulate and declare together — ideally on the same bar line:
+  `./lc track keys '...' --at 8` + `./lc con key=ab --at 8`. A key change the
+  score doesn't know about is a canvas painting the wrong color. Same for
+  section boundaries (`con section=drop`) and intent shifts (`con energy=.9`).
+- **Visual seat: read before you choose.** `./lc con` → key/energy/section/tags
+  feed `find_visual.py` queries and param choices. Fire with `--bind auto` (or
+  explicit `--bind hue=keyHue`) so the canvas re-tints itself on later
+  modulations without you in the loop. Don't write musical fields — ever.
+- **Blackboard for lookahead**: `./lc con note="drop at bar 160" from=music`
+  lets the visual seat stage the drop visuals two phrases early; notes are
+  bar-stamped so "at 160" is unambiguous.
+- **Never fight over a field.** If the other seat's declaration looks wrong,
+  note it (`note=`) — don't overwrite. Tempo belongs to the audio seat,
+  period; `K.intensity` follows declared energy over the arc, so the audio
+  seat clearing it (`con energy=null`) hands intensity back to the arc.
+- Solo sessions: same habits, one seat wearing both hats — declaring still
+  pays (replay fidelity + key-tinted canvas for free).
 
 ---
 
@@ -300,7 +353,10 @@ See the `no-strobe-visuals` memory — strobe is a hard safety rule, not taste.
 `secBeats`/`arc`/`t0` so `clk.section` restarts, but Strudel's `arrange()` plays
 at `cycle % total_cycles` of the *global* transport — which is thousands of cycles
 deep. So visual sections and musical sections only coincide by luck. Don't claim
-they're locked.
+they're locked. **The DECLARED section is exact by construction**: `lc con
+section=drop --at 8` stamps the bar it lands on, and `K.sectionName`/
+`K.sectionBars` track it precisely — prefer it over `K.section` whenever the
+performing seat is declaring.
 
 ---
 

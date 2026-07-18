@@ -244,7 +244,7 @@ window.__strudelModuleContract = Object.freeze({
 <script src="owned_transport.js"></script>
 
 <script>
-const VERSION = 3;
+const VERSION = 4;
 
 // ── Sample caching (from strudel.html) ──────────────────────
 const _originalFetch = window.fetch;
@@ -280,6 +280,13 @@ const p5Layers = new Map();
 const layerOrder = [];
 window.state = {};
 window.state.audio = { bass: 0, lowmid: 0, mid: 0, treble: 0, rms: 0, fft: [] };
+// Conductor score (pushed by POST /conductor): declared musicological intent.
+// null until the music seat declares something. Shape:
+//   {key:{root,mode,pc}|null, energy:0..1|null, section:{name,startBar}|null, rev}
+window.state.conductor = null;
+// Conductor binder specs: {"<slot>": {"<param>": "<feature>"|{feature,offset,scale}}}.
+// Initialized here so /p5/state "binds.<slot>" can't throw on a fresh canvas.
+window.state.binds = {};
 const errorTimestamps = new Map();
 
 // ── Audio-reactive bridge ───────────────────────────────────
@@ -509,6 +516,12 @@ function updateClock() {
     const secBeats = window.state.secBeats || 32;  // 8 bars per section default
     const section = Math.floor(beat / secBeats) % 8;
     const arc = window.state.arc || [.2, .4, .7, .9, .3, .6, 1, .4];
+    // Conductor score — the declared intentional layer (music seat, POST
+    // /conductor). Derived here so all assets get it through K zero-touch.
+    const cond = window.state.conductor || null;
+    const key = (cond && cond.key && Number.isFinite(cond.key.pc)) ? cond.key : null;
+    const declaredEnergy = (cond && typeof cond.energy === "number") ? cond.energy : null;
+    const condSection = (cond && cond.section && cond.section.name) ? cond.section : null;
     window.state.cps = cps; // legacy readers; transport remains the authority
     window.state.clk = {
         t, cps, beat,
@@ -517,8 +530,21 @@ function updateClock() {
         phase: beat % 1,                                   // 0 at each beat onset
         pulse: Math.pow(1 - (beat % 1), 3),                // spikes on the beat, decays
         swell: Math.pow(Math.max(0, Math.sin((beat % 1) * Math.PI)), 2),
+        barPulse: Math.pow(1 - (cycle % 1), 3),            // spikes on each bar line
+        bpm: cps * 240,                                    // 1 cycle = 1 bar of 4 beats
         section,
-        intensity: arc[section % arc.length],
+        // Declared energy overrides the arc; energy:null restores arc-driven.
+        intensity: declaredEnergy !== null ? declaredEnergy : arc[section % arc.length],
+        // key → hue on the circle of fifths (CONTRACT.md pinned formula):
+        // C=0° G=30° D=60° A=90° E=120° B=150° F#=180° … F=330°. null = no key.
+        key,
+        keyHue: key ? ((key.pc * 7) % 12) * 30 : null,
+        keyMinor: !!(key && key.mode === "minor"),
+        // Declared section (independent of the arc-index `section` above).
+        sectionName: condSection ? condSection.name : null,
+        sectionBars: (condSection && Number.isFinite(condSection.startBar))
+            ? Math.max(0, cycle - condSection.startBar)     // clamped: hard reset rewinds cycle
+            : null,
         fps: frameRate(),
         schedulerCycle: transport.cycle || 0,
         schedulerQueryCycle: transport.schedulerQueryCycle ?? null,
@@ -531,8 +557,52 @@ function updateClock() {
     };
 }
 
+// Conductor binder: drive per-slot params from score-derived features.
+// SNAP-ON-CHANGE, never per-frame writes — many assets gate cache/buffer
+// rebuilds on P equality (palette keys like Math.round(P.hue)), so a smoothed
+// per-frame write would thrash full re-renders and read as flicker. A manual
+// param poke therefore wins until the bound feature next changes; re-firing a
+// slot resets its binds (fire_visual pushes binds.<slot> on every fire).
+const NEVER_BIND = new Set(["style", "seed", "act"]);   // strings / cache keys / regeneration triggers
+const bindCache = new Map();     // "<slot>.<param>" → last value the binder wrote
+const bindSpecRef = new Map();   // slot → last-seen spec object (identity = freshness)
+function applyBinds() {
+    const binds = window.state.binds;
+    if (!binds) return;
+    const K = window.state.clk;
+    const features = {
+        keyHue: K.keyHue,       // circle-of-fifths hue, null when no key declared
+        energy: K.intensity,    // declared energy (or arc fallback)
+        intensity: K.intensity, // alias
+        bpm: K.bpm,
+        cps: K.cps,
+    };
+    for (const slot in binds) {
+        const spec = binds[slot];
+        if (!spec || !p5Layers.has(slot)) continue;
+        const fresh = bindSpecRef.get(slot) !== spec;   // new spec → snap everything once
+        if (fresh) bindSpecRef.set(slot, spec);
+        for (const param in spec) {
+            if (NEVER_BIND.has(param)) continue;
+            let b = spec[param];
+            if (typeof b === "string") b = { feature: b };
+            if (!b || typeof b.feature !== "string") continue;
+            let v = features[b.feature];
+            if (!Number.isFinite(v)) continue;          // e.g. keyHue with no key: leave param alone
+            v = v * (b.scale ?? 1) + (b.offset ?? 0);
+            if (b.feature === "keyHue") v = ((v % 360) + 360) % 360;
+            const ck = slot + "." + param;
+            if (!fresh && bindCache.get(ck) === v) continue;  // unchanged → no write
+            bindCache.set(ck, v);
+            const P = (window.state.P = window.state.P || {});
+            (P[slot] = P[slot] || {})[param] = v;
+        }
+    }
+}
+
 window.draw = function() {
     updateClock();
+    applyBinds();
     for (const name of layerOrder) {
         const layer = p5Layers.get(name);
         if (!layer) continue;

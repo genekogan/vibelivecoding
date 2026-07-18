@@ -11,6 +11,19 @@ AI-driven live coding — **music** (Strudel) and **visuals** (p5.js).
 > The only allowed bare silence is when the user explicitly says "stop"/"hush".
 > Full doctrine: `.claude/skills/livecode-improv.md` §4.5.
 
+> **Performance doctrine — every performing session (music seat, visual seat,
+> solo) starts under these three rules:**
+> 1. **Never silence** — the unbreakable rule above. The next thing is written
+>    and ready before anything currently playing stops.
+> 2. **Compose for dynamics.** Every fired section carries its own future:
+>    verses/choruses, builds and breakdowns, slow LFOs, 8/16/32-bar variation —
+>    enough internal change to stay interesting until the NEXT set is figured
+>    out (minutes, not bars). A static loop is a countdown to boredom.
+> 3. **Terse on stage.** Gene instructs; you translate to live code and pick up
+>    his next instruction. English is the minimum needed to reason through the
+>    move and make the code good, fast. No status reports, no recaps of what
+>    you did, no restating his instruction or the state of things. Code first.
+
 There are **four ways** to drive the server, layered on the same `livecode.py`
 backend. Pick based on what the user asks for:
 
@@ -19,7 +32,7 @@ backend. Pick based on what the user asks for:
 | **Manual** | "play this loop", "drop a kick" | Send single curl commands directly | `livecode-tips.md` |
 | **Showrunner** | "play the disco set", "step through the show", "record a show" | Author/record/replay a deterministic timeline of saved sections (`shows/*.show.json`); arrow keys ← → step through it | `livecode-compose.md` |
 | **Autopilot** | "start the autopilot", "kick off the loop" | YOU run `/loop` in this chat — wake every ~1 min via `ScheduleWakeup` to evolve visuals + music autonomously; user steers by typing messages | `autopilot.md` |
-| **Improv** | "improvise", "jam", "keep going", "mix it up", "make something like X but new", "you got dis" | YOU perform continuously in-chat: **hand-write your own Strudel/p5 by default** (the catalog is context/inspiration, not the vocabulary you fire — writing-your-own forces diversity), narrate the musical reasoning out loud, plan the next section while the current one plays, never idle, transition on bar lines. Fire a catalog asset verbatim only when the user names one or points at a past show. | **`livecode-improv.md`** |
+| **Improv** | "improvise", "jam", "keep going", "mix it up", "make something like X but new", "you got dis" | YOU perform continuously in-chat: **hand-write your own Strudel/p5 by default** (the catalog is context/inspiration, not the vocabulary you fire — writing-your-own forces diversity), terse English (code first, no narration beyond a line of musical reasoning), plan the next section while the current one plays, never idle, transition on bar lines. Fire a catalog asset verbatim only when the user names one or points at a past show. | **`livecode-improv.md`** |
 
 Showrunner is **deterministic & step-able**; Autopilot is **timer-driven**;
 Improv is **continuous & hand-played** (no `ScheduleWakeup` — you never stop
@@ -179,7 +192,23 @@ curl localhost:8766/status
 ./lc track pads '...' --at 8 --after 2                    # stagger: 2 bars later
 ./lc q                                          # pending + next-boundary ETAs
 ./lc qcancel q7                                 # or: qcancel all
+
+# Conductor (score) — declared musicological intent, shared across sessions:
+./lc con                                        # score + bar/bpm + boundary ETAs
+./lc con key=am energy=.7 section=drop          # music seat declares (per change)
+./lc con key=ab --at 8                          # declaration lands ON the bar line
+./lc con note="drop at bar 160" from=music      # bar-stamped blackboard
+./lc con clear
 ```
+**The conductor keeps time via the queue and keeps intent via the score.**
+Declared key/energy/section reach every visual asset through derived
+`state.clk` fields (`keyHue` circle-of-fifths tint, `intensity` override,
+`sectionName`/`sectionBars`) with zero per-asset wiring; per-slot param
+bindings ride `fire_visual.py --bind` (spec: `assets/CONTRACT.md` §Conductor).
+This is the interconnect for **two-seat performance** (one session on music,
+one on visuals — protocol: `.claude/skills/livecode-improv.md` §3.2). Tempo
+stays single-writer: `/strudel/cps`, never the score.
+
 The server also prints a one-line log per accepted command (glyph · name ·
 code size · latency) and surfaces browser-side runtime errors in the terminal
 as they happen — watch that log during a performance.
@@ -203,8 +232,10 @@ as they happen — watch that log during a performance.
 | POST | `/p5/state` | `{key, value}` |
 | POST | `/p5/fps` | `{fps}` |
 | GET | `/q` | — conductor queue: transport position, next-boundary ETAs, pending + recent items |
-| POST | `/q` | `{route, payload, at, offset}` or `{items:[...]}` — hold command(s), fire on the next `at`-bar line (+offset bars). Queueable: strudel track/stop/hush/cps, p5 layer/remove/fps/state |
+| POST | `/q` | `{route, payload, at, offset}` or `{items:[...]}` — hold command(s), fire on the next `at`-bar line (+offset bars). Queueable: strudel track/stop/hush/cps, p5 layer/remove/fps/state, conductor |
 | POST | `/q/cancel` | `{id}` or `{all: true}` |
+| GET | `/conductor` | — conductor score + transport (bar/cps/bpm) + bar-line ETAs + pending count |
+| POST | `/conductor` | `{key?, energy?, section?, tags?, note?, from?, clear?}` — partial merge; explicit `null` clears a field. Pushed into `window.state.conductor`; derived K fields reach all assets |
 
 ### Step-Through System
 | Method | Route | Body |
@@ -251,7 +282,7 @@ mv shows/unsorted/jam_<ts>.show.json shows/my_set.show.json
 | `performances/` | Archival MP4 recordings of past performances — not loaded by code |
 | `autoplay.py` | Driver — advances show on a clock (Ns/Nbeats/Nbars/Ncycles) |
 | `.claude/skills/livecode-compose.md` | Composition skill (scene catalog + cookbook) |
-| `test_steps.py` | Playwright regression (`python test_steps.py` — 101 checks, 14 phases; server must be running) |
+| `test_steps.py` | Playwright regression (`python test_steps.py` — 118 checks, 15 phases incl. conductor score; starts its own server) |
 
 ## Autopilot — Autonomous Improv Loop
 
