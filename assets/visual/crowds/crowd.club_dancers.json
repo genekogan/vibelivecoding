@@ -1,0 +1,124 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.club_dancers",
+  "kind": "crowd",
+  "name": "Club Dancers",
+  "desc": "A floor of dancing figures at varied depths, each throwing a different move \u2014 arms up, side-sway or jumping \u2014 bobbing to the beat as silhouettes, neon outlines, confetti colours, blacklight or mono.",
+  "tags": [
+    "dancers",
+    "crowd",
+    "dancing",
+    "club",
+    "party",
+    "rave",
+    "people",
+    "silhouettes",
+    "figures",
+    "disco",
+    "moves",
+    "nightlife",
+    "concert",
+    "audience",
+    "bopping",
+    "neon",
+    "festival"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "dance liveliness"
+    },
+    "n": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of dancers"
+    },
+    "hue": {
+      "default": 320,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue"
+    },
+    "variety": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pose/lean variety"
+    },
+    "spread": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "horizontal spread"
+    },
+    "y": {
+      "default": 0.82,
+      "min": 0.4,
+      "max": 1,
+      "doc": "floor baseline"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cluster x"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "figure size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "silhouette",
+      "options": [
+        "silhouette",
+        "neon",
+        "confetti",
+        "uv",
+        "mono"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:26:39+00:00",
+    "fps": 55.6,
+    "motion": 0.0281,
+    "lum": 0.101
+  },
+  "code": "const D = { energy:.6, n:.5, hue:320, variety:.6, spread:.7, y:.82, x:.5, scale:1, speed:1, density:.5, style:'silhouette', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext;\nconst N=Math.floor(4+P.n*22);\nconst kick=K.pulse*0.3+A.bass*0.4;\nconst baseY=P.y*H;\n\n// floor light-wash behind the dancers \u2014 sweeps + breathes (carries the motion gate\n// for silhouette styles over a dark bed, and reads as club floor lighting over a scene)\ndc.save(); blendMode(SCREEN);\nconst washX=W*(0.5+Math.sin(t*0.4)*0.42+Math.sin(t*0.9+1)*0.1);\nconst washB=0.5+0.5*Math.sin(t*0.53)+0.3*Math.sin(t*1.1);\nconst rg=dc.createRadialGradient(washX,baseY,4,washX,baseY,W*0.55);\nrg.addColorStop(0,color((P.hue)%360,70,85,(14+washB*16+kick*14)*P.alpha/100).toString());\nrg.addColorStop(1,color(P.hue,70,40,0).toString());\ndc.fillStyle=rg; noStroke(); rect(0,baseY-H*0.3,W,H*0.42); dc.restore(); blendMode(BLEND);\n\nfunction dancerCol(i,glowP){ if(sty==='neon') return color((P.hue+i*40)%360,90,100, (70+glowP*30)*P.alpha/100);\n  if(sty==='confetti') return color((i*67)%360,75,95, 90*P.alpha/100);\n  if(sty==='mono') return color(P.hue,10,15, 88*P.alpha/100);\n  if(sty==='uv') return color((P.hue+i*20)%360,80,60, 85*P.alpha/100);\n  return color(0,0,6, 88*P.alpha/100); } // silhouette\n\nfor(let i=0;i<N;i++){\n  const lane=fr(i)*2-1; const wander=Math.sin(t*(0.23+fr(i)*0.27)+i*2)*(0.04+P.variety*0.06)*W + Math.sin(t*(0.11+fr(i+4)*0.1))*0.03*W;\n  const px=W*(0.5 + lane*0.5*P.spread) + (P.x-0.5)*W*0.3 + wander;\n  const depth=fr(i+50); const s=(0.7+depth*0.6)*P.scale*(0.7+0.5*(1-depth)); // near bigger\n  const hh=H*0.14*s;\n  const ph=t*(1.6+en)*P.speed + fr(i+9)*6 + Math.sin(t*0.31+i)*1.6;\n  const bob=Math.sin(ph)*hh*0.10;\n  const py=baseY - depth*H*0.10 + bob;\n  const glowP=0.5+0.5*Math.sin(ph+i);\n  const styleMove=Math.floor(fr(i*3)*3*P.variety); // 0 arms-up,1 side-sway,2 jump\n  const col=dancerCol(i,glowP);\n  const outline=(sty==='neon'||sty==='uv');\n  push(); translate(px,py);\n  const lean=Math.sin(ph*0.5)*0.12*P.variety;\n  rotate(lean);\n  if(outline){ noFill(); stroke(col); strokeWeight(hh*0.09); } else { fill(col); noStroke(); }\n  // legs\n  const legsp=Math.sin(ph)*hh*0.18*(styleMove===1?1.6:1);\n  const jump=styleMove===2? Math.max(0,Math.sin(ph))*hh*0.2 : 0;\n  if(outline){ line(0,-hh*0.5-jump, -legsp,-jump*0.2); line(0,-hh*0.5-jump, legsp,-jump*0.2); }\n  else { push(); translate(0,-jump); quad(-hh*0.06,-hh*0.5, hh*0.06,-hh*0.5, legsp*0.6+hh*0.05, 0, legsp*0.6-hh*0.05,0);\n         quad(-hh*0.06,-hh*0.5, hh*0.06,-hh*0.5, -legsp*0.6+hh*0.05,0,-legsp*0.6-hh*0.05,0); pop(); }\n  // torso\n  if(outline){ line(0,-hh-jump, 0,-hh*0.5-jump); }\n  else { push(); translate(0,-jump); rect(-hh*0.11,-hh, hh*0.22, hh*0.55, hh*0.06); pop(); }\n  // head\n  if(outline){ noFill(); circle(0,-hh*1.12-jump, hh*0.22); } else { circle(0,-hh*1.1-jump, hh*0.2); }\n  // arms\n  const arm=Math.sin(ph+1)*(styleMove===0?1.2:0.6);\n  const ay=-hh*0.82-jump;\n  if(outline){ line(0,ay, -hh*0.32, ay-hh*0.4*Math.max(0,arm)); line(0,ay, hh*0.32, ay-hh*0.4*Math.max(0,-arm)); }\n  else { stroke(col); strokeWeight(hh*0.08); line(0,ay,-hh*0.32,ay-hh*0.4*Math.max(0.1,arm)); line(0,ay,hh*0.32,ay-hh*0.4*Math.max(0.1,-arm)); noStroke(); }\n  pop();\n}\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
