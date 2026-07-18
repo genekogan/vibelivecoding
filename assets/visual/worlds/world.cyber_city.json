@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.cyber_city",
+  "kind": "world",
+  "name": "Cyber City",
+  "desc": "A towering neon megacity at night \u2014 parallax skyline layers of lit-window towers, pulsing neon signs, flying-car light streaks threading between buildings, low fog and optional rain. Blade-Runner, synthwave, Tokyo, mono or dawn.",
+  "tags": [
+    "cyberpunk",
+    "city",
+    "skyline",
+    "neon",
+    "night",
+    "blade-runner",
+    "futuristic",
+    "sci-fi",
+    "tokyo",
+    "synthwave",
+    "towers",
+    "traffic",
+    "flying-cars",
+    "rain",
+    "fog",
+    "environment",
+    "metropolis",
+    "dystopia",
+    "urban"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "traffic/liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 280,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (mono)"
+    },
+    "buildings": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved density"
+    },
+    "traffic": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "flying-car streaks"
+    },
+    "neon": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "neon sign count"
+    },
+    "fog": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "low fog"
+    },
+    "rain": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "rain amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "skyline height"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "bladerunner",
+      "options": [
+        "bladerunner",
+        "synthwave",
+        "tokyo",
+        "mono",
+        "dawn"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:58:18+00:00",
+    "fps": 60.6,
+    "motion": 0.0802,
+    "lum": 0.227
+  },
+  "code": "const D = { energy:.5, scale:1, hue:280, buildings:.6, traffic:.6, neon:.6, fog:.5, rain:.3, x:.5, y:.5, speed:1, density:.5, style:'bladerunner', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.82+(P.y-0.5)*0.1);\n\nlet skyT=[260,70,8], skyB=[300,55,22], bld=[250,40,10], winC=[45,80,100], neonHs=[320,190,280,40], fogc=[280,30,35];\nif(sty==='synthwave'){ skyT=[255,65,10]; skyB=[330,60,30]; bld=[260,50,9]; neonHs=[320,180,45,280]; fogc=[300,40,40]; }\nelse if(sty==='tokyo'){ skyT=[230,60,10]; skyB=[210,50,26]; bld=[220,35,10]; winC=[40,60,100]; neonHs=[350,140,45,200]; fogc=[220,25,38]; }\nelse if(sty==='mono'){ skyT=[P.hue,30,8]; skyB=[P.hue,25,22]; bld=[P.hue,20,9]; winC=[P.hue,20,90]; neonHs=[P.hue,P.hue,P.hue,P.hue]; fogc=[P.hue,15,38]; }\nelse if(sty==='dawn'){ skyT=[250,45,18]; skyB=[25,55,55]; bld=[250,35,14]; winC=[40,70,100]; neonHs=[330,190,45,280]; fogc=[30,30,55]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// sky\nlet g=dc.createLinearGradient(0,0,0,hor); g.addColorStop(0,Cc(skyT,100).toString()); g.addColorStop(1,Cc(skyB,100).toString()); dc.fillStyle=g; noStroke(); rect(0,0,W,H);\n// stars/haze\nfor(let i=0;i<40;i++){ fill(Cc([P.hue,20,100],10+20*Math.sin(t+i))); circle(fr(i)*W,fr(i+9)*hor*0.4,1); }\n// distant skyline glow band\ndc.save(); blendMode(SCREEN); fill(Cc([neonHs[0],60,80], 8)); rect(0,hor*0.5,W,hor*0.5); dc.restore(); blendMode(BLEND);\n\n// buildings \u2014 3 depth layers (parallax value)\nfor(let layer=0; layer<3; layer++){ const val=8+layer*5; const baseY=hor - layer*hor*0.06; const drift=(t*0.5*(layer+1))%40;\n  let x=-drift; const bw0=(20+layer*14);\n  while(x<W+40){ const bwid=bw0+fr(x*0.3+layer)*30; const bh=(0.2+fr(x*0.7+layer)*0.55*(1-layer*0.15)+layer*0.05)*hor;\n    fill(Cc([bld[0],bld[1],val],100)); rect(x, baseY-bh, bwid, bh);\n    // antenna / setback\n    if(fr(x)>0.7 && layer<2){ fill(Cc([bld[0],bld[1],val+3],100)); rect(x+bwid*0.3, baseY-bh-14, bwid*0.4, 14); stroke(Cc(neonHs[Math.floor(fr(x)*4)],80,100)); strokeWeight(1); line(x+bwid*0.5,baseY-bh-14,x+bwid*0.5,baseY-bh-24); noStroke(); }\n    // windows (lit grid, flicker) \u2014 only near layers\n    if(layer>=1){ for(let wy=baseY-bh+8; wy<baseY-6; wy+=8){ for(let wx=x+4; wx<x+bwid-4; wx+=7){ const lit=fr(wx*wy+Math.floor(t*0.7)*3); if(lit>0.55){ fill(Cc([winC[0],winC[1]*(fr(wx)>0.8?0:1),winC[2]], 60+lit*30)); rect(wx,wy,4,4);} } } }\n    x+=bwid+3; }\n}\n// neon signs on buildings\nif(P.neon>0.05){ for(let i=0;i<Math.floor(P.neon*14);i++){ const nx=fr(i*5)*W; const ny=hor*(0.35+fr(i)*0.5); const h=neonHs[i%neonHs.length]; const pulse=0.6+0.4*Math.sin(t*(1+fr(i))+i);\n  dc.save(); dc.shadowBlur=12*pulse; dc.shadowColor=color(h,90,100).toString();\n  const type=Math.floor(fr(i+2)*3);\n  stroke(color(h,85,100, (60+pulse*40)*P.alpha/100)); strokeWeight(2.4); noFill();\n  if(type===0){ rect(nx,ny,18+fr(i)*20,10+fr(i)*14); } else if(type===1){ line(nx,ny,nx,ny+24+fr(i)*20); circle(nx,ny,10); } else { for(let k=0;k<4;k++) line(nx+k*5,ny,nx+k*5,ny+16); }\n  dc.restore(); noStroke(); } }\n// flying-car light streaks (moving \u2014 robust motion)\nif(P.traffic>0.05){ dc.save(); blendMode(ADD); for(let lane=0;lane<Math.floor(3+P.traffic*5);lane++){ const ly=hor*(0.3+fr(lane)*0.5); const dir=fr(lane+3)>0.5?1:-1; const spd=(0.15+fr(lane)*0.2)*(0.5+en)*P.speed;\n  for(let c=0;c<4;c++){ const cp=((fr(lane*4+c)+t*spd*dir)%1); const cxp=cp*W; const h=fr(lane)>0.5?15:190; stroke(color(h,80,100,70*P.alpha/100)); strokeWeight(2); line(cxp,ly, cxp-dir*30,ly+ (fr(lane)-0.5)*4); fill(color(h,80,100,80*P.alpha/100)); noStroke(); circle(cxp,ly,3); } }\n  dc.restore(); blendMode(BLEND); }\n// fog drifting low\nif(P.fog>0.05){ dc.save(); blendMode(SCREEN); for(let i=0;i<4;i++){ const fy=hor-20+i*14; fill(Cc(fogc, 8*P.fog)); ellipse(W*0.5+Math.sin(t*0.3+i)*W*0.3, fy, W*(0.9+0.2*Math.sin(t*0.4+i)), 90); } dc.restore(); blendMode(BLEND); }\n// rain\nif(P.rain>0.05){ stroke(Cc([P.hue,20,90], 30*P.rain)); strokeWeight(1); for(let i=0;i<P.rain*120;i++){ const rx=(fr(i)*W + t*40)%W; const ry=(fr(i+3)*H + t*(300+en*200))%H; line(rx,ry,rx-4,ry+18);} noStroke(); }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
