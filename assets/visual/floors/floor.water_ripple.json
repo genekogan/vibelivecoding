@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.water_ripple",
+  "kind": "floor",
+  "name": "Rippling Water",
+  "desc": "A sheet of water receding to the horizon \u2014 expanding ripple rings, perspective shimmer lines wobbling and a wavering specular glint column reflected across the surface. Pool blue, green pond, ocean, sunset or neon.",
+  "tags": [
+    "water",
+    "ripple",
+    "reflection",
+    "pool",
+    "pond",
+    "ocean",
+    "lake",
+    "surface",
+    "shimmer",
+    "floor",
+    "liquid",
+    "reflective",
+    "calm",
+    "waves",
+    "glint",
+    "nature",
+    "sunset"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ripple/wave liveliness"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "water hue"
+    },
+    "ripples": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "ripple-ring count"
+    },
+    "shimmer": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "surface shimmer"
+    },
+    "reflect": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glint reflection"
+    },
+    "tint": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved tint"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "glint column x"
+    },
+    "y": {
+      "default": 0.4,
+      "min": 0.2,
+      "max": 0.6,
+      "doc": "horizon height"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "pool",
+      "options": [
+        "pool",
+        "pond",
+        "ocean",
+        "sunset",
+        "neon"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:53:20+00:00",
+    "fps": 54.9,
+    "motion": 0.0125,
+    "lum": 0.102
+  },
+  "code": "const D = { energy:.5, hue:200, ripples:.6, shimmer:.6, reflect:.5, tint:.6, x:.5, y:.4, scale:1, speed:1, density:.5, style:'pool', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.3+(P.y-0.5)*0.3);\n\nlet watT=[P.hue,70,45], watB=[P.hue+10,80,20], rip=[P.hue-15,40,95], shimc=[P.hue-20,30,100];\nif(sty==='pond'){ watT=[150,55,35]; watB=[140,65,16]; rip=[110,40,80]; shimc=[80,30,90]; }\nelse if(sty==='ocean'){ watT=[205,75,42]; watB=[215,85,16]; rip=[195,45,95]; shimc=[190,30,100]; }\nelse if(sty==='neon'){ watT=[P.hue,60,20]; watB=[P.hue,70,10]; rip=[(P.hue+150)%360,90,100]; shimc=[(P.hue+150)%360,90,100]; }\nelse if(sty==='sunset'){ watT=[15,60,45]; watB=[280,50,20]; rip=[35,60,100]; shimc=[40,50,100]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// water gradient (below horizon)\nlet g=dc.createLinearGradient(0,hor,0,H); g.addColorStop(0,Cc(watT,100).toString()); g.addColorStop(1,Cc(watB,100).toString()); dc.fillStyle=g; noStroke(); rect(0,hor,W,H-hor+1);\n\n// horizon reflection band + tint from \"sky\"\ndc.save(); blendMode(SCREEN); fill(Cc(shimc, 10*P.reflect)); rect(0,hor,W,H*0.14); dc.restore();\n\n// horizontal shimmer lines (perspective \u2014 denser far, wobbling)\nif(P.shimmer>0.05){ dc.save(); blendMode(SCREEN);\n  for(let i=0;i<40;i++){ const z=i/40; const yy=hor + (H-hor)*(z*z); const amp=(8+z*24)*P.shimmer; stroke(Cc(shimc, (6+z*14)*P.shimmer));\n    strokeWeight(0.8+z*1.6); noFill(); beginShape(); for(let x=0;x<=W;x+=W/24){ vertex(x, yy+Math.sin(x*0.02+t*(1+z)+i)*amp*0.3);} endShape(); }\n  dc.restore(); blendMode(BLEND); }\n\n// EXPANDING RIPPLE RINGS (robust motion)\nif(P.ripples>0.05){ dc.save(); blendMode(SCREEN); noFill();\n  const nr=Math.floor(2+P.ripples*5);\n  for(let i=0;i<nr;i++){ const rx=(0.15+fr(i)*0.7)*W; const zz=0.2+fr(i+5)*0.7; const ry=hor+(H-hor)*(zz*zz);\n    const period=3.0+fr(i+2)*2.5; const ph=((t*(0.5+en*0.5)*P.speed)/period + fr(i+9))%1;\n    for(let ring=0;ring<3;ring++){ const rr=(ph*1.0 + ring*0.33); const rad=rr*(50+zz*90); const a=(1-rr)*(40*P.ripples);\n      stroke(Cc(rip, a)); strokeWeight(1.4);\n      dc.save(); dc.translate(rx,ry); dc.scale(1,0.35); dc.beginPath(); dc.arc(0,0,rad,0,TAU); dc.stroke(); dc.restore(); }\n  }\n  dc.restore(); blendMode(BLEND); }\n\n// specular sun/moon glint reflection (wavering column)\nif(P.reflect>0.05){ dc.save(); blendMode(SCREEN); const gx=W*(0.5+(P.x-0.5)*0.8);\n  for(let yy=hor; yy<H; yy+=6){ const z=(yy-hor)/(H-hor); const wob=Math.sin(yy*0.1+t*3)*(6+z*30); fill(Cc(shimc, (14*(1-z*0.6))*P.reflect)); ellipse(gx+wob, yy, (10+z*40)*P.reflect, 4); }\n  dc.restore(); blendMode(BLEND); }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}

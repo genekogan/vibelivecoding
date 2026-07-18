@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "set.balloons",
+  "kind": "set",
+  "name": "Balloons",
+  "desc": "A drifting cluster of balloons bobbing and swaying on their strings, catching a highlight \u2014 party multicolour, soft pastel, shiny mylar foil, a hue gradient or mono.",
+  "tags": [
+    "balloons",
+    "party",
+    "celebration",
+    "float",
+    "birthday",
+    "helium",
+    "festive",
+    "cluster",
+    "bob",
+    "cheerful",
+    "decor",
+    "set",
+    "prop",
+    "foil",
+    "pastel",
+    "strings",
+    "joy"
+  ],
+  "slots": [
+    "setA",
+    "setB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bob liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "balloon size"
+    },
+    "hue": {
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (mono/gradient)"
+    },
+    "n": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "balloon count/spread"
+    },
+    "size": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "size variance"
+    },
+    "strings": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "string length/wave"
+    },
+    "shine": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "highlight amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "cluster x"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0,
+      "max": 1,
+      "doc": "cluster y"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "party",
+      "options": [
+        "party",
+        "pastel",
+        "foil",
+        "gradient",
+        "mono"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:52:07+00:00",
+    "fps": 60.2,
+    "motion": 0.0439,
+    "lum": 0.106
+  },
+  "code": "const D = { energy:.5, scale:1, hue:0, n:.5, size:.5, strings:.7, shine:.6, x:.5, y:.42, speed:1, density:.5, style:'party', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style, en=P.energy, t=K.t, dc=drawingContext, TAU=Math.PI*2;\nconst W=width,H=height, u=Math.min(W,H), sc=u*0.001*P.scale, cx=P.x*W, cy=P.y*H;\nconst N=Math.floor(3+P.n*10);\nfunction balHue(i){ if(sty==='pastel') return (i*61)%360; if(sty==='foil') return (i*47)%360; if(sty==='mono') return P.hue; if(sty==='gradient') return (P.hue+i*18)%360; return [0,45,140,210,280,320][i%6]; }\nconst bsat=sty==='pastel'?45:sty==='foil'?60:80;\n\nfor(let i=0;i<N;i++){\n  const bx=cx + (fr(i)-0.5)*W*0.5*(0.4+P.n);\n  const by0=cy + (fr(i+7)-0.5)*H*0.3;\n  // bob + sway (robust incommensurate motion, big shapes)\n  const bob=Math.sin(t*(0.6+fr(i)*0.5)+i)*22*sc*u*0.02*(0.5+en);\n  const sway=Math.sin(t*(0.4+fr(i)*0.3)+i*2)*0.12;\n  const r=(24+fr(i+3)*30)*(0.5+P.size)*P.scale;\n  const bx2=bx+Math.sin(t*0.5+i)*18*(0.4+en), by=by0+bob;\n  const h=balHue(i);\n  // string\n  if(P.strings>0.05){ stroke(color(0,0,55,45*P.alpha/100)); strokeWeight(1.2); noFill();\n    beginShape(); vertex(bx2,by+r*0.95); for(let k=1;k<=6;k++){ vertex(bx2+Math.sin(t*1.5+k+i)*6*k*0.3*P.strings, by+r*0.95+k*16);} endShape(); noStroke(); }\n  push(); translate(bx2,by); rotate(sway);\n  // body\n  const foil=(sty==='foil');\n  fill(color(h,bsat,foil?100:92, 95*P.alpha/100));\n  ellipse(0,0, r*1.7, r*2);\n  // knot\n  fill(color(h,bsat,foil?90:80,95*P.alpha/100)); triangle(-4,r*0.98,4,r*0.98,0,r*1.1);\n  // shine\n  if(P.shine>0.05){ fill(color(h,bsat*0.3,100, (foil?90:70)*P.shine*P.alpha/100)); ellipse(-r*0.35,-r*0.5, r*0.5, r*0.75);\n    if(foil){ fill(color(h,10,100,50*P.alpha/100)); rect(-r*0.7,-r*0.3, r*1.4, r*0.2); } }\n  // subtle outline\n  noFill(); stroke(color(h,bsat,foil?60:55,50*P.alpha/100)); strokeWeight(1.4); ellipse(0,0,r*1.7,r*2); noStroke();\n  pop();\n}\nblendMode(BLEND);\n"
+}
