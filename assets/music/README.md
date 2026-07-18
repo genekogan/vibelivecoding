@@ -9,7 +9,7 @@ map to everything else.
 > generating Strudel from scratch on stage. Everything is pre-written, verified,
 > parametric code.
 
-**Current catalog:** 697 stems · 120 kits · 12 arcs · 92 genres · 829 indexed
+**Current catalog:** 707 stems · 132 kits · 12 arcs · 92 genres · 851 indexed
 assets. (Live count: `wc -l assets/music/index.jsonl`. Coverage: `assets/music/INDEX.md`.)
 
 ---
