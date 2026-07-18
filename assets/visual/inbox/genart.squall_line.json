@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.squall_line",
+  "kind": "genart",
+  "name": "Squall Line",
+  "desc": "A cold-front squall line crawling across the sky — a dark bowed shelf cloud leading a curtain of rain shafts and turbulent low cloud, an ominous green-gold clearing ahead of it, rendered as storm-chaser shelf, radar reflectivity, hazy monsoon, sumi ink or thermal false-color.",
+  "tags": [
+    "squall-line",
+    "squall",
+    "gust-front",
+    "shelf-cloud",
+    "arcus",
+    "cold-front",
+    "front",
+    "outflow",
+    "rain",
+    "rain-shafts",
+    "downpour",
+    "storm",
+    "thunderstorm",
+    "convection",
+    "radar",
+    "reflectivity",
+    "bow-echo",
+    "monsoon",
+    "meteorology",
+    "weather",
+    "advancing",
+    "ominous",
+    "menacing",
+    "storm-chaser",
+    "sky",
+    "field",
+    "generative",
+    "genart",
+    "background",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "storm contrast + rain intensity + turbulence"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "rain-shaft + cloud-texture size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "front advance + rain-drift rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "number of storm cells in view"
+    },
+    "curve": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "leading-edge bow (0=straight line, 1=bowed arc)"
+    },
+    "hue": {
+      "default": 55,
+      "min": 0,
+      "max": 360,
+      "doc": "pre-storm sky hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "front phase offset"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved vertical bias"
+    },
+    "style": {
+      "default": "shelf",
+      "options": [
+        "shelf",
+        "radar",
+        "monsoon",
+        "ink",
+        "thermal"
+      ],
+      "doc": "render: storm-chaser shelf cloud / radar reflectivity plan view / hazy monsoon curtain / sumi ink / thermal false-color"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic storm structure"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, curve: .5, hue: 55, x: .5, y: .5, style: 'shelf', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst BW = clp(Math.round(width/3.2), 384, 512)|0;\nconst BH = Math.max(120, Math.round(BW*height/width))|0;\nif (!S.g || S.key !== BW+'x'+BH){ if (S.g&&S.g.remove) S.g.remove(); S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.key = BW+'x'+BH; }\nconst sd = (P.seed|0);\nif (S.seedUsed !== sd){ S.seedUsed = sd; const fr=i=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453; return s-Math.floor(s);}; S.o1=fr(1)*40; S.o2=fr(2)*40; S.ph=fr(3)*6.28; }\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }\nfunction ss(a,b,x){ const t2=clp((x-a)/(b-a),0,1); return t2*t2*(3-2*t2); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s,xx=c*(1-Math.abs(h%2-1)),m=v-c; let r,g,b; if(h<1){r=c;g=xx;b=0;}else if(h<2){r=xx;g=c;b=0;}else if(h<3){r=0;g=c;b=xx;}else if(h<4){r=0;g=xx;b=c;}else if(h<5){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;} return [(r+m),(g+m),(b+m)]; }\nconst fr1=x=>x-Math.floor(x);\n\nconst style=P.style, en=clp(P.energy,0,1);\nconst t=K.t;\nconst nLines = 0.5 + clp(P.density,0,1)*0.5;         // wide storm cells (~1 dominant in view)\nconst adv = t*(0.004+P.speed*0.0075);                // front CRAWLS across (weather is slow)\nconst cv = clp(P.curve,0,1);\nconst rainF = 26/clp(P.scale,0.3,3);\nconst fall = t*(0.45+P.speed*0.45);                  // gentle rain drift\nconst wob = 0.015*Math.sin(t*0.11+S.ph)+0.010*Math.sin(t*0.19);\nconst hb=((P.hue)%360+360)%360;\nconst flick = 0.5+0.5*Math.sin(t*0.37+1.1);          // very slow distant glow, low-amp, NOT a strobe\nconst glow = (0.012+K.swell*0.03)*flick + A.bass*0.05;\n\nconst g=S.g; g.loadPixels(); const px=g.pixels;\nfor (let j=0;j<BH;j++){\n  const yn=j/BH;\n  for (let i=0;i<BW;i++){\n    const xn=i/BW;\n    // curved, advecting leading edge (front bows forward in the middle)\n    const bow = cv*(0.16*Math.sin(yn*3.14159) + 0.05*Math.sin(yn*7.0+1.0));\n    const u = xn - adv + bow + wob;\n    const fu = fr1(u*nLines);                          // 0..1 within a storm cell\n    // storminess profile: clear -> dark shelf -> rain core -> stratiform -> clear\n    const shelf = Math.exp(-Math.pow((fu-0.17)/0.05,2));            // dark arcus band\n    const core  = ss(0.14,0.24,fu)*(1-ss(0.52,0.66,fu));           // heavy rain\n    const strat = ss(0.55,0.66,fu)*(1-ss(0.86,0.96,fu));           // trailing stratiform\n    const clear = (1-ss(0.02,0.12,fu)) + ss(0.9,0.99,fu);\n    // texture: turbulent cloud base + vertical rain curtains\n    const turb = vn(xn*6*BW*0.02 - adv*3 + S.o1, yn*5*BW*0.02 + S.o2);\n    const rain = core * (0.5+0.5*Math.sin(xn*rainF*BW*0.02 + turb*7 + fall - yn*3));\n    let st = clp( (shelf*1.0 + core*0.8 + strat*0.4 + turb*0.25*(core+strat))*(0.7+en*0.6), 0, 1); // storm darkness scales with energy\n    // sky brightness: clear warm, storm dark; contrast compressed so the slow sweep stays sub-strobe\n    const skyGrad = 0.5 - 0.24*yn;                      // brighter up top\n    let bri = clp( (0.42+skyGrad*0.42)*(0.55+0.45*clear) - st*(0.34+en*0.16) - rain*(0.07+en*0.10) + strat*0.08, 0.06, 0.95);\n    let r,gg,b;\n    if (style==='radar'){\n      const refl = clp(core*1.1 + shelf*0.7 + strat*0.45 + rain*0.15, 0, 1);\n      const clutter = 0.05 + 0.04*turb + strat*0.06;\n      if (refl<0.12){ const cc=hsv(205, 0.45, 0.09+clutter*0.8); r=cc[0];gg=cc[1];b=cc[2]; }\n      else { const q=(refl-0.12)/0.88; const cc=hsv(150 - q*150, 0.85, 0.34+q*0.60); r=cc[0];gg=cc[1];b=cc[2]; }\n    } else if (style==='monsoon'){\n      const mb = clp(0.58 + skyGrad*0.22 - st*0.36 - rain*0.13, 0.08, 0.94);\n      const cc=hsv(hb-18, 0.09+st*0.09, mb); const dust=hsv(32, 0.16, mb*0.98);\n      r=cc[0]*0.5+dust[0]*0.5; gg=cc[1]*0.5+dust[1]*0.5; b=cc[2]*0.5+dust[2]*0.5;\n    } else if (style==='ink'){ const v=clp(0.80 - st*0.50 - rain*0.10,0.18,0.92); r=v;gg=v*0.99;b=v*0.95; }\n    else if (style==='thermal'){ const u2=clp(st*1.0 + core*0.2 + strat*0.18, 0, 1); let cc; if(u2<0.5){ const q=u2/0.5; cc=hsv(24 - q*24, 0.72, 0.22+q*0.42);} else { const q=(u2-0.5)/0.5; cc=hsv(56 - q*150, 0.72-q*0.60, 0.64+q*0.26);} r=cc[0];gg=cc[1];b=cc[2]; }\n    else { // shelf: ominous green-gold pre-storm sky, slate-blue dark storm\n      const clearC = hsv(hb + (0.5-yn)*10, 0.45-yn*0.15, clp((0.55+skyGrad*0.5),0,0.95));\n      const stormC = hsv(220 - shelf*15, 0.28+st*0.1, clp(bri*0.9,0,0.9));\n      const m = clp(st + rain*0.4, 0, 1);\n      r=clearC[0]+(stormC[0]-clearC[0])*m; gg=clearC[1]+(stormC[1]-clearC[1])*m; b=clearC[2]+(stormC[2]-clearC[2])*m;\n    }\n    const o=4*(j*BW+i);\n    px[o]=clp(r+glow*clear,0,1)*255; px[o+1]=clp(gg+glow*clear,0,1)*255; px[o+2]=clp(b+glow*clear,0,1)*255; px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(g,0,0,width,height);\npop();\n"
+}

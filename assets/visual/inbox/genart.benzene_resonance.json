@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.benzene_resonance",
+  "kind": "genart",
+  "name": "Aromatic Resonance",
+  "desc": "A sheet of fused benzene rings drawn as a carbon skeleton, the double bonds forever flipping between their two Kekule arrangements while a wave of delocalized pi-electron density sweeps across the lattice, aromatic circles brightening and dimming like breathing charge.",
+  "tags": [
+    "benzene",
+    "aromatic",
+    "aromaticity",
+    "resonance",
+    "kekule",
+    "ring",
+    "rings",
+    "hexagon",
+    "hexagonal",
+    "carbon",
+    "bond",
+    "double-bond",
+    "pi-electron",
+    "delocalization",
+    "molecule",
+    "molecular",
+    "skeletal",
+    "graphene",
+    "polycyclic",
+    "pah",
+    "chemistry",
+    "chemical",
+    "organic",
+    "science",
+    "scientific",
+    "clinical",
+    "molecular-viz",
+    "wireframe",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "cyan",
+    "honeycomb",
+    "lattice"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "bond/cloud brightness + glow (obvious at max)"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "ring size (bigger, fewer rings at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "pi-cloud fill / delocalization spread"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "resonance flip + aromaticity wave rate"
+    },
+    "jitter": {
+      "default": 0.3,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lattice disorder"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "bond / cloud hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "skeletal",
+      "options": [
+        "skeletal",
+        "orbital",
+        "blueprint",
+        "ink",
+        "neon"
+      ],
+      "doc": "render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "lattice jitter + wave phases"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, density: .5, speed: 1, jitter: .3, hue: 190, x: .5, y: .5, style: 'skeletal', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst st = P.style, u = Math.min(width, height);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\nconst H = ((P.hue%360)+360)%360;\n\n// style palette\nlet bond, arom, cloud, carbon, groundV, paper;\nif (st === 'orbital')      { bond=[H,40,60,26]; arom=[H+30,70,80]; cloud=[H,80,70]; carbon=[H,20,95]; groundV=8; paper=false; }\nelse if (st === 'blueprint'){ bond=[200,70,80,60]; arom=[196,60,90]; cloud=[200,50,40]; carbon=[200,20,98]; groundV=12; paper=false; }\nelse if (st === 'ink')     { bond=[28,25,18,80]; arom=[20,30,30]; cloud=[30,25,45]; carbon=[24,30,14]; groundV=52; paper=true; }\nelse if (st === 'neon')    { bond=[H,90,95,70]; arom=[(H+140)%360,90,95]; cloud=[H,95,80]; carbon=[0,0,100]; groundV=6; paper=false; }\nelse /* skeletal */        { bond=[H,55,88,60]; arom=[42,80,92]; cloud=[H,70,60]; carbon=[0,0,96]; groundV=7; paper=false; }\n\n// hex angles (flat-top)\nconst CA = [], SA = [];\nfor (let k = 0; k < 6; k++) { const a = k*Math.PI/3; CA.push(Math.cos(a)); SA.push(Math.sin(a)); }\n\n// honeycomb lattice (seeded), rebuilt on size/scale/seed\nconst R = u*(0.075 + 0.06*P.scale);\nconst dxc = 1.5*R, dyc = Math.sqrt(3)*R;\nconst lkey = width+'x'+height+'|'+P.seed+'|'+R.toFixed(1);\nif (S.lkey !== lkey) {\n  S.lkey = lkey; S.hex = [];\n  const cols = Math.ceil(width/dxc)+3, rows = Math.ceil(height/dyc)+3;\n  for (let ci = -1; ci < cols; ci++) for (let ri = -1; ri < rows; ri++) {\n    const cx = ci*dxc, cy = ri*dyc + (ci&1 ? dyc*0.5 : 0);\n    const jx = (fr(ci*7.1+ri*3.3)-0.5), jy = (fr(ci*2.7+ri*9.1)-0.5);\n    S.hex.push({ cx, cy, jx, jy, ph: fr(ci*4.3+ri*1.9)*6.28, kx: 0.5+fr(ci+ri*3)*0.5 });\n  }\n}\n\nconst kek = K.t*(0.5 + P.speed*0.8);                     // resonance flip rate\nconst wt = K.t*(0.6 + P.speed*0.5);                      // aromaticity wave rate\nconst jit = P.jitter * R*0.5;\nconst driftx = Math.sin(K.t*0.19)*R*0.5 + Math.sin(K.t*0.41+1.0)*R*0.25;\nconst drifty = Math.cos(K.t*0.23+0.5)*R*0.5 + Math.sin(K.t*0.31+2.1)*R*0.25;\nconst bw = Math.max(1, u*0.0022*(0.7+P.energy*0.9));\nconst glow = 0.6 + P.energy*0.9;\nconst cloudA = (paper? 6 : 14) * (0.5 + P.density*1.3) * glow;\nconst beat = 0.85 + K.pulse*0.25 + A.mid*0.5;\nconst wkx = 0.9/ (dxc||1), wky = 1.3/(dyc||1);           // spatial wave numbers\n\npush();\n// ground\nblendMode(BLEND); noStroke();\nif (paper) { fill(38, 12, groundV); } else { fill(H, 30, groundV); }\nrect(0,0,width,height);\ntranslate(driftx, drifty);\n\nconst hexes = S.hex;\nfor (let h = 0; h < hexes.length; h++) {\n  const hx = hexes[h], cx = hx.cx + hx.jx*jit, cy = hx.cy + hx.jy*jit;\n  // aromaticity wave (two incommensurate) → local pi intensity\n  const arB = 0.35 + 0.65*(0.5 + 0.5*Math.sin(cx*wkx + cy*wky - wt + hx.ph)) * (0.6 + 0.4*Math.sin(cx*wky*0.7 - cy*wkx*0.6 + wt*1.31));\n  const m = 0.5 + 0.5*Math.sin(kek + hx.ph*0.5);         // Kekule morph A<->B\n\n  // pi-electron cloud (fills interstices, lifts luminance)\n  blendMode(paper ? BLEND : ADD);\n  fill(cloud[0], cloud[1], cloud[2], Math.min(30, cloudA*arB*beat));\n  ellipse(cx, cy, R*2.0, R*2.0);\n\n  // sigma skeleton (hexagon outline)\n  blendMode(paper ? BLEND : ADD);\n  stroke(bond[0], bond[1], bond[2], bond[3]*glow);\n  strokeWeight(bw); noFill();\n  beginShape();\n  for (let k = 0; k < 6; k++) vertex(cx + CA[k]*R, cy + SA[k]*R);\n  endShape(CLOSE);\n\n  // pi double-bond markers (resonance): triad A (edges 0,2,4) vs B (1,3,5)\n  const inset = 0.72;\n  for (let e = 0; e < 6; e++) {\n    const aE = (e % 2 === 0) ? m : (1 - m);\n    if (aE < 0.04) continue;\n    const x1 = cx + CA[e]*R*inset, y1 = cy + SA[e]*R*inset;\n    const n = (e+1)%6, x2 = cx + CA[n]*R*inset, y2 = cy + SA[n]*R*inset;\n    stroke(bond[0], Math.min(100,bond[1]+15), Math.min(100,bond[2]+8), bond[3]*glow*aE);\n    strokeWeight(bw*1.3); line(x1,y1,x2,y2);\n  }\n\n  // aromatic delocalization circle\n  noFill(); stroke(arom[0], arom[1], arom[2], (paper?45:60)*arB*glow);\n  strokeWeight(bw*0.9); ellipse(cx, cy, R*1.18, R*1.18);\n\n  // carbons\n  noStroke(); fill(carbon[0], carbon[1], carbon[2], (paper?70:85)*glow);\n  for (let k = 0; k < 6; k++) ellipse(cx + CA[k]*R, cy + SA[k]*R, bw*2.4, bw*2.4);\n}\npop();\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\nif (P.alpha < 100) { push(); noStroke(); fill(0,0,0,100-P.alpha); rect(0,0,width,height); pop(); }\n"
+}

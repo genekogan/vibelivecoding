@@ -1,0 +1,130 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cuneiform_tablet",
+  "kind": "genart",
+  "name": "Cuneiform Tablet",
+  "desc": "A reed stylus impresses wedge-signs into wet clay, sign by sign, down ruled cases: each wedge a triangular depression that catches a raking lamp so that as the light rakes across the tablet the whole relief field shimmers, far rims glinting and near rims falling to shadow. When the tablet fills it dries and a fresh damp slab is set down and the scribe begins again -- a perpetual clerk's desk. Warm ochre clay, fired terracotta, grey diorite stone, or deep lapis picked out in cold light.",
+  "tags": [
+    "cuneiform",
+    "wedge",
+    "wedges",
+    "tablet",
+    "clay",
+    "sumerian",
+    "akkadian",
+    "babylonian",
+    "assyrian",
+    "mesopotamia",
+    "stylus",
+    "reed",
+    "impression",
+    "impressed",
+    "relief",
+    "incised",
+    "script",
+    "glyph",
+    "glyphs",
+    "writing",
+    "sign",
+    "signs",
+    "ancient",
+    "epigraphy",
+    "inscription",
+    "archaeology",
+    "museum",
+    "terracotta",
+    "diorite",
+    "lapis",
+    "raking-light",
+    "texture",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "austere",
+    "clinical",
+    "ancient-world",
+    "abstract"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "impression depth, rim contrast and raking-light glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2.2,
+      "doc": "wedge / sign size -- larger signs (obvious change)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast signs are impressed, the light rakes, and the tablet turns"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "signs per tablet -- tighter case grid"
+    },
+    "wedge": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "wedges per sign / sign complexity"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "clay tone for the default; other styles fix their own"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the tablet horizontally"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the tablet vertically"
+    },
+    "style": {
+      "default": "clay",
+      "options": [
+        "clay",
+        "baked",
+        "stone",
+        "lapis"
+      ],
+      "doc": "aesthetic: wet ochre clay / fired terracotta / grey diorite stone / lapis in cold luminous light"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic -- re-throws the signs, wedge layout and clay toning"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy:.6, scale:1, speed:1, density:.55, wedge:.55, hue:32, x:.5, y:.5, style:'clay', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// CUNEIFORM TABLET — a reed stylus impresses wedge-signs into wet clay, sign by\n// sign, down ruled cases. Each wedge is a triangular depression that catches a\n// raking lamp: as the light rakes across the tablet the whole relief field\n// shimmers, far rims glinting and near rims falling to shadow. When the tablet\n// is full it dries and a fresh damp tablet is set down (reseed) — a perpetual\n// scribe's desk. Warm clay, fired terracotta, grey diorite stone, or lapis\n// picked out in cold light.\n// -----------------------------------------------------------------------------\n\nconst wh = h => ((h % 360) + 360) % 360;\nconst style = P.style;\nconst BW = Math.max(360, Math.min(720, Math.round(width / 2.4)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst key = BW + 'x' + BH;\nconst eseed = (P.seed | 0) * 1009 + (S.tab || 0) * 197;\nconst fr = i => { const s = Math.sin(i * 127.1 + eseed * 0.911 + 5.7) * 43758.5453; return s - Math.floor(s); };\n\nfunction pal() {\n  if (style === 'baked') return { cH:16, cS:52, cB:52, sh:10, hi:[30,40,100], neg:0 };\n  if (style === 'stone') return { cH:150, cS:12, cB:50, sh:150, hi:[130,20,100], neg:0 };\n  if (style === 'lapis') return { cH:222, cS:62, cB:24, sh:224, hi:[196,60,100], neg:1 };\n  return { cH:wh(P.hue+2), cS:38, cB:54, sh:26, hi:[38,45,100], neg:0 }; // clay\n}\nconst C = pal();\n\n// ---- ground: clay slab with mottle, ruled cases, raised bevel edge ----------\nif (!S.clay || S.ckey !== key || S.cstyle !== style || S.cseed !== (P.seed|0)) {\n  S.ckey = key; S.cstyle = style; S.cseed = (P.seed|0);\n  const pg = createGraphics(BW, BH); pg.colorMode(HSB, 360, 100, 100, 100); pg.noStroke();\n  pg.background(C.cH, C.cS, C.cB);\n  pg.blendMode(C.neg ? ADD : MULTIPLY);\n  for (let i = 0; i < 120; i++) {\n    const mx = fr(i*3+1)*BW, my = fr(i*5+2)*BH, mr = BW*(0.08+fr(i*7+3)*0.30);\n    pg.fill(C.cH, C.cS*0.7, C.neg? 30+fr(i)*20 : 100-(8+fr(i)*16), 9); pg.ellipse(mx, my, mr, mr*0.85);\n  }\n  pg.blendMode(BLEND);\n  for (let i = 0; i < 3400; i++) { pg.fill(C.cH, C.cS, C.neg? C.cB+fr(i)*24 : C.cB-fr(i)*22, 5); pg.rect(fr(i*2.1+900)*BW, fr(i*3.7+901)*BH, 1.2, 1.2); }\n  // raised beveled tablet edge\n  const bez = BW*0.055;\n  pg.noFill();\n  for (let e = 0; e < bez; e++) {\n    const f = e/bez;\n    pg.strokeWeight(1.4);\n    pg.stroke(C.cH, C.cS, C.cB*(0.6+0.4*f), 22*(1-f));   // dark inner\n    pg.rect(e, e, BW-2*e, BH-2*e);\n  }\n  pg.noStroke();\n  S.clay = pg;\n  const vg = createGraphics(BW, BH); vg.colorMode(HSB, 360, 100, 100, 100); vg.clear();\n  const gc = vg.drawingContext; const rg = gc.createRadialGradient(BW/2,BH/2,BH*0.2,BW/2,BH/2,BH*0.8);\n  rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(0.6,'rgba(0,0,0,0.10)'); rg.addColorStop(1,'rgba(0,0,0,0.46)');\n  gc.fillStyle=rg; gc.fillRect(0,0,BW,BH); S.vig = vg;\n}\n\n// ---- generate signs (wedge clusters) on a case grid -------------------------\nconst dens = P.density;\nconst nCols = Math.max(3, Math.round(4 + dens*7));\nconst nRows = Math.max(4, Math.round(5 + dens*9));\nif (!S.signs || S.gkey !== key || S.gstyle !== style || S.gtab !== (S.tab||0) || S.gseed !== (P.seed|0) || S.gcols !== nCols || S.grows !== nRows || S.gwed !== Math.round(P.wedge*20)) {\n  S.gkey=key; S.gstyle=style; S.gtab=(S.tab||0); S.gseed=(P.seed|0); S.gcols=nCols; S.grows=nRows; S.gwed=Math.round(P.wedge*20);\n  const mL=BW*0.09, mR=BW*0.91, mT=BH*0.09, mB=BH*0.91;\n  const cw=(mR-mL)/nCols, chh=(mB-mT)/nRows;\n  const cell = Math.min(cw, chh);\n  const signs=[];\n  let gi=0;\n  for (let r=0;r<nRows;r++) for (let c=0;c<nCols;c++){\n    if (fr(gi*7+3) < 0.14) { gi++; continue; }  // word/blank spacing\n    const cx = mL + (c+0.5)*cw, cy = mT + (r+0.5)*chh;\n    const nW = 2 + Math.floor(fr(gi*3+1) * (2 + P.wedge*5));\n    const wed=[];\n    for (let w=0; w<nW; w++){\n      const wr = fr(gi*11 + w*5 + 2);\n      let a; const tp = fr(gi*13 + w*3 + 4);\n      if (tp < 0.34) a = Math.PI*0.5;            // vertical\n      else if (tp < 0.62) a = 0;                  // horizontal\n      else if (tp < 0.82) a = Math.PI*(0.2+wr*0.2); // diagonal\n      else a = Math.PI*(0.75+wr*0.15);            // Winkelhaken-ish\n      const off = cell*0.30;\n      wed.push({\n        ox: (fr(gi*17+w*7+1)-0.5)*off, oy: (fr(gi*19+w*7+2)-0.5)*off,\n        a, len: cell*(0.16+fr(gi*23+w*3+5)*0.16), hw: 0.34+fr(gi*29+w+6)*0.14\n      });\n    }\n    signs.push({ cx, cy, cell, wed });\n    gi++;\n  }\n  S.signs=signs; S.prog=0; S.phase='write'; S.dwell=0;\n}\n\n// ---- advance impress-front ---------------------------------------------------\nconst total=S.signs.length;\nconst spd=0.35 + P.speed*1.2;\nif (S.phase==='write'){ S.prog += (spd*7)/(K.fps||60); if (S.prog>=total){ S.prog=total; S.phase='dwell'; S.dwell=0; } }\nelse if (S.phase==='dwell'){ S.dwell += 1/(K.fps||60); if (S.dwell > 3.0/(0.4+P.speed*0.8)) S.phase='fade'; S.fade=(S.fade==null?100:S.fade); }\nelse if (S.phase==='fade'){ S.fade=(S.fade==null?100:S.fade)-120/(K.fps||60); if (S.fade<=0){ S.tab=(S.tab||0)+1; S.signs=null; } }\n\n// ---- render ------------------------------------------------------------------\nconst t=K.t;\nconst sxr=width/BW, syr=height/BH;\nconst dx = Math.sin(t*0.12)*width*0.005 + Math.sin(t*0.29+1.1)*width*0.004;\nconst dy = Math.cos(t*0.10)*height*0.005;\nconst ox=(P.x-0.5)*width*0.12, oy=(P.y-0.5)*height*0.12;\n\n// raking light direction (incommensurate) + on-tablet light position\nconst lang = 2.2 + Math.sin(t*0.14)*0.9 + Math.sin(t*0.33+1.0)*0.5;\nconst ldx=Math.cos(lang), ldy=Math.sin(lang);\nconst lpx = (Math.sin(t*0.19)*0.5+0.5)*0.6 + (Math.sin(t*0.052+2)*0.5+0.5)*0.4;\n\npush();\ntranslate(dx+ox, dy+oy);\nif (S.clay) image(S.clay,0,0,width,height);\n\n// broad raking light pool (carries motion floor)\npush(); blendMode(ADD); noStroke();\nconst glowA=(10+P.energy*12+A.rms*8)*(C.neg?0.7:1);\nfor (let b=0;b<4;b++){ fill(C.hi[0], C.hi[1]*0.6, C.hi[2], glowA*(1-b/4)*0.4); ellipse(lpx*width, height*(0.4+Math.sin(t*0.21)*0.12), width*(0.5-b*0.06), height*(0.7-b*0.08)); }\nblendMode(BLEND); pop();\n\n// impressed wedges\nconst drawn = Math.min(total, Math.floor(S.prog));\nconst depth = 0.4 + P.energy*0.9;\nconst shB = C.neg ? C.cB+6 : C.cB*0.42;         // depression shadow brightness\nconst rim = 0.5 + P.energy*0.5;\nfunction wedge(cx, cy, w, scl, aFade){\n  const a=w.a, len=w.len*scl*(0.7+P.scale*0.6), hw=len*w.hw;\n  const dxu=Math.cos(a), dyu=Math.sin(a), px=-Math.sin(a), py=Math.cos(a);\n  const bx=cx - dxu*len*0.5, by=cy - dyu*len*0.5;   // back center\n  const tx=cx + dxu*len*0.5, ty=cy + dyu*len*0.5;   // tip\n  const blx=bx+px*hw, bly=by+py*hw, brx=bx-px*hw, bry=by-py*hw;\n  // depression fill\n  noStroke(); fill(C.sh, C.cS*0.8, shB, 78*aFade);\n  triangle(blx*sxr,bly*syr, brx*sxr,bry*syr, tx*sxr,ty*syr);\n  // per-edge rim lit by raking light\n  const edges=[[blx,bly,brx,bry],[brx,bry,tx,ty],[tx,ty,blx,bly]];\n  for (const e of edges){\n    const mx=(e[0]+e[2])/2 - cx, my=(e[1]+e[3])/2 - cy;\n    const ml=Math.hypot(mx,my)||1; const nx=mx/ml, ny=my/ml;\n    const d=nx*ldx+ny*ldy;\n    if (d>0){ strokeWeight(Math.max(0.7,len*0.09*sxr)); stroke(C.hi[0],C.hi[1]*0.5,C.hi[2], (30+70*d)*rim*aFade); }\n    else   { strokeWeight(Math.max(0.5,len*0.06*sxr)); stroke(C.sh,C.cS,shB*0.7, 40*(-d)*aFade); }\n    line(e[0]*sxr,e[1]*syr,e[2]*sxr,e[3]*syr);\n  }\n  // deep specular glint at the tip corner\n  noStroke(); fill(C.hi[0],C.hi[1]*0.35,C.hi[2], 34*rim*depth*aFade);\n  ellipse(tx*sxr, ty*syr, len*0.18*sxr, len*0.18*sxr);\n}\nif (S.signs){\n  for (let i=0;i<drawn;i++){\n    const s=S.signs[i]; const af = (S.phase==='fade')? Math.max(0,S.fade)/100 : 1;\n    for (const w of s.wed) wedge(s.cx+w.ox, s.cy+w.oy, w, 1, af);\n  }\n  // active sign being impressed — wedges pop in one at a time\n  if (S.phase==='write' && drawn<total){\n    const s=S.signs[drawn]; const frac=S.prog-Math.floor(S.prog);\n    const nw=Math.max(1,Math.round(s.wed.length*frac));\n    for (let w=0; w<nw; w++){ const grow = (w===nw-1)? (frac*s.wed.length-(nw-1)) : 1; wedge(s.cx+s.wed[w].ox, s.cy+s.wed[w].oy, s.wed[w], 0.4+0.6*Math.min(1,grow), 1); }\n  }\n}\npop();\n\nif (S.vig){ push(); blendMode(MULTIPLY); image(S.vig, dx+ox, dy+oy, width, height); blendMode(BLEND); pop(); }\nif (P.alpha<100){ push(); noStroke(); fill(C.cH,C.cS,C.cB,100-Math.max(0,Math.min(100,P.alpha))); rect(0,0,width,height); pop(); }\nblendMode(BLEND); noTint(); drawingContext.shadowBlur=0;\n"
+}
