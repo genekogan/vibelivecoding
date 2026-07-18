@@ -1,0 +1,125 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.posterize",
+  "kind": "post",
+  "name": "Posterize",
+  "desc": "Crushes the scene into poster-print tonal bands with a duotone ink tint, faint offset edge-ink and a drifting paper-light patch \u2014 poster, riso hue-cycling, blueprint, crimson or forest.",
+  "tags": [
+    "posterize",
+    "poster",
+    "print",
+    "levels",
+    "banding",
+    "ink",
+    "duotone",
+    "riso",
+    "screenprint",
+    "graphic",
+    "pass",
+    "crushed"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "drift"
+    },
+    "levels": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "band strength"
+    },
+    "inkC": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "ink tint"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "paper light"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "ink hue"
+    },
+    "edgeI": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "edge ink"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "poster",
+      "options": [
+        "poster",
+        "riso",
+        "blueprint",
+        "crimson",
+        "forest"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 85,
+      "min": 0,
+      "max": 100,
+      "doc": "strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:37:00+00:00",
+    "fps": 64.5,
+    "motion": 0.007,
+    "lum": 0.059
+  },
+  "code": "const D = { energy:.4, levels:.5, inkC:.5, drift:.5, hue:200, edgeI:.4, x:.5, y:.5, scale:1, speed:1, density:.5, style:'poster', seed:0, alpha:85 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\n// posterize by stacking the frame over itself with hard-light + reduced alpha steps\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\ndc.save();\n// crush levels: multiply-then-screen sandwich approximates tonal banding cheaply\nconst n=2+Math.round(P.levels*3);\nfor(let i=0;i<n;i++){\n  dc.globalAlpha=(0.5/n)*P.alpha/100;\n  dc.globalCompositeOperation= i%2? 'multiply':'hard-light';\n  dc.drawImage(S.buf.drawingContext.canvas,0,0,W,H);\n}\ndc.globalAlpha=1; dc.globalCompositeOperation='source-over';\n// ink tint wash (drifting duotone feel)\nlet inkH=P.hue;\nif(sty==='riso') inkH=(t*4)%360; else if(sty==='blueprint') inkH=215; else if(sty==='crimson') inkH=350; else if(sty==='forest') inkH=140;\ndc.globalCompositeOperation='color';\ndc.globalAlpha=0.35*P.inkC*P.alpha/100;\ndc.fillStyle=color(inkH,70,60).toString(); dc.fillRect(0,0,W,H);\ndc.globalCompositeOperation='source-over'; dc.globalAlpha=1;\n// drifting paper-grain patch (motion carrier, subtle)\n{ const gx=W*(0.5+Math.sin(t*0.31)*0.4), gb=0.5+0.5*Math.sin(t*0.47)+0.3*Math.sin(t*0.97+1);\n  dc.globalCompositeOperation='screen';\n  const rg=dc.createRadialGradient(gx,H*0.5,10,gx,H*0.5,W*0.5);\n  rg.addColorStop(0,color(inkH,15,90,(6+8*gb)*P.drift*P.alpha/100).toString());\n  rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H);\n  dc.globalCompositeOperation='source-over'; }\n// edge ink (offset difference, faint)\nif(P.edgeI>0.05){ dc.globalCompositeOperation='multiply'; dc.globalAlpha=0.3*P.edgeI*P.alpha/100;\n dc.drawImage(S.buf.drawingContext.canvas, 1.6,1.2, W, H); dc.globalAlpha=1; dc.globalCompositeOperation='source-over'; }\ndc.restore(); blendMode(BLEND);\n"
+}
