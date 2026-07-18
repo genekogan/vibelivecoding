@@ -1,0 +1,117 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.shark",
+  "kind": "subject",
+  "name": "Shark",
+  "desc": "A shark patrolling the frame \u2014 swims across, turns, swims back \u2014 with sweeping tail, gill slits, rolling jaw with teeth (menace dial), pectoral fin, bubble trail and an optional remora tagging along. finOnly mode reduces it to a dorsal fin cutting the surface with a wake. Styles: great white, hammerhead, friendly cartoon, neon, pale ghost shark.",
+  "tags": [
+    "shark",
+    "predator",
+    "ocean",
+    "sea",
+    "underwater",
+    "fin",
+    "jaws",
+    "marine",
+    "creature",
+    "fish",
+    "hammerhead",
+    "menace"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swim speed + tail sweep"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "shark size"
+    },
+    "menace": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "jaw + teeth menace"
+    },
+    "finOnly": {
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "doc": ">0.5 = only the dorsal fin at the surface"
+    },
+    "bubblesK": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble trail"
+    },
+    "remora": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "remora companion"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "neon hue"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "swim depth"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "patrol rate"
+    },
+    "style": {
+      "default": "great_white",
+      "options": [
+        "great_white",
+        "hammerhead",
+        "cartoon",
+        "neon",
+        "ghost"
+      ],
+      "doc": "shark type"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:52:23+00:00",
+    "fps": 59.9,
+    "motion": 0.0095,
+    "lum": 0.089
+  },
+  "code": "const D = { energy:.5, scale:1, hue:210, menace:.5, finOnly:0, bubblesK:.5, remora:.3, x:.5, y:.5, speed:1, density:.5, style:'great_white', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst u=Math.min(width,height),sc=u*0.0036*P.scale;\n// patrol: swims across, flips, swims back\nconst per=26/Math.max(0.2,P.speed*(0.5+en));\nconst ph=(t%per)/per; const fwd=ph<0.5;\nconst px2=fwd? (ph*2) : (1-(ph-0.5)*2);\nconst cx=width*(0.12+px2*0.76), cy=P.y*height+(0.9*Math.sin(t*0.41)+0.5*Math.sin(t*0.93+1))*18*sc*(0.4+en);\nconst dir=fwd?1:-1;\nlet body=[210,25,55],belly=[200,8,88],finC=[212,28,45],eye=[0,0,10],teeth=true;\nif(sty==='hammerhead'){ body=[200,20,60]; belly=[195,8,85]; }\nelse if(sty==='cartoon'){ body=[205,55,75]; belly=[50,10,96]; eye=[0,0,15]; }\nelse if(sty==='neon'){ body=[(P.hue+120)%360,70,55]; belly=[(P.hue+180)%360,45,85]; finC=[(P.hue+120)%360,75,45]; }\nelse if(sty==='ghost'){ body=[190,15,70]; belly=[185,8,92]; finC=[190,20,60]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100*(sty==='ghost'?0.75:1)); }\nconst tail=Math.sin(t*(2.2+en*2.4)*P.speed)*(0.55+P.menace*0.3);\nif(P.finOnly>0.5){\n // dorsal fin cutting the surface\n const wy=P.y*height;\n push(); translate(cx,wy); scale(dir,1);\n noStroke();\n fill(Cc(finC,95)); beginShape(); vertex(-26,4); bezierVertex(-8,-38,10,-44,22,-46);\n bezierVertex(14,-24,16,-8,24,4); endShape(CLOSE);\n // wake\n dc.save(); blendMode(SCREEN);\n for(let i=0;i<6;i++){ const wph=(i/6+t*0.4)%1;\n  fill(color(195,15,95,(16*(1-wph))*P.alpha/100));\n  ellipse(-30-wph*70,4+Math.sin(i)*2,20+wph*40,4); }\n dc.restore(); blendMode(BLEND);\n stroke(Cc([200,20,90],50)); strokeWeight(2);\n line(-width*0.4,4,width*0.4,4); noStroke();\n pop();\n} else {\n push(); translate(cx,cy); scale(dir,1); rotate(Math.sin(t*0.5)*0.03);\n noStroke();\n // tail fin (sweeping)\n push(); translate(-86,0); rotate(tail*0.5);\n fill(Cc(finC,100)); beginShape(); vertex(0,0); vertex(-34,-30); vertex(-24,-2); vertex(-30,22); endShape(CLOSE); pop();\n // body\n fill(Cc(body,100));\n beginShape(); vertex(-86,0); bezierVertex(-60,-26,-10,-34,30,-26);\n bezierVertex(66,-18,88,-6,94,2); bezierVertex(80,14,40,26,0,26);\n bezierVertex(-40,26,-70,14,-86,0); endShape(CLOSE);\n // hammerhead head\n if(sty==='hammerhead'){ fill(Cc(body,100)); rect(80,-22,18,40,8);\n  fill(Cc(eye,100)); circle(89,-18,5); circle(89,16,5); }\n // belly\n fill(Cc(belly,95)); beginShape(); vertex(-80,4); bezierVertex(-40,22,30,24,80,10);\n bezierVertex(40,20,-40,20,-80,4); endShape(CLOSE);\n // dorsal + pectoral fins\n fill(Cc(finC,100)); beginShape(); vertex(-14,-28); bezierVertex(-2,-52,10,-56,18,-58);\n bezierVertex(12,-40,14,-32,18,-26); endShape(CLOSE);\n push(); translate(6,18); rotate(0.5+Math.sin(t*1.7)*0.08);\n fill(Cc(finC,95)); beginShape(); vertex(0,0); vertex(-12,30); vertex(10,12); endShape(CLOSE); pop();\n // gills\n stroke(Cc(finC,80)); strokeWeight(2.2); noFill();\n for(let i=0;i<4;i++) arc(46-i*7,-2,10,26,-0.9,0.9);\n noStroke();\n // eye + mouth\n if(sty!=='hammerhead'){ fill(Cc([0,0,95],95)); circle(74,-10,9); fill(Cc(eye,100)); circle(75,-10,5); }\n const jaw=Math.max(0,Math.sin(t*(0.5+P.menace*0.7)))*P.menace;\n stroke(Cc([0,0,15],90)); strokeWeight(2.5); noFill();\n arc(76,8,26,14+jaw*14,0.35,2.4); noStroke();\n if(teeth&&P.menace>0.25&&sty!=='ghost'){ fill(Cc([0,0,96],95));\n  for(let i=0;i<4;i++){ triangle(64+i*6,10+jaw*4,68+i*6,10+jaw*4,66+i*6,14+jaw*6); } }\n // remora tagging along\n if(P.remora>0.1){ push(); translate(-20+Math.sin(t*1.3)*4,30);\n  fill(Cc([210,20,70],90)); ellipse(0,0,22,6); triangle(-11,0,-16,-3,-16,3); pop(); }\n pop();\n // bubble trail\n if(P.bubblesK>0.05){ for(let i=0;i<Math.floor(3+P.bubblesK*6);i++){ const life=(t*0.3+fr(i))%1;\n  fill(color(195,12,95,(22*(1-life))*P.alpha/100));\n  circle(cx-dir*(60*sc*30)*0.1-dir*life*40, cy-10-life*60, (1.5+fr(i)*2.5)*(0.6+life)); } }\n}\nblendMode(BLEND);\n"
+}
