@@ -1,0 +1,123 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.desert_highway",
+  "kind": "world",
+  "name": "Desert Highway",
+  "desc": "A long empty highway running to the vanishing point through mesa country \u2014 dashes scrolling toward you, telephone poles receding, heat shimmer over the blacktop and a huge sky. High noon, sunset, night with headlights, storm or Mars.",
+  "tags": [
+    "desert",
+    "highway",
+    "road",
+    "route66",
+    "mesa",
+    "americana",
+    "roadtrip",
+    "vanishing-point",
+    "heat",
+    "poles",
+    "southwest",
+    "big-sky",
+    "empty",
+    "lonely",
+    "drive",
+    "landscape"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drive speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 25,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved"
+    },
+    "mesas": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "mesa count/size"
+    },
+    "poles": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "telephone poles"
+    },
+    "heat": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "heat shimmer"
+    },
+    "cars": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "distant car lights"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "vanishing point x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "noon",
+      "options": [
+        "noon",
+        "sunset",
+        "night",
+        "storm",
+        "mars"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:07:10+00:00",
+    "fps": 59.9,
+    "motion": 0.0112,
+    "lum": 0.577
+  },
+  "code": "const D = { energy:.5, scale:1, hue:25, mesas:.6, poles:.6, heat:.5, cars:.3, x:.5, y:.5, speed:1, density:.5, style:'noon', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.52+(P.y-0.5)*0.2), vpx=W*(0.5+(P.x-0.5)*0.4);\nlet skyT=[205,60,80],skyB=[40,25,95],sandC=[30,45,70],mesaC=[15,55,55],roadC=[30,10,30],lineC=[50,70,95];\nif(sty==='sunset'){ skyT=[275,50,45]; skyB=[20,80,85]; sandC=[15,55,50]; mesaC=[350,45,40]; roadC=[280,15,22]; }\nelse if(sty==='night'){ skyT=[240,60,10]; skyB=[230,45,22]; sandC=[240,20,18]; mesaC=[250,30,12]; roadC=[240,10,10]; lineC=[50,60,80]; }\nelse if(sty==='storm'){ skyT=[220,35,30]; skyB=[35,30,55]; sandC=[30,30,45]; mesaC=[220,25,28]; roadC=[220,10,22]; }\nelse if(sty==='mars'){ skyT=[15,55,60]; skyB=[25,65,80]; sandC=[12,70,55]; mesaC=[8,75,40]; roadC=[10,25,25]; lineC=[0,0,95]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n// sky\nlet g=dc.createLinearGradient(0,0,0,hor); g.addColorStop(0,Cc(skyT,100).toString()); g.addColorStop(1,Cc(skyB,100).toString()); dc.fillStyle=g; dc.fillRect(0,0,W,hor+1);\n// sun / stars\nif(sty==='night'){ noStroke(); for(let i=0;i<80;i++){ fill(Cc([210,10,100],20+50*Math.sin(t+i))); circle(fr(i)*W,fr(i+9)*hor*0.8,1);} }\nelse { dc.save(); dc.shadowBlur=30; dc.shadowColor=Cc([45,40,100],70).toString(); noStroke(); fill(Cc([48,45,100],95)); circle(W*0.72,hor*0.3,54); dc.restore(); }\n// heat shimmer band above horizon (wobbling \u2014 motion carrier)\nif(P.heat>0.05){ dc.save(); blendMode(SCREEN); for(let i=0;i<5;i++){ const yy=hor-8-i*7; noFill(); stroke(Cc([45,20,100], 6*P.heat)); strokeWeight(3);\n  beginShape(); for(let x=0;x<=W;x+=W/24){ vertex(x, yy+Math.sin(x*0.02+t*(2+i*0.4))*3*P.heat);} endShape(); } dc.restore(); blendMode(BLEND); noStroke(); }\n// mesas\nif(P.mesas>0.05){ noStroke(); fill(Cc(mesaC,100)); for(let i=0;i<Math.floor(2+P.mesas*4);i++){ const mx=fr(i*5)*W; const mw=(0.1+fr(i)*0.16)*W*P.mesas; const mh=(0.1+fr(i+3)*0.14)*H;\n  beginShape(); vertex(mx-mw,hor); vertex(mx-mw*0.7,hor-mh); vertex(mx+mw*0.6,hor-mh); vertex(mx+mw,hor); endShape(CLOSE);\n  fill(Cc([mesaC[0],mesaC[1],mesaC[2]-10],60)); rect(mx-mw*0.7,hor-mh,mw*1.3,mh*0.2); fill(Cc(mesaC,100)); } }\n// desert ground\nlet g2=dc.createLinearGradient(0,hor,0,H); g2.addColorStop(0,Cc([sandC[0],sandC[1],sandC[2]+8],100).toString()); g2.addColorStop(1,Cc(sandC,100).toString()); dc.fillStyle=g2; dc.fillRect(0,hor,W,H-hor+1);\n// sweeping cloud shadow across the desert (big-area motion carrier)\n{ dc.save(); const bx=W*((t*0.05*(0.5+en))%1.5-0.25);\n  const g3=dc.createLinearGradient(bx-W*0.25,0,bx+W*0.25,0);\n  g3.addColorStop(0,'rgba(0,0,0,0)'); g3.addColorStop(0.5,color(20,30,10,16*P.alpha/100).toString()); g3.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=g3; dc.fillRect(0,hor,W,H-hor); dc.restore(); }\n// road (trapezoid to VP) + dashed center line scrolling toward viewer\nnoStroke(); fill(Cc(roadC,100)); quad(vpx-8,hor, vpx+8,hor, W*0.72,H, W*0.28,H);\n// side lines\nstroke(Cc([lineC[0],20,80],70)); strokeWeight(2); line(vpx-7,hor, W*0.30,H); line(vpx+7,hor, W*0.70,H); noStroke();\n// dashes: 1/z spacing scrolling\nconst scroll=(t*(0.3+en*0.5)*P.speed)%1;\nfor(let i=0;i<16;i++){ const z=((i+scroll)/16); const zz=z*z; const yy=hor+(H-hor)*zz; const dw=(1+zz*10), dh=(2+zz*26);\n  if(yy>hor+2){ fill(Cc(lineC, 60+zz*40)); rect(vpx+(W*0.5-vpx)*0*(1-zz) - dw/2 + (vpx-(W*0.5))*(0), yy, dw, dh); } }\n// telephone poles receding both sides\nif(P.poles>0.05){ for(let i=0;i<Math.floor(4+P.poles*6);i++){ const z=(i+((t*(0.3+en*0.5)*P.speed)%1))/ (4+P.poles*6); const zz=z*z; const yy=hor+(H-hor)*zz; const ph=(6+zz*150)*P.poles;\n  for(const s2 of[-1,1]){ const px=vpx + s2*(10+zz*W*0.42);\n   stroke(Cc([25,40,25],90)); strokeWeight(1+zz*4); line(px,yy, px,yy-ph);\n   strokeWeight(0.8+zz*2); line(px-ph*0.16,yy-ph*0.82, px+ph*0.16,yy-ph*0.82); }\n  noStroke(); } }\n// distant car lights\nif(P.cars>0.05 && sty!=='noon'){ dc.save(); blendMode(ADD); for(let i=0;i<Math.floor(P.cars*4);i++){ const z=((fr(i)+t*(0.05+fr(i+3)*0.04))%1); const zz=z*z; const yy=hor+(H-hor)*zz; const px=vpx+(fr(i+5)>0.5?1:-1)*(3+zz*W*0.18);\n  fill(color(fr(i+5)>0.5?0:50,70,100,(30+zz*60)*P.alpha/100)); circle(px,yy,1+zz*6); circle(px+2+zz*6,yy,1+zz*6); } dc.restore(); blendMode(BLEND); }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
