@@ -53,6 +53,15 @@ def main():
     # window.state.P is never initialized by the engine — `state.P.<slot> = …`
     # throws on a fresh canvas, silently leaving the asset on its D defaults.
     requests.post(base + "/p5/send", json={"code": "window.state.P = window.state.P || {};"}, timeout=10)
+    # Only bg-slot assets call background(); every other slot assumes something
+    # below it clears the frame. Firing a subject/set/fx onto an empty canvas
+    # therefore SMEARS (each frame paints over the last). If nothing holds the
+    # bg slot yet, drop in a near-black clear so motion stays crisp.
+    if slot != "bg":
+        st = requests.get(base + "/status", timeout=10).json()
+        if "bg" not in (st.get("layers") or []):
+            requests.post(base + "/p5/layer", json={
+                "name": "bg", "code": "background(232,25,10);"}, timeout=10)
     requests.post(base + "/p5/state", json={"key": f"P.{slot}", "value": params}, timeout=10)
     code = d["code"].replace("__SLOT__", slot)
     r = requests.post(base + "/p5/layer", json={"name": slot, "code": code}, timeout=15)
