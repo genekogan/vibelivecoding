@@ -10,7 +10,7 @@ backend. Pick based on what the user asks for:
 | **Manual** | "play this loop", "drop a kick" | Send single curl commands directly | `livecode-tips.md` |
 | **Showrunner** | "play the disco set", "step through the show", "record a show" | Author/record/replay a deterministic timeline of saved sections (`shows/*.show.json`); arrow keys ← → step through it | `livecode-compose.md` |
 | **Autopilot** | "start the autopilot", "kick off the loop" | YOU run `/loop` in this chat — wake every ~1 min via `ScheduleWakeup` to evolve visuals + music autonomously; user steers by typing messages | `autopilot.md` |
-| **Improv** | "improvise", "jam", "keep going", "mix it up", "make something like X but new", "you got dis" | YOU perform continuously in-chat: retrieve from the catalog AND hand-write Strudel/p5, narrate the musical reasoning out loud, plan the next section while the current one plays, never idle, transition on bar lines | **`livecode-improv.md`** |
+| **Improv** | "improvise", "jam", "keep going", "mix it up", "make something like X but new", "you got dis" | YOU perform continuously in-chat: **hand-write your own Strudel/p5 by default** (the catalog is context/inspiration, not the vocabulary you fire — writing-your-own forces diversity), narrate the musical reasoning out loud, plan the next section while the current one plays, never idle, transition on bar lines. Fire a catalog asset verbatim only when the user names one or points at a past show. | **`livecode-improv.md`** |
 
 Showrunner is **deterministic & step-able**; Autopilot is **timer-driven**;
 Improv is **continuous & hand-played** (no `ScheduleWakeup` — you never stop
