@@ -1,0 +1,131 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.moths",
+  "kind": "crowd",
+  "name": "Moths at a Lamp",
+  "desc": "Moths spiralling erratically around a hanging lamp, wings blurring, dust drifting down through the breathing cone of light. Porch gold, UV violet, cold white, candle or sodium.",
+  "tags": [
+    "moths",
+    "lamp",
+    "light",
+    "night",
+    "insects",
+    "porch",
+    "swarm",
+    "orbit",
+    "summer",
+    "flutter",
+    "attracted",
+    "bulb"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "n": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "count"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved"
+    },
+    "lampX": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "lamp x"
+    },
+    "lampY": {
+      "default": 0.35,
+      "min": 0,
+      "max": 0.8,
+      "doc": "lamp y"
+    },
+    "glowM": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "halo size"
+    },
+    "dust": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "dust"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "baseline"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "offset"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "porch",
+      "options": [
+        "porch",
+        "uv",
+        "cold",
+        "candle",
+        "sodium"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:46:15+00:00",
+    "fps": 59.9,
+    "motion": 0.0078,
+    "lum": 0.087
+  },
+  "code": "const D = { energy:.5, n:.5, hue:40, lampX:.5, lampY:.35, glowM:.7, dust:.4, y:.5, x:.5, scale:1, speed:1, style:'porch', seed:0, alpha:95 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst lx=P.lampX*W, ly=P.lampY*H;\nlet lampH=40, mothC=[35,25,80];\nif(sty==='uv'){ lampH=270; mothC=[280,30,85]; } else if(sty==='cold'){ lampH=200; mothC=[210,15,85]; } else if(sty==='candle'){ lampH=28; mothC=[30,30,75]; } else if(sty==='sodium'){ lampH=35; mothC=[40,40,70]; }\n// lamp + breathing halo (motion carrier)\ndc.save(); blendMode(ADD);\nconst gb=0.5+0.5*Math.sin(t*0.41)+0.3*Math.sin(t*0.89+1);\ndc.shadowBlur=24; dc.shadowColor=color(lampH,60,100).toString();\nnoStroke(); fill(color(lampH,45,100,(70+20*gb)*P.alpha/100)); circle(lx,ly,14);\ndc.shadowBlur=0;\n{ const rg=dc.createRadialGradient(lx,ly,4,lx,ly,W*0.3*(0.7+gb*0.35)*P.glowM);\n  rg.addColorStop(0,color(lampH,50,95,(18+16*gb)*P.glowM*P.alpha/100).toString());\n  rg.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=rg; dc.fillRect(0,0,W,H); }\n// hanging cord\ndc.restore(); blendMode(BLEND);\nstroke(color(0,0,40,70*P.alpha/100)); strokeWeight(2); line(lx,0,lx,ly-8); noStroke();\n// moths orbiting erratically\nconst N=Math.floor(4+P.n*14);\ndc.save(); blendMode(ADD);\nfor(let i=0;i<N;i++){\n  const rad=(30+fr(i)*90)*(0.7+P.scale*0.3);\n  const wobble=Math.sin(t*(2+fr(i)*3)+i*4)*16;\n  const a=t*(0.6+fr(i)*0.8)*(fr(i+3)>0.5?1:-1)*P.speed + i*2;\n  const mx=lx+Math.cos(a)*(rad+wobble), my=ly+Math.sin(a)*(rad*0.7+wobble)*0.9;\n  const flap=Math.abs(Math.sin(t*(10+fr(i)*6)+i));\n  push(); translate(mx,my); rotate(a+Math.PI/2);\n  fill(color(mothC[0],mothC[1],mothC[2],(50+flap*40)*P.alpha/100));\n  ellipse(-3*flap-1.4,0,(5*flap+2),7); ellipse(3*flap+1.4,0,(5*flap+2),7);\n  fill(color(mothC[0],mothC[1]+10,mothC[2]-20,80*P.alpha/100)); ellipse(0,0,1.8,5);\n  pop();\n}\n// dust in the light cone\nif(P.dust>0.05){ for(let i=0;i<P.dust*24;i++){ const life=(t*(0.06+fr(i)*0.05)+fr(i+3))%1; const dxp=lx+(fr(i)-0.5)*140*life*2; const dyp=ly+life*H*0.4;\n const tw=0.4+0.6*Math.sin(t*(1+fr(i)*2)+i*3);\n fill(color(lampH,30,100,(6+tw*14)*P.dust*P.alpha/100)); circle(dxp,dyp,1+fr(i+7)*1.6); } }\ndc.restore(); blendMode(BLEND);\n"
+}
