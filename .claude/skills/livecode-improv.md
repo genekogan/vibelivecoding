@@ -7,6 +7,13 @@ continuously, out loud, while Gene steers by typing.**
 Trigger phrases: *"improvise"*, *"jam"*, *"keep going"*, *"mix it up"*,
 *"make something like X but new"*, *"you got dis"*.
 
+> **⛔ THE ONE UNBREAKABLE RULE (see §4.5): never create silence you haven't
+> already filled.** Never hush/stop/clear the current music before the next
+> section is written and ready to fire in the same breath. You do your thinking
+> over a LIVE groove — never over silence. The multi-minute "let me think up the
+> next thing" gap is the worst failure on stage. Only Gene saying "stop"/"hush"
+> may produce bare silence.
+
 ---
 
 ## 1. What this mode is
@@ -32,12 +39,13 @@ in-key, in-tempo code looks like* — lean on it for that, don't copy it.
 > (`assets/music/README.md`) fires verified assets verbatim on purpose — that's
 > a different surface with a different promise (guaranteed-audible, deterministic).
 > Here, hand-written code is the goal, so **you** own the audibility check — the
-> silent-failure catalog in §3 is on you, not the validator.
+> silent-failure catalog in §5 is on you, not the validator.
 
 Four rules define the mode:
 
-0. **Write, don't retrieve — unless told.** Hand-code by default; fire catalog
-   assets only on Gene's explicit request (see above). Diversity is the reason.
+0. **Transmute, don't copy — unless told.** Hand-code by default at the
+   transmutation level (§2.1); fire catalog assets verbatim only on Gene's
+   explicit request (see above). Diversity is the reason.
 
 1. **Never stop.** The moment the current thing is playing, start building the
    next one. Do not wait, do not idle, do not ask "want me to continue?" while
@@ -59,12 +67,116 @@ cadence fix learned so far.
 
 ---
 
-## 2. Transitions — the doctrine (READ THIS)
+## 2. The regime — palette → conductor → transmutation (the default set shape)
+
+This reconciles three facts: hand-written code is the point (§1), your
+reasoning time is variable (15–40s for a granular tweak, 30–90s for a new part,
+3–6 min for a from-scratch section), and an unchanged mix bores the room in
+~1–2 minutes. The regime makes the *plan* expensive once and every *move*
+cheap, and hands all timing to the conductor (§3).
+
+### 2.1 The authorship ladder — transmute, don't copy
+
+Every fired block must differ from any catalog reference in its **musical
+surface**: the note/rhythm pattern, the mask/phrase shape, or the modulation
+scheme. What you MAY inherit verbatim is **verified infrastructure**: the synth
+chain (`.s/.ftype/.lpf` stack), envelope, gain staging + pump idiom,
+`.shape()` loudness, `.orbit(N)` — a guitarist doesn't build the guitar on
+stage, and under-loudness/banned-features are the top silent failures.
+Levels, by cost:
+
+- **L1 select** — assemble your own kit from stems+params. Cheap, but no
+  visible code authorship; use for backbone slots, sparingly.
+- **L2 transmute (DEFAULT)** — take a palette stem's chain, write your own
+  notes/rhythm/masks/modulation over it. ~30–90s per part, low risk, real
+  diversity, and the audience watches fresh Strudel appear.
+- **L3 from scratch** — full authorship, minutes. Reserve for the set's
+  signature moments: the melody, the form, the reharmonization.
+- L0 verbatim — only when Gene names an asset or a saved set.
+
+### 2.2 Set-start ritual (one deep think, then write-only)
+
+Before the first fire — or while the outgoing set still plays:
+
+1. **Skeleton**: key journey (name the relationships out loud — relative
+   major, parallel, Neapolitan), tempo arc, the genre pair to conflate, a
+   rough section plan.
+2. **Load the palette NOW**: grep `assets/music/index.jsonl` for the
+   territory, batch-read **8–12 stems into context** (2–3 per slot you'll
+   use). All retrieval happens here — a mid-set grep+read cycle is 30–60s of
+   dead air. After this, every move is write-only.
+3. **Announce the plan** in a paragraph, then make sound inside the first
+   minute: drums or a drone, direct-fired (`--at 0` / plain `lc track`) to
+   start the grid.
+
+### 2.3 The loop — granular moves on the conductor's grid
+
+- **One move per 30–60s**, each touching **one slot**, queued to a 4/8-bar
+  line. One-in-one-out instrumentation; never rebuild the mix in one commit.
+- **Every pattern carries its own future.** Slow LFOs over 16–32 cycles,
+  nested `<...>` cycles at 8/16/32 bars, verse/chorus via `.mask()`
+  alternation — sized to *at least* the gap before your next move. About to
+  think for three minutes? What's playing must evolve for three minutes.
+- **Narrate 1–2 sentences per move** — the musical reasoning, before the
+  fire. Deep narration only at pivots.
+- **Verify after each fire**: `lc status` (carries `lastError`); read
+  `state.audio` rms every few moves. Hand-written code owns its own
+  audibility (§5).
+- **Section pivot every ~8–16 moves (3–5 min)**: key change, genre shift, or
+  form change — planned during the previous section, fired as one staggered
+  queue batch with a deliberate carry-over slot (§4.4).
+
+---
+
+## 3. The conductor — your think-time jitter is not the music's problem
+
+The server holds queued commands and fires them **on bar lines** (cycle ==
+bar). Submit changes the moment they're written, in quick succession; each
+lands on the grid. Never block in `boundary.py` again for a routine change.
+
+```bash
+./lc track bass 'n("0 3 5 7")...' --at 8      # fire on the next 8-bar line
+./lc track pads '...' --at 8 --after 2        # same line, 2 bars later (stagger)
+./lc stop oldlead --at 4                      # retire a part on a 4-bar line
+./lc cps 0.55 --at 16                         # tempo move on a 16-bar line
+./lc q                                        # pending items + next-boundary ETAs
+./lc qcancel q7                               # changed your mind
+```
+
+curl: `POST /q {route, payload, at, offset}`, or `{items:[...]}` to declare a
+whole staggered phase-in in one call. `GET /q` → transport position, ETA to
+each boundary size, pending + recent items. Semantics worth knowing:
+
+- **Targets are cycle numbers**, so a cps change mid-wait shifts the ETA but
+  never the musical grid; a transport hard-reset makes stale targets recompute.
+- **While the transport is stopped, grid items hold** (there is no grid yet) —
+  direct-fire the first sound of a show, queue everything after.
+- Queued fires are **recorded into the show timeline** and logged to the
+  server console (`⏱ fired track bass @bar 96`), so the flight recorder stays
+  complete.
+- Queueable routes: strudel `track/stop/hush/cps` · p5 `layer/remove/fps/state`.
+
+### 3.1 Show-start checklist (when Gene says "improvise" / "let's play")
+
+1. **Server**: `./lc status`. If unreachable:
+   `nohup python livecode.py > /tmp/lc_server.log 2>&1 &`, open
+   `http://localhost:8766/livecode.html`, Gene clicks Start. (Use whatever
+   port the show is on; improv default 8766, music-catalog tooling 9766.)
+2. **Prove the audio path**: fire a quiet 1-bar hat, confirm
+   `/p5/read?key=audio` rms > 0, then keep it as the count-in or stop it.
+   `/status` 200 is not sound (§5).
+3. **Set-start ritual** (§2.2): skeleton → palette → announce.
+4. First sound direct; everything after through the conductor.
+5. From here, never idle — plan N+1 while N plays (§1).
+
+---
+
+## 4. Transitions — the doctrine (READ THIS)
 
 Abrupt transitions were the #1 complaint of session 1. **The music must never
 lurch.** Four rules:
 
-### 2.1 Land on the grid — never fire mid-bar
+### 4.1 Land on the grid — never fire mid-bar
 At cps C, **one cycle == one bar** and lasts `1/C` seconds. Firing when *you*
 happen to be ready starts the new material on an off-beat: the ear hears a seam.
 
@@ -74,37 +186,59 @@ python assets/tools/set_play.py weight --at 8 --port 9976   # same, built in (de
 ```
 Waiting costs **at most one phrase**. Always worth it. `--at 0` to override.
 
-### 2.2 Let the outgoing phrase finish
+### 4.2 Let the outgoing phrase finish
 Never yank a slot mid-bar. `set_play --orphan-after 4` lets orphan slots ring to
 the end of a 4-bar phrase before stopping. The old material should *leave on a
 phrase end*, not get cut.
 
-### 2.3 Phase in, don't hard-swap
+### 4.3 Phase in, don't hard-swap
 Bringing 5 slots in on one downbeat is a jump cut. Stagger them —
 drums → perc → bass → chords → lead → pad → texture → vox, a bar or two apart
 (`set_play --phase 2`). The mix *arrives* rather than *switches*. Same idea by
 hand: fire the new drums on bar 1, the new bass on bar 3, the pads on bar 5.
 
-### 2.4 Keep the beat through the change
+### 4.4 Keep the beat through the change
 **Something percussive must play across the seam.** The best transitions of
 session 1 kept a slot alive through the change (`vox` carried from a rave kit
 into an ambient one while the whole rhythm section orphaned out — the voice was
 the thread). Pick the carry-over slot *deliberately* before you fire.
 
-### 2.5 Never hush, never clear
-`/strudel/hush` and `/p5/clear` create a gap you then scramble to fill. Replace
-**by name** — the server swaps the code atomically in one frame. Use
-`/strudel/stop {name}` only *after* the replacement is confirmed audible.
-(Exception: Gene says "stop"/"hush".)
+### 4.5 THE UNBREAKABLE RULE — never create silence you haven't already filled
 
-### 2.6 Prefer arcs for internal motion
+**NEVER hush/stop/clear the current thing before the next thing is in hand and
+ready to fire in the same breath.** There must never be unintended silence — not
+one bar of it, and above all NOT the multi-minute gap while you *think up* what
+comes next. Silence is the single worst failure on stage.
+
+The ordering is absolute:
+
+1. **Write the next section FIRST** — fully, in hand, ready to POST.
+2. **Then** stop the old and start the new, back to back, ideally on the same bar
+   line (queue the stop and the replacement to the same `--at`).
+
+You may only fire a bare `/strudel/stop`, `/strudel/hush`, or `/p5/clear` when the
+replacement audio is already written and you are turning it on *immediately* after
+(or together with) the stop. If you are about to spend even a few seconds
+reasoning about what comes next, **the current music keeps playing the whole
+time** — you do your thinking over a live groove, never over silence.
+
+- Replace **by name**: POST the new code to the same track name — the server
+  swaps it atomically in one frame, no gap. This is always preferred over
+  stop-then-start.
+- When a section genuinely must drop instruments (a breakdown), keep at least one
+  slot alive across the seam (§4.4) and queue the stops + the new material to the
+  same bar line so the transition is instantaneous, never a hush-then-build.
+- The ONLY time bare silence is allowed: Gene explicitly says "stop" / "hush" /
+  "cut it". His command, his silence — nothing else.
+
+### 4.6 Prefer arcs for internal motion
 A kit×arc fired via `arc_compile` self-evolves for minutes (`arrange()` weaves
 sparse/full/peak per section). That's free dynamics — it beats re-firing tracks
 to fake a build.
 
 ---
 
-## 3. The silent-failure catalog (all cost real stage time)
+## 5. The silent-failure catalog (all cost real stage time)
 
 **`/status` 200 + `/errors` empty proves the code RAN. It does not prove anyone
 can HEAR or SEE it.** Verify the output, not the exit code.
@@ -122,7 +256,7 @@ can HEAR or SEE it.** Verify the output, not the exit code.
 
 ---
 
-## 4. Load & fps — measure before you blame an asset
+## 6. Load & fps — measure before you blame an asset
 
 **fps is meaningless under load.** Session 1 filed two bogus bug reports because
 a stale `/tmp/vf_visual_host.py` from days earlier was burning ~390% CPU:
@@ -149,7 +283,7 @@ connect hushes the transport and wipes the track list. Keep exactly ONE client.
 
 ---
 
-## 5. Visual clock
+## 7. Visual clock
 
 Assets must read `window.state.clk` — **never `frameCount`**. `frameCount/28.8`
 assumes exactly 60fps: at 12fps it runs the animation at **20% of tempo**, and
@@ -170,7 +304,7 @@ they're locked.
 
 ---
 
-## 6. Saved sets — bank what works
+## 8. Saved sets — bank what works
 
 A **set** = kit × arc + visual stack + params + grade. The only record of a
 *pairing that worked*; kits/arcs/assets alone don't capture it.
@@ -189,7 +323,7 @@ corrected to `grade: ok` with a note.)
 
 ---
 
-## 7. Craft notes that earned their place
+## 9. Craft notes that earned their place
 
 - **Check the key relationship before firing, and say it out loud.** Db→Cm is a
   Neapolitan. Am→C is the relative major. E→Em is the parallel. Am→A across sets
@@ -220,7 +354,7 @@ corrected to `grade: ok` with a note.)
 
 ---
 
-## 8. Related
+## 10. Related
 
 | Doc | For |
 |---|---|

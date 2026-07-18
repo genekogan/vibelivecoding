@@ -1,0 +1,272 @@
+#!/usr/bin/env python3
+"""lc — thin CLI over the livecode REST API (curl without the JSON quoting pain).
+
+Examples:
+    lc status                                   # pretty server/browser state
+    lc track bass 'note("c2 e2").s("sawtooth")' # set/update a strudel track
+    lc layer bg 'background(0);'                # set/update a p5 layer
+    lc layer fog @sketch.js                     # code from a file
+    echo 'background(0);' | lc layer bg -       # code from stdin
+    lc cps 0.55
+    lc hush
+    lc errors -f                                # follow browser errors live
+    lc next / lc prev / lc goto 12 / lc mark drop
+"""
+
+import argparse
+import json
+import sys
+import time
+import urllib.error
+import urllib.request
+
+
+def api(port, method, path, body=None):
+    url = f"http://localhost:{port}{path}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        url, data=data, method=method, headers={"Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read().decode())
+        except Exception:
+            return {"ok": False, "error": f"HTTP {e.code}"}
+    except urllib.error.URLError as e:
+        sys.exit(f"lc: server not reachable on port {port} ({e.reason}) — is livecode.py running?")
+
+
+def post(port, path, body=None):
+    r = api(port, "POST", path, body or {})
+    if r.get("ok") is False:
+        sys.exit(f"lc: {r.get('error')}")
+    return r
+
+
+def read_code(arg):
+    """Code argument: literal string, '-' for stdin, or @path for a file."""
+    if arg == "-":
+        return sys.stdin.read()
+    if arg.startswith("@"):
+        with open(arg[1:]) as f:
+            return f.read()
+    return arg
+
+
+def cmd_status(args):
+    s = api(args.port, "GET", "/status")
+    ready = "✓" if s.get("ready") else "✗ (no browser)"
+    queued = f"   queued {s['queued']}" if s.get("queued") else ""
+    print(f"ready {ready}   cps {s.get('cps')}   "
+          f"step {s.get('step', -1) + 1}/{s.get('totalSteps', 0)}   "
+          f"recording {'on' if s.get('recording') else 'off'}{queued}")
+    tracks, layers = s.get("tracks", []), s.get("layers", [])
+    print(f"tracks ({len(tracks)}): {' '.join(tracks) or '—'}")
+    print(f"layers ({len(layers)}): {' '.join(layers) or '—'}")
+    le = s.get("lastError")
+    if le:
+        print(f"last error: [{le.get('system', '?')}] {le.get('message', '')}")
+
+
+def cmd_state(args):
+    print(json.dumps(api(args.port, "GET", "/state"), indent=2))
+
+
+def cmd_errors(args):
+    seen = set()
+    while True:
+        errs = api(args.port, "GET", "/errors").get("errors", [])
+        fresh = 0
+        for e in errs:
+            key = (e.get("ts"), e.get("system"), e.get("message"))
+            if key not in seen:
+                seen.add(key)
+                fresh += 1
+                print(f"[{e.get('system', '?')}] {e.get('message', '')}")
+        if not args.follow:
+            if not errs:
+                print("no errors")
+            return
+        sys.stdout.flush()
+        time.sleep(1)
+
+
+def fire(port, route, payload, args):
+    """Direct POST, or queue on a bar line when --at is given."""
+    at = getattr(args, "at", None)
+    if at is None:
+        post(port, route, payload)
+        print("ok")
+        return
+    r = post(port, "/q", {"route": route, "payload": payload,
+                          "at": at, "offset": getattr(args, "after", 0) or 0})
+    q = r["queued"][0]
+    when = "now" if at <= 0 else f"next {at:g}-bar line" + (
+        f" +{q['offset']:g}" if q.get("offset") else "")
+    print(f"queued {q['id']} → {when}")
+
+
+def cmd_q(args):
+    r = api(args.port, "GET", "/q")
+    if r.get("playing"):
+        bounds = "   ".join(f"{k}-bar {v}s" for k, v in r["nextBoundarySeconds"].items())
+        print(f"bar {r['cycle']:.2f}   cps {r['cps']}   next: {bounds}")
+    else:
+        print("transport stopped — grid-quantized items hold until it runs")
+    pending = r.get("pending", [])
+    print(f"pending ({len(pending)}):")
+    for i in pending:
+        eta = f"  eta {i['etaSeconds']}s" if i.get("etaSeconds") is not None else ""
+        name = i.get("name") or ""
+        print(f"  {i['id']}  {i['route']}  {name}  at {i['at']:g}+{i['offset']:g}{eta}")
+    hist = r.get("history", [])
+    if hist:
+        print("recent:")
+        for i in hist[-5:]:
+            mark = {"fired": "✓", "failed": "✗", "cancelled": "–"}.get(i["status"], "?")
+            extra = f"  {i['error']}" if i.get("error") else ""
+            fc = f"  @bar {i['firedCycle']}" if i.get("firedCycle") is not None else ""
+            print(f"  {mark} {i['id']}  {i['route']}  {i.get('name') or ''}{fc}{extra}")
+
+
+def cmd_steps(args):
+    r = api(args.port, "GET", "/show/steps")
+    for s in r.get("steps", []):
+        cur = "▶" if s["i"] == r.get("current") else " "
+        label = f'  "{s["label"]}"' if s.get("label") else ""
+        print(f"{cur} {s['i']:>3}  {s['route']}{label}")
+    print(f"step {r.get('current', -1) + 1}/{r.get('total', 0)}")
+
+
+def _print_step(r):
+    label = f'  "{r["label"]}"' if r.get("label") else ""
+    print(f"step {r.get('step', -1) + 1}/{r.get('total', 0)}{label}")
+
+
+def main():
+    ap = argparse.ArgumentParser(
+        prog="lc", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument("-p", "--port", type=int, default=8766, help="REST port (default 8766)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("status", help="pretty server/browser state")
+    sub.add_parser("state", help="full code dump (tracks + layers)")
+    p = sub.add_parser("errors", help="show browser-side errors")
+    p.add_argument("-f", "--follow", action="store_true", help="poll and print new errors")
+
+    def add_quant(p):
+        p.add_argument("--at", type=float, default=None, metavar="BARS",
+                       help="queue: fire on the next BARS-bar line (0 = immediately via queue)")
+        p.add_argument("--after", type=float, default=0, metavar="BARS",
+                       help="queue: extra bars after the --at boundary (staggering)")
+
+    p = sub.add_parser("track", help="set/update a strudel track")
+    p.add_argument("name")
+    p.add_argument("code", help="strudel code, '-' for stdin, @file to read a file")
+    add_quant(p)
+    p = sub.add_parser("stop", help="stop a strudel track")
+    p.add_argument("name")
+    add_quant(p)
+    p = sub.add_parser("hush", help="stop all music")
+    add_quant(p)
+    p = sub.add_parser("cps", help="set tempo (cycles per second)")
+    p.add_argument("value", type=float)
+    add_quant(p)
+    p = sub.add_parser("reset", help="quantized transport hard-reset")
+    p.add_argument("quantum", type=float, nargs="?", default=1)
+
+    p = sub.add_parser("layer", help="set/update a p5 layer")
+    p.add_argument("name")
+    p.add_argument("code", help="p5 code, '-' for stdin, @file to read a file")
+    add_quant(p)
+    p = sub.add_parser("remove", help="remove a p5 layer")
+    p.add_argument("name")
+    add_quant(p)
+    sub.add_parser("clear", help="remove all p5 layers")
+    p = sub.add_parser("setup", help="hard-recompile p5 with new setup code")
+    p.add_argument("code")
+    p = sub.add_parser("fps", help="set p5 frame rate")
+    p.add_argument("value", type=int)
+    add_quant(p)
+
+    sub.add_parser("q", help="conductor queue: pending items + next bar lines")
+    p = sub.add_parser("qcancel", help="cancel a queued item (or all)")
+    p.add_argument("id", help="queue item id, or 'all'")
+
+    sub.add_parser("steps", help="list the show timeline")
+    sub.add_parser("next", help="advance to next section")
+    sub.add_parser("prev", help="back to previous section")
+    p = sub.add_parser("goto", help="jump to step index")
+    p.add_argument("step", type=int)
+    p = sub.add_parser("mark", help="label the current step (section boundary)")
+    p.add_argument("label")
+    p = sub.add_parser("load", help="load a .show.json file")
+    p.add_argument("path")
+    p = sub.add_parser("save", help="save timeline to a .show.json file")
+    p.add_argument("path")
+
+    args = ap.parse_args()
+    port = args.port
+
+    if args.cmd == "status":
+        cmd_status(args)
+    elif args.cmd == "state":
+        cmd_state(args)
+    elif args.cmd == "errors":
+        cmd_errors(args)
+    elif args.cmd == "track":
+        fire(port, "/strudel/track", {"name": args.name, "code": read_code(args.code)}, args)
+    elif args.cmd == "stop":
+        fire(port, "/strudel/stop", {"name": args.name}, args)
+    elif args.cmd == "hush":
+        fire(port, "/strudel/hush", {}, args)
+    elif args.cmd == "cps":
+        fire(port, "/strudel/cps", {"cps": args.value}, args)
+    elif args.cmd == "reset":
+        post(port, "/strudel/reset", {"quantumCycles": args.quantum})
+        print("ok")
+    elif args.cmd == "layer":
+        fire(port, "/p5/layer", {"name": args.name, "code": read_code(args.code)}, args)
+    elif args.cmd == "remove":
+        fire(port, "/p5/remove", {"name": args.name}, args)
+    elif args.cmd == "clear":
+        post(port, "/p5/clear")
+        print("ok")
+    elif args.cmd == "setup":
+        post(port, "/p5/setup", {"code": read_code(args.code)})
+        print("ok")
+    elif args.cmd == "fps":
+        fire(port, "/p5/fps", {"fps": args.value}, args)
+    elif args.cmd == "q":
+        cmd_q(args)
+    elif args.cmd == "qcancel":
+        if args.id == "all":
+            r = post(port, "/q/cancel", {"all": True})
+        else:
+            r = post(port, "/q/cancel", {"id": args.id})
+        print(f"cancelled {r.get('cancelled', 0)}")
+    elif args.cmd == "steps":
+        cmd_steps(args)
+    elif args.cmd == "next":
+        _print_step(post(port, "/show/next"))
+    elif args.cmd == "prev":
+        _print_step(post(port, "/show/prev"))
+    elif args.cmd == "goto":
+        _print_step(post(port, "/show/goto", {"step": args.step}))
+    elif args.cmd == "mark":
+        r = post(port, "/show/mark", {"label": args.label})
+        print(f"marked step {r.get('step')} \"{args.label}\"")
+    elif args.cmd == "load":
+        r = post(port, "/show/load_file", {"path": args.path})
+        print(f"loaded {r.get('name')} ({r.get('total')} steps)")
+    elif args.cmd == "save":
+        r = post(port, "/show/save_file", {"path": args.path})
+        print(f"saved {r.get('path')} ({r.get('steps')} steps)")
+
+
+if __name__ == "__main__":
+    main()
