@@ -1,0 +1,113 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.race_cars",
+  "kind": "crowd",
+  "name": "Race Cars",
+  "desc": "Lanes of little race cars streaking across the frame with spinning spoked wheels, engine bobble, glowing speed trails and headlight cones \u2014 nearer lanes bigger and faster. Styles: open-wheel formula cars, rounded vintage roadsters, monster trucks, floating hover pods with underglow, and rally mode where alternating lanes run opposite directions.",
+  "tags": [
+    "cars",
+    "racing",
+    "speed",
+    "vehicles",
+    "crowd",
+    "trails",
+    "wheels",
+    "motion",
+    "cartoon",
+    "lanes"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "car speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2,
+      "doc": "car size"
+    },
+    "trailS": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "speed trail strength"
+    },
+    "bobble": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "suspension bobble"
+    },
+    "headlights": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "headlight cones"
+    },
+    "hue": {
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "doc": "mono hue (unused otherwise)"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0,
+      "max": 1,
+      "doc": "bottom lane position"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "car count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "speed multiplier"
+    },
+    "style": {
+      "default": "formula",
+      "options": [
+        "formula",
+        "vintage",
+        "truck",
+        "hover",
+        "rally"
+      ],
+      "doc": "car type"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:17:07+00:00",
+    "fps": 58.8,
+    "motion": 0.0215,
+    "lum": 0.099
+  },
+  "code": "const D = { energy:.6, scale:1, hue:0, trailS:.6, bobble:.5, headlights:.5, x:.5, y:.72, speed:1, density:.5, style:'formula', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nnoStroke();\nconst n=Math.floor(3+P.density*5);\ndc.save(); blendMode(SCREEN);\n{ const dy0=P.y*Hh-Hh*0.09;\n  const gx=W*(0.5+Math.sin(t*0.29)*0.42); const gb=0.5+0.5*Math.sin(t*0.47)+0.3*Math.sin(t*0.91+1);\n  const rg=dc.createRadialGradient(gx,dy0,10,gx,dy0,W*0.36);\n  rg.addColorStop(0,color(40,20,80,(7+10*gb)*P.alpha/100).toString());\n  rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(0,0,W,Hh); }\ndc.restore(); blendMode(BLEND);\nconst baseY=P.y*Hh;\nfor(let i=0;i<n;i++){\n const lane=i/Math.max(1,n-1);\n const depth=0.55+lane*0.45;\n const cy2=baseY - (1-lane)*Hh*0.18;\n const spd2=(0.10+fr(i)*0.06+en*0.14)*P.speed*depth;\n const dir=(sty==='rally'&&i%2)?-1:1;\n let px2=((t*spd2+fr(i+9))%1.3-0.15); if(dir<0) px2=1.15-px2;\n const cx2=px2*W;\n const sz=u*0.085*P.scale*depth;\n const bob=Math.sin(t*(7+fr(i)*4))*sz*0.03*P.bobble;\n const hueC=sty==='mono'? P.hue : (fr(i+30)*360);\n // speed trail\n if(P.trailS>0.03){ dc.save(); blendMode(SCREEN);\n  const g=dc.createLinearGradient(cx2-dir*sz*4.5,0,cx2,0);\n  g.addColorStop(0,'rgba(0,0,0,0)');\n  g.addColorStop(1,color(hueC,60,80,30*P.trailS*P.alpha/100).toString());\n  dc.fillStyle=g; dc.fillRect(Math.min(cx2-dir*sz*4.5,cx2),cy2-sz*0.42,Math.abs(dir*sz*4.5),sz*0.6);\n  dc.restore(); blendMode(BLEND); }\n push(); translate(cx2,cy2+bob); scale(dir,1);\n // shadow\n fill(0,0,0,22); ellipse(0,sz*0.34,sz*2.3,sz*0.3);\n if(sty==='formula'){\n  fill(color(hueC,75,80,95*P.alpha/100));\n  beginShape(); vertex(-sz*1.2,sz*0.1); vertex(-sz*0.6,-sz*0.12); vertex(sz*0.2,-sz*0.16); vertex(sz*1.1,-sz*0.02); vertex(sz*1.25,sz*0.14); vertex(-sz*1.2,sz*0.25); endShape(CLOSE);\n  fill(color(hueC,70,55,95*P.alpha/100)); rect(-sz*1.3,-sz*0.34,sz*0.5,sz*0.2,2); rect(sz*0.9,-sz*0.4,sz*0.42,sz*0.24,2);\n  fill(color(220,30,25,95*P.alpha/100)); ellipse(-sz*0.1,-sz*0.22,sz*0.34,sz*0.26);\n } else if(sty==='vintage'){\n  fill(color(hueC,60,70,95*P.alpha/100));\n  beginShape(); vertex(-sz*1.1,sz*0.16); bezierVertex(-sz*1.1,-sz*0.25,-sz*0.4,-sz*0.34,0,-sz*0.3);\n  bezierVertex(sz*0.6,-sz*0.28,sz*1.15,-sz*0.05,sz*1.15,sz*0.16); endShape(CLOSE);\n  fill(color(45,20,90,90*P.alpha/100)); ellipse(-sz*0.25,-sz*0.3,sz*0.3,sz*0.22);\n  noFill(); stroke(color(hueC,30,30,80*P.alpha/100)); strokeWeight(2); arc(-sz*0.25,-sz*0.3,sz*0.4,sz*0.32,Math.PI,TAU); noStroke();\n } else if(sty==='truck'){\n  fill(color(hueC,65,75,95*P.alpha/100)); rect(-sz*1.2,-sz*0.55,sz*1.5,sz*0.7,3);\n  rect(sz*0.35,-sz*0.35,sz*0.8,sz*0.5,3);\n  fill(color(200,30,85,90*P.alpha/100)); rect(sz*0.62,-sz*0.27,sz*0.34,sz*0.2,2);\n } else { // hover (rally handled by dir)\n  const hov=sty==='hover';\n  fill(color(hueC,70,hov?85:70,95*P.alpha/100));\n  beginShape(); vertex(-sz*1.15,0); bezierVertex(-sz*0.9,-sz*0.4,sz*0.9,-sz*0.4,sz*1.15,0);\n  bezierVertex(sz*0.9,sz*0.18,-sz*0.9,sz*0.18,-sz*1.15,0); endShape(CLOSE);\n  fill(color(190,40,95,80*P.alpha/100)); ellipse(sz*0.2,-sz*0.16,sz*0.7,sz*0.24);\n  if(hov){ dc.save(); blendMode(SCREEN); const gl=0.6+0.4*Math.sin(t*3+i);\n   fill(color((hueC+180)%360,70,95,20*gl*P.alpha/100)); ellipse(0,sz*0.3,sz*1.6,sz*0.24); dc.restore(); blendMode(BLEND); } }\n // wheels (not for hover)\n if(sty!=='hover'){ const wr=sz*(sty==='truck'?0.34:0.26);\n  for(const wx of [-sz*0.68, sz*0.62]){ push(); translate(wx,sz*0.2); rotate(t*spd2*60*(sty==='vintage'?0.7:1));\n   fill(color(0,0,12,98*P.alpha/100)); circle(0,0,wr*2);\n   fill(color(0,0,55,95*P.alpha/100)); for(let q=0;q<4;q++){ push(); rotate(q/4*TAU); rect(-wr*0.08,-wr*0.7,wr*0.16,wr*0.5,1); pop(); }\n   circle(0,0,wr*0.5); pop(); } }\n // headlight cone\n if(P.headlights>0.03){ dc.save(); blendMode(SCREEN);\n  const g2=dc.createLinearGradient(sz*1.1,0,sz*2.6,0);\n  g2.addColorStop(0,color(50,20,95,26*P.headlights*P.alpha/100).toString()); g2.addColorStop(1,'rgba(0,0,0,0)');\n  dc.fillStyle=g2; dc.beginPath(); dc.moveTo(sz*1.1,-sz*0.06); dc.lineTo(sz*2.6,-sz*0.3); dc.lineTo(sz*2.6,sz*0.34); dc.lineTo(sz*1.1,sz*0.14); dc.closePath(); dc.fill();\n  dc.restore(); blendMode(BLEND); }\n pop(); }\nblendMode(BLEND);\n"
+}

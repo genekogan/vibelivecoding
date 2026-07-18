@@ -1,0 +1,107 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.pixel_mosaic",
+  "kind": "post",
+  "name": "Pixel Mosaic",
+  "desc": "Rebuilds the live canvas as a mosaic of chunky tiles \u2014 squares, circles, hexagons, diamonds, or gently tilting squares \u2014 over dark grout, each tile carrying a slow travelling shimmer wave so the mosaic glints like glass tesserae. Cell size dials from chunky 24-across to fine 78-across.",
+  "tags": [
+    "mosaic",
+    "pixel",
+    "tiles",
+    "post",
+    "stained-glass",
+    "retro",
+    "8bit",
+    "grid",
+    "shimmer",
+    "tessellation"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "shimmer speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "cell": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tile size (1 = chunky)"
+    },
+    "gapP": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "grout gap width"
+    },
+    "shimmer": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "travelling glint strength"
+    },
+    "hue": {
+      "default": 0,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "square",
+      "options": [
+        "square",
+        "circle",
+        "hex",
+        "diamond",
+        "tilted"
+      ],
+      "doc": "tile shape"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:13:15+00:00",
+    "fps": 59.5,
+    "motion": 0.0087,
+    "lum": 0.085
+  },
+  "code": "const D = { energy:.4, scale:1, hue:0, cell:.5, gapP:.3, shimmer:.5, x:.5, y:.5, speed:1, density:.5, style:'square', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height;\n// sample the live canvas at low res\nconst GN=Math.round(24+ (1-P.cell)*54); // cells across\nconst GH=Math.max(4,Math.round(GN*Hh/W));\nif(!S.buf || S.gn!==GN || S.w!==W){ S.buf=createGraphics(GN,GH); S.buf.pixelDensity(1); S.gn=GN; S.w=W; }\nS.buf.drawingContext.drawImage(dc.canvas,0,0,GN,GH);\nS.buf.loadPixels();\nconst px=S.buf.pixels;\nconst cw=W/GN, ch=Hh/GH;\nnoStroke();\n// dark grout backdrop\nif(P.gapP>0.02){ fill(color(0,0,4,80*P.gapP*P.alpha/100)); rect(0,0,W,Hh); }\nconst gap=P.gapP*cw*0.24;\nfor(let gy=0;gy<GH;gy++){ for(let gx=0;gx<GN;gx++){\n const idx=4*(gy*GN+gx); let r=px[idx],g=px[idx+1],b=px[idx+2];\n if(r===undefined) continue;\n // shimmer: slow per-tile brightness wave\n if(P.shimmer>0.02){ const sh=1+Math.sin(t*(0.6+en*0.8)*P.speed + gx*0.55 + gy*0.38 + fr(gx*31+gy)*2)*0.14*P.shimmer;\n  r=Math.min(255,r*sh); g=Math.min(255,g*sh); b=Math.min(255,b*sh); }\n dc.fillStyle=`rgba(${r|0},${g|0},${b|0},${P.alpha/100})`;\n const x0=gx*cw, y0=gy*ch;\n if(sty==='circle'){ dc.beginPath(); dc.arc(x0+cw/2,y0+ch/2,(Math.min(cw,ch)/2-gap)*1.02,0,TAU); dc.fill(); }\n else if(sty==='hex'){ const rr=Math.min(cw,ch)*0.62-gap; const hx=x0+cw/2+((gy%2)?cw*0.5:0), hy=y0+ch/2;\n  dc.beginPath(); for(let q=0;q<6;q++){ const a=q/6*TAU+Math.PI/6; const vx=hx+Math.cos(a)*rr, vy=hy+Math.sin(a)*rr;\n   if(q===0)dc.moveTo(vx,vy); else dc.lineTo(vx,vy);} dc.closePath(); dc.fill(); }\n else if(sty==='diamond'){ dc.beginPath(); dc.moveTo(x0+cw/2,y0+gap); dc.lineTo(x0+cw-gap,y0+ch/2);\n  dc.lineTo(x0+cw/2,y0+ch-gap); dc.lineTo(x0+gap,y0+ch/2); dc.closePath(); dc.fill(); }\n else if(sty==='tilted'){ const a=Math.sin(t*0.4+gx*0.3+gy*0.2)*0.25*P.shimmer + fr(gx*7+gy*13)*0.2-0.1;\n  dc.save(); dc.translate(x0+cw/2,y0+ch/2); dc.rotate(a);\n  dc.fillRect(-cw/2+gap,-ch/2+gap,cw-gap*2,ch-gap*2); dc.restore(); }\n else { dc.fillRect(x0+gap,y0+gap,cw-gap*2,ch-gap*2); }\n}}\n// additive travelling glint (visible even over dark content)\nif(P.shimmer>0.02){ dc.save(); dc.globalCompositeOperation='lighter';\n const gph=t*(0.5+en*0.7)*P.speed;\n for(let gy=0;gy<GH;gy++){ for(let gx=0;gx<GN;gx++){\n  const s2=Math.sin(gph + gx*0.5 + gy*0.36 + fr(gx*31+gy)*2);\n  if(s2>0.86){ const aG=(s2-0.86)/0.14*0.16*P.shimmer*P.alpha/100;\n   dc.fillStyle=`rgba(255,246,230,${aG})`;\n   dc.fillRect(gx*cw+gap,gy*ch+gap,cw-gap*2,ch-gap*2); } }}\n dc.restore(); }\n"
+}
