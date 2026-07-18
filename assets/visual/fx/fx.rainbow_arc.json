@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.rainbow_arc",
+  "kind": "fx",
+  "name": "Rainbow",
+  "desc": "A soft translucent rainbow arcing over the scene, bands breathing gently, a shimmer running along the bow and mist glowing at its feet. Classic, pastel, duotone, mono-silver or fire.",
+  "tags": [
+    "rainbow",
+    "arc",
+    "bow",
+    "spectrum",
+    "sky",
+    "weather",
+    "pride",
+    "hope",
+    "pastel",
+    "mist",
+    "overlay",
+    "magical",
+    "prism"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.35,
+      "min": 0,
+      "max": 1,
+      "doc": "breathing"
+    },
+    "arcN": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "arc radius"
+    },
+    "band": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "band width/strength"
+    },
+    "mist": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "foot mist"
+    },
+    "shimmer": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "running shimmer"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.72,
+      "min": 0.4,
+      "max": 1,
+      "doc": "base height"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "classic",
+      "options": [
+        "classic",
+        "pastel",
+        "duo",
+        "mono",
+        "fire"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 75,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:29:26+00:00",
+    "fps": 59.5,
+    "motion": 0.0088,
+    "lum": 0.123
+  },
+  "code": "const D = { energy:.35, arcN:.6, band:.6, mist:.5, shimmer:.5, x:.5, y:.72, scale:1, speed:1, density:.5, style:'classic', seed:0, alpha:75 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst cx=P.x*W, cy=P.y*H+H*0.35;\nconst R=Math.min(W,H)*(0.55+P.arcN*0.45);\nconst bw=(14+P.band*30);\nconst breatheR=0.75+0.25*(0.5+0.5*Math.sin(t*0.31)+0.3*Math.sin(t*0.71));\nfunction bands(){ if(sty==='pastel') return [[0,35],[30,35],[60,35],[120,30],[200,32],[260,30],[290,30]];\n if(sty==='duo') return [[190,70],[320,65]];\n if(sty==='mono') return [[210,10],[210,20],[210,30]];\n if(sty==='fire') return [[0,85],[15,88],[30,90],[45,85]];\n return [[0,75],[28,80],[52,85],[120,65],[205,70],[240,65],[280,60]]; }\nconst B=bands();\ndc.save(); blendMode(SCREEN);\n// arc bands\nnoFill();\nfor(let i=0;i<B.length;i++){\n  const [h,s]=B[i];\n  const rr=R - i*bw*0.9;\n  const alph=(16+P.band*18)*breatheR;\n  stroke(color(h,s,95,alph*P.alpha/100)); strokeWeight(bw);\n  dc.beginPath(); dc.arc(cx,cy,rr,Math.PI*1.05,Math.PI*1.95); dc.stroke();\n}\n// shimmer running along the arc\nif(P.shimmer>0.05){ const sp=((t*(0.12+en*0.12))%1); const sa=Math.PI*(1.05+sp*0.9);\n const sx=cx+Math.cos(sa)*(R-bw*B.length*0.45), sy=cy+Math.sin(sa)*(R-bw*B.length*0.45);\n const rg=dc.createRadialGradient(sx,sy,2,sx,sy,bw*B.length*0.9);\n rg.addColorStop(0,color(50,20,100,(20)*P.shimmer*P.alpha/100).toString()); rg.addColorStop(1,'rgba(255,255,255,0)');\n dc.fillStyle=rg; dc.fillRect(sx-bw*B.length,sy-bw*B.length,bw*B.length*2,bw*B.length*2); }\n// mist at the feet\nif(P.mist>0.05){ for(const s2 of[-1,1]){ const fx2=cx+s2*R*0.92; const gb=0.5+0.5*Math.sin(t*0.5+s2);\n const rg=dc.createRadialGradient(fx2,cy-R*0.06,6,fx2,cy-R*0.06,R*0.24);\n rg.addColorStop(0,color(210,8,100,(10+8*gb)*P.mist*P.alpha/100).toString()); rg.addColorStop(1,'rgba(255,255,255,0)');\n dc.fillStyle=rg; dc.fillRect(fx2-R*0.3,cy-R*0.35,R*0.6,R*0.5); } }\ndc.restore(); blendMode(BLEND); noStroke();\n"
+}
