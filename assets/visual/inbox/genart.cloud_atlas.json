@@ -1,0 +1,120 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.cloud_atlas",
+  "kind": "genart",
+  "name": "Cloud Atlas",
+  "desc": "A living cloud-type field where cumulus puffs, stratus sheets and sheared cirrus wisps continuously form and dissolve across a graded sky, top-lit and drifting on differential wind, with cumulus, overcast stratus, streaky cirrus, dappled mackerel and false-color satellite looks.",
+  "tags": [
+    "cloud",
+    "clouds",
+    "cloudscape",
+    "cumulus",
+    "stratus",
+    "cirrus",
+    "altocumulus",
+    "mackerel",
+    "sky",
+    "skies",
+    "weather",
+    "meteorology",
+    "cloud-atlas",
+    "cloud-field",
+    "overcast",
+    "fair-weather",
+    "satellite",
+    "infrared",
+    "atmosphere",
+    "atmospheric",
+    "fbm",
+    "noise-field",
+    "formation",
+    "dissolving",
+    "drift",
+    "advection",
+    "daylight",
+    "blue-sky",
+    "serene",
+    "sublime",
+    "field",
+    "generative",
+    "genart",
+    "background",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "detail turbulence + top-light contrast"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "cloud-cell size (bigger = broader clouds)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "wind drift + formation rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "cloud coverage (0=clear, 1=overcast)"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "sky base hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sun/light horizontal bias"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "sun/light vertical bias"
+    },
+    "style": {
+      "default": "cumulus",
+      "options": [
+        "cumulus",
+        "stratus",
+        "cirrus",
+        "mackerel",
+        "satellite"
+      ],
+      "doc": "cloud type / render: puffy cumulus / overcast stratus sheet / sheared cirrus wisps / dappled mackerel altocumulus / false-color IR satellite"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic cloud arrangement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, hue: 205, x: .5, y: .5, style: 'cumulus', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b)=> v<a?a:(v>b?b:v);\n// adaptive coarse buffer (fbm-heavy) — never below 360, upscaled with smoothing\nconst BW = clp(Math.round(width/3.2), 384, 512)|0;\nconst BH = Math.max(120, Math.round(BW*height/width))|0;\nif (!S.g || S.key !== BW+'x'+BH){ if (S.g&&S.g.remove) S.g.remove(); S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.key = BW+'x'+BH; }\nconst sd = (P.seed|0);\nif (S.seedUsed !== sd){ S.seedUsed = sd; const fr=i=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453; return s-Math.floor(s);}; S.o1=fr(1)*40; S.o2=fr(2)*40; }\n\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }\n\nconst style = P.style;\nconst t = K.t*(0.5 + P.speed*0.9);\n// incommensurate slow morph: clouds grow & dissolve over minutes, never re-phasing\nconst morph = 0.5 + 0.30*Math.sin(K.t*0.061+sd) + 0.20*Math.sin(K.t*0.113+1.7) + 0.12*Math.sin(K.t*0.211+4.1);\nconst en = clp(P.energy,0,1);\nconst zoom = (BW/BH);\n// style geometry\nlet fxm=1, fym=1, thrBase=0.50, soft=0.10, cell=0, sat=1, top=1;\nif (style==='cumulus'){ thrBase=0.55; soft=0.055; top=1.15; }\nelse if (style==='stratus'){ fxm=0.55; fym=0.55; thrBase=0.42; soft=0.16; sat=0.35; top=0.5; }\nelse if (style==='cirrus'){ fxm=0.34; fym=2.4; thrBase=0.52; soft=0.13; top=0.6; }\nelse if (style==='mackerel'){ thrBase=0.50; soft=0.09; cell=1; top=0.9; }\nelse if (style==='satellite'){ thrBase=0.47; soft=0.10; top=0.75; } // false-color IR, top-down\nconst freq = (2.6/zoom) / clp(P.scale,0.3,3.0) * fxm;\nconst freqY = (2.6/zoom) / clp(P.scale,0.3,3.0) * fym;\nconst cov = (clp(P.density,0,1)-0.5)*0.26;           // coverage bias -> more/less cloud\nconst thr = clp(thrBase - cov - (morph-0.5)*0.10, 0.20, 0.80);\nconst softE = soft + (1-en)*0.05;\nconst cellf = 22/zoom;\nconst hb = ((P.hue + K.section*3)%360+360)%360;\nconst sunx = (P.x-0.5), suny = (P.y-0.5);\n\n// per-octave differential advection -> field \"boils\" (formation/dissolution) without 3D noise\nfunction cloud(px,py){\n  const x=px*freq, y=py*freqY;\n  let v = 0.55*vn(x + t*0.030 + S.o1, y + t*0.006 + S.o2);\n  v += 0.28*vn(x*2.03+5.1 - t*0.017, y*2.03-3.2 + t*0.012);\n  v += 0.13*vn(x*4.07-2.3 + t*0.045, y*4.07+7.7 - t*0.008);\n  v += (0.06+en*0.05)*vn(x*8.1+1.1 + t*0.070, y*8.1-4.4 + t*0.020);\n  if (cell) v += 0.10*Math.sin(px*cellf+0.7)*Math.sin(py*cellf*1.13);\n  return v;\n}\nfunction ss(a,b,x){ const t2=clp((x-a)/(b-a),0,1); return t2*t2*(3-2*t2); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s,xx=c*(1-Math.abs(h%2-1)),m=v-c; let r,g,b; if(h<1){r=c;g=xx;b=0;}else if(h<2){r=xx;g=c;b=0;}else if(h<3){r=0;g=c;b=xx;}else if(h<4){r=0;g=xx;b=c;}else if(h<5){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;} return [(r+m),(g+m),(b+m)]; }\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nconst dY = 1.4;\nconst glow = K.swell*0.06 + A.rms*0.10;\nfor (let j=0;j<BH;j++){\n  const vy = j/BH;\n  for (let i=0;i<BW;i++){\n    const cf0 = cloud(i,j);\n    let cf = ss(thr-softE, thr+softE, cf0);\n    // top-light: brighter where cloud thicker below the sample than above (sun from above)\n    const above = cloud(i - sunx*3, j - dY - suny*1.5), below = cloud(i + sunx*3, j + dY + suny*1.5);\n    const shade = clp(0.5 + top*(below-above)*3.2, 0, 1);\n    let r,gg,b;\n    if (style==='satellite'){\n      // IR false color: dark sea -> grey land-ish -> bright cold cloud tops\n      const sea = 0.06 + 0.05*(1-vy);\n      const cb = 0.30 + cf*0.62; // cloud brightness\n      const cc = hsv(200 - cf*40, (1-cf)*0.25, cb*(0.7+0.3*shade));\n      const base = hsv(210, 0.5, sea);\n      r=(base[0]+(cc[0]-base[0])*cf); gg=(base[1]+(cc[1]-base[1])*cf); b=(base[2]+(cc[2]-base[2])*cf);\n    } else {\n      // sky gradient (deep zenith -> pale horizon) tinted by hue\n      const skyTop = hsv(hb, 0.62*sat, 0.34 + glow);\n      const skyBot = hsv(hb+8, 0.30*sat, 0.66 + glow);\n      const sr=skyTop[0]+(skyBot[0]-skyTop[0])*vy, sg=skyTop[1]+(skyBot[1]-skyTop[1])*vy, sb2=skyTop[2]+(skyBot[2]-skyTop[2])*vy;\n      // cloud body: warm-white top-lit, cool shadowed underside\n      const cbr = 0.55 + shade*(0.34+en*0.05);\n      const cl = hsv(style==='mackerel'? hb+18 : hb+4, 0.06 + (1-shade)*0.10, clp(cbr,0,0.92));\n      const a2 = style==='cirrus' ? cf*0.62 : cf;\n      r=sr+(cl[0]-sr)*a2; gg=sg+(cl[1]-sg)*a2; b=sb2+(cl[2]-sb2)*a2;\n    }\n    const o=4*(j*BW+i);\n    px[o]=clp(r,0,1)*255; px[o+1]=clp(gg,0,1)*255; px[o+2]=clp(b,0,1)*255; px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(g,0,0,width,height);\npop();\n"
+}

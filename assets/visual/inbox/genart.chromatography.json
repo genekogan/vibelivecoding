@@ -1,0 +1,133 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.chromatography",
+  "kind": "genart",
+  "name": "Chromatography",
+  "desc": "A thin-layer chromatography plate developing forever — pigment spots rise from the pencil baseline and separate into colored components by their retention factor, each blob tailing and diffusing as it climbs toward a gently breathing solvent front, lane after lane of continuously eluting dye trains.",
+  "tags": [
+    "chromatography",
+    "tlc",
+    "thin-layer",
+    "paper-chromatography",
+    "column",
+    "elution",
+    "solvent-front",
+    "retention-factor",
+    "rf",
+    "separation",
+    "pigment",
+    "dye",
+    "ink",
+    "spots",
+    "migration",
+    "biochemistry",
+    "analytical",
+    "chemistry",
+    "chemical",
+    "lab",
+    "laboratory",
+    "science",
+    "scientific",
+    "clinical",
+    "uv",
+    "silica",
+    "fluorescent",
+    "rising",
+    "vertical",
+    "generative",
+    "genart",
+    "abstract",
+    "fullbleed",
+    "background",
+    "bg",
+    "colorful",
+    "spectrum"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "spot brightness + glow (obvious at max)"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "lane count 4..12 + components per lane"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "elution / development rate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.2,
+      "doc": "spot size"
+    },
+    "spread": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Rf separation between components"
+    },
+    "climb": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "how high the solvent front carries spots"
+    },
+    "hue": {
+      "default": 44,
+      "min": 0,
+      "max": 360,
+      "doc": "base pigment hue (ink style)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "reserved anchor"
+    },
+    "style": {
+      "default": "ink",
+      "options": [
+        "ink",
+        "uv",
+        "silica",
+        "blueprint",
+        "densitometry"
+      ],
+      "doc": "plate / render philosophy"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "lane component Rfs + colors"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": null,
+  "code": "const D = { energy: .62, density: .5, speed: 1, scale: 1, spread: .5, climb: .5, hue: 44, x: .5, y: .5, style: 'ink', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst st = P.style, u = Math.min(width, height);\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n\n// palette / ground per style\nlet ground, plateEdge, baseHue, dark;\nif (st === 'uv')        { ground = [122,46,26]; plateEdge = [122,30,40]; baseHue = 300; dark = true; }\nelse if (st === 'silica') { ground = [40,20,52]; plateEdge = [38,25,64]; baseHue = ((P.hue%360)+360)%360; dark = false; }\nelse if (st === 'blueprint'){ ground = [212,58,12]; plateEdge = [196,60,55]; baseHue = 196; dark = true; }\nelse if (st === 'densitometry'){ ground = [230,30,9]; plateEdge = [200,40,50]; baseHue = 190; dark = true; }\nelse /* ink */          { ground = [250,42,10]; plateEdge = [250,30,26]; baseHue = ((P.hue%360)+360)%360; dark = true; }\n\nconst lanes = Math.max(4, Math.round(4 + P.density*8));   // 4..12\nif (S.seedUsed !== P.seed || S.lanes !== lanes || S.stKey !== st) {\n  S.seedUsed = P.seed; S.lanes = lanes; S.stKey = st;\n  S.lane = [];\n  for (let l = 0; l < lanes; l++) {\n    const nc = 3 + Math.floor(fr(l*3.7)*3);               // 3..5 components\n    const comps = [];\n    for (let c = 0; c < nc; c++) {\n      const rf = 0.14 + fr(l*7.1 + c*2.9)*0.82;           // retention factor\n      const hue = st === 'silica' ? [96,36,54,20,140][c % 5] + fr(l+c)*18\n                 : (baseHue + c*68 + fr(l*2+c)*40) % 360; // pigment hues\n      comps.push({ rf, hue, sat: 62 + fr(l*5+c)*32, size: 0.7 + fr(l*9+c)*0.8, sd: fr(l*11+c) });\n    }\n    comps.sort((a,b) => a.rf - b.rf);\n    S.lane.push({ comps, phase: fr(l*4.3) });\n  }\n}\n\n// ── plate ground (static, adaptive buffer) ──\nconst BW = Math.max(360, Math.min(680, Math.round(width/2.4)));\nconst BH = Math.max(160, Math.round(BW*height/width));\nconst bkey = BW+'x'+BH+'|'+st+'|'+P.seed+'|'+lanes;\nif (!S.bg || S.bkey !== bkey) {\n  S.bkey = bkey; const g = S.bg || (S.bg = createGraphics(BW, BH));\n  g.colorMode(g.HSB,360,100,100,100); g.pixelDensity(1); g.noStroke(); g.push();\n  for (let y = 0; y < BH; y++) { const f = y/BH; g.fill(ground[0], ground[1], ground[2]*(0.85+0.3*(1-f)), 100); g.rect(0,y,BW,1); }\n  g.blendMode(g.ADD);\n  for (let i = 0; i < 240; i++) { const x=fr(i*1.7)*BW, y=fr(i*2.9+3)*BH, r=(3+fr(i*3.3)*14)*(BW/500);\n    g.fill(ground[0], ground[1]*0.5, ground[2]+10, dark?2.5:3.5); g.ellipse(x,y,r,r); }\n  g.blendMode(g.BLEND);\n  g.stroke(ground[0], ground[1]*0.4, ground[2]*0.5, 30); g.strokeWeight(1);\n  const lw = BW/lanes; for (let l=1;l<lanes;l++) g.line(l*lw,0,l*lw,BH);\n  g.pop();\n}\n\npush();\nimage(S.bg, 0, 0, width, height);\n\n// ── geometry + continuous elution ──\nconst baseline = height*0.90, topM = height*0.10, maxRise0 = baseline - topM;\nconst laneW = width/lanes;\nconst tNow = Math.max(0, K.t) * (0.16 + 0.3*P.speed);\nconst injPeriod = 3.2;\nconst maxRise = maxRise0 * (0.55 + P.climb*0.45);\nconst sep = 0.6 + P.spread*0.9;                          // Rf separation amplitude\nconst spotBrt = 0.5 + P.energy*0.7, gShimmer = 0.85 + K.pulse*0.3 + A.rms*0.5;\nconst drift = 0.5*Math.sin(K.t*0.61) + 0.35*Math.sin(K.t*1.43+1.1);\n\n// decorative solvent front (gentle bob, no seam)\nconst frontY = topM + Math.sin(K.t*0.19)*height*0.012 + Math.sin(K.t*0.37+1.0)*height*0.006;\nblendMode(BLEND); noStroke();\nfill(plateEdge[0], plateEdge[1]*0.5, plateEdge[2], dark?12:18); rect(0, frontY, width, baseline-frontY); // wet region tint\nstroke(plateEdge[0], plateEdge[1], plateEdge[2]+10, dark?40:55); strokeWeight(1.4); line(0, frontY, width, frontY);\n// baseline (pencil origin line)\nstroke(0,0, dark?70:26, dark?36:55); strokeWeight(1.2); line(0, baseline, width, baseline);\nnoStroke();\n\nblendMode(dark ? ADD : BLEND);\nfor (let l = 0; l < lanes; l++) {\n  const xc = (l+0.5)*laneW, ln = S.lane[l];\n  const k0 = Math.floor(tNow / injPeriod);\n  for (let kk = k0; kk >= k0-1; kk--) {\n    if (kk < 0) continue;\n    const age = tNow - (kk*injPeriod + ln.phase*injPeriod);\n    if (age < 0) continue;\n    const front = maxRise * (1 - Math.exp(-age*0.7));\n    // lifetime envelope: rise in, settle, fade out to refresh lane\n    let life = 1;\n    if (age < 0.5) life = age/0.5;\n    else if (age > 3.6) life = Math.max(0, (4.6 - age)/1.0);\n    if (life <= 0) continue;\n    for (let c = 0; c < ln.comps.length; c++) {\n      const cp = ln.comps[c];\n      const rfEff = 0.5 + (cp.rf - 0.5)*sep;               // spread param stretches separation\n      const y = baseline - Math.max(0, Math.min(1, rfEff)) * front;\n      const diff = 1 + age*0.5;                            // spot diffuses/tails as it climbs\n      const rw = u*0.020*cp.size*P.scale*diff;\n      const rh = rw*(1.0 + age*0.28);                      // vertical tailing\n      const wob = Math.sin(K.t*0.8 + c*1.9 + l + drift)*laneW*0.03;\n      const a = Math.min(100, 92*spotBrt*life*gShimmer*(0.7+cp.sd*0.5));\n      if (a < 1) continue;\n      const isBlue = (st==='blueprint'||st==='densitometry');\n      const hh = isBlue ? baseHue : cp.hue, ss = isBlue ? 55 : cp.sat, bb = isBlue ? 90 : (dark? 92 : 78);\n      if (st === 'densitometry') {\n        fill(hh, ss, bb, a*0.5); rect(xc-laneW*0.4, y-1.5, laneW*0.8*(0.3+cp.rf*0.6), 3);\n      } else if (st === 'blueprint') {\n        noFill(); stroke(hh, ss, bb, a); strokeWeight(1.3); ellipse(xc+wob, y, rw*2.2, rh*2.2); noStroke();\n        fill(hh, ss, bb, a*0.5); ellipse(xc+wob, y, 3, 3);\n      } else {\n        fill(hh, ss*0.85, bb, a*0.28); ellipse(xc+wob, y, rw*2.6, rh*2.6);       // halo\n        fill(hh, ss, bb, a*0.8); ellipse(xc+wob, y, rw*1.5, rh*1.5);             // mid\n        fill(hh, Math.min(100,ss+8), Math.min(100,bb+6), a); ellipse(xc+wob, y, rw, rh); // core\n      }\n    }\n  }\n}\npop();\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\nif (P.alpha < 100) { push(); noStroke(); fill(0,0,0,100-P.alpha); rect(0,0,width,height); pop(); }\n"
+}
