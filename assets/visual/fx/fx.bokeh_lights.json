@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.bokeh_lights",
+  "kind": "fx",
+  "name": "Bokeh Lights",
+  "desc": "Layered defocused lights drifting at different depths \u2014 a few crisp in-focus points among big soft out-of-focus orbs with ringed edges, warm, cool, mono, rainbow or festive, an easy dreamy overlay for any scene.",
+  "tags": [
+    "bokeh",
+    "lights",
+    "defocus",
+    "blur",
+    "dreamy",
+    "overlay",
+    "depth",
+    "layers",
+    "festive",
+    "warm",
+    "glow",
+    "orbs",
+    "atmosphere",
+    "cinematic",
+    "soft",
+    "party",
+    "fairy-lights",
+    "3d",
+    "parallax"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "drift liveliness"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "number of lights"
+    },
+    "size": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "orb size"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (mono/warm)"
+    },
+    "depth": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved depth spread"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drift amount"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2.0,
+      "doc": "overall orb scale"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "warm",
+      "options": [
+        "warm",
+        "cool",
+        "mono",
+        "rainbow",
+        "festive"
+      ],
+      "doc": "palette"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 75,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity over scene"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:16:49+00:00",
+    "fps": 54.3,
+    "motion": 0.0154,
+    "lum": 0.092
+  },
+  "code": "const D = { energy:.45, density:.5, size:.5, hue:35, depth:.6, drift:.5, x:.5, y:.5, scale:1, speed:1, style:'warm', seed:0, alpha:75 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext;\nfunction hueFor(i){ if(sty==='rainbow') return (i*47+t*8)%360; if(sty==='cool') return 180+fr(i)*80; if(sty==='mono') return P.hue; if(sty==='festive') return [0,45,140,210,300][i%5]; return 20+fr(i)*45; } // warm\nconst sat=sty==='mono'?15:70;\nconst N=Math.floor(10+P.density*46);\ndc.save();\nblendMode(sty==='mono'?BLEND:ADD);\nfor(let i=0;i<N;i++){\n  const dp = fr(i);                    // depth 0(far)..1(near)\n  const spd = (0.02+dp*0.10)*(0.4+en)*P.speed*(0.4+P.drift);\n  const px = ((fr(i+7) + t*spd*(fr(i+3)>0.5?1:-1))%1)*W;\n  const py = ((fr(i+11) + t*spd*0.6)%1)*H;\n  const wob = Math.sin(t*(0.5+fr(i)*1.5)+i)*10*dp;\n  const r = (6 + dp*dp*90*(0.4+P.size))*P.scale;\n  const foc = dp<0.25;                 // a few in-focus (bright, small, ringed)\n  const h=hueFor(i), br= foc? 100 : (55+dp*40);\n  const a = (foc? 70 : 26+dp*30) * (P.alpha/100) * (0.7+0.3*Math.sin(t*0.7+i));\n  if(foc){ dc.shadowBlur=14; dc.shadowColor=color(h,sat,100).toString(); }\n  fill(color(h,sat*(foc?1:0.8),br, a));\n  circle(px+wob, py+wob*0.6, r);\n  if(!foc){ // soft ring edge (bokeh look)\n    noFill(); stroke(color(h,sat,br, a*0.5)); strokeWeight(r*0.10); circle(px+wob,py+wob*0.6, r*0.94); noStroke();\n  }\n  dc.shadowBlur=0;\n}\ndc.restore();\nblendMode(BLEND);\n"
+}
