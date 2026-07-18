@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.mirror_fold",
+  "kind": "post",
+  "name": "Mirror Fold",
+  "desc": "Mirrors the live scene across a drifting seam \u2014 vertical, horizontal, quad, rotated-diagonal or echo-trails \u2014 with a glowing seam line and shimmer sparks riding it.",
+  "tags": [
+    "mirror",
+    "fold",
+    "reflection",
+    "symmetry",
+    "seam",
+    "echo",
+    "double",
+    "pass",
+    "kaleido",
+    "glitch",
+    "vj",
+    "flip"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "seam drift speed"
+    },
+    "seam": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "seam glow"
+    },
+    "drift": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seam wander"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "seam hue"
+    },
+    "shimmer": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "seam sparks"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "center y"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "vertical",
+      "options": [
+        "vertical",
+        "horizontal",
+        "quad",
+        "diag",
+        "echo"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 85,
+      "min": 0,
+      "max": 100,
+      "doc": "pass strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:44:34+00:00",
+    "fps": 60.2,
+    "motion": 0.0041,
+    "lum": 0.085
+  },
+  "code": "const D = { energy:.4, seam:.6, drift:.5, hue:190, shimmer:.5, x:.5, y:.5, scale:1, speed:1, density:.5, style:'vertical', seed:0, alpha:85 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\nconst seamDrift=Math.sin(t*(0.19+en*0.2)*P.speed)*0.12*P.drift + Math.sin(t*0.09)*0.05*P.drift;\ndc.save();\ndc.globalAlpha=P.alpha/100;\nif(sty==='vertical'||sty==='quad'){ const sx=W*(P.x+seamDrift);\n  dc.save(); dc.translate(sx*2,0); dc.scale(-1,1); dc.drawImage(S.buf.drawingContext.canvas, 0,0,sx,H, 0,0,sx,H); dc.restore(); }\nif(sty==='horizontal'||sty==='quad'){ const sy=H*(P.y+seamDrift*0.7);\n  dc.save(); dc.translate(0,sy*2); dc.scale(1,-1); dc.drawImage(S.buf.drawingContext.canvas, 0,0,W,sy, 0,0,W,sy); dc.restore(); }\nif(sty==='diag'){ dc.save(); dc.translate(W/2,H/2); dc.rotate(Math.PI+seamDrift); dc.globalAlpha=0.65*P.alpha/100; dc.drawImage(S.buf.drawingContext.canvas,-W/2,-H/2,W,H); dc.restore(); }\nif(sty==='echo'){ for(let k=1;k<=3;k++){ dc.globalAlpha=(0.3/k)*P.alpha/100; const off=k*14*(1+seamDrift*3); dc.drawImage(S.buf.drawingContext.canvas, off,off*0.6, W,H); } }\ndc.globalAlpha=1; dc.restore();\n// glowing seam line + shimmer (intrinsic mover)\nif(P.seam>0.02){ dc.save(); blendMode(ADD);\n const sx=W*(P.x+seamDrift);\n const gb=0.5+0.5*Math.sin(t*0.53)+0.3*Math.sin(t*1.13+1);\n if(sty!=='horizontal'){ const g2=dc.createLinearGradient(sx-40,0,sx+40,0);\n  g2.addColorStop(0,color(P.hue,40,90,0).toString()); g2.addColorStop(0.5,color(P.hue,35,100,(10+12*gb)*P.seam*P.alpha/100).toString()); g2.addColorStop(1,color(P.hue,40,90,0).toString());\n  dc.fillStyle=g2; dc.fillRect(sx-40,0,80,H); }\n if(sty==='horizontal'||sty==='quad'){ const sy=H*(P.y+seamDrift*0.7); const g3=dc.createLinearGradient(0,sy-40,0,sy+40);\n  g3.addColorStop(0,color(P.hue,40,90,0).toString()); g3.addColorStop(0.5,color(P.hue,35,100,(10+12*gb)*P.seam*P.alpha/100).toString()); g3.addColorStop(1,color(P.hue,40,90,0).toString());\n  dc.fillStyle=g3; dc.fillRect(0,sy-40,W,80); }\n // shimmer sparks along seam\n if(P.shimmer>0.05){ for(let i=0;i<8;i++){ const yy=((fr(i)+t*0.1)%1)*H; fill(color(P.hue,25,100,(20+20*Math.sin(t*2+i))*P.shimmer*P.alpha/100)); noStroke(); circle(sx+Math.sin(t+i)*6, yy, 2.5);} }\n dc.restore(); blendMode(BLEND); }\nblendMode(BLEND);\n"
+}
