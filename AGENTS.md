@@ -89,6 +89,28 @@ analog of a music kit): `assets/visual/kits/*.viskit.json`, played with
 block fans out to every layer that declares the param, so one dial moves the
 whole scene.
 
+## Three.js Live Surface (toggle p5 ↔ three.js) — read the skill
+
+The third visual system: **200 parameterized threejs catalog scenes + the Little
+Martians tributary (13 composite scenes, 110 archive models) + 594 Sketchfab
+GLBs**, all indexed in `threejs/index.jsonl` (917 assets) and swappable onto the
+live canvas with one renderer active at a time.
+**`.claude/skills/three-live.md` is the START-HERE guide.**
+
+```bash
+python3 assets/tools/find_three.py "little martians flying home through space"
+python3 surface.py preload flock     # warm heavy scenes in the background (p5 stays live)
+python3 surface.py show flock        # ready-gated fade-in; p5 noLoop()'d underneath
+python3 surface.py p5                # instant return; three frame parked at zero cost
+```
+
+Key facts: preload-then-show removes the visible 15s asset-load hole; parked
+frames are display:none (no rAF, state kept → instant re-show, LRU cap 2);
+`surface.py show scene.<id>` deep-links any catalog scene full-bleed
+(`stageOnly=1`) with live Strudel audio (`audioSource=live-rendered-master`).
+The server serves the 500-module threejs browser only because it speaks
+HTTP/1.1 keep-alive with backlog 128 — don't downgrade `livecode_server.py`.
+
 ## Unified System (preferred)
 
 | Component | Purpose |

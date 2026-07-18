@@ -127,6 +127,10 @@ class LivecodeController:
         controller = self
 
         class LivecodeHTTPHandler(http.server.SimpleHTTPRequestHandler):
+            # HTTP/1.1 keep-alive: module-graph pages (threejs browser = 500+ ES
+            # modules) fetch in parallel bursts; per-request connections under
+            # HTTP/1.0 overflow the accept backlog and fail the whole import.
+            protocol_version = "HTTP/1.1"
             # REST API routes
             API_ROUTES = {
                 "GET": {"/status", "/state", "/errors", "/transport", "/q",
@@ -348,7 +352,11 @@ class LivecodeController:
 
         # Threaded: a slow browser round-trip on one command must not block
         # /status polls, file serving, or other commands behind it.
-        self._httpd = http.server.ThreadingHTTPServer((self.host, self.http_port), LivecodeHTTPHandler)
+        class LivecodeHTTPServer(http.server.ThreadingHTTPServer):
+            daemon_threads = True
+            request_queue_size = 128   # default 5 drops connections under module-fetch bursts
+
+        self._httpd = LivecodeHTTPServer((self.host, self.http_port), LivecodeHTTPHandler)
         t = threading.Thread(target=self._httpd.serve_forever, daemon=True)
         t.start()
 
