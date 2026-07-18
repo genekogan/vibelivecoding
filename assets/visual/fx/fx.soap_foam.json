@@ -1,0 +1,108 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "fx.soap_foam",
+  "kind": "fx",
+  "name": "Soap Bubbles",
+  "desc": "Field of translucent soap bubbles drifting upward with wobbling films, iridescent swirling bands, specular highlights, and occasional pops that burst into broken expanding rings before respawning. Styles: classic suds, full-rainbow film, single-hue mono, ghostly clear, and golden honey.",
+  "tags": [
+    "bubbles",
+    "soap",
+    "iridescent",
+    "float",
+    "pop",
+    "overlay",
+    "playful",
+    "translucent",
+    "dreamy",
+    "rising"
+  ],
+  "slots": [
+    "fxA",
+    "fxB"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rise speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "clustersz": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble size"
+    },
+    "iridesc": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "iridescent band strength"
+    },
+    "popRate": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "pop frequency"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "mono/ghost hue"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble count"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "suds",
+      "options": [
+        "suds",
+        "rainbow",
+        "mono",
+        "ghostly",
+        "honey"
+      ],
+      "doc": "film look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:09:36+00:00",
+    "fps": 59.9,
+    "motion": 0.0048,
+    "lum": 0.086
+  },
+  "code": "const D = { energy:.5, scale:1, hue:200, clustersz:.6, iridesc:.7, popRate:.4, x:.5, y:.5, speed:1, density:.6, style:'suds', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,u=Math.min(W,Hh);\nif(!S.bub){ S.bub=[]; }\nconst target=Math.floor(10+P.density*26);\nwhile(S.bub.length<target){ const i=S.bub.length;\n S.bub.push({x:Math.random()*W,y:Hh*0.6+Math.random()*Hh*0.5,r:u*(0.02+Math.random()*0.05)*(0.5+P.clustersz),\n  vy:-(6+Math.random()*18), ph:Math.random()*TAU, w:0.3+Math.random()*0.8, pop:0, hue:Math.random()*360}); }\nif(S.bub.length>target) S.bub.length=target;\nnoStroke();\nconst dt=Math.min(0.05,1/Math.max(20,K.fps||60));\nlet mode=0; if(sty==='rainbow')mode=1; else if(sty==='mono')mode=2; else if(sty==='ghostly')mode=3; else if(sty==='honey')mode=4;\nfor(const b of S.bub){\n if(b.pop>0){ b.pop+=dt*4*P.speed;\n  if(b.pop>1){ b.x=Math.random()*W; b.y=Hh+b.r*2; b.pop=0; b.r=u*(0.02+Math.random()*0.05)*(0.5+P.clustersz); }\n } else {\n  b.y+=b.vy*dt*(0.4+en*1.2)*P.speed; b.x+=Math.sin(t*b.w+b.ph)*0.5*P.speed;\n  if(b.y<-b.r*2){ b.y=Hh+b.r*2; b.x=Math.random()*W; }\n  if(P.popRate>0 && Math.sin(t*0.7+b.ph*7)>0.999-P.popRate*0.004) b.pop=0.01;\n }\n const wob=1+Math.sin(t*(1.2+b.w)+b.ph)*0.06;\n push(); translate(b.x,b.y);\n if(b.pop>0){ // pop burst: expanding broken ring\n  const pr=b.r*(1+b.pop*1.6); noFill();\n  stroke(color(b.hue,30,95,(1-b.pop)*50*P.alpha/100)); strokeWeight(2);\n  for(let k=0;k<8;k++){ const a=k/8*TAU; const seg=0.28;\n   arc(0,0,pr*2,pr*2,a,a+seg); }\n  noStroke();\n } else {\n  let h1=200,s1=15;\n  if(mode===1) h1=(b.hue+t*20)%360, s1=45; else if(mode===2) h1=P.hue, s1=35;\n  else if(mode===3) h1=P.hue, s1=8; else if(mode===4) h1=45, s1=55;\n  // film\n  dc.save(); blendMode(SCREEN);\n  const rg=dc.createRadialGradient(0,0,b.r*0.55,0,0,b.r);\n  rg.addColorStop(0,color(h1,s1,60,3*P.alpha/100).toString());\n  rg.addColorStop(0.82,color(h1,s1,80,10*P.alpha/100).toString());\n  rg.addColorStop(1,color(h1,s1,98,26*P.alpha/100).toString());\n  dc.fillStyle=rg; dc.beginPath(); dc.ellipse(0,0,b.r*wob,b.r/wob,0,0,TAU); dc.fill();\n  // iridescent swirl\n  if(P.iridesc>0.05 && mode!==3){ for(let k=0;k<3;k++){ const a0=t*(0.5+k*0.23)*P.speed+b.ph+k*2;\n   noFill(); stroke(color((h1+k*90+t*30)%360,55,90,(10+8*Math.sin(t+k))*P.iridesc*P.alpha/100));\n   strokeWeight(b.r*0.13); arc(0,0,b.r*1.5,b.r*1.5,a0,a0+1.1); noStroke(); } }\n  // specular dot\n  fill(color(0,0,100,45*P.alpha/100)); ellipse(-b.r*0.36,-b.r*0.4,b.r*0.22,b.r*0.14);\n  dc.restore(); blendMode(BLEND);\n }\n pop(); }\nblendMode(BLEND);\n"
+}

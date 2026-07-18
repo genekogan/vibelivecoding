@@ -1,0 +1,113 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.train_window",
+  "kind": "world",
+  "name": "Train Window",
+  "desc": "The view from a moving train window \u2014 three-speed parallax with drifting clouds and a low sun, rolling far hills, scrolling mid-ground trees or dunes or containers, rushing foreground speed streaks and telephone poles whipping past, all framed by a rounded dark window with optional rain streaks and droplets plus a faint interior reflection. Styles: green countryside, night ride, desert, coastal sailboats, industrial yards.",
+  "tags": [
+    "train",
+    "window",
+    "travel",
+    "parallax",
+    "journey",
+    "landscape",
+    "motion",
+    "rain",
+    "nostalgic",
+    "scrolling"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "train speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "unused master scale"
+    },
+    "rain": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "rain streaks on glass"
+    },
+    "poles": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "telephone poles passing"
+    },
+    "reflect": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "interior reflection ghost"
+    },
+    "timeofday": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "reserved accent hue"
+    },
+    "density": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "mid-ground feature density"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "scroll multiplier"
+    },
+    "style": {
+      "default": "countryside",
+      "options": [
+        "countryside",
+        "night",
+        "desert",
+        "coastal",
+        "industrial"
+      ],
+      "doc": "scenery"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "layout seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:06:33+00:00",
+    "fps": 59.9,
+    "motion": 0.0138,
+    "lum": 0.327
+  },
+  "code": "const D = { energy:.5, scale:1, hue:210, rain:.4, poles:.6, reflect:.4, timeofday:.5, x:.5, y:.5, speed:1, density:.6, style:'countryside', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst W=width,Hh=height,tod=P.timeofday;\nconst spd=(30+en*140)*P.speed; // px/sec ground scroll\nlet skyTop=[215,45,55],skyBot=[28,45,80],far=[220,25,45],mid=[130,30,38],ground=[100,35,30],sun=[35,60,95];\nif(sty==='night'){ skyTop=[230,60,10]; skyBot=[250,50,22]; far=[235,40,14]; mid=[240,35,10]; ground=[240,30,7]; sun=[50,20,95]; }\nelse if(sty==='desert'){ skyTop=[205,55,75]; skyBot=[35,55,90]; far=[20,45,60]; mid=[28,55,55]; ground=[32,60,48]; sun=[45,50,100]; }\nelse if(sty==='coastal'){ skyTop=[210,50,70]; skyBot=[195,30,88]; far=[200,45,55]; mid=[195,50,45]; ground=[80,25,45]; sun=[45,30,100]; }\nelse if(sty==='industrial'){ skyTop=[220,20,40]; skyBot=[30,25,60]; far=[220,15,30]; mid=[220,18,22]; ground=[220,15,16]; sun=[25,50,85]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nconst dark=1-tod*0.0; const hor=Hh*0.52;\n// sky gradient\n{ const g=dc.createLinearGradient(0,0,0,hor*1.2);\n  g.addColorStop(0,Cc(skyTop).toString()); g.addColorStop(1,Cc(skyBot).toString());\n  dc.fillStyle=g; dc.fillRect(0,0,W,hor*1.2); }\nnoStroke();\n// sun/moon low near horizon, slow drift\n{ const sx=W*(0.72+Math.sin(t*0.03)*0.02), sy=hor*0.82;\n  dc.save(); blendMode(SCREEN);\n  const rg=dc.createRadialGradient(sx,sy,4,sx,sy,W*0.22);\n  rg.addColorStop(0,color(sun[0],sun[1],sun[2],40*P.alpha/100).toString());\n  rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(0,0,W,hor*1.2);\n  dc.restore(); blendMode(BLEND);\n  fill(Cc(sun,95)); circle(sx,sy,Math.min(W,Hh)*0.055); }\n// clouds drifting slowly (parallax slowest)\nfor(let i=0;i<4;i++){ const cxq=((fr(i)*1.4 - (t*spd*0.004/W)+i*0.3)%1.2-0.1)*W;\n const cyq=hor*(0.2+fr(i+9)*0.4);\n fill(Cc([skyTop[0],Math.max(0,skyTop[1]-25),Math.min(100,skyTop[2]+22)],55));\n ellipse(cxq,cyq,W*0.18*(0.7+fr(i+3)),W*0.045); }\n// far hills (slow parallax)\nfill(Cc(far,100));\nbeginShape(); vertex(0,hor);\nfor(let k=0;k<=24;k++){ const s2=k/24; const wx=s2*W;\n const ph=(s2*W + t*spd*0.06)/W*4;\n vertex(wx, hor - (Math.sin(ph*2.1+fr(1)*9)*0.5+0.5)*Hh*0.09 - Hh*0.02); }\nvertex(W,hor); endShape(CLOSE);\n// mid band (faster) \u2014 trees/dunes/containers\nfill(Cc(mid,100));\nbeginShape(); vertex(0,hor+Hh*0.05);\nfor(let k=0;k<=30;k++){ const s2=k/30; const wx=s2*W;\n const ph=(s2*W + t*spd*0.25)/W*7;\n vertex(wx, hor+Hh*0.05 - (Math.sin(ph*1.7+2)*0.5+0.5)*Hh*0.05); }\nvertex(W,hor+Hh*0.05); endShape(CLOSE);\n// mid features scrolling\n{ const per=W/ (3+P.density*3);\n  const off=(t*spd*0.35)%per;\n  for(let i=-1;i<W/per+1;i++){ const wx=i*per-off; const r=fr(i+Math.floor((t*spd*0.35)/per)*0+ i*7);\n   push(); translate(wx, hor+Hh*0.04);\n   if(sty==='desert'){ fill(Cc([115,35,35],95)); rect(-4,-26,8,26,2); rect(-14,-18,10,5,2); rect(4,-14,10,5,2); }\n   else if(sty==='industrial'){ fill(Cc([(i%2?15:200),40,35],95)); rect(-per*0.3,-20,per*0.6,20,1); }\n   else if(sty==='coastal'){ fill(Cc([200,55,60],90)); triangle(0,-2,8,-16,8,-2); stroke(Cc([0,0,80],90)); strokeWeight(2); line(8,-16,8,-2); noStroke(); }\n   else { fill(Cc([mid[0],mid[1]+10,mid[2]-8],95)); triangle(-10,0,0,-30-r*14,10,0); rect(-2,-4,4,6); }\n   pop(); } }\n// ground rushing (fastest)\n{ const g=dc.createLinearGradient(0,hor+Hh*0.06,0,Hh);\n  g.addColorStop(0,Cc(ground).toString());\n  g.addColorStop(1,Cc([ground[0],ground[1],Math.max(4,ground[2]-14)]).toString());\n  dc.fillStyle=g; dc.fillRect(0,hor+Hh*0.06,W,Hh); }\n// speed streaks in foreground\nstroke(Cc([ground[0],Math.max(0,ground[1]-10),Math.min(100,ground[2]+18)],45)); strokeWeight(2);\n{ const per=90; const off=(t*spd*1.4)%per;\n for(let i=0;i<W/per+2;i++){ const wx=i*per-off; const wy=hor+Hh*0.12+fr(i)*Hh*0.3;\n  const len=30+fr(i+4)*60; line(wx,wy,wx+len,wy+len*0.06); } }\nnoStroke();\n// telephone poles whipping past\nif(P.poles>0.05){ const per=W/1.6; const off=(t*spd*0.9)%per;\n for(let i=-1;i<3;i++){ const wx=W-(i*per-off)-per*0.3; if(wx<-40||wx>W+40) continue;\n  const nearness=(wx/W); const ph2=0.5+P.poles*0.7;\n  fill(Cc([25,30,18],95*ph2)); rect(wx-4,hor-Hh*0.24,8,Hh*0.6);\n  rect(wx-26,hor-Hh*0.22,52,5);\n  stroke(Cc([0,0,10],60)); strokeWeight(1.5);\n  line(wx-26,hor-Hh*0.21,wx-per,hor-Hh*0.16); line(wx+26,hor-Hh*0.21,wx+per,hor-Hh*0.16); noStroke(); } }\n// window frame + rain streaks + reflection\n{ // rounded window vignette\n  fill(Cc([220,15,8],100));\n  const m=Math.min(W,Hh)*0.045, r=Math.min(W,Hh)*0.09;\n  dc.save(); dc.beginPath();\n  dc.rect(0,0,W,Hh);\n  dc.moveTo(m+r,m); dc.arcTo(W-m,m,W-m,Hh-m,r); dc.arcTo(W-m,Hh-m,m,Hh-m,r); dc.arcTo(m,Hh-m,m,m,r); dc.arcTo(m,m,W-m,m,r); dc.closePath();\n  dc.fill('evenodd'); dc.restore();\n  if(P.rain>0.03){ stroke(color(200,20,95,14*P.rain*P.alpha/100)); strokeWeight(1.6);\n   for(let i=0;i<P.rain*40;i++){ const rx=fr(i)*W + Math.sin(t*0.2+i)*3; const ry=((fr(i+5)+t*(0.06+en*0.08)*(0.5+fr(i+2)))%1)*Hh;\n    line(rx,ry,rx-8,ry+22); }\n   noStroke();\n   for(let i=0;i<P.rain*25;i++){ const rx=fr(i+40)*W; const ry=((fr(i+45)+t*0.02*(0.5+fr(i+7)))%1)*Hh;\n    fill(color(200,15,98,20*P.rain*P.alpha/100)); circle(rx,ry,2.5+fr(i)*3); } }\n  if(P.reflect>0.03){ dc.save(); blendMode(SCREEN);\n   const gx=W*(0.30+Math.sin(t*0.11)*0.05);\n   const rg=dc.createRadialGradient(gx,Hh*0.6,10,gx,Hh*0.6,W*0.3);\n   rg.addColorStop(0,color(210,10,60,7*P.reflect*P.alpha/100).toString());\n   rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(0,0,W,Hh);\n   dc.restore(); blendMode(BLEND); } }\nblendMode(BLEND);\n"
+}

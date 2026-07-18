@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.submarine",
+  "kind": "subject",
+  "name": "Submarine",
+  "desc": "Cartoon submarine bobbing on incommensurate swells with a spinning three-blade propeller, glowing portholes (one blinking, one with a tiny fish swimming past), a periscope that swivels to look around, stern bubble trail, and tail fins. Styles: classic yellow, navy-grey warship, rusty salvage, neon-glow deep-sea, and bubblegum pink.",
+  "tags": [
+    "submarine",
+    "ocean",
+    "underwater",
+    "vehicle",
+    "cartoon",
+    "yellow",
+    "porthole",
+    "periscope",
+    "bubbles",
+    "nautical"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": {
+    "fps": 30
+  },
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "bob amplitude + prop speed"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "overall size"
+    },
+    "portholes": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "porthole count/glow"
+    },
+    "prop": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "propeller spin"
+    },
+    "bubblesS": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "bubble trail density"
+    },
+    "peri": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "periscope extension"
+    },
+    "hue": {
+      "default": 45,
+      "min": 0,
+      "max": 360,
+      "doc": "hull hue (yellow/neon styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "x position"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "y position"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "animation rate"
+    },
+    "style": {
+      "default": "yellow",
+      "options": [
+        "yellow",
+        "navy",
+        "rust",
+        "neon",
+        "pink"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 99,
+      "doc": "bubble seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": {},
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T15:03:20+00:00",
+    "fps": 59.9,
+    "motion": 0.0292,
+    "lum": 0.135
+  },
+  "code": "const D = { energy:.5, scale:1, hue:45, portholes:.6, prop:.7, bubblesS:.6, peri:.6, x:.5, y:.5, speed:1, density:.5, style:'yellow', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst sty=P.style,en=P.energy,t=K.t,dc=drawingContext,TAU=Math.PI*2;\nconst u=Math.min(width,height),sc=u*0.0038*P.scale,cx=P.x*width,cy=P.y*height;\nconst bob=(0.9*Math.sin(t*0.41)+0.5*Math.sin(t*0.93+1))*16*sc*(0.4+en);\nconst dxS=(0.7*Math.sin(t*0.29+2))*18*sc*(0.4+en);\nlet hull=[P.hue,80,85],hull2=[P.hue,85,60],winC=[195,50,80],propC=[210,10,70],glow=false;\nif(sty==='navy'){ hull=[215,30,35]; hull2=[220,35,22]; winC=[50,60,90]; }\nelse if(sty==='rust'){ hull=[22,60,50]; hull2=[18,65,35]; winC=[180,40,80]; }\nelse if(sty==='neon'){ hull=[(P.hue+140)%360,80,70]; hull2=[P.hue,80,45]; winC=[(P.hue+300)%360,90,100]; glow=true; }\nelse if(sty==='pink'){ hull=[330,55,90]; hull2=[320,60,70]; winC=[190,45,90]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\npush(); translate(cx+dxS, cy+bob); rotate(Math.sin(t*0.5)*0.03); scale(sc);\nif(glow){ dc.shadowBlur=18; dc.shadowColor=Cc(hull,80).toString(); }\n// bubbles from stern\nif(P.bubblesS>0.05){ noStroke(); for(let i=0;i<P.bubblesS*14;i++){ const life=(t*(0.3+en*0.2)+fr(i))%1; fill(Cc([195,25,100],(1-life)*35));\n circle(-96-life*70+Math.sin(t*2+i)*6, -6-life*40+fr(i+3)*20, (2+fr(i)*4)*(0.5+life)); } }\n// propeller (spinning)\nif(P.prop>0.05){ push(); translate(-92,4); rotate(t*(6+en*5)*P.speed*P.prop);\n fill(Cc(propC,100)); for(let k=0;k<3;k++){ push(); rotate(k/3*TAU); ellipse(0,-12,7,20); pop(); }\n fill(Cc(hull2,100)); circle(0,0,8); pop(); }\n// tail fins\nfill(Cc(hull2,100)); triangle(-84,4,-64,-16,-64,4); triangle(-84,4,-64,24,-64,4);\n// hull\nfill(Cc(hull,100)); ellipse(0,4,170,74);\nfill(Cc(hull2,50)); ellipse(6,22,150,36);\n// conning tower + periscope\nfill(Cc(hull,100)); rect(-16,-52,44,26,8);\nif(P.peri>0.05){ const look=Math.sin(t*(0.4+en*0.2))*0.4;\n stroke(Cc(hull2,100)); strokeWeight(6); line(0,-52,0,-70-P.peri*10); noStroke();\n push(); translate(0,-70-P.peri*10); rotate(look); fill(Cc(hull2,100)); rect(0,-4,16,8,3); fill(Cc(winC,100)); circle(15,0,5); pop(); }\n// portholes (glowing, one blinks)\nif(P.portholes>0.05){ const np=Math.floor(2+P.portholes*3);\n for(let k=0;k<np;k++){ const px=-46+k*(96/Math.max(1,np-1));\n  const won=k===np-1? (0.4+0.6*Math.sin(t*(1.1))): (0.75+0.25*Math.sin(t*(0.5+k*0.2)+k));\n  dc.save(); if(glow||true){ dc.shadowBlur=8*won; dc.shadowColor=Cc(winC,80).toString(); }\n  fill(Cc(hull2,100)); circle(px,0,24);\n  fill(color(winC[0],winC[1],winC[2],(55+won*45)*P.alpha/100)); circle(px,0,17); dc.restore();\n  // little fish silhouette swims past a window occasionally\n  if(k===1){ const fx2=((t*0.12)%1); if(fx2>0.3&&fx2<0.7){ fill(Cc([220,30,20],90)); const lx=px-8+ (fx2-0.3)/0.4*16;\n   push(); translate(lx,0); ellipse(0,0,7,4); triangle(-4,0,-7,-2,-7,2); pop(); } } } }\ndc.shadowBlur=0; blendMode(BLEND); pop();\n"
+}
