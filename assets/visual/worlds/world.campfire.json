@@ -1,0 +1,139 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.campfire",
+  "kind": "world",
+  "name": "Campfire Night",
+  "desc": "A crackling campfire at night \u2014 flickering layered flames throwing a warm glow pool over the ground, sparks spiralling up, log seats, a silhouette treeline, stars and a soft moon. Storybook, low-poly, ember, noir or with aurora overhead.",
+  "tags": [
+    "campfire",
+    "fire",
+    "night",
+    "camp",
+    "bonfire",
+    "flames",
+    "sparks",
+    "cozy",
+    "warm",
+    "forest",
+    "trees",
+    "stars",
+    "moon",
+    "outdoors",
+    "wilderness",
+    "glow",
+    "embers",
+    "environment",
+    "nature",
+    "aurora"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "light",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "fire size + liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 24,
+      "min": 0,
+      "max": 60,
+      "doc": "flame hue (red-orange-gold)"
+    },
+    "wood": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "flame height / fuel"
+    },
+    "sparks": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "spark count"
+    },
+    "trees": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "treeline density/height"
+    },
+    "stars": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "star count"
+    },
+    "moon": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "moon size (0=none)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "fire x"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon height"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "storybook",
+      "options": [
+        "storybook",
+        "lowpoly",
+        "ember",
+        "noir",
+        "aurora"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T07:11:49+00:00",
+    "fps": 59.5,
+    "motion": 0.0285,
+    "lum": 0.132
+  },
+  "code": "const D = { energy:.6, scale:1, hue:24, wood:.5, sparks:.6, trees:.6, stars:.7, moon:.4, x:.5, y:.5, speed:1, density:.5, style:'storybook', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext;\nconst horizon=H*(0.5+(P.y-0.5)*0.4);\nconst fx=P.x*W, fy=horizon+ (H-horizon)*0.42;   // fire base\nconst flick=(Math.sin(t*7.1)*0.4+Math.sin(t*11.3+1)*0.3+Math.sin(t*4.7)*0.3)*0.5+0.5; // soft, NOT strobe\n\nlet skyT=[240,55,10], skyB=[255,40,22], groundc=[30,30,12], treec=[150,40,7], firec=[P.hue,90,100], fire2=[(P.hue+18)%360,80,100], emberc=[P.hue-8,90,90], moonc=[50,20,98];\nif(sty==='lowpoly'){ skyT=[250,50,14]; skyB=[280,45,30]; groundc=[260,30,16]; treec=[260,40,10]; }\nelse if(sty==='ember'){ skyT=[15,50,8]; skyB=[20,70,22]; groundc=[16,50,12]; treec=[10,40,6]; firec=[35,95,100]; fire2=[15,90,95]; }\nelse if(sty==='noir'){ skyT=[220,45,8]; skyB=[215,35,20]; groundc=[215,25,10]; treec=[215,30,6]; firec=[210,20,95]; fire2=[210,35,70]; emberc=[210,25,80]; moonc=[210,10,96]; }\nelse if(sty==='aurora'){ skyT=[240,60,10]; skyB=[200,55,25]; groundc=[200,30,10]; treec=[190,40,6]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n\n// sky\nlet g=dc.createLinearGradient(0,0,0,horizon); g.addColorStop(0,Cc(skyT,100).toString()); g.addColorStop(1,Cc(skyB,100).toString());\ndc.fillStyle=g; noStroke(); rect(0,0,W,horizon+1);\n// stars\nif(P.stars>0.05){ for(let i=0;i<P.stars*140;i++){ const x=fr(i)*W,y=fr(i+50)*horizon*0.9; const tw=0.4+0.6*Math.sin(t*(1+fr(i)*2)+fr(i)*7); fill(Cc([210,10,100],30+tw*55)); circle(x,y,0.6+fr(i+3)*1.3);} }\n// aurora curtains\nif(sty==='aurora'){ dc.save(); dc.globalAlpha=0.5; for(let b=0;b<3;b++){ const hue=[150,175,120][b]; noFill(); for(let k=0;k<3;k++){ stroke(color(hue,70,80,20)); strokeWeight(10-k*2); beginShape(); for(let x=0;x<=W;x+=W/24){ const y=horizon*0.35 + Math.sin(x*0.006+t*0.5+b)*40 + k*8 - b*30; vertex(x,y);} endShape(); } } dc.restore(); noStroke(); }\n// moon\nif(P.moon>0.05){ const mr=P.moon*40+14, mx=W*0.82, my=horizon*0.4; dc.save(); dc.shadowBlur=30; dc.shadowColor=Cc(moonc,70).toString(); fill(Cc(moonc,100)); circle(mx,my,mr*2); dc.restore(); fill(Cc(skyT,60)); circle(mx+mr*0.5,my-mr*0.3,mr*1.4); }\n// ground\nlet g2=dc.createLinearGradient(0,horizon,0,H); g2.addColorStop(0,Cc([groundc[0],groundc[1],groundc[2]+8],100).toString()); g2.addColorStop(1,Cc([groundc[0],groundc[1],groundc[2]-6],100).toString());\ndc.fillStyle=g2; rect(0,horizon,W,H-horizon+1);\n// fire glow pool on ground (lights the scene) \u2014 breathes on a slow incommensurate cycle\n// so a LARGE area of the frame brightens/dims over 8s (carries the motion gate).\nconst breathG = 0.55 + 0.45*(0.5 + 0.5*Math.sin(t*0.31) + 0.35*Math.sin(t*0.67+1.2));\nconst poolR = H*(0.34 + 0.30*breathG)*(0.6+en);\ndc.save(); const rg=dc.createRadialGradient(fx,fy,4,fx,fy,poolR); rg.addColorStop(0,color(P.hue,80,92,(38+50*breathG)*(0.5+flick*0.5)).toString()); rg.addColorStop(0.5,color(P.hue+10,80,70,22*breathG).toString()); rg.addColorStop(1,color(P.hue,80,40,0).toString()); dc.fillStyle=rg; rect(0,horizon-H*0.5,W,H); dc.restore();\n// trees silhouette\nif(P.trees>0.05){ noStroke(); fill(Cc(treec,100)); const nt=Math.floor(3+P.trees*8); for(let i=0;i<nt;i++){ const x=fr(i*7)*W; const th=(0.12+fr(i)*0.22)*H*P.trees; const tw=th*0.28; triangle(x-tw,horizon+4, x+tw,horizon+4, x, horizon-th); triangle(x-tw*0.7,horizon-th*0.4, x+tw*0.7,horizon-th*0.4, x,horizon-th*1.2); } }\n\n// log seats (two arcs)\nnoStroke(); fill(Cc([25,40,22],100)); ellipse(fx-90, fy+8, 60,18); ellipse(fx+92, fy+6, 56,16);\n\n// FIRE: logs + flames + sparks\n// logs\npush(); translate(fx,fy);\nconst lean = Math.sin(t*0.37)*0.07 + Math.sin(t*0.79+1.3)*0.05 + Math.sin(t*1.9)*0.03;  // slow incommensurate flame sway\nstroke(Cc([22,55,26],100)); strokeWeight(9); strokeCap(ROUND);\nline(-30,6,26,-4); line(-24,-2,30,8); line(-6,10,4,-8);\nnoStroke();\n// flame layers (soft flicker)\nconst fh=(48+P.wood*40)*(0.7+en)*(0.85+flick*0.3);\ndc.save(); dc.shadowBlur=26; dc.shadowColor=Cc(firec,90).toString();\nfor(let L=0;L<3;L++){ const col=[firec,fire2,[P.hue-6,80,100]][L]; const s=1-L*0.28; fill(Cc(col, 90));\n  push(); rotate(lean*(0.6+L*0.5));\n  beginShape(); vertex(-18*s,0);\n  for(let k=0;k<=8;k++){ const yy=-fh*s*k/8; const wob=Math.sin(t*(5+L*2)+k*1.3+fr(k)*3)*(6*s)*(k/8); const xx=wob*(1) + Math.sin(k*2+t)*2; vertex(xx*(k<8?1:0), yy); }\n  for(let k=8;k>=0;k--){ const yy=-fh*s*k/8; const wob=Math.sin(t*(5+L*2)+k*1.3+9)*(6*s)*(k/8); vertex((16*s*(1-k/8))+wob, yy); }\n  endShape(CLOSE); pop(); }\ndc.restore();\n// core\nfill(Cc([48,60,100],90)); ellipse(0,-fh*0.2, 14, fh*0.4);\npop();\n\n// sparks rising\nif(P.sparks>0.05){ noStroke(); const ns=Math.floor(P.sparks*40); for(let i=0;i<ns;i++){ const life=(t*(0.4+en*0.5)+fr(i))%1; const sx=fx+(fr(i+9)-0.5)*40*(0.3+life) + Math.sin(t*2+i)*8; const sy=fy - life*(120+P.sparks*140); const a=(1-life)*90; fill(Cc([P.hue+life*20,80,100], a)); circle(sx,sy, (1.4)*(1-life*0.5)); } }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
