@@ -1,0 +1,121 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.commuters",
+  "kind": "crowd",
+  "name": "Commuters",
+  "desc": "Silhouette pedestrians striding across in both directions \u2014 swinging arms, bobbing heads, some under coloured umbrellas, a streetlight wash behind and optional rain. Noir, dawn, neon, winter or sepia.",
+  "tags": [
+    "commuters",
+    "pedestrians",
+    "walking",
+    "crowd",
+    "street",
+    "city",
+    "silhouettes",
+    "umbrellas",
+    "rain",
+    "crossing",
+    "rush-hour",
+    "people",
+    "urban",
+    "noir"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "n": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "count"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "tint"
+    },
+    "brollies": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "umbrella fraction"
+    },
+    "rain": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "rain"
+    },
+    "y": {
+      "default": 0.78,
+      "min": 0,
+      "max": 1,
+      "doc": "baseline"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "offset x"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "figure size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "noir",
+      "options": [
+        "noir",
+        "dawn",
+        "neon",
+        "winter",
+        "sepia"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 95,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:57:24+00:00",
+    "fps": 59.9,
+    "motion": 0.0168,
+    "lum": 0.097
+  },
+  "code": "const D = { energy:.5, n:.5, hue:210, brollies:.4, rain:.3, y:.78, x:.5, scale:1, speed:1, density:.5, style:'noir', seed:0, alpha:95 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst base=P.y*H;\nconst N=Math.floor(5+P.n*16);\nlet figC=[0,0,8],briH=[0,45,200,330,140],wash=[210,20,70];\nif(sty==='dawn'){ figC=[250,25,22]; wash=[25,45,80]; }\nelse if(sty==='neon'){ figC=[P.hue,60,30]; briH=[300,190,140,45,0]; wash=[(P.hue+150)%360,50,80]; }\nelse if(sty==='winter'){ figC=[220,20,15]; wash=[210,10,88]; }\nelse if(sty==='sepia'){ figC=[35,30,18]; briH=[35,40,30,25,45]; wash=[38,25,75]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\n// street light wash behind (readability + motion carrier)\ndc.save(); blendMode(SCREEN);\n{ const gx=W*(0.5+Math.sin(t*0.24)*0.4); const gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.9);\n  const rg=dc.createRadialGradient(gx,base-H*0.1,10,gx,base-H*0.1,W*0.5);\n  rg.addColorStop(0,color(wash[0],wash[1],wash[2],(9+9*gb)*P.alpha/100).toString());\n  rg.addColorStop(1,color(wash[0],wash[1],50,0).toString());\n  dc.fillStyle=rg; dc.fillRect(0,base-H*0.4,W,H*0.5); }\ndc.restore(); blendMode(BLEND);\n// walking silhouettes crossing both directions\nfor(let i=0;i<N;i++){\n  const dir=fr(i+4)>0.5?1:-1;\n  const spd=(0.05+fr(i)*0.05)*(0.5+en)*P.speed;\n  const px=((fr(i)+t*spd*dir+10)%1.15-0.075)*W;\n  const dp=fr(i+7);\n  const s=(0.6+dp*0.5)*P.scale;\n  const hh=H*0.13*s;\n  const py=base - dp*H*0.05;\n  const ph=t*(3.6+en*1.6)*P.speed + i*2;\n  const legA=Math.sin(ph)*0.5, armA=Math.sin(ph+Math.PI)*0.35;\n  push(); translate(px,py); scale(dir,1);\n  stroke(Cc(figC, 88-dp*16)); strokeWeight(hh*0.1); strokeCap(ROUND); noFill();\n  // legs walking\n  line(0,-hh*0.5, Math.sin(legA)*hh*0.28, 0);\n  line(0,-hh*0.5, Math.sin(-legA)*hh*0.28, 0);\n  // torso lean forward slightly\n  line(0,-hh*0.5, hh*0.06,-hh*0.95);\n  // arms\n  line(hh*0.03,-hh*0.8, hh*0.03+Math.sin(armA)*hh*0.2, -hh*0.55);\n  line(hh*0.03,-hh*0.8, hh*0.03+Math.sin(-armA)*hh*0.2, -hh*0.55);\n  noStroke(); fill(Cc(figC, 88-dp*16));\n  circle(hh*0.07,-hh*1.05, hh*0.2);   // head bobbing with gait\n  // umbrella\n  if(P.brollies>0.05 && fr(i+9)<P.brollies){ const bh=briH[i%briH.length];\n    fill(color(bh, sty==='noir'?60:70, sty==='noir'?50:80,(90-dp*20)*P.alpha/100));\n    arc(hh*0.07,-hh*1.28, hh*0.75, hh*0.5, Math.PI, TAU, CHORD);\n    stroke(Cc(figC,80)); strokeWeight(hh*0.04); line(hh*0.07,-hh*1.28, hh*0.07,-hh*0.9); noStroke(); }\n  pop();\n}\n// rain streaks\nif(P.rain>0.05){ stroke(Cc([210,15,80],22*P.rain)); strokeWeight(1);\n for(let i=0;i<P.rain*80;i++){ const rx=(fr(i)*W+t*20)%W; const ry=(fr(i+3)*H+t*(320+en*200))%H; line(rx,ry,rx-3,ry+14);} noStroke(); }\nblendMode(BLEND);\n"
+}

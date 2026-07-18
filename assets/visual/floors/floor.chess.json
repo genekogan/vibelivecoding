@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "floor.chess",
+  "kind": "floor",
+  "name": "Chessboard Hall",
+  "desc": "An endless chessboard floor scrolling slowly toward you in perspective with distance fade, a sweeping sheen and fog at the horizon \u2014 polished marble, obsidian, Wonderland pink, neon or sandstone.",
+  "tags": [
+    "chess",
+    "checkerboard",
+    "floor",
+    "marble",
+    "perspective",
+    "hall",
+    "surreal",
+    "wonderland",
+    "tiles",
+    "black-white",
+    "endless",
+    "classic",
+    "elegant",
+    "alice"
+  ],
+  "slots": [
+    "floor"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "tiles": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tile density"
+    },
+    "hue": {
+      "default": 35,
+      "min": 0,
+      "max": 360,
+      "doc": "tint hue"
+    },
+    "sheen": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "sweeping sheen"
+    },
+    "fog": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "horizon fog"
+    },
+    "warp": {
+      "default": 0.0,
+      "min": 0,
+      "max": 1,
+      "doc": "dreamlike warp"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.42,
+      "min": 0.25,
+      "max": 0.6,
+      "doc": "horizon height"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "marble",
+      "options": [
+        "marble",
+        "obsidian",
+        "wonderland",
+        "neon",
+        "sand"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:54:59+00:00",
+    "fps": 62.9,
+    "motion": 0.2133,
+    "lum": 0.253
+  },
+  "code": "const D = { energy:.4, tiles:.5, hue:35, sheen:.6, fog:.4, warp:.0, x:.5, y:.42, scale:1, speed:1, density:.5, style:'marble', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst hor=H*(0.28+(P.y-0.5)*0.3);\nlet dark=[P.hue,15,16],light=[P.hue,10,88],fogC=[P.hue,10,60];\nif(sty==='obsidian'){ dark=[260,25,8]; light=[260,15,40]; fogC=[260,20,50]; }\nelse if(sty==='wonderland'){ dark=[330,55,55]; light=[190,25,95]; fogC=[300,25,80]; }\nelse if(sty==='neon'){ dark=[P.hue,60,10]; light=[(P.hue+180)%360,60,55]; fogC=[(P.hue+180)%360,50,70]; }\nelse if(sty==='sand'){ dark=[30,35,45]; light=[40,20,85]; fogC=[35,15,80]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nfunction proj(fx,fz){ const zz=0.12+fz*3.4; const sy=hor+(H-hor)*(1/(1+zz*0.85)); const sx=W*0.5+fx*W*0.75*(1/(1+zz*0.5)); return [sx,sy]; }\nconst NX=Math.floor(8+P.tiles*8), NZ=Math.floor(10+P.tiles*10);\n// slow board scroll toward viewer (guaranteed motion) + optional warp\nconst scroll=(t*(0.05+en*0.12)*P.speed)%(2/NZ);\nfor(let zi=NZ-1; zi>=0; zi--){\n  const fz0=zi/NZ - scroll*NZ/2*(1/NZ)*2, fz1=(zi+1)/NZ - scroll;\n  if(fz1<0) continue;\n  for(let xi=0; xi<NX; xi++){\n    const fx0=(xi/NX-0.5)*2, fx1=((xi+1)/NX-0.5)*2;\n    const wob=P.warp*Math.sin(t*0.7+xi+zi)*0.02;\n    const [ax,ay]=proj(fx0,Math.max(0,fz0)+wob),[bx,by]=proj(fx1,Math.max(0,fz0)+wob),[ccx,ccy]=proj(fx1,fz1+wob),[ddx,ddy]=proj(fx0,fz1+wob);\n    const isDark=(xi+zi+Math.floor(scroll*NZ*0.5))%2===0;\n    const base=isDark?dark:light;\n    // distance fade\n    const fade=1-Math.min(1,fz0*0.85);\n    noStroke(); fill(Cc([base[0],base[1],Math.max(4,base[2]*fade+ (1-fade)*fogC[2]*0.3)],100));\n    quad(ax,ay,bx,by,ccx,ccy,ddx,ddy);\n    // marble veins on light tiles (cheap arcs)\n    if(!isDark && sty==='marble' && fz0<0.4){ stroke(Cc([base[0],base[1]+8,base[2]-18],35)); strokeWeight(0.8); noFill();\n      arc((ax+ccx)/2,(ay+ccy)/2, (bx-ax)*0.7, (ccy-ay)*0.7, fr(xi*7+zi)*TAU, fr(xi*7+zi)*TAU+2); noStroke(); }\n  }\n}\n// sweeping sheen (motion carrier)\nif(P.sheen>0.05){ dc.save(); blendMode(SCREEN); const shx=W*(0.5+Math.sin(t*0.33)*0.45);\n  const rg=dc.createRadialGradient(shx,hor+(H-hor)*0.35,5,shx,hor+(H-hor)*0.35,W*0.4);\n  rg.addColorStop(0,color(fogC[0],fogC[1],100,(14)*P.sheen*P.alpha/100).toString()); rg.addColorStop(1,color(fogC[0],fogC[1],80,0).toString());\n  dc.fillStyle=rg; dc.fillRect(0,hor,W,H-hor); dc.restore(); blendMode(BLEND); }\n// horizon fog band\nif(P.fog>0.05){ dc.save(); const g2=dc.createLinearGradient(0,hor,0,hor+H*0.18);\n  g2.addColorStop(0,color(fogC[0],fogC[1],fogC[2],40*P.fog*P.alpha/100).toString()); g2.addColorStop(1,color(fogC[0],fogC[1],fogC[2],0).toString());\n  dc.fillStyle=g2; dc.fillRect(0,hor,W,H*0.18); dc.restore(); }\nblendMode(BLEND);\n"
+}

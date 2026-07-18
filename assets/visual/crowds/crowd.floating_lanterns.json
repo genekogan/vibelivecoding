@@ -1,0 +1,128 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "crowd.floating_lanterns",
+  "kind": "crowd",
+  "name": "Floating Lanterns",
+  "desc": "A festival of paper sky-lanterns rising and drifting at different depths, each glowing and flickering warmly with a low reflection near the ground. Warm festival, multicolour, ghost-blue, rose or gold.",
+  "tags": [
+    "lanterns",
+    "sky-lanterns",
+    "festival",
+    "floating",
+    "rising",
+    "paper",
+    "glow",
+    "night",
+    "tangled",
+    "wish",
+    "celebration",
+    "asia",
+    "warm",
+    "crowd",
+    "romantic"
+  ],
+  "slots": [
+    "crowd"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "n": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "count"
+    },
+    "hue": {
+      "default": 30,
+      "min": 0,
+      "max": 360,
+      "doc": "lantern hue"
+    },
+    "glow": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "glow"
+    },
+    "sway": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "drift sway"
+    },
+    "riseR": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "rise rate"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "baseline"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "offset x"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "figure size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "festival",
+      "options": [
+        "festival",
+        "multi",
+        "ghost",
+        "rose",
+        "gold"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 95,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T13:57:07+00:00",
+    "fps": 59.9,
+    "motion": 0.0282,
+    "lum": 0.098
+  },
+  "code": "const D = { energy:.4, n:.6, hue:30, glow:.7, sway:.5, riseR:.5, y:.6, x:.5, scale:1, speed:1, density:.5, style:'festival', seed:0, alpha:95 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nconst N=Math.floor(5+P.n*22);\nfunction lHue(i){ if(sty==='multi') return [0,30,50,330,190][i%5]; if(sty==='ghost') return 190+fr(i)*30; if(sty==='rose') return 330+fr(i)*20; if(sty==='gold') return 42; return P.hue+fr(i)*18; }\ndc.save(); blendMode(ADD);\nfor(let i=0;i<N;i++){\n  const dp=fr(i);   // depth\n  const rise=(0.02+dp*0.05)*(0.4+en)*P.speed*(0.5+P.riseR);\n  const yy=H*1.1-((fr(i+3)+t*rise)%1.25)*H*1.25;\n  const xx=fr(i)*W + Math.sin(t*(0.3+dp*0.4)+i)*40*P.sway + Math.sin(t*0.13+i*2)*20;\n  const sz=(10+dp*dp*30)*(0.6+P.scale*0.5);\n  const h=lHue(i);\n  const fl=0.75+0.25*Math.sin(t*(2+fr(i)*3)+i*2);\n  // glow\n  dc.shadowBlur=(14+sz*0.8)*P.glow*fl; dc.shadowColor=color(h,70,100).toString();\n  // paper body (tapered cylinder)\n  fill(color(h,55,95,(55+fl*35)*P.alpha/100)); noStroke();\n  beginShape(); vertex(xx-sz*0.45,yy-sz*0.6); bezierVertex(xx-sz*0.62,yy, xx-sz*0.42,yy+sz*0.55, xx-sz*0.3,yy+sz*0.6);\n  vertex(xx+sz*0.3,yy+sz*0.6); bezierVertex(xx+sz*0.42,yy+sz*0.55, xx+sz*0.62,yy, xx+sz*0.45,yy-sz*0.6); endShape(CLOSE);\n  // inner flame core\n  fill(color(45,60,100,(50+fl*40)*P.alpha/100)); ellipse(xx,yy+sz*0.18,sz*0.4,sz*0.5);\n  // rim + opening\n  dc.shadowBlur=0;\n  fill(color(h,70,60,60*P.alpha/100)); rect(xx-sz*0.45,yy-sz*0.66,sz*0.9,sz*0.1,2);\n  // reflection streak below (if low)\n  if(yy>H*0.75){ fill(color(h,50,90,14*P.alpha/100)); ellipse(xx,H-(yy-H*0.75)*0.4, sz*0.8, sz*0.2); }\n}\ndc.restore(); blendMode(BLEND);\n"
+}
