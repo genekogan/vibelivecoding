@@ -1,5 +1,42 @@
 # Visual Factory — resumable state
 
+## SESSION 4 (2026-07-18, overnight) — non-genart figurative/environment push, IN PROGRESS
+Catalog **628 → 704**. User brief: STOP genart, grow every OTHER family toward 1000
+with figurative characters, aesthetic environments, effects, rich params. **SERIAL,
+one asset at a time, NO subagents** (user was emphatic). Single canvas cell :8766.
+Full brief + creative direction: `scratchpad/gf/OVERNIGHT_PLAN.md`. Idea queue +
+progress: `scratchpad/gf/IDEAS.md`. Author sources: `scratchpad/gf/auth/*.js`.
+
+**Delivered this session (all verified on the live canvas):**
+- Drained the 54-asset wave-B backlog (+49; 5 static fails left in inbox for rescue).
+- Subjects: pelican_bicycle (the Simon Willison benchmark), face (6-style portrait),
+  robot, cat, astronaut, ghost, fish, owl, skull, dancer, jellyfish, wizard.
+- Worlds: retrowave (synthwave sunset), campfire, rave_hall, underwater_reef,
+  aurora_tundra, volcano, cyber_city.
+- fx: bokeh_lights, snowfall, confetti, fireflies. Sets: disco_ball, neon_sign, balloons.
+- Floors: dancefloor, water_ripple. Crowds: club_dancers, birds_flock. +8 palettes.
+
+**HARD-WON LESSON (bake into any resume): the motion gate is the #1 failure for these.**
+Two recurring traps and their fixes, proven this session:
+1. **Silhouettes/dark subjects over the dark navy validation bed read 0.0000** (invisible).
+   Fix: add a faint drifting sky/floor light-wash BEHIND them (club_dancers, birds_flock).
+2. **Small/thin/sparse or subtly-animated assets land marginal (<0.004)** — fireflies,
+   neon_sign, wizard, dancer, campfire all needed rescue. Fixes that work: (a) a broad
+   low-alpha drifting ambient glow or breathing light-pool that carries the gate
+   (fireflies, campfire, neon_sign halo); (b) make heroes BIG and give them a strong
+   incommensurate whole-body bob+drift (≥12*sc) from the FIRST draft; (c) chasing/marquee
+   elements for props. **Build the motion carrier in up front — don't author then iterate.**
+Also: never name a JS var after a p5 global (`line` shadowing crashed cat.js).
+
+**Resume:** server+host on :8766 should be running (metronome __clk track; recording off).
+Pick the next `[ ]` item from `scratchpad/gf/IDEAS.md`, author `scratchpad/gf/auth/<id>.js`,
+node-check, build JSON to inbox, `validate.py --port 8766 --snapshots autopilot/snapshots`,
+commit every ~2-3. genart_manifest + refresh_counts + build_index after each commit.
+Still to do toward 1000: the unchecked items in IDEAS.md + more of everything.
+
+---
+
+
 _Last updated: 2026-07-17 ~07:30 ET, mid-run (SESSION 3)._
 
 ## SESSION 3 (2026-07-17) — wave-2 "triple the catalog" run, IN FLIGHT
