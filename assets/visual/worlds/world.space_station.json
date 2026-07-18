@@ -1,0 +1,127 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "world.space_station",
+  "kind": "world",
+  "name": "Space Station",
+  "desc": "A rotating ring station drifting in orbit \u2014 habitat pods with lit windows wheeling around the hub, solar panels, blinking beacons and a tiny spacewalker tumbling past, above a huge banded planet limb with an atmosphere glow. Orbit blue, Mars, gas giant, ice or nebula.",
+  "tags": [
+    "space",
+    "station",
+    "orbit",
+    "planet",
+    "sci-fi",
+    "ring",
+    "solar-panels",
+    "astronaut",
+    "stars",
+    "spacecraft",
+    "cosmos",
+    "satellite",
+    "habitat",
+    "futuristic"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 1.6,
+      "doc": "reserved"
+    },
+    "hue": {
+      "default": 210,
+      "min": 0,
+      "max": 360,
+      "doc": "tint"
+    },
+    "planet": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "planet size"
+    },
+    "ringN": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "habitat ring"
+    },
+    "lights": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "window lights"
+    },
+    "starsN": {
+      "default": 0.7,
+      "min": 0,
+      "max": 1,
+      "doc": "stars"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.3,
+      "max": 0.7,
+      "doc": "horizon"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "style": {
+      "default": "orbit",
+      "options": [
+        "orbit",
+        "mars",
+        "gas",
+        "ice",
+        "nebula"
+      ],
+      "doc": "look"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:33:37+00:00",
+    "fps": 57.5,
+    "motion": 0.0063,
+    "lum": 0.195
+  },
+  "code": "const D = { energy:.45, scale:1, hue:210, planet:.6, ringN:.5, lights:.7, starsN:.7, x:.5, y:.5, speed:1, density:.5, style:'orbit', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nlet space=[245,60,7],planetC=[P.hue,55,55],planet2=[P.hue+20,60,35],hullC=[210,8,70],hull2=[210,12,45],winC=[45,60,100];\nif(sty==='mars'){ planetC=[15,70,60]; planet2=[10,75,40]; }\nelse if(sty==='gas'){ planetC=[35,55,70]; planet2=[25,60,50]; }\nelse if(sty==='ice'){ planetC=[190,40,80]; planet2=[200,50,60]; }\nelse if(sty==='nebula'){ space=[280,55,10]; planetC=[300,45,55]; planet2=[320,55,38]; }\nfunction Cc(a,al){ return color(a[0],a[1],a[2],(al==null?100:al)*P.alpha/100); }\nnoStroke(); fill(Cc(space,100)); rect(0,0,W,H);\n// stars\nif(P.starsN>0.05){ for(let i=0;i<P.starsN*150;i++){ const tw=0.4+0.6*Math.sin(t*(1+fr(i)*2)+i); fill(Cc([210,10,100],18+tw*50)); circle(fr(i)*W,fr(i+9)*H,0.6+fr(i+3)*1.4);} }\n// nebula wisp\nif(sty==='nebula'){ dc.save(); blendMode(SCREEN); for(let i=0;i<3;i++){ const nx=W*(0.3+Math.sin(t*0.05+i*2)*0.3); const rg=dc.createRadialGradient(nx,H*(0.3+i*0.2),10,nx,H*(0.3+i*0.2),W*0.3);\n rg.addColorStop(0,color((280+i*30)%360,50,60,8).toString()); rg.addColorStop(1,'rgba(0,0,0,0)'); dc.fillStyle=rg; dc.fillRect(0,0,W,H);} dc.restore(); blendMode(BLEND); }\n// planet below (huge limb + atmosphere glow, slow rotation via band drift)\nif(P.planet>0.05){ const pr=W*(0.7+P.planet*0.5); const px2=W*0.5, py2=H+pr*0.62;\n dc.save(); dc.shadowBlur=40; dc.shadowColor=Cc([planetC[0],40,80],50).toString();\n fill(Cc(planetC,100)); circle(px2,py2,pr*2); dc.restore();\n // surface bands drifting\n dc.save(); dc.beginPath(); dc.arc(px2,py2,pr,0,TAU); dc.clip();\n for(let b=0;b<5;b++){ const by=py2-pr+ b*pr*0.25 + Math.sin(t*0.1+b)*10; fill(Cc(planet2, 30+((b%2)*20))); ellipse(px2+Math.sin(t*(0.05+b*0.013))*60, by, pr*2.2, pr*0.16); }\n dc.restore();\n // atmosphere rim\n noFill(); stroke(Cc([planetC[0],30,95],35)); strokeWeight(6); circle(px2,py2,pr*2+8); noStroke(); }\n// STATION: rotating ring + hub + solar panels, drifting slowly across\nconst sx=W*(0.5+Math.sin(t*0.05)*0.16), sy=H*(0.34+Math.sin(t*0.083+1)*0.06);\npush(); translate(sx,sy); rotate(Math.sin(t*0.11)*0.1);\nconst rot=t*(0.25+en*0.3)*P.speed;\n// solar panels\nfor(const s2 of[-1,1]){ push(); translate(s2*96,0); rotate(0.06*Math.sin(t*0.3)+s2*0.03);\n fill(Cc([220,70,45],100)); rect(-38,-13,76,26,2);\n stroke(Cc([220,40,70],80)); strokeWeight(1); for(let k=-2;k<=2;k++){ line(-38,k*6,38,k*6);} for(let k=-5;k<=5;k++){ line(k*7,-13,k*7,13);} noStroke(); pop(); }\n// truss\nfill(Cc(hull2,100)); rect(-96,-4,192,8,2);\n// rotating habitat ring (torus w/ pods \u2014 rotation visible via pods)\nif(P.ringN>0.05){ noFill(); stroke(Cc(hullC,100)); strokeWeight(9); dc.save(); dc.translate(0,0); dc.scale(1,0.5); dc.beginPath(); dc.arc(0,0,64,0,TAU); dc.stroke(); dc.restore(); noStroke();\n for(let k=0;k<8;k++){ const a=rot+k/8*TAU; const px3=Math.cos(a)*64, py3=Math.sin(a)*32;\n  fill(Cc(hullC,100)); circle(px3,py3, 10);\n  const won=0.5+0.5*Math.sin(t*(0.7+k*0.13));\n  fill(Cc(winC,(40+won*60)*P.lights)); circle(px3,py3, 4); } }\n// hub + docking\nfill(Cc(hullC,100)); ellipse(0,0,34,30);\nfill(Cc(hull2,100)); ellipse(0,0,20,18);\nfill(Cc(winC, 60+40*Math.sin(t*0.9))); circle(0,0,6);\n// blinking beacons\nfor(const bx of[-96,96]){ const bl=(Math.sin(t*(1.6)+bx)*0.5+0.5); dc.save(); dc.shadowBlur=8*bl; dc.shadowColor=color(0,80,100).toString(); fill(Cc([0,80,100],30+bl*70)); circle(bx,0,4); dc.restore(); }\npop();\n// tiny drifting astronaut or capsule\n{ const ax=((t*0.02)%1.3-0.15)*W; const ay=H*0.18+Math.sin(t*0.4)*14;\n push(); translate(ax,ay); rotate(t*0.2); fill(Cc([0,0,92],95)); ellipse(0,0,8,11); fill(Cc([200,60,60],95)); circle(0,-3,5); pop(); }\nblendMode(BLEND); dc.shadowBlur=0;\n"
+}
