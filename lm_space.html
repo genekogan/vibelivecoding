@@ -1,0 +1,181 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#05030f;}
+  canvas{display:block;}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "/lm/lib/three.module.js",
+  "three/addons/": "/lm/lib/jsm/"
+}}
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x05030f, 0.018);
+
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 400);
+camera.position.set(0, 0, 24);
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---- lighting ----
+scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x402030, 1.4));
+const key = new THREE.DirectionalLight(0xffffff, 3.6); key.position.set(5,8,10); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 2.0); fill.position.set(-6,2,8); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xff77aa, 2.2); rim.position.set(-8,-3,-6); scene.add(rim);
+const warp = new THREE.PointLight(0x88ccff, 3.0, 160); warp.position.set(0,0,40); scene.add(warp);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 2.3;
+// glazed-ceramic scans need image-based lighting to read
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// ---- starfield (hurtling) ----
+const STAR_N = 2600, field = new Float32Array(STAR_N*3);
+const DEPTH = 260;
+for(let i=0;i<STAR_N;i++){
+  field[i*3+0] = (Math.random()-0.5)*140;
+  field[i*3+1] = (Math.random()-0.5)*140;
+  field[i*3+2] = -Math.random()*DEPTH;
+}
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(field,3));
+const starMat = new THREE.PointsMaterial({ color:0xbfd8ff, size:0.5, sizeAttenuation:true, transparent:true, opacity:0.9 });
+const stars = new THREE.Points(starGeo, starMat);
+scene.add(stars);
+
+// streak lines for warp feel
+const STREAK_N = 400, sp = new Float32Array(STREAK_N*6);
+for(let i=0;i<STREAK_N;i++){
+  const x=(Math.random()-0.5)*120, y=(Math.random()-0.5)*120, z=-Math.random()*DEPTH;
+  sp[i*6+0]=x; sp[i*6+1]=y; sp[i*6+2]=z;
+  sp[i*6+3]=x; sp[i*6+4]=y; sp[i*6+5]=z-3;
+}
+const streakGeo = new THREE.BufferGeometry();
+streakGeo.setAttribute('position', new THREE.BufferAttribute(sp,6));
+const streakMat = new THREE.LineBasicMaterial({ color:0x5577ff, transparent:true, opacity:0.35 });
+const streaks = new THREE.LineSegments(streakGeo, streakMat);
+scene.add(streaks);
+
+// ---- Little Martians hurtling through space ----
+const CHARS = ['verdelis','kweku','mycos','kalama','ada','nyx'];
+const draco = new DRACOLoader();
+draco.setDecoderPath('/lm/lib/jsm/libs/draco/gltf/');
+const loader = new GLTFLoader();
+loader.setDRACOLoader(draco);
+const martians = [];
+
+function spawn(model, i){
+  // normalize scale to ~fit
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const s = 9 / (Math.max(size.x, size.y, size.z) || 1);
+  const pivot = new THREE.Group();
+  model.scale.setScalar(s);
+  box.setFromObject(model);
+  const c = box.getCenter(new THREE.Vector3());
+  model.position.sub(c);               // center the mesh in its pivot
+  pivot.add(model);
+  pivot.position.set((Math.random()-0.5)*26, (Math.random()-0.5)*16, -20 - i*28 - Math.random()*20);
+  pivot.userData = {
+    spin: new THREE.Vector3((Math.random()-0.5)*0.9,(Math.random()-0.5)*0.9,(Math.random()-0.5)*0.9),
+    vz: 10 + Math.random()*8,
+    drift: new THREE.Vector3((Math.random()-0.5)*2,(Math.random()-0.5)*2,0),
+    tumble: Math.random()*6.28
+  };
+  scene.add(pivot);
+  martians.push(pivot);
+}
+
+CHARS.forEach((name,i)=>{
+  loader.load(`/lm/web/${name}--characters.glb`, gltf=>{
+    gltf.scene.traverse(o=>{ if(o.isMesh && o.material){
+      o.material.envMapIntensity = 1.6;
+      if('emissive' in o.material){ o.material.emissive = new THREE.Color(0x111826); }
+      o.material.needsUpdate = true;
+    }});
+    spawn(gltf.scene, i);
+  }, undefined, err=>console.warn('load fail', name, err));
+});
+
+// ---- audio bridge from the parent livecode page (Strudel) ----
+let AUD = { bass:0, mid:0, treble:0, rms:0 };
+try {
+  // poll parent's window.state.audio if same-origin
+  setInterval(()=>{ try{
+    const a = window.parent && window.parent.state && window.parent.state.audio;
+    if(a) AUD = a;
+  }catch(e){} }, 80);
+} catch(e){}
+
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const boost = 1 + AUD.rms*4;
+
+  // hurtle the stars toward camera
+  const pos = starGeo.attributes.position.array;
+  for(let i=0;i<STAR_N;i++){
+    pos[i*3+2] += (34 + AUD.bass*60) * dt;
+    if(pos[i*3+2] > 20){ pos[i*3+2] = -DEPTH; pos[i*3+0]=(Math.random()-0.5)*140; pos[i*3+1]=(Math.random()-0.5)*140; }
+  }
+  starGeo.attributes.position.needsUpdate = true;
+
+  const spos = streakGeo.attributes.position.array;
+  const slen = 3 + AUD.rms*40;
+  for(let i=0;i<STREAK_N;i++){
+    for(const k of [2,5]) spos[i*6+k] += (60 + AUD.bass*90) * dt;
+    spos[i*6+5] = spos[i*6+2] - slen;
+    if(spos[i*6+2] > 20){ const x=(Math.random()-0.5)*120,y=(Math.random()-0.5)*120,z=-DEPTH;
+      spos[i*6+0]=x;spos[i*6+1]=y;spos[i*6+2]=z;spos[i*6+3]=x;spos[i*6+4]=y;spos[i*6+5]=z-slen; }
+  }
+  streakGeo.attributes.position.needsUpdate = true;
+  streakMat.opacity = 0.2 + AUD.rms*0.6;
+
+  // martians tumble and rush past
+  for(const m of martians){
+    const u = m.userData;
+    u.tumble += dt;
+    m.rotation.x += u.spin.x*dt; m.rotation.y += u.spin.y*dt; m.rotation.z += u.spin.z*dt;
+    m.position.z += u.vz * boost * dt;
+    m.position.x += u.drift.x*dt; m.position.y += (u.drift.y + Math.sin(u.tumble)*0.6)*dt;
+    if(m.position.z > 30){
+      m.position.set((Math.random()-0.5)*26,(Math.random()-0.5)*16, -DEPTH*0.7 - Math.random()*40);
+    }
+  }
+
+  warp.intensity = 3.0 + AUD.bass*6;
+  const hue = (clock.elapsedTime*0.05) % 1;
+  warp.color.setHSL(hue, 0.6, 0.6);
+  rim.color.setHSL((hue+0.5)%1, 0.7, 0.6);
+  rim.position.set(Math.sin(clock.elapsedTime*0.6)*10, 3, -6);
+  camera.position.x = Math.sin(clock.elapsedTime*0.2)*1.5;
+  camera.position.y = Math.cos(clock.elapsedTime*0.15)*1.0;
+  camera.lookAt(0,0,-10);
+
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

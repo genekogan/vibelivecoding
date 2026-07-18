@@ -2,6 +2,15 @@
 
 AI-driven live coding — **music** (Strudel) and **visuals** (p5.js).
 
+> **⛔ UNBREAKABLE PERFORMANCE RULE — never create unintended silence.**
+> When performing (Improv/Autopilot/Showrunner), NEVER hush/stop/clear the
+> current music before the next section is written and ready to turn on in the
+> same breath. Write the next thing FIRST, then swap — ideally by replacing a
+> track by name (atomic, gapless) or queuing the stop + the replacement to the
+> same bar line. You do your thinking over a LIVE groove, never over silence.
+> The only allowed bare silence is when the user explicitly says "stop"/"hush".
+> Full doctrine: `.claude/skills/livecode-improv.md` §4.5.
+
 There are **four ways** to drive the server, layered on the same `livecode.py`
 backend. Pick based on what the user asks for:
 
@@ -66,6 +75,12 @@ validate.py` passes it (schema · clean deploy · fps ≥ 25 · motion · lumina
 param poke) — and gates are a floor, not taste: **look at the pixels**.
 Unverified assets sit in `inbox/` and never reach the index.
 
+**Viskits** — layered visual compositions of catalog components (the visual
+analog of a music kit): `assets/visual/kits/*.viskit.json`, played with
+`assets/tools/viskit.py play <id> [--set hue=200 ...]`. A kit's `shared` param
+block fans out to every layer that declares the param, so one dial moves the
+whole scene.
+
 ## Unified System (preferred)
 
 | Component | Purpose |
@@ -79,6 +94,29 @@ Unverified assets sit in `inbox/` and never reach the index.
 python livecode.py
 # Open http://localhost:8766/livecode.html, click "Start Audio & Visuals"
 ```
+
+### Fresh Machine Setup (portability)
+
+The repo is self-contained code/text — clone it (or copy the whole `livecode/`
+directory) to a new machine and:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate   # any Python >= 3.10
+pip install -r requirements.txt
+playwright install chromium        # ONLY if using autopilot_host.py / test_steps.py / stream.py
+python livecode.py                 # open http://localhost:8766/livecode.html
+```
+
+What does NOT travel via git (by design — see `.gitignore`):
+- **Internet is required at runtime** — `livecode.html` loads p5.js + Strudel
+  from CDNs (jsdelivr / esm.sh) and drum samples from `strudel.b-cdn.net`.
+  Nothing is vendored; there is no offline mode.
+- **`lm` symlink** — optional Little Martians three.js overlay. `lm_*.html`
+  and most `surface.py` named scenes need it; core music+visuals run without
+  it. Recreate per machine: `ln -s ~/Dev/littlemartians/3d-models lm`.
+- **`.env`** — streaming secrets (Twitch) for `stream.py` only; copy by hand.
+- **Media** (`performances/`, `*.png`, `*.mp4`, …) and `shows/unsorted/`
+  auto-captures — travel via directory copy / Syncthing, never via git.
 
 ### curl Interface (primary — ~10ms per call)
 ```bash
@@ -95,6 +133,26 @@ curl -X POST localhost:8766/p5/clear
 # Status
 curl localhost:8766/status
 ```
+
+### lc wrapper (same API, no JSON quoting — for humans at a terminal)
+```bash
+./lc track bass 'note("c2 e2").s("sawtooth")'   # quoting handled for you
+./lc layer bg 'background(0);'                  # code can also be @file or - (stdin)
+./lc cps 0.55 && ./lc hush && ./lc clear
+./lc status                                     # pretty state incl. last browser error
+./lc errors -f                                  # follow browser-side errors live
+./lc next / prev / goto 12 / mark drop / steps  # show navigation
+./lc -p 9766 status                             # music-catalog server
+
+# Conductor (quantized queue) — changes land ON bar lines, never mid-bar:
+./lc track bass 'note("c2 e2").s("sawtooth")' --at 8      # next 8-bar line
+./lc track pads '...' --at 8 --after 2                    # stagger: 2 bars later
+./lc q                                          # pending + next-boundary ETAs
+./lc qcancel q7                                 # or: qcancel all
+```
+The server also prints a one-line log per accepted command (glyph · name ·
+code size · latency) and surfaces browser-side runtime errors in the terminal
+as they happen — watch that log during a performance.
 
 ### REST API Routes
 | Method | Route | Body |
@@ -114,6 +172,9 @@ curl localhost:8766/status
 | POST | `/p5/send` | `{code}` |
 | POST | `/p5/state` | `{key, value}` |
 | POST | `/p5/fps` | `{fps}` |
+| GET | `/q` | — conductor queue: transport position, next-boundary ETAs, pending + recent items |
+| POST | `/q` | `{route, payload, at, offset}` or `{items:[...]}` — hold command(s), fire on the next `at`-bar line (+offset bars). Queueable: strudel track/stop/hush/cps, p5 layer/remove/fps/state |
+| POST | `/q/cancel` | `{id}` or `{all: true}` |
 
 ### Step-Through System
 | Method | Route | Body |
@@ -155,6 +216,8 @@ mv shows/unsorted/jam_<ts>.show.json shows/my_set.show.json
 | `compositions/scripts/*.py` | Sub-script visuals/sections inlined by full_show.py |
 | `shows/*.show.json` | Curated, immutable, replayable performances |
 | `shows/unsorted/*.show.json` | Auto-captures (gitignored, sequestered) |
+| `shows/visuals/*.visuals.json` | Visual-only bookmarks — `vis_bookmark.py save/load/list` (never touches music) |
+| `surface.py` | Swap the visual surface between the p5 canvas and any three.js page (p5 keeps running underneath; `lm` scenes need the symlink) |
 | `performances/` | Archival MP4 recordings of past performances — not loaded by code |
 | `autoplay.py` | Driver — advances show on a clock (Ns/Nbeats/Nbars/Ncycles) |
 | `.claude/skills/livecode-compose.md` | Composition skill (scene catalog + cookbook) |
