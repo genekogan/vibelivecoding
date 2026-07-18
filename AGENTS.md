@@ -29,7 +29,7 @@ invoke `/schedule` (that's cloud cron, breaks in-session steering).
 ## Music Catalog System (stems / kits / arcs) — read the README
 
 Beyond live improvisation there is a large **verified, parametric music catalog**
-under `assets/music/` (697 stems · 120 kits · 12 arcs · 92 genres) that the
+under `assets/music/` (707 stems · 132 kits · 12 arcs · 92 genres) that the
 performing agent *retrieves and fires* rather than coding from scratch.
 **`assets/music/README.md` is the START-HERE guide** — how to run, use, author,
 verify, and grade it (the music counterpart to `.claude/skills/p5.md` for visuals).
@@ -43,7 +43,7 @@ section-audibility gate). Never hand off silent/too-quiet sound.
 
 The visual mirror of the music catalog: a large **verified, parametric p5.js
 visual catalog** under `assets/visual/`
-(289 genart · 44 world · 53 subject · 38 fx · 29 set · 26 floor · 31 post · 12 crowd · 22 palette · 544 indexed)
+(333 genart · 51 world · 53 subject · 51 fx · 31 set · 33 floor · 38 post · 12 crowd · 26 palette · 628 indexed)
 that the performing agent *retrieves and parameterizes* rather than coding from
 scratch. **`.claude/skills/p5.md` is the START-HERE guide** — run, author,
 validate, grade, extend.
@@ -229,7 +229,7 @@ python p5_live.py             # visuals only — open http://localhost:8776/p5.h
 | `assets/CONTRACT.md` | **The asset spec (visual + music)** — engine facts (clk/audio), P-block, slots, params, validation gates, file formats |
 | `assets/prompts/author-brief.md` | **Visual authoring checklist** — exact gate numbers, universal params, aesthetic mandate, motion/luminance lessons |
 | `assets/prompts/generative-factory.md` | **Generative-art factory pass** — how to run a wave-based +100-asset build (Ralph-loop doctrine) |
-| `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (289 genart of 544 indexed visual assets) — coverage by family, ranked self-grades, second-pass brief |
+| `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (333 genart of 628 indexed visual assets) — coverage by family, ranked self-grades, second-pass brief |
 | `grade.html` | **Browser grader** (`localhost:8766/grade.html`) — live-render + bad/ok/good every genart, exports `visual-grades.jsonl` |
 | **`assets/music/README.md`** | **Music catalog system — START HERE for music.** Run/use/author/verify/grade the stems+kits+arcs catalog; the map to CONTRACT + BUNDLE + the toolchain |
 | `assets/music/browse.html` | **Music browser + grader** (`localhost:9766/assets/music/browse.html`) — audition the sound space by keyboard, fire kits through arcs, grade bad/ok/good → `assets/music/grades.jsonl` |
