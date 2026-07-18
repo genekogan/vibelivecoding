@@ -1,0 +1,119 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "post.neon_edge",
+  "kind": "post",
+  "name": "Neon Edge",
+  "desc": "Pulls glowing neon outlines from the scene's edges via offset-difference, tints them with a breathing hue wash and sends a slow soft scan band drifting through. Cyan, magenta, lime, gold or rainbow-cycling.",
+  "tags": [
+    "neon",
+    "edge",
+    "outline",
+    "glow",
+    "contour",
+    "difference",
+    "pass",
+    "cyberpunk",
+    "electric",
+    "tron",
+    "wireframe",
+    "vj"
+  ],
+  "slots": [
+    "post"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "scan drift"
+    },
+    "edge": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "edge strength"
+    },
+    "hue": {
+      "default": 190,
+      "min": 0,
+      "max": 360,
+      "doc": "edge hue"
+    },
+    "pulseE": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "tint breathing"
+    },
+    "scan": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "scan band"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.5,
+      "max": 2,
+      "doc": "reserved"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "rate"
+    },
+    "style": {
+      "default": "cyan",
+      "options": [
+        "cyan",
+        "magenta",
+        "lime",
+        "gold",
+        "rainbow"
+      ],
+      "doc": "mode"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation"
+    },
+    "alpha": {
+      "default": 80,
+      "min": 0,
+      "max": 100,
+      "doc": "strength"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T14:16:05+00:00",
+    "fps": 59.9,
+    "motion": 0.0133,
+    "lum": 0.078
+  },
+  "code": "const D = { energy:.4, edge:.6, hue:190, pulseE:.5, scan:.4, x:.5, y:.5, scale:1, speed:1, density:.5, style:'cyan', seed:0, alpha:80 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin((i*12.9898 + P.seed*78.233)) * 43758.5453; return s - Math.floor(s); };\nconst W=width,H=height,t=K.t,en=P.energy,sty=P.style,dc=drawingContext,TAU=Math.PI*2;\nlet eh=P.hue;\nif(sty==='magenta') eh=315; else if(sty==='lime') eh=110; else if(sty==='gold') eh=45; else if(sty==='rainbow') eh=(t*20)%360;\n// cheap edge-glow: difference of the frame vs itself offset (drawn twice with DIFFERENCE)\nif(!S.buf || S.k!==W+'x'+H){ if(S.buf&&S.buf.remove)S.buf.remove(); S.buf=createGraphics(W,H); S.buf.pixelDensity(1); S.k=W+'x'+H; }\nS.buf.clear(); S.buf.drawingContext.drawImage(dc.canvas,0,0,W,H);\nconst off=1.4+P.edge*2.6;\ndc.save();\ndc.globalCompositeOperation='difference';\ndc.globalAlpha=(0.5+P.edge*0.5)*P.alpha/100;\ndc.drawImage(S.buf.drawingContext.canvas, off, 0, W, H);\ndc.drawImage(S.buf.drawingContext.canvas, -off*0.6, off*0.8, W, H);\ndc.globalCompositeOperation='source-over';\ndc.globalAlpha=1;\n// tint the edges (screen a hue wash weighted by breathing pulse)\ndc.globalCompositeOperation='screen';\nconst gb=0.5+0.5*Math.sin(t*0.43)+0.3*Math.sin(t*0.9+1);\ndc.fillStyle=color(eh,70,60,(8+10*gb*P.pulseE)*P.alpha/100).toString();\ndc.fillRect(0,0,W,H);\n// slow scan band (soft, wide \u2014 no strobe)\nif(P.scan>0.03){ const sy=((t*(0.04+en*0.05))%1.3-0.15)*H;\n const g2=dc.createLinearGradient(0,sy-70,0,sy+70);\n g2.addColorStop(0,'rgba(0,0,0,0)'); g2.addColorStop(0.5,color(eh,50,90,(9+7*gb)*P.scan*P.alpha/100).toString()); g2.addColorStop(1,'rgba(0,0,0,0)');\n dc.fillStyle=g2; dc.fillRect(0,sy-70,W,140); }\ndc.globalCompositeOperation='source-over';\ndc.restore();\nblendMode(BLEND);\n"
+}
