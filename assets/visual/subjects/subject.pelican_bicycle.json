@@ -1,0 +1,151 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "subject.pelican_bicycle",
+  "kind": "subject",
+  "name": "Pelican on a Bicycle",
+  "desc": "A plump pelican pedalling a bicycle with its huge pouched beak leading the way, legs pumping the cranks, wheels spinning, wings half-open for balance \u2014 Simon Willison's benchmark, hand-drawn and posable.",
+  "tags": [
+    "pelican",
+    "bird",
+    "bicycle",
+    "bike",
+    "cycling",
+    "pedal",
+    "pouch",
+    "beak",
+    "character",
+    "figurative",
+    "whimsical",
+    "riding",
+    "simon willison",
+    "benchmark",
+    "wheels",
+    "waterfowl",
+    "comic",
+    "mascot",
+    "absurd",
+    "charming",
+    "animal",
+    "cartoon",
+    "penny-farthing",
+    "transport"
+  ],
+  "slots": [
+    "subA",
+    "subB",
+    "subC"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pedal/wheel speed + liveliness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.4,
+      "max": 2.0,
+      "doc": "hero size vs design (0.48*min(w,h) tall)"
+    },
+    "hue": {
+      "default": 40,
+      "min": 0,
+      "max": 360,
+      "doc": "plumage base hue"
+    },
+    "beak": {
+      "default": 0.6,
+      "min": 0.2,
+      "max": 1,
+      "doc": "beak length"
+    },
+    "wobble": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "head/neck nod amount"
+    },
+    "wing": {
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "doc": "wing spread + flap"
+    },
+    "cap": {
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "doc": "little cyclist's cap on/off"
+    },
+    "wheelStyle": {
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "doc": "9-spoke (0) vs 5-spoke mag (1)"
+    },
+    "pouch": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "pouch/beak-open gape"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 2.5,
+      "doc": "overall rate multiplier"
+    },
+    "density": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved detail density"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor x"
+    },
+    "y": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "anchor y (ground line)"
+    },
+    "style": {
+      "default": "flat",
+      "options": [
+        "flat",
+        "neon",
+        "sunset",
+        "lineart",
+        "chrome"
+      ],
+      "doc": "render look \u2014 flat cartoon / neon glow / warm sunset / ink line-art / chrome metal"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "variation seed"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:49:39+00:00",
+    "fps": 59.5,
+    "motion": 0.0067,
+    "lum": 0.098
+  },
+  "code": "const D = { energy:.6, scale:1, hue:40, beak:.6, wobble:.5, wing:.4, cap:0, wheelStyle:0, pouch:.6, x:.5, y:.6, speed:1, density:.5, style:'flat', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\nconst fr = i => { const s = Math.sin(i*127.1 + P.seed*311.7) * 43758.5453; return s - Math.floor(s); };\n\nconst TAU = Math.PI*2;\nconst u = Math.min(width, height);\nconst sc = u * 0.0020 * P.scale;              // world unit -> px (hero ~0.48*u tall)\nconst t = K.t, en = P.energy;\nconst cx = P.x*width, cy = P.y*height;\n// incommensurate real-time motion floor (never re-phases at 8s)\nconst drift = 0.9*Math.sin(t*0.61) + 0.5*Math.sin(t*1.43+1.7) + 0.32*Math.sin(t*2.29);\nconst rock  = 0.7*Math.sin(t*0.53+2.1) + 0.4*Math.sin(t*1.17);\nconst kick  = K.pulse*0.5 + A.bass*0.6;\nconst pedal = t * (2.4 + 3.0*en) * P.speed;   // crank + wheel angle\nconst bob   = drift * 10 * sc * (0.5+en);     // vertical silhouette displacement\nconst lean  = rock * 0.05 * (0.4+en);         // body sway (radians)\nconst sty = P.style;\n\n// ---- palette per style\nfunction pal() {\n  const h = P.hue;\n  if (sty==='neon')   return { body:[h,20,100], belly:[h,8,100], beak:[(h+8)%360,90,100], line:[h,90,100], frame:[(h+180)%360,90,100], eye:[0,0,100], glow:true, out:0 };\n  if (sty==='sunset') return { body:[28,55,96], belly:[42,30,100], beak:[14,85,98], line:[300,40,40], frame:[330,70,80], eye:[0,0,10], glow:false, out:3 };\n  if (sty==='lineart')return { body:[0,0,99], belly:[0,0,99], beak:[0,0,99], line:[220,20,18], frame:[220,20,18], eye:[220,20,18], glow:false, out:3.2, ink:true };\n  if (sty==='chrome') return { body:[210,10,92], belly:[210,6,99], beak:[35,60,95], line:[210,25,35], frame:[210,20,60], eye:[0,0,8], glow:false, out:2.4, metal:true };\n  // 'flat' default (cartoon)\n  return { body:[h,14,99], belly:[h,6,100], beak:[(h-4+360)%360,82,98], line:[h,45,30], frame:[(h+200)%360,55,78], eye:[0,0,12], glow:false, out:3.5 };\n}\nconst C = pal();\nfunction col(a, alpha){ return color(a[0], a[1], a[2], (alpha==null?100:alpha)*P.alpha/100); }\nfunction ln(w){ stroke(col(C.line, 100)); strokeWeight(w*sc*C.out/3.2 * (C.out>0?1:0)); if(C.out<=0) noStroke(); }\n\npush();\ntranslate(cx, cy + bob);\nrotate(lean*0.15);\nscale(sc);            // now draw in world units (~ -140..140 wide, hero ~ -120..120 tall)\n\n// shadow on the (implicit) ground\nnoStroke(); fill(0,0,0, 18*P.alpha/100);\nellipse(10, 128, 210, 26);\n\nconst legLift = Math.sin(pedal);           // for feet\nconst crankR = 20;\n// ================= BICYCLE (behind the bird's body, front wheel to the right) =================\nfunction wheel(wx, wy, r){\n  push(); translate(wx, wy);\n  // tyre\n  noFill(); stroke(col(C.frame,100)); strokeWeight(5.5); ellipse(0,0, r*2, r*2);\n  stroke(col(C.line,90)); strokeWeight(2.2); ellipse(0,0, r*2-8, r*2-8);\n  // spokes\n  push(); rotate(pedal);\n  const ns = P.wheelStyle>0.5 ? 5 : 9;\n  stroke(col(C.line, 70)); strokeWeight(1.6);\n  for(let i=0;i<ns;i++){ const a=i/ns*TAU; line(0,0, Math.cos(a)*(r-6), Math.sin(a)*(r-6)); }\n  pop();\n  // hub\n  noStroke(); fill(col(C.frame,100)); circle(0,0, 10);\n  if(C.metal){ fill(0,0,100,60); circle(-2,-2,4); }\n  pop();\n}\nconst wl = -70, wr = 74, wy = 78, wr_ = 44;\nwheel(wl, wy, wr_);\nwheel(wr, wy, wr_);\n// frame tubes\nstroke(col(C.frame,100)); strokeWeight(6); strokeCap(ROUND); noFill();\nline(wl, wy, 2, 30);      // down to bottom bracket area\nline(wr, wy, 18, -6);     // to head tube\nline(2, 30, 18, -6);      // seat tube-ish\nline(2, 30, -10, 8);      // seat stay\nbeginShape(); noFill(); vertex(18,-6); vertex(30,-30); endShape();  // fork/steer up\n// handlebar\nstroke(col(C.frame,100)); strokeWeight(5); line(30,-30, 46,-34); line(30,-30, 22,-40);\n// seat\nnoStroke(); fill(col(C.frame,100)); push(); translate(-12,4); rotate(-0.2); ellipse(0,0,34,12); pop();\n// crank + pedals\npush(); translate(2,30); rotate(pedal);\nstroke(col(C.line,90)); strokeWeight(4); line(0,0, 0,crankR); line(0,0, 0,-crankR);\nnoStroke(); fill(col(C.frame,100)); rect(-5, crankR-3, 10, 6, 2); rect(-5, -crankR-3, 10, 6, 2);\npop();\n\n// ================= PELICAN =================\npush();\ntranslate(-6, -6);        // sit on the seat\n// tail\nnoStroke(); fill(col(C.body,100));\nbeginShape(); vertex(-30,-8); bezierVertex(-64,-2,-70,14,-52,20); bezierVertex(-40,22,-30,14,-30,8); endShape(CLOSE);\nif(C.out>0){ noFill(); ln(1); beginShape(); vertex(-30,-8); bezierVertex(-64,-2,-70,14,-52,20); bezierVertex(-40,22,-30,14,-30,8); endShape(); }\n// body (plump)\nconst bw=64, bh=58;\nif(C.glow){ drawingContext.shadowBlur=22; drawingContext.shadowColor = color(C.body[0],C.body[1],100).toString(); }\nnoStroke(); fill(col(C.body,100));\npush(); translate(-4,-14); rotate(lean);\nellipse(0,0, bw, bh);\n// belly shading / texture\nfill(col(C.belly,100)); ellipse(6,8, bw*0.7, bh*0.7);\nif(sty==='chrome'){ fill(0,0,100,40); ellipse(-10,-12, 20, 26); }\nif(sty==='watercolor'){ for(let i=0;i<6;i++){ fill(C.body[0],C.body[1]+8,C.body[2]-6, 10); ellipse(fr(i)*30-15, fr(i+9)*30-15, bw*(.5+fr(i)*.5), bh*.5);} }\n// feather hatching texture (subtle)\nif(sty==='lineart'||sty==='sunset'){ stroke(col(C.line,40)); strokeWeight(0.7); noFill();\n  for(let i=0;i<7;i++){ const yy=-16+i*6; arc(2, yy+6, 30-i*2, 12, Math.PI*1.05, Math.PI*1.95);} noStroke(); }\npop();\ndrawingContext.shadowBlur=0;\nif(C.out>0){ noFill(); ln(1.1); push(); translate(-4,-14); rotate(lean); ellipse(0,0,bw,bh); pop(); }\n\n// wing (parametric flap)\nconst flap = Math.sin(t*2.1+1.0)*0.5+0.5;\npush(); translate(-2,-16); rotate(lean - 0.2 - P.wing*flap*0.5);\nnoStroke(); fill(col(C.body,96));\nbeginShape(); vertex(0,-6); bezierVertex(22,-2, 34, 6+P.wing*10, 20, 20); bezierVertex(8,16,0,8,0,-6); endShape(CLOSE);\nfill(col(C.belly,80));\nfor(let i=0;i<3;i++){ push(); rotate(0.12*i); ellipse(14+i*3, 8+i*4, 20-i*4, 8); pop(); }\nif(C.out>0){ noFill(); ln(0.9); beginShape(); vertex(0,-6); bezierVertex(22,-2,34,6+P.wing*10,20,20); bezierVertex(8,16,0,8,0,-6); endShape(); }\npop();\n\n// legs pedalling (two, phase-opposed, feet track the crank)\nfunction leg(ph){\n  const a = pedal + ph;\n  const fx = 2 + Math.cos(a)*crankR, fy = 30 + Math.sin(a)*crankR; // foot at pedal (in bike frame; body offset -6,-6 so +6,+6)\n  const hipx = 4, hipy = 8;\n  const kx = (hipx+fx+6)/2 + 6, ky = (hipy+fy+6)/2 - 6;\n  stroke(col([ (P.hue-6+360)%360, 70, 92 ],100)); strokeWeight(4.4); strokeCap(ROUND); noFill();\n  line(hipx,hipy, kx,ky); line(kx,ky, fx+6,fy+6);\n  // webbed foot\n  noStroke(); fill(col([ (P.hue-6+360)%360, 78, 95 ],100));\n  push(); translate(fx+6, fy+6); rotate(a); triangle(0,0, 9,4, 9,-4); pop();\n}\nleg(Math.PI); leg(0);\n\n// neck + head + the signature BEAK\nconst nn = 0.4 + P.beak*0.6;\npush(); translate(18,-30); rotate(lean*0.5 + Math.sin(t*0.9)*0.04 + Math.sin(t*1.7+0.6)*0.10*P.wobble);\n// neck\nnoStroke(); fill(col(C.body,100)); stroke(C.out>0?col(C.line,100):color(0,0,0,0)); strokeWeight(C.out>0?1.1*C.out/3.2:0);\nif(C.out<=0) noStroke();\nbeginShape(); vertex(-14,6); bezierVertex(-6,-10, 6,-18, 16,-22); bezierVertex(18,-14,10,-2,-2,10); endShape(CLOSE);\n// head\nnoStroke(); if(C.glow){drawingContext.shadowBlur=18; drawingContext.shadowColor=color(C.body[0],C.body[1],100).toString();}\nfill(col(C.body,100)); circle(20,-24, 30);\ndrawingContext.shadowBlur=0;\nif(C.out>0){ noFill(); ln(1.1); circle(20,-24,30); }\n// eye\nnoStroke(); fill(col(C.eye,100)); circle(28,-28, 6); fill(0,0,100,90); circle(29.4,-29.4,2.2);\n// optional little cap\nif(P.cap>0.5){ noStroke(); fill(col(C.frame,100)); arc(20,-32, 30,26, Math.PI*1.05, Math.PI*1.95, CHORD); rect(6,-34,8,4,2); }\n// upper beak\nconst bl = 44*nn, open = (Math.sin(t*1.3)*0.5+0.5)*P.pouch*0.5;\nnoStroke(); fill(col(C.beak,100));\nbeginShape(); vertex(30,-30); vertex(30+bl,-30-4-open*6); vertex(30+bl,-26-open*6); vertex(32,-22); endShape(CLOSE);\nif(C.out>0){ noFill(); ln(1); beginShape(); vertex(30,-30); vertex(30+bl,-30-4-open*6); vertex(30+bl,-26-open*6); vertex(32,-22); endShape(CLOSE); }\n// lower beak + pouch\nfill(col([ (C.beak[0]+4)%360, C.beak[1]-6, C.beak[2]-4 ],100));\nbeginShape(); vertex(32,-22); vertex(30+bl,-26-open*6); bezierVertex(30+bl-6,-8+open*20, 30, 2+open*16, 26,-16); endShape(CLOSE);\nif(C.out>0){ noFill(); ln(1); beginShape(); vertex(32,-22); vertex(30+bl,-26-open*6); bezierVertex(30+bl-6,-8+open*20,30,2+open*16,26,-16); endShape(); }\n// nostril line\nstroke(col(C.line,70)); strokeWeight(1); line(34,-28, 30+bl-6,-29-open*5); noStroke();\npop(); // neck/head\n\npop(); // pelican\npop(); // whole rig\nblendMode(BLEND); drawingContext.shadowBlur=0;\n"
+}

@@ -1,0 +1,134 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.asemic_hand",
+  "kind": "genart",
+  "name": "Asemic Hand",
+  "desc": "An invisible scribe writes invented cursive script -- stroke by stroke, line by line -- down a toned parchment page: a flowing nonsense hand with ascenders, descenders and loops, nib-pressure weight and ink pooling where the pen dwells, a soft raking light travelling across the sheet as it fills; when the page is finished it is set aside and a fresh sheet in a new hand begins, a perpetual scriptorium that never settles. Rendered in sepia iron-gall, indigo, charcoal, or as chalk on a blueprint negative.",
+  "tags": [
+    "asemic",
+    "asemic-writing",
+    "script",
+    "cursive",
+    "handwriting",
+    "scribe",
+    "scribal",
+    "calligraphy",
+    "glyph",
+    "glyphs",
+    "invented-script",
+    "nonsense-script",
+    "manuscript",
+    "parchment",
+    "vellum",
+    "ink",
+    "iron-gall",
+    "pen",
+    "nib",
+    "longhand",
+    "writing",
+    "mark-making",
+    "abstract",
+    "text",
+    "illegible",
+    "hand",
+    "penmanship",
+    "sepia",
+    "indigo",
+    "scriptorium",
+    "epigraphy",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg",
+    "austere",
+    "meditative",
+    "eerie",
+    "texture"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "ink darkness, stroke contrast and raking-light glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.6,
+      "max": 2.2,
+      "doc": "size of the writing -- larger hand, fewer words per line (obvious change)"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast the pen writes and how often the page turns"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "lines per page / tightness of the script"
+    },
+    "wobble": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "waviness of the cursive baseline"
+    },
+    "hue": {
+      "default": 32,
+      "min": 0,
+      "max": 360,
+      "doc": "paper + ink tone for the sepia default; other styles fix their own"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the page horizontally"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the page vertically"
+    },
+    "style": {
+      "default": "sepia",
+      "options": [
+        "sepia",
+        "indigo",
+        "charcoal",
+        "blueprint"
+      ],
+      "doc": "aesthetic: warm iron-gall on parchment / indigo ink / grey charcoal / chalk on a blueprint negative"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic -- re-throws the hand, the words, the page toning"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:33:24+00:00",
+    "fps": 59.2,
+    "motion": 0.0846,
+    "lum": 0.359
+  },
+  "code": "const D = { energy:.62, scale:1, speed:1, density:.55, wobble:.55, hue:32, x:.5, y:.5, style:'sepia', seed:0, alpha:100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// ASEMIC HAND \u2014 an invisible scribe writing invented cursive script, stroke by\n// stroke, line by line, down a toned parchment page. Nonsense-glyph flowing hand:\n// baseline wander with ascenders, descenders and loops, nib-pressure weight and\n// ink pooling at pen-dwell. A soft raking light travels across the sheet; when\n// the page fills it is set aside and a fresh sheet, a new hand, begins \u2014 a\n// perpetual scriptorium that never settles. Sepia iron-gall, indigo, charcoal,\n// or a chalk-on-blueprint negative.\n// -----------------------------------------------------------------------------\n\nconst wh = h => ((h % 360) + 360) % 360;\nconst style = P.style;\nconst BW = Math.max(360, Math.min(760, Math.round(width / 2.4)));\nconst BH = Math.max(200, Math.round(BW * height / width));\nconst key = BW + 'x' + BH;\nconst eseed = (P.seed | 0) * 1009 + (S.page || 0) * 131;\nconst fr = i => { const s = Math.sin(i * 127.1 + eseed * 0.917 + 11.3) * 43758.5453; return s - Math.floor(s); };\n\n// palette per style: [paperH,paperS,paperB, inkH,inkS,inkB, negative?]\nfunction pal() {\n  if (style === 'indigo')    return { pH:222, pS:22, pB:54, iH:224, iS:62, iB:20, neg:0, light:[44,55,100] };\n  if (style === 'charcoal')  return { pH:38,  pS:9,  pB:52, iH:30,  iS:8,  iB:14, neg:0, light:[40,25,100] };\n  if (style === 'blueprint') return { pH:210, pS:55, pB:26, iH:190, iS:12, iB:94, neg:1, light:[195,40,100] };\n  return { pH:wh(P.hue+6), pS:32, pB:50, iH:wh(P.hue-8), iS:60, iB:20, neg:0, light:[44,60,100] }; // sepia\n}\nconst C = pal();\n\n// ---- (re)build parchment ground + line ruling -------------------------------\nif (!S.paper || S.pkey !== key || S.pstyle !== style || S.pseed !== (P.seed|0)) {\n  S.pkey = key; S.pstyle = style; S.pseed = (P.seed|0);\n  const pg = createGraphics(BW, BH); pg.colorMode(HSB, 360, 100, 100, 100); pg.noStroke();\n  pg.background(C.pH, C.pS, C.pB);\n  // broad mottle / uneven toning\n  pg.blendMode(C.neg ? ADD : MULTIPLY);\n  for (let i = 0; i < 90; i++) {\n    const mx = fr(i*3+1)*BW, my = fr(i*5+2)*BH, mr = BW*(0.12+fr(i*7+3)*0.34);\n    const d = C.neg ? 6+fr(i)*10 : 100-(6+fr(i)*12);\n    pg.fill(C.pH, C.pS*0.7, C.neg ? d+40 : d, 10); pg.ellipse(mx, my, mr, mr*0.8);\n  }\n  // foxing / age stains\n  pg.blendMode(BLEND);\n  for (let i = 0; i < 22; i++) {\n    const fx = fr(i*11+40)*BW, fy = fr(i*13+41)*BH;\n    pg.fill(C.neg ? 200 : 26, C.neg?30:38, C.neg?34:44, 8+fr(i*3+9)*12);\n    pg.ellipse(fx, fy, BW*(0.03+fr(i*9+7)*0.08), BW*(0.03+fr(i*9+8)*0.08));\n  }\n  // fine tooth / grain\n  for (let i = 0; i < 2600; i++) {\n    const gx = fr(i*2.1+900)*BW, gy = fr(i*3.7+901)*BH;\n    pg.fill(C.pH, C.pS, C.neg ? C.pB+fr(i)*22 : C.pB-fr(i)*24, 6);\n    pg.rect(gx, gy, 1.2, 1.2);\n  }\n  S.paper = pg;\n\n  // vignette (baked once, blitted MULTIPLY on top)\n  const vg = createGraphics(BW, BH); vg.colorMode(HSB, 360, 100, 100, 100); vg.clear();\n  const gctx = vg.drawingContext;\n  const rg = gctx.createRadialGradient(BW/2, BH/2, BH*0.25, BW/2, BH/2, BH*0.85);\n  rg.addColorStop(0, 'rgba(0,0,0,0)'); rg.addColorStop(0.6, 'rgba(0,0,0,0.10)'); rg.addColorStop(1, 'rgba(0,0,0,0.48)');\n  gctx.fillStyle = rg; gctx.fillRect(0, 0, BW, BH);\n  S.vig = vg;\n}\n\n// ---- (re)build the page's stroke structure ----------------------------------\nconst dens = P.density;\nconst marginX = BW * 0.10, marginTop = BH * 0.11, marginBot = BH * 0.90;\nconst lineH = BH * (0.070 - dens * 0.024) / Math.max(0.55, P.scale*0.9 + 0.1);\nconst xh = lineH * 0.42;\nconst nLines = Math.max(4, Math.floor((marginBot - marginTop) / lineH));\nif (!S.strokes || S.skey !== key || S.sstyle !== style || S.spage !== (S.page||0) || S.sseed !== (P.seed|0) || S.sdens !== Math.round(dens*20) || S.sscale !== Math.round(P.scale*20)) {\n  S.skey = key; S.sstyle = style; S.spage = (S.page||0); S.sseed = (P.seed|0); S.sdens = Math.round(dens*20); S.sscale = Math.round(P.scale*20);\n  const strokes = [];\n  const letterW = xh * 0.9;\n  let gi = 0;\n  for (let li = 0; li < nLines; li++) {\n    const yb = marginTop + xh + li * lineH;\n    // ragged right margin\n    const rightX = BW * (0.86 - fr(li*17+3) * 0.10);\n    let x = marginX + fr(li*7+1) * BW * 0.01;\n    // first-line rubric flag (a coloured initial word)\n    let firstWord = true;\n    while (x < rightX - letterW * 2) {\n      const wLetters = 2 + Math.floor(fr(gi*3.3+li*5+2) * 7);\n      const wWidth = wLetters * letterW * (0.85 + fr(gi*2+9)*0.3);\n      if (x + wWidth > rightX) break;\n      // build a cursive polyline for this word\n      const pts = [];\n      const steps = Math.max(6, Math.round(wWidth / (letterW * 0.34)));\n      let ph1 = fr(gi*5+li+7) * 6.28, ph2 = fr(gi*9+li+3) * 6.28;\n      for (let s = 0; s <= steps; s++) {\n        const f = s / steps;\n        const px = x + wWidth * f;\n        let py = yb - xh * (0.34 + 0.30 * Math.sin(f * wLetters * 3.0 + ph1) + 0.18 * Math.sin(f * wLetters * 6.4 + ph2)) * (0.6 + P.wobble);\n        // occasional ascender / descender at letter boundaries\n        const lb = f * wLetters;\n        const near = Math.abs(lb - Math.round(lb));\n        if (near < 0.12) {\n          const r = fr(gi*13 + Math.round(lb) * 3 + li);\n          if (r > 0.80) py -= xh * (0.9 + fr(gi+7)*0.5);       // ascender\n          else if (r < 0.16) py += xh * (0.8 + fr(gi+8)*0.5);  // descender\n        }\n        pts.push({ x: px, y: py });\n      }\n      const rub = (firstWord && fr(li*3+5) > 0.55 && !C.neg);\n      strokes.push({ pts, line: li, w: 0.7 + fr(gi*4+1)*0.7, rub });\n      firstWord = false;\n      x += wWidth + letterW * (0.7 + fr(gi*6+4) * 0.9);   // inter-word space\n      gi++;\n    }\n  }\n  S.strokes = strokes; S.drawn = 0; S.prog = 0;\n  const ig = createGraphics(BW, BH); ig.colorMode(HSB, 360, 100, 100, 100); ig.clear();\n  S.ink = ig; S.phase = 'write'; S.dwell = 0; S.fade = 100;\n}\n\n// draw one stroke permanently into the ink buffer\nfunction inkStroke(g, st, frac) {\n  const pts = st.pts; if (pts.length < 2) return;\n  const n = Math.max(2, Math.round(pts.length * frac));\n  const iH = st.rub ? wh(P.hue - 190) : C.iH, iS = st.rub ? 62 : C.iS, iB = st.rub ? 40 : C.iB;\n  const dark = 0.4 + P.energy * 0.85;\n  g.noFill();\n  for (let i = 1; i < n; i++) {\n    const a = pts[i-1], b = pts[i];\n    const down = Math.max(0, (b.y - a.y)) / (xh + 0.001);          // down-strokes heavier\n    const wgt = st.w * (0.55 + 1.15 * Math.min(1, down * 1.4)) * (0.7 + P.scale*0.5);\n    g.strokeWeight(Math.max(0.5, wgt));\n    g.stroke(iH, iS, C.neg ? Math.min(100, iB) : iB, Math.min(100, 60 + dark*40));\n    g.line(a.x, a.y, b.x, b.y);\n  }\n  // ink pooling at ends + at the deepest descender\n  g.noStroke(); g.fill(iH, iS, iB, 55);\n  g.ellipse(pts[0].x, pts[0].y, st.w*2.1, st.w*2.1);\n  const e = pts[n-1]; g.ellipse(e.x, e.y, st.w*2.4, st.w*2.4);\n}\n\n// ---- advance the write-front ------------------------------------------------\nconst total = S.strokes.length;\nconst spd = 0.35 + P.speed * 1.15;\nif (S.phase === 'write') {\n  S.prog += (spd * 26) / (K.fps || 60);            // strokes per frame\n  const upto = Math.min(total, Math.floor(S.prog));\n  while (S.drawn < upto) { inkStroke(S.ink, S.strokes[S.drawn], 1); S.drawn++; }\n  if (S.drawn >= total) { S.phase = 'dwell'; S.dwell = 0; }\n} else if (S.phase === 'dwell') {\n  S.dwell += 1 / (K.fps || 60);\n  if (S.dwell > 2.6 / (0.4 + P.speed*0.8)) S.phase = 'fade';\n} else if (S.phase === 'fade') {\n  S.fade -= 130 / (K.fps || 60);\n  if (S.fade <= 0) { S.page = (S.page || 0) + 1; S.strokes = null; }   // reseed next page\n}\n\n// ---- render -----------------------------------------------------------------\nconst t = K.t;\n// slow incommensurate page drift (never re-phases) \u2014 keeps a live motion floor\nconst dx = Math.sin(t*0.13)*width*0.006 + Math.sin(t*0.31+1.1)*width*0.004;\nconst dy = Math.cos(t*0.11)*height*0.006 + Math.sin(t*0.27+0.5)*height*0.005;\nconst ox = (P.x - 0.5) * width * 0.14, oy = (P.y - 0.5) * height * 0.14;\n\npush();\ntranslate(dx + ox, dy + oy);\nif (S.paper) image(S.paper, 0, 0, width, height);\nif (S.ink)  { push(); tint(0,0,100, S.phase==='fade'? Math.max(0,S.fade) : 100); image(S.ink, 0, 0, width, height); pop(); }\n\n// live \"wet\" leading stroke on the main canvas (crisp, full-res)\nif (S.phase === 'write' && S.drawn < total) {\n  const st = S.strokes[S.drawn];\n  const frac = Math.min(1, S.prog - Math.floor(S.prog));\n  const sxr = width / BW, syr = height / BH;\n  const n = Math.max(2, Math.round(st.pts.length * frac));\n  noFill();\n  const wet = 0.5 + P.energy*0.6 + A.treble*0.4;\n  for (let i = 1; i < n; i++) {\n    const a = st.pts[i-1], b = st.pts[i];\n    const down = Math.max(0, (b.y - a.y)) / (xh+0.001);\n    strokeWeight(Math.max(0.6, st.w*(0.55+1.15*Math.min(1,down*1.4))*(0.7+P.scale*0.5)) * sxr);\n    stroke(C.iH, C.iS, C.neg? Math.min(100, C.iB+8) : C.iB, 90);\n    line(a.x*sxr, a.y*syr, b.x*sxr, b.y*syr);\n  }\n  // glistening nib\n  const e = st.pts[n-1];\n  noStroke(); fill(C.light[0], C.light[1]*0.4, C.light[2], 40*wet);\n  ellipse(e.x*sxr, e.y*syr, 6*sxr, 6*syr);\n}\npop();\n\n// ---- raking illumination sweep (broad, low-alpha \u2192 carries the motion gate) --\nconst sweep = (Math.sin(t*0.19) * 0.5 + 0.5) * 0.55 + (Math.sin(t*0.052+2.0)*0.5+0.5)*0.45; // 0..1 incommensurate\nconst lx = sweep * width;\npush(); blendMode(ADD); noStroke();\nconst bandW = width * 0.34;\nconst glow = (8 + P.energy * 12 + A.rms * 10) * (C.neg ? 0.7 : 1);\nfor (let b = 0; b < 5; b++) {\n  const a = glow * (1 - b/5) * 0.5;\n  fill(C.light[0], C.light[1]*(0.5+0.1*b), C.light[2], a);\n  rect(lx - bandW/2, -height*0.05, bandW*(0.4+0.15*b), height*1.1);\n}\n// warm pool where the light peaks\nfill(C.light[0], C.light[1]*0.7, C.light[2], glow*0.7);\nellipse(lx, height*0.5 + Math.sin(t*0.23)*height*0.12, bandW*0.5, height*0.7);\nblendMode(BLEND); pop();\n\n// vignette on top\nif (S.vig) { push(); blendMode(MULTIPLY); image(S.vig, dx+ox, dy+oy, width, height); blendMode(BLEND); pop(); }\n\nif (P.alpha < 100) { push(); noStroke(); fill(C.pH, C.pS, C.pB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND); noTint(); drawingContext.shadowBlur = 0;\n"
+}

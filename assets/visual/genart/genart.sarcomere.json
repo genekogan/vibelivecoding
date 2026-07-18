@@ -1,0 +1,138 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.sarcomere",
+  "kind": "genart",
+  "name": "Sarcomere",
+  "desc": "Striated muscle at the ultrastructure -- the sarcomere. Myofibrils stack across the frame, each a run of repeating contractile units read as the classic electron-micrograph banding: dark Z-lines bounding every sarcomere, light I-bands of thin actin, the dark A-band of myosin overlap with its lighter H-zone and central M-line. The muscle works: an activation wave travels along the fibres on incommensurate rates, so the sliding-filament mechanism plays out -- Z-lines pull together and the I-bands and H-zone narrow while the A-band holds its width -- a perpetual contraction and relaxation that ripples along the fibre and never re-phases. Offered as a grey transmission electron micrograph, polarised-light birefringence, Z-disc immunofluorescence, or a false-colour tension map.",
+  "tags": [
+    "sarcomere",
+    "muscle",
+    "striated-muscle",
+    "skeletal-muscle",
+    "cardiac",
+    "myofibril",
+    "myosin",
+    "actin",
+    "z-line",
+    "z-disc",
+    "i-band",
+    "a-band",
+    "h-zone",
+    "m-line",
+    "banding",
+    "striation",
+    "sliding-filament",
+    "contraction",
+    "ultrastructure",
+    "electron-micrograph",
+    "tem",
+    "em",
+    "polarised-light",
+    "birefringence",
+    "immunofluorescence",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "histology",
+    "cell",
+    "microbiology",
+    "biology",
+    "medical",
+    "clinical",
+    "wave",
+    "stripes",
+    "pulse",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "clinical",
+    "austere",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.62,
+      "min": 0,
+      "max": 1,
+      "doc": "band contrast, birefringence and glow"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification - sarcomeres grow, fewer larger bands, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "contraction rate and how fast the activation wave travels"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "number of stacked myofibrils and wave crest count"
+    },
+    "contract": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "contraction depth - how far the Z-lines pull together and the I-bands narrow"
+    },
+    "hue": {
+      "default": 20,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue of the banding / labels"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "reserved framing anchor, vertical"
+    },
+    "style": {
+      "default": "em",
+      "options": [
+        "em",
+        "polarized",
+        "fluor",
+        "thermal"
+      ],
+      "doc": "aesthetic: grey transmission electron micrograph / polarised-light birefringence with glowing A-bands / Z-disc immunofluorescence / false-colour tension map"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-throws fibril registration, spacing and recruitment phases"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:42:03+00:00",
+    "fps": 61.3,
+    "motion": 0.074,
+    "lum": 0.377
+  },
+  "code": "const D = { energy: .62, scale: 1, speed: 1, density: .55, contract: .6, hue: 20, x: .5, y: .5, style: 'em', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// Striated muscle at the ultrastructure, the sarcomere. Myofibrils stack across\n// the frame, each a run of repeating contractile units read as the classic EM\n// banding: dark Z-lines bounding every sarcomere, light I-bands of thin actin,\n// the dark A-band of myosin overlap with its lighter H-zone and central M-line.\n// The muscle works: an activation wave travels along the fibres on incommensurate\n// rates, so the sliding-filament mechanism plays out -- Z-lines pull together, the\n// I-bands and H-zone narrow while the A-band holds its width -- a perpetual\n// contraction/relaxation that ripples and never re-phases. Offered as a grey\n// transmission electron micrograph, polarised-light birefringence, Z-disc\n// immunofluorescence, or a false-colour tension map.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\nconst contractD = 0.15 + P.contract * 0.6;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 8.3) * 43758.5453; return s - Math.floor(s); };\n\nconst nFib = Math.round(6 + P.density * 12);\nif (!S.fib || S.seedUsed !== P.seed || S.nU !== nFib) {\n  S.seedUsed = P.seed; S.nU = nFib;\n  S.fib = [];\n  for (let k = 0; k < nFib; k++) S.fib.push({\n    xoff: fr(k * 7 + 3),                 // striation misregistration\n    hj: (fr(k * 11 + 4) - 0.5) * 24,\n    wj: 0.9 + fr(k * 13 + 5) * 0.24,     // per-fibril sarcomere length jitter\n    aph: fr(k * 17 + 6) * 6.283          // activation phase offset (fibre recruitment)\n  });\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.3 + A.rms * 0.3;\nconst waveK = 1.5 + P.density * 2.5;\n// activation field: travelling twitch on incommensurate rates (never re-phases)\nfunction activ(xn, aph) {\n  const ph = -xn * waveK * 6.2831853 + t * 1.3 * sp + aph;\n  return 0.5 + 0.32 * Math.sin(ph) + 0.18 * Math.sin(ph * 0.61 + 1.3) + 0.1 * Math.sin(t * 0.7 * sp + aph * 1.7)\n    + K.pulse * 0.12 + A.bass * 0.18;\n}\n\nlet bgH, bgS, bgB, mode;\nif (style === 'polarized') { bgH = 250; bgS = 45; bgB = 8; mode = 'polarized'; }\nelse if (style === 'fluor') { bgH = 235; bgS = 55; bgB = 8; mode = 'fluor'; }\nelse if (style === 'thermal') { bgH = 240; bgS = 40; bgB = 10; mode = 'thermal'; }\nelse { bgH = 32; bgS = 8; bgB = 60; mode = 'em'; }     // EM: light-grey field, dark bands\nconst pale = (mode === 'em');\n\npush();\nnoStroke(); rectMode(CORNER);\nfill(bgH, bgS, bgB); rect(0, 0, width, height);\n\nconst fibH = height / nFib;\nconst SLmax = u * 0.085 * P.scale;                       // relaxed sarcomere length\nconst Awc = 0.6;                                          // A-band fraction of SLmax (constant length)\n\nif (mode === 'polarized' || mode === 'fluor' || mode === 'thermal') blendMode(ADD);\n\nconst econ = P.energy;                                    // EM contrast rides on energy\nfor (let f = 0; f < nFib; f++) {\n  const fb = S.fib[f];\n  const y0 = f * fibH;\n  const hue = (P.hue + fb.hj + 360) % 360;\n  const slm = SLmax * fb.wj;\n  const Aw = Awc * slm;                                   // constant A-band width\n  const ry = y0 + fibH * 0.08, rh = fibH * 0.84 + 0.6;\n  // slow striation scroll (each fibril shears at its own rate) -> whole pattern translates\n  const scrollX = (0.06 + fb.xoff * 0.05) * sp * t * u + 0.4 * u * fb.xoff * Math.sin(t * 0.11 * sp + fb.aph);\n  let x = ((-scrollX) % slm) - slm * (1 + fb.xoff);\n  let guard = 0;\n  while (x < width + slm && guard < 90) {\n    guard++;\n    const xn = (x + slm * 0.5) / width;\n    const act = Math.max(0, Math.min(1.3, activ(xn, fb.aph)));\n    const sl = slm * (1 - contractD * act);                // sliding filament: sarcomere shortens\n    const Iw = Math.max(sl * 0.02, (sl - Aw) * 0.5);        // I-band width shrinks\n    const overlap = contractD * act * 0.5 * Aw;\n    const Hw = Math.max(0, Aw - 2 * overlap);               // H-zone shrinks\n    const zx = x, ax0 = x + Iw, hx0 = x + Iw + (Aw - Hw) * 0.5, mx = x + sl * 0.5;\n    if (mode === 'em') { // dark bands on grey; contrast from energy\n      const Ic = 60 + econ * 12, Ac = 30 - econ * 16, Hc = 44 - econ * 6, Zc = 16 - econ * 8;\n      fill(hue, 6, Ic, 100); rect(zx, ry, Math.max(1, sl), rh);                    // light ground (I level)\n      fill(hue, 8, Ac + 4, 100); rect(ax0, ry, Math.max(1, Aw), rh);               // A-band dark\n      if (Hw > 1) { fill(hue, 6, Hc, 100); rect(hx0, ry, Hw, rh); }                // H-zone lighter\n      fill(hue, 10, Zc + 12, 100); rect(mx - Math.max(0.6, sl * 0.006), ry, Math.max(1.2, sl * 0.012), rh);  // M-line\n      fill(hue, 12, Zc, 100); rect(zx - Math.max(0.6, sl * 0.009), ry, Math.max(1.6, sl * 0.018), rh);       // Z-line\n    } else if (mode === 'polarized') { // A-band birefringent bright, I dark\n      const b = Math.min(100, (22 + act * 44) * glow);\n      fill(hue, 55, b * 0.3, 70); rect(zx, ry, Math.max(1, sl), rh);\n      fill((hue + 20) % 360, 60, b, 82); rect(ax0, ry, Math.max(1, Aw), rh);       // A-band glows\n      if (Hw > 1) { fill(hue, 40, b * 0.5, 70); rect(hx0, ry, Hw, rh); }           // H darker\n    } else if (mode === 'fluor') { // Z-discs + M-line labelled, thin bright lines\n      fill(hue, 20, 12 * glow, 40); rect(zx, ry, Math.max(1, sl), rh);\n      const zb = Math.min(100, (42 + act * 45) * glow);\n      fill(hue, 65, zb, 88); rect(zx - Math.max(0.8, sl * 0.02), ry, Math.max(1.8, sl * 0.045), rh);         // Z-disc\n      fill((hue + 130) % 360, 60, Math.min(100, zb * 0.85), 80); rect(mx - Math.max(0.7, sl * 0.012), ry, Math.max(1.4, sl * 0.026), rh);  // M-line\n    } else { // thermal tension map\n      const force = Math.min(1, overlap / (Aw * 0.5 + 1e-4) + act * 0.2);\n      const hh = 40 - force * 40 + (1 - force) * 200;      // blue(low) -> red(high)\n      fill((hh + 360) % 360, 70, Math.min(100, (30 + force * 55) * glow), 80); rect(ax0, ry, Math.max(1, Aw), rh);\n      fill(210, 50, Math.min(100, 22 * glow), 60); rect(zx, ry, Math.max(1, sl), rh);\n    }\n    x += sl;\n  }\n  // fibril separation (sarcolemma gap + faint highlight) -> stacked relief\n  noStroke();\n  fill(pale ? 32 : bgH, pale ? 10 : bgS, pale ? 34 : 4, pale ? 70 : 60); rect(0, y0, width, Math.max(1, fibH * 0.05));\n  fill(pale ? 32 : (P.hue % 360), pale ? 4 : 30, pale ? 82 : 30, pale ? 40 : 24); rect(0, y0 + fibH * 0.05, width, Math.max(0.8, fibH * 0.02));\n}\nif (mode === 'polarized' || mode === 'fluor' || mode === 'thermal') blendMode(BLEND);\n\n// subtle vignette\nnoFill(); for (let vi = 0; vi < 4; vi++) { stroke(bgH, bgS, pale ? bgB * 0.5 : 0, 9); strokeWeight(u * (0.05 + vi * 0.02)); ellipse(width / 2, height / 2, width * (1.02 + vi * 0.03), height * (1.02 + vi * 0.03)); }\npop();\n\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

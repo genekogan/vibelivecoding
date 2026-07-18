@@ -1,0 +1,126 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.jet_stream",
+  "kind": "genart",
+  "name": "Jet Stream",
+  "desc": "A meandering polar jet drawn as a water-vapor satellite image \u2014 a bright fast ribbon separating dry sinking air from moist streaks, buckling into travelling Rossby-wave troughs and ridges that migrate and beat against one another, in grey water-vapor, enhanced color, streamline, thermal or ink looks.",
+  "tags": [
+    "jet-stream",
+    "jet",
+    "rossby-wave",
+    "rossby",
+    "meander",
+    "trough",
+    "ridge",
+    "water-vapor",
+    "watervapor",
+    "wv-imagery",
+    "satellite",
+    "upper-level",
+    "polar-front",
+    "flow",
+    "ribbon",
+    "stream",
+    "moisture",
+    "dry-slot",
+    "meteorology",
+    "weather",
+    "atmosphere",
+    "atmospheric",
+    "undulating",
+    "wave",
+    "climate",
+    "field",
+    "generative",
+    "genart",
+    "background",
+    "bg",
+    "fullbleed"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "moisture contrast + jet sharpness"
+    },
+    "scale": {
+      "default": 1,
+      "min": 0.3,
+      "max": 2.5,
+      "doc": "moisture-streak size"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3.0,
+      "doc": "wave propagation + advection rate"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "moisture amount (equatorward plume)"
+    },
+    "meander": {
+      "default": 0.6,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "Rossby-wave amplitude (0=zonal, 1=deep buckles)"
+    },
+    "hue": {
+      "default": 200,
+      "min": 0,
+      "max": 360,
+      "doc": "base hue (color/streamline styles)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "phase shift of the wave train"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0.0,
+      "max": 1.0,
+      "doc": "jet latitude (vertical position)"
+    },
+    "style": {
+      "default": "watervapor",
+      "options": [
+        "watervapor",
+        "wv_color",
+        "streamlines",
+        "thermal",
+        "ink"
+      ],
+      "doc": "render: grey water-vapor / enhanced color WV / flow streamlines / thermal false-color / ink meander"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic wave + moisture arrangement"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:39:50+00:00",
+    "fps": 58.5,
+    "motion": 0.1363,
+    "lum": 0.423
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, meander: .6, hue: 200, x: .5, y: .5, style: 'watervapor', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\nconst clp = (v,a,b)=> v<a?a:(v>b?b:v);\nconst BW = clp(Math.round(width/2.6), 400, 640)|0;\nconst BH = Math.max(140, Math.round(BW*height/width))|0;\nif (!S.g || S.key !== BW+'x'+BH){ if (S.g&&S.g.remove) S.g.remove(); S.g = createGraphics(BW,BH); S.g.pixelDensity(1); S.key = BW+'x'+BH; }\nconst sd = (P.seed|0);\nif (S.seedUsed !== sd){ S.seedUsed = sd; const fr=i=>{const s=Math.sin(i*127.1+sd*311.7)*43758.5453; return s-Math.floor(s);}; S.o1=fr(1)*40; S.o2=fr(2)*40; S.p1=fr(3)*6.28; S.p2=fr(4)*6.28; S.p3=fr(5)*6.28; }\nfunction hsh(ix,iy){ let h=(ix*374761393+iy*668265263+sd*2147483647)|0; h=(h^(h>>>13))*1274126177|0; return ((h^(h>>>16))>>>0)/4294967295; }\nfunction vn(x,y){ const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy); const a=hsh(ix,iy),b=hsh(ix+1,iy),c=hsh(ix,iy+1),d=hsh(ix+1,iy+1); return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v; }\nfunction ss(a,b,x){ const t2=clp((x-a)/(b-a),0,1); return t2*t2*(3-2*t2); }\nfunction hsv(h,s,v){ h=(((h%360)+360)%360)/60; const c=v*s,xx=c*(1-Math.abs(h%2-1)),m=v-c; let r,g,b; if(h<1){r=c;g=xx;b=0;}else if(h<2){r=xx;g=c;b=0;}else if(h<3){r=0;g=c;b=xx;}else if(h<4){r=0;g=xx;b=c;}else if(h<5){r=xx;g=0;b=c;}else{r=c;g=0;b=xx;} return [(r+m),(g+m),(b+m)]; }\n\nconst style = P.style, en = clp(P.energy,0,1);\nconst t = K.t;\nconst mnd = clp(P.meander,0,1);\n// Rossby-wave centerline: three components with incommensurate phase speeds -> waves travel & beat\nconst amp = (0.10+mnd*0.20);\nconst k1=2.2, k2=3.7, k3=5.9;\nconst w1 = (0.10+P.speed*0.10), w2 = (0.061+P.speed*0.072), w3 = (0.13+P.speed*0.05);\nconst yBias = (P.y-0.5)*0.5;\nfunction jetY(xn){ return 0.5 + yBias + amp*( 0.55*Math.sin(k1*xn*6.2832 + t*w1 + S.p1) + 0.30*Math.sin(k2*xn*6.2832 - t*w2 + S.p2) + 0.18*Math.sin(k3*xn*6.2832 + t*w3 + S.p3) ); }\nconst coreW = (0.045+ (1-en)*0.02) ;\nconst adv = t*(0.02+P.speed*0.05);            // moisture advection along flow\nconst fxH = 2.0/clp(P.scale,0.3,3);           // low along-flow freq (streaky)\nconst fyH = 7.0/clp(P.scale,0.3,3);           // high cross-flow freq\nconst moist = 0.35 + clp(P.density,0,1)*0.4;\nconst hb = ((P.hue)%360+360)%360;\nconst glow = K.swell*0.05 + A.mid*0.08;\n\nconst g = S.g; g.loadPixels(); const px = g.pixels;\nfor (let j=0;j<BH;j++){\n  const yn=j/BH;\n  for (let i=0;i<BW;i++){\n    const xn=i/BW;\n    const yc=jetY(xn);\n    const dev=(yn-yc);                          // signed cross-jet distance\n    const jet=Math.exp(-(dev*dev)/(coreW*coreW));\n    // moisture streaks follow the ribbon (cross-coordinate = dev)\n    let m = 0.6*vn(xn*fxH*BW*0.02 + adv + S.o1, dev*fyH*BW*0.02 + S.o2);\n    m += 0.4*vn(xn*fxH*BW*0.05 - adv*1.4, dev*fyH*BW*0.05 + 7);\n    // dry poleward slot (above jet) vs moist equatorward (below)\n    const lat = ss(-0.02, 0.16, dev);           // 0 poleward(dry) -> 1 equatorward(moist)\n    let wv = clp( (0.15 + lat*moist) + (m-0.5)*(0.55+en*0.25) + jet*0.55, 0, 1);\n    let r,gg,b;\n    if (style==='watervapor'){ const v=0.06+wv*0.86; r=v;gg=v*1.0;b=v*0.97; }\n    else if (style==='wv_color'){\n      // enhanced WV: dry=blue/indigo, mid=green, moist=amber/white\n      let cc; if(wv<0.4){ const u=wv/0.4; cc=hsv(255-u*60,0.6,0.10+u*0.35);} else if(wv<0.72){ const u=(wv-0.4)/0.32; cc=hsv(160-u*90,0.55,0.42+u*0.25);} else { const u=(wv-0.72)/0.28; cc=hsv(45-u*45,0.5-u*0.4,0.65+u*0.3);} r=cc[0];gg=cc[1];b=cc[2];\n    }\n    else if (style==='streamlines'){\n      const streak = 0.5+0.5*Math.sin((xn*fxH*22 + adv*30) + dev*40 + m*6);\n      const base=0.10+lat*0.14 + m*0.06; const line=Math.pow(streak,3)*(0.45+jet*0.6);\n      const cc=hsv(hb - jet*30, 0.42, clp(base+line*(0.5+en*0.5)+jet*0.45,0,1)); r=cc[0];gg=cc[1];b=cc[2];\n    }\n    else if (style==='thermal'){ const u=clp(wv,0,1); const rr=Math.min(1,u*2.1),g2=clp(u*2-0.55,0,1),bb=clp(u*3.2-2.1,0,1); const base=(1-u)*0.35; r=Math.max(base*0.2,rr);gg=Math.max(base*0.1,g2); b=Math.max(base,bb); }\n    else { const v=0.90-wv*0.78; r=v;gg=v*0.99;b=v*0.95; } // ink meander (dark on pale)\n    const o=4*(j*BW+i);\n    px[o]=clp(r+glow*jet,0,1)*255; px[o+1]=clp(gg+glow*jet,0,1)*255; px[o+2]=clp(b+glow*jet,0,1)*255; px[o+3]=255;\n  }\n}\ng.updatePixels();\npush();\nif (P.alpha<100) tint(0,0,100,clp(P.alpha,0,100));\nimage(g,0,0,width,height);\npop();\n"
+}

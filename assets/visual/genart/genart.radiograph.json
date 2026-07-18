@@ -1,0 +1,140 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.radiograph",
+  "kind": "genart",
+  "name": "Chest Radiograph",
+  "desc": "A posteroanterior chest X-ray breathing on the viewbox: a soft-tissue grey torso, two radiolucent lung fields, the bright mediastinal shadow with the heart bulging to the left, a stacked bony spine, and nine pairs of ribs arcing out from the costovertebral joints \u2014 the whole cage inflating and emptying on a slow respiratory cycle as ribs elevate and the diaphragm domes descend, offered as neutral film grey, warm bromide, a cool digital plate, or a blueprint of bone contours.",
+  "tags": [
+    "radiograph",
+    "xray",
+    "x-ray",
+    "chest-xray",
+    "cxr",
+    "plain-film",
+    "roentgen",
+    "radiology",
+    "radiography",
+    "imaging",
+    "projection",
+    "medical",
+    "clinical",
+    "hospital",
+    "diagnostic",
+    "ribs",
+    "ribcage",
+    "thorax",
+    "chest",
+    "lungs",
+    "lung-fields",
+    "mediastinum",
+    "heart-shadow",
+    "cardiac-silhouette",
+    "spine",
+    "vertebrae",
+    "clavicle",
+    "diaphragm",
+    "skeleton",
+    "bone",
+    "anatomy",
+    "anatomical",
+    "breathing",
+    "respiration",
+    "greyscale",
+    "monochrome",
+    "film",
+    "viewbox",
+    "austere",
+    "clinical",
+    "eerie",
+    "generative",
+    "genart",
+    "fullbleed",
+    "background",
+    "bg"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "exposure / density gain \u2014 brightness of the whole plate"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification into the film"
+    },
+    "breath": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "depth of respiration \u2014 how much the ribcage inflates and empties"
+    },
+    "grain": {
+      "default": 0.45,
+      "min": 0,
+      "max": 1,
+      "doc": "film-grain tooth over the image"
+    },
+    "drift": {
+      "default": 0.3,
+      "min": 0,
+      "max": 1,
+      "doc": "irregularity of the breathing rhythm"
+    },
+    "hue": {
+      "default": 205,
+      "min": 0,
+      "max": 360,
+      "doc": "film tint (only used by warm/cool/schematic looks)"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan across the plate when magnified"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan up/down the plate when magnified"
+    },
+    "style": {
+      "default": "film",
+      "options": [
+        "film",
+        "warm",
+        "cool",
+        "schematic"
+      ],
+      "doc": "neutral film grey / warm bromide print / cool digital plate / blueprint of bone contours (schematic = bones only)"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic grain and rib jitter"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:41:13+00:00",
+    "fps": 57.1,
+    "motion": 0.0126,
+    "lum": 0.069
+  },
+  "code": "const D = { energy: .6, scale: 1, breath: .6, grain: .45, drift: .3, hue: 205, x: .5, y: .5, style: 'film', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// ---------------------------------------------------------------------------\n// Chest radiograph -- a PA plain film breathing on the viewbox. Soft-tissue\n// grey torso, two radiolucent lung fields, the bright mediastinal shadow with\n// the heart bulging left, a stacked bony spine, and nine pairs of ribs arcing\n// out from the costovertebral joints. The whole cage inflates and empties on a\n// slow respiratory cycle -- ribs elevate, lungs expand, the diaphragm domes\n// descend -- so the plate is never static. Film grey, warm bromide, a cool\n// digital plate, or a blueprint of bone contours.\n// ---------------------------------------------------------------------------\nconst sd = P.seed | 0;\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7) * 43758.5453; return s - Math.floor(s); };\n\nif (!S.g || S.gw !== width) {\n  S.g = createGraphics(Math.max(360, Math.min(900, Math.round(width / 1.8))), Math.max(360, Math.min(900, Math.round(width / 1.8)) * height / width | 0));\n  S.g.pixelDensity(1); S.gw = width;\n  // film-grain tile\n  const gw = S.g.width, gh = S.g.height;\n  S.grain = createGraphics(gw, gh); S.grain.pixelDensity(1);\n  const gr = S.grain; gr.loadPixels(); const gp = gr.pixels;\n  for (let k = 0; k < gw * gh; k++) { const v = (fr(k * 1.7) - 0.5); const o = 4 * k; gp[o] = gp[o + 1] = gp[o + 2] = 128 + v * 150; gp[o + 3] = 255; }\n  gr.updatePixels();\n}\nconst g = S.g, GW = g.width, GH = g.height, u = Math.min(GW, GH);\n\n// respiratory cycle: two incommensurate slow terms -> never re-phases near 8 s\nconst br = 0.5 + 0.5 * (0.62 * Math.sin(K.t * 0.42 + 0.4) + 0.38 * Math.sin(K.t * 0.73 * (0.6 + P.drift) + 2.1));\nconst inh = br * (0.6 + P.breath);              // inflation amount\nconst gain = 0.62 + P.energy * 0.7 + A.rms * 0.2;\nconst style = P.style, blue = P.hue > 250 || P.hue < 30;\n\nconst mag = Math.max(1, P.scale);\nconst cx = GW * 0.5, cy = GH * 0.5;\ng.push();\ng.translate(GW / 2, GH / 2); g.scale(mag); g.translate(-GW / 2, -GH / 2);\ng.translate((0.5 - P.x) * GW, (0.5 - P.y) * GH);\n\n// ---- tone helpers ----\nconst bg = style === 'schematic' ? [215, 60, 10] : [0, 0, style === 'warm' ? 6 : 7];\ng.background(bg[0], bg[1], bg[2]);\nfunction tone(v) { // map density 0..1 -> HSB colour for the chosen film\n  v = Math.max(0, Math.min(1, v * gain));\n  if (style === 'warm') return [32, 22 - v * 14, 8 + v * 86];\n  if (style === 'cool') return [205, 30 - v * 20, 6 + v * 88];\n  if (style === 'schematic') return [205, 55, 20 + v * 78];\n  return [210, 5, 6 + v * 88];                 // film neutral grey\n}\nfunction T(v, a) { const c = tone(v); g.fill(c[0], c[1], c[2], a == null ? 100 : a); }\n\nconst chestW = u * 0.40, chestTop = GH * 0.20 - inh * u * 0.02, chestBot = GH * 0.86 + inh * u * 0.01;\nconst schem = style === 'schematic';\n\nif (!schem) {\n  // soft-tissue torso silhouette\n  g.noStroke(); T(0.34);\n  g.beginShape();\n  g.vertex(cx - chestW * 1.02, chestTop + u * 0.02);\n  g.bezierVertex(cx - chestW * 1.2, GH * 0.5, cx - chestW * 1.05, chestBot, cx - chestW * 0.7, chestBot + u * 0.02);\n  g.vertex(cx + chestW * 0.7, chestBot + u * 0.02);\n  g.bezierVertex(cx + chestW * 1.05, chestBot, cx + chestW * 1.2, GH * 0.5, cx + chestW * 1.02, chestTop + u * 0.02);\n  g.bezierVertex(cx + chestW * 0.5, chestTop - u * 0.04, cx - chestW * 0.5, chestTop - u * 0.04, cx - chestW * 1.02, chestTop + u * 0.02);\n  g.endShape(CLOSE);\n  // shoulders (denser)\n  T(0.42); g.ellipse(cx - chestW * 0.95, chestTop + u * 0.05, u * 0.32, u * 0.26);\n  g.ellipse(cx + chestW * 0.95, chestTop + u * 0.05, u * 0.32, u * 0.26);\n  // lung fields (radiolucent, darker) \u2014 expand with inhale\n  const lw = chestW * (0.66 + inh * 0.12), lh = (chestBot - chestTop) * (0.62 + inh * 0.05);\n  const lyc = chestTop + lh * 0.52;\n  T(0.13); g.ellipse(cx - chestW * 0.52, lyc, lw, lh);\n  g.ellipse(cx + chestW * 0.52, lyc, lw * 0.94, lh);   // right lung slightly larger footprint\n  // mediastinum + heart shadow (bright soft tissue), heart bulges left\n  T(0.5); g.rect(cx - chestW * 0.13, chestTop, chestW * 0.26, chestBot - chestTop, chestW * 0.1);\n  T(0.46);\n  g.beginShape();\n  g.vertex(cx - chestW * 0.05, GH * 0.44);\n  g.bezierVertex(cx - chestW * 0.62, GH * 0.5, cx - chestW * 0.55, GH * 0.72, cx - chestW * 0.06, GH * 0.72);\n  g.vertex(cx + chestW * 0.24, GH * 0.72);\n  g.bezierVertex(cx + chestW * 0.34, GH * 0.6, cx + chestW * 0.2, GH * 0.46, cx - chestW * 0.05, GH * 0.44);\n  g.endShape(CLOSE);\n  // diaphragm domes (bright), descend on inhale\n  const dY = chestBot - lh * (0.06 - inh * 0.05);\n  T(0.5); g.ellipse(cx - chestW * 0.5, dY, lw * 1.02, lh * 0.5);\n  g.ellipse(cx + chestW * 0.5, dY - u * 0.02, lw, lh * 0.52);\n  // abdomen below\n  T(0.4); g.rect(cx - chestW, chestBot, chestW * 2, GH - chestBot + 2);\n}\n\n// ---- BONES (additive over soft tissue) ----\ng.blendMode(schem ? BLEND : ADD);\nconst boneV = schem ? 0.9 : 0.62;\n// spine: stacked vertebral bodies down the midline\nconst nvert = 13, vtop = chestTop - u * 0.02, vbot = chestBot + u * 0.05, vsp = (vbot - vtop) / nvert;\nfor (let k = 0; k < nvert; k++) {\n  const vy = vtop + k * vsp + Math.sin(k) * 0.0;\n  if (schem) { g.noFill(); g.stroke(tone(boneV)[0], tone(boneV)[1], tone(boneV)[2]); g.strokeWeight(u * 0.004); g.rect(cx - chestW * 0.09, vy, chestW * 0.18, vsp * 0.8, vsp * 0.16); }\n  else { g.noStroke(); T(boneV * 0.9, 70); g.rect(cx - chestW * 0.095, vy, chestW * 0.19, vsp * 0.82, vsp * 0.18); T(boneV * 0.4, 40); g.rect(cx - chestW * 0.095, vy + vsp * 0.82, chestW * 0.19, vsp * 0.18); }\n}\n// clavicles\ng.noFill(); g.stroke(tone(boneV)[0], tone(boneV)[1], tone(boneV)[2]); g.strokeWeight(u * (schem ? 0.006 : 0.014));\nfor (let s = -1; s <= 1; s += 2) {\n  g.bezier(cx + s * chestW * 0.06, chestTop + u * 0.02, cx + s * chestW * 0.45, chestTop - inh * u * 0.015, cx + s * chestW * 0.8, chestTop + u * 0.01, cx + s * chestW * 0.98, chestTop + u * 0.05);\n}\n// ribs: nine pairs arcing from spine, elevating with inhale\nconst nrib = 9, rtop = chestTop + u * 0.03, rsp = (chestBot - chestTop) * 0.072;\nfor (let s = -1; s <= 1; s += 2) {\n  for (let k = 0; k < nrib; k++) {\n    const jit = (fr(k * 3.1 + s) - 0.5) * u * 0.004;\n    const y0 = rtop + k * rsp - inh * u * 0.02 * (1 - k / nrib) + jit;         // costovertebral, elevates\n    const arch = u * (0.05 + 0.02 * Math.sin(k * 0.6)) * (0.8 + inh * 0.5);\n    const spread = chestW * (0.9 + k * 0.02);\n    const dip = u * 0.05 + k * u * 0.006;\n    g.strokeWeight(u * (schem ? 0.0035 : 0.0075) * (1 - k * 0.02));\n    // posterior rib: bows upward then sweeps down laterally\n    g.bezier(cx + s * chestW * 0.11, y0, cx + s * spread * 0.5, y0 - arch, cx + s * spread * 0.92, y0 + dip * 0.3, cx + s * spread * 1.02, y0 + dip);\n    if (!schem && k < 7) {   // faint anterior rib angling down toward the sternum\n      g.strokeWeight(u * 0.004);\n      const c = tone(boneV * 0.55); g.stroke(c[0], c[1], c[2]);\n      g.bezier(cx + s * spread * 1.0, y0 + dip, cx + s * spread * 0.6, y0 + dip + u * 0.03, cx + s * chestW * 0.4, y0 + dip + u * 0.06, cx + s * chestW * 0.12, y0 + dip + u * 0.075);\n      g.stroke(tone(boneV)[0], tone(boneV)[1], tone(boneV)[2]);\n    }\n  }\n}\ng.noStroke();\ng.blendMode(BLEND);\ng.pop();\n\n// film grain over the whole plate\nif (!schem) {\n  g.push(); g.blendMode(MULTIPLY); g.tint(0, 0, 100, 18 + P.grain * 42); g.image(S.grain, 0, 0); g.pop();\n}\n// edge vignette (thick dark border strokes darken only the margins)\ng.push(); g.rectMode(CENTER); g.noFill(); g.blendMode(MULTIPLY);\nfor (let r = 0; r < 3; r++) { g.stroke(0, 0, 0, 22); g.strokeWeight(u * 0.05 * (3 - r)); g.rect(GW / 2, GH / 2, GW - u * 0.02 - r * u * 0.06, GH - u * 0.02 - r * u * 0.06); }\ng.pop();\n\npush();\nif (P.alpha < 100) tint(0, 0, 100, P.alpha);\nimage(g, 0, 0, width, height);\npop();\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}

@@ -1,0 +1,137 @@
+{
+  "format": "livecode-visual-v1",
+  "id": "genart.stomata_field",
+  "kind": "genart",
+  "name": "Stomata Field",
+  "desc": "The underside of a leaf under the microscope: pavement cells interlock across the epidermis as wavy jigsaw pieces, their sinuous anticlinal walls fitting lobe into bay, and scattered through them are the stomata -- each a pair of kidney-shaped guard cells flanking a central pore, packed with chloroplasts. The stomata work: guard cells swell and slacken with turgor so their pores open and close, each on its own rhythm plus a slow global light drive, while the chloroplasts stream inside and the whole peel drifts gently under the objective, everything on incommensurate rates so it never re-phases. Offered as a Nomarski DIC peel, confocal fluorescence with red chloroplast autofluorescence, an antique botanical plate, or a false-colour turgor map.",
+  "tags": [
+    "stomata",
+    "stoma",
+    "guard-cell",
+    "pavement-cell",
+    "epidermis",
+    "leaf",
+    "leaf-surface",
+    "epidermal",
+    "jigsaw",
+    "puzzle-cell",
+    "anticlinal-wall",
+    "cell-wall",
+    "chloroplast",
+    "turgor",
+    "pore",
+    "aperture",
+    "botany",
+    "plant",
+    "plant-cell",
+    "microscopy",
+    "micrograph",
+    "microscope",
+    "dic",
+    "nomarski",
+    "confocal",
+    "fluorescence",
+    "botanical",
+    "cell",
+    "cells",
+    "microbiology",
+    "tissue",
+    "green",
+    "autofluorescence",
+    "turgor-map",
+    "false-colour",
+    "genart",
+    "generative",
+    "fullbleed",
+    "background",
+    "organic",
+    "serene",
+    "clinical",
+    "sublime"
+  ],
+  "slots": [
+    "bg"
+  ],
+  "budget": "medium",
+  "params": {
+    "energy": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "wall / fluorescence brightness and contrast"
+    },
+    "scale": {
+      "default": 1,
+      "min": 1,
+      "max": 2.4,
+      "doc": "magnification - cells swell, fewer larger, guaranteed visible change"
+    },
+    "speed": {
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "doc": "how fast stomata open/close, chloroplasts stream and the peel drifts"
+    },
+    "density": {
+      "default": 0.55,
+      "min": 0,
+      "max": 1,
+      "doc": "how finely the epidermis is packed with cells"
+    },
+    "aperture": {
+      "default": 0.6,
+      "min": 0,
+      "max": 1,
+      "doc": "how wide the stomatal pores open and how many stomata there are"
+    },
+    "hue": {
+      "default": 125,
+      "min": 0,
+      "max": 360,
+      "doc": "epidermis / wall hue"
+    },
+    "x": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the peel, horizontal"
+    },
+    "y": {
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "doc": "pan the peel, vertical"
+    },
+    "style": {
+      "default": "dic",
+      "options": [
+        "dic",
+        "fluor",
+        "botanical",
+        "thermal"
+      ],
+      "doc": "aesthetic: Nomarski DIC leaf-peel relief / confocal fluorescence with red chloroplast autofluorescence / antique botanical plate / false-colour turgor map"
+    },
+    "seed": {
+      "default": 0,
+      "min": 0,
+      "max": 9999,
+      "doc": "deterministic - re-throws cell shapes, stomata placement and chloroplasts"
+    },
+    "alpha": {
+      "default": 100,
+      "min": 0,
+      "max": 100,
+      "doc": "layer opacity for VJ compositing"
+    }
+  },
+  "acts": null,
+  "deps": [],
+  "verified": {
+    "at": "2026-07-18T06:42:36+00:00",
+    "fps": 59.9,
+    "motion": 0.0566,
+    "lum": 0.441
+  },
+  "code": "const D = { energy: .6, scale: 1, speed: 1, density: .55, aperture: .6, hue: 125, x: .5, y: .5, style: 'dic', seed: 0, alpha: 100 };\nconst P = Object.assign({}, D, (window.state.P && window.state.P.__SLOT__) || {});\nconst S = window.state.__SLOT__ || (window.state.__SLOT__ = {});\nconst K = window.state.clk || { t:0, cps:.5, beat:0, bar:0, cyc:0, phase:0, pulse:0, swell:0, section:0, intensity:.6, fps:60 };\nconst A = window.state.audio || { bass:0, lowmid:0, mid:0, treble:0, rms:0, fft:[] };\n\n// -----------------------------------------------------------------------------\n// The underside of a leaf under the microscope. Pavement cells interlock across\n// the epidermis as wavy jigsaw pieces, their sinuous anticlinal walls fitting\n// lobe into bay. Scattered through them are the stomata: each a pair of\n// kidney-shaped guard cells flanking a central pore, packed with chloroplasts.\n// The stomata WORK -- guard cells swell and slacken with turgor so their pores\n// open and close, each on its own rhythm plus a slow global light drive, and the\n// chloroplasts stream inside; the whole peel drifts gently under the objective.\n// Everything runs on incommensurate rates so it never re-phases. Offered as a\n// Nomarski DIC peel, confocal fluorescence with red chloroplast autofluorescence,\n// an antique botanical plate, or a false-colour turgor map.\n// -----------------------------------------------------------------------------\n\nconst u = Math.min(width, height);\nconst sp = 0.25 + P.speed * 0.9;\nconst apMax = 0.2 + P.aperture * 0.8;\n\nconst sd = (P.seed | 0);\nconst fr = i => { const s = Math.sin(i * 127.1 + sd * 311.7 + 9.1) * 43758.5453; return s - Math.floor(s); };\n\nconst cols = Math.round(7 + P.density * 10);\nconst rows = Math.max(4, Math.round(cols * height / width));\nif (!S.cell || S.seedUsed !== P.seed || S.cols !== cols || S.rows !== rows) {\n  S.seedUsed = P.seed; S.cols = cols; S.rows = rows;\n  S.cell = []; S.stoma = [];\n  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {\n    const k = j * cols + i;\n    const stag = (j % 2) * 0.5;\n    const isStoma = fr(k * 3 + 1) < (0.12 + P.aperture * 0.22);\n    const base = {\n      gx: (i + 0.5 + stag) / cols, gy: (j + 0.5) / rows,\n      jx: (fr(k * 5 + 2) - 0.5) * 0.5 / cols, jy: (fr(k * 7 + 3) - 0.5) * 0.5 / rows,\n      hj: (fr(k * 11 + 4) - 0.5) * 22\n    };\n    if (isStoma) {\n      const nch = 5 + (fr(k * 31 + 9) * 5 | 0), ch = [];\n      for (let c = 0; c < nch; c++) ch.push({ a: fr(k * 13 + c * 3 + 40) * 6.283, r: 0.2 + fr(k * 17 + c * 2 + 41) * 0.6, ph: fr(k * 19 + c + 42) * 6.283, side: fr(k * 23 + c + 43) < 0.5 ? -1 : 1 });\n      S.stoma.push(Object.assign(base, { rot: fr(k * 29 + 8) * Math.PI, ap0: fr(k * 37 + 10), aprate: 0.1 + fr(k * 41 + 11) * 0.16, chl: ch, sz: 0.9 + fr(k * 43 + 12) * 0.35 }));\n    } else {\n      S.cell.push(Object.assign(base, { lobes: 3 + (fr(k * 47 + 5) * 4 | 0), amp: 0.14 + fr(k * 53 + 6) * 0.22, lph: fr(k * 59 + 7) * 6.283, wph: fr(k * 61 + 8) * 6.283 }));\n    }\n  }\n}\n\nconst t = K.t;\nconst style = P.style;\nconst glow = 0.4 + P.energy * 1.3 + A.rms * 0.3;\nconst lightDrive = 0.5 + 0.42 * Math.sin(t * 0.16 * sp) + 0.12 * Math.sin(t * 0.037 * sp);   // slow global open/close\nconst driftX = (Math.sin(t * 0.06 * sp) * 0.032 + Math.sin(t * 0.019 * sp + 1.2) * 0.02) * u + (P.x - 0.5) * width * 0.15;\nconst driftY = (Math.cos(t * 0.05 * sp) * 0.032 + Math.sin(t * 0.015 * sp + 0.5) * 0.02) * u + (P.y - 0.5) * height * 0.15;\nconst fieldRot = 0.05 * Math.sin(t * 0.03 * sp) + 0.03 * Math.sin(t * 0.011 * sp + 0.7);   // slow whole-peel roll\n\nlet bgH, bgS, bgB, mode;\nif (style === 'fluor') { bgH = 300; bgS = 55; bgB = 7; mode = 'fluor'; }\nelse if (style === 'botanical') { bgH = 40; bgS = 20; bgB = 72; mode = 'botanical'; }\nelse if (style === 'thermal') { bgH = 235; bgS = 40; bgB = 12; mode = 'thermal'; }\nelse { bgH = 90, bgS = 12; bgB = 52; mode = 'dic'; }         // DIC leaf peel: greenish-grey relief\nconst pale = (mode === 'dic' || mode === 'botanical');\n\nconst cw = width / cols, chh = height / rows, cellR = Math.min(cw, chh) * 0.66 * P.scale;\n\npush();\nnoStroke(); rectMode(CENTER);\nfill(bgH, bgS, bgB); rect(width / 2, height / 2, width * 1.02, height * 1.02);\npush(); translate(width / 2 + driftX, height / 2 + driftY); rotate(fieldRot); translate(-width / 2, -height / 2);\n\n// wall/fill colours\nfunction cellFill() {\n  if (mode === 'fluor') return [P.hue, 20, 10 * glow, 30];\n  if (mode === 'botanical') return [(P.hue + 20) % 360, 16, 66, 55];\n  if (mode === 'thermal') return null; // per-cell\n  return [(P.hue) % 360, 14, 56, 60];   // dic\n}\nfunction wallCol(h) {\n  if (mode === 'fluor') return [(h + 300) % 360, 60, Math.min(100, 60 * glow), 85];\n  if (mode === 'botanical') return [30, 40, 24, 80];\n  if (mode === 'thermal') return [200, 30, 70, 60];\n  return [h, 22, 30, 70];                // dic dark wall + we add a relief highlight\n}\n\n// ---- pavement cells (fills then walls) ----\nif (mode === 'fluor') blendMode(ADD);\nfor (let pass = 0; pass < 2; pass++) {\n  for (let ci = 0; ci < S.cell.length; ci++) {\n    const c = S.cell[ci];\n    const cx = c.gx * width + c.jx * width, cy = c.gy * height + c.jy * height;\n    const R = cellR * (1 + 0.03 * Math.sin(t * 0.4 * sp + c.wph));\n    const hue = (P.hue + c.hj + 360) % 360;\n    push(); translate(cx, cy);\n    if (pass === 0) {\n      let cf = cellFill();\n      if (mode === 'thermal') { const v = 0.5 + 0.5 * Math.sin(c.gx * 5 + c.gy * 4 + t * 0.2 * sp); cf = [(200 - v * 160 + 360) % 360, 45, Math.min(100, (30 + v * 30) * glow), 55]; }\n      noStroke(); fill(cf[0], cf[1], cf[2], cf[3]);\n    } else {\n      const wc = wallCol(hue); noFill(); stroke(wc[0], wc[1], wc[2], wc[3]); strokeWeight(Math.max(0.8, R * 0.09));\n    }\n    beginShape();\n    const nv = c.lobes * 6;\n    for (let a = 0; a <= nv; a++) {\n      const th = a / nv * 6.2831853;\n      const rr = R * (1 + c.amp * Math.sin(c.lobes * th + c.lph) + 0.05 * Math.sin(t * 0.3 + c.wph));\n      curveVertex(Math.cos(th) * rr, Math.sin(th) * rr);\n    }\n    endShape(CLOSE);\n    // DIC relief highlight on one flank\n    if (pass === 1 && mode === 'dic') { stroke(hue, 8, 80, 40); strokeWeight(Math.max(0.5, R * 0.05)); noFill(); beginShape(); for (let a = 0; a <= nv; a++) { const th = a / nv * 6.2831853; const rr = R * (1 + c.amp * Math.sin(c.lobes * th + c.lph)) * 0.94; const lit = Math.max(0, Math.cos(th - 2.3)); if (lit > 0.3) curveVertex(Math.cos(th) * rr, Math.sin(th) * rr); } endShape(); }\n    pop();\n  }\n}\n\n// ---- stomata (guard-cell pairs, pores opening/closing) ----\nfor (let si = 0; si < S.stoma.length; si++) {\n  const st = S.stoma[si];\n  const cx = st.gx * width + st.jx * width, cy = st.gy * height + st.jy * height;\n  const R = cellR * st.sz;\n  const hue = (P.hue + st.hj + 360) % 360;\n  // aperture: own rhythm + global light drive, clamped 0..1\n  const ap = Math.max(0, Math.min(1, (0.5 + 0.5 * Math.sin(t * st.aprate * sp + st.ap0 * 6.283)) * 0.6 + lightDrive * 0.5)) * apMax;\n  push(); translate(cx, cy); rotate(st.rot);\n  const gw = R * 0.5, gl = R * 1.5, off = gw * 0.55 + ap * gw * 0.7;\n  // pore (dark lens between guard cells) -- deeper when open\n  noStroke();\n  if (mode === 'fluor') fill(0, 0, 2, 90); else if (pale) fill(hue, 20, 22, 85); else fill(220, 30, 6, 90);\n  ellipse(0, 0, Math.max(1, ap * gw * 1.4 + gw * 0.15), gl * 0.82);\n  // two guard cells\n  for (const side of [-1, 1]) {\n    push(); translate(side * off, 0);\n    // guard cell body (bean)\n    let gf;\n    if (mode === 'fluor') gf = [(hue) % 360, 55, Math.min(100, 40 * glow), 60];\n    else if (mode === 'botanical') gf = [(P.hue + 10) % 360, 26, 60, 78];\n    else if (mode === 'thermal') gf = [(40 - ap * 40 + 200 * (1 - ap) + 360) % 360, 55, Math.min(100, (34 + ap * 40) * glow), 75];\n    else gf = [(P.hue) % 360, 30, 52, 80];\n    noStroke(); fill(gf[0], gf[1], gf[2], gf[3]);\n    ellipse(0, 0, gw * 1.15, gl);\n    // guard cell wall\n    noFill(); const wc = wallCol(hue); stroke(wc[0], wc[1], Math.min(100, wc[2] * (mode === 'dic' ? 1 : 1.3)), 90); strokeWeight(Math.max(0.8, R * 0.06));\n    ellipse(0, 0, gw * 1.15, gl);\n    // chloroplasts streaming inside guard cells\n    if (mode !== 'thermal') { noStroke(); for (let c = 0; c < st.chl.length; c++) { const ch = st.chl[c]; if (ch.side !== side) continue; const jd = 0.06 * Math.sin(t * 0.8 * sp + ch.ph); const px = Math.cos(ch.a) * gw * 0.32, py = (ch.r - 0.5) * gl * 0.8 + jd * gl; const cb = mode === 'fluor' ? [355, 75, Math.min(100, 70 * glow), 85] : (pale ? [130, 45, 42, 80] : [130, 55, 50, 80]); fill(cb[0], cb[1], cb[2], cb[3]); ellipse(px, py + jd * gl * 0.3, gw * 0.28, gw * 0.28); } }\n    pop();\n  }\n  pop();\n}\nif (mode === 'fluor') blendMode(BLEND);\n\npop(); // drift\n\n// vignette\nnoFill(); for (let vi = 0; vi < 4; vi++) { stroke(bgH, bgS, pale ? bgB * 0.6 : 0, 9); strokeWeight(u * (0.05 + vi * 0.02)); ellipse(width / 2, height / 2, width * (1.02 + vi * 0.03), height * (1.02 + vi * 0.03)); }\npop();\n\nif (P.alpha < 100) { push(); noStroke(); rectMode(CORNER); fill(bgH, bgS, bgB, 100 - Math.max(0, Math.min(100, P.alpha))); rect(0, 0, width, height); pop(); }\nblendMode(BLEND);\ndrawingContext.shadowBlur = 0;\n"
+}
