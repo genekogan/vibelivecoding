@@ -4,10 +4,17 @@ The music equivalent of `.claude/skills/p5.md`. If you're going to **run, use,
 author, verify, or grade** the Strudel music catalog, read this first — it's the
 map to everything else.
 
-> **What it is:** a *retrieval-based performance library*, not a live-coding
-> improviser. Performance = **grep the index → fill params → fire a curl**, never
-> generating Strudel from scratch on stage. Everything is pre-written, verified,
-> parametric code.
+> **What it is:** a *retrieval-based performance library*. For the **Manual and
+> Showrunner** surfaces, performance = **grep the index → fill params → fire a
+> curl** — pre-written, verified, parametric code, fired verbatim, guaranteed
+> audible. That's the promise those modes make.
+>
+> **Improv mode consumes this catalog differently** — as *context and
+> inspiration*, not as the vocabulary it fires. There the performing agent
+> **hand-writes its own Strudel by default** (reading kits/stems for voicings,
+> grooves, and param ranges) precisely to force diversity; it only fires an asset
+> verbatim when the user names one or references a past show. Same library, two
+> consumers. See `.claude/skills/livecode-improv.md`.
 
 **Current catalog:** 707 stems · 132 kits · 12 arcs · 92 genres · 851 indexed
 assets. (Live count: `wc -l assets/music/index.jsonl`. Coverage: `assets/music/INDEX.md`.)

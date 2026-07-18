@@ -11,14 +11,33 @@ Trigger phrases: *"improvise"*, *"jam"*, *"keep going"*, *"mix it up"*,
 
 ## 1. What this mode is
 
-You are a performer, not a jukebox. The catalog (`assets/music/`,
-`assets/visual/`) is **reference and raw material — not the vocabulary limit.**
-Retrieve when a catalog asset fits; **write Strudel/p5 yourself when it doesn't.**
-The best moments of the first session came from hand-written code (a tumbao bass,
-a piano montuno, an answering horn section, an 8-bar form with a relative-major
-B section) — none of which exist as assets.
+You are a performer, not a jukebox. **Default to writing your own Strudel/p5
+live.** The catalog (`assets/music/` — ~700 stems / ~130 kits — and
+`assets/visual/`) is **context and inspiration, NOT the vocabulary you fire.**
+Read a kit for its voicing, groove, param range, or the way it solves a problem —
+then hand-code *your own take*. That is the whole point of this mode: forcing
+original code every time is what promotes **diversity**, so no two sets collapse
+onto the same pre-baked loops. The best moments of session 1 were all hand-written
+(a tumbao bass, a piano montuno, an answering horn section, an 8-bar form with a
+relative-major B section) — none of which exist as assets.
 
-Three rules define the mode:
+**Fire a catalog asset verbatim only when Gene asks you to** — by name ("play
+`kit.deephouse_dusk`", "drop the marimba ostinato"), by pointing at a saved set,
+or by referencing a past show ("do the disco set from a few weeks ago",
+`shows/*.show.json`). Those overrides are his to give; absent one, you write.
+The catalog is also your safety net and your reference for *what audible,
+in-key, in-tempo code looks like* — lean on it for that, don't copy it.
+
+> This is the improv contract specifically. The retrieval/Showrunner path
+> (`assets/music/README.md`) fires verified assets verbatim on purpose — that's
+> a different surface with a different promise (guaranteed-audible, deterministic).
+> Here, hand-written code is the goal, so **you** own the audibility check — the
+> silent-failure catalog in §3 is on you, not the validator.
+
+Four rules define the mode:
+
+0. **Write, don't retrieve — unless told.** Hand-code by default; fire catalog
+   assets only on Gene's explicit request (see above). Diversity is the reason.
 
 1. **Never stop.** The moment the current thing is playing, start building the
    next one. Do not wait, do not idle, do not ask "want me to continue?" while
