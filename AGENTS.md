@@ -52,7 +52,7 @@ section-audibility gate). Never hand off silent/too-quiet sound.
 
 The visual mirror of the music catalog: a large **verified, parametric p5.js
 visual catalog** under `assets/visual/`
-(373 genart · 57 world · 53 subject · 51 fx · 34 set · 33 floor · 38 post · 12 crowd · 26 palette · 677 indexed)
+(373 genart · 63 world · 58 subject · 53 fx · 37 set · 35 floor · 38 post · 14 crowd · 34 palette · 705 indexed)
 that the performing agent *retrieves and parameterizes* rather than coding from
 scratch. **`.claude/skills/p5.md` is the START-HERE guide** — run, author,
 validate, grade, extend.
@@ -292,7 +292,7 @@ python p5_live.py             # visuals only — open http://localhost:8776/p5.h
 | `assets/CONTRACT.md` | **The asset spec (visual + music)** — engine facts (clk/audio), P-block, slots, params, validation gates, file formats |
 | `assets/prompts/author-brief.md` | **Visual authoring checklist** — exact gate numbers, universal params, aesthetic mandate, motion/luminance lessons |
 | `assets/prompts/generative-factory.md` | **Generative-art factory pass** — how to run a wave-based +100-asset build (Ralph-loop doctrine) |
-| `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (373 genart of 677 indexed visual assets) — coverage by family, ranked self-grades, second-pass brief |
+| `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (373 genart of 705 indexed visual assets) — coverage by family, ranked self-grades, second-pass brief |
 | `grade.html` | **Browser grader** (`localhost:8766/grade.html`) — live-render + bad/ok/good every genart, exports `visual-grades.jsonl` |
 | **`assets/music/README.md`** | **Music catalog system — START HERE for music.** Run/use/author/verify/grade the stems+kits+arcs catalog; the map to CONTRACT + BUNDLE + the toolchain |
 | `assets/music/browse.html` | **Music browser + grader** (`localhost:9766/assets/music/browse.html`) — audition the sound space by keyboard, fire kits through arcs, grade bad/ok/good → `assets/music/grades.jsonl` |
