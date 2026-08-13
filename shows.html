@@ -1,0 +1,432 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Livecode — Shows</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --panel2:#171b25; --line:#232936;
+    --ink:#e6e9f0; --dim:#7d879c; --accent:#7fc8a9; --accent2:#e8c37f;
+    --hot:#e87f9c; --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:12px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;
+       height:100vh;overflow:hidden}
+  .app{display:grid;grid-template-columns:212px 1fr 236px;height:100vh}
+  .pane{overflow-y:auto;min-height:0}
+  .l{border-right:1px solid var(--line)} .r{border-left:1px solid var(--line)}
+  h2{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:var(--dim);
+     padding:11px 11px 6px;position:sticky;top:0;background:var(--bg);z-index:2}
+  h2.sub{position:static;padding-top:14px}
+
+  /* ── show list ── */
+  .show{padding:7px 11px;border-bottom:1px solid var(--line);cursor:pointer}
+  .show:hover{background:var(--panel)}
+  .show.on{background:var(--panel2);box-shadow:inset 2px 0 0 var(--accent)}
+  .show .n{font-weight:600;font-size:12px;line-height:1.3}
+  .show .m{font-size:10px;color:var(--dim);margin-top:3px;display:flex;gap:6px;align-items:center}
+  .tag{font-family:var(--mono);font-size:9px;padding:0 4px;border-radius:3px;border:1px solid var(--line)}
+  .tag.visual{color:var(--accent);border-color:#2a5c46}
+  .tag.music{color:var(--accent2);border-color:#6b5527}
+  .tag.both{color:var(--hot);border-color:#7a3f52}
+
+  /* ── center: stage ── */
+  .stage{display:flex;flex-direction:column;min-height:0}
+  .head{padding:10px 14px 8px;border-bottom:1px solid var(--line)}
+  .title{font-size:15px;font-weight:600;line-height:1.25}
+  .desc{color:var(--dim);font-size:11px;margin-top:3px;
+        display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* the big visual pane */
+  .preview{flex:1;min-height:0;position:relative;background:#000;
+           border-bottom:1px solid var(--line)}
+  .preview iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  .pvbadge{position:absolute;left:9px;top:9px;z-index:3;font-family:var(--mono);font-size:9px;
+    color:var(--dim);background:rgba(11,13,18,.78);border:1px solid var(--line);
+    border-radius:4px;padding:2px 7px;pointer-events:none;letter-spacing:.06em}
+  .pvstart{position:absolute;inset:0;z-index:4;display:grid;place-items:center;
+    background:rgba(11,13,18,.55);cursor:pointer;border:0;width:100%;height:100%}
+  .pvstart span{background:var(--accent);color:#06210f;font-weight:700;font-size:15px;
+    padding:14px 28px;border-radius:8px;letter-spacing:.02em;
+    box-shadow:0 4px 30px rgba(127,200,169,.35)}
+  .pvstart:hover span{filter:brightness(1.1)}
+  .pvoff{position:absolute;inset:0;display:grid;place-items:center;color:var(--dim);
+    font-size:11px;text-align:center;padding:20px}
+  /* transport strip */
+  .ctl{padding:9px 14px;display:flex;gap:7px;align-items:center;flex-wrap:wrap;
+       border-bottom:1px solid var(--line)}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:5px;
+         padding:6px 11px;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button:disabled{opacity:.33;cursor:not-allowed}
+  button.pri{background:var(--accent);color:#06210f;border-color:var(--accent);font-weight:600}
+  button.on{background:var(--hot);color:#2a0a13;border-color:var(--hot);font-weight:600}
+  button.danger{border-color:#7a3f52;color:var(--hot)}
+  button.danger:hover{background:var(--hot);color:#2a0a13;border-color:var(--hot)}
+  .sep{width:1px;height:20px;background:var(--line);margin:0 3px}
+  select,input[type=number]{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    border-radius:5px;padding:5px 6px;font-family:var(--mono);font-size:11px}
+  label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.09em}
+  .err{color:var(--hot);font-size:11px;padding:0 14px 6px}
+
+  /* ── sections ── */
+  .sec{display:flex;align-items:center;gap:7px;padding:6px 9px;border-left:2px solid transparent;
+       cursor:pointer;border-bottom:1px solid var(--line)}
+  .sec:hover{background:var(--panel)}
+  .sec.cur{background:var(--panel2);border-left-color:var(--accent)}
+  .sec.done{opacity:.42}
+  .sec .idx{font-family:var(--mono);font-size:10px;color:var(--dim);min-width:17px}
+  .sec .lbl{flex:1;font-size:11px;line-height:1.3}
+
+  /* ── conductor ── */
+  .stat{padding:7px 11px;border-bottom:1px solid var(--line);display:flex;
+        justify-content:space-between;align-items:baseline;gap:8px}
+  .stat .k{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+  .stat .v{font-family:var(--mono);font-size:13px;text-align:right}
+  .pulse{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--dim);margin-right:5px}
+  .pulse.live{background:var(--accent);box-shadow:0 0 7px var(--accent)}
+  .prog{height:3px;background:var(--line)}
+  .prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .15s linear}
+  .hint{padding:10px 11px;font-size:10px;color:var(--dim);line-height:1.65}
+  kbd{font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+      border-radius:3px;padding:0 4px;font-size:9px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══ saved shows ═══ -->
+  <div class="pane l">
+    <h2>Saved shows</h2>
+    <div id="list"></div>
+  </div>
+
+  <!-- ═══ stage: preview + transport ═══ -->
+  <div class="stage">
+    <div class="head">
+      <div class="title" id="t">— select a show —</div>
+      <div class="desc" id="d">Shows are bookmarks that recreate something played live: code + metadata only.</div>
+    </div>
+
+    <div class="preview" id="pv">
+      <div class="pvbadge" id="pvb">PREVIEW</div>
+      <button class="pvstart" id="pvstart" style="display:none"><span>▶ Start sound &amp; visuals</span></button>
+      <div class="pvoff" id="pvoff">Preview off</div>
+    </div>
+
+    <div class="ctl">
+      <button id="load" class="pri" disabled>Load</button>
+      <button id="prev" disabled>←</button>
+      <button id="next" disabled>→</button>
+      <button id="auto" disabled>▶ Auto</button>
+      <span class="sep"></span>
+      <button id="hush" class="danger" title="Stop all music (and clear visuals with Panic)">Hush</button>
+      <button id="panic" class="danger" title="Hush music + clear every visual layer">Panic</button>
+      <span class="sep"></span>
+      <button id="pvtoggle">Preview: on</button>
+    </div>
+
+    <div class="ctl" style="border-bottom:0">
+      <label for="dwell">Dwell</label>
+      <select id="dwell">
+        <option value="1">1 bar</option><option value="2">2</option>
+        <option value="4">4</option><option value="8" selected>8</option>
+        <option value="16">16</option><option value="32">32</option>
+      </select>
+      <label for="trans">Seam</label>
+      <select id="trans" title="Section changes land on this bar line — the transport never stops">
+        <option value="1" selected>1-bar line</option>
+        <option value="2">2-bar</option>
+        <option value="4">4-bar</option>
+        <option value="8">8-bar</option>
+        <option value="0">cut (now)</option>
+      </select>
+      <label for="quant">Advance</label>
+      <select id="quant">
+        <option value="1" selected>on bar line (w/ conductor)</option>
+        <option value="0">free — seconds</option>
+      </select>
+      <input type="number" id="secs" value="20" min="1" max="600" style="width:58px">
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <!-- ═══ sections + conductor ═══ -->
+  <div class="pane r">
+    <div class="stat"><span class="k"><span class="pulse" id="apulse"></span>Audio</span><span class="v" id="audio" style="font-size:11px">—</span></div>
+    <div class="stat"><span class="k"><span class="pulse" id="pulse"></span>Transport</span><span class="v" id="playing">—</span></div>
+    <div class="stat"><span class="k">Bar</span><span class="v" id="bar">—</span></div>
+    <div class="stat"><span class="k">BPM/cps</span><span class="v" id="bpm">—</span></div>
+    <div class="stat"><span class="k">Section</span><span class="v" id="step">—</span></div>
+    <div class="prog"><i id="prog"></i></div>
+    <div class="stat"><span class="k">Next in</span><span class="v" id="eta">—</span></div>
+    <h2 class="sub">Sections</h2>
+    <div id="secs-list"></div>
+    <div class="hint">
+      <kbd>←</kbd><kbd>→</kbd> step · <kbd>space</kbd> auto · <kbd>H</kbd> hush<br><br>
+      Jumping rebuilds the show's <b>net state</b> at that point — no leftover
+      tracks or layers from earlier sections.
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const api = {
+  async get(p){ return (await fetch(p)).json(); },
+  async post(p, b){ return (await fetch(p,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})})).json(); }
+};
+
+let shows=[], sel=null, loaded=null, marks=[], markIdx=[], cur=-1, totalSteps=0;
+let auto=false, target=null, targetKind=null, lastBar=0, previewOn=true, muted=false;
+
+// ── preview pane — TWO modes ─────────────────────────────────────
+// engine : full livecode.html (audio + visuals). Mounted when no audio client
+//          exists anywhere, so the Start button is right in the pane and this
+//          page is self-contained — click it once and you have sound.
+// mirror : livecode.html?visuals=1 — silent p5 mirror, mounted when a real
+//          player is already running elsewhere (never double the audio).
+let pvMode=null;
+function mountPreview(mode){
+  const pv=$('pv');
+  [...pv.querySelectorAll('iframe')].forEach(f=>f.remove());
+  pvMode=null;
+  if(!previewOn){ $('pvoff').style.display='grid'; $('pvb').textContent='PREVIEW OFF'; return; }
+  $('pvoff').style.display='none';
+  const f=document.createElement('iframe');
+  f.src = mode==='engine' ? '/livecode.html?v='+Date.now()
+                          : '/livecode.html?visuals=1&v='+Date.now();
+  f.allow='autoplay';
+  pv.appendChild(f);
+  pvMode=mode;
+  $('pvb').textContent = mode==='engine' ? 'SOUND ENGINE' : 'PREVIEW · visuals only (player elsewhere)';
+  $('pvstart').style.display = mode==='engine' ? 'grid' : 'none';
+}
+function ensurePreview(audioClients){
+  if(!previewOn) return;
+  if(pvMode==='engine') return;            // we host the sound — never swap away
+  const want = audioClients>0 ? 'mirror' : 'engine';
+  if(want!==pvMode) mountPreview(want);
+}
+$('pvstart').onclick=()=>{
+  try{
+    const f=document.querySelector('#pv iframe');
+    const b=f && f.contentDocument && [...f.contentDocument.querySelectorAll('button')]
+      .find(x=>/start/i.test(x.textContent));
+    if(b) b.click();
+  }catch(e){}
+  // stays visible until the poll sees audioClients>0 (i.e. audio really started)
+};
+$('pvtoggle').onclick=()=>{
+  previewOn=!previewOn;
+  $('pvtoggle').textContent='Preview: '+(previewOn?'on':'off');
+  if(previewOn) mountPreview('engine'); else mountPreview(null);
+};
+
+// ── show list ──
+async function refresh(){
+  const r=await api.get('/shows/list');
+  shows=r.shows||[];
+  const el=$('list'); el.innerHTML=''; let fam=null;
+  for(const s of shows){
+    if(s.family!==fam){ fam=s.family;
+      const h=document.createElement('h2'); h.className='sub'; h.textContent=fam.replace('shows/','').replace('shows','curated');
+      el.appendChild(h); }
+    const d=document.createElement('div');
+    d.className='show'+(sel&&sel.path===s.path?' on':'');
+    d.innerHTML=`<div class="n"></div><div class="m">
+      <span class="tag ${s.kind}">${s.kind}</span><span>${s.marks.length} sec</span>
+      <span>${(s.bytes/1024).toFixed(0)}kb</span></div>`;
+    d.querySelector('.n').textContent=s.name;
+    d.onclick=()=>{ sel=s; paint(); };
+    el.appendChild(d);
+  }
+}
+function paint(){
+  [...document.querySelectorAll('.show')].forEach(n=>n.classList.remove('on'));
+  const idx=shows.findIndex(s=>sel&&s.path===sel.path);
+  const nodes=[...document.querySelectorAll('.show')];
+  if(idx>=0&&nodes[idx]) nodes[idx].classList.add('on');
+  if(!sel) return;
+  $('t').textContent=sel.name;
+  $('d').textContent=sel.desc||'(no description)';
+  $('load').disabled=false;
+  renderSections();
+}
+function renderSections(){
+  const el=$('secs-list'); el.innerHTML='';
+  const src=(loaded&&sel&&loaded.path===sel.path)?marks:(sel?sel.marks:[]);
+  if(!src.length){ el.innerHTML='<div class="hint">No section marks — steps one command at a time.</div>'; return; }
+  src.forEach((label,i)=>{
+    const d=document.createElement('div');
+    d.className='sec'+(i===cur?' cur':'')+(i<cur?' done':'');
+    d.innerHTML=`<span class="idx">${String(i+1).padStart(2,'0')}</span><span class="lbl"></span>`;
+    d.querySelector('.lbl').textContent=label||'(unnamed)';
+    d.onclick=()=>gotoSection(i);
+    el.appendChild(d);
+  });
+}
+
+// ── load / step ──
+$('load').onclick=async()=>{
+  if(!sel) return;
+  $('err').textContent='';
+  $('load').disabled=true; $('load').textContent='Loading…';
+  const r=await api.post('/show/load_file',{path:sel.path});
+  $('load').disabled=false; $('load').textContent='Load';
+  if(r.ok===false){ $('err').textContent='load failed: '+(r.error||'?'); return; }
+  loaded=sel;
+  const st=await api.get('/show/steps');
+  const steps=st.steps||[]; totalSteps=steps.length;
+  marks=[]; markIdx=[];
+  steps.forEach(s=>{ if(s.route==='/show/mark'){ marks.push(s.label||''); markIdx.push(s.i); } });
+  cur=-1;
+  ['prev','next','auto'].forEach(id=>$(id).disabled=false);
+  renderSections();
+  if(markIdx.length) gotoSection(0);
+};
+async function gotoSection(i){
+  if(!loaded||!markIdx.length) return;
+  i=Math.max(0,Math.min(markIdx.length-1,i));
+  // /show/goto replays UP TO an index and now collapses to net state, so aim at
+  // the LAST step of the section — landing on the mark itself fires nothing.
+  const end=(i+1<markIdx.length)?markIdx[i+1]-1:totalSteps-1;
+  const r=await api.post('/show/goto',{step:end, at:+$('trans').value});
+  if(muted){ muted=false; paintMute(); }
+  cur=i; renderSections(); scheduleNext();
+  if(r&&r.plan){
+    const p=r.plan, bits=[];
+    if(p.tracksSet.length) bits.push('+'+p.tracksSet.length+' trk');
+    if(p.tracksStopped.length) bits.push('−'+p.tracksStopped.length+' trk');
+    if(p.layersSet.length) bits.push('+'+p.layersSet.length+' lay');
+    if(p.layersRemoved.length) bits.push('−'+p.layersRemoved.length+' lay');
+    if(p.unchangedTracks.length) bits.push(p.unchangedTracks.length+' trk carry');
+    flash((r.mode||'')+(r.etaSeconds!=null?' · lands in '+r.etaSeconds+'s':'')+' · '+bits.join(' '));
+  }
+}
+async function stepBy(d){
+  if(!loaded) return;
+  if(markIdx.length) return gotoSection(cur+d);
+  await api.post(d>0?'/show/next':'/show/prev',{});
+}
+$('next').onclick=()=>stepBy(1);
+$('prev').onclick=()=>stepBy(-1);
+
+// ── hush / panic ──
+// hush alone leaves tails ringing, and a timed drain lets anything still live
+// come back when it expires. Latch the mute instead: silence that STAYS until
+// released (loading/stepping a section releases it automatically).
+$('hush').onclick=async()=>{
+  if(muted) return unmute();            // click again to release the latch
+  stopAuto();
+  await api.post('/strudel/hush',{});
+  await api.post('/strudel/mute',{on:true});
+  muted=true; paintMute();
+};
+$('panic').onclick=async()=>{
+  stopAuto();
+  await api.post('/strudel/hush',{});
+  await api.post('/strudel/mute',{on:true});
+  await api.post('/p5/clear',{});
+  muted=true; paintMute();
+  flash('panic — hushed + latched silent, visuals cleared');
+};
+async function unmute(){
+  await api.post('/strudel/mute',{on:false});
+  muted=false; paintMute();
+}
+function paintMute(){
+  $('hush').classList.toggle('on',muted);
+  $('hush').textContent = muted ? 'Muted — click to release' : 'Hush';
+  if(muted) flash('hushed — latched silent (survives any stuck node)');
+}
+function flash(m){
+  $('err').textContent=m;
+  setTimeout(()=>{ if($('err').textContent===m) $('err').textContent=''; },2500);
+}
+
+// ── auto-advance, quantized to the conductor ──
+function stopAuto(){
+  auto=false; target=null;
+  $('auto').classList.remove('on'); $('auto').textContent='▶ Auto'; $('eta').textContent='—';
+}
+$('auto').onclick=()=>{
+  auto=!auto;
+  $('auto').classList.toggle('on',auto);
+  $('auto').textContent=auto?'■ Stop':'▶ Auto';
+  if(auto) scheduleNext(); else stopAuto();
+};
+function scheduleNext(){
+  if(!auto){ target=null; return; }
+  if($('quant').value==='1'){
+    const n=+$('dwell').value;
+    target=(Math.floor(lastBar/n)+1)*n; targetKind='bar';
+  } else {
+    target=Date.now()+(+$('secs').value)*1000; targetKind='time';
+  }
+}
+
+// ── transport poll ──
+async function poll(){
+  try{
+    const st=await api.get('/status');
+    const ac=st.audioClients||0;
+    ensurePreview(ac);
+    if(ac>0){
+      $('audio').textContent = pvMode==='engine' ? 'pane engine' : 'external player';
+      $('apulse').classList.add('live');
+      $('pvstart').style.display='none';
+      if(pvMode==='engine') $('pvb').textContent='● SOUND LIVE (pane engine)';
+    } else {
+      $('audio').textContent = 'no sound — press play';
+      $('apulse').classList.remove('live');
+      if(pvMode==='engine') $('pvstart').style.display='grid';
+    }
+    // /conductor exposes transport nested {playing,bar,cps,bpm}; /q is flat and
+    // has no `transport` key at all — polling /q here silently showed "none".
+    const q=await api.get('/conductor');
+    const t=q.transport;
+    if(t){
+      lastBar=t.bar;
+      $('playing').textContent=t.playing?'playing':'stopped';
+      $('pulse').classList.toggle('live',!!t.playing);
+      $('bar').textContent=t.bar.toFixed(2);
+      $('bpm').textContent=`${t.bpm}/${t.cps}`;
+    } else { $('playing').textContent='none'; $('pulse').classList.remove('live'); }
+    if(loaded){
+      $('step').textContent=markIdx.length?`${cur+1}/${markIdx.length}`:'—';
+      $('prog').style.width=markIdx.length?((cur+1)/markIdx.length*100)+'%':'0';
+    }
+    if(auto&&target!==null){
+      if(targetKind==='bar'){
+        const left=target-lastBar, cps=(t&&t.cps)||0.5;
+        $('eta').textContent=(t&&t.playing)?`${left.toFixed(1)}b · ${(left/cps).toFixed(0)}s`:'no transport';
+        if(t&&t.playing&&lastBar>=target) await advance();
+      } else {
+        const ms=target-Date.now();
+        $('eta').textContent=`${(ms/1000).toFixed(1)}s`;
+        if(ms<=0) await advance();
+      }
+    }
+  }catch(e){}
+  setTimeout(poll,200);
+}
+async function advance(){
+  if(markIdx.length&&cur>=markIdx.length-1){ stopAuto(); $('eta').textContent='end'; return; }
+  await stepBy(1); scheduleNext();
+}
+
+addEventListener('keydown',e=>{
+  if(['INPUT','SELECT'].includes(e.target.tagName)) return;
+  if(e.key==='ArrowRight'){e.preventDefault();stepBy(1);}
+  if(e.key==='ArrowLeft'){e.preventDefault();stepBy(-1);}
+  if(e.key===' '){e.preventDefault();$('auto').click();}
+  if(e.key==='h'||e.key==='H'){e.preventDefault();$('hush').click();}
+});
+['dwell','quant','secs'].forEach(id=>$(id).onchange=()=>scheduleNext());
+
+refresh(); poll();   // first /status poll mounts the right preview mode
+setInterval(refresh,15000);
+</script>
+</body>
+</html>

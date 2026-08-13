@@ -15,6 +15,10 @@ from collections import OrderedDict, deque
 import websockets
 
 
+class NoAudioClient(ConnectionError):
+    """No audio-capable browser attached; strudel state is deferred, not lost."""
+
+
 class LivecodeController:
     """Control Strudel audio and p5.js visuals from a single server.
 
@@ -37,6 +41,10 @@ class LivecodeController:
 
         # Shared
         self._connections: set[websockets.WebSocketServerProtocol] = set()
+        # audio-capable connections (a ?visuals=1 preview renders p5 but has no
+        # AudioContext; strudel/transport commands must not wait on it)
+        self._audio_conns: set = set()
+        self._deferred_sends: list[str] = []   # sample loads awaiting an audio client
         self._ready = threading.Event()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._server = None
@@ -56,6 +64,8 @@ class LivecodeController:
         # p5 state
         self._layers: OrderedDict[str, str] = OrderedDict()
         self._setup_code: str | None = None
+        self._sent_sends: set[str] = set()     # sample loads already fired (prefetch dedupe)
+        self._transition_qids: list = []       # queue ids of the pending section transition
 
         # Autopilot: recent browser-side runtime errors (for the improv loop to self-correct)
         self._errors: deque = deque(maxlen=50)
@@ -148,10 +158,10 @@ class LivecodeController:
             # REST API routes
             API_ROUTES = {
                 "GET": {"/status", "/state", "/errors", "/transport", "/q",
-                        "/conductor", "/show/steps", "/show/save"},
+                        "/conductor", "/show/steps", "/show/save", "/shows/list", "/strudel/drain_state"},
                 "POST": {
                     "/strudel/track", "/strudel/stop", "/strudel/hush",
-                    "/strudel/cps", "/strudel/reset", "/strudel/send",
+                    "/strudel/cps", "/strudel/reset", "/strudel/send", "/strudel/drain", "/strudel/mute",
                     "/p5/layer", "/p5/remove", "/p5/clear",
                     "/p5/setup", "/p5/send", "/p5/state", "/p5/fps",
                     "/q", "/q/cancel", "/conductor",
@@ -187,6 +197,10 @@ class LivecodeController:
                 if self.path == "/status":
                     self._reply({
                         "ready": controller._ready.is_set(),
+                        # how many browsers are attached — a forgotten
+                        # background tab keeps playing invisibly otherwise
+                        "clients": len(controller._connections),
+                        "audioClients": len(controller._audio_conns),
                         "tracks": list(controller.tracks.keys()),
                         "layers": list(controller.layers.keys()),
                         "cps": controller._cps,
@@ -233,6 +247,10 @@ class LivecodeController:
                         self._reply({"ok": True, "key": key, "value": value})
                     except Exception as e:
                         self._reply({"ok": False, "error": str(e)}, 500)
+                elif self.path == "/strudel/drain_state":
+                    self._reply({"ok": True, "state": controller.drain_state()})
+                elif self.path == "/shows/list":
+                    self._reply(controller.list_shows())
                 elif self.path == "/show/steps":
                     self._reply({
                         "steps": [
@@ -304,6 +322,13 @@ class LivecodeController:
                 elif path == "/p5/setup":
                     controller.set_setup(d["code"])
                     controller._record_step(path, d)
+                elif path == "/strudel/mute":
+                    return {"ok": True,
+                            "response": controller.set_mute(d.get("on", True))}, 200
+                elif path == "/strudel/drain":
+                    return {"ok": True, "response": controller.drain_audio(
+                        d.get("maxMs", d.get("ms", 8000)),
+                        d.get("threshold", 0.01))}, 200
                 elif path == "/p5/send":
                     r = controller.send_p5(d["code"])
                     return {"ok": True, "response": r}, 200
@@ -342,7 +367,8 @@ class LivecodeController:
                 elif path == "/show/prev":
                     return controller.step_prev(), 200
                 elif path == "/show/goto":
-                    return controller.step_goto(d["step"]), 200
+                    return controller.step_goto(
+                        d["step"], at=d.get("at", 1), hard=bool(d.get("hard"))), 200
                 elif path == "/show/mark":
                     controller.step_mark(d.get("label", ""))
                     return {"ok": True, "step": controller._step_index}, 200
@@ -455,7 +481,7 @@ class LivecodeController:
 
     # ── WebSocket handler ────────────────────────────────────────
 
-    EXPECTED_VERSION = 4
+    EXPECTED_VERSION = 5
 
     async def _handler(self, ws):
         self._connections.add(ws)
@@ -471,13 +497,28 @@ class LivecodeController:
                         # answer _send_and_wait ahead of the current browser.
                         await ws.close(code=4000, reason=f"stale client v{v}, need v{self.EXPECTED_VERSION}")
                         continue
-                    print(f"  (browser v{v} OK)", flush=True)
+                    is_audio = (diag or {}).get("audioState") != "visuals-only"
+                    print(f"  (browser v{v} OK{'' if is_audio else ' · visuals-only preview'})", flush=True)
                     if diag:
                         for dk, dv in diag.items():
                             print(f"    {dk}: {dv}")
-                    # Restore state on reconnect
-                    await self._restore_all(ws)
+                    if is_audio:
+                        self._audio_conns.add(ws)
+                    # Restore state on reconnect (previews get visuals only)
+                    await self._restore_all(ws, audio=is_audio)
                     self._ready.set()
+                    if is_audio and self._deferred_sends:
+                        # sample loads that queued up while no engine existed
+                        pending, self._deferred_sends = self._deferred_sends, []
+                        def _flush(codes=pending):
+                            for c in codes:
+                                try:
+                                    self.send_strudel(c, evaluate=False)
+                                    self._sent_sends.add(c)
+                                except Exception as e:
+                                    print(f"deferred send failed: {e}", flush=True)
+                        threading.Thread(target=_flush, daemon=True,
+                                         name="deferred-sends").start()
                 elif msg.get("type") == "execute":
                     for other in self._connections:
                         if other != ws:
@@ -504,27 +545,31 @@ class LivecodeController:
             pass
         finally:
             self._connections.discard(ws)
+            self._audio_conns.discard(ws)
             if not self._connections:
                 self._ready.clear()
 
-    async def _restore_all(self, ws):
-        """Re-send all tracks and layers to a reconnected browser."""
-        # Every connection is an explicit new transport epoch. Configure the
-        # owned scheduler first; websocket ordering guarantees the restored
-        # pattern is evaluated after this declared hard reset.
-        self._transport_generation += 1
-        transport_mid = f"msg_{uuid.uuid4().hex[:8]}"
-        await ws.send(json.dumps({
-            "type": "execute", "target": "transport", "mode": "configure",
-            "id": transport_mid,
-            "cps": self._cps if self._cps is not None else 0.5,
-            "serverGeneration": self._transport_generation,
-            "reconnectPolicy": self._reconnect_policy,
-            "reason": "browser-connect-hard-reset",
-        }))
+    async def _restore_all(self, ws, audio: bool = True):
+        """Re-send all tracks and layers to a reconnected browser.
+
+        audio=False (a ?visuals=1 preview) restores layers/state only — it must
+        not bump the transport epoch (that would disturb the real engine's
+        scheduler generation) and has nothing to play tracks with."""
+        if audio:
+            # Every audio connection is an explicit new transport epoch.
+            self._transport_generation += 1
+            transport_mid = f"msg_{uuid.uuid4().hex[:8]}"
+            await ws.send(json.dumps({
+                "type": "execute", "target": "transport", "mode": "configure",
+                "id": transport_mid,
+                "cps": self._cps if self._cps is not None else 0.5,
+                "serverGeneration": self._transport_generation,
+                "reconnectPolicy": self._reconnect_policy,
+                "reason": "browser-connect-hard-reset",
+            }))
 
         # Restore Strudel tracks
-        if self._tracks:
+        if audio and self._tracks:
             tracks = list(self._tracks.values())
             if len(tracks) == 1:
                 code = tracks[0]
@@ -574,10 +619,18 @@ class LivecodeController:
             message = result.get("message") or result.get("error") or "unknown browser error"
             raise RuntimeError(f"Browser rejected command: {message}")
 
-    def _send_and_wait_sync(self, payload: str, mid: str, timeout: float | None = None) -> dict:
-        """Send payload to all connections and wait for response."""
+    def _send_and_wait_sync(self, payload: str, mid: str, timeout: float | None = None,
+                            needs_audio: bool = False) -> dict:
+        """Send payload to all connections and wait for response.
+
+        needs_audio=True fails FAST when no audio-capable client is attached —
+        without this, every strudel/transport command sat out the full browser
+        timeout against a silent preview client (that was the 'sets load
+        slowly' bug: 4 tracks x 5s of dead waiting)."""
         if not self._connections:
             raise ConnectionError("No browser connected")
+        if needs_audio and not self._audio_conns:
+            raise NoAudioClient("no audio engine connected (only visuals-only clients)")
         wait_timeout = float(timeout if timeout is not None else self.timeout)
         future = asyncio.run_coroutine_threadsafe(
             self._send_and_wait(payload, mid, wait_timeout), self._loop
@@ -594,10 +647,23 @@ class LivecodeController:
             raise
         return result
 
+    async def _safe_send(self, ws, payload: str):
+        """Send without letting one suspended client wedge everyone. A
+        backgrounded tab can keep TCP open but stop draining its socket;
+        awaiting its send() blocks forever, so commands never even reach the
+        healthy clients. Cap each send and let the reader loop reap the dead."""
+        try:
+            await asyncio.wait_for(ws.send(payload), timeout=2)
+        except Exception:
+            pass
+
     async def _send_and_wait(self, payload: str, mid: str, timeout: float) -> dict:
         fut = self._loop.create_future()
         self._pending[mid] = fut
-        await asyncio.gather(*(ws.send(payload) for ws in self._connections))
+        # Fire sends concurrently and DO NOT await them before listening —
+        # the first healthy client's response resolves the future.
+        for ws in list(self._connections):
+            asyncio.ensure_future(self._safe_send(ws, payload))
         try:
             return await asyncio.wait_for(fut, timeout=timeout)
         finally:
@@ -611,28 +677,32 @@ class LivecodeController:
         msg = {"type": "execute", "target": "strudel", "code": code, "id": mid}
         if evaluate:
             msg["evaluate"] = True
-        return self._send_and_wait_sync(json.dumps(msg), mid)
+        return self._send_and_wait_sync(json.dumps(msg), mid, needs_audio=True)
 
     def _send_transport(self, mode: str, timeout: float | None = None, **kwargs) -> dict:
         """Command the one browser-owned Strudel scheduler."""
         mid = f"msg_{uuid.uuid4().hex[:8]}"
         msg = {"type": "execute", "target": "transport", "mode": mode, "id": mid}
         msg.update(kwargs)
-        return self._send_and_wait_sync(json.dumps(msg), mid, timeout=timeout)
+        return self._send_and_wait_sync(json.dumps(msg), mid, timeout=timeout, needs_audio=True)
 
     def transport_snapshot(self) -> dict | None:
         """Read a fresh transport frame even when p5/rAF is background-throttled."""
-        response = self._send_transport("snapshot", reason="server-snapshot")
+        try:
+            response = self._send_transport("snapshot", reason="server-snapshot")
+        except NoAudioClient:
+            return None
         return response.get("result")
 
     # ── p5 sending ───────────────────────────────────────────────
 
-    def send_p5(self, code: str, mode: str = "eval", **kwargs) -> dict:
+    def send_p5(self, code: str, mode: str = "eval", timeout: float | None = None,
+                **kwargs) -> dict:
         """Send p5 code to the browser and wait for response."""
         mid = f"msg_{uuid.uuid4().hex[:8]}"
         msg = {"type": "execute", "target": "p5", "code": code, "id": mid, "mode": mode}
         msg.update(kwargs)
-        return self._send_and_wait_sync(json.dumps(msg), mid)
+        return self._send_and_wait_sync(json.dumps(msg), mid, timeout=timeout)
 
     # ── Strudel track management ─────────────────────────────────
 
@@ -649,6 +719,10 @@ class LivecodeController:
             self._tracks[name] = code
             try:
                 return self._replay_all()
+            except NoAudioClient:
+                # Keep the state: _restore_all replays every track the moment
+                # an audio client connects, so the set comes alive on Start.
+                return {"deferred": "no-audio-client"}
             except Exception:
                 if previous is missing:
                     self._tracks.pop(name, None)
@@ -664,18 +738,69 @@ class LivecodeController:
         """Remove a named track, then replay remaining tracks."""
         with self._lock:
             self._tracks.pop(name, None)
-            self._replay_all()
+            try:
+                self._replay_all()
+            except NoAudioClient:
+                pass
+
+    def drain_audio(self, max_ms: int = 8000, threshold: float = 0.01):
+        """Silence ringing effect tails until they have actually decayed.
+
+        hush() stops pattern scheduling, but superdough's own delay+reverb nodes
+        keep circulating — a .delay() with feedback rings on and survives a
+        section change, piling on top of the next scene. The browser mutes its
+        monitor gain and watches the analyser (which sits upstream of that gain,
+        so it still sees the tail) until the signal is genuinely quiet, then
+        restores. A fixed mute window is not enough: the tail is still ringing
+        when it expires and the fragment comes back.
+
+        Returns immediately; poll drain_state() for the outcome. `timedOut: true`
+        there means the tail never decayed — i.e. self-sustaining, not a tail.
+
+        See livecode.html: Strudel's panic() and rebuilding the audio tap both
+        kill output permanently, so neither is usable here."""
+        try:
+            return self.send_p5(
+                "(window.__livecodeDrainAudio && window.__livecodeDrainAudio("
+                f"{{maxMs:{int(max_ms)},threshold:{float(threshold)}}})) || null"
+            )
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def set_mute(self, on: bool):
+        """Latch (or release) the audio tap's monitor gain at 0.
+
+        The unconditional kill: everything superdough produces passes through
+        that gain, so a latched mute silences a stuck node whatever is driving
+        it. Unlike a timed drain it stays down until released — a drain lets a
+        still-live source return the moment its window expires."""
+        try:
+            return self.send_p5(
+                f"(window.__livecodeMute && window.__livecodeMute({str(bool(on)).lower()})) || null"
+            )
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def drain_state(self):
+        """Last/current drain measurement — {muted, rms, peak, elapsed, timedOut}."""
+        try:
+            return self.send_p5("JSON.stringify(window.__livecodeDrainState || null)")
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def hush(self):
         """Stop all tracks and clear the track dict."""
         with self._lock:
             self._tracks.clear()
             self._transport_generation += 1
-            return self._send_transport(
-                "hush",
-                serverGeneration=self._transport_generation,
-                reason="server-hush",
-            )
+            try:
+                return self._send_transport(
+                    "hush",
+                    serverGeneration=self._transport_generation,
+                    reason="server-hush",
+                )
+            except NoAudioClient:
+                return {"deferred": "no-audio-client"}
 
     def set_cps(self, cps: float):
         """Change the owned scheduler's CPS without replacing its pattern/phase."""
@@ -683,12 +808,15 @@ class LivecodeController:
         if not math.isfinite(value) or value <= 0:
             raise ValueError(f"cps must be a finite positive number, got {cps!r}")
         self._cps = value
-        return self._send_transport(
-            "set_cps",
-            cps=value,
-            serverGeneration=self._transport_generation,
-            reason="server-set-cps",
-        )
+        try:
+            return self._send_transport(
+                "set_cps",
+                cps=value,
+                serverGeneration=self._transport_generation,
+                reason="server-set-cps",
+            )
+        except NoAudioClient:
+            return {"deferred": "no-audio-client"}
 
     def reset_transport(self, quantum_cycles: float = 1):
         """Hard-reset at the next AudioContext-clocked cycle boundary."""
@@ -796,6 +924,49 @@ class LivecodeController:
         r = self.send_p5(code, mode="eval")
         return r.get("result")
 
+    def list_shows(self):
+        """Catalog the saved shows + visual bookmarks for the show browser UI.
+
+        A show is a bookmark that recreates something played live: code+metadata
+        only. Reads just the header of each file (name/kind/desc/marks) so the
+        listing stays fast even with large timelines."""
+        root = os.path.dirname(os.path.abspath(__file__))
+        out = []
+
+        def _scan(subdir, suffix, kind_default):
+            d = os.path.join(root, subdir)
+            if not os.path.isdir(d):
+                return
+            for fn in sorted(os.listdir(d)):
+                if not fn.endswith(suffix):
+                    continue
+                p = os.path.join(d, fn)
+                try:
+                    doc = json.load(open(p))
+                except Exception:
+                    continue
+                steps = doc.get("steps") or doc.get("layers") or []
+                marks = [s.get("label", "") for s in steps
+                         if isinstance(s, dict) and s.get("route") == "/show/mark"]
+                out.append({
+                    "path": os.path.relpath(p, root),
+                    "file": fn,
+                    "name": doc.get("name") or doc.get("title") or fn.rsplit(".", 2)[0],
+                    "kind": doc.get("kind", kind_default),
+                    "desc": doc.get("desc") or doc.get("note") or "",
+                    "created": doc.get("created", ""),
+                    "steps": len(steps),
+                    "marks": marks,
+                    "bytes": os.path.getsize(p),
+                    "mtime": int(os.path.getmtime(p)),
+                    "family": subdir,
+                })
+
+        _scan("shows", ".show.json", "both")
+        _scan("shows/visuals", ".visuals.json", "visual")
+        _scan("shows/unsorted", ".show.json", "both")
+        return {"ok": True, "shows": out}
+
     def init_state(self, **kwargs):
         """Initialize multiple keys in window.state (only sets if not already defined)."""
         for key, value in kwargs.items():
@@ -826,12 +997,17 @@ class LivecodeController:
             self._notify_step()
 
     def load_steps(self, steps: list):
-        """Load a list of steps without executing them. For step-through mode."""
+        """Load a timeline without executing it — and WITHOUT resetting the
+        stage. Whatever is playing keeps playing; the first goto diffs against
+        it and lands on a bar line, so loading a new show mid-set is a seamless
+        segue, not a stop. Sample packs prefetch in the background so no
+        transition ever waits on the network."""
         with self._lock:
-            self._reset_state()
+            self._cancel_transition_items()
             self._steps = steps
             self._step_index = -1
-            self._notify_step()
+        self._prefetch_sends(steps)
+        self._notify_step()
 
     # ── Show file I/O ───────────────────────────────────────────
 
@@ -1010,20 +1186,32 @@ class LivecodeController:
         return {"ok": True, "step": self._step_index, "total": len(self._steps),
                 "label": self._current_label()}
 
-    def step_goto(self, target: int) -> dict:
-        """Jump to a specific step index."""
-        with self._lock:
-            if target < -1 or target >= len(self._steps):
-                return {"ok": False, "error": "out of range", "step": self._step_index, "total": len(self._steps)}
-            if target == -1:
+    def step_goto(self, target: int, at: float = 1, hard: bool = False) -> dict:
+        """Jump to a specific step index.
+
+        Default is the SEAMLESS path: diff the target's net state against the
+        live stage and land the differences on the next `at`-bar line (see
+        transition_to_step). hard=True forces the old reset-then-rebuild, and
+        target=-1 always resets (that's what -1 means)."""
+        if target == -1:
+            with self._lock:
+                self._cancel_transition_items()
                 self._step_index = -1
                 self._reset_state()
-                self._notify_step()
-                return {"ok": True, "step": -1, "total": len(self._steps)}
-            self._step_index = target
-            self._replay_to(target)
             self._notify_step()
-            return {"ok": True, "step": self._step_index, "total": len(self._steps)}
+            return {"ok": True, "step": -1, "total": len(self._steps)}
+        if hard:
+            with self._lock:
+                if target < 0 or target >= len(self._steps):
+                    return {"ok": False, "error": "out of range",
+                            "step": self._step_index, "total": len(self._steps)}
+                self._cancel_transition_items()
+                self._step_index = target
+                self._replay_to(target)
+            self._notify_step()
+            return {"ok": True, "step": self._step_index, "total": len(self._steps),
+                    "mode": "hard"}
+        return self.transition_to_step(target, at=at)
 
     def _reset_state(self):
         """Reset to clean state (no tracks, no layers)."""
@@ -1033,11 +1221,18 @@ class LivecodeController:
             self._tracks.clear()
             self._cps = None
             self.hush()
-            self._send_transport(
-                "set_cps", cps=0.5,
-                serverGeneration=self._transport_generation,
-                reason="show-reset-default-cps",
-            )
+            # Terminating a section early leaves feedback-delay/reverb tails
+            # ringing; without this they bleed over the next scene forever.
+            self.set_mute(False)   # a rebuild is an explicit "play this now"
+            self.drain_audio()
+            try:
+                self._send_transport(
+                    "set_cps", cps=0.5,
+                    serverGeneration=self._transport_generation,
+                    reason="show-reset-default-cps",
+                )
+            except NoAudioClient:
+                pass
             self._layers.clear()
             self.send_p5("", mode="clear")
             # Conductor score + replayable state die with the show: stale
@@ -1068,16 +1263,242 @@ class LivecodeController:
         finally:
             self._recording = was_recording
 
-    def _replay_to(self, target: int):
-        """Reset then replay all steps from 0 to target."""
+    def _net_state_at(self, target: int) -> dict:
+        """Collapse steps 0..target to their NET state — the last code per
+        track/layer name, honouring stop/remove/hush/clear — plus cps, setup,
+        deduped sample loads, p5 state seeds and fps. This is 'what was live'
+        at that point in the show, which is what perfect replay means."""
+        tracks, layers, states = {}, {}, {}
+        cps = setup = fps = None
+        sends, seen_sends, p5_sends = [], set(), []
+        for i in range(target + 1):
+            s = self._steps[i]
+            r, d = s["route"], s.get("payload", {})
+            if r == "/strudel/track":     tracks[d.get("name")] = d.get("code")
+            elif r == "/strudel/stop":    tracks.pop(d.get("name"), None)
+            elif r == "/strudel/hush":    tracks.clear()
+            elif r == "/strudel/cps":     cps = d.get("cps")
+            elif r == "/p5/layer":        layers[d.get("name")] = d.get("code")
+            elif r == "/p5/remove":       layers.pop(d.get("name"), None)
+            elif r == "/p5/clear":        layers.clear()
+            elif r == "/p5/setup":        setup = d.get("code"); layers.clear()
+            elif r == "/p5/state":        states[d.get("key")] = d.get("value")
+            elif r == "/p5/fps":          fps = d.get("fps")
+            elif r == "/p5/send":         p5_sends.append(d)
+            elif r == "/strudel/send":
+                key = d.get("code")
+                if key not in seen_sends:
+                    seen_sends.add(key)
+                    sends.append(d)
+        tracks = {n: c for n, c in tracks.items() if n and c is not None}
+        layers = {n: c for n, c in layers.items() if n and c is not None}
+        return {"tracks": tracks, "layers": layers, "states": states,
+                "cps": cps, "setup": setup, "fps": fps,
+                "sends": sends, "p5_sends": p5_sends}
+
+    def _prefetch_sends(self, steps: list):
+        """Fire every /strudel/send (sample-pack load) in the timeline once, in
+        the background, so transitions never wait on the network. Idempotent —
+        the browser caches loaded packs; self._sent_sends dedupes re-fires."""
+        codes = []
+        for s in steps:
+            if s.get("route") == "/strudel/send":
+                c = (s.get("payload") or {}).get("code")
+                if c and c not in self._sent_sends and c not in codes:
+                    codes.append(c)
+        if not codes:
+            return
+        def run():
+            for c in codes:
+                self._send_or_defer(c)
+        threading.Thread(target=run, daemon=True, name="send-prefetch").start()
+
+    def _send_or_defer(self, code: str):
+        """Deliver a sample load now, or park it until an audio client exists.
+        Deferred loads flush automatically when the engine connects."""
+        try:
+            self.send_strudel(code, evaluate=False)
+            self._sent_sends.add(code)
+        except NoAudioClient:
+            if code not in self._deferred_sends:
+                self._deferred_sends.append(code)
+        except Exception as e:
+            print(f"sample send failed: {e}", flush=True)
+
+    def _replay_to(self, target: int, collapse: bool = True):
+        """HARD rebuild of the show's state at `target`: reset, then apply net
+        state. Used for goto -1 and setup mismatches. Section stepping should
+        use transition_to_step instead — it diffs against the live stage and
+        lands on a bar line without ever silencing."""
         was_recording = self._recording
         self._recording = False
         try:
+            if not collapse:
+                self._reset_state()
+                for i in range(target + 1):
+                    self._execute_step(self._steps[i])
+                return
+            net = self._net_state_at(target)
             self._reset_state()
-            for i in range(target + 1):
-                self._execute_step(self._steps[i])
+            if net["setup"] is not None:
+                self._execute_step({"route": "/p5/setup", "payload": {"code": net["setup"]}})
+            if net["cps"] is not None:
+                self._execute_step({"route": "/strudel/cps", "payload": {"cps": net["cps"]}})
+            fresh = [d for d in net["sends"] if d.get("code") not in self._sent_sends]
+            for d in net["sends"]:
+                self._sent_sends.add(d.get("code"))
+                self._execute_step({"route": "/strudel/send", "payload": d})
+            for d in net["p5_sends"]:
+                self._execute_step({"route": "/p5/send", "payload": d})
+            for k, v in net["states"].items():
+                self._execute_step({"route": "/p5/state", "payload": {"key": k, "value": v}})
+            if net["fps"] is not None:
+                self._execute_step({"route": "/p5/fps", "payload": {"fps": net["fps"]}})
+            # samples() resolves asynchronously in the browser; firing tracks
+            # immediately registers them against an empty sample map (silence).
+            if fresh:
+                time.sleep(1.5)
+            for name, code in net["layers"].items():
+                self._execute_step({"route": "/p5/layer",
+                                    "payload": {"name": name, "code": code}})
+            for name, code in net["tracks"].items():
+                self._execute_step({"route": "/strudel/track",
+                                    "payload": {"name": name, "code": code}})
         finally:
             self._recording = was_recording
+
+    def transition_to_step(self, target: int, at: float = 1) -> dict:
+        """Move the show to `target` the way a live coder would: diff the net
+        state there against what is playing NOW and land only the differences
+        on the next `at`-bar line. The transport never stops, unchanged tracks
+        and layers are never touched, and there is no silence at the seam.
+
+        This replaces the reset-then-rebuild goto for section stepping. That
+        path hushed the stage and (worse) ran the analyser-gated drain while
+        the NEXT section started under the mute — the analyser never read
+        quiet, so the mute held its full 8s cap and then snapped open. That
+        was the '10 seconds of silence, then abrupt' bug.
+
+        at=0, or a stopped transport, applies the diff immediately."""
+        with self._lock:
+            if target < 0 or target >= len(self._steps):
+                return {"ok": False, "error": "out of range",
+                        "step": self._step_index, "total": len(self._steps)}
+            net = self._net_state_at(target)
+            cur_tracks = dict(self._tracks)
+            cur_layers = dict(self._layers)
+            cur_cps = self._cps
+
+        # A changed p5 setup is a hard recompile — no seamless path exists.
+        if net["setup"] is not None and net["setup"] != self._setup_code:
+            with self._lock:
+                self._step_index = target
+                self._replay_to(target)
+            self._notify_step()
+            return {"ok": True, "step": target, "total": len(self._steps),
+                    "mode": "hard (p5 setup changed)"}
+
+        set_tracks = {n: c for n, c in net["tracks"].items()
+                      if cur_tracks.get(n) != c}
+        stop_tracks = [n for n in cur_tracks if n not in net["tracks"]]
+        set_layers = {n: c for n, c in net["layers"].items()
+                      if cur_layers.get(n) != c}
+        remove_layers = [n for n in cur_layers if n not in net["layers"]]
+
+        # A goto is an explicit "play this now": release a latched Hush-mute.
+        # Short leash — a stale client that won't answer p5 must not stall the
+        # seam (observed: 5s dead wait against an outdated preview iframe).
+        try:
+            self.send_p5(
+                "(window.__livecodeMute && window.__livecodeMute(false)) || null",
+                timeout=1.5)
+        except Exception:
+            pass
+        # Sample packs + state seeds fire NOW: idempotent, cheap, and they must
+        # be in place before the bar line the musical changes land on.
+        for d in net["sends"]:
+            if d.get("code") not in self._sent_sends:
+                self._send_or_defer(d["code"])
+        for k, v in net["states"].items():
+            try:
+                self.set_state(k, v)
+            except Exception:
+                pass
+
+        items = []
+        if net["cps"] is not None and net["cps"] != cur_cps:
+            items.append(("/strudel/cps", {"cps": net["cps"]}))
+        for n, c in set_tracks.items():
+            items.append(("/strudel/track", {"name": n, "code": c}))
+        for n in stop_tracks:
+            items.append(("/strudel/stop", {"name": n}))
+        for n, c in set_layers.items():
+            items.append(("/p5/layer", {"name": n, "code": c}))
+        for n in remove_layers:
+            items.append(("/p5/remove", {"name": n}))
+        if net["fps"] is not None:
+            items.append(("/p5/fps", {"fps": net["fps"]}))
+
+        # A newer transition supersedes any still-pending one.
+        self._cancel_transition_items()
+
+        snap = {}
+        try:
+            snap = self.transport_snapshot() or {}
+        except Exception:
+            pass
+        if not isinstance(snap, dict):
+            snap = {}
+        playing = bool(snap.get("playing"))
+        quantize = playing and at and at > 0
+
+        was_recording = self._recording
+        self._recording = False
+        try:
+            if quantize:
+                qids = []
+                for route, payload in items:
+                    r = self.queue_command(route, payload, at=at, offset=0, record=False)
+                    qids.append(r.get("id"))
+                self._transition_qids = qids
+            else:
+                for route, payload in items:
+                    self._execute_step({"route": route, "payload": payload})
+                self._transition_qids = []
+        finally:
+            self._recording = was_recording
+
+        with self._lock:
+            self._step_index = target
+        self._notify_step()
+        eta = None
+        if quantize:
+            try:
+                cyc = float(snap.get("cycle") or 0.0)
+                cps = float(snap.get("cps") or cur_cps or 0.5)
+                eta = round(((math.floor(cyc / at) + 1) * at - cyc) / cps, 2)
+            except Exception:
+                pass
+        return {"ok": True, "step": target, "total": len(self._steps),
+                "mode": f"queued @ next {at:g}-bar line" if quantize else "immediate",
+                "etaSeconds": eta,
+                "plan": {"tracksSet": sorted(set_tracks), "tracksStopped": stop_tracks,
+                         "layersSet": sorted(set_layers), "layersRemoved": remove_layers,
+                         "cps": net["cps"] if net["cps"] != cur_cps else None,
+                         "unchangedTracks": sorted(n for n in net["tracks"]
+                                                   if n not in set_tracks),
+                         "unchangedLayers": sorted(n for n in net["layers"]
+                                                   if n not in set_layers)}}
+
+    def _cancel_transition_items(self):
+        """Cancel queue items from a superseded transition (ours only — never
+        the performer's own queued moves)."""
+        for qid in getattr(self, "_transition_qids", []) or []:
+            try:
+                self.queue_cancel(qid)
+            except Exception:
+                pass
+        self._transition_qids = []
 
     def _execute_step(self, step: dict):
         """Execute one recorded step."""
@@ -1146,7 +1567,9 @@ class LivecodeController:
         asyncio.run_coroutine_threadsafe(self._broadcast(msg), self._loop)
 
     async def _broadcast(self, msg: str):
-        await asyncio.gather(*(ws.send(msg) for ws in self._connections))
+        # per-connection capped sends — one suspended tab must not wedge the rest
+        await asyncio.gather(*(self._safe_send(ws, msg) for ws in list(self._connections)),
+                             return_exceptions=True)
 
     def set_background(self, *args):
         """Set a persistent background layer."""
@@ -1332,6 +1755,10 @@ class LivecodeController:
             snap = self.transport_snapshot() or {}
         except Exception:
             pass
+        # A client may answer with a non-dict (error string / stray ack); never
+        # let that 500 the routes the show UI polls several times a second.
+        if not isinstance(snap, dict):
+            snap = {}
         playing = bool(snap.get("playing"))
         cps = float(snap.get("cps") or self._cps or 0.5)
         transport = None
@@ -1361,7 +1788,8 @@ class LivecodeController:
     }
     _QUEUE_LEAD = 0.08  # fire this many seconds before the downbeat (like boundary.py)
 
-    def queue_command(self, route: str, payload: dict, at: float = 4, offset: float = 0) -> dict:
+    def queue_command(self, route: str, payload: dict, at: float = 4, offset: float = 0,
+                      record: bool = True) -> dict:
         """Enqueue a command to fire on the next `at`-bar line (+ offset bars).
 
         at=0 fires immediately. While the transport is stopped, grid-quantized
@@ -1382,6 +1810,7 @@ class LivecodeController:
             item = {
                 "id": f"q{self._queue_seq}", "seq": self._queue_seq,
                 "route": route, "payload": dict(payload),
+                "record": bool(record),
                 "at": at, "offset": offset, "target": None,
                 "queued_ts": time.time(), "status": "pending",
             }
@@ -1446,6 +1875,10 @@ class LivecodeController:
             snap = self.transport_snapshot() or {}
         except Exception:
             pass
+        # A client may answer with a non-dict (error string / stray ack); never
+        # let that 500 the routes the show UI polls several times a second.
+        if not isinstance(snap, dict):
+            snap = {}
         playing = bool(snap.get("playing"))
         cycle = float(snap.get("cycle") or 0.0)
         cps = float(snap.get("cps") or self._cps or 0.5)
@@ -1512,7 +1945,8 @@ class LivecodeController:
         t0 = time.perf_counter()
         try:
             self._execute_step({"route": item["route"], "payload": item["payload"]})
-            self._record_step(item["route"], item["payload"])
+            if item.get("record", True):
+                self._record_step(item["route"], item["payload"])
             item["status"] = "fired"
         except Exception as e:
             item["status"] = "failed"

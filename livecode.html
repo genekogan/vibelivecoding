@@ -244,7 +244,7 @@ window.__strudelModuleContract = Object.freeze({
 <script src="owned_transport.js"></script>
 
 <script>
-const VERSION = 4;
+const VERSION = 5;
 
 // ── Sample caching (from strudel.html) ──────────────────────
 const _originalFetch = window.fetch;
@@ -266,6 +266,11 @@ window.fetch = async function(url, opts) {
 };
 
 // ── State ───────────────────────────────────────────────────
+// ?visuals=1 → silent preview client: renders p5 only, never starts an
+// AudioContext and ignores every strudel/transport message. Lets a second
+// window (the show browser's preview pane) mirror the visuals without
+// doubling the audio engine. Never use this for the performing window.
+const VISUALS_ONLY = new URLSearchParams(location.search).get("visuals") === "1";
 let ws = null;
 let reconnectTimer = null;
 let strudelReady = false;
@@ -352,6 +357,101 @@ const errorTimestamps = new Map();
         if (target === undefined) return origDisconnect.call(this);
         return origDisconnect.call(this, target, ...rest);
     };
+
+    // ── DRAIN: hard-cut ringing effect tails ────────────────────
+    // hush() only stops pattern scheduling. Feedback delays (.delay(t:fb)) and
+    // reverb tails live in superdough's own nodes and keep circulating — a
+    // high-feedback delay rings effectively forever and survives a section
+    // change, piling on top of whatever comes next.
+    //
+    // Everything superdough makes reaches the speakers through this tap's
+    // monitor gain, so cutting it to 0 for a short window silences any tail
+    // instantly and lets a decaying delay/reverb ring itself out unheard.
+    // Gain is restored afterwards, so this is safe to call repeatedly.
+    //
+    // Two approaches rejected — prefer this one:
+    //  · Retiring/rebuilding this tap. Observed to leave window.__livecodeAudioTap
+    //    null with no rebuild: superdough connects its master to ctx.destination
+    //    ONCE, not per voice, so orphaning that single edge has no recovery path.
+    //  · Strudel's window.panic(). Its source ramps superdough's master gain to 0
+    //    and NULLS the module's only reference to it, so it is a one-shot kill
+    //    rather than a repeatable drain. (Not audibly re-verified — the meter in
+    //    the test browser reads 0 regardless, so treat this as reading the
+    //    implementation, not a measurement.)
+    // A fixed mute window is not enough: a long reverb/feedback tail is still
+    // ringing when it expires, so the fragment "comes back". The analyser hangs
+    // off tap.input — UPSTREAM of the monitor gain — so muting does not blind
+    // it. Measure the real signal while silenced and unmute only once it has
+    // genuinely decayed (or bail out after maxMs, which flags a tail that is
+    // self-sustaining rather than decaying).
+    // LATCHING MUTE — the unconditional kill. Everything superdough produces
+    // passes through the tap's monitor gain, so latching it at 0 silences any
+    // stuck node no matter what is generating it (scheduler, orphaned voice,
+    // self-feeding effect). It STAYS down until explicitly released, which is
+    // what "hush actually stops it" has to mean on stage; a timed drain lets a
+    // still-live source come back when the window expires.
+    window.__livecodeMuted = false;
+    window.__livecodeMute = function (on) {
+        const t = window.__livecodeAudioTap;
+        if (!t) return { ok: false, reason: "no audio tap yet" };
+        if (on) {
+            clearInterval(window.__livecodeDrainTimer);       // a drain must not un-mute us
+            if (!window.__livecodeMuted) {
+                window.__livecodeMuteRestore =
+                    (window.__livecodeDrainRestore != null)
+                        ? window.__livecodeDrainRestore : (t.getMonitorGain() || 1);
+            }
+            window.__livecodeDrainRestore = null;
+            window.__livecodeMuted = true;
+            t.setMonitorGain(0);
+        } else {
+            window.__livecodeMuted = false;
+            t.setMonitorGain(window.__livecodeMuteRestore || 1);
+        }
+        return { ok: true, muted: window.__livecodeMuted };
+    };
+
+    window.__livecodeDrainAudio = function (opts) {
+        const t = window.__livecodeAudioTap;
+        if (!t) return { drained: false, reason: "no audio tap yet" };
+        // A latched mute outranks a drain — never let a drain restore gain.
+        if (window.__livecodeMuted) return { drained: false, reason: "latched mute" };
+        opts = (typeof opts === "number") ? { maxMs: opts } : (opts || {});
+        const maxMs  = Math.max(200, Number(opts.maxMs) || 8000);
+        const thresh = Number(opts.threshold) || 0.01;
+        const need   = Number(opts.quietFrames) || 6;      // ~0.5s of silence
+        const an = t.analyser;
+        const buf = new Uint8Array(an.fftSize);
+        const restore = (window.__livecodeDrainRestore != null)
+            ? window.__livecodeDrainRestore : (t.getMonitorGain() || 1);
+        window.__livecodeDrainRestore = restore;
+        t.setMonitorGain(0);
+        clearInterval(window.__livecodeDrainTimer);
+        const t0 = performance.now();
+        let quiet = 0, peak = 0;
+        window.__livecodeDrainState = { muted: true, rms: null, elapsed: 0 };
+        window.__livecodeDrainTimer = setInterval(function () {
+            an.getByteTimeDomainData(buf);
+            let s = 0;
+            for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v; }
+            const rms = Math.sqrt(s / buf.length);
+            const elapsed = performance.now() - t0;
+            if (rms > peak) peak = rms;
+            quiet = (rms < thresh) ? quiet + 1 : 0;
+            window.__livecodeDrainState = { muted: true, rms: rms, peak: peak, elapsed: elapsed };
+            if (quiet >= need || elapsed > maxMs) {
+                clearInterval(window.__livecodeDrainTimer);
+                t.setMonitorGain(restore);
+                window.__livecodeDrainRestore = null;
+                window.__livecodeDrainState = {
+                    muted: false, rms: rms, peak: peak, elapsed: Math.round(elapsed),
+                    timedOut: elapsed > maxMs,   // true => tail never decayed
+                };
+            }
+        }, 80);
+        return { drained: true, mode: "until-quiet", maxMs: maxMs, threshold: thresh };
+    };
+
     let meterOn = false;
     function startMeter() {
         if (meterOn) return;
@@ -494,6 +594,13 @@ window.setup = function() {
     }
     window.__livecodeP5Globals = Object.freeze(p5Globals);
     p5Ready = true;
+    // Silent preview: no click-to-start gate (no AudioContext to unlock), so
+    // drop the overlay and join the socket as soon as p5 is up.
+    if (VISUALS_ONLY) {
+        const ov = document.getElementById("overlay");
+        if (ov) ov.style.display = "none";
+        connect();
+    }
     checkAllReady();
 };
 
@@ -854,7 +961,8 @@ function connect() {
         const sendReady = () => {
             ws.send(JSON.stringify({ type: "ready", version: VERSION, diag }));
         };
-        if (strudelReady) sendReady();
+        if (VISUALS_ONLY) { diag.audioState = "visuals-only"; sendReady(); }
+        else if (strudelReady) sendReady();
         else {
             const poll = setInterval(() => {
                 if (strudelReady) { clearInterval(poll); sendReady(); }
@@ -872,6 +980,9 @@ function connect() {
         }
 
         if (msg.type !== "execute") return;
+
+        // Silent preview client: render p5, ignore the audio engine entirely.
+        if (VISUALS_ONLY && (msg.target === "strudel" || msg.target === "transport")) return;
 
         if (msg.target === "strudel") {
             executeStrudelCode(msg.code, msg.id, !!msg.evaluate);
@@ -897,6 +1008,10 @@ function connect() {
 }
 
 function sendResponse(id, success, errorMessage, result) {
+    // A visuals-only preview answers ONLY the p5 messages it actually executes
+    // (identical layer code, so first-response-wins is harmless). It must never
+    // answer strudel/transport — those are filtered before execution, and a
+    // stray string ack to a transport snapshot once crashed /q outright.
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     let payload;
     if (success) {

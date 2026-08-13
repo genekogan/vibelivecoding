@@ -241,6 +241,7 @@ as they happen — watch that log during a performance.
 | Method | Route | Body |
 |--------|-------|------|
 | GET | `/status` | step + totalSteps in response |
+| GET | `/shows/list` | catalog saved shows + visual bookmarks (name/kind/desc/sections) — powers `shows.html` |
 | GET | `/show/steps` | list current timeline (truncated codes) |
 | GET | `/show/save` | return current timeline as JSON doc |
 | POST | `/show/load` | `{steps: [...]}` |
@@ -258,9 +259,135 @@ shutdown. Arrow keys ← → in the browser advance/back sections.
 
 ## Composing & Replaying Shows
 
+### What a "show" IS (read this before touching `shows/`)
+
+**A show is a bookmark that recreates something we already did live and Gene chose
+to keep.** It is not a composition authored up-front and it is not a recording of
+audio/video — it is just **code + metadata**, so shows are small (tens of KB) and
+diff-able. Replaying one re-fires the exact commands that produced the moment.
+
+- Shows come from **live play**, not from planning. Every accepted command is
+  auto-recorded; promoting a capture out of `shows/unsorted/` into `shows/` is
+  the act of "saving a show." Authoring one by hand (reconstructing the steps you
+  just fired) is equally valid when a capture is missing.
+- A show may be **music-only, visual-only, or both** — declare which via the
+  `kind` field (`"music"` | `"visual"` | `"both"`). e.g. `gqom_weight` is both;
+  `livecode_nyc_rehearsal_20260719` is visual-only (the music seat was untouched).
+- Shows are **curated and immutable**. `shows/*.show.json` is the keep-shelf;
+  `shows/unsorted/*.show.json` is the raw auto-capture bin (gitignored).
+- `/show/mark` steps cut the timeline into **named sections** — that is what the
+  arrow keys and the step-through UI move between. Mark generously; a show
+  without marks is one undifferentiated blob.
+- Name them for the moment (`gqom_weight`, `hard_techno_cs_minor`) or datestamp
+  a session (`livecode_nyc_rehearsal_20260719.show.json`).
+
+**⚠️ Save before you stop.** The autosave-on-shutdown does not always fire when
+the server is killed. Before `pkill`-ing `livecode.py`, run
+`curl localhost:8766/show/save_file -d '{"path":"shows/unsorted/…"}'` — otherwise
+the session's recording is lost and must be reconstructed from source.
+
+### Seamless transitions (the replay engine)
+
+Stepping a show behaves like live coding it. `/show/goto {step, at}` collapses
+the target's **net state** (last code per track/layer, honouring
+stop/remove/hush/clear), **diffs it against the live stage**, and lands only
+the differences on the next `at`-bar line through the conductor queue:
+
+- unchanged tracks/layers are **never touched** — the groove carries across
+- changed tracks replace atomically by name; removed ones stop on the bar line
+- the transport never resets → bar count stays continuous, beat-sync preserved
+- sample packs prefetch at `show/load_file` (background, deduped) so no
+  transition waits on the network; `p5/state` seeds apply just ahead of the seam
+- `at=0` or a stopped transport = immediate; `{hard:true}` forces the old
+  reset-then-rebuild; `goto -1` is always a full reset
+- loading a show does NOT reset the stage — the first goto segues from whatever
+  is playing, so show→show transitions (and setlist previews) are seamless
+- the response carries the **plan** (`tracksSet/tracksStopped/layersSet/…`,
+  `etaSeconds`) — the UI flashes it on every step
+
+Hard-won invariants (each was a live bug — do not regress):
+- **Transition queue items carry `record: False`.** `_record_step` punch-in
+  truncates the timeline after the current step; recorded transitions shredded
+  a 222-step show to 34.
+- **Never `_reset_state()` on a section step.** Reset ran hush + the
+  analyser-gated drain while the NEXT section started under the mute — the
+  analyser never read quiet, the mute held its full 8s cap, then snapped open:
+  that was the "10 s of silence then abrupt" replay bug.
+- **`_safe_send`: per-connection capped sends.** A backgrounded browser tab
+  keeps TCP open but stops draining; awaiting `gather(ws.send…)` on it wedged
+  every command for every client. Sends are fired concurrently with a 2 s cap
+  and the first healthy response wins.
+
+### Setlists — recombining sections (textual protocol)
+
+`setlist.py` treats a show SECTION as the atomic, addressable unit and builds
+new shows out of sections from any existing ones — fork by copying the file,
+recombine by reordering lines, reparameterize with key=value, git-diff like any
+text:
+
+```
+name: Friday closing set
+seam: 4
+gqom_weight#1
+disco_hall#1  cps=0.56 label="Jazzy but faster"
+disco_hall#13 only=drums,bass
+livecode_nyc_rehearsal_20260719#10 state.hue=200
+```
+
+`python3 setlist.py list <show>` (numbered sections) · `compile <f.setlist>
+[-o out]` · `play <f.setlist>` (compile + load). Overrides: `cps=`,
+`state.<k>=<v>`, `-tracks=a,b`, `-layers=a,b`, `only=a,b`, `label="…"`.
+Compilation collapses each source section to net state (replay-perfect) and
+emits `hush`+`clear` after each mark so sections are **self-contained** — the
+collapse folds those away (never fired at the browser), and the diff engine
+stops removed tracks on the bar line. A compiled setlist is an ordinary
+`.show.json`: steppable in `shows.html` and itself a valid setlist source.
+
+### Stepping through a saved show (browser UI)
+
+`localhost:8766/shows.html` — the **show browser**: lists everything in `shows/`
+and `shows/visuals/`, loads one, then steps it section-by-section either manually
+or on an auto-advance clock quantized to the conductor's bar line (so advances
+land in rhythm). Speed is a dwell in bars, and Gene can scrub/jump anywhere.
+
+- **Big preview pane** — embeds `livecode.html?visuals=1`, a *silent* second
+  client that renders p5 but never starts an AudioContext, never handles
+  strudel/transport, and **never sends a response** (it shares message ids with
+  the performing window; whichever client replies first wins, so a chatty
+  preview shadows the real one — that bug crashed `/q` outright).
+- **Hush** stops all music; **Panic** hushes *and* clears every visual layer.
+  Both cancel auto-advance, and both **drain** (below). Keyboard: `←` `→` step,
+  `space` auto, `H` hush.
+- **Killing stuck audio.** Measured behaviour: `/strudel/hush` on a single
+  `.delay()`+`.room()` track decays to the noise floor in ~3s, so hush itself is
+  not broken. But a timed drain is still the wrong primitive on stage — if
+  *anything* is still live when the window expires, the sound returns. So Hush
+  **latches**: `POST /strudel/mute {on:true}` pins the audio tap's monitor gain
+  at 0 and it STAYS there (verified holding 12s+ against an actively playing
+  track). Everything superdough makes passes through that gain, so the latch
+  silences a stuck node whatever is driving it. `_reset_state()` releases the
+  latch on every section rebuild — loading/stepping a section is an explicit
+  "play this now", so you can never be stranded silent. `POST /strudel/drain`
+  (mute until the analyser — which sits *upstream* of the gain, so it still sees
+  the tail — reports quiet, `maxMs` cap) covers the ordinary transition case;
+  `GET /strudel/drain_state` reports `{rms, peak, elapsed, timedOut}`, where
+  `timedOut: true` means the signal never decayed.
+  Two things that look like better fixes but kill audio permanently — do not
+  use: Strudel's `window.panic()` (nulls superdough's only master-gain
+  reference; nothing rebuilds it) and retiring/rebuilding the audio tap
+  (superdough connects master→destination *once*, so the orphaned edge never
+  reconnects).
+- **Clean transitions.** `/show/goto` rebuilds the show's **net state** at a
+  point — the last code per track/layer name, honouring stop/remove/hush/clear —
+  instead of re-firing every historical command. Re-firing hundreds of `track`
+  calls in a burst is what made jumps muddy (old sections audibly re-triggering
+  and piling up). `_replay_to(..., collapse=False)` keeps the old literal replay.
+  Note `/show/next` is still *additive* by design (faithful to how it was
+  played); the UI routes section moves through `goto` so they stay clean.
+
 ```bash
 # Replay a saved show
-python autoplay.py --show shows/full_show.show.json --dwell 16beats
+python autoplay.py --show shows/disco_hall.show.json --dwell 16beats
 
 # Author a new show (uses scenes lib + Composition context manager)
 python compositions/disco_set.py --step --save shows/unsorted/my_show.show.json
@@ -275,6 +402,7 @@ mv shows/unsorted/jam_<ts>.show.json shows/my_set.show.json
 | `scenes/_common.py` | `Composition` context manager (collect/save/perform) |
 | `compositions/*.py` | Recipes that combine scenes; --step --save creates a show |
 | `compositions/scripts/*.py` | Sub-script visuals/sections inlined by full_show.py |
+| `shows.html` | **Show browser UI** (`localhost:8766/shows.html`) — list saved shows, load one, step it by section manually or auto-advance quantized to the conductor's bar line |
 | `shows/*.show.json` | Curated, immutable, replayable performances |
 | `shows/unsorted/*.show.json` | Auto-captures (gitignored, sequestered) |
 | `shows/visuals/*.visuals.json` | Visual-only bookmarks — `vis_bookmark.py save/load/list` (never touches music) |
@@ -354,6 +482,7 @@ python p5_live.py             # visuals only — open http://localhost:8776/p5.h
 | `assets/prompts/author-brief.md` | **Visual authoring checklist** — exact gate numbers, universal params, aesthetic mandate, motion/luminance lessons |
 | `assets/prompts/generative-factory.md` | **Generative-art factory pass** — how to run a wave-based +100-asset build (Ralph-loop doctrine) |
 | `research/generative/FINAL_REPORT.md` | **What's in the genart catalog now** (374 genart of 803 indexed visual assets) — coverage by family, ranked self-grades, second-pass brief |
+| `shows.html` | **Show browser / step-through UI** — the surface for replaying a saved show section-by-section, in rhythm |
 | `grade.html` | **Browser grader** (`localhost:8766/grade.html`) — live-render + bad/ok/good every genart, exports `visual-grades.jsonl` |
 | **`assets/music/README.md`** | **Music catalog system — START HERE for music.** Run/use/author/verify/grade the stems+kits+arcs catalog; the map to CONTRACT + BUNDLE + the toolchain |
 | `assets/music/browse.html` | **Music browser + grader** (`localhost:9766/assets/music/browse.html`) — audition the sound space by keyboard, fire kits through arcs, grade bad/ok/good → `assets/music/grades.jsonl` |
