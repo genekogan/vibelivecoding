@@ -410,7 +410,7 @@ mv shows/unsorted/jam_<ts>.show.json shows/my_set.show.json
 | `performances/` | Archival MP4 recordings of past performances — not loaded by code |
 | `autoplay.py` | Driver — advances show on a clock (Ns/Nbeats/Nbars/Ncycles) |
 | `.claude/skills/livecode-compose.md` | Composition skill (scene catalog + cookbook) |
-| `test_steps.py` | Playwright regression (`python test_steps.py` — 118 checks, 15 phases incl. conductor score; starts its own server) |
+| `test_steps.py` | Playwright regression (`python test_steps.py` — 119 checks, 15 phases incl. conductor score; starts its own server) |
 
 ## Autopilot — Autonomous Improv Loop
 
@@ -493,7 +493,7 @@ python p5_live.py             # visuals only — open http://localhost:8776/p5.h
 | `.claude/skills/livecode-compose.md` | **Showrunner skill** — author/record/replay shows w/ scenes lib |
 | `.claude/skills/autopilot.md` | **Autopilot skill** — autonomous in-session improv loop |
 | **`.claude/skills/livecode-improv.md`** | **Improv skill — START HERE to perform live.** Transition doctrine (bar lines, phase-in, keep the beat), the silent-failure catalog, load/fps traps, saved sets, craft notes |
-| `assets/sets/*.json` | **Saved sets** (`livecode-set-v1`) — a kit×arc + visual stack + params + grade that actually worked. `set_play.py` / `set_save.py` |
+| `assets/sets/*.json` | **Saved sets** (`livecode-set-v1`) — a kit×arc + visual stack + params + grade that actually worked. `assets/tools/set_play.py` / `assets/tools/set_save.py` |
 | `docs/livestreaming-obs.md` | **Livestream runbook** — manual OBS → X/Twitch, audio routing, Restart-capture gotcha |
 | `docs/archive/headless-browser-streaming.md` | **Defunct** — old `stream.py` headless-browser→FFmpeg→Twitch (archived, revival notes) |
 | `docs/strudel-reference.md` | Complete Strudel API reference |
